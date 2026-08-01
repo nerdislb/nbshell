@@ -8,6 +8,7 @@ import qs.Common
 import qs.Services
 import qs.Bar
 import qs.Launcher
+import qs.Osd
 
 // nbshell -- Einstiegspunkt.
 //
@@ -35,6 +36,7 @@ ShellRoot {
         void Audio.ready;
         void ThemeIndex.list;
         void Apps.entries;
+        void Osd.enabled;
     }
 
     Bar {}
@@ -42,6 +44,8 @@ ShellRoot {
     Wallpaper {}
 
     Launcher {}
+
+    Osd {}
 
     // ── Steuerung von aussen ──────────────────────────────────────────────
     // Aufrufbar als `nbshell <ziel> <befehl>`, siehe bin/nbshell.
@@ -101,6 +105,36 @@ ShellRoot {
 
         function current(): string {
             return Config.theme;
+        }
+    }
+
+    IpcHandler {
+        target: "osd"
+
+        // Zum Ausprobieren, ohne an einem Regler zu drehen.
+        function test(): string {
+            Osd.show("volume");
+            return Osd.showing ? "sichtbar" : "unterdrueckt";
+        }
+
+        function on(): string {
+            Config.set("osd", true);
+            return "an";
+        }
+
+        function off(): string {
+            Config.set("osd", false);
+            return "aus";
+        }
+
+        function status(): string {
+            return JSON.stringify({
+                "an": Osd.enabled,
+                "bereit": Osd.armed,
+                "sichtbar": Osd.showing,
+                "art": Osd.kind,
+                "wert": Osd.value
+            });
         }
     }
 

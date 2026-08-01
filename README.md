@@ -8,8 +8,8 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **0.6.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
-Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
+Stand: **0.7.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
 ## Installieren
@@ -53,6 +53,9 @@ nbshell audio panel      # Regler und Geraeteliste
 
 nbshell launcher         # Anwendungsstarter (Alias: run)
 nbshell find ghost       # zeigt, was er finden wuerde
+
+nbshell osd test         # Einblendung ausprobieren
+nbshell osd on | off
 
 nbshell control          # Control Center
 nbshell brightness up | down | 60
@@ -184,6 +187,23 @@ reiner Knopf waere verschenkter Platz. Ein Klick klappt drei Abschnitte auf:
 Netz und Bluetooth kommen aus Quickshells eigenen Modulen — kein `nmcli`,
 kein `bluetoothctl` dazwischen.
 
+## Einblendung (OSD)
+
+Wer an Lautstaerke, Mikrofon oder Helligkeit dreht, sieht kurz einen Kasten
+mit Balken und Wert — auch dann, wenn die Leiste gerade zugeklappt ist. Sie
+erscheint immer **gegenueber der Leiste**: steht die Insel unten, blendet sie
+oben ein. Sonst legen sich die beiden uebereinander.
+
+Wer den passenden Regler schon offen vor sich hat, bekommt sie nicht: das
+Audio-Popout unterdrueckt die Lautstaerke-Einblendung, das Control Center die
+der Helligkeit.
+
+Einstellbar: `osd` (an/aus) und `osdTimeout` in Millisekunden. Zum Ausprobieren
+`nbshell osd test`.
+
+Die ersten anderthalb Sekunden nach dem Start bleibt sie stumm — dort setzen
+sich die Werte erst, und ohne die Sperre blitzte sie bei jedem Neustart auf.
+
 ## Hintergrundbild
 
 `nbshell wallpaper on` haengt den Hintergrund ans Theme: jedes Omarchy-Theme
@@ -255,11 +275,13 @@ shell/
   Services/Net.qml     NetworkManager ueber Quickshell
   Services/Bt.qml      BlueZ ueber Quickshell
   Services/Brightness.qml  sysfs lesen, logind setzen
+  Services/Osd.qml     Zustand der Einblendung
   Widgets/LevelBar.qml Balken aus Bloecken
   Widgets/Cell.qml     der eine Baustein, aus dem alles besteht
   Bar/Bar.qml          das Fenster: Insel oder Balken
   Bar/Wallpaper.qml    Hintergrundbild je Bildschirm
   Launcher/Launcher.qml  Anwendungsstarter
+  Osd/Osd.qml          die Einblendung je Bildschirm
   Bar/WidgetHost.qml   Name -> Komponente
   Bar/Widgets/         die Bausteine
   Widgets/Popout.qml   Fenster, das an einer Zelle haengt
@@ -284,6 +306,11 @@ doppelt gebaut werden, und der Uebergang laesst sich animieren.
   Sichtbarkeit eines Kindes enthaelt immer die des Elternteils — fragt die
   Huelle `item.visible` ab, um ihr eigenes `visible` zu setzen, liest sie ihre
   eigene Antwort, und beide bleiben fuer immer unsichtbar. Lautlos.
+- **Kinder eines Positionierers duerfen keine `anchors` haben.** Mit ihnen
+  meldet die Reihe Breite 0, der Kasten darum schrumpft auf nichts, und man
+  sucht den Fehler beim Fenster — obwohl das laengst da ist (`niri msg
+  -j layers` zeigt es). Genau so ist die Einblendung anfangs unsichtbar
+  geblieben.
 - **Ein Positionierer rechnet seine implizite Groesse selbst aus.** `Column`
   und `Row` verweigern jede Zuweisung an `implicitWidth`/`implicitHeight`
   („read-only property") — die Breite gehoert an die Kinder.
@@ -314,7 +341,7 @@ Der Reihe nach, wie es fuer den Alltag zaehlt:
 - **Benachrichtigungen** — der Server steckt in Quickshell, es fehlen Popups
   und Verlauf.
 - **Netz ohne NetworkManager** — nur dessen Backend ist angebunden.
-- **OSD** fuer Lautstaerke und Helligkeit, **Power-Menue**, **Zwischenablage**.
+- **Power-Menue**, **Zwischenablage**.
 - **Anwendungslautstaerken** — die Stroeme einzelner Programme.
 - **Haeufig Benutztes im Starter** — er sortiert nur nach Treffergenauigkeit,
   merkt sich also nicht, was du oft startest.
