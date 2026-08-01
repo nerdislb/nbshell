@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# nbshell -- Startet und steuert die Shell.
+#
+# Duenne Huelle um `qs -c nbshell`. Alles, was nicht als Unterbefehl bekannt
+# ist, wandert unveraendert an Quickshell weiter.
+set -euo pipefail
+
+CONFIG_NAME="nbshell"
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/nbshell"
+
+qs_bin() {
+    if command -v qs >/dev/null 2>&1; then echo qs; else echo quickshell; fi
+}
+
+QS="$(qs_bin)"
+
+ipc() {
+    "$QS" -c "$CONFIG_NAME" ipc call "$@"
+}
+
+usage() {
+    cat <<'USAGE'
+nbshell -- eigene Shell auf Quickshell
+
+  nbshell start [-d]        startet die Shell (-d loest sie vom Terminal)
+  nbshell stop              beendet sie
+  nbshell restart
+
+  nbshell bar               durchgehender Balken
+  nbshell island            freistehende Insel
+  nbshell mode toggle       zwischen beidem wechseln
+  nbshell edge top|bottom|toggle
+  nbshell open|close|toggle Insel festhalten (unabhaengig von der Maus)
+
+  nbshell theme             zeigt das aktuelle Theme
+  nbshell theme <name>      wechselt es
+  nbshell themes            listet die vorhandenen
+
+  nbshell get <key>         Wert aus der Config
+  nbshell set <key> <wert>  Wert setzen (JSON erlaubt: 12, true, ["a","b"])
+  nbshell config            zeigt die ganze Config
+  nbshell status
+
+Alles andere geht unveraendert an Quickshell:
+  nbshell log, nbshell ipc show, ...
+USAGE
+}
+
+cmd="${1:-}"
+[ $# -gt 0 ] && shift || true
+
+case "$cmd" in
+    ""|-h|--help|help)
+        usage
+        ;;
+    start)
+        exec "$QS" -c "$CONFIG_NAME" "$@"
+        ;;
+    stop)
+        exec "$QS" -c "$CONFIG_NAME" kill
+        ;;
+    restart)
+        "$QS" -c "$CONFIG_NAME" kill 2>/dev/null || true
+        sleep 0.3
+        exec "$QS" -c "$CONFIG_NAME" -d
+        ;;
+    bar|island)
+        ipc bar mode "$cmd" >/dev/null && echo "$cmd"
+        ;;
+    mode|edge)
+        ipc bar "$cmd" "${1:-toggle}"
+        ;;
+    open|close|toggle)
+        ipc bar "$cmd"
+        ;;
+    theme)
+        if [ $# -eq 0 ]; then ipc theme current; else ipc theme set "$1"; fi
+        ;;
+    themes)
+        # Der Stern markiert das aktive Theme.
+        current="$(ipc theme current 2>/dev/null || true)"
+        for d in "$CONFIG_DIR"/themes/*/; do
+            name="$(basename "$d")"
+            [ "$name" = "$current" ] && printf ' * %s\n' "$name" || printf '   %s\n' "$name"
+        done
+        ;;
+    get)
+        ipc config get "${1:?Schluessel fehlt}"
+        ;;
+    set)
+        ipc config set "${1:?Schluessel fehlt}" "${2:?Wert fehlt}"
+        ;;
+    config)
+        ipc config dump
+        ;;
+    status)
+        ipc bar status
+        ;;
+    *)
+        exec "$QS" -c "$CONFIG_NAME" "$cmd" "$@"
+        ;;
+esac
