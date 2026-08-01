@@ -8,8 +8,8 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **0.5.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
-Farbproben, Hintergrundbild am Theme, Audio, Control Center, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
+Stand: **0.6.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
 ## Installieren
@@ -51,6 +51,9 @@ nbshell audio mute
 nbshell audio 40         # fest einstellen
 nbshell audio panel      # Regler und Geraeteliste
 
+nbshell launcher         # Anwendungsstarter (Alias: run)
+nbshell find ghost       # zeigt, was er finden wuerde
+
 nbshell control          # Control Center
 nbshell brightness up | down | 60
 
@@ -71,6 +74,9 @@ Mod+Shift+I hotkey-overlay-title="nbshell: Insel/Balken" {
 }
 Mod+Shift+T hotkey-overlay-title="nbshell: Themewahl" {
     spawn "nbshell" "picker";
+}
+Mod+D hotkey-overlay-title="nbshell: Anwendungsstarter" {
+    spawn "nbshell" "launcher";
 }
 ```
 
@@ -135,6 +141,28 @@ XF86AudioMicMute     allow-when-locked=true { spawn "nbshell" "audio" "micmute";
 Ohne Beobachter (`PwObjectTracker`) bleiben Pipewires Knoten leer — die Daten
 kommen erst, wenn jemand sie im Auge behaelt. Das ist der uebliche Stolperstein
 bei Pipewire in Quickshell.
+
+## Anwendungsstarter
+
+`Mod+D` oder `nbshell launcher`. Tippen sucht, `↑↓` (oder `Ctrl-N`/`Ctrl-P`)
+waehlt, Enter startet, Esc schliesst. Findet die Eingabe nichts, wird sie als
+Befehl ausgefuehrt — wie in einem Terminal, nur ohne eines zu oeffnen.
+
+Die Liste kommt von Quickshells `DesktopEntries`, das die .desktop-Dateien
+aller XDG-Pfade schon eingelesen hat. Gesucht wird als Teilfolge mit
+Zuschlaegen: Treffer am Wortanfang zaehlen mehr, aufeinanderfolgende noch
+mehr, und ein Name, der direkt mit der Eingabe beginnt, gewinnt fast immer.
+Zweitname und Beschreibung zaehlen nur halb — sonst draengt sich ein Programm
+nach vorn, weil in seinem Fliesstext zufaellig die Buchstaben vorkommen.
+
+Anwendungen mit `Terminal=true` bekommen eines: `$TERMINAL`, oder was in der
+Config unter `terminal` steht. Ohne das faende ein Start von `htop` still
+nicht statt.
+
+Das Fenster nimmt sich die Tastatur exklusiv (`keyboardFocus: Exclusive`) --
+sonst liesse sich nicht tippen, waehrend darunter ein Fenster den Fokus haelt.
+Es gibt es genau einmal, nicht je Bildschirm: ein zweiter Starter waere ein
+zweites Eingabefeld mit eigenem Zustand.
 
 ## Control Center
 
@@ -223,6 +251,7 @@ shell/
   Services/Niri.qml    niri-IPC: Arbeitsflaechen, Fenster, Tastatur
   Services/SysInfo.qml /proc/stat und /proc/meminfo
   Services/Audio.qml   Pipewire: Lautstaerke, Geraete
+  Services/Apps.qml    .desktop-Eintraege, Suche, Starten
   Services/Net.qml     NetworkManager ueber Quickshell
   Services/Bt.qml      BlueZ ueber Quickshell
   Services/Brightness.qml  sysfs lesen, logind setzen
@@ -230,6 +259,7 @@ shell/
   Widgets/Cell.qml     der eine Baustein, aus dem alles besteht
   Bar/Bar.qml          das Fenster: Insel oder Balken
   Bar/Wallpaper.qml    Hintergrundbild je Bildschirm
+  Launcher/Launcher.qml  Anwendungsstarter
   Bar/WidgetHost.qml   Name -> Komponente
   Bar/Widgets/         die Bausteine
   Widgets/Popout.qml   Fenster, das an einer Zelle haengt
@@ -283,10 +313,11 @@ Der Reihe nach, wie es fuer den Alltag zaehlt:
 
 - **Benachrichtigungen** — der Server steckt in Quickshell, es fehlen Popups
   und Verlauf.
-- **Launcher** — Anwendungssuche.
 - **Netz ohne NetworkManager** — nur dessen Backend ist angebunden.
 - **OSD** fuer Lautstaerke und Helligkeit, **Power-Menue**, **Zwischenablage**.
 - **Anwendungslautstaerken** — die Stroeme einzelner Programme.
+- **Haeufig Benutztes im Starter** — er sortiert nur nach Treffergenauigkeit,
+  merkt sich also nicht, was du oft startest.
 - **System-Tray.**
 - **Sperrbildschirm** — hier wird bewusst nichts Eigenes gebaut; ein Fehler
   darin sperrt dich aus. hyprlock tut es.

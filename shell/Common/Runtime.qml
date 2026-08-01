@@ -18,4 +18,5 @@ Singleton {
     property bool themePickerOpen: false
     property bool audioPanelOpen: false
     property bool controlOpen: false
+    property bool launcherOpen: false
 }

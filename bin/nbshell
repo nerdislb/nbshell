@@ -44,6 +44,9 @@ nbshell -- eigene Shell auf Quickshell
   nbshell audio status
   nbshell audio panel       Regler und Geraeteliste aufklappen
 
+  nbshell launcher          Anwendungsstarter (Alias: run)
+  nbshell find <text>       zeigt, was der Starter finden wuerde
+
   nbshell control           Control Center (Helligkeit, WLAN, Bluetooth)
   nbshell brightness up|down|<prozent>
 
@@ -105,6 +108,12 @@ case "$cmd" in
             up|down|mute|micmute|status|panel) ipc audio "${1:-status}" ;;
             *) ipc audio set "$1" ;;
         esac
+        ;;
+    launcher|run)
+        ipc launcher "${1:-toggle}"
+        ;;
+    find)
+        ipc launcher find "${1:?Suchbegriff fehlt}"
         ;;
     control)
         ipc control "${1:-toggle}"

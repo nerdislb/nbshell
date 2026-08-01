@@ -7,6 +7,7 @@ import Quickshell.Io
 import qs.Common
 import qs.Services
 import qs.Bar
+import qs.Launcher
 
 // nbshell -- Einstiegspunkt.
 //
@@ -33,11 +34,14 @@ ShellRoot {
         void Bt.available;
         void Audio.ready;
         void ThemeIndex.list;
+        void Apps.entries;
     }
 
     Bar {}
 
     Wallpaper {}
+
+    Launcher {}
 
     // ── Steuerung von aussen ──────────────────────────────────────────────
     // Aufrufbar als `nbshell <ziel> <befehl>`, siehe bin/nbshell.
@@ -97,6 +101,34 @@ ShellRoot {
 
         function current(): string {
             return Config.theme;
+        }
+    }
+
+    IpcHandler {
+        target: "launcher"
+
+        function open(): string {
+            Runtime.launcherOpen = true;
+            return "offen";
+        }
+
+        function close(): string {
+            Runtime.launcherOpen = false;
+            return "zu";
+        }
+
+        function toggle(): string {
+            Runtime.launcherOpen = !Runtime.launcherOpen;
+            return Runtime.launcherOpen ? "offen" : "zu";
+        }
+
+        // Zum Pruefen ohne Tastatur -- und praktisch fuer Skripte.
+        function find(query: string): string {
+            return Apps.search(query).slice(0, 10).map(e => e.name).join("\n");
+        }
+
+        function count(): string {
+            return String(Apps.entries.length);
         }
     }
 
