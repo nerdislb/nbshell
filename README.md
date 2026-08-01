@@ -8,8 +8,8 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **0.3.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
-Farbproben, Hintergrundbild am Theme, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
+Stand: **0.4.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Farbproben, Hintergrundbild am Theme, Audio, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
 ## Installieren
@@ -45,6 +45,11 @@ nbshell theme gruvbox    # wechseln
 nbshell themes           # alle 21 auflisten
 nbshell picker           # Themewahl aufklappen
 nbshell next | prev      # ein Theme weiter
+
+nbshell audio up | down  # Lautstaerke, fuer die Multimediatasten
+nbshell audio mute
+nbshell audio 40         # fest einstellen
+nbshell audio panel      # Regler und Geraeteliste
 
 nbshell wallpaper on     # Hintergrundbild des Themes
 nbshell wallpaper ~/bild.jpg   # festes Bild stattdessen
@@ -85,8 +90,8 @@ aendert, aendert die ganze Leiste mit — `nbshell set fontSize 15` genuegt.
 Einstellbar in `config.json`: `theme`, `font`, `fontSize`, `mode`, `edge`,
 `gap`, `lines`, `padX`, `padY`, `radius`, `borderWidth`, `opacity`,
 `widgetStyle` (`box` | `bracket` | `plain`), `collapseDelay`, `clockFormat`,
-`titleLength`, `locale`, `wallpaper`, `wallpaperOverride` und die vier
-Bausteinlisten.
+`titleLength`, `locale`, `wallpaper`, `wallpaperOverride`, `maxVolume` und die
+vier Bausteinlisten.
 
 ## Themes — omarchy2dms, hier eingebaut
 
@@ -104,6 +109,29 @@ Wallpaper werden an drei Stellen gesucht: beim Theme selbst
 Der Baustein `themes` zeigt das aktive Theme; ein Klick klappt die Liste mit
 Farbproben auf, das Mausrad blaettert direkt durch, `nbshell picker` oeffnet
 sie per Tastenkuerzel.
+
+## Audio
+
+Der Baustein `volume` zeigt die Lautstaerke; Mausrad regelt, Rechtsklick
+schaltet stumm, ein Klick klappt Regler, Mikrofon und die Liste der Ausgaben
+auf. Die Anbindung ist Quickshells Pipewire-Modul — kein `pactl` und kein
+`wpctl` dazwischen.
+
+Der Regler ist ein Balken aus Bloecken (`Widgets/LevelBar.qml`), 24 Zeichen
+breit: gefuellt bis zum Wert, danach gedaempft. Klicken und Ziehen setzt ihn.
+
+Fuer die Multimediatasten in niri:
+
+```kdl
+XF86AudioRaiseVolume allow-when-locked=true { spawn "nbshell" "audio" "up"; }
+XF86AudioLowerVolume allow-when-locked=true { spawn "nbshell" "audio" "down"; }
+XF86AudioMute        allow-when-locked=true { spawn "nbshell" "audio" "mute"; }
+XF86AudioMicMute     allow-when-locked=true { spawn "nbshell" "audio" "micmute"; }
+```
+
+Ohne Beobachter (`PwObjectTracker`) bleiben Pipewires Knoten leer — die Daten
+kommen erst, wenn jemand sie im Auge behaelt. Das ist der uebliche Stolperstein
+bei Pipewire in Quickshell.
 
 ## Hintergrundbild
 
@@ -146,7 +174,8 @@ erst beim Aufklappen.
 
 ## Bausteine
 
-`clock`, `workspaces`, `window`, `sys`, `battery`, `layout`, `themes`, `sep`.
+`clock`, `workspaces`, `window`, `sys`, `battery`, `layout`, `themes`,
+`volume`, `sep`.
 
 Vier Listen sagen, was wo steht:
 
@@ -170,6 +199,8 @@ shell/
   Common/Runtime.qml   fluechtiger Zustand, den alle Fenster teilen
   Services/Niri.qml    niri-IPC: Arbeitsflaechen, Fenster, Tastatur
   Services/SysInfo.qml /proc/stat und /proc/meminfo
+  Services/Audio.qml   Pipewire: Lautstaerke, Geraete
+  Widgets/LevelBar.qml Balken aus Bloecken
   Widgets/Cell.qml     der eine Baustein, aus dem alles besteht
   Bar/Bar.qml          das Fenster: Insel oder Balken
   Bar/Wallpaper.qml    Hintergrundbild je Bildschirm
@@ -220,11 +251,12 @@ koennen gleichzeitig laufen — nbshell beansprucht bewusst keine D-Bus-Namen
 
 Der Reihe nach, wie es fuer den Alltag zaehlt:
 
-- **Control Center** — Audio (Pipewire), Netz, Bluetooth, Helligkeit.
+- **Control Center** — Netz, Bluetooth, Helligkeit (Audio steht).
 - **Benachrichtigungen** — der Server steckt in Quickshell, es fehlen Popups
   und Verlauf.
 - **Launcher** — Anwendungssuche.
 - **OSD** fuer Lautstaerke und Helligkeit, **Power-Menue**, **Zwischenablage**.
+- **Anwendungslautstaerken** — die Stroeme einzelner Programme.
 - **System-Tray.**
 - **Sperrbildschirm** — hier wird bewusst nichts Eigenes gebaut; ein Fehler
   darin sperrt dich aus. hyprlock tut es.

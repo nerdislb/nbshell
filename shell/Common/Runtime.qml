@@ -16,4 +16,5 @@ Singleton {
     // Der Themewaehler laesst sich auch per Tastenkuerzel oeffnen, nicht nur
     // durch einen Klick auf die Zelle.
     property bool themePickerOpen: false
+    property bool audioPanelOpen: false
 }

@@ -38,6 +38,12 @@ nbshell -- eigene Shell auf Quickshell
   nbshell picker            Themewahl aufklappen
   nbshell next | prev       ein Theme weiter/zurueck
 
+  nbshell audio up|down     Lautstaerke (fuer die Multimediatasten)
+  nbshell audio mute        stumm schalten
+  nbshell audio <prozent>   fest einstellen
+  nbshell audio status
+  nbshell audio panel       Regler und Geraeteliste aufklappen
+
   nbshell wallpaper on|off  Hintergrundbild des Themes (aus, solange DMS laeuft)
   nbshell wallpaper <pfad>  festes Bild statt des Themebildes
 
@@ -90,6 +96,12 @@ case "$cmd" in
         ;;
     picker)
         ipc themes toggle
+        ;;
+    audio)
+        case "${1:-status}" in
+            up|down|mute|micmute|status|panel) ipc audio "${1:-status}" ;;
+            *) ipc audio set "$1" ;;
+        esac
         ;;
     wallpaper)
         case "${1:-current}" in

@@ -90,6 +90,50 @@ ShellRoot {
     }
 
     IpcHandler {
+        target: "audio"
+
+        // Fuer die Multimediatasten: XF86AudioRaiseVolume -> `nbshell audio up`
+        function up(): string {
+            return String(Audio.step(5));
+        }
+
+        function down(): string {
+            return String(Audio.step(-5));
+        }
+
+        function set(percent: string): string {
+            return String(Audio.setVolume(parseInt(percent, 10)));
+        }
+
+        function mute(): string {
+            Audio.toggleMute();
+            return Audio.muted ? "stumm" : String(Audio.volume);
+        }
+
+        function micmute(): string {
+            Audio.setMicMuted(!Audio.micMuted);
+            return Audio.micMuted ? "stumm" : String(Audio.micVolume);
+        }
+
+        function panel(): string {
+            Runtime.islandOpen = true;
+            Runtime.audioPanelOpen = !Runtime.audioPanelOpen;
+            return Runtime.audioPanelOpen ? "offen" : "zu";
+        }
+
+        function status(): string {
+            return JSON.stringify({
+                "volume": Audio.volume,
+                "muted": Audio.muted,
+                "sink": Audio.label(Audio.sink),
+                "mic": Audio.micVolume,
+                "micMuted": Audio.micMuted,
+                "sinks": Audio.sinks.map(n => Audio.label(n))
+            });
+        }
+    }
+
+    IpcHandler {
         target: "wallpaper"
 
         function on(): string {
