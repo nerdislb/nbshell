@@ -44,6 +44,9 @@ nbshell -- eigene Shell auf Quickshell
   nbshell audio status
   nbshell audio panel       Regler und Geraeteliste aufklappen
 
+  nbshell control           Control Center (Helligkeit, WLAN, Bluetooth)
+  nbshell brightness up|down|<prozent>
+
   nbshell wallpaper on|off  Hintergrundbild des Themes (aus, solange DMS laeuft)
   nbshell wallpaper <pfad>  festes Bild statt des Themebildes
 
@@ -101,6 +104,15 @@ case "$cmd" in
         case "${1:-status}" in
             up|down|mute|micmute|status|panel) ipc audio "${1:-status}" ;;
             *) ipc audio set "$1" ;;
+        esac
+        ;;
+    control)
+        ipc control "${1:-toggle}"
+        ;;
+    brightness)
+        case "${1:-}" in
+            up|down) ipc brightness "$1" ;;
+            *) ipc brightness set "${1:?Prozent fehlt}" ;;
         esac
         ;;
     wallpaper)

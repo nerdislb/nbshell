@@ -8,8 +8,8 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **0.4.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
-Farbproben, Hintergrundbild am Theme, Audio, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
+Stand: **0.5.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Farbproben, Hintergrundbild am Theme, Audio, Control Center, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
 ## Installieren
@@ -50,6 +50,9 @@ nbshell audio up | down  # Lautstaerke, fuer die Multimediatasten
 nbshell audio mute
 nbshell audio 40         # fest einstellen
 nbshell audio panel      # Regler und Geraeteliste
+
+nbshell control          # Control Center
+nbshell brightness up | down | 60
 
 nbshell wallpaper on     # Hintergrundbild des Themes
 nbshell wallpaper ~/bild.jpg   # festes Bild stattdessen
@@ -133,6 +136,26 @@ Ohne Beobachter (`PwObjectTracker`) bleiben Pipewires Knoten leer — die Daten
 kommen erst, wenn jemand sie im Auge behaelt. Das ist der uebliche Stolperstein
 bei Pipewire in Quickshell.
 
+## Control Center
+
+Der Baustein `control` zeigt in der Leiste, an welchem Netz du haengst — ein
+reiner Knopf waere verschenkter Platz. Ein Klick klappt drei Abschnitte auf:
+
+- **Helligkeit** als Balken. Gelesen wird aus `/sys/class/backlight`, gesetzt
+  ueber logind (`SetBrightness`). Das ist der Weg ohne Zusatzpaket und ohne
+  udev-Regel: logind erlaubt es jeder Sitzung, die gerade aktiv ist.
+  `brightnessctl` waere ein weiteres Paket auf jedem neuen Rechner.
+- **WLAN** an/aus, die staerksten acht Netze mit Signalbalken und Schloss.
+  Klick verbindet, bei einem unbekannten verschluesselten Netz klappt eine
+  Passwortzeile auf (Enter verbindet, Esc bricht ab). Ein Klick auf das
+  verbundene Netz trennt.
+- **Bluetooth** an/aus und die Geraete: verbundene zuerst, Klick verbindet
+  oder trennt, ein unbekanntes wird gekoppelt. Akkustand steht dabei, wenn das
+  Geraet ihn meldet.
+
+Netz und Bluetooth kommen aus Quickshells eigenen Modulen — kein `nmcli`,
+kein `bluetoothctl` dazwischen.
+
 ## Hintergrundbild
 
 `nbshell wallpaper on` haengt den Hintergrund ans Theme: jedes Omarchy-Theme
@@ -175,7 +198,7 @@ erst beim Aufklappen.
 ## Bausteine
 
 `clock`, `workspaces`, `window`, `sys`, `battery`, `layout`, `themes`,
-`volume`, `sep`.
+`volume`, `control`, `sep`.
 
 Vier Listen sagen, was wo steht:
 
@@ -200,6 +223,9 @@ shell/
   Services/Niri.qml    niri-IPC: Arbeitsflaechen, Fenster, Tastatur
   Services/SysInfo.qml /proc/stat und /proc/meminfo
   Services/Audio.qml   Pipewire: Lautstaerke, Geraete
+  Services/Net.qml     NetworkManager ueber Quickshell
+  Services/Bt.qml      BlueZ ueber Quickshell
+  Services/Brightness.qml  sysfs lesen, logind setzen
   Widgets/LevelBar.qml Balken aus Bloecken
   Widgets/Cell.qml     der eine Baustein, aus dem alles besteht
   Bar/Bar.qml          das Fenster: Insel oder Balken
@@ -237,6 +263,10 @@ doppelt gebaut werden, und der Uebergang laesst sich animieren.
   eine einzige Zeile erwischt (die Raute jeder Farbe galt als Kommentar) — und
   weil die Vorgaben ein vollstaendiges Theme sind, sah alles richtig aus. Faellt
   die Palette zu klein aus, warnt die Shell jetzt.
+- **Ein Singleton entsteht erst, wenn es jemand anfasst.** Ein Dienst, der von
+  sich aus beobachten soll (Helligkeit, Netz, Audio), tut bis dahin gar nichts
+  — und meldet beim ersten Zugriff brav Nullwerte, ohne dass etwas kaputt
+  aussieht. `shell.qml` beruehrt sie deshalb einmal beim Start.
 - **`install.sh` beendet eine laufende Instanz.** Quickshell laedt bei jeder
   Dateiaenderung neu und wuerde mitten im Austausch eine halbe Shell lesen.
 
@@ -251,10 +281,10 @@ koennen gleichzeitig laufen — nbshell beansprucht bewusst keine D-Bus-Namen
 
 Der Reihe nach, wie es fuer den Alltag zaehlt:
 
-- **Control Center** — Netz, Bluetooth, Helligkeit (Audio steht).
 - **Benachrichtigungen** — der Server steckt in Quickshell, es fehlen Popups
   und Verlauf.
 - **Launcher** — Anwendungssuche.
+- **Netz ohne NetworkManager** — nur dessen Backend ist angebunden.
 - **OSD** fuer Lautstaerke und Helligkeit, **Power-Menue**, **Zwischenablage**.
 - **Anwendungslautstaerken** — die Stroeme einzelner Programme.
 - **System-Tray.**

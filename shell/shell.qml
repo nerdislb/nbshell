@@ -22,6 +22,17 @@ ShellRoot {
         // damit Speichern statt Neustarten.
         Quickshell.watchFiles = true;
         console.info("nbshell laeuft — Theme:", Config.theme, "| Modus:", Config.mode);
+
+        // Singletons entstehen in QML erst, wenn sie jemand anfasst. Die
+        // Dienste, die von aussen beobachten (Helligkeit, Netz, Bluetooth,
+        // Audio, Themeliste), muessen deshalb hier einmal beruehrt werden --
+        // sonst faengt der Helligkeitsdienst erst an zu suchen, wenn das
+        // Control Center zum ersten Mal aufgeht, und zeigt so lange 0 %.
+        void Brightness.available;
+        void Net.summary;
+        void Bt.available;
+        void Audio.ready;
+        void ThemeIndex.list;
     }
 
     Bar {}
@@ -86,6 +97,44 @@ ShellRoot {
 
         function current(): string {
             return Config.theme;
+        }
+    }
+
+    IpcHandler {
+        target: "control"
+
+        function toggle(): string {
+            Runtime.islandOpen = true;
+            Runtime.controlOpen = !Runtime.controlOpen;
+            return Runtime.controlOpen ? "offen" : "zu";
+        }
+
+        function status(): string {
+            return JSON.stringify({
+                "netz": Net.summary,
+                "online": Net.online,
+                "wlan": Net.wifiEnabled,
+                "netze": Net.wifiNetworks.length,
+                "bluetooth": Bt.enabled,
+                "verbunden": Bt.connected.map(d => Bt.label(d)),
+                "helligkeit": Brightness.available ? Brightness.percent : -1
+            });
+        }
+    }
+
+    IpcHandler {
+        target: "brightness"
+
+        function up(): string {
+            return String(Brightness.step(5));
+        }
+
+        function down(): string {
+            return String(Brightness.step(-5));
+        }
+
+        function set(percent: string): string {
+            return String(Brightness.set(parseInt(percent, 10)));
         }
     }
 

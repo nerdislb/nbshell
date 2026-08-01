@@ -64,6 +64,8 @@ Item {
             return themesComponent;
         case "volume":
             return volumeComponent;
+        case "control":
+            return controlComponent;
         }
         console.warn("nbshell: unbekannter Baustein:", name);
         return null;
@@ -112,5 +114,10 @@ Item {
     Component {
         id: volumeComponent
         Volume {}
+    }
+
+    Component {
+        id: controlComponent
+        Control {}
     }
 }

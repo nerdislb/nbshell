@@ -17,4 +17,5 @@ Singleton {
     // durch einen Klick auf die Zelle.
     property bool themePickerOpen: false
     property bool audioPanelOpen: false
+    property bool controlOpen: false
 }

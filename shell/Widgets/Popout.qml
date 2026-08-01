@@ -18,11 +18,16 @@ PopupWindow {
     property Item anchorItem: null
     property Component contentComponent: null
 
+    // Nur wo getippt wird (Passwort im Control Center): ein Griff auf die
+    // Tastatur nimmt sie dem Fenster darunter weg.
+    property bool takesKeyboard: false
+
     // Innenabstand in Zellen, damit auch das Popout auf dem Raster sitzt.
     readonly property real padding: Theme.cellW * 2
 
     color: "transparent"
     visible: false
+    grabFocus: takesKeyboard && visible
 
     implicitWidth: loader.item ? loader.item.implicitWidth + padding * 2 + Theme.borderWidth * 2 : 1
     implicitHeight: loader.item ? loader.item.implicitHeight + padding * 2 + Theme.borderWidth * 2 : 1

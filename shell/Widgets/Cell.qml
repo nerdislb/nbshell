@@ -20,6 +20,7 @@ Item {
 
     // Klappt beim Klick auf. Der Inhalt bekommt `closePopout` gesetzt.
     property Component popout: null
+    property bool popoutTakesKeyboard: false
     property bool active: false
     property alias hovered: mouse.containsMouse
 
@@ -91,6 +92,7 @@ Item {
         Popout {
             anchorItem: root
             contentComponent: root.popout
+            takesKeyboard: root.popoutTakesKeyboard
         }
     }
 
