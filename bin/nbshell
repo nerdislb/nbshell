@@ -47,6 +47,7 @@ nbshell -- eigene Shell auf Quickshell
   nbshell launcher          Anwendungsstarter (Alias: run)
   nbshell find <text>       zeigt, was der Starter finden wuerde
 
+  nbshell osd test|on|off   Einblendung beim Regeln
   nbshell control           Control Center (Helligkeit, WLAN, Bluetooth)
   nbshell brightness up|down|<prozent>
 
@@ -114,6 +115,9 @@ case "$cmd" in
         ;;
     find)
         ipc launcher find "${1:?Suchbegriff fehlt}"
+        ;;
+    osd)
+        ipc osd "${1:-status}"
         ;;
     control)
         ipc control "${1:-toggle}"
