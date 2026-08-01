@@ -5,6 +5,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.Common
+import qs.Services
 import qs.Bar
 
 // nbshell -- Einstiegspunkt.
@@ -83,6 +84,48 @@ ShellRoot {
 
         function current(): string {
             return Config.theme;
+        }
+    }
+
+    IpcHandler {
+        target: "themes"
+
+        function list(): string {
+            return ThemeIndex.list.map(t => (t.name === Config.theme ? " * " : "   ") + t.name).join("\n");
+        }
+
+        // Die Insel klappt mit auf: sonst haengt der Waehler an einer Zelle,
+        // die gerade gar nicht zu sehen ist.
+        function open(): string {
+            Runtime.islandOpen = true;
+            Runtime.themePickerOpen = true;
+            return "offen";
+        }
+
+        function close(): string {
+            Runtime.themePickerOpen = false;
+            return "zu";
+        }
+
+        function toggle(): string {
+            if (Runtime.themePickerOpen)
+                return close();
+            return open();
+        }
+
+        function next(): string {
+            ThemeIndex.step(1);
+            return Config.theme;
+        }
+
+        function prev(): string {
+            ThemeIndex.step(-1);
+            return Config.theme;
+        }
+
+        function reload(): string {
+            ThemeIndex.refresh();
+            return "neu gelesen";
         }
     }
 

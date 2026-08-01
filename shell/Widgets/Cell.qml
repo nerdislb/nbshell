@@ -17,6 +17,9 @@ Item {
     property bool shown: true
     property color color: Theme.fg
     property bool interactive: false
+
+    // Klappt beim Klick auf. Der Inhalt bekommt `closePopout` gesetzt.
+    property Component popout: null
     property bool active: false
     property alias hovered: mouse.containsMouse
 
@@ -28,6 +31,8 @@ Item {
     signal clicked
     signal rightClicked
     signal wheel(int delta)
+
+    readonly property bool clickable: interactive || popout !== null
 
     readonly property string style: Config.widgetStyle
     readonly property bool boxed: style === "box"
@@ -44,9 +49,9 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: Theme.radius
-        color: root.active ? Theme.alpha(root.color, 0.15) : (mouse.containsMouse && root.interactive ? Theme.selection : "transparent")
+        color: root.active || popoutLoader.item?.visible ? Theme.alpha(root.color, 0.15) : (mouse.containsMouse && root.clickable ? Theme.selection : "transparent")
         border.width: root.boxed ? Theme.borderWidth : 0
-        border.color: root.active ? root.color : Theme.muted
+        border.color: root.active || popoutLoader.item?.visible ? root.color : Theme.muted
     }
 
     Text {
@@ -67,18 +72,43 @@ Item {
         height: childrenRect.height
     }
 
+    // Popout von aussen schalten (Tastenkuerzel, IPC).
+    function setPopout(open) {
+        if (popoutLoader.item)
+            popoutLoader.item.visible = open;
+    }
+
+    // Erst wenn ein Baustein wirklich eines hat, entsteht das Popupfenster.
+    Loader {
+        id: popoutLoader
+        active: root.popout !== null
+        sourceComponent: popoutComponent
+    }
+
+    Component {
+        id: popoutComponent
+
+        Popout {
+            anchorItem: root
+            contentComponent: root.popout
+        }
+    }
+
     MouseArea {
         id: mouse
         anchors.fill: parent
-        enabled: root.interactive
+        enabled: root.clickable
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton
-        cursorShape: root.interactive ? Qt.PointingHandCursor : Qt.ArrowCursor
+        cursorShape: root.clickable ? Qt.PointingHandCursor : Qt.ArrowCursor
         onClicked: mouseEvent => {
-            if (mouseEvent.button === Qt.RightButton)
+            if (mouseEvent.button === Qt.RightButton) {
                 root.rightClicked();
-            else
-                root.clicked();
+                return;
+            }
+            if (popoutLoader.item)
+                popoutLoader.item.toggle();
+            root.clicked();
         }
         onWheel: wheelEvent => root.wheel(wheelEvent.angleDelta.y)
     }

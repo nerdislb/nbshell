@@ -35,6 +35,8 @@ nbshell -- eigene Shell auf Quickshell
   nbshell theme             zeigt das aktuelle Theme
   nbshell theme <name>      wechselt es
   nbshell themes            listet die vorhandenen
+  nbshell picker            Themewahl aufklappen
+  nbshell next | prev       ein Theme weiter/zurueck
 
   nbshell get <key>         Wert aus der Config
   nbshell set <key> <wert>  Wert setzen (JSON erlaubt: 12, true, ["a","b"])
@@ -77,12 +79,17 @@ case "$cmd" in
         if [ $# -eq 0 ]; then ipc theme current; else ipc theme set "$1"; fi
         ;;
     themes)
-        # Der Stern markiert das aktive Theme.
-        current="$(ipc theme current 2>/dev/null || true)"
-        for d in "$CONFIG_DIR"/themes/*/; do
-            name="$(basename "$d")"
-            [ "$name" = "$current" ] && printf ' * %s\n' "$name" || printf '   %s\n' "$name"
-        done
+        # Aus der laufenden Shell, damit der Stern stimmt; ohne sie vom Datei-
+        # system.
+        if ! ipc themes list 2>/dev/null; then
+            for d in "$CONFIG_DIR"/themes/*/; do printf '   %s\n' "$(basename "$d")"; done
+        fi
+        ;;
+    picker)
+        ipc themes toggle
+        ;;
+    next|prev)
+        ipc themes "$cmd"
         ;;
     get)
         ipc config get "${1:?Schluessel fehlt}"

@@ -8,9 +8,9 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **0.1.0 — Fundament.** Es laeuft: Insel und Balken, Themewechsel,
-Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung, Akku. Alles
-Weitere steht unter „Was noch fehlt".
+Stand: **0.2.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Farbproben, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
+Akku. Alles Weitere steht unter „Was noch fehlt".
 
 ## Installieren
 
@@ -43,6 +43,8 @@ nbshell open|close|toggle   # Insel festhalten, unabhaengig von der Maus
 nbshell theme            # aktuelles Theme
 nbshell theme gruvbox    # wechseln
 nbshell themes           # alle 21 auflisten
+nbshell picker           # Themewahl aufklappen
+nbshell next | prev      # ein Theme weiter
 
 nbshell set fontSize 15
 nbshell set rightWidgets '["sys","sep","battery"]'
@@ -55,6 +57,9 @@ Fuer niri:
 ```kdl
 Mod+Shift+I hotkey-overlay-title="nbshell: Insel/Balken" {
     spawn "nbshell" "mode" "toggle";
+}
+Mod+Shift+T hotkey-overlay-title="nbshell: Themewahl" {
+    spawn "nbshell" "picker";
 }
 ```
 
@@ -79,9 +84,51 @@ Einstellbar in `config.json`: `theme`, `font`, `fontSize`, `mode`, `edge`,
 `widgetStyle` (`box` | `bracket` | `plain`), `collapseDelay`, `clockFormat`,
 `titleLength`, `locale` und die vier Bausteinlisten.
 
+## Themes — omarchy2dms, hier eingebaut
+
+Umrechnen muss nbshell nichts: es liest Omarchys `colors.toml` direkt, es gibt
+kein Zielformat mehr. Von [omarchy2dms](https://github.com/nerdislb/omarchy2dms)
+bleibt damit nur das Suchen und Auflisten uebrig, und das erledigt
+`scripts/themes.sh` in einem Aufruf — Name, Modus, fuenf Farben fuer die
+Vorschau und das erste Wallpaper.
+
+Wallpaper werden an drei Stellen gesucht: beim Theme selbst
+(`<theme>/backgrounds/`), im Zwischenspeicher von omarchy2dms
+(`~/.local/share/omarchy2dms/wallpapers/<theme>/`, den beide teilen) und unter
+`~/.local/share/nbshell/wallpapers/<theme>/`.
+
+Der Baustein `themes` zeigt das aktive Theme; ein Klick klappt die Liste mit
+Farbproben auf, das Mausrad blaettert direkt durch, `nbshell picker` oeffnet
+sie per Tastenkuerzel.
+
+## Popouts
+
+Ein Popout ist ein echtes Wayland-Popup (`PopupWindow`), kein zweites
+Layer-Fenster: der Kompositor kennt die Beziehung zur Leiste, haelt es an der
+richtigen Stelle und beendet den Griff selbst, sobald man daneben klickt. Ein
+nachgebautes Overlay muesste das alles von Hand tun — samt bildschirmgrosser,
+unsichtbarer Klickflaeche.
+
+Ein Baustein bekommt eines, indem er `popout` setzt:
+
+```qml
+Cell {
+    text: "…"
+    popout: Component {
+        Column {
+            property var closePopout: null   // wird gesetzt, wenn es aufgeht
+            …
+        }
+    }
+}
+```
+
+Das Fenster entsteht erst, wenn ein Baustein wirklich eines hat, und der Inhalt
+erst beim Aufklappen.
+
 ## Bausteine
 
-`clock`, `workspaces`, `window`, `sys`, `battery`, `layout`, `sep`.
+`clock`, `workspaces`, `window`, `sys`, `battery`, `layout`, `themes`, `sep`.
 
 Vier Listen sagen, was wo steht:
 
@@ -109,6 +156,9 @@ shell/
   Bar/Bar.qml          das Fenster: Insel oder Balken
   Bar/WidgetHost.qml   Name -> Komponente
   Bar/Widgets/         die Bausteine
+  Widgets/Popout.qml   Fenster, das an einer Zelle haengt
+  Services/ThemeIndex.qml  Themeliste, Wechsel, Blaettern
+  scripts/themes.sh    findet Themes und Wallpaper
 ```
 
 **Insel und Balken sind dasselbe Fenster.** Es ist immer bildschirmbreit und
@@ -128,6 +178,9 @@ doppelt gebaut werden, und der Uebergang laesst sich animieren.
   Sichtbarkeit eines Kindes enthaelt immer die des Elternteils — fragt die
   Huelle `item.visible` ab, um ihr eigenes `visible` zu setzen, liest sie ihre
   eigene Antwort, und beide bleiben fuer immer unsichtbar. Lautlos.
+- **Ein Positionierer rechnet seine implizite Groesse selbst aus.** `Column`
+  und `Row` verweigern jede Zuweisung an `implicitWidth`/`implicitHeight`
+  („read-only property") — die Breite gehoert an die Kinder.
 - **Ein `Loader` darf keine eigene Groesse bekommen**, sonst skaliert er sein
   Kind darauf; setzt das Kind seine Breite selbst, fallen beide auf 0.
 - **Vorgabewerte koennen Fehler verstecken.** Der TOML-Leser hat anfangs nur
@@ -148,8 +201,6 @@ koennen gleichzeitig laufen — nbshell beansprucht bewusst keine D-Bus-Namen
 
 Der Reihe nach, wie es fuer den Alltag zaehlt:
 
-- **Popouts** — ein Fenster, das an einer Zelle haengt (Kalender, Lautstaerke,
-  Netzwerk).
 - **Control Center** — Audio (Pipewire), Netz, Bluetooth, Helligkeit.
 - **Benachrichtigungen** — der Server steckt in Quickshell, es fehlen Popups
   und Verlauf.

@@ -12,4 +12,8 @@ Singleton {
     id: root
 
     property bool islandOpen: false
+
+    // Der Themewaehler laesst sich auch per Tastenkuerzel oeffnen, nicht nur
+    // durch einen Klick auf die Zelle.
+    property bool themePickerOpen: false
 }
