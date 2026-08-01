@@ -38,6 +38,9 @@ nbshell -- eigene Shell auf Quickshell
   nbshell picker            Themewahl aufklappen
   nbshell next | prev       ein Theme weiter/zurueck
 
+  nbshell wallpaper on|off  Hintergrundbild des Themes (aus, solange DMS laeuft)
+  nbshell wallpaper <pfad>  festes Bild statt des Themebildes
+
   nbshell get <key>         Wert aus der Config
   nbshell set <key> <wert>  Wert setzen (JSON erlaubt: 12, true, ["a","b"])
   nbshell config            zeigt die ganze Config
@@ -87,6 +90,12 @@ case "$cmd" in
         ;;
     picker)
         ipc themes toggle
+        ;;
+    wallpaper)
+        case "${1:-current}" in
+            on|off|toggle|current) ipc wallpaper "${1:-current}" ;;
+            *) ipc wallpaper set "$1" ;;
+        esac
         ;;
     next|prev)
         ipc themes "$cmd"

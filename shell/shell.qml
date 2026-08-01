@@ -26,6 +26,8 @@ ShellRoot {
 
     Bar {}
 
+    Wallpaper {}
+
     // ── Steuerung von aussen ──────────────────────────────────────────────
     // Aufrufbar als `nbshell <ziel> <befehl>`, siehe bin/nbshell.
 
@@ -84,6 +86,35 @@ ShellRoot {
 
         function current(): string {
             return Config.theme;
+        }
+    }
+
+    IpcHandler {
+        target: "wallpaper"
+
+        function on(): string {
+            Config.set("wallpaper", true);
+            return "an";
+        }
+
+        function off(): string {
+            Config.set("wallpaper", false);
+            return "aus";
+        }
+
+        function toggle(): string {
+            return Config.wallpaperEnabled ? off() : on();
+        }
+
+        // Ein festes Bild, unabhaengig vom Theme. Leerer Wert -> wieder das
+        // Bild des Themes.
+        function set(path: string): string {
+            Config.set("wallpaperOverride", path);
+            return path === "" ? "wieder vom Theme" : path;
+        }
+
+        function current(): string {
+            return Config.value("wallpaperOverride", "") || (ThemeIndex.current?.wallpaper ?? "");
         }
     }
 

@@ -8,8 +8,8 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **0.2.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
-Farbproben, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
+Stand: **0.3.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Farbproben, Hintergrundbild am Theme, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
 ## Installieren
@@ -45,6 +45,9 @@ nbshell theme gruvbox    # wechseln
 nbshell themes           # alle 21 auflisten
 nbshell picker           # Themewahl aufklappen
 nbshell next | prev      # ein Theme weiter
+
+nbshell wallpaper on     # Hintergrundbild des Themes
+nbshell wallpaper ~/bild.jpg   # festes Bild stattdessen
 
 nbshell set fontSize 15
 nbshell set rightWidgets '["sys","sep","battery"]'
@@ -82,7 +85,8 @@ aendert, aendert die ganze Leiste mit — `nbshell set fontSize 15` genuegt.
 Einstellbar in `config.json`: `theme`, `font`, `fontSize`, `mode`, `edge`,
 `gap`, `lines`, `padX`, `padY`, `radius`, `borderWidth`, `opacity`,
 `widgetStyle` (`box` | `bracket` | `plain`), `collapseDelay`, `clockFormat`,
-`titleLength`, `locale` und die vier Bausteinlisten.
+`titleLength`, `locale`, `wallpaper`, `wallpaperOverride` und die vier
+Bausteinlisten.
 
 ## Themes — omarchy2dms, hier eingebaut
 
@@ -100,6 +104,20 @@ Wallpaper werden an drei Stellen gesucht: beim Theme selbst
 Der Baustein `themes` zeigt das aktive Theme; ein Klick klappt die Liste mit
 Farbproben auf, das Mausrad blaettert direkt durch, `nbshell picker` oeffnet
 sie per Tastenkuerzel.
+
+## Hintergrundbild
+
+`nbshell wallpaper on` haengt den Hintergrund ans Theme: jedes Omarchy-Theme
+bringt seine Bilder mit, ein Themewechsel blendet auf das neue um. Ein festes
+Bild geht auch — `nbshell wallpaper ~/bild.jpg`, und `nbshell wallpaper set ""`
+gibt wieder dem Theme das Wort.
+
+**Voreingestellt ist es aus.** DMS malt seinen Hintergrund auf dieselbe
+Wayland-Ebene; solange beide laufen, wuerden sie sich abwechselnd ueberdecken.
+
+Ueberblendet wird ueber zwei Bildflaechen: die verdeckte laedt das neue Bild
+und wird erst eingeblendet, wenn es steht — sonst blitzt beim Wechsel Schwarz
+durch.
 
 ## Popouts
 
@@ -154,6 +172,7 @@ shell/
   Services/SysInfo.qml /proc/stat und /proc/meminfo
   Widgets/Cell.qml     der eine Baustein, aus dem alles besteht
   Bar/Bar.qml          das Fenster: Insel oder Balken
+  Bar/Wallpaper.qml    Hintergrundbild je Bildschirm
   Bar/WidgetHost.qml   Name -> Komponente
   Bar/Widgets/         die Bausteine
   Widgets/Popout.qml   Fenster, das an einer Zelle haengt

@@ -40,6 +40,9 @@ Singleton {
     readonly property int borderWidth: value("borderWidth", 1)
     readonly property real opacity: value("opacity", 1.0)
     readonly property string widgetStyle: value("widgetStyle", "box")
+
+    // Aus, solange DMS daneben laeuft: beide malen sonst auf dieselbe Ebene.
+    readonly property bool wallpaperEnabled: value("wallpaper", false)
     readonly property int collapseDelay: value("collapseDelay", 250)
 
     readonly property var collapsedWidgets: value("collapsedWidgets", ["clock"])
