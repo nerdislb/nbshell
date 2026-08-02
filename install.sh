@@ -34,6 +34,34 @@ fi
 fc-list 2>/dev/null | grep -ci "Inconsolata.*Nerd Font" >/dev/null || \
     warn "Hinweis: 'Inconsolata Nerd Font Mono' nicht gefunden — Vorgabeschrift der Config. Paket: ttf-inconsolata-nerd"
 
+# Optionales: fehlt eines davon, bleibt genau EIN Baustein still. Besser hier
+# einmal sagen, als sich spaeter zu wundern, warum ein Knopf nichts tut.
+optional_check() {
+    command -v "$1" >/dev/null 2>&1 || printf '  %-16s %s (%s)\n' "$1" "$2" "$3"
+}
+
+echo
+echo "Optional — was ohne diese Programme still bleibt:"
+missing_optional="$(
+    optional_check wl-paste      "Zwischenablage"            "wl-clipboard"
+    optional_check hyprlock      "Sperren"                   "hyprlock"
+    optional_check fakeroot      "Updatepruefung"            "fakeroot"
+    optional_check paru          "AUR-Updates, Aktualisieren" "paru oder yay"
+    optional_check tuned-adm     "Energieprofile"            "tuned"
+    optional_check notify-send   "Meldungen der Skripte"     "libnotify"
+    optional_check git           "Themes nachinstallieren"   "git"
+    optional_check wf-recorder   "Bildschirmaufnahme"        "wf-recorder"
+    optional_check slurp         "Bereich waehlen"           "slurp"
+    optional_check satty         "Screenshot bearbeiten"     "satty"
+    optional_check tesseract     "Texterkennung"             "tesseract tesseract-data-deu"
+)"
+if [ -n "$missing_optional" ]; then
+    printf '%s\n' "$missing_optional"
+else
+    echo "  nichts — alles da."
+fi
+echo
+
 # ── Shell ────────────────────────────────────────────────────────────────
 # Laeuft eine Instanz, wird sie vorher beendet: waehrend des Kopierens ist das
 # Verzeichnis kurz unvollstaendig, und Quickshell laedt bei jeder Aenderung neu
@@ -139,11 +167,12 @@ Umschalten:
   nbshell island         freistehende Insel
   nbshell theme gruvbox
 
-Tastenkuerzel fuer niri (~/.config/niri/config.kdl):
-  Mod+Shift+I hotkey-overlay-title="nbshell: Insel/Balken" {
-      spawn "nbshell" "mode" "toggle";
-  }
+Dauerhaft einrichten (Autostart, Tastenkuerzel, Benachrichtigungen,
+Fensterrahmen, Terminalfarben):
+  nbshell switch on
+  nbshell switch status
 
-DMS bleibt unangetastet und laeuft weiter. Beide gleichzeitig ergeben zwei
-Leisten -- zum Vergleichen praktisch, im Alltag schaltet man eine davon ab.
+Laeuft DankMaterialShell auf diesem Rechner, weicht sie damit zur Seite --
+`nbshell switch off` holt sie zurueck. Ohne DMS sind die entsprechenden
+Schritte einfach wirkungslos.
 EOF

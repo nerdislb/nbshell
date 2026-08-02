@@ -15,9 +15,42 @@ Akku. Alles Weitere steht unter „Was noch fehlt".
 ## Installieren
 
 ```bash
-./install.sh
-nbshell start -d
+git clone git@github.com:nerdislb/nbshell.git ~/projects/nbshell
+cd ~/projects/nbshell && ./install.sh
+nbshell start -d          # zum Ausprobieren
+nbshell switch on         # dauerhaft: Autostart, Binds, Benachrichtigungen
 ```
+
+`install.sh` sagt beim Laufen, was fehlt -- installiert aber **nichts** nach.
+Pakete gehoeren in die Hand des Benutzers.
+
+| gebraucht | wofuer |
+|---|---|
+| `quickshell`, `niri` | ohne die beiden laeuft gar nichts |
+| `ttf-inconsolata-nerd` | die voreingestellte Schrift (`font` in der Config) |
+
+| optional | was sonst still bleibt |
+|---|---|
+| `wl-clipboard` | Zwischenablage |
+| `hyprlock` | Sperren (`lockCommand`) |
+| `fakeroot` | Updatepruefung |
+| `paru` oder `yay` | AUR-Updates und das Aktualisieren selbst |
+| `tuned` | Energieprofile im Akku-Popout |
+| `libnotify` | Meldungen der Skripte (Screenshot, OCR) |
+| `git` | Themes nachinstallieren |
+| `wf-recorder`, `slurp` | Bildschirmaufnahme, Bereichswahl |
+| `satty` | Screenshots nachbearbeiten |
+| `tesseract` + Sprachdaten | Texterkennung |
+
+**Zwei Dinge kommen NICHT mit** und bleiben auf einem frischen Rechner leer:
+
+- **Wallpaper.** Die 21 Themes enthalten nur ihre `colors.toml` (84 KB statt
+  91 MB). Die Bilder holt `omarchy2dms --fetch-wallpapers` einmalig in einen
+  Zwischenspeicher, den nbshell mitbenutzt -- oder ein per
+  `nbshell theme install` geholtes Theme bringt sein `backgrounds/` selbst mit.
+- **Der KI-Verbrauch.** Der Baustein `ai` braucht `get-provider-usage` aus dem
+  DMS-Plugin `aiOverviewControl`. Fehlt es, bleibt die Zelle still (`aiHelper`
+  in der Config zeigt auf einen eigenen Pfad).
 
 Gebraucht werden `quickshell` und `niri`; als Schrift ist
 `Inconsolata Nerd Font Mono` voreingestellt (Paket `ttf-inconsolata-nerd`).
