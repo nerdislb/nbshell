@@ -7,6 +7,7 @@ set -euo pipefail
 
 CONFIG_NAME="nbshell"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/nbshell"
+THEME_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/theme-install.sh"
 
 qs_bin() {
     if command -v qs >/dev/null 2>&1; then echo qs; else echo quickshell; fi
@@ -139,6 +140,11 @@ nbshell -- eigene Shell auf Quickshell
   nbshell theme             zeigt das aktuelle Theme
   nbshell theme <name>      wechselt es
   nbshell themes            listet die vorhandenen
+  nbshell theme install <url|verzeichnis>
+                            Omarchy-Theme dazuholen (auch ohne colors.toml:
+                            die Palette wird aus alacritty.toml abgeleitet)
+  nbshell theme remove <name>
+  nbshell theme update      selbst installierte Themes aktualisieren
   nbshell picker            Themewahl aufklappen
   nbshell next | prev       ein Theme weiter/zurueck
 
@@ -223,7 +229,18 @@ case "$cmd" in
         ipc bar "$cmd"
         ;;
     theme)
-        if [ $# -eq 0 ]; then ipc theme current; else ipc theme set "$1"; fi
+        case "${1:-}" in
+            # `current` MUSS hier stehen: sonst landet es im Zweig darunter
+            # und setzt das Theme auf den Namen "current".
+            ""|current) ipc theme current ;;
+            install|remove|update|list)
+                # Nach dem Installieren die Liste neu einlesen, sonst taucht
+                # das Theme erst nach einem Neustart in der Auswahl auf.
+                "$THEME_TOOL" "$@" && ipc themes reload >/dev/null 2>&1
+                ;;
+            write) ipc theme write ;;
+            *) ipc theme set "$1" ;;
+        esac
         ;;
     themes)
         # Aus der laufenden Shell, damit der Stern stimmt; ohne sie vom Datei-

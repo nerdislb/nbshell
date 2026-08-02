@@ -8,7 +8,7 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **1.3.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Stand: **1.4.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
 Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Prozessliste, Aufnahme, Terminalfarben, KI-Verbrauch, Optionsmenue, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
@@ -42,7 +42,8 @@ nbshell open|close|toggle   # Insel festhalten, unabhaengig von der Maus
 
 nbshell theme            # aktuelles Theme
 nbshell theme gruvbox    # wechseln
-nbshell themes           # alle 21 auflisten
+nbshell themes           # alle auflisten
+nbshell theme install <url|verzeichnis>
 nbshell picker           # Themewahl aufklappen
 nbshell next | prev      # ein Theme weiter
 
@@ -132,6 +133,25 @@ Wallpaper werden an drei Stellen gesucht: beim Theme selbst
 (`<theme>/backgrounds/`), im Zwischenspeicher von omarchy2dms
 (`~/.local/share/omarchy2dms/wallpapers/<theme>/`, den beide teilen) und unter
 `~/.local/share/nbshell/wallpapers/<theme>/`.
+
+### Themes dazuholen
+
+```bash
+nbshell theme install https://github.com/…/omarchy-<name>-theme
+nbshell theme install ~/pfad/zum/theme
+nbshell theme update          # selbst installierte per git pull
+nbshell theme remove <name>
+nbshell theme list            # mitgeliefert vs. selbst installiert
+```
+
+Bringt ein Theme **keine `colors.toml`** mit -- und das gilt fuer alle aus der
+Zeit vor Omarchys Umstellung --, wird die Palette aus seiner `alacritty.toml`
+abgeleitet: Hinter- und Vordergrund direkt, hell/dunkel aus der Luminanz nach
+WCAG, Fehlendes gemischt. Dieselbe Rechnung wie in omarchy2dms.
+
+Geholt wird **erst in ein temporaeres Verzeichnis, ersetzt wird danach**. Der
+umgekehrte Weg loescht ein vorhandenes Theme schon beim Tippfehler in der URL --
+genau das ist mir hier einmal passiert.
 
 Der Baustein `themes` zeigt das aktive Theme; ein Klick klappt die Liste mit
 Farbproben auf, das Mausrad blaettert direkt durch, `nbshell picker` oeffnet

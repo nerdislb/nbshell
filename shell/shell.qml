@@ -127,6 +127,11 @@ ShellRoot {
         target: "theme"
 
         function set(name: string): string {
+            // Ein Name ohne Verzeichnis waere ein Theme ohne Farben -- die
+            // Shell faellt dann auf ihre Vorgaben zurueck und man sucht den
+            // Fehler woanders.
+            if (!ThemeIndex.byName(name))
+                return "unbekanntes Theme: " + name;
             Config.set("theme", name);
             return name;
         }
