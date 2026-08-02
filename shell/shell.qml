@@ -11,6 +11,7 @@ import qs.Bar
 import qs.Launcher
 import qs.Osd
 import qs.Notifications
+import qs.Power
 
 // nbshell -- Einstiegspunkt.
 //
@@ -40,6 +41,8 @@ ShellRoot {
         void Apps.entries;
         void Osd.enabled;
         void Notify.count;
+        void MediaService.active;
+        void Clipboard.entries;
     }
 
     Bar {}
@@ -51,6 +54,8 @@ ShellRoot {
     Osd {}
 
     Popups {}
+
+    PowerMenu {}
 
     // ── Steuerung von aussen ──────────────────────────────────────────────
     // Aufrufbar als `nbshell <ziel> <befehl>`, siehe bin/nbshell.
@@ -110,6 +115,81 @@ ShellRoot {
 
         function current(): string {
             return Config.theme;
+        }
+    }
+
+    IpcHandler {
+        target: "clipboard"
+
+        function toggle(): string {
+            Runtime.islandOpen = true;
+            Runtime.clipOpen = !Runtime.clipOpen;
+            return Runtime.clipOpen ? "offen" : "zu";
+        }
+
+        function list(): string {
+            if (Clipboard.entries.length === 0)
+                return "noch nichts kopiert";
+            return Clipboard.entries.map((e, i) => (i + 1) + "  " + Clipboard.preview(e, 60)).join("\n");
+        }
+
+        function clear(): string {
+            const n = Clipboard.entries.length;
+            Clipboard.clear();
+            return "geloescht: " + n;
+        }
+    }
+
+    IpcHandler {
+        target: "power"
+
+        function menu(): string {
+            Runtime.powerOpen = !Runtime.powerOpen;
+            return Runtime.powerOpen ? "offen" : "zu";
+        }
+
+        // Einzeln aufrufbar, damit ein Tastenkuerzel direkt sperren kann.
+        function lock(): string {
+            Session.run("lock");
+            return "gesperrt";
+        }
+
+        function logout(): string {
+            Session.run("logout");
+            return "abgemeldet";
+        }
+
+        function suspend(): string {
+            Session.run("suspend");
+            return "Bereitschaft";
+        }
+    }
+
+    IpcHandler {
+        target: "media"
+
+        function playpause(): string {
+            MediaService.playPause();
+            return MediaService.playing ? "spielt" : "pausiert";
+        }
+
+        function next(): string {
+            MediaService.next();
+            return MediaService.label;
+        }
+
+        function previous(): string {
+            MediaService.previous();
+            return MediaService.label;
+        }
+
+        function status(): string {
+            return JSON.stringify({
+                "spielt": MediaService.playing,
+                "titel": MediaService.title,
+                "interpret": MediaService.artist,
+                "player": MediaService.players.map(p => p.identity)
+            });
         }
     }
 

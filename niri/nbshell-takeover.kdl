@@ -15,10 +15,13 @@
 //   Mod+Alt+L    Sperrbildschirm   -> hyprlock von Hand binden
 //   Mod+M        Prozessliste
 //   XF86AudioPlay/Next/Prev        Medientasten (kein MPRIS in nbshell)
+// Aufgerufen wird ueber `sh -c "$HOME/.local/bin/nbshell …"`: niri startet
+// spawn-Befehle mit dem PATH des systemd-User-Managers, in dem ~/.local/bin
+// nicht steht. Ein blosses `spawn "nbshell"` laeuft still ins Leere.
 binds {
     // DMS: spotlight -> nbshells Anwendungsstarter.
-    Mod+Space hotkey-overlay-title="nbshell: Anwendungsstarter" { spawn "nbshell" "launcher"; }
+    Mod+Space hotkey-overlay-title="nbshell: Anwendungsstarter" { spawn "sh" "-c" "$HOME/.local/bin/nbshell launcher"; }
 
     // DMS: notification center -> nbshells Archiv.
-    Mod+N hotkey-overlay-title="nbshell: Benachrichtigungen" { spawn "nbshell" "notify" "toggle"; }
+    Mod+N hotkey-overlay-title="nbshell: Benachrichtigungen" { spawn "sh" "-c" "$HOME/.local/bin/nbshell notify toggle"; }
 }

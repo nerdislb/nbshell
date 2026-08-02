@@ -20,4 +20,6 @@ Singleton {
     property bool controlOpen: false
     property bool launcherOpen: false
     property bool notifyOpen: false
+    property bool powerOpen: false
+    property bool clipOpen: false
 }

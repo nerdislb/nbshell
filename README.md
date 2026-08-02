@@ -8,8 +8,8 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **0.10.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
-Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
+Stand: **0.11.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
 ## Installieren
@@ -62,6 +62,10 @@ nbshell switch off       # zurueck zu DMS
 nbshell tray             # was gerade im Tray steckt
 nbshell osd test         # Einblendung ausprobieren
 nbshell osd on | off
+
+nbshell power            # Power-Menue (auch: lock, logout, suspend)
+nbshell clip             # Zwischenablage (toggle, list, clear)
+nbshell media playpause  # auch: next, previous, status
 
 nbshell control          # Control Center
 nbshell brightness up | down | 60
@@ -287,6 +291,38 @@ Verschachtelung laedt die Datei sich selbst ueber ihren Pfad nach; sich direkt
 zu verwenden geht in QML nicht, der Typ waere waehrend seiner eigenen
 Definition noch nicht fertig.
 
+## Power-Menue
+
+`nbshell power` oder ein Tastenkuerzel. Sechs Zeilen mit je einem Buchstaben
+davor -- `x` schaltet aus, ohne dass man zaehlen muss; Pfeile und Enter gehen
+auch. Bewusst **ohne Rueckfrage**: das Menue selbst ist die Rueckfrage, und Esc
+ist immer da.
+
+Alles laeuft ueber `systemctl` und `niri msg action quit`. Der
+Sperrbildschirm ist ein fremder (`lockCommand`, Vorgabe `hyprlock`) --
+nbshell baut absichtlich keinen eigenen: ein Fehler darin sperrt dich aus dem
+eigenen Rechner aus.
+
+## Zwischenablage
+
+Der Baustein `clipboard` zeigt die Anzahl, sein Popout den Verlauf; Klick
+kopiert zurueck, Rechtsklick wirft einen Eintrag weg. Die ersten neun sind
+nummeriert.
+
+Ohne `cliphist` und ohne zweiten Dienst: `wl-paste --watch` meldet jede
+Aenderung, der Verlauf liegt als JSON in `~/.local/state/nbshell/`. Der
+Wachhund schickt jeden Eintrag **base64-kodiert in einer Zeile** -- sonst
+zerfiele ein mehrzeiliger Text in lauter Einzelmeldungen. Zurueck kommt er
+ueber `decodeURIComponent(escape(Qt.atob(...)))`, weil `Qt.atob` byteweise
+dekodiert und Umlaute sonst zerbroeseln (geprueft mit „Grueße, Öl, Straße").
+
+## Medien
+
+Der Baustein `media` zeigt Interpret und Titel des laufenden Players. Klick
+spielt und pausiert, Mausrad blaettert, Rechtsklick stoppt. Laufen mehrere
+Player, gewinnt der spielende, sonst der zuletzt benutzte -- ohne diese Regel
+greifen die Medientasten mal ins Leere, mal in den falschen Player.
+
 ## Einblendung (OSD)
 
 Wer an Lautstaerke, Mikrofon oder Helligkeit dreht, sieht kurz einen Kasten
@@ -346,7 +382,7 @@ erst beim Aufklappen.
 ## Bausteine
 
 `clock`, `workspaces`, `window`, `sys`, `battery`, `layout`, `themes`,
-`volume`, `control`, `tray`, `notifications`, `sep`.
+`volume`, `control`, `tray`, `notifications`, `clipboard`, `media`, `sep`.
 
 Vier Listen sagen, was wo steht:
 
@@ -377,6 +413,9 @@ shell/
   Services/Brightness.qml  sysfs lesen, logind setzen
   Services/Osd.qml     Zustand der Einblendung
   Services/Notify.qml  Benachrichtigungsserver, Archiv
+  Services/Session.qml Sperren, Abmelden, Ausschalten
+  Services/Clipboard.qml  Verlauf ueber wl-paste --watch
+  Services/MediaService.qml  MPRIS
   Widgets/LevelBar.qml Balken aus Bloecken
   Widgets/MenuView.qml DBus-Menues als Liste
   Widgets/Cell.qml     der eine Baustein, aus dem alles besteht
@@ -386,6 +425,7 @@ shell/
 niri/nbshell-takeover.kdl  Binds fuer den Umstieg
   Osd/Osd.qml          die Einblendung je Bildschirm
   Notifications/Popups.qml  die Karten am Rand
+  Power/PowerMenu.qml  Sitzungsmenue
   Bar/WidgetHost.qml   Name -> Komponente
   Bar/Widgets/         die Bausteine
   Widgets/Popout.qml   Fenster, das an einer Zelle haengt
@@ -428,6 +468,10 @@ doppelt gebaut werden, und der Uebergang laesst sich animieren.
   sich aus beobachten soll (Helligkeit, Netz, Audio), tut bis dahin gar nichts
   — und meldet beim ersten Zugriff brav Nullwerte, ohne dass etwas kaputt
   aussieht. `shell.qml` beruehrt sie deshalb einmal beim Start.
+- **niri startet `spawn`-Befehle mit dem PATH des systemd-User-Managers**, und
+  darin fehlt `~/.local/bin`. Ein `spawn "nbshell"` laeuft dort still ins
+  Leere — die Binds rufen deshalb `sh -c "$HOME/.local/bin/nbshell …"` auf.
+  Fuer die Zukunft legt `environment.d/10-local-bin.conf` den Pfad dazu.
 - **`install.sh` beendet eine laufende Instanz.** Quickshell laedt bei jeder
   Dateiaenderung neu und wuerde mitten im Austausch eine halbe Shell lesen.
 
@@ -443,7 +487,8 @@ koennen gleichzeitig laufen — nbshell beansprucht bewusst keine D-Bus-Namen
 Der Reihe nach, wie es fuer den Alltag zaehlt:
 
 - **Netz ohne NetworkManager** — nur dessen Backend ist angebunden.
-- **Power-Menue**, **Zwischenablage**.
+- **Prozessliste** (DMS' Mod+M).
+- **Bilder in der Zwischenablage** — der Verlauf kennt nur Text.
 - **Anwendungslautstaerken** — die Stroeme einzelner Programme.
 - **Sperrbildschirm** — hier wird bewusst nichts Eigenes gebaut; ein Fehler
   darin sperrt dich aus. hyprlock tut es.

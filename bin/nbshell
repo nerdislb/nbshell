@@ -128,6 +128,10 @@ nbshell -- eigene Shell auf Quickshell
                             uebernimmt org.freedesktop.Notifications von DMS
                             (dessen Unit muss dann gestoppt sein)
 
+  nbshell clip              Verlauf der Zwischenablage (toggle, list, clear)
+  nbshell power             Power-Menue (auch: lock, logout, suspend)
+  nbshell media playpause|next|previous|status
+
   nbshell tray              zeigt, was im Tray steckt
   nbshell osd test|on|off   Einblendung beim Regeln
   nbshell control           Control Center (Helligkeit, WLAN, Bluetooth)
@@ -210,6 +214,18 @@ case "$cmd" in
             off) switch_off ;;
             *) switch_status ;;
         esac
+        ;;
+    clip|clipboard)
+        ipc clipboard "${1:-list}"
+        ;;
+    power)
+        case "${1:-menu}" in
+            menu|lock|logout|suspend) ipc power "${1:-menu}" ;;
+            *) ipc power menu ;;
+        esac
+        ;;
+    media)
+        ipc media "${1:-status}"
         ;;
     notify)
         case "${1:-status}" in

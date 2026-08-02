@@ -70,6 +70,10 @@ Item {
             return trayComponent;
         case "notifications":
             return notificationsComponent;
+        case "media":
+            return mediaComponent;
+        case "clipboard":
+            return clipComponent;
         }
         console.warn("nbshell: unbekannter Baustein:", name);
         return null;
@@ -133,5 +137,15 @@ Item {
     Component {
         id: notificationsComponent
         Notifications {}
+    }
+
+    Component {
+        id: mediaComponent
+        Media {}
+    }
+
+    Component {
+        id: clipComponent
+        Clip {}
     }
 }
