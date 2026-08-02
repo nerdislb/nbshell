@@ -35,6 +35,20 @@ Item {
 
     readonly property bool clickable: interactive || popout !== null
 
+    // Damit ein Baustein mitbekommt, wenn der Kompositor das Popout von sich
+    // aus geschlossen hat -- sonst denkt ein Tastenkuerzel, es sei noch offen,
+    // und der naechste Druck taete scheinbar nichts.
+    readonly property bool popoutVisible: popoutLoader.item ? popoutLoader.item.visible : false
+
+    onPopoutVisibleChanged: Runtime.popoutCount = Math.max(0, Runtime.popoutCount + (popoutVisible ? 1 : -1))
+
+    // Nur Zellen mit Popout melden sich: sonst zoege ein Klick auf die
+    // Arbeitsflaechen dem Fenster darunter die Tastatur weg.
+    onHoveredChanged: {
+        if (root.popout)
+            Runtime.popoutHover = Math.max(0, Runtime.popoutHover + (hovered ? 1 : -1));
+    }
+
     readonly property string style: Config.widgetStyle
     readonly property bool boxed: style === "box"
     readonly property bool bracketed: style === "bracket"

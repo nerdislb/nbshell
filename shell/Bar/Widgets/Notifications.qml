@@ -15,6 +15,9 @@ Cell {
     // haeufigsten braucht.
     onRightClicked: Notify.setDnd(!Notify.dnd)
 
+    // Zurueckmelden, wenn der Kompositor das Popout geschlossen hat.
+    onPopoutVisibleChanged: Runtime.notifyOpen = root.popoutVisible
+
     Connections {
         target: Runtime
 

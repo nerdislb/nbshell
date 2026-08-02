@@ -41,6 +41,10 @@ Variants {
         WlrLayershell.namespace: "nbshell:bar"
         WlrLayershell.layer: WlrLayershell.Top
 
+        // Nur solange ein Popout offen ist: sonst zoege ein Klick auf die
+        // Leiste dem Fenster darunter staendig die Tastatur weg.
+        WlrLayershell.keyboardFocus: (Runtime.popoutCount > 0 || Runtime.popoutHover > 0) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+
         anchors.left: true
         anchors.right: true
         anchors.top: !atBottom

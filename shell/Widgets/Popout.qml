@@ -18,9 +18,15 @@ PopupWindow {
     property Item anchorItem: null
     property Component contentComponent: null
 
-    // Nur wo getippt wird (Passwort im Control Center): ein Griff auf die
-    // Tastatur nimmt sie dem Fenster darunter weg.
-    property bool takesKeyboard: false
+    // Der Griff ist der ganze Trick beim Schliessen: erst damit weiss der
+    // Kompositor, dass hier ein Menue offen ist. Er beendet den Griff, sobald
+    // man daneben klickt, und Quickshell blendet das Fenster dann selbst aus.
+    // Ohne Griff bekaeme das Popout weder diesen Klick noch eine Taste mit --
+    // es bliebe stehen, bis man dieselbe Zelle noch einmal trifft.
+    //
+    // Der Preis: solange es offen ist, hat das Fenster darunter keine
+    // Tastatur. Fuer ein angeklicktes Menue ist das genau richtig.
+    property bool takesKeyboard: true
 
     // Innenabstand in Zellen, damit auch das Popout auf dem Raster sitzt.
     readonly property real padding: Theme.cellW * 2

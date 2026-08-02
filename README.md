@@ -466,6 +466,21 @@ Cell {
 Das Fenster entsteht erst, wenn ein Baustein wirklich eines hat, und der Inhalt
 erst beim Aufklappen.
 
+**Schliessen: Klick daneben oder Esc.** Dafuer nimmt sich das Popout einen
+Griff (`grabFocus`) -- erst damit weiss der Kompositor, dass hier ein Menue
+offen ist, beendet ihn beim Klick daneben und laesst Quickshell das Fenster
+ausblenden. Ohne Griff bliebe es stehen, bis man dieselbe Zelle noch einmal
+trifft.
+
+Der Griff hat eine Bedingung, die leicht zu uebersehen ist: **die Layer-Flaeche
+darunter muss ueberhaupt Tastatur annehmen duerfen.** Steht die Leiste auf
+`keyboardFocus: None`, lehnt der Kompositor den Griff ab -- und das Popout
+erscheint dann gar nicht erst, lautlos. Umgestellt wird deshalb schon beim
+**Ueberfahren** einer Zelle mit Popout, nicht erst beim Klick: sonst kommt die
+Umstellung im selben Durchlauf zu spaet. Zellen ohne Popout melden sich nicht,
+damit ein Klick auf die Arbeitsflaechen dem Fenster darunter nicht die
+Tastatur wegzieht.
+
 ## Optionsmenue
 
 `nbshell settings` (nach dem Umstieg `Mod+Comma`) — die haeufigen Schalter

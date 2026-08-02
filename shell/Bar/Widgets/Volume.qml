@@ -18,6 +18,9 @@ Cell {
 
     // Auch per Tastenkuerzel aufklappbar -- nicht als Bindung, sonst
     // ueberschriebe sie den Klick auf die Zelle.
+    // Zurueckmelden, wenn der Kompositor das Popout geschlossen hat.
+    onPopoutVisibleChanged: Runtime.audioPanelOpen = root.popoutVisible
+
     Connections {
         target: Runtime
 

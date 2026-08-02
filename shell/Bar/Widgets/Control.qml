@@ -16,6 +16,9 @@ Cell {
     text: Net.summary.length > 12 ? (Net.summary.substring(0, 11) + "…") : Net.summary
     color: Net.online ? Theme.fg : Theme.fgDim
 
+    // Zurueckmelden, wenn der Kompositor das Popout geschlossen hat.
+    onPopoutVisibleChanged: Runtime.controlOpen = root.popoutVisible
+
     Connections {
         target: Runtime
 

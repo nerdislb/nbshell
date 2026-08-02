@@ -16,6 +16,9 @@ Cell {
 
     // Nicht als Bindung: ein Klick auf die Zelle schaltet dasselbe Popout, und
     // eine Bindung wuerde ihn beim naechsten Mal ueberschreiben.
+    // Zurueckmelden, wenn der Kompositor das Popout geschlossen hat.
+    onPopoutVisibleChanged: Runtime.themePickerOpen = root.popoutVisible
+
     Connections {
         target: Runtime
 
