@@ -51,6 +51,7 @@ ShellRoot {
         void CaptureService.recording;
         void AiUsage.available;
         void Updates.enabled;
+        void PowerService.available;
         void ThemeExport.enabled;
     }
 
@@ -297,6 +298,29 @@ ShellRoot {
             const n = Clipboard.entries.length;
             Clipboard.clear();
             return "geloescht: " + n;
+        }
+    }
+
+    IpcHandler {
+        target: "battery"
+
+        function status(): string {
+            if (!PowerService.available)
+                return "kein Akku";
+            return JSON.stringify({
+                "prozent": PowerService.percent,
+                "zustand": PowerService.stateText,
+                "restzeit": PowerService.timeText,
+                "gesundheit": PowerService.health,
+                "profil": PowerService.activeProfile
+            });
+        }
+
+        function profile(name: string): string {
+            if (!name)
+                return PowerService.activeProfile;
+            PowerService.setProfile(name);
+            return name;
         }
     }
 

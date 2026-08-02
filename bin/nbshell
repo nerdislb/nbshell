@@ -198,6 +198,7 @@ nbshell -- eigene Shell auf Quickshell
   nbshell capture           Aufnahme-Menue (screen, window, region, ocr, record)
   nbshell procs             Prozessliste (auch: top)
   nbshell clip              Verlauf der Zwischenablage (toggle, list, clear)
+  nbshell battery           Akku und Energieprofil (bat <profil> wechselt)
   nbshell power             Power-Menue (auch: lock, logout, suspend)
   nbshell media playpause|next|previous|status
 
@@ -322,6 +323,12 @@ case "$cmd" in
         ;;
     clip|clipboard)
         ipc clipboard "${1:-list}"
+        ;;
+    battery|bat)
+        case "${1:-status}" in
+            status|"") ipc battery status ;;
+            *) ipc battery profile "$1" ;;
+        esac
         ;;
     power)
         case "${1:-menu}" in

@@ -8,7 +8,7 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **1.9.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Stand: **1.10.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
 Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Prozessliste, Aufnahme, Terminalfarben, KI-Verbrauch, Optionsmenue, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
@@ -65,6 +65,8 @@ nbshell osd test         # Einblendung ausprobieren
 nbshell osd on | off
 
 nbshell settings         # Optionsmenue (Mod+Comma nach dem Umstieg)
+nbshell battery          # Ladestand, Restzeit, Profil
+nbshell bat powersave    # Energieprofil wechseln
 nbshell updates          # status, check, list, run
 nbshell ai               # KI-Verbrauch (auch: refresh)
 nbshell capture          # Aufnahme-Menue (screen, window, region, ocr, record)
@@ -484,6 +486,22 @@ AUR-Updates kommen von `paru -Qua` (oder `yay`), Repo-Updates aus der eigenen
 Datenbank. Geprueft wird alle vier Stunden (`updateInterval`) und beim Start
 einmal nach einer Minute -- nicht sofort, damit die Anmeldung nicht mit einem
 Datenbankabgleich anfaengt.
+
+## Akku und Energieprofil
+
+Der Baustein `battery` zeigt in Ruhe den Ladestand, **unter der Maus die
+Restzeit** -- die will man selten, aber dann sofort. Ein Klick oeffnet die
+Energieeinstellungen: Ladestand als Balken, Zustand, Restzeit, Gesundheit und
+Leistung, darunter die Energieprofile zum Umschalten.
+
+Die Profile kommen von **`tuned`**, nicht von `power-profiles-daemon`. Die
+beiden schliessen sich aus, und auf diesem Rechner laeuft tuned -- wer das
+falsche fragt, bekommt gar keine Antwort. (Quickshells eigenes `PowerProfiles`
+spricht nur mit ppd, deshalb ist es hier nicht benutzt.)
+
+tuned kennt ueber 30 Profile, von SAP HANA bis Realtime. In der Leiste steht
+eine kurze Auswahl, die auf einem Notebook Sinn ergibt (`powerProfiles` in der
+Config); alles andere bleibt `tuned-adm` vorbehalten.
 
 ## Prozessliste
 

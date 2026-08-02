@@ -1,18 +1,124 @@
 import QtQuick
-import Quickshell.Services.UPower
 import qs.Common
+import qs.Services
 import qs.Widgets
 
-// Akku. Beim Laden steht ein Pfeil davor, unter 20 % faerbt sich die Zelle rot
-// -- mehr Zustaende braucht eine Statuszeile nicht.
+// Akku. In Ruhe der Ladestand, unter der Maus die Restzeit -- die will man
+// selten, aber dann sofort. Ein Klick oeffnet die Energieeinstellungen.
 Cell {
     id: root
 
-    readonly property var device: UPower.displayDevice
-    readonly property int percent: device ? Math.round(device.percentage * 100) : 0
-    readonly property bool charging: device ? device.state === UPowerDeviceState.Charging : false
+    shown: PowerService.available
+    interactive: true
 
-    shown: device !== null && device.isLaptopBattery
-    text: (charging ? "↑" : "") + "BAT " + percent + "%"
-    color: percent <= 20 && !charging ? Theme.red : (charging ? Theme.green : Theme.text)
+    text: {
+        if (hovered)
+            return PowerService.timeText;
+        return (PowerService.charging ? "↑" : "") + "BAT " + PowerService.percent + "%";
+    }
+
+    color: PowerService.percent <= 20 && !PowerService.charging ? Theme.red : (PowerService.charging ? Theme.green : Theme.text)
+
+    onClicked: PowerService.refreshProfile()
+
+    popout: Component {
+        Column {
+            id: panel
+
+            property var closePopout: null
+
+            readonly property real rowWidth: 38 * Theme.cellW
+
+            spacing: Theme.cellH * 0.2
+
+            Text {
+                text: "ENERGIE"
+                color: Theme.fgDim
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize
+                renderType: Text.NativeRendering
+            }
+
+            Text {
+                width: panel.rowWidth
+                text: PowerService.percent + " %   " + PowerService.stateText + (PowerService.full ? "" : "   noch " + PowerService.timeText)
+                color: Theme.fg
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize
+                renderType: Text.NativeRendering
+            }
+
+            LevelBar {
+                cells: 30
+                value: PowerService.percent
+                interactive: false
+                fillColor: PowerService.percent <= 20 && !PowerService.charging ? Theme.red : (PowerService.charging ? Theme.green : Theme.accent)
+            }
+
+            Text {
+                width: panel.rowWidth
+                visible: PowerService.health > 0
+                text: "Zustand " + PowerService.health + " %" + (PowerService.rate > 0 ? "   " + PowerService.rate.toFixed(1) + " W" : "")
+                color: Theme.fgDim
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize
+                renderType: Text.NativeRendering
+                bottomPadding: Theme.cellH * 0.4
+            }
+
+            Text {
+                text: "PROFIL  (tuned)"
+                color: Theme.fgDim
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize
+                renderType: Text.NativeRendering
+            }
+
+            Repeater {
+                model: PowerService.profiles
+
+                delegate: Rectangle {
+                    id: row
+
+                    required property var modelData
+
+                    readonly property bool current: modelData === PowerService.activeProfile
+
+                    width: panel.rowWidth
+                    height: Theme.cellH * 1.4
+                    radius: Theme.radius
+                    color: mouse.containsMouse ? Theme.hover : "transparent"
+
+                    Text {
+                        anchors.left: parent.left
+                        anchors.leftMargin: Theme.cellW / 2
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: (row.current ? "▸ " : "  ") + row.modelData
+                        color: row.current ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize
+                        renderType: Text.NativeRendering
+                    }
+
+                    MouseArea {
+                        id: mouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: PowerService.setProfile(row.modelData)
+                    }
+                }
+            }
+
+            Text {
+                width: panel.rowWidth
+                text: "weitere Profile: tuned-adm list"
+                color: Theme.muted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize
+                renderType: Text.NativeRendering
+                topPadding: Theme.cellH * 0.3
+            }
+        }
+    }
 }
