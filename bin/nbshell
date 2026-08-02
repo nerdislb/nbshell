@@ -73,6 +73,10 @@ switch_on() {
         return 1
     fi
     systemctl --user stop dms.service 2>/dev/null && echo "  dms:    gestoppt"
+    # `dms run` beendet sich mit 143 (SIGTERM). Die Unit hat dafuer kein
+    # SuccessExitStatus, systemd merkt sie sich also als "failed" -- und sie
+    # taucht auf ewig in `systemctl --user --failed` auf. Einmal quittieren.
+    systemctl --user reset-failed dms.service 2>/dev/null || true
     # `disable` hilft hier NICHT: DMS haengt ueber ein Drop-in an niri.service
     # (~/.config/systemd/user/niri.service.d/dms.conf, "Wants=dms.service"),
     # kommt also bei jeder Anmeldung wieder. Nur `mask` haelt es dauerhaft weg
