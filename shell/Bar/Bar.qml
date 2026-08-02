@@ -93,7 +93,7 @@ Variants {
 
             radius: win.barMode ? 0 : Theme.radius
             color: Theme.alpha(Theme.bg, Config.opacity)
-            border.width: Theme.borderWidth
+            border.width: Config.barBorder ? Theme.borderWidth : 0
             border.color: Theme.muted
 
             Behavior on width {

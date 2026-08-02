@@ -38,6 +38,10 @@ Singleton {
     readonly property int padY: value("padY", 4)
     readonly property int radius: value("radius", 0)
     readonly property int borderWidth: value("borderWidth", 1)
+
+    // Nur der Rahmen UM die Leiste -- Zellen, Popouts und Menues behalten
+    // ihren eigenen. Gilt fuer Insel wie Balken.
+    readonly property bool barBorder: value("barBorder", true)
     readonly property real opacity: value("opacity", 1.0)
     readonly property string widgetStyle: value("widgetStyle", "box")
 

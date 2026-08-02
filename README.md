@@ -8,7 +8,7 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **1.6.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Stand: **1.6.1** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
 Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Prozessliste, Aufnahme, Terminalfarben, KI-Verbrauch, Optionsmenue, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
@@ -157,6 +157,7 @@ aendert, aendert die ganze Leiste mit — `nbshell set fontSize 15` genuegt.
 Einstellbar in `config.json`: `theme`, `font`, `fontSize`, `mode`, `edge`,
 `gap`, `lines`, `padX`, `padY`, `radius`, `borderWidth`, `opacity`,
 `widgetStyle` (`box` | `bracket` | `plain`), `widgetColor` (`text` | `accent`),
+`barBorder`,
 `collapseDelay`, `clockFormat`,
 `titleLength`, `locale`, `wallpaper`, `wallpaperOverride`, `maxVolume` und die
 vier Bausteinlisten.
@@ -593,6 +594,15 @@ Enter in den Editor aus dem naechsten Abschnitt.
 **Farbe der Bausteine** schaltet zwischen dem normalen Vordergrund (`text`) und
 dem Akzent des Themes (`accent`). Warnfarben bleiben davon unberuehrt -- ein
 leerer Akku ist rot, egal was hier steht.
+
+Die gedaempfte Fassung wird dabei erst zum Hintergrund gezogen und **danach**
+auf Lesbarkeit geprueft. Nur `readable(accent, …)` gaebe auf dunklem Grund
+einfach wieder den Akzent zurueck -- Nebensaechliches und Wichtiges saehen
+gleich aus, und die Abstufung in der Leiste waere weg.
+
+**Rahmen um die Leiste** (`barBorder`) laesst sich abschalten, fuer Insel wie
+Balken. Zellen, Popouts und Menues behalten ihren eigenen Rahmen;
+`borderWidth` bestimmt weiterhin dessen Staerke.
 
 Bewusst **kein Formular mit Eingabefeldern**: jede Zeile ist eine Liste von
 Werten, durch die `←→` blaettert (Mausrad und Klick gehen auch). Das laesst

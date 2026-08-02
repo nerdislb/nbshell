@@ -95,9 +95,15 @@ PanelWindow {
             "max": 20
         },
         {
+            "key": "barBorder",
+            "def": true,
+            "label": "Rahmen um die Leiste",
+            "values": [true, false]
+        },
+        {
             "key": "borderWidth",
             "def": 1,
-            "label": "Rahmen",
+            "label": "Rahmenstaerke",
             "step": 1,
             "min": 0,
             "max": 4

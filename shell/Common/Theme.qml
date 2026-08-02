@@ -57,7 +57,12 @@ Singleton {
     // kaum zu lesen waere, wird so weit aufgehellt oder abgedunkelt, bis er es
     // ist. Die Farbe bleibt die des Themes, nur eben lesbar.
     readonly property color text: Config.value("widgetColor", "text") === "accent" ? readable(accent, bg, 4.5) : fg
-    readonly property color textDim: Config.value("widgetColor", "text") === "accent" ? readable(accent, bg, 3.0) : fgDim
+
+    // Die gedaempfte Fassung muss WIRKLICH gedaempft sein. `readable(accent)`
+    // liefert auf dunklem Grund einfach wieder den Akzent -- damit sahen in der
+    // Leiste Nebensaechliches und Wichtiges gleich aus, und die Abstufung war
+    // weg. Also erst zum Hintergrund ziehen, dann auf Lesbarkeit pruefen.
+    readonly property color textDim: Config.value("widgetColor", "text") === "accent" ? readable(mix(accent, bg, 0.45), bg, 3.0) : fgDim
 
     function alpha(color, a) {
         return Qt.rgba(color.r, color.g, color.b, a);
