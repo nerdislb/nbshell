@@ -66,13 +66,14 @@ Singleton {
         }
     }
 
-    // Themewechsel heisst neue Bilder.
+    // NUR beim Themewechsel neu lesen, nicht bei jeder Config-Aenderung:
+    // das Karussell schreibt beim Blaettern selbst in die Config, und ein
+    // Neulesen mitten im Blaettern warf die Auswahl jedes Mal zurueck.
     Connections {
         target: Config
 
-        function onDataChanged() {
-            if (Runtime.wallpaperOpen)
-                root.refresh();
+        function onThemeChanged() {
+            root.refresh();
         }
     }
 }

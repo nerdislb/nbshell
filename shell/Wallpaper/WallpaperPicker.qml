@@ -19,6 +19,11 @@ PanelWindow {
     property int selected: 0
     property string previous: ""
 
+    // Nur die ERSTE Liste nach dem Oeffnen bestimmt, wo der Rahmen steht.
+    // Danach gehoert die Auswahl den Pfeiltasten -- sonst zieht jede neue
+    // Liste sie wieder auf den Ausgangswert.
+    property bool jumpPending: false
+
     readonly property var list: Wallpapers.list
 
     visible: Runtime.wallpaperOpen
@@ -58,6 +63,7 @@ PanelWindow {
         if (!visible)
             return;
         previous = Config.value("wallpaperOverride", "");
+        jumpPending = true;
         Wallpapers.refresh();
         keys.forceActiveFocus();
     }
@@ -67,6 +73,9 @@ PanelWindow {
         target: Wallpapers
 
         function onListChanged() {
+            if (!root.jumpPending)
+                return;
+            root.jumpPending = false;
             const i = root.list.indexOf(root.previous);
             root.selected = i >= 0 ? i : 0;
             strip.positionViewAtIndex(root.selected, ListView.Contain);

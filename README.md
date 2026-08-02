@@ -446,6 +446,12 @@ Die Liste wird bei jedem Oeffnen frisch gelesen, bewusst ohne Zwischenspeicher
 -- genau der hat in der Vorlage (`themeWallpaper`) die Auswahl lahmgelegt: die
 Pfeiltasten gingen, Enter nahm den alten Stand.
 
+Zwei Stellen muessen dabei zusammenpassen, sonst springt die Auswahl beim
+Blaettern zurueck: die Liste wird **nur beim Themewechsel** neu gelesen (nicht
+bei jeder Config-Aenderung -- das Karussell schreibt beim Blaettern ja selbst
+hinein), und **nur die erste Liste nach dem Oeffnen** bestimmt, wo der Rahmen
+steht. Danach gehoert die Auswahl den Pfeiltasten.
+
 `nbshell wallpaper on` haengt den Hintergrund ans Theme: jedes Omarchy-Theme
 bringt seine Bilder mit, ein Themewechsel blendet auf das neue um. Ein festes
 Bild geht auch — `nbshell wallpaper ~/bild.jpg`, und `nbshell wallpaper set ""`
