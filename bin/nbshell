@@ -72,14 +72,20 @@ switch_on() {
     fi
     niri_include || true
     ipc notify server on >/dev/null && echo "  nbshell: Benachrichtigungsserver an"
+    # Ohne DMS malt niemand mehr den Hintergrund -- sonst steht man vor einer
+    # schwarzen Flaeche und sucht den Fehler bei sich.
+    ipc wallpaper on >/dev/null && echo "  nbshell: Hintergrundbild an"
     echo
-    echo "Nicht ersetzt (DMS-Binds laufen ins Leere): Zwischenablage, Power-Menue,"
-    echo "Sperrbildschirm, Prozessliste, Medientasten. Siehe $TAKEOVER."
+    echo "Mit DMS gehen auch dessen Plugins: screenCapture, aiFillWidget,"
+    echo "dynamicIsland, workspacePills, themeCarousel, themeWallpaper."
+    echo "nbshell ersetzt davon die Insel, die Arbeitsflaechen und die Themewahl."
+    echo "Tot bleiben Mod+Comma, Mod+Y und Mod+Shift+N -- siehe $TAKEOVER."
 }
 
 switch_off() {
     echo "DMS uebernimmt wieder:"
     ipc notify server off >/dev/null && echo "  nbshell: Benachrichtigungsserver aus"
+    ipc wallpaper off >/dev/null && echo "  nbshell: Hintergrundbild aus (DMS malt wieder)"
     niri_exclude || true
     systemctl --user unmask dms.service >/dev/null 2>&1
     systemctl --user start dms.service 2>/dev/null && echo "  dms:    gestartet"
