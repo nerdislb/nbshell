@@ -330,7 +330,7 @@ PanelWindow {
                             anchors.bottom: row.isHead ? parent.bottom : undefined
                             anchors.verticalCenter: row.isHead ? undefined : parent.verticalCenter
                             text: row.isHead ? row.modelData.head : ((row.index === root.selected ? "▸ " : "  ") + row.modelData.label)
-                            color: row.isHead ? Theme.fgDim : (row.index === root.selected ? Theme.fgBright : Theme.fg)
+                            color: row.isHead ? Theme.fgDim : (row.index === root.selected ? Theme.on(Theme.selection) : Theme.fg)
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSize
                             renderType: Text.NativeRendering
@@ -342,7 +342,7 @@ PanelWindow {
                             anchors.rightMargin: Theme.cellW / 2
                             anchors.verticalCenter: parent.verticalCenter
                             text: (row.index === root.selected ? "◂ " : "  ") + root.shown(row.modelData) + (row.index === root.selected ? " ▸" : "  ")
-                            color: row.index === root.selected ? Theme.accent : Theme.fgDim
+                            color: row.index === root.selected ? Theme.readable(Theme.accent, Theme.selection) : Theme.fgDim
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSize
                             renderType: Text.NativeRendering

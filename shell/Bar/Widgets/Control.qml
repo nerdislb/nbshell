@@ -128,7 +128,7 @@ Cell {
                             anchors.right: strength.left
                             anchors.verticalCenter: parent.verticalCenter
                             text: (entry.isCurrent ? "▸ " : "  ") + entry.modelData.name + (entry.modelData.known && !entry.isCurrent ? "  ·gespeichert" : "")
-                            color: entry.isCurrent ? Theme.accent : Theme.fg
+                            color: entry.isCurrent ? Theme.readable(Theme.accent, wifiMouse.containsMouse ? Theme.selection : Theme.bg) : (wifiMouse.containsMouse ? Theme.on(Theme.selection) : Theme.fg)
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSize
                             renderType: Text.NativeRendering
@@ -261,7 +261,7 @@ Cell {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         text: (btRow.modelData.connected ? "▸ " : "  ") + Bt.label(btRow.modelData) + (btRow.modelData.batteryAvailable ? ("  " + Math.round(btRow.modelData.battery * 100) + "%") : "") + (btRow.modelData.paired || btRow.modelData.connected ? "" : "  ·neu")
-                        color: btRow.modelData.connected ? Theme.accent : Theme.fg
+                        color: btRow.modelData.connected ? Theme.readable(Theme.accent, btMouse.containsMouse ? Theme.selection : Theme.bg) : (btMouse.containsMouse ? Theme.on(Theme.selection) : Theme.fg)
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize
                         renderType: Text.NativeRendering

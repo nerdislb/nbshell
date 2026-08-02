@@ -81,7 +81,7 @@ Column {
                         const suffix = e.hasChildren ? (entryColumn.expanded ? "  ▾" : "  ▸") : "";
                         return prefix + e.text + suffix;
                     }
-                    color: entryColumn.modelData.enabled ? Theme.fg : Theme.muted
+                    color: !entryColumn.modelData.enabled ? Theme.muted : (mouse.containsMouse ? Theme.on(Theme.selection) : Theme.fg)
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize
                     renderType: Text.NativeRendering

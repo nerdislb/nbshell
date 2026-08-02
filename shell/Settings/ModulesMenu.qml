@@ -278,7 +278,7 @@ PanelWindow {
                                     anchors.leftMargin: Theme.cellW * 2
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: (row.current ? "◂ ▸ " : "    ") + row.modelData
-                                    color: row.current ? Theme.accent : Theme.fg
+                                    color: row.current ? Theme.readable(Theme.accent, Theme.selection) : Theme.fg
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontSize
                                     renderType: Text.NativeRendering
@@ -341,7 +341,7 @@ PanelWindow {
                             anchors.leftMargin: Theme.cellW
                             anchors.verticalCenter: parent.verticalCenter
                             text: (catRow.current ? "▸ " : "  ") + catRow.modelData
-                            color: catRow.current ? Theme.accent : Theme.fgDim
+                            color: catRow.current ? Theme.readable(Theme.accent, Theme.selection) : Theme.fgDim
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSize
                             renderType: Text.NativeRendering

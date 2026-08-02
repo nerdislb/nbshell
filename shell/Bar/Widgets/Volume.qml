@@ -140,7 +140,7 @@ Cell {
                         anchors.leftMargin: Theme.cellW / 2
                         anchors.verticalCenter: parent.verticalCenter
                         text: (device.isCurrent ? "▸ " : "  ") + Audio.label(device.modelData)
-                        color: device.isCurrent ? Theme.accent : Theme.fg
+                        color: device.isCurrent ? Theme.readable(Theme.accent, mouse.containsMouse ? Theme.selection : Theme.bg) : (mouse.containsMouse ? Theme.on(Theme.selection) : Theme.fg)
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize
                         renderType: Text.NativeRendering

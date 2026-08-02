@@ -8,7 +8,7 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **1.5.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Stand: **1.6.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
 Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Prozessliste, Aufnahme, Terminalfarben, KI-Verbrauch, Optionsmenue, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
@@ -102,6 +102,26 @@ Mod+D hotkey-overlay-title="nbshell: Anwendungsstarter" {
 ## Aussehen
 
 Zwei Entscheidungen bestimmen alles andere.
+
+### Lesbarkeit statt Hoffnung
+
+Ein Theme darf beliebige Farben mitbringen. `selection` ist bei manchen dunkel
+(tokyo-night: `#292e42`), bei anderen **hell** (dos-moos: `#A5B5AB`). Wer
+darauf einen festen Vordergrund malt, hat bei der Haelfte der Themes helle
+Schrift auf hellem Grund — genau das ist im Optionsmenue passiert.
+
+Deshalb wird gerechnet statt geraten, mit dem Kontrastverhaeltnis nach WCAG:
+
+- `Theme.on(flaeche)` — der bessere von Vorder- und Hintergrund des Themes.
+  Ein fester Helligkeitsschwellwert liegt bei mittelhellen Farben regelmaessig
+  daneben, das Verhaeltnis nicht.
+- `Theme.readable(farbe, flaeche, minimum)` — zieht die gewuenschte Farbe so
+  weit ins Helle oder Dunkle, bis sie das Verhaeltnis erreicht. Die Farbe
+  bleibt die des Themes, nur eben lesbar.
+
+Beides greift ueberall dort, wo Text auf `selection` liegt (jede ausgewaehlte
+oder ueberfahrene Zeile) und beim Akzent als Bausteinfarbe. Gemessen im
+Optionsmenue mit dos-moos: 11,2:1 statt vorher kaum Unterschied.
 
 ### Zwei Dialekte
 

@@ -276,7 +276,7 @@ PanelWindow {
                     Text {
                         width: parent.width
                         text: row.modelData.name
-                        color: row.index === root.selected ? Theme.fgBright : Theme.fg
+                        color: row.index === root.selected ? Theme.on(Theme.selection) : Theme.fg
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize
                         renderType: Text.NativeRendering

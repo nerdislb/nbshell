@@ -52,8 +52,12 @@ Singleton {
     // Farbe der Bausteine in der Leiste: entweder der normale Vordergrund
     // oder der Akzent des Themes. Warnfarben (leerer Akku, hohe Last) bleiben
     // davon unberuehrt -- die sollen auffallen, nicht schoen sein.
-    readonly property color text: Config.value("widgetColor", "text") === "accent" ? accent : fg
-    readonly property color textDim: Config.value("widgetColor", "text") === "accent" ? alpha(accent, 0.65) : fgDim
+    //
+    // Durch `readable` gedreht: ein Akzent, der auf dem Hintergrund des Themes
+    // kaum zu lesen waere, wird so weit aufgehellt oder abgedunkelt, bis er es
+    // ist. Die Farbe bleibt die des Themes, nur eben lesbar.
+    readonly property color text: Config.value("widgetColor", "text") === "accent" ? readable(accent, bg, 4.5) : fg
+    readonly property color textDim: Config.value("widgetColor", "text") === "accent" ? readable(accent, bg, 3.0) : fgDim
 
     function alpha(color, a) {
         return Qt.rgba(color.r, color.g, color.b, a);
@@ -88,6 +92,45 @@ Singleton {
     // ── Themedatei ────────────────────────────────────────────────────────
 
     readonly property string themePath: Config.themeDir + "/" + Config.theme + "/colors.toml"
+
+    // ── Lesbarkeit ────────────────────────────────────────────────────────
+    //
+    // Ein Theme darf beliebige Farben mitbringen; `selection` ist bei manchen
+    // hell, bei anderen dunkel. Wer darauf einen festen Vordergrund malt, hat
+    // bei der Haelfte der Themes weisse Schrift auf hellem Grund. Deshalb wird
+    // hier gerechnet statt geraten -- Kontrastverhaeltnis nach WCAG.
+
+    // 1 (gleich) bis 21 (schwarz auf weiss).
+    function contrast(a, b) {
+        const la = luminance(a);
+        const lb = luminance(b);
+        const hi = Math.max(la, lb);
+        const lo = Math.min(la, lb);
+        return (hi + 0.05) / (lo + 0.05);
+    }
+
+    // Lesbare Schrift auf einer Flaeche: der bessere von Vorder- und
+    // Hintergrund des Themes. Ein fester Helligkeitsschwellwert liegt bei
+    // mittelhellen Farben regelmaessig daneben, das Verhaeltnis nicht.
+    function on(surface) {
+        return contrast(fg, surface) >= contrast(bg, surface) ? fg : bg;
+    }
+
+    // Eine gewuenschte Farbe so weit zum Hellen oder Dunklen ziehen, bis sie
+    // auf `surface` das Mindestverhaeltnis erreicht. Schafft sie es nicht,
+    // gewinnt die Lesbarkeit.
+    function readable(color, surface, minimum) {
+        const target = minimum ?? 4.5;
+        if (contrast(color, surface) >= target)
+            return color;
+        const towards = luminance(surface) > 0.5 ? "#000000" : "#ffffff";
+        for (var i = 1; i <= 10; i++) {
+            const candidate = mix(color, towards, i / 10);
+            if (contrast(candidate, surface) >= target)
+                return candidate;
+        }
+        return on(surface);
+    }
 
     // Zwei Farben mischen, t=0 gibt a, t=1 gibt b.
     function mix(a, b, t) {

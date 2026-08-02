@@ -74,7 +74,7 @@ Cell {
                         // Der Zeiger markiert das aktive Theme -- so, wie eine
                         // Auswahl im Terminal aussieht.
                         text: (row.isCurrent ? "▸ " : "  ") + row.modelData.name
-                        color: row.isCurrent ? Theme.accent : Theme.fg
+                        color: row.isCurrent ? Theme.readable(Theme.accent, mouse.containsMouse ? Theme.selection : Theme.bg) : (mouse.containsMouse ? Theme.on(Theme.selection) : Theme.fg)
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize
                         renderType: Text.NativeRendering

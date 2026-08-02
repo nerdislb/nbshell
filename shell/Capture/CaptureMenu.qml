@@ -169,7 +169,7 @@ PanelWindow {
                             anchors.leftMargin: Theme.cellW / 2
                             anchors.verticalCenter: parent.verticalCenter
                             text: (row.index === root.selected ? "▸ " : "  ") + "[" + row.modelData.key + "]  " + row.modelData.label
-                            color: row.index === root.selected ? Theme.fgBright : Theme.fg
+                            color: row.index === root.selected ? Theme.on(Theme.selection) : Theme.fg
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSize
                             renderType: Text.NativeRendering
