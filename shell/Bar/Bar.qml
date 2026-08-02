@@ -60,6 +60,14 @@ Variants {
             item: frame
         }
 
+        // Sobald ein Popout offen ist, darf die Leiste Tastatur annehmen
+        // (siehe oben) -- dann kommt hier auch Esc an.
+        Item {
+            anchors.fill: parent
+            focus: Runtime.popoutCount > 0
+            Keys.onEscapePressed: Runtime.closeAll()
+        }
+
         Timer {
             id: collapseTimer
             interval: Config.collapseDelay

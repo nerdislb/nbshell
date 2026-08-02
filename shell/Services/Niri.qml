@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.Common
 
 // Anbindung an niri ueber dessen IPC-Socket ($NIRI_SOCKET).
 //
@@ -91,6 +92,9 @@ Singleton {
             break;
         case "WindowFocusChanged":
             focusedWindowId = data.id ?? -1;
+            // Wer in ein anderes Fenster klickt, will das Popout nicht mehr.
+            if (Runtime.popoutCount > 0)
+                Runtime.closeAll();
             break;
         case "KeyboardLayoutsChanged":
             keyboardLayout = data.keyboard_layouts.names[data.keyboard_layouts.current_idx] ?? "";

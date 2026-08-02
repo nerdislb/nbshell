@@ -81,6 +81,7 @@ nbshell set fontSize 15
 nbshell set rightWidgets '["sys","sep","battery"]'
 nbshell config           # ganze Config zeigen
 nbshell status
+nbshell state            # was gerade offen ist (Popouts, Overlays)
 ```
 
 Fuer niri:
@@ -466,20 +467,26 @@ Cell {
 Das Fenster entsteht erst, wenn ein Baustein wirklich eines hat, und der Inhalt
 erst beim Aufklappen.
 
-**Schliessen: Klick daneben oder Esc.** Dafuer nimmt sich das Popout einen
-Griff (`grabFocus`) -- erst damit weiss der Kompositor, dass hier ein Menue
-offen ist, beendet ihn beim Klick daneben und laesst Quickshell das Fenster
-ausblenden. Ohne Griff bliebe es stehen, bis man dieselbe Zelle noch einmal
-trifft.
+**Schliessen** geht auf drei Wegen, und keiner davon verlaesst sich auf den
+Kompositor:
 
-Der Griff hat eine Bedingung, die leicht zu uebersehen ist: **die Layer-Flaeche
-darunter muss ueberhaupt Tastatur annehmen duerfen.** Steht die Leiste auf
-`keyboardFocus: None`, lehnt der Kompositor den Griff ab -- und das Popout
-erscheint dann gar nicht erst, lautlos. Umgestellt wird deshalb schon beim
-**Ueberfahren** einer Zelle mit Popout, nicht erst beim Klick: sonst kommt die
-Umstellung im selben Durchlauf zu spaet. Zellen ohne Popout melden sich nicht,
-damit ein Klick auf die Arbeitsflaechen dem Fenster darunter nicht die
-Tastatur wegzieht.
+1. **Maus weg.** Verlaesst der Zeiger Popout *und* Zelle, geht es nach
+   `popoutLeaveDelay` (2,5 s) zu. Das ist der Weg, der in der Praxis greift --
+   wer woanders hinklickt, bewegt vorher die Maus dorthin.
+2. **Fensterwechsel.** Wer in ein anderes Fenster klickt, bekommt vom
+   niri-Ereignisstrom ein `WindowFocusChanged`; dann gehen alle Popouts zu.
+3. **Esc**, solange die Leiste den Tastaturfokus hat.
+
+Warum nicht einfach ein Popup-Griff (`grabFocus`)? Der wird hier zwar
+angenommen, aber **nicht beendet, wenn man daneben klickt** -- das Popout
+bliebe stehen. Und ein Griff hat eine Bedingung, die leicht zu uebersehen ist:
+die Layer-Flaeche darunter muss ueberhaupt Tastatur annehmen duerfen. Steht die
+Leiste auf `keyboardFocus: None`, lehnt der Kompositor ihn ab und das Popout
+erscheint **gar nicht erst**, lautlos. Umgestellt wird deshalb schon beim
+Ueberfahren einer Zelle mit Popout; Zellen ohne Popout melden sich nicht, damit
+ein Klick auf die Arbeitsflaechen dem Fenster darunter nicht die Tastatur
+wegzieht. Den Griff nimmt sich nur noch das Control Center -- dort wird ein
+WLAN-Passwort getippt.
 
 ## Optionsmenue
 
@@ -590,6 +597,12 @@ doppelt gebaut werden, und der Uebergang laesst sich animieren.
   desselben Werts.** Ein `!==` gegen den Eintrag in der Quellliste trifft
   deshalb IMMER zu — die Benachrichtigungskarten blieben so ewig stehen,
   obwohl der Timer ablief und die Funktion lief. Gesucht wird ueber eine id.
+- **Ein `signal` auf einem Singleton kam bei den Zellen nicht an**, eine
+  Aenderungsmeldung dagegen zuverlaessig — deshalb schliesst ein hochgezaehlter
+  `closeToken` die Popouts und kein Signal.
+- **`qs ipc call <ziel> show` ruft nicht die Funktion `show`**, sondern die
+  CLI versteht ihr eigenes `ipc show` und listet die Ziele auf. IPC-Funktionen
+  also nicht `show` nennen.
 - **Eine Bindung darf nicht setzen, was sie liest.** `player` las `lastActive`
   und `onPlayerChanged` schrieb es wieder — „Binding loop detected", und der
   Wert zappelt. Gemerkt wird jetzt nur noch, wer *spielt*.

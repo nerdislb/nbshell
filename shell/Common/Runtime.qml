@@ -37,4 +37,14 @@ Singleton {
     // kommt -- wird das erst beim Oeffnen umgestellt, ist der Griff im selben
     // Durchlauf noch abgelehnt und das Popout erscheint gar nicht.
     property int popoutHover: 0
+
+    // Hochgezaehlt, wenn alle Popouts zugehen sollen -- Esc auf der Leiste,
+    // Fensterwechsel in niri. Bewusst eine Property und KEIN Signal: ein
+    // `signal closeAll` auf einem Singleton kam bei den Zellen nicht an, eine
+    // Aenderungsmeldung dagegen zuverlaessig.
+    property int closeToken: 0
+
+    function closeAll() {
+        closeToken += 1;
+    }
 }

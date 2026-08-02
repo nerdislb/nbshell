@@ -87,6 +87,14 @@ Item {
         height: childrenRect.height
     }
 
+    Connections {
+        target: Runtime
+
+        function onCloseTokenChanged() {
+            root.setPopout(false);
+        }
+    }
+
     // Popout von aussen schalten (Tastenkuerzel, IPC).
     function setPopout(open) {
         if (popoutLoader.item)

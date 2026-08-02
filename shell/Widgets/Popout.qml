@@ -26,7 +26,15 @@ PopupWindow {
     //
     // Der Preis: solange es offen ist, hat das Fenster darunter keine
     // Tastatur. Fuer ein angeklicktes Menue ist das genau richtig.
-    property bool takesKeyboard: true
+    property bool takesKeyboard: false
+
+    // Zeit, bis ein Popout von selbst zugeht, nachdem die Maus es und seine
+    // Zelle verlassen hat. Der Kompositor meldet uns keinen Klick daneben --
+    // ohne diesen Nachlauf bliebe es stehen, bis man dieselbe Zelle noch
+    // einmal trifft.
+    readonly property int leaveDelay: Config.value("popoutLeaveDelay", 2500)
+
+    readonly property bool pointerInside: hover.hovered || (root.anchorItem?.hovered ?? false)
 
     // Innenabstand in Zellen, damit auch das Popout auf dem Raster sitzt.
     readonly property real padding: Theme.cellW * 2
@@ -51,9 +59,34 @@ PopupWindow {
         visible = false;
     }
 
+    onPointerInsideChanged: {
+        if (pointerInside)
+            leaveTimer.stop();
+        else if (visible)
+            leaveTimer.restart();
+    }
+
+    onVisibleChanged: {
+        if (!visible)
+            leaveTimer.stop();
+        else if (!pointerInside)
+            leaveTimer.restart();
+    }
+
+    Timer {
+        id: leaveTimer
+        interval: root.leaveDelay
+        onTriggered: if (!root.pointerInside)
+            root.visible = false
+    }
+
     Rectangle {
         anchors.fill: parent
         color: Theme.bg
+
+        HoverHandler {
+            id: hover
+        }
         radius: Theme.radius
         border.width: Theme.borderWidth
         border.color: Theme.muted

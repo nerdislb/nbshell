@@ -171,6 +171,7 @@ nbshell -- eigene Shell auf Quickshell
   nbshell get <key>         Wert aus der Config
   nbshell set <key> <wert>  Wert setzen (JSON erlaubt: 12, true, ["a","b"])
   nbshell config            zeigt die ganze Config
+  nbshell state             was gerade offen ist
   nbshell status
 
   nbshell switch on [dauerhaft]
@@ -242,6 +243,9 @@ case "$cmd" in
             off) switch_off ;;
             *) switch_status ;;
         esac
+        ;;
+    state)
+        ipc state dump
         ;;
     settings)
         ipc settings toggle

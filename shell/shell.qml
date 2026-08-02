@@ -132,6 +132,27 @@ ShellRoot {
     }
 
     IpcHandler {
+        target: "state"
+
+        // Was gerade offen ist. Nuetzlich beim Suchen, wenn ein Fenster
+        // haengt oder gar nicht erst auftaucht.
+        //
+        // NICHT `show` nennen: `qs ipc call state show` versteht die CLI als
+        // ihr eigenes `ipc show` und listet nur die Ziele auf.
+        function dump(): string {
+            return JSON.stringify({
+                "popouts": Runtime.popoutCount,
+                "insel": Runtime.islandOpen,
+                "starter": Runtime.launcherOpen,
+                "einstellungen": Runtime.settingsOpen,
+                "prozesse": Runtime.procsOpen,
+                "aufnahme": Runtime.captureOpen,
+                "power": Runtime.powerOpen
+            });
+        }
+    }
+
+    IpcHandler {
         target: "settings"
 
         function toggle(): string {
