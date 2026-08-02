@@ -47,6 +47,14 @@ nbshell -- eigene Shell auf Quickshell
   nbshell launcher          Anwendungsstarter (Alias: run)
   nbshell find <text>       zeigt, was der Starter finden wuerde
 
+  nbshell notify            Stand der Benachrichtigungen
+  nbshell notify toggle     Archiv aufklappen
+  nbshell notify dnd        "nicht stoeren" umschalten
+  nbshell notify clear
+  nbshell notify server on|off
+                            uebernimmt org.freedesktop.Notifications von DMS
+                            (dessen Unit muss dann gestoppt sein)
+
   nbshell tray              zeigt, was im Tray steckt
   nbshell osd test|on|off   Einblendung beim Regeln
   nbshell control           Control Center (Helligkeit, WLAN, Bluetooth)
@@ -116,6 +124,13 @@ case "$cmd" in
         ;;
     find)
         ipc launcher find "${1:?Suchbegriff fehlt}"
+        ;;
+    notify)
+        case "${1:-status}" in
+            toggle|dnd|clear|status|list) ipc notify "${1:-status}" ;;
+            server) ipc notify server "${2:-toggle}" ;;
+            *) ipc notify status ;;
+        esac
         ;;
     tray)
         ipc tray list

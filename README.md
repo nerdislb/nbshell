@@ -8,8 +8,8 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **0.8.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
-Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
+Stand: **0.9.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
 ## Installieren
@@ -53,6 +53,10 @@ nbshell audio panel      # Regler und Geraeteliste
 
 nbshell launcher         # Anwendungsstarter (Alias: run)
 nbshell find ghost       # zeigt, was er finden wuerde
+
+nbshell notify           # Stand der Benachrichtigungen
+nbshell notify dnd       # nicht stoeren
+nbshell notify server on # den D-Bus-Namen uebernehmen (siehe unten)
 
 nbshell tray             # was gerade im Tray steckt
 nbshell osd test         # Einblendung ausprobieren
@@ -188,6 +192,47 @@ reiner Knopf waere verschenkter Platz. Ein Klick klappt drei Abschnitte auf:
 Netz und Bluetooth kommen aus Quickshells eigenen Modulen — kein `nmcli`,
 kein `bluetoothctl` dazwischen.
 
+## Benachrichtigungen
+
+Karten am rechten Rand, gegenueber der Leiste: Programmname, Zeit als Abstand
+(„vor 3 min"), Titel, Text und die Knoepfe, die das Programm mitschickt. Ein
+Klick blendet aus, ein Rechtsklick wirft weg, Ueberfahren haelt sie stehen.
+**Dringendes bleibt** — rot umrandet und mit `!` —, bis man es wegklickt; so
+sieht es die Spezifikation vor.
+
+Der Baustein `notifications` zeigt die Anzahl, sein Popout das Archiv mit
+„nicht stoeren" und „leeren". Rechtsklick auf die Zelle schaltet direkt stumm.
+
+### Der Umschaltmoment
+
+`org.freedesktop.Notifications` bekommt genau **ein** Prozess. Deshalb ist
+nbshells Server **vorgabemaessig aus** — und das aus einem haerteren Grund als
+„die beiden stoeren sich":
+
+```
+$ systemctl --user cat dms.service
+[Service]
+Type=dbus
+BusName=org.freedesktop.Notifications
+```
+
+DMS gilt systemd erst dann als gestartet, wenn dieser Name auftaucht. Nimmt
+nbshell ihn, haengt `dms.service` ewig in „activating" und wird schliesslich
+als fehlgeschlagen neu gestartet — obwohl der Prozess laeuft und die Leiste da
+ist. Umgekehrt gibt Quickshell den Namen von selbst frei und **greift auch von
+selbst zu, sobald der andere ihn loslaesst**; ein Neustart ist dafuer nicht
+noetig.
+
+Umschalten heisst also beides:
+
+```bash
+systemctl --user stop dms.service     # und ggf. disable
+nbshell notify server on
+```
+
+Zurueck geht es genauso: `nbshell notify server off`, dann
+`systemctl --user start dms.service`.
+
 ## System-Tray
 
 Der Baustein `tray` zeigt die Symbole der Programme, die sich per
@@ -271,7 +316,7 @@ erst beim Aufklappen.
 ## Bausteine
 
 `clock`, `workspaces`, `window`, `sys`, `battery`, `layout`, `themes`,
-`volume`, `control`, `tray`, `sep`.
+`volume`, `control`, `tray`, `notifications`, `sep`.
 
 Vier Listen sagen, was wo steht:
 
@@ -301,6 +346,7 @@ shell/
   Services/Bt.qml      BlueZ ueber Quickshell
   Services/Brightness.qml  sysfs lesen, logind setzen
   Services/Osd.qml     Zustand der Einblendung
+  Services/Notify.qml  Benachrichtigungsserver, Archiv
   Widgets/LevelBar.qml Balken aus Bloecken
   Widgets/MenuView.qml DBus-Menues als Liste
   Widgets/Cell.qml     der eine Baustein, aus dem alles besteht
@@ -308,6 +354,7 @@ shell/
   Bar/Wallpaper.qml    Hintergrundbild je Bildschirm
   Launcher/Launcher.qml  Anwendungsstarter
   Osd/Osd.qml          die Einblendung je Bildschirm
+  Notifications/Popups.qml  die Karten am Rand
   Bar/WidgetHost.qml   Name -> Komponente
   Bar/Widgets/         die Bausteine
   Widgets/Popout.qml   Fenster, das an einer Zelle haengt
@@ -364,8 +411,6 @@ koennen gleichzeitig laufen — nbshell beansprucht bewusst keine D-Bus-Namen
 
 Der Reihe nach, wie es fuer den Alltag zaehlt:
 
-- **Benachrichtigungen** — der Server steckt in Quickshell, es fehlen Popups
-  und Verlauf.
 - **Netz ohne NetworkManager** — nur dessen Backend ist angebunden.
 - **Power-Menue**, **Zwischenablage**.
 - **Anwendungslautstaerken** — die Stroeme einzelner Programme.

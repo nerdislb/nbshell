@@ -19,4 +19,5 @@ Singleton {
     property bool audioPanelOpen: false
     property bool controlOpen: false
     property bool launcherOpen: false
+    property bool notifyOpen: false
 }

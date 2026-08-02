@@ -10,6 +10,7 @@ import qs.Services
 import qs.Bar
 import qs.Launcher
 import qs.Osd
+import qs.Notifications
 
 // nbshell -- Einstiegspunkt.
 //
@@ -38,6 +39,7 @@ ShellRoot {
         void ThemeIndex.list;
         void Apps.entries;
         void Osd.enabled;
+        void Notify.count;
     }
 
     Bar {}
@@ -47,6 +49,8 @@ ShellRoot {
     Launcher {}
 
     Osd {}
+
+    Popups {}
 
     // ── Steuerung von aussen ──────────────────────────────────────────────
     // Aufrufbar als `nbshell <ziel> <befehl>`, siehe bin/nbshell.
@@ -106,6 +110,52 @@ ShellRoot {
 
         function current(): string {
             return Config.theme;
+        }
+    }
+
+    IpcHandler {
+        target: "notify"
+
+        function toggle(): string {
+            Runtime.islandOpen = true;
+            Runtime.notifyOpen = !Runtime.notifyOpen;
+            return Runtime.notifyOpen ? "offen" : "zu";
+        }
+
+        // Der Server ist der Umschalter zwischen den beiden Shells -- deshalb
+        // ein eigener Befehl und keine stille Automatik.
+        function server(value: string): string {
+            const next = value === "toggle" ? !Notify.enabled : (value === "on");
+            Config.set("notifications", next);
+            if (next)
+                return "an — dms.service muss gestoppt sein, sonst haengt dessen Unit";
+            return "aus — die Benachrichtigungen gehen wieder an DMS";
+        }
+
+        function dnd(): string {
+            Notify.setDnd(!Notify.dnd);
+            return Notify.dnd ? "nicht stoeren" : "wieder laut";
+        }
+
+        function clear(): string {
+            const n = Notify.count;
+            Notify.clear();
+            return "geloescht: " + n;
+        }
+
+        function status(): string {
+            return JSON.stringify({
+                "server": Notify.enabled,
+                "anzahl": Notify.count,
+                "offene": Notify.popups.length,
+                "dnd": Notify.dnd
+            });
+        }
+
+        function list(): string {
+            if (Notify.count === 0)
+                return "nichts da";
+            return Notify.history.map(e => (e.notification?.appName || "System") + ": " + (e.notification?.summary ?? "")).join("\n");
         }
     }
 
