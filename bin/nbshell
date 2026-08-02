@@ -202,6 +202,7 @@ nbshell -- eigene Shell auf Quickshell
   nbshell media playpause|next|previous|status
 
   nbshell tray              zeigt, was im Tray steckt
+  nbshell tray toggle       Symbole ein- und ausklappen
   nbshell osd test|on|off   Einblendung beim Regeln
   nbshell control           Control Center (Helligkeit, WLAN, Bluetooth)
   nbshell brightness up|down|<prozent>
@@ -339,7 +340,10 @@ case "$cmd" in
         esac
         ;;
     tray)
-        ipc tray list
+        case "${1:-list}" in
+            toggle) ipc tray toggle ;;
+            *) ipc tray list ;;
+        esac
         ;;
     osd)
         ipc osd "${1:-status}"

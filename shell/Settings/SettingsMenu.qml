@@ -176,6 +176,12 @@ PanelWindow {
             "values": [true, false]
         },
         {
+            "key": "trayExpanded",
+            "def": false,
+            "label": "Tray aufgeklappt",
+            "values": [true, false]
+        },
+        {
             "key": "updates",
             "def": true,
             "label": "Updates pruefen",

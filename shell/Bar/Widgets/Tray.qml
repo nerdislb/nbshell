@@ -13,6 +13,10 @@ import qs.Widgets
 //
 // Links startet, Mitte ist die zweite Aktion des Programms, rechts oeffnet
 // dessen Menue. Genau das erwartet ein SNI-Programm.
+//
+// Eingeklappt steht nur ein Pfeil mit der Anzahl da -- fuenf bunte Symbole
+// dauerhaft in einer Textleiste sind das Lauteste, was sie zu bieten hat. Der
+// Zustand steht in der Config und ueberlebt damit den Neustart.
 Cell {
     id: root
 
@@ -23,14 +27,36 @@ Cell {
 
     readonly property var items: SystemTray.items?.values ?? []
 
+    readonly property bool expanded: Config.value("trayExpanded", false)
+
     shown: items.length > 0
     custom: true
 
     Row {
         spacing: Theme.cellW / 2
 
+        // Der Pfeil klappt auf und zu; eingeklappt steht die Anzahl daneben.
+        Text {
+            id: toggle
+
+            anchors.verticalCenter: parent.verticalCenter
+            text: root.expanded ? "▾" : ("▸" + root.items.length)
+            color: Theme.textDim
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSize
+            renderType: Text.NativeRendering
+
+            MouseArea {
+                anchors.fill: parent
+                anchors.margins: -Theme.cellW / 2
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: Config.set("trayExpanded", !root.expanded)
+            }
+        }
+
         Repeater {
-            model: root.items
+            model: root.expanded ? root.items : []
 
             Item {
                 id: entry

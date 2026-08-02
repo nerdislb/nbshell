@@ -402,6 +402,12 @@ ShellRoot {
     IpcHandler {
         target: "tray"
 
+        function toggle(): string {
+            const next = !Config.value("trayExpanded", false);
+            Config.set("trayExpanded", next);
+            return next ? "aufgeklappt" : "eingeklappt";
+        }
+
         function list(): string {
             const items = SystemTray.items?.values ?? [];
             if (items.length === 0)

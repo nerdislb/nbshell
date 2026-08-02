@@ -8,7 +8,7 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **1.8.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Stand: **1.9.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
 Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Prozessliste, Aufnahme, Terminalfarben, KI-Verbrauch, Optionsmenue, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
@@ -356,7 +356,13 @@ aber vor dem Umstieg gehoert `hyprlock` (oder etwas anderes) installiert.
 
 ## System-Tray
 
-Der Baustein `tray` zeigt die Symbole der Programme, die sich per
+Der Baustein `tray` ist **eingeklappt voreingestellt**: dort steht dann nur ein
+Pfeil mit der Anzahl (`▸3`). Fuenf bunte Programmsymbole dauerhaft in einer
+Textleiste sind das Lauteste, was sie zu bieten hat. Ein Klick auf den Pfeil
+klappt sie aus, `nbshell tray toggle` tut dasselbe, und der Zustand steht in der
+Config -- er ueberlebt den Neustart.
+
+Aufgeklappt zeigt er die Symbole der Programme, die sich per
 StatusNotifierItem anmelden. Links startet, Mitte loest die zweite Aktion des
 Programms aus, rechts oeffnet dessen Menue, das Mausrad wird durchgereicht --
 genau das, was ein SNI-Programm erwartet. Ein Symbol, das sich als „passiv"
