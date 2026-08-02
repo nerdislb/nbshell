@@ -28,14 +28,20 @@ ipc() {
 NIRI_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/niri"
 GHOSTTY="${XDG_CONFIG_HOME:-$HOME/.config}/ghostty/config"
 TAKEOVER="nbshell-takeover.kdl"
+COLORS="nbshell-colors.kdl"
 INCLUDE_LINE="include \"$TAKEOVER\""
+COLORS_LINE="include \"$COLORS\""
 
 niri_include() {
     local cfg="$NIRI_DIR/config.kdl"
     [ -f "$cfg" ] || { echo "niri-Config nicht gefunden: $cfg" >&2; return 1; }
     grep -qF "$INCLUDE_LINE" "$cfg" && return 0
     cp "$cfg" "$cfg.vor-nbshell"
-    printf '\n// nbshell uebernimmt DMS-Tastenkuerzel (nbshell switch off entfernt das)\n%s\n' "$INCLUDE_LINE" >> "$cfg"
+    # Die Farbdatei zuerst schreiben lassen -- ein include auf eine fehlende
+    # Datei macht die ganze Config ungueltig.
+    ipc theme write >/dev/null 2>&1 || true
+    printf '\n// nbshell uebernimmt DMS-Tastenkuerzel und faerbt die Fensterrahmen\n// (nbshell switch off entfernt beides)\n%s\n' "$INCLUDE_LINE" >> "$cfg"
+    [ -f "$NIRI_DIR/$COLORS" ] && printf '%s\n' "$COLORS_LINE" >> "$cfg"
     if ! niri validate >/dev/null 2>&1; then
         mv "$cfg.vor-nbshell" "$cfg"
         echo "niri-Config waere ungueltig geworden -- zurueckgenommen." >&2
@@ -48,7 +54,7 @@ niri_exclude() {
     local cfg="$NIRI_DIR/config.kdl"
     grep -qF "$INCLUDE_LINE" "$cfg" || return 0
     cp "$cfg" "$cfg.vor-nbshell"
-    grep -vF "$INCLUDE_LINE" "$cfg" | grep -v "^// nbshell uebernimmt DMS-Tastenkuerzel" > "$cfg.neu"
+    grep -vF "$INCLUDE_LINE" "$cfg" | grep -vF "$COLORS_LINE" | grep -v "^// nbshell uebernimmt DMS-Tastenkuerzel" | grep -v "^// (nbshell switch off entfernt beides)" > "$cfg.neu"
     mv "$cfg.neu" "$cfg"
     niri validate >/dev/null 2>&1 || { mv "$cfg.vor-nbshell" "$cfg"; echo "zurueckgenommen." >&2; return 1; }
     echo "  niri:   $INCLUDE_LINE entfernt"
@@ -113,6 +119,7 @@ switch_status() {
     printf 'dms.service      %s\n' "$(systemctl --user is-active dms.service 2>/dev/null; systemctl --user is-enabled dms.service 2>/dev/null | tr '\n' ' ')"
     printf 'Benachrichtigung %s\n' "$(busctl --user list 2>/dev/null | awk '/^org.freedesktop.Notifications/ {print $2" ("$3")"}')"
     printf 'niri-Binds       %s\n' "$(grep -qF "$INCLUDE_LINE" "$NIRI_DIR/config.kdl" && echo "nbshell" || echo "DMS")"
+    printf 'Fensterrahmen    %s\n' "$(grep -qF "$COLORS_LINE" "$NIRI_DIR/config.kdl" && echo "nbshell" || echo "DMS")"
 }
 
 usage() {
@@ -167,6 +174,8 @@ nbshell -- eigene Shell auf Quickshell
   nbshell brightness up|down|<prozent>
 
   nbshell wallpaper on|off  Hintergrundbild des Themes (aus, solange DMS laeuft)
+  nbshell wallpaper pick    Karussell: Bilder des Themes durchblaettern
+  nbshell wallpaper list
   nbshell wallpaper <pfad>  festes Bild statt des Themebildes
 
   nbshell get <key>         Wert aus der Config
@@ -299,7 +308,7 @@ case "$cmd" in
         ;;
     wallpaper)
         case "${1:-current}" in
-            on|off|toggle|current) ipc wallpaper "${1:-current}" ;;
+            on|off|toggle|current|pick|list) ipc wallpaper "${1:-current}" ;;
             *) ipc wallpaper set "$1" ;;
         esac
         ;;

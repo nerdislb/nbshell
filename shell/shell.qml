@@ -15,6 +15,7 @@ import qs.Power
 import qs.Procs
 import qs.Capture
 import qs.Settings
+import qs.Wallpaper
 
 // nbshell -- Einstiegspunkt.
 //
@@ -71,6 +72,8 @@ ShellRoot {
     SettingsMenu {}
 
     ModulesMenu {}
+
+    WallpaperPicker {}
 
     // ── Steuerung von aussen ──────────────────────────────────────────────
     // Aufrufbar als `nbshell <ziel> <befehl>`, siehe bin/nbshell.
@@ -131,6 +134,14 @@ ShellRoot {
         function current(): string {
             return Config.theme;
         }
+
+        // Schreibt die Farbdateien neu, ohne das Theme zu wechseln.
+        // NICHT `export` nennen -- das ist in JavaScript ein Schluesselwort,
+        // und die ganze Datei laedt dann nicht mehr.
+        function write(): string {
+            ThemeExport.exportNow();
+            return "geschrieben";
+        }
     }
 
     IpcHandler {
@@ -148,6 +159,7 @@ ShellRoot {
                 "starter": Runtime.launcherOpen,
                 "einstellungen": Runtime.settingsOpen,
                 "bausteine": Runtime.modulesOpen,
+                "hintergrund": Runtime.wallpaperOpen,
                 "prozesse": Runtime.procsOpen,
                 "aufnahme": Runtime.captureOpen,
                 "power": Runtime.powerOpen
@@ -523,6 +535,21 @@ ShellRoot {
         function set(path: string): string {
             Config.set("wallpaperOverride", path);
             return path === "" ? "wieder vom Theme" : path;
+        }
+
+        // Das Karussell: die Bilder des aktuellen Themes durchblaettern.
+        function pick(): string {
+            Runtime.wallpaperOpen = !Runtime.wallpaperOpen;
+            return Runtime.wallpaperOpen ? "offen" : "zu";
+        }
+
+        function list(): string {
+            // Die Liste wird sonst erst beim Oeffnen des Karussells gelesen --
+            // beim ersten Aufruf hier waere sie leer.
+            Wallpapers.refresh();
+            if (Wallpapers.list.length === 0)
+                return "noch nicht gelesen — Befehl gleich noch einmal aufrufen";
+            return Wallpapers.list.map(w => Wallpapers.nameOf(w)).join("\n");
         }
 
         function current(): string {

@@ -9,7 +9,6 @@
 // Was hier NICHT steht, weil nbshell es nicht kann und die DMS-Binds dafuer
 // tot bleiben:
 //
-//   Mod+Y        Wallpaper-Browser
 //   Mod+Shift+N  Notizblock
 //
 // Der Sperrbildschirm (Mod+Alt+L) zeigt auf `nbshell power lock` und damit auf
@@ -24,6 +23,9 @@ binds {
 
     // DMS: notification center -> nbshells Archiv.
     Mod+N hotkey-overlay-title="nbshell: Benachrichtigungen" { spawn "sh" "-c" "$HOME/.local/bin/nbshell notify toggle"; }
+
+    // DMS: Wallpaper-Browser -> nbshells Karussell.
+    Mod+Y hotkey-overlay-title="nbshell: Hintergrund" { spawn "sh" "-c" "$HOME/.local/bin/nbshell wallpaper pick"; }
 
     // DMS: settings -> nbshells Optionsmenue.
     Mod+Comma hotkey-overlay-title="nbshell: Einstellungen" { spawn "sh" "-c" "$HOME/.local/bin/nbshell settings"; }

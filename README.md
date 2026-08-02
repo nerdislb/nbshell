@@ -8,7 +8,7 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **1.2.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Stand: **1.3.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
 Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Prozessliste, Aufnahme, Terminalfarben, KI-Verbrauch, Optionsmenue, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
@@ -276,11 +276,11 @@ Die Takeover-Datei biegt inzwischen alles um, was nbshell kann:
 | `Super+X` | powermenu | Sitzungsmenue |
 | `Mod+M`, `Ctrl+Alt+Entf` | processlist | Prozessliste |
 | `Mod+Comma` | settings | Optionsmenue |
+| `Mod+Y` | Wallpaper-Browser | Hintergrund-Karussell |
 | `Mod+Alt+L` | lock | `lockCommand` (Vorgabe hyprlock) |
 | `XF86AudioPlay/Next/Prev` | mpris | MPRIS-Anbindung |
 
-**Was tot bleibt**, weil nbshell es nicht hat: `Mod+Y` (Wallpaper-Browser) und
-`Mod+Shift+N` (Notizblock).
+**Was tot bleibt**, weil nbshell es nicht hat: `Mod+Shift+N` (Notizblock).
 
 **Achtung Sperrbildschirm:** auf diesem Rechner ist *keiner* installiert.
 `nbshell power lock` sagt das per Benachrichtigung, statt still nichts zu tun --
@@ -365,10 +365,15 @@ uebernommen):
   `FontMetrics.ascent`. `baselineOffset` taugt nicht, das ist 0, und die
   Fuellung landet ausserhalb des Zeichens.
 
-## Terminalfarben mitfaerben
+## Terminalfarben und Fensterrahmen mitfaerben
 
-Ein Themewechsel hoert nicht an der Leiste auf: nbshell schreibt bei jedem
-Wechsel `~/.config/ghostty/themes/nbcolors` (die 16 ANSI-Farben plus Hinter-
+Ein Themewechsel hoert nicht an der Leiste auf. nbshell schreibt bei jedem
+Wechsel zwei Dateien:
+
+- `~/.config/niri/nbshell-colors.kdl` — Fensterrahmen, Fokusring,
+  Tab-Anzeiger und Einfuegemarke. `nbshell switch on` haengt sie als Include
+  hinter DMS' eigenen, damit sie gewinnt.
+- `~/.config/ghostty/themes/nbcolors` (die 16 ANSI-Farben plus Hinter-
 und Vordergrund, direkt aus der `colors.toml`) und ruft danach
 `~/.config/nbshell/theme-hook.sh` auf, falls es die gibt -- mit Themename und
 Modus als Argumenten. Alles Weitere (btop, fuzzel, was auch immer) gehoert
@@ -429,6 +434,17 @@ Die ersten anderthalb Sekunden nach dem Start bleibt sie stumm — dort setzen
 sich die Werte erst, und ohne die Sperre blitzte sie bei jedem Neustart auf.
 
 ## Hintergrundbild
+
+`nbshell wallpaper pick` (nach dem Umstieg `Mod+Y`) blaettert durch die Bilder
+des aktuellen Themes -- als Streifen am unteren Rand, `←→` blaettert, `Enter`
+uebernimmt, `r` stellt das Bild wieder her, das das Theme selbst mitbringt,
+`Esc` nimmt zurueck. Beim Blaettern wird das Bild **sofort gesetzt**: man sieht
+es in voller Groesse hinter dem Streifen, statt aus einem Vorschaubild raten zu
+muessen.
+
+Die Liste wird bei jedem Oeffnen frisch gelesen, bewusst ohne Zwischenspeicher
+-- genau der hat in der Vorlage (`themeWallpaper`) die Auswahl lahmgelegt: die
+Pfeiltasten gingen, Enter nahm den alten Stand.
 
 `nbshell wallpaper on` haengt den Hintergrund ans Theme: jedes Omarchy-Theme
 bringt seine Bilder mit, ein Themewechsel blendet auf das neue um. Ein festes
@@ -617,6 +633,9 @@ doppelt gebaut werden, und der Uebergang laesst sich animieren.
   Fehler, ohne Meldung. Im Baustein-Editor blieben beide Listen leer, obwohl
   die Modelle nachweislich gefuellt waren; mit festen Breiten am Fenster
   standen sie sofort da.
+- **`export` ist in JavaScript ein Schluesselwort.** Eine IPC-Funktion so zu
+  nennen laesst die ganze Datei nicht mehr laden — die Shell startet dann gar
+  nicht mehr.
 - **Ein `signal` auf einem Singleton kam bei den Zellen nicht an**, eine
   Aenderungsmeldung dagegen zuverlaessig — deshalb schliesst ein hochgezaehlter
   `closeToken` die Popouts und kein Signal.

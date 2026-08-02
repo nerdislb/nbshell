@@ -18,6 +18,7 @@ Singleton {
     readonly property bool enabled: Config.value("themeExport", true)
 
     readonly property string ghosttyPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ghostty/themes/nbcolors"
+    readonly property string niriPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/niri/nbshell-colors.kdl"
     readonly property string hookPath: Config.configDir + "/theme-hook.sh"
 
     // ghostty will die 16 ANSI-Farben plus Hinter- und Vordergrund. Omarchys
@@ -39,10 +40,31 @@ Singleton {
         return out;
     }
 
+    // Fensterrahmen, Fokusring und Verwandte. niri liest das ueber einen
+    // include; geschrieben wird dieselbe Form, die auch DMS benutzt -- nur
+    // eben aus Omarchys Palette statt aus matugen.
+    function niriColors() {
+        const c = Theme.c;
+        const active = c.accent ?? c.foreground ?? "#ffffff";
+        const inactive = c.muted ?? c.dark_foreground ?? "#555555";
+        const urgent = c.red ?? "#ff0000";
+
+        var out = "// Von nbshell geschrieben -- Theme: " + Config.theme + "\n";
+        out += "// Nicht von Hand aendern, jeder Themewechsel ueberschreibt die Datei.\n\n";
+        out += "layout {\n";
+        out += "    focus-ring {\n        active-color \"" + active + "\"\n        inactive-color \"" + inactive + "\"\n        urgent-color \"" + urgent + "\"\n    }\n\n";
+        out += "    border {\n        active-color \"" + active + "\"\n        inactive-color \"" + inactive + "\"\n        urgent-color \"" + urgent + "\"\n    }\n\n";
+        out += "    tab-indicator {\n        active-color \"" + active + "\"\n        inactive-color \"" + inactive + "\"\n        urgent-color \"" + urgent + "\"\n    }\n\n";
+        out += "    insert-hint {\n        color \"" + active + "80\"\n    }\n";
+        out += "}\n";
+        return out;
+    }
+
     function exportNow() {
         if (!enabled || Object.keys(Theme.c).length < 5)
             return;
         ghostty.setText(ghosttyTheme());
+        niri.setText(niriColors());
         // Das Skript bekommt Name und Modus mit, damit es nicht selbst in der
         // colors.toml nachsehen muss.
         hook.command = ["sh", "-c", "[ -x " + root.hookPath + " ] && exec " + root.hookPath + " " + Config.theme + " " + (Theme.isLight ? "light" : "dark") + " || true"];
@@ -62,6 +84,13 @@ Singleton {
     FileView {
         id: ghostty
         path: root.ghosttyPath
+        atomicWrites: true
+        printErrors: false
+    }
+
+    FileView {
+        id: niri
+        path: root.niriPath
         atomicWrites: true
         printErrors: false
     }
