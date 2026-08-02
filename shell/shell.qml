@@ -12,6 +12,7 @@ import qs.Launcher
 import qs.Osd
 import qs.Notifications
 import qs.Power
+import qs.Procs
 
 // nbshell -- Einstiegspunkt.
 //
@@ -43,6 +44,7 @@ ShellRoot {
         void Notify.count;
         void MediaService.active;
         void Clipboard.entries;
+        void Procs.list;
     }
 
     Bar {}
@@ -56,6 +58,8 @@ ShellRoot {
     Popups {}
 
     PowerMenu {}
+
+    ProcessList {}
 
     // ── Steuerung von aussen ──────────────────────────────────────────────
     // Aufrufbar als `nbshell <ziel> <befehl>`, siehe bin/nbshell.
@@ -115,6 +119,20 @@ ShellRoot {
 
         function current(): string {
             return Config.theme;
+        }
+    }
+
+    IpcHandler {
+        target: "procs"
+
+        function toggle(): string {
+            Runtime.procsOpen = !Runtime.procsOpen;
+            return Runtime.procsOpen ? "offen" : "zu";
+        }
+
+        function top(): string {
+            Procs.refresh();
+            return Procs.shown.slice(0, 10).map(p => String(p.pid).padStart(7, " ") + "  " + p.cpu.toFixed(1).padStart(5, " ") + "%  " + p.name).join("\n");
         }
     }
 

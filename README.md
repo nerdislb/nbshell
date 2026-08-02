@@ -8,8 +8,8 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **0.11.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
-Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
+Stand: **0.12.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Prozessliste, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
 ## Installieren
@@ -63,6 +63,7 @@ nbshell tray             # was gerade im Tray steckt
 nbshell osd test         # Einblendung ausprobieren
 nbshell osd on | off
 
+nbshell procs            # Prozessliste; `nbshell procs top` als Text
 nbshell power            # Power-Menue (auch: lock, logout, suspend)
 nbshell clip             # Zwischenablage (toggle, list, clear)
 nbshell media playpause  # auch: next, previous, status
@@ -261,11 +262,25 @@ Er kuemmert sich um drei Dinge, die zusammengehoeren:
    davor) und biegt `Mod+Space` auf den Starter und `Mod+N` auf das
    Benachrichtigungsarchiv.
 
-**Was danach tot bleibt**, weil nbshell es noch nicht kann: Zwischenablage
-(`Mod+V`), Power-Menue (`Super+X`), Sperrbildschirm (`Mod+Alt+L` -- dafuer
-hyprlock von Hand binden), Prozessliste (`Mod+M`) und die Medientasten
-Play/Next/Prev (kein MPRIS). Die Liste steht auch im Kopf der
-Takeover-Datei.
+Die Takeover-Datei biegt inzwischen alles um, was nbshell kann:
+
+| Taste | vorher DMS | jetzt |
+|---|---|---|
+| `Mod+Space` | spotlight | Anwendungsstarter |
+| `Mod+N` | notification center | Benachrichtigungsarchiv |
+| `Mod+V` | clipboard | Zwischenablage |
+| `Super+X` | powermenu | Sitzungsmenue |
+| `Mod+M`, `Ctrl+Alt+Entf` | processlist | Prozessliste |
+| `Mod+Alt+L` | lock | `lockCommand` (Vorgabe hyprlock) |
+| `XF86AudioPlay/Next/Prev` | mpris | MPRIS-Anbindung |
+
+**Was tot bleibt**, weil nbshell es nicht hat: `Mod+Comma` (Einstellungen --
+hier ist die `config.json` die Oberflaeche), `Mod+Y` (Wallpaper-Browser) und
+`Mod+Shift+N` (Notizblock).
+
+**Achtung Sperrbildschirm:** auf diesem Rechner ist *keiner* installiert.
+`nbshell power lock` sagt das per Benachrichtigung, statt still nichts zu tun --
+aber vor dem Umstieg gehoert `hyprlock` (oder etwas anderes) installiert.
 
 ## System-Tray
 
@@ -302,6 +317,20 @@ Alles laeuft ueber `systemctl` und `niri msg action quit`. Der
 Sperrbildschirm ist ein fremder (`lockCommand`, Vorgabe `hyprlock`) --
 nbshell baut absichtlich keinen eigenen: ein Fehler darin sperrt dich aus dem
 eigenen Rechner aus.
+
+## Prozessliste
+
+`nbshell procs` — der Ersatz fuer DMS' `Mod+M`. Aufgebaut wie der Starter:
+Filterfeld oben (Name oder PID), darunter die Liste mit PID, CPU, RAM, RSS und
+Namen in festen Spalten. `Ctrl-S` wechselt die Sortierung, `Ctrl-K` beendet den
+gewaehlten Prozess (SIGTERM), `Ctrl-Shift-K` erzwingt es (SIGKILL).
+
+Die Tasten liegen bewusst auf `Ctrl`: das Filterfeld hat den Fokus, und ein
+blosses `k` soll dort ein Buchstabe bleiben.
+
+Gelesen wird mit `ps` -- es steht auf jedem System und kennt die Prozentwerte
+schon. Abgefragt wird **nur, solange die Liste offen ist**; ein Zaehler, der im
+Hintergrund alle zwei Sekunden ein `ps` startet, waere reine Verschwendung.
 
 ## Zwischenablage
 
@@ -426,6 +455,8 @@ niri/nbshell-takeover.kdl  Binds fuer den Umstieg
   Osd/Osd.qml          die Einblendung je Bildschirm
   Notifications/Popups.qml  die Karten am Rand
   Power/PowerMenu.qml  Sitzungsmenue
+  Procs/ProcessList.qml  Prozessliste
+  Services/Procs.qml   ps lesen, Prozesse beenden
   Bar/WidgetHost.qml   Name -> Komponente
   Bar/Widgets/         die Bausteine
   Widgets/Popout.qml   Fenster, das an einer Zelle haengt
@@ -487,7 +518,6 @@ koennen gleichzeitig laufen — nbshell beansprucht bewusst keine D-Bus-Namen
 Der Reihe nach, wie es fuer den Alltag zaehlt:
 
 - **Netz ohne NetworkManager** — nur dessen Backend ist angebunden.
-- **Prozessliste** (DMS' Mod+M).
 - **Bilder in der Zwischenablage** — der Verlauf kennt nur Text.
 - **Anwendungslautstaerken** — die Stroeme einzelner Programme.
 - **Sperrbildschirm** — hier wird bewusst nichts Eigenes gebaut; ein Fehler

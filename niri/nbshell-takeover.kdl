@@ -6,15 +6,17 @@
 // `spawn "dms" …`. Laeuft DMS nicht mehr, laufen diese Tasten ins Leere --
 // niri startet brav einen Befehl, der nichts tut.
 //
-// Was hier NICHT steht, weil nbshell es (noch) nicht kann und die DMS-Binds
-// dafuer tot bleiben:
+// Was hier NICHT steht, weil nbshell es nicht kann und die DMS-Binds dafuer
+// tot bleiben:
 //
-//   Mod+V        Zwischenablage
-//   Mod+Comma    Einstellungen
-//   Super+X      Power-Menue
-//   Mod+Alt+L    Sperrbildschirm   -> hyprlock von Hand binden
-//   Mod+M        Prozessliste
-//   XF86AudioPlay/Next/Prev        Medientasten (kein MPRIS in nbshell)
+//   Mod+Comma    Einstellungen  -> nbshell hat keine Oberflaeche dafuer,
+//                                  die Config ist die Oberflaeche
+//   Mod+Y        Wallpaper-Browser
+//   Mod+Shift+N  Notizblock
+//
+// Der Sperrbildschirm (Mod+Alt+L) zeigt auf `nbshell power lock` und damit auf
+// `lockCommand` aus der Config -- Vorgabe hyprlock. Ist keiner installiert,
+// sagt nbshell das per Benachrichtigung, statt still nichts zu tun.
 // Aufgerufen wird ueber `sh -c "$HOME/.local/bin/nbshell …"`: niri startet
 // spawn-Befehle mit dem PATH des systemd-User-Managers, in dem ~/.local/bin
 // nicht steht. Ein blosses `spawn "nbshell"` laeuft still ins Leere.
@@ -24,4 +26,23 @@ binds {
 
     // DMS: notification center -> nbshells Archiv.
     Mod+N hotkey-overlay-title="nbshell: Benachrichtigungen" { spawn "sh" "-c" "$HOME/.local/bin/nbshell notify toggle"; }
+
+    // DMS: clipboard -> nbshells Verlauf.
+    Mod+V hotkey-overlay-title="nbshell: Zwischenablage" { spawn "sh" "-c" "$HOME/.local/bin/nbshell clip toggle"; }
+
+    // DMS: powermenu -> nbshells Sitzungsmenue.
+    Super+X hotkey-overlay-title="nbshell: Sitzung" { spawn "sh" "-c" "$HOME/.local/bin/nbshell power menu"; }
+
+    // DMS: processlist -> nbshells Prozessliste.
+    Mod+M hotkey-overlay-title="nbshell: Prozesse" { spawn "sh" "-c" "$HOME/.local/bin/nbshell procs"; }
+    Ctrl+Alt+Delete hotkey-overlay-title="nbshell: Prozesse" { spawn "sh" "-c" "$HOME/.local/bin/nbshell procs"; }
+
+    // DMS: lock -> der Sperrbildschirm aus lockCommand (Vorgabe hyprlock).
+    Mod+Alt+L hotkey-overlay-title="nbshell: Sperren" { spawn "sh" "-c" "$HOME/.local/bin/nbshell power lock"; }
+
+    // DMS: mpris -> nbshells MPRIS-Anbindung.
+    XF86AudioPlay  allow-when-locked=true { spawn "sh" "-c" "$HOME/.local/bin/nbshell media playpause"; }
+    XF86AudioPause allow-when-locked=true { spawn "sh" "-c" "$HOME/.local/bin/nbshell media playpause"; }
+    XF86AudioNext  allow-when-locked=true { spawn "sh" "-c" "$HOME/.local/bin/nbshell media next"; }
+    XF86AudioPrev  allow-when-locked=true { spawn "sh" "-c" "$HOME/.local/bin/nbshell media previous"; }
 }

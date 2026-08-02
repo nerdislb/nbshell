@@ -55,7 +55,9 @@ Singleton {
     function run(id) {
         switch (id) {
         case "lock":
-            Quickshell.execDetached(["sh", "-c", root.lockCommand]);
+            // Ist keiner installiert, sagt es das -- sonst drueckt man
+            // "Sperren" und es passiert schlicht nichts.
+            Quickshell.execDetached(["sh", "-c", "command -v " + root.lockCommand.split(" ")[0] + " >/dev/null && exec " + root.lockCommand + " || notify-send 'nbshell' 'Kein Sperrbildschirm installiert: " + root.lockCommand + "'"]);
             return true;
         case "logout":
             Quickshell.execDetached(["niri", "msg", "action", "quit", "--skip-confirmation"]);

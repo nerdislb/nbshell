@@ -22,4 +22,5 @@ Singleton {
     property bool notifyOpen: false
     property bool powerOpen: false
     property bool clipOpen: false
+    property bool procsOpen: false
 }

@@ -128,6 +128,7 @@ nbshell -- eigene Shell auf Quickshell
                             uebernimmt org.freedesktop.Notifications von DMS
                             (dessen Unit muss dann gestoppt sein)
 
+  nbshell procs             Prozessliste (auch: top)
   nbshell clip              Verlauf der Zwischenablage (toggle, list, clear)
   nbshell power             Power-Menue (auch: lock, logout, suspend)
   nbshell media playpause|next|previous|status
@@ -214,6 +215,9 @@ case "$cmd" in
             off) switch_off ;;
             *) switch_status ;;
         esac
+        ;;
+    procs|top)
+        ipc procs "${1:-toggle}"
         ;;
     clip|clipboard)
         ipc clipboard "${1:-list}"
