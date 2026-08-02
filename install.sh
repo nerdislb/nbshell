@@ -83,6 +83,15 @@ else
     echo "Config  -> $DATA_DIR/config.json (vorhanden, unangetastet)"
 fi
 
+# ── systemd-Unit ─────────────────────────────────────────────────────────
+# Nur ablegen, nicht einschalten -- das macht `nbshell switch on`. Vorher
+# startet man von Hand (`nbshell start -d`), damit DMS ungestoert bleibt.
+UNIT_DIR="$CONFIG_HOME/systemd/user"
+mkdir -p "$UNIT_DIR"
+install -m 644 "$SRC/systemd/nbshell.service" "$UNIT_DIR/nbshell.service"
+systemctl --user daemon-reload 2>/dev/null || true
+green "Unit    -> $UNIT_DIR/nbshell.service (noch nicht eingeschaltet)"
+
 # ── niri-Tastenkuerzel fuer den Umstieg ──────────────────────────────────
 # Nur ablegen, nicht einbinden -- das macht `nbshell switch on`.
 if [ -d "$CONFIG_HOME/niri" ]; then
@@ -100,7 +109,13 @@ case ":$PATH:" in
     *) warn "$BIN_DIR liegt nicht im PATH." ;;
 esac
 
-if [ "$was_running" = "1" ]; then
+# Laeuft nbshell als Dienst, gehoert der Neustart dem Dienst -- sonst steht
+# neben der Unit-Instanz eine zweite, von Hand gestartete, und die Leiste ist
+# doppelt da.
+if systemctl --user is-active --quiet nbshell.service 2>/dev/null; then
+    systemctl --user restart nbshell.service
+    green "Dienst nbshell.service neu gestartet."
+elif [ "$was_running" = "1" ]; then
     "$BIN_DIR/nbshell" start -d >/dev/null 2>&1 &
     green "Shell wieder gestartet."
 fi

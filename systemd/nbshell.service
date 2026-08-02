@@ -1,0 +1,19 @@
+[Unit]
+Description=nbshell
+Documentation=https://github.com/nerdislb/nbshell
+PartOf=graphical-session.target
+After=graphical-session.target
+# Ohne Sitzung kein Sinn: niri startet die Unit mit, siehe das Drop-in, das
+# `nbshell switch on` anlegt.
+Requisite=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/nbshell start
+ExecReload=%h/.local/bin/nbshell restart
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=5
+
+[Install]
+WantedBy=graphical-session.target

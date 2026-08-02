@@ -8,7 +8,7 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **1.7.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Stand: **1.8.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
 Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Prozessliste, Aufnahme, Terminalfarben, KI-Verbrauch, Optionsmenue, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
@@ -315,7 +315,7 @@ nbshell switch off            # alles zurueck
 nbshell switch status
 ```
 
-Er kuemmert sich um drei Dinge, die zusammengehoeren:
+Er kuemmert sich um alles, was zusammengehoert:
 
 1. **`dms.service` stoppen.** `disable` hilft dabei NICHT: DMS haengt ueber ein
    Drop-in an `niri.service`
@@ -323,7 +323,13 @@ Er kuemmert sich um drei Dinge, die zusammengehoeren:
    kommt bei jeder Anmeldung wieder. Dauerhaft weg bleibt es nur mit `mask` --
    und das nur auf ausdrueckliche Ansage.
 2. **Den Benachrichtigungsserver umlegen.**
-3. **Die Tastenkuerzel**, die bisher DMS gehoerten: `niri/nbshell-takeover.kdl`
+3. **Den Autostart.** `systemd/nbshell.service` liegt seit `install.sh` bereit,
+   wird aber erst hier eingeschaltet -- ueber ein Drop-in an `niri.service`
+   (`Wants=nbshell.service`), dieselbe Stelle, an der DMS haengt. Eine EIGENE
+   Datei, damit `dms.conf` unangetastet bleibt und der Rueckweg frei ist.
+   **Ohne diesen Schritt startet nbshell nach dem Anmelden gar nicht** -- und
+   mit maskiertem DMS waere der Bildschirm leer.
+4. **Die Tastenkuerzel**, die bisher DMS gehoerten: `niri/nbshell-takeover.kdl`
    wird als letzter Include eingehaengt (mit Sicherung und `niri validate`
    davor) und biegt `Mod+Space` auf den Starter und `Mod+N` auf das
    Benachrichtigungsarchiv.
