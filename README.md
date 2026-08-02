@@ -8,8 +8,8 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **0.7.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
-Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
+Stand: **0.8.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
 ## Installieren
@@ -54,6 +54,7 @@ nbshell audio panel      # Regler und Geraeteliste
 nbshell launcher         # Anwendungsstarter (Alias: run)
 nbshell find ghost       # zeigt, was er finden wuerde
 
+nbshell tray             # was gerade im Tray steckt
 nbshell osd test         # Einblendung ausprobieren
 nbshell osd on | off
 
@@ -187,6 +188,30 @@ reiner Knopf waere verschenkter Platz. Ein Klick klappt drei Abschnitte auf:
 Netz und Bluetooth kommen aus Quickshells eigenen Modulen — kein `nmcli`,
 kein `bluetoothctl` dazwischen.
 
+## System-Tray
+
+Der Baustein `tray` zeigt die Symbole der Programme, die sich per
+StatusNotifierItem anmelden. Links startet, Mitte loest die zweite Aktion des
+Programms aus, rechts oeffnet dessen Menue, das Mausrad wird durchgereicht --
+genau das, was ein SNI-Programm erwartet. Ein Symbol, das sich als „passiv"
+meldet, wird blasser statt zu verschwinden: fehlende Symbole verwirren mehr,
+als sie Platz sparen.
+
+Das ist die eine Stelle, an der eine Textoberflaeche nicht mit Text auskommt --
+die Symbole kommen von den Programmen selbst.
+
+**Der Tray vertraegt sich mit DMS.** Anders als bei den Benachrichtigungen
+duerfen sich mehrere Anzeiger gleichzeitig anmelden; beide Leisten zeigen also
+dieselben Symbole, ohne sich zu streiten.
+
+Die Menues zeichnet `Widgets/MenuView.qml` als Liste: `[x]` fuer Haken, `(•)`
+fuer eine Auswahl, `▸` fuer ein Untermenue. Untermenues klappen **an Ort und
+Stelle** auf statt seitlich herauszufahren -- das spart ein zweites Fenster und
+passt besser zu einer Oberflaeche, die sonst nur Zeilen kennt. Fuer die
+Verschachtelung laedt die Datei sich selbst ueber ihren Pfad nach; sich direkt
+zu verwenden geht in QML nicht, der Typ waere waehrend seiner eigenen
+Definition noch nicht fertig.
+
 ## Einblendung (OSD)
 
 Wer an Lautstaerke, Mikrofon oder Helligkeit dreht, sieht kurz einen Kasten
@@ -246,7 +271,7 @@ erst beim Aufklappen.
 ## Bausteine
 
 `clock`, `workspaces`, `window`, `sys`, `battery`, `layout`, `themes`,
-`volume`, `control`, `sep`.
+`volume`, `control`, `tray`, `sep`.
 
 Vier Listen sagen, was wo steht:
 
@@ -277,6 +302,7 @@ shell/
   Services/Brightness.qml  sysfs lesen, logind setzen
   Services/Osd.qml     Zustand der Einblendung
   Widgets/LevelBar.qml Balken aus Bloecken
+  Widgets/MenuView.qml DBus-Menues als Liste
   Widgets/Cell.qml     der eine Baustein, aus dem alles besteht
   Bar/Bar.qml          das Fenster: Insel oder Balken
   Bar/Wallpaper.qml    Hintergrundbild je Bildschirm
@@ -345,7 +371,6 @@ Der Reihe nach, wie es fuer den Alltag zaehlt:
 - **Anwendungslautstaerken** — die Stroeme einzelner Programme.
 - **Haeufig Benutztes im Starter** — er sortiert nur nach Treffergenauigkeit,
   merkt sich also nicht, was du oft startest.
-- **System-Tray.**
 - **Sperrbildschirm** — hier wird bewusst nichts Eigenes gebaut; ein Fehler
   darin sperrt dich aus. hyprlock tut es.
 - **Einstellungsoberflaeche** — bis dahin ist `config.json` die Oberflaeche.

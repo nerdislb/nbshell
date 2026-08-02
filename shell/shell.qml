@@ -4,6 +4,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Services.SystemTray
 import qs.Common
 import qs.Services
 import qs.Bar
@@ -105,6 +106,17 @@ ShellRoot {
 
         function current(): string {
             return Config.theme;
+        }
+    }
+
+    IpcHandler {
+        target: "tray"
+
+        function list(): string {
+            const items = SystemTray.items?.values ?? [];
+            if (items.length === 0)
+                return "leer";
+            return items.map(i => (i.title || i.id) + (i.hasMenu ? "  [Menue]" : "")).join("\n");
         }
     }
 
