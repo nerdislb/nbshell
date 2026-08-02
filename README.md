@@ -8,8 +8,8 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **0.13.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
-Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Prozessliste, Aufnahme, Terminalfarben, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
+Stand: **1.0.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Prozessliste, Aufnahme, Terminalfarben, KI-Verbrauch, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
 ## Installieren
@@ -63,6 +63,7 @@ nbshell tray             # was gerade im Tray steckt
 nbshell osd test         # Einblendung ausprobieren
 nbshell osd on | off
 
+nbshell ai               # KI-Verbrauch (auch: refresh)
 nbshell capture          # Aufnahme-Menue (screen, window, region, ocr, record)
 nbshell procs            # Prozessliste; `nbshell procs top` als Text
 nbshell power            # Power-Menue (auch: lock, logout, suspend)
@@ -337,6 +338,31 @@ Nach der Wahl schliesst das Menue **sofort** und wartet 250 ms, bevor es
 ausloest: niri friert das Bild ein, sobald die Aktion ankommt, und ohne Pause
 haengt das halb verschwundene Menue mit im Screenshot.
 
+## KI-Verbrauch
+
+Der Baustein `ai` zeigt ein Symbol, das sich **von unten fuellt** -- so weit,
+wie das laufende Zeitfenster verbraucht ist. Das Popout nennt Prozent, Fenster
+und wann es zurueckgesetzt wird; Klick auf das Symbol aktualisiert.
+
+Die Zahlen holt ein fremdes Helferskript (`get-provider-usage` aus dem
+DMS-Plugin `aiOverviewControl`). Es ist reines Bash und funktioniert weiter,
+auch wenn DMS nicht mehr laeuft -- die Dateien liegen ja noch da. Nachgebaut
+wird es nicht: es kennt die Anmeldung an mehrere Anbieter, und das ist fremde
+Arbeit. Fehlt es, bleibt der Baustein still.
+
+Zwei Dinge, die beim Fuellen entscheidend sind (aus `aiFillWidget`
+uebernommen):
+
+- **Nicht ueber `font.pixelSize` normieren.** Jedes Zeichen bemalt einen
+  anderen Anteil seiner Zeile; gleiche Groesse ergibt verschieden grosse
+  Symbole. Vorgegeben wird eine Ziel-*Tintenhoehe*, die Schriftgroesse folgt
+  daraus. Die Messprobe braucht eine eigene `TextMetrics` mit fester Groesse,
+  sonst dreht sich die Bindung im Kreis.
+- **`tightBoundingRect` zaehlt ab der Grundlinie**, ein `Text` dagegen ab
+  seiner Oberkante. Dazwischen liegt die Oberlaenge — die kommt aus
+  `FontMetrics.ascent`. `baselineOffset` taugt nicht, das ist 0, und die
+  Fuellung landet ausserhalb des Zeichens.
+
 ## Terminalfarben mitfaerben
 
 Ein Themewechsel hoert nicht an der Leiste auf: nbshell schreibt bei jedem
@@ -443,7 +469,7 @@ erst beim Aufklappen.
 
 `clock`, `workspaces`, `window`, `sys`, `battery`, `layout`, `themes`,
 `volume`, `control`, `tray`, `notifications`, `clipboard`, `media`, `capture`,
-`sep`.
+`ai`, `sep`.
 
 Vier Listen sagen, was wo steht:
 
@@ -491,6 +517,7 @@ niri/nbshell-takeover.kdl  Binds fuer den Umstieg
   Services/Procs.qml   ps lesen, Prozesse beenden
   Services/CaptureService.qml  Screenshots, Aufnahme, OCR
   Services/ThemeExport.qml  Palette nach ghostty und ins eigene Skript
+  Services/AiUsage.qml  Verbrauch der KI-Zugaenge
   Capture/CaptureMenu.qml   das Aufnahme-Menue
   scripts/capture.sh   die Shell-Arbeit danach
   Bar/WidgetHost.qml   Name -> Komponente

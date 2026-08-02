@@ -47,6 +47,7 @@ ShellRoot {
         void Clipboard.entries;
         void Procs.list;
         void CaptureService.recording;
+        void AiUsage.available;
         void ThemeExport.enabled;
     }
 
@@ -124,6 +125,23 @@ ShellRoot {
 
         function current(): string {
             return Config.theme;
+        }
+    }
+
+    IpcHandler {
+        target: "ai"
+
+        function status(): string {
+            if (!AiUsage.available)
+                return "kein Helferskript gefunden";
+            if (AiUsage.list.length === 0)
+                return "noch keine Zahlen";
+            return AiUsage.list.map(e => e.id + "  " + e.percent + "%  " + e.window + ", " + AiUsage.untilReset(e)).join("\n");
+        }
+
+        function refresh(): string {
+            AiUsage.refresh();
+            return "abgerufen";
         }
     }
 

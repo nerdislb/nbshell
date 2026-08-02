@@ -90,10 +90,8 @@ switch_on() {
     ipc wallpaper on >/dev/null && echo "  nbshell: Hintergrundbild an"
     ghostty_theme nbcolors
     echo
-    echo "Mit DMS gehen auch dessen Plugins: aiFillWidget, dynamicIsland,"
-    echo "workspacePills, themeCarousel, themeWallpaper, screenCapture."
-    echo "nbshell ersetzt davon Insel, Arbeitsflaechen, Themewahl und Aufnahme;"
-    echo "es fehlt nur das aiFillWidget."
+    echo "Mit DMS gehen auch dessen Plugins -- nbshell hat fuer jedes einen"
+    echo "Ersatz: Insel, Arbeitsflaechen, Themewahl, Aufnahme, KI-Verbrauch."
     echo "Tot bleiben Mod+Comma, Mod+Y und Mod+Shift+N -- siehe $TAKEOVER."
 }
 
@@ -150,6 +148,7 @@ nbshell -- eigene Shell auf Quickshell
                             uebernimmt org.freedesktop.Notifications von DMS
                             (dessen Unit muss dann gestoppt sein)
 
+  nbshell ai                KI-Verbrauch (auch: refresh)
   nbshell capture           Aufnahme-Menue (screen, window, region, ocr, record)
   nbshell procs             Prozessliste (auch: top)
   nbshell clip              Verlauf der Zwischenablage (toggle, list, clear)
@@ -238,6 +237,9 @@ case "$cmd" in
             off) switch_off ;;
             *) switch_status ;;
         esac
+        ;;
+    ai)
+        ipc ai "${1:-status}"
         ;;
     capture)
         ipc capture "${1:-menu}"

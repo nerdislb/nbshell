@@ -76,6 +76,8 @@ Item {
             return clipComponent;
         case "capture":
             return captureComponent;
+        case "ai":
+            return aiComponent;
         }
         console.warn("nbshell: unbekannter Baustein:", name);
         return null;
@@ -154,5 +156,10 @@ Item {
     Component {
         id: captureComponent
         Capture {}
+    }
+
+    Component {
+        id: aiComponent
+        AiFill {}
     }
 }
