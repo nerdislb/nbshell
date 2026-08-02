@@ -613,6 +613,26 @@ Gemerkt wird deshalb je Theme (`wallpaperByTheme`); wer zurueckwechselt,
 bekommt sein Bild wieder, und `r` im Karussell loescht die Merkung fuer das
 aktuelle Theme.
 
+### Unschaerfe in der Uebersicht
+
+niris Uebersicht (`Mod+Tab`) zeigt hinter den Arbeitsflaechen einen
+**Backdrop** -- und dort landet jede Hintergrundflaeche, die per Layer-Regel
+dafuer markiert ist. **Weichzeichnen kann niri dabei nicht selbst**: es zeigt
+nur, was auf der Flaeche liegt. Deshalb dieselbe Loesung wie in DMS -- nbshell
+haelt eine zweite, fertig verwischte Kopie des Bildes bereit:
+
+```kdl
+layer-rule {
+    match namespace="nbshell:wallpaper-blur"
+    place-within-backdrop true
+}
+```
+
+Die Regel steht in `nbshell-takeover.kdl`, die Kopie entsteht mit
+`MultiEffect`. Im Alltag sieht man sie nie -- sie liegt hinter der scharfen
+Flaeche, und erst die Uebersicht holt sie hervor. Abschaltbar ueber
+`wallpaperBlur`, Staerke ueber `wallpaperBlurAmount` (Vorgabe 64).
+
 `nbshell wallpaper on` haengt den Hintergrund ans Theme: jedes Omarchy-Theme
 bringt seine Bilder mit, ein Themewechsel blendet auf das neue um. Ein festes
 Bild geht auch — `nbshell wallpaper ~/bild.jpg`, und `nbshell wallpaper set ""`

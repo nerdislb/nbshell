@@ -1,121 +1,185 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import qs.Common
 import qs.Services
 
-// Hintergrundbild, ein Fenster je Bildschirm.
+// Hintergrundbild, ein Fenster je Bildschirm -- und daneben eine zweite,
+// weichgezeichnete Flaeche fuer niris Uebersicht.
 //
-// Es haengt am Theme: jedes Omarchy-Theme bringt seine Bilder mit, und
+// Das Bild haengt am Theme: jedes Omarchy-Theme bringt seine mit, und
 // scripts/themes.sh sucht sie an den drei bekannten Stellen (siehe README).
 // Wechselt das Theme, wechselt das Bild -- ueberblendet, nicht geschnitten.
 //
-// Standardmaessig AUS. DMS malt seinen eigenen Hintergrund auf dieselbe Ebene;
-// solange beide laufen, wuerden sie sich abwechselnd ueberdecken. Einschalten
-// mit `nbshell set wallpaper true`.
-Variants {
-    model: Config.wallpaperEnabled ? Quickshell.screens : []
+// Standardmaessig AUS. Wer DMS daneben laufen laesst, haette sonst zwei
+// Hintergruende auf derselben Ebene. Einschalten mit `nbshell wallpaper on`.
+//
+// **Die Unschaerfe in der Uebersicht kann niri nicht selbst.** Es zeigt dort
+// nur, was auf einer Hintergrundflaeche liegt, die als
+//
+//     layer-rule { match namespace="nbshell:wallpaper-blur"
+//                  place-within-backdrop true }
+//
+// markiert ist (steht in nbshell-takeover.kdl). Deshalb dieselbe Loesung wie in
+// DMS: eine fertig verwischte Kopie bereithalten. Sie liegt hinter der scharfen
+// und ist im Alltag nie zu sehen -- erst die Uebersicht holt sie hervor.
+Scope {
+    id: root
 
-    delegate: PanelWindow {
-        id: win
+    // ── Der Hintergrund, den man immer sieht ──────────────────────────────
 
-        required property var modelData
+    Variants {
+        model: Config.wallpaperEnabled ? Quickshell.screens : []
 
-        screen: modelData
-        color: "transparent"
+        delegate: PanelWindow {
+            id: win
 
-        WlrLayershell.namespace: "nbshell:wallpaper"
-        WlrLayershell.layer: WlrLayershell.Background
-        // Der Hintergrund nimmt keinen Platz weg und faengt keine Klicks.
-        exclusionMode: ExclusionMode.Ignore
+            required property var modelData
 
-        anchors.left: true
-        anchors.right: true
-        anchors.top: true
-        anchors.bottom: true
+            screen: modelData
+            color: "transparent"
 
-        mask: Region {}
+            WlrLayershell.namespace: "nbshell:wallpaper"
+            WlrLayershell.layer: WlrLayershell.Background
+            exclusionMode: ExclusionMode.Ignore
 
-        // Eine leere Flaeche in der Hintergrundfarbe liegt darunter: sie deckt
-        // die Raender ab, solange ein Bild laedt oder gar keines da ist.
-        Rectangle {
-            anchors.fill: parent
+            anchors.left: true
+            anchors.right: true
+            anchors.top: true
+            anchors.bottom: true
+
+            mask: Region {}
+
+            // Deckt die Raender ab, solange ein Bild laedt oder keines da ist.
+            Rectangle {
+                anchors.fill: parent
+                color: Theme.bg
+            }
+
+            // Zwei Bildflaechen, die sich abwechseln: die verdeckte laedt das
+            // neue Bild und wird erst eingeblendet, wenn es steht -- sonst
+            // blitzt beim Wechsel Schwarz durch.
+            Image {
+                id: imageA
+                anchors.fill: parent
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                cache: false
+                visible: opacity > 0
+                opacity: win.showA ? 1 : 0
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: 400
+                    }
+                }
+            }
+
+            Image {
+                id: imageB
+                anchors.fill: parent
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                cache: false
+                visible: opacity > 0
+                opacity: win.showA ? 0 : 1
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: 400
+                    }
+                }
+            }
+
+            property bool showA: true
+            readonly property string source: Config.value("wallpaperOverride", "") || (ThemeIndex.current?.wallpaper ?? "")
+
+            onSourceChanged: {
+                if (!source) {
+                    imageA.source = "";
+                    imageB.source = "";
+                    return;
+                }
+                const url = "file://" + source;
+                if (showA)
+                    imageB.source = url;
+                else
+                    imageA.source = url;
+            }
+
+            Connections {
+                target: imageA
+                function onStatusChanged() {
+                    if (imageA.status === Image.Ready && !win.showA && imageA.source != "")
+                        win.showA = true;
+                }
+            }
+
+            Connections {
+                target: imageB
+                function onStatusChanged() {
+                    if (imageB.status === Image.Ready && win.showA && imageB.source != "")
+                        win.showA = false;
+                }
+            }
+
+            Component.onCompleted: {
+                if (win.source)
+                    imageA.source = "file://" + win.source;
+            }
+        }
+    }
+
+    // ── Die verwischte Kopie fuer die Uebersicht ──────────────────────────
+
+    Variants {
+        model: (Config.wallpaperEnabled && Config.wallpaperBlur) ? Quickshell.screens : []
+
+        delegate: PanelWindow {
+            id: blurWin
+
+            required property var modelData
+
+            readonly property string source: Config.value("wallpaperOverride", "") || (ThemeIndex.current?.wallpaper ?? "")
+
+            screen: modelData
             color: Theme.bg
-        }
 
-        // Zwei Bildflaechen, die sich abwechseln. Beim Wechsel laedt die
-        // verdeckte das neue Bild und wird eingeblendet -- so gibt es kein
-        // Schwarzbild zwischendurch.
-        Image {
-            id: imageA
-            anchors.fill: parent
-            fillMode: Image.PreserveAspectCrop
-            asynchronous: true
-            cache: false
-            visible: opacity > 0
-            opacity: win.showA ? 1 : 0
+            WlrLayershell.namespace: "nbshell:wallpaper-blur"
+            WlrLayershell.layer: WlrLayershell.Background
+            exclusionMode: ExclusionMode.Ignore
 
-            Behavior on opacity {
-                NumberAnimation {
-                    duration: 400
-                }
+            anchors.left: true
+            anchors.right: true
+            anchors.top: true
+            anchors.bottom: true
+
+            mask: Region {}
+
+            Image {
+                id: blurSource
+
+                anchors.fill: parent
+                source: blurWin.source ? "file://" + blurWin.source : ""
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                cache: false
+                // Nur die Vorlage fuer den Effekt -- selbst gezeichnet wird sie
+                // nicht.
+                visible: false
             }
-        }
 
-        Image {
-            id: imageB
-            anchors.fill: parent
-            fillMode: Image.PreserveAspectCrop
-            asynchronous: true
-            cache: false
-            visible: opacity > 0
-            opacity: win.showA ? 0 : 1
-
-            Behavior on opacity {
-                NumberAnimation {
-                    duration: 400
-                }
+            MultiEffect {
+                anchors.fill: parent
+                source: blurSource
+                blurEnabled: true
+                blur: 1.0
+                blurMax: Config.wallpaperBlurAmount
+                // Ohne das waechst die Flaeche um den Weichzeichnerrand und
+                // sitzt nicht mehr passgenau auf dem Bildschirm.
+                autoPaddingEnabled: false
             }
-        }
-
-        property bool showA: true
-        readonly property string source: Config.value("wallpaperOverride", "") || (ThemeIndex.current?.wallpaper ?? "")
-
-        onSourceChanged: {
-            if (!source) {
-                imageA.source = "";
-                imageB.source = "";
-                return;
-            }
-            const url = "file://" + source;
-            // Erst laden, dann umblenden: das verdeckte Bild bekommt die neue
-            // Quelle, und `showA` kippt erst, wenn sie steht.
-            if (showA) {
-                imageB.source = url;
-            } else {
-                imageA.source = url;
-            }
-        }
-
-        Connections {
-            target: imageA
-            function onStatusChanged() {
-                if (imageA.status === Image.Ready && !win.showA && imageA.source != "")
-                    win.showA = true;
-            }
-        }
-
-        Connections {
-            target: imageB
-            function onStatusChanged() {
-                if (imageB.status === Image.Ready && win.showA && imageB.source != "")
-                    win.showA = false;
-            }
-        }
-
-        Component.onCompleted: {
-            if (win.source)
-                imageA.source = "file://" + win.source;
         }
     }
 }

@@ -164,6 +164,12 @@ PanelWindow {
             "values": [true, false]
         },
         {
+            "key": "wallpaperBlur",
+            "def": true,
+            "label": "Uebersicht weichzeichnen",
+            "values": [true, false]
+        },
+        {
             "key": "osd",
             "def": true,
             "label": "Einblendung",

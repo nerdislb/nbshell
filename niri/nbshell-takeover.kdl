@@ -49,3 +49,11 @@ binds {
     XF86AudioNext  allow-when-locked=true { spawn "sh" "-c" "$HOME/.local/bin/nbshell media next"; }
     XF86AudioPrev  allow-when-locked=true { spawn "sh" "-c" "$HOME/.local/bin/nbshell media previous"; }
 }
+
+// Die weichgezeichnete Kopie des Hintergrunds gehoert in niris Backdrop --
+// dann zeigt die Uebersicht (Mod+Tab) sie statt einer leeren Flaeche.
+// Weichzeichnen kann niri nicht selbst; nbshell haelt die Kopie bereit.
+layer-rule {
+    match namespace="nbshell:wallpaper-blur"
+    place-within-backdrop true
+}

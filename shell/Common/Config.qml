@@ -47,6 +47,12 @@ Singleton {
 
     // Aus, solange DMS daneben laeuft: beide malen sonst auf dieselbe Ebene.
     readonly property bool wallpaperEnabled: value("wallpaper", false)
+
+    // Weichgezeichnete Kopie fuer niris Uebersicht (Mod+Tab). Sie liegt auf
+    // einer eigenen Flaeche, die niri per `place-within-backdrop` nur DORT
+    // zeigt -- im Alltag sieht man sie nie.
+    readonly property bool wallpaperBlur: value("wallpaperBlur", true)
+    readonly property int wallpaperBlurAmount: value("wallpaperBlurAmount", 64)
     readonly property int collapseDelay: value("collapseDelay", 250)
 
     readonly property var collapsedWidgets: value("collapsedWidgets", ["clock"])
