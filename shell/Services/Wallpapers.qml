@@ -38,7 +38,16 @@ Singleton {
         return "find " + dirs.map(d => JSON.stringify(d)).join(" ") + " -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \\) 2>/dev/null | sort";
     }
 
+    // Die Wahl gilt FUER DAS THEME, nicht fuer immer.
+    //
+    // Vorher blieb ein einmal gewaehltes Bild bei jedem Themewechsel stehen --
+    // und weil der Hintergrund das Auffaelligste am Bildschirm ist, sah es aus,
+    // als taete der Wechsel gar nichts. Gemerkt wird deshalb je Theme; wer
+    // zurueckwechselt, bekommt sein Bild wieder.
     function apply(path) {
+        const map = JSON.parse(JSON.stringify(Config.value("wallpaperByTheme", {})));
+        map[Config.theme] = path;
+        Config.set("wallpaperByTheme", map);
         Config.set("wallpaperOverride", path);
         // Ein gewaehltes Bild ohne sichtbaren Hintergrund waere eine
         // Enttaeuschung -- also gleich einschalten.
@@ -48,6 +57,9 @@ Singleton {
 
     // Zurueck zum Bild, das das Theme selbst mitbringt.
     function reset() {
+        const map = JSON.parse(JSON.stringify(Config.value("wallpaperByTheme", {})));
+        delete map[Config.theme];
+        Config.set("wallpaperByTheme", map);
         Config.set("wallpaperOverride", "");
     }
 
@@ -74,6 +86,10 @@ Singleton {
 
         function onThemeChanged() {
             root.refresh();
+            // Das Bild des neuen Themes -- oder das, was dort zuletzt gewaehlt
+            // wurde.
+            const map = Config.value("wallpaperByTheme", {});
+            Config.set("wallpaperOverride", map[Config.theme] ?? "");
         }
     }
 }

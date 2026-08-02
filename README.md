@@ -472,6 +472,13 @@ bei jeder Config-Aenderung -- das Karussell schreibt beim Blaettern ja selbst
 hinein), und **nur die erste Liste nach dem Oeffnen** bestimmt, wo der Rahmen
 steht. Danach gehoert die Auswahl den Pfeiltasten.
 
+**Die Wahl gilt fuer das Theme, nicht fuer immer.** Vorher blieb ein einmal
+gewaehltes Bild bei jedem Themewechsel stehen -- und weil der Hintergrund das
+Auffaelligste am Bildschirm ist, sah es aus, als taete der Wechsel gar nichts.
+Gemerkt wird deshalb je Theme (`wallpaperByTheme`); wer zurueckwechselt,
+bekommt sein Bild wieder, und `r` im Karussell loescht die Merkung fuer das
+aktuelle Theme.
+
 `nbshell wallpaper on` haengt den Hintergrund ans Theme: jedes Omarchy-Theme
 bringt seine Bilder mit, ein Themewechsel blendet auf das neue um. Ein festes
 Bild geht auch — `nbshell wallpaper ~/bild.jpg`, und `nbshell wallpaper set ""`
