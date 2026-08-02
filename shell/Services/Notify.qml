@@ -40,14 +40,19 @@ Singleton {
 
     readonly property int count: history.length
 
-    function dismissPopup(entry) {
-        popups = popups.filter(p => p !== entry);
+    // Gesucht wird ueber die id, NICHT ueber das Objekt: was ein Repeater als
+    // `modelData` herausgibt, ist eine eigene Verpackung desselben Werts --
+    // `!==` trifft damit immer zu, und die Karte bliebe ewig stehen. Genau so
+    // ist es passiert.
+    function dismissPopup(id) {
+        popups = popups.filter(p => p.id !== id);
     }
 
-    function drop(entry) {
-        popups = popups.filter(p => p !== entry);
-        history = history.filter(p => p !== entry);
-        entry.notification?.dismiss();
+    function drop(id) {
+        const entry = history.find(p => p.id === id) ?? popups.find(p => p.id === id);
+        popups = popups.filter(p => p.id !== id);
+        history = history.filter(p => p.id !== id);
+        entry?.notification?.dismiss();
     }
 
     function clear() {
@@ -64,9 +69,9 @@ Singleton {
             popups = [];
     }
 
-    function invoke(entry, action) {
+    function invoke(id, action) {
         action.invoke();
-        dismissPopup(entry);
+        dismissPopup(id);
     }
 
     // Zeit als "vor 3 min", nicht als Uhrzeit: bei einer Benachrichtigung
@@ -122,7 +127,7 @@ Singleton {
                     root.popups = [entry].concat(root.popups);
 
                 notification.closed.connect(() => {
-                    root.popups = root.popups.filter(p => p !== entry);
+                    root.popups = root.popups.filter(p => p.id !== entry.id);
                 });
             }
         }

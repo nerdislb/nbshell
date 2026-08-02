@@ -140,7 +140,7 @@ Cell {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: Notify.drop(row.modelData)
+                        onClicked: Notify.drop(row.modelData.id)
                     }
                 }
             }

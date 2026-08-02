@@ -24,4 +24,5 @@ Singleton {
     property bool clipOpen: false
     property bool procsOpen: false
     property bool captureOpen: false
+    property bool settingsOpen: false
 }

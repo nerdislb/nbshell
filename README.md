@@ -8,8 +8,8 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **1.0.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
-Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Prozessliste, Aufnahme, Terminalfarben, KI-Verbrauch, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
+Stand: **1.1.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Prozessliste, Aufnahme, Terminalfarben, KI-Verbrauch, Optionsmenue, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
 ## Installieren
@@ -63,6 +63,7 @@ nbshell tray             # was gerade im Tray steckt
 nbshell osd test         # Einblendung ausprobieren
 nbshell osd on | off
 
+nbshell settings         # Optionsmenue (Mod+Comma nach dem Umstieg)
 nbshell ai               # KI-Verbrauch (auch: refresh)
 nbshell capture          # Aufnahme-Menue (screen, window, region, ocr, record)
 nbshell procs            # Prozessliste; `nbshell procs top` als Text
@@ -273,11 +274,11 @@ Die Takeover-Datei biegt inzwischen alles um, was nbshell kann:
 | `Mod+V` | clipboard | Zwischenablage |
 | `Super+X` | powermenu | Sitzungsmenue |
 | `Mod+M`, `Ctrl+Alt+Entf` | processlist | Prozessliste |
+| `Mod+Comma` | settings | Optionsmenue |
 | `Mod+Alt+L` | lock | `lockCommand` (Vorgabe hyprlock) |
 | `XF86AudioPlay/Next/Prev` | mpris | MPRIS-Anbindung |
 
-**Was tot bleibt**, weil nbshell es nicht hat: `Mod+Comma` (Einstellungen --
-hier ist die `config.json` die Oberflaeche), `Mod+Y` (Wallpaper-Browser) und
+**Was tot bleibt**, weil nbshell es nicht hat: `Mod+Y` (Wallpaper-Browser) und
 `Mod+Shift+N` (Notizblock).
 
 **Achtung Sperrbildschirm:** auf diesem Rechner ist *keiner* installiert.
@@ -465,6 +466,22 @@ Cell {
 Das Fenster entsteht erst, wenn ein Baustein wirklich eines hat, und der Inhalt
 erst beim Aufklappen.
 
+## Optionsmenue
+
+`nbshell settings` (nach dem Umstieg `Mod+Comma`) — die haeufigen Schalter
+sichtbar statt in der `config.json`: Rand, Form, Bausteinstil,
+Schriftgroesse, Hoehe, Abstaende, Ecken, Rahmen, Deckkraft, Nachlauf sowie
+Hintergrundbild, Einblendung, Benachrichtigungsserver, Zwischenablage und
+Terminalfarben.
+
+Bewusst **kein Formular mit Eingabefeldern**: jede Zeile ist eine Liste von
+Werten, durch die `←→` blaettert (Mausrad und Klick gehen auch). Das laesst
+sich blind bedienen und braucht keine Pruefung von Eingaben. Geschrieben wird
+sofort — die Leiste aendert sich beim Zusehen, weil die Config beobachtet wird.
+
+Was hier fehlt (Bausteinlisten, Schrift, Themepfade), bleibt in der
+`config.json`; die Datei ist weiterhin die vollstaendige Oberflaeche.
+
 ## Bausteine
 
 `clock`, `workspaces`, `window`, `sys`, `battery`, `layout`, `themes`,
@@ -514,6 +531,7 @@ niri/nbshell-takeover.kdl  Binds fuer den Umstieg
   Notifications/Popups.qml  die Karten am Rand
   Power/PowerMenu.qml  Sitzungsmenue
   Procs/ProcessList.qml  Prozessliste
+  Settings/SettingsMenu.qml  Optionsmenue
   Services/Procs.qml   ps lesen, Prozesse beenden
   Services/CaptureService.qml  Screenshots, Aufnahme, OCR
   Services/ThemeExport.qml  Palette nach ghostty und ins eigene Skript
@@ -553,6 +571,10 @@ doppelt gebaut werden, und der Uebergang laesst sich animieren.
   Ein dauerhaft offener Befehls-Socket funktioniert damit einmal und schweigt
   danach — lautlos, weil das Schreiben selbst gelingt. Befehle gehen deshalb
   ueber `niri msg action`; der Socket bleibt fuers Zuhoeren.
+- **Was ein `Repeater` als `modelData` herausgibt, ist eine eigene Verpackung
+  desselben Werts.** Ein `!==` gegen den Eintrag in der Quellliste trifft
+  deshalb IMMER zu — die Benachrichtigungskarten blieben so ewig stehen,
+  obwohl der Timer ablief und die Funktion lief. Gesucht wird ueber eine id.
 - **Eine Bindung darf nicht setzen, was sie liest.** `player` las `lastActive`
   und `onPlayerChanged` schrieb es wieder — „Binding loop detected", und der
   Wert zappelt. Gemerkt wird jetzt nur noch, wer *spielt*.
@@ -592,7 +614,6 @@ Der Reihe nach, wie es fuer den Alltag zaehlt:
 - **Anwendungslautstaerken** — die Stroeme einzelner Programme.
 - **Sperrbildschirm** — hier wird bewusst nichts Eigenes gebaut; ein Fehler
   darin sperrt dich aus. hyprlock tut es.
-- **Einstellungsoberflaeche** — bis dahin ist `config.json` die Oberflaeche.
 
 ## Lizenz
 

@@ -9,8 +9,6 @@
 // Was hier NICHT steht, weil nbshell es nicht kann und die DMS-Binds dafuer
 // tot bleiben:
 //
-//   Mod+Comma    Einstellungen  -> nbshell hat keine Oberflaeche dafuer,
-//                                  die Config ist die Oberflaeche
 //   Mod+Y        Wallpaper-Browser
 //   Mod+Shift+N  Notizblock
 //
@@ -26,6 +24,9 @@ binds {
 
     // DMS: notification center -> nbshells Archiv.
     Mod+N hotkey-overlay-title="nbshell: Benachrichtigungen" { spawn "sh" "-c" "$HOME/.local/bin/nbshell notify toggle"; }
+
+    // DMS: settings -> nbshells Optionsmenue.
+    Mod+Comma hotkey-overlay-title="nbshell: Einstellungen" { spawn "sh" "-c" "$HOME/.local/bin/nbshell settings"; }
 
     // DMS: clipboard -> nbshells Verlauf.
     Mod+V hotkey-overlay-title="nbshell: Zwischenablage" { spawn "sh" "-c" "$HOME/.local/bin/nbshell clip toggle"; }

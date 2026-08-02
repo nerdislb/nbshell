@@ -74,7 +74,7 @@ Variants {
                     Timer {
                         interval: Notify.popupTimeout
                         running: !card.urgent && !hover.hovered
-                        onTriggered: Notify.dismissPopup(card.modelData)
+                        onTriggered: Notify.dismissPopup(card.modelData.id)
                     }
 
                     HoverHandler {
@@ -164,7 +164,7 @@ Variants {
                                         anchors.fill: parent
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: Notify.invoke(card.modelData, actionButton.modelData)
+                                        onClicked: Notify.invoke(card.modelData.id, actionButton.modelData)
                                     }
                                 }
                             }
@@ -178,9 +178,9 @@ Variants {
                         acceptedButtons: Qt.LeftButton | Qt.RightButton
                         onClicked: mouseEvent => {
                             if (mouseEvent.button === Qt.RightButton)
-                                Notify.drop(card.modelData);
+                                Notify.drop(card.modelData.id);
                             else
-                                Notify.dismissPopup(card.modelData);
+                                Notify.dismissPopup(card.modelData.id);
                         }
                     }
                 }

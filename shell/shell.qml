@@ -14,6 +14,7 @@ import qs.Notifications
 import qs.Power
 import qs.Procs
 import qs.Capture
+import qs.Settings
 
 // nbshell -- Einstiegspunkt.
 //
@@ -66,6 +67,8 @@ ShellRoot {
     ProcessList {}
 
     CaptureMenu {}
+
+    SettingsMenu {}
 
     // ── Steuerung von aussen ──────────────────────────────────────────────
     // Aufrufbar als `nbshell <ziel> <befehl>`, siehe bin/nbshell.
@@ -125,6 +128,15 @@ ShellRoot {
 
         function current(): string {
             return Config.theme;
+        }
+    }
+
+    IpcHandler {
+        target: "settings"
+
+        function toggle(): string {
+            Runtime.settingsOpen = !Runtime.settingsOpen;
+            return Runtime.settingsOpen ? "offen" : "zu";
         }
     }
 
