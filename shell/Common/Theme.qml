@@ -128,7 +128,13 @@ Singleton {
         const target = minimum ?? 4.5;
         if (contrast(color, surface) >= target)
             return color;
-        const towards = luminance(surface) > 0.5 ? "#000000" : "#ffffff";
+        // Die Richtung entscheidet der Kontrast, NICHT ein Helligkeits-
+        // schwellwert. `#A5B5AB` hat eine Luminanz von 0.44 und gilt damit als
+        // "dunkel" -- gegen Weiss kommt es aber nur auf 2.1:1, gegen Schwarz
+        // auf 9.8:1. Wer nach dem Schwellwert aufhellt, macht es schlimmer.
+        // Genau dieser Fehler steckte hier, obwohl der Kommentar bei `on()`
+        // davor warnt.
+        const towards = contrast("#ffffff", surface) >= contrast("#000000", surface) ? "#ffffff" : "#000000";
         for (var i = 1; i <= 10; i++) {
             const candidate = mix(color, towards, i / 10);
             if (contrast(candidate, surface) >= target)
