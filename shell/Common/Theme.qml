@@ -37,6 +37,13 @@ Singleton {
     readonly property color muted: c.muted ?? "#414868"
     readonly property color selection: c.selection ?? bgLight
 
+    // Flaeche unter der Maus. NICHT `selection` nehmen: das ist die Farbe fuer
+    // markierten Text und in manchen Themes fast weiss (dos-moos: #A5B5AB).
+    // Als Hoverflaeche in der Leiste blendet sie, und jede Schrift darauf muss
+    // umgerechnet werden. Aus dem Hintergrund gemischt ist sie immer dezent --
+    // und der normale Text bleibt ohne Rechnerei lesbar.
+    readonly property color hover: mix(bg, fg, 0.14)
+
     readonly property color red: c.red ?? "#f7768e"
     readonly property color green: c.green ?? "#9ece6a"
     readonly property color yellow: c.yellow ?? "#e0af68"

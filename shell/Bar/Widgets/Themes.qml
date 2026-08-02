@@ -63,7 +63,7 @@ Cell {
                     width: picker.rowWidth
                     height: Theme.cellH * 1.5
                     radius: Theme.radius
-                    color: mouse.containsMouse ? Theme.selection : "transparent"
+                    color: mouse.containsMouse ? Theme.hover : "transparent"
                     border.width: row.isCurrent ? Theme.borderWidth : 0
                     border.color: Theme.accent
 
@@ -74,7 +74,7 @@ Cell {
                         // Der Zeiger markiert das aktive Theme -- so, wie eine
                         // Auswahl im Terminal aussieht.
                         text: (row.isCurrent ? "▸ " : "  ") + row.modelData.name
-                        color: row.isCurrent ? Theme.readable(Theme.accent, mouse.containsMouse ? Theme.selection : Theme.bg) : (mouse.containsMouse ? Theme.on(Theme.selection) : Theme.fg)
+                        color: row.isCurrent ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize
                         renderType: Text.NativeRendering

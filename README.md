@@ -8,7 +8,7 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **1.6.1** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Stand: **1.7.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
 Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Prozessliste, Aufnahme, Terminalfarben, KI-Verbrauch, Optionsmenue, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
@@ -65,6 +65,7 @@ nbshell osd test         # Einblendung ausprobieren
 nbshell osd on | off
 
 nbshell settings         # Optionsmenue (Mod+Comma nach dem Umstieg)
+nbshell updates          # status, check, list, run
 nbshell ai               # KI-Verbrauch (auch: refresh)
 nbshell capture          # Aufnahme-Menue (screen, window, region, ocr, record)
 nbshell procs            # Prozessliste; `nbshell procs top` als Text
@@ -443,6 +444,35 @@ dorthin und nicht in die Shell.
 In ghostty muss `theme = nbcolors` stehen; `nbshell switch on` biegt die Zeile
 um (und `switch off` zurueck auf `dankcolors`, das matugen fuer DMS schreibt).
 
+## Updates
+
+Der Baustein `updates` zeigt die Zahl offener Systemupdates -- und **nur dann**,
+wenn es welche gibt: eine Null, die man taeglich liest, ist Rauschen. Klick
+oeffnet die Liste (Paket, alte, neue Version), Rechtsklick startet die
+Aktualisierung.
+
+Gesucht wird ohne root und **ohne die Systemdatenbank anzufassen**: pacman
+synchronisiert unter `fakeroot` in eine eigene Datenbank, und `-Qu` vergleicht
+dagegen -- derselbe Trick wie in `checkupdates`. Ein `pacman -Sy` auf die echte
+Datenbank waere die uebliche Falle: danach steht das System auf einem halben
+Stand, und der naechste Paketwunsch zieht Bibliotheken in Versionen, die zum
+Rest nicht passen.
+
+Zwei Dinge, ueber die man dabei stolpert:
+
+- **`--disable-sandbox` ist Pflicht.** pacman 7 sperrt sich per Landlock ein und
+  wechselt auf den Benutzer `alpm`; beides scheitert unter fakeroot, der
+  Abgleich bricht ab -- und die Pruefung meldet stumm null Updates.
+- **Aktualisiert wird im Terminal**, nicht im Hintergrund: `paru` fragt nach dem
+  Passwort und will bestaetigt werden. Ohne Fenster haengt es unsichtbar an der
+  Eingabe. Ein Systemupdate, das in einer Leiste stillschweigend durchlaeuft,
+  waere ohnehin unheimlich.
+
+AUR-Updates kommen von `paru -Qua` (oder `yay`), Repo-Updates aus der eigenen
+Datenbank. Geprueft wird alle vier Stunden (`updateInterval`) und beim Start
+einmal nach einer Minute -- nicht sofort, damit die Anmeldung nicht mit einem
+Datenbankabgleich anfaengt.
+
 ## Prozessliste
 
 `nbshell procs` — der Ersatz fuer DMS' `Mod+M`. Aufgebaut wie der Starter:
@@ -629,7 +659,7 @@ woanders hinlegen.
 
 `clock`, `workspaces`, `window`, `sys`, `battery`, `layout`, `themes`,
 `volume`, `control`, `tray`, `notifications`, `clipboard`, `media`, `capture`,
-`ai`, `sep`.
+`ai`, `updates`, `sep`.
 
 Vier Listen sagen, was wo steht:
 
@@ -718,6 +748,11 @@ doppelt gebaut werden, und der Uebergang laesst sich animieren.
   desselben Werts.** Ein `!==` gegen den Eintrag in der Quellliste trifft
   deshalb IMMER zu — die Benachrichtigungskarten blieben so ewig stehen,
   obwohl der Timer ablief und die Funktion lief. Gesucht wird ueber eine id.
+- **`selection` ist kein Hover-Hintergrund.** Es ist die Farbe fuer markierten
+  Text und in manchen Themes fast weiss — als Flaeche unter der Maus blendet
+  sie, und jede Schrift darauf muss umgerechnet werden. `Theme.hover` wird
+  stattdessen aus dem Hintergrund gemischt: immer dezent, und der normale Text
+  bleibt ohne Rechnerei lesbar.
 - **Eine Zeile, die ihre Breite vom Positionierer holt (`width: column.width`),
   kann dazu fuehren, dass der `Repeater` sie gar nicht erst erzeugt** — ohne
   Fehler, ohne Meldung. Im Baustein-Editor blieben beide Listen leer, obwohl

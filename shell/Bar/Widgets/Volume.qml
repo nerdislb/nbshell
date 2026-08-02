@@ -132,7 +132,7 @@ Cell {
                     width: panel.rowWidth
                     height: Theme.cellH * 1.4
                     radius: Theme.radius
-                    color: mouse.containsMouse ? Theme.selection : "transparent"
+                    color: mouse.containsMouse ? Theme.hover : "transparent"
 
                     Text {
                         anchors.left: parent.left
@@ -140,7 +140,7 @@ Cell {
                         anchors.leftMargin: Theme.cellW / 2
                         anchors.verticalCenter: parent.verticalCenter
                         text: (device.isCurrent ? "▸ " : "  ") + Audio.label(device.modelData)
-                        color: device.isCurrent ? Theme.readable(Theme.accent, mouse.containsMouse ? Theme.selection : Theme.bg) : (mouse.containsMouse ? Theme.on(Theme.selection) : Theme.fg)
+                        color: device.isCurrent ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize
                         renderType: Text.NativeRendering

@@ -60,7 +60,7 @@ Column {
                 width: root.rowWidth
                 height: visible ? Theme.cellH * 1.4 : 0
                 radius: Theme.radius
-                color: mouse.containsMouse && entryColumn.modelData.enabled ? Theme.selection : "transparent"
+                color: mouse.containsMouse && entryColumn.modelData.enabled ? Theme.hover : "transparent"
 
                 Text {
                     anchors.left: parent.left
@@ -81,7 +81,7 @@ Column {
                         const suffix = e.hasChildren ? (entryColumn.expanded ? "  ▾" : "  ▸") : "";
                         return prefix + e.text + suffix;
                     }
-                    color: !entryColumn.modelData.enabled ? Theme.muted : (mouse.containsMouse ? Theme.on(Theme.selection) : Theme.fg)
+                    color: !entryColumn.modelData.enabled ? Theme.muted : Theme.fg
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize
                     renderType: Text.NativeRendering

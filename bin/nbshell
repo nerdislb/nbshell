@@ -167,6 +167,7 @@ nbshell -- eigene Shell auf Quickshell
 
   nbshell modules           Bausteine der Leiste anordnen
   nbshell settings          Optionsmenue (Rand, Form, Optik, Schalter)
+  nbshell updates           Updates: status, check, list, run
   nbshell ai                KI-Verbrauch (auch: refresh)
   nbshell capture           Aufnahme-Menue (screen, window, region, ocr, record)
   nbshell procs             Prozessliste (auch: top)
@@ -279,6 +280,9 @@ case "$cmd" in
         ;;
     modules)
         ipc settings modules
+        ;;
+    updates)
+        ipc updates "${1:-status}"
         ;;
     ai)
         ipc ai "${1:-status}"

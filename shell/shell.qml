@@ -50,6 +50,7 @@ ShellRoot {
         void Procs.list;
         void CaptureService.recording;
         void AiUsage.available;
+        void Updates.enabled;
         void ThemeExport.enabled;
     }
 
@@ -183,6 +184,37 @@ ShellRoot {
         function modules(): string {
             Runtime.modulesOpen = !Runtime.modulesOpen;
             return Runtime.modulesOpen ? "offen" : "zu";
+        }
+    }
+
+    IpcHandler {
+        target: "updates"
+
+        function check(): string {
+            Updates.refresh();
+            return "wird geprueft";
+        }
+
+        function list(): string {
+            if (Updates.count === 0)
+                return Updates.ready ? "alles aktuell" : "noch nicht geprueft";
+            return Updates.repo.concat(Updates.aur).map(u => u.name + "  " + u.from + " -> " + u.to).join("\n");
+        }
+
+        function run(): string {
+            Updates.update();
+            return "Terminal geoeffnet";
+        }
+
+        function status(): string {
+            return JSON.stringify({
+                "anzahl": Updates.count,
+                "repo": Updates.repo.length,
+                "aur": Updates.aur.length,
+                "prueft": Updates.checking,
+                "befehl": Updates.updateCommand(),
+                "terminal": Updates.terminal
+            });
         }
     }
 

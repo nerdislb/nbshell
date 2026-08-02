@@ -64,7 +64,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: Theme.radius
-        color: root.active || popoutLoader.item?.visible ? Theme.alpha(root.color, 0.15) : (mouse.containsMouse && root.clickable ? Theme.selection : "transparent")
+        color: root.active || popoutLoader.item?.visible ? Theme.alpha(root.color, 0.15) : (mouse.containsMouse && root.clickable ? Theme.hover : "transparent")
         border.width: root.boxed ? Theme.borderWidth : 0
         border.color: root.active || popoutLoader.item?.visible ? root.color : Theme.muted
     }

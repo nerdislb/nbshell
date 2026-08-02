@@ -106,7 +106,7 @@ Cell {
                     width: panel.rowWidth
                     height: content.implicitHeight + Theme.cellH * 0.6
                     radius: Theme.radius
-                    color: mouse.containsMouse ? Theme.selection : "transparent"
+                    color: mouse.containsMouse ? Theme.hover : "transparent"
 
                     Column {
                         id: content

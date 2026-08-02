@@ -86,7 +86,7 @@ Cell {
                     width: panel.rowWidth
                     height: Theme.cellH * 1.4
                     radius: Theme.radius
-                    color: mouse.containsMouse ? Theme.selection : "transparent"
+                    color: mouse.containsMouse ? Theme.hover : "transparent"
 
                     Text {
                         anchors.left: parent.left
@@ -96,7 +96,7 @@ Cell {
                         // Die ersten neun bekommen eine Nummer -- so sieht man
                         // beim Hinsehen, wie weit man zurueckgreift.
                         text: (row.index < 9 ? (row.index + 1) + "  " : "   ") + Clipboard.preview(row.modelData, 46)
-                        color: row.index === 0 ? Theme.readable(Theme.accent, mouse.containsMouse ? Theme.selection : Theme.bg) : (mouse.containsMouse ? Theme.on(Theme.selection) : Theme.fg)
+                        color: row.index === 0 ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize
                         renderType: Text.NativeRendering

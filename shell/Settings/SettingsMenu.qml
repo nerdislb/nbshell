@@ -176,6 +176,12 @@ PanelWindow {
             "values": [true, false]
         },
         {
+            "key": "updates",
+            "def": true,
+            "label": "Updates pruefen",
+            "values": [true, false]
+        },
+        {
             "key": "clipboard",
             "def": true,
             "label": "Zwischenablage",

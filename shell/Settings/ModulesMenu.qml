@@ -36,7 +36,7 @@ PanelWindow {
         }
     ]
 
-    readonly property var catalog: ["workspaces", "window", "clock", "media", "sys", "battery", "layout", "tray", "notifications", "clipboard", "capture", "control", "volume", "themes", "ai", "sep"]
+    readonly property var catalog: ["workspaces", "window", "clock", "media", "sys", "battery", "layout", "tray", "notifications", "clipboard", "capture", "control", "volume", "themes", "ai", "updates", "sep"]
 
     // Feste Breiten am Fenster statt `width: <Column>.width` an den Zeilen:
     // die Verweise vom Kind auf den Positionierer haben hier dazu gefuehrt,
