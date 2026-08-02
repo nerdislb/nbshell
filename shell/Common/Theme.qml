@@ -83,6 +83,87 @@ Singleton {
 
     readonly property string themePath: Config.themeDir + "/" + Config.theme + "/colors.toml"
 
+    // Zwei Farben mischen, t=0 gibt a, t=1 gibt b.
+    function mix(a, b, t) {
+        const ca = Qt.color(a);
+        const cb = Qt.color(b);
+        return Qt.rgba(ca.r * (1 - t) + cb.r * t, ca.g * (1 - t) + cb.g * t, ca.b * (1 - t) + cb.b * t, 1);
+    }
+
+    // Relative Luminanz nach WCAG -- entscheidet ueber hell/dunkel.
+    function luminance(color) {
+        const c = Qt.color(color);
+        const f = v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+        return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b);
+    }
+
+    // Omarchy-Themes gibt es in ZWEI Dialekten:
+    //
+    //   alt   benannte Schluessel -- red, green, muted, dark_foreground …
+    //   neu   ANSI-Nummern -- color0 … color15, selection_background …
+    //
+    // Die 21 mitgelieferten sind der alte, frisch geholte meist der neue. Wer
+    // nur einen liest, bekommt beim anderen ein halb gefuelltes Theme -- und
+    // weil die Vorgabewerte ein vollstaendiges Theme sind, sieht das nicht
+    // kaputt aus, sondern nur falsch. Genau das ist mit dos-moos passiert.
+    function normalize(c) {
+        const out = c;
+
+        if (out.color0 !== undefined) {
+            const ansi = {
+                "red": "color1",
+                "green": "color2",
+                "yellow": "color3",
+                "blue": "color4",
+                "magenta": "color5",
+                "cyan": "color6"
+            };
+            for (const name in ansi) {
+                if (out[name] === undefined && out[ansi[name]] !== undefined)
+                    out[name] = out[ansi[name]];
+                const brightKey = "bright_" + name;
+                const brightAnsi = "color" + (parseInt(ansi[name].substring(5), 10) + 8);
+                if (out[brightKey] === undefined && out[brightAnsi] !== undefined)
+                    out[brightKey] = out[brightAnsi];
+            }
+            if (out.muted === undefined)
+                out.muted = out.color8;
+            if (out.dark_foreground === undefined)
+                out.dark_foreground = out.color8;
+            if (out.light_foreground === undefined)
+                out.light_foreground = out.color7;
+            if (out.bright_foreground === undefined)
+                out.bright_foreground = out.color15;
+        }
+
+        if (out.selection === undefined && out.selection_background !== undefined)
+            out.selection = out.selection_background;
+
+        // Abgeleitetes: dieselben Mischungen, die auch omarchy2dms nimmt.
+        const bg = out.background;
+        const fg = out.foreground;
+        if (bg && fg) {
+            if (out.lighter_background === undefined)
+                out.lighter_background = String(mix(bg, fg, 0.12));
+            if (out.selection === undefined)
+                out.selection = String(mix(bg, fg, 0.18));
+            if (out.muted === undefined)
+                out.muted = String(mix(bg, fg, 0.35));
+            if (out.dark_foreground === undefined)
+                out.dark_foreground = String(mix(fg, bg, 0.45));
+        }
+        if (bg) {
+            if (out.dark_background === undefined)
+                out.dark_background = String(mix(bg, "#000000", 0.25));
+            if (out.darker_background === undefined)
+                out.darker_background = String(mix(bg, "#000000", 0.4));
+            if (out.mode === undefined)
+                out.mode = luminance(bg) > 0.5 ? "light" : "dark";
+        }
+
+        return out;
+    }
+
     // Ein winziger TOML-Leser. Omarchys Farbdateien sind flach und haben nur
     // `schluessel = "wert"`-Zeilen -- ein vollstaendiger Parser waere hier
     // Ballast.
@@ -109,7 +190,7 @@ Singleton {
 
         onFileChanged: reload()
         onLoaded: {
-            root.c = root.parseToml(text());
+            root.c = root.normalize(root.parseToml(text()));
             // Ohne diese Warnung faellt ein kaputter Parser nicht auf: die
             // Vorgabewerte oben sind ein vollstaendiges Theme und sehen
             // richtig aus.

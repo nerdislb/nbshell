@@ -8,7 +8,7 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **1.4.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Stand: **1.4.2** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
 Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Prozessliste, Aufnahme, Terminalfarben, KI-Verbrauch, Optionsmenue, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
@@ -102,6 +102,25 @@ Mod+D hotkey-overlay-title="nbshell: Anwendungsstarter" {
 ## Aussehen
 
 Zwei Entscheidungen bestimmen alles andere.
+
+### Zwei Dialekte
+
+Omarchy-Themes gibt es in **zwei Palettenformaten**:
+
+| | |
+|---|---|
+| alt | benannte Schluessel — `red`, `green`, `muted`, `dark_foreground` … |
+| neu | ANSI-Nummern — `color0` … `color15`, `selection_background` … |
+
+Die mitgelieferten sind der alte, frisch geholte meist der neue. nbshell liest
+beide und rechnet Fehlendes aus: `mode` aus der Luminanz des Hintergrunds,
+`lighter_background`, `selection`, `muted` und `dark_foreground` als Mischung
+aus Vorder- und Hintergrund — dieselben Mischungen wie in omarchy2dms.
+
+Wer nur einen Dialekt liest, bekommt beim anderen ein **halb gefuelltes**
+Theme. Und weil die Vorgabewerte in `Theme.qml` ein vollstaendiges Theme sind,
+sieht das nicht kaputt aus, sondern nur falsch — Hintergrund und Akzent
+stimmen, die uebrigen Farben stammen vom Vorgabetheme.
 
 **Die Farben kommen aus Omarchys `colors.toml`** — denselben Dateien, die
 [omarchy2dms](https://github.com/nerdislb/omarchy2dms) schon fuer DMS umbaut,
