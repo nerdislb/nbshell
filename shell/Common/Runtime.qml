@@ -25,6 +25,7 @@ Singleton {
     property bool procsOpen: false
     property bool captureOpen: false
     property bool settingsOpen: false
+    property bool modulesOpen: false
 
     // Wie viele Popouts gerade offen sind. Die Leiste braucht das: ein
     // Popup-Griff wird vom Kompositor nur erlaubt, wenn die Layer-Flaeche

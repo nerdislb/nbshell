@@ -18,7 +18,16 @@ Variants {
 
         required property var modelData
 
-        readonly property bool atTop: Config.edge !== "top"
+        // Vorgabe: gegenueber der Leiste. Wer es anders will, setzt
+        // `notifyCorner` auf "top" oder "bottom".
+        readonly property bool atTop: {
+            const wish = Config.value("notifyCorner", "auto");
+            if (wish === "top")
+                return true;
+            if (wish === "bottom")
+                return false;
+            return Config.edge !== "top";
+        }
 
         screen: modelData
         visible: Notify.popups.length > 0

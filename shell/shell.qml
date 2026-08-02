@@ -70,6 +70,8 @@ ShellRoot {
 
     SettingsMenu {}
 
+    ModulesMenu {}
+
     // ── Steuerung von aussen ──────────────────────────────────────────────
     // Aufrufbar als `nbshell <ziel> <befehl>`, siehe bin/nbshell.
 
@@ -145,6 +147,7 @@ ShellRoot {
                 "insel": Runtime.islandOpen,
                 "starter": Runtime.launcherOpen,
                 "einstellungen": Runtime.settingsOpen,
+                "bausteine": Runtime.modulesOpen,
                 "prozesse": Runtime.procsOpen,
                 "aufnahme": Runtime.captureOpen,
                 "power": Runtime.powerOpen
@@ -158,6 +161,11 @@ ShellRoot {
         function toggle(): string {
             Runtime.settingsOpen = !Runtime.settingsOpen;
             return Runtime.settingsOpen ? "offen" : "zu";
+        }
+
+        function modules(): string {
+            Runtime.modulesOpen = !Runtime.modulesOpen;
+            return Runtime.modulesOpen ? "offen" : "zu";
         }
     }
 

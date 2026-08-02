@@ -26,7 +26,11 @@ PopupWindow {
     //
     // Der Preis: solange es offen ist, hat das Fenster darunter keine
     // Tastatur. Fuer ein angeklicktes Menue ist das genau richtig.
-    property bool takesKeyboard: false
+    // WIEDER an: ohne Griff bekommt das Popup unter niri gar keine
+    // Zeigerereignisse -- die Liste klappt auf, aber man kann nichts
+    // anfassen. Das Schliessen macht es trotzdem selbst (siehe unten): der
+    // Griff wird zwar erteilt, aber beim Klick daneben nicht beendet.
+    property bool takesKeyboard: true
 
     // Zeit, bis ein Popout von selbst zugeht, nachdem die Maus es und seine
     // Zelle verlassen hat. Der Kompositor meldet uns keinen Klick daneben --

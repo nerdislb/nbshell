@@ -152,6 +152,7 @@ nbshell -- eigene Shell auf Quickshell
                             uebernimmt org.freedesktop.Notifications von DMS
                             (dessen Unit muss dann gestoppt sein)
 
+  nbshell modules           Bausteine der Leiste anordnen
   nbshell settings          Optionsmenue (Rand, Form, Optik, Schalter)
   nbshell ai                KI-Verbrauch (auch: refresh)
   nbshell capture           Aufnahme-Menue (screen, window, region, ocr, record)
@@ -249,6 +250,9 @@ case "$cmd" in
         ;;
     settings)
         ipc settings toggle
+        ;;
+    modules)
+        ipc settings modules
         ;;
     ai)
         ipc ai "${1:-status}"

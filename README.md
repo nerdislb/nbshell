@@ -8,7 +8,7 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **1.1.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Stand: **1.2.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
 Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Prozessliste, Aufnahme, Terminalfarben, KI-Verbrauch, Optionsmenue, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
@@ -494,7 +494,9 @@ WLAN-Passwort getippt.
 sichtbar statt in der `config.json`: Rand, Form, Bausteinstil,
 Schriftgroesse, Hoehe, Abstaende, Ecken, Rahmen, Deckkraft, Nachlauf sowie
 Hintergrundbild, Einblendung, Benachrichtigungsserver, Zwischenablage und
-Terminalfarben.
+Terminalfarben — gegliedert in LEISTE, AUSSEHEN, VERHALTEN und DIENSTE.
+Dazu gehoert auch, in welcher Ecke die Benachrichtigungen aufgehen
+(`notifyCorner`: auto, oben, unten) und wie lange eine Karte steht.
 
 Bewusst **kein Formular mit Eingabefeldern**: jede Zeile ist eine Liste von
 Werten, durch die `←→` blaettert (Mausrad und Klick gehen auch). Das laesst
@@ -503,6 +505,19 @@ sofort — die Leiste aendert sich beim Zusehen, weil die Config beobachtet wird
 
 Was hier fehlt (Bausteinlisten, Schrift, Themepfade), bleibt in der
 `config.json`; die Datei ist weiterhin die vollstaendige Oberflaeche.
+
+## Bausteine anordnen
+
+`nbshell modules` — links die vier Gruppen mit ihrem Inhalt, rechts der
+Vorrat. `↑↓` waehlt, `←→` verschiebt innerhalb der Gruppe, `Shift+←→` in die
+Nachbargruppe, `x` wirft raus, `Tab` wechselt in den Vorrat, `Enter` haengt
+von dort an. Das ist, was in der DankBar das Ziehen und Ablegen macht, nur mit
+Tasten.
+
+Damit loest sich auch die Frage „warum ist die Uhr nicht mittig": mittig steht
+die **Mittelgruppe als Ganzes**. Liegt noch etwas anderes darin (die Medien
+etwa), sitzt die Uhr eben daneben — hier laesst sie sich in einem Zug
+woanders hinlegen.
 
 ## Bausteine
 
@@ -597,6 +612,11 @@ doppelt gebaut werden, und der Uebergang laesst sich animieren.
   desselben Werts.** Ein `!==` gegen den Eintrag in der Quellliste trifft
   deshalb IMMER zu — die Benachrichtigungskarten blieben so ewig stehen,
   obwohl der Timer ablief und die Funktion lief. Gesucht wird ueber eine id.
+- **Eine Zeile, die ihre Breite vom Positionierer holt (`width: column.width`),
+  kann dazu fuehren, dass der `Repeater` sie gar nicht erst erzeugt** — ohne
+  Fehler, ohne Meldung. Im Baustein-Editor blieben beide Listen leer, obwohl
+  die Modelle nachweislich gefuellt waren; mit festen Breiten am Fenster
+  standen sie sofort da.
 - **Ein `signal` auf einem Singleton kam bei den Zellen nicht an**, eine
   Aenderungsmeldung dagegen zuverlaessig — deshalb schliesst ein hochgezaehlter
   `closeToken` die Popouts und kein Signal.

@@ -21,7 +21,12 @@ PanelWindow {
 
     // Jede Zeile: Schluessel, Beschriftung und die Werte, durch die
     // links/rechts blaettert. `values` leer heisst: Zahl mit Schrittweite.
+    // "head" ist eine Ueberschrift, keine Zeile zum Aendern -- beim Blaettern
+    // wird sie uebersprungen.
     readonly property var entries: [
+        {
+            "head": "LEISTE"
+        },
         {
             "key": "edge",
             "def": "top",
@@ -33,6 +38,9 @@ PanelWindow {
             "def": "island",
             "label": "Form",
             "values": ["island", "bar"]
+        },
+        {
+            "head": "AUSSEHEN"
         },
         {
             "key": "widgetStyle",
@@ -97,12 +105,40 @@ PanelWindow {
             "max": 1
         },
         {
+            "head": "VERHALTEN"
+        },
+        {
             "key": "collapseDelay",
             "def": 250,
             "label": "Nachlauf beim Zuklappen",
             "step": 50,
             "min": 0,
             "max": 1000
+        },
+        {
+            "key": "popoutLeaveDelay",
+            "def": 2500,
+            "label": "Popout schliesst nach",
+            "step": 250,
+            "min": 500,
+            "max": 6000
+        },
+        {
+            "key": "notifyCorner",
+            "def": "auto",
+            "label": "Benachrichtigungen",
+            "values": ["auto", "top", "bottom"]
+        },
+        {
+            "key": "notifyTimeout",
+            "def": 6000,
+            "label": "Karte bleibt",
+            "step": 1000,
+            "min": 2000,
+            "max": 20000
+        },
+        {
+            "head": "DIENSTE"
         },
         {
             "key": "wallpaper",
@@ -188,9 +224,18 @@ PanelWindow {
         Config.set(entry.key, entry.step < 1 ? Math.round(clamped * 100) / 100 : Math.round(clamped));
     }
 
+    // Ueberschriften ueberspringen.
+    function move(delta) {
+        var i = selected + delta;
+        while (i >= 0 && i < entries.length && entries[i].head !== undefined)
+            i += delta;
+        if (i >= 0 && i < entries.length)
+            selected = i;
+    }
+
     onVisibleChanged: {
         if (visible) {
-            selected = 0;
+            selected = 1;
             keys.forceActiveFocus();
         }
     }
@@ -207,8 +252,8 @@ PanelWindow {
         focus: root.visible
 
         Keys.onEscapePressed: root.close()
-        Keys.onUpPressed: root.selected = Math.max(0, root.selected - 1)
-        Keys.onDownPressed: root.selected = Math.min(root.entries.length - 1, root.selected + 1)
+        Keys.onUpPressed: root.move(-1)
+        Keys.onDownPressed: root.move(1)
         Keys.onLeftPressed: root.step(root.entries[root.selected], -1)
         Keys.onRightPressed: root.step(root.entries[root.selected], 1)
         Keys.onReturnPressed: root.step(root.entries[root.selected], 1)
@@ -252,23 +297,27 @@ PanelWindow {
                         required property var modelData
                         required property int index
 
+                        readonly property bool isHead: modelData.head !== undefined
+
                         width: column.width
-                        height: Theme.cellH * 1.5
+                        height: row.isHead ? Theme.cellH * 1.6 : Theme.cellH * 1.5
                         radius: Theme.radius
-                        color: row.index === root.selected ? Theme.selection : "transparent"
+                        color: !row.isHead && row.index === root.selected ? Theme.selection : "transparent"
 
                         Text {
                             anchors.left: parent.left
                             anchors.leftMargin: Theme.cellW / 2
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: (row.index === root.selected ? "▸ " : "  ") + row.modelData.label
-                            color: row.index === root.selected ? Theme.fgBright : Theme.fg
+                            anchors.bottom: row.isHead ? parent.bottom : undefined
+                            anchors.verticalCenter: row.isHead ? undefined : parent.verticalCenter
+                            text: row.isHead ? row.modelData.head : ((row.index === root.selected ? "▸ " : "  ") + row.modelData.label)
+                            color: row.isHead ? Theme.fgDim : (row.index === root.selected ? Theme.fgBright : Theme.fg)
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSize
                             renderType: Text.NativeRendering
                         }
 
                         Text {
+                            visible: !row.isHead
                             anchors.right: parent.right
                             anchors.rightMargin: Theme.cellW / 2
                             anchors.verticalCenter: parent.verticalCenter
@@ -281,6 +330,7 @@ PanelWindow {
 
                         MouseArea {
                             anchors.fill: parent
+                            enabled: !row.isHead
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             acceptedButtons: Qt.LeftButton | Qt.RightButton
@@ -293,7 +343,7 @@ PanelWindow {
 
                 Text {
                     width: column.width
-                    text: "↑↓ waehlen · ←→ aendern · Esc schliesst\nWas hier fehlt, steht in " + Config.configDir + "/config.json"
+                    text: "↑↓ waehlen · ←→ aendern · Esc schliesst\nBausteine anordnen: nbshell modules"
                     color: Theme.muted
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize
