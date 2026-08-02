@@ -18,6 +18,79 @@ ipc() {
     "$QS" -c "$CONFIG_NAME" ipc call "$@"
 }
 
+# ── Umschalten zwischen DMS und nbshell ──────────────────────────────────
+#
+# Drei Dinge gehoeren zusammen, sonst ist der Zustand halb:
+#   1. dms.service  -- die Unit ist Type=dbus auf org.freedesktop.Notifications
+#                      und wird nie "active", wenn nbshell den Namen hat.
+#   2. der Benachrichtigungsserver in nbshell.
+#   3. die Tastenkuerzel, die bisher DMS gehoerten.
+NIRI_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/niri"
+TAKEOVER="nbshell-takeover.kdl"
+INCLUDE_LINE="include \"$TAKEOVER\""
+
+niri_include() {
+    local cfg="$NIRI_DIR/config.kdl"
+    [ -f "$cfg" ] || { echo "niri-Config nicht gefunden: $cfg" >&2; return 1; }
+    grep -qF "$INCLUDE_LINE" "$cfg" && return 0
+    cp "$cfg" "$cfg.vor-nbshell"
+    printf '\n// nbshell uebernimmt DMS-Tastenkuerzel (nbshell switch off entfernt das)\n%s\n' "$INCLUDE_LINE" >> "$cfg"
+    if ! niri validate >/dev/null 2>&1; then
+        mv "$cfg.vor-nbshell" "$cfg"
+        echo "niri-Config waere ungueltig geworden -- zurueckgenommen." >&2
+        return 1
+    fi
+    echo "  niri:   $INCLUDE_LINE eingetragen (Sicherung: config.kdl.vor-nbshell)"
+}
+
+niri_exclude() {
+    local cfg="$NIRI_DIR/config.kdl"
+    grep -qF "$INCLUDE_LINE" "$cfg" || return 0
+    cp "$cfg" "$cfg.vor-nbshell"
+    grep -vF "$INCLUDE_LINE" "$cfg" | grep -v "^// nbshell uebernimmt DMS-Tastenkuerzel" > "$cfg.neu"
+    mv "$cfg.neu" "$cfg"
+    niri validate >/dev/null 2>&1 || { mv "$cfg.vor-nbshell" "$cfg"; echo "zurueckgenommen." >&2; return 1; }
+    echo "  niri:   $INCLUDE_LINE entfernt"
+}
+
+switch_on() {
+    echo "nbshell uebernimmt:"
+    if [ ! -f "$NIRI_DIR/$TAKEOVER" ]; then
+        echo "  $TAKEOVER fehlt -- erst ./install.sh laufen lassen." >&2
+        return 1
+    fi
+    systemctl --user stop dms.service 2>/dev/null && echo "  dms:    gestoppt"
+    # `disable` hilft hier NICHT: DMS haengt ueber ein Drop-in an niri.service
+    # (~/.config/systemd/user/niri.service.d/dms.conf, "Wants=dms.service"),
+    # kommt also bei jeder Anmeldung wieder. Nur `mask` haelt es dauerhaft weg
+    # -- und das nur auf ausdrueckliche Ansage.
+    if [ "${1:-}" = "dauerhaft" ]; then
+        systemctl --user mask dms.service >/dev/null 2>&1 && echo "  dms:    maskiert, bleibt auch nach dem Anmelden weg"
+    else
+        echo "  dms:    kommt bei der naechsten Anmeldung wieder"
+        echo "          (dauerhaft weg: nbshell switch on dauerhaft)"
+    fi
+    niri_include || true
+    ipc notify server on >/dev/null && echo "  nbshell: Benachrichtigungsserver an"
+    echo
+    echo "Nicht ersetzt (DMS-Binds laufen ins Leere): Zwischenablage, Power-Menue,"
+    echo "Sperrbildschirm, Prozessliste, Medientasten. Siehe $TAKEOVER."
+}
+
+switch_off() {
+    echo "DMS uebernimmt wieder:"
+    ipc notify server off >/dev/null && echo "  nbshell: Benachrichtigungsserver aus"
+    niri_exclude || true
+    systemctl --user unmask dms.service >/dev/null 2>&1
+    systemctl --user start dms.service 2>/dev/null && echo "  dms:    gestartet"
+}
+
+switch_status() {
+    printf 'dms.service      %s\n' "$(systemctl --user is-active dms.service 2>/dev/null; systemctl --user is-enabled dms.service 2>/dev/null | tr '\n' ' ')"
+    printf 'Benachrichtigung %s\n' "$(busctl --user list 2>/dev/null | awk '/^org.freedesktop.Notifications/ {print $2" ("$3")"}')"
+    printf 'niri-Binds       %s\n' "$(grep -qF "$INCLUDE_LINE" "$NIRI_DIR/config.kdl" && echo "nbshell" || echo "DMS")"
+}
+
 usage() {
     cat <<'USAGE'
 nbshell -- eigene Shell auf Quickshell
@@ -67,6 +140,12 @@ nbshell -- eigene Shell auf Quickshell
   nbshell set <key> <wert>  Wert setzen (JSON erlaubt: 12, true, ["a","b"])
   nbshell config            zeigt die ganze Config
   nbshell status
+
+  nbshell switch on [dauerhaft]
+                            DMS weicht: Unit aus, Benachrichtigungen und
+                            Tastenkuerzel zu nbshell
+  nbshell switch off        alles zurueck zu DMS
+  nbshell switch status
 
 Alles andere geht unveraendert an Quickshell:
   nbshell log, nbshell ipc show, ...
@@ -124,6 +203,13 @@ case "$cmd" in
         ;;
     find)
         ipc launcher find "${1:?Suchbegriff fehlt}"
+        ;;
+    switch)
+        case "${1:-status}" in
+            on) shift; switch_on "$@" ;;
+            off) switch_off ;;
+            *) switch_status ;;
+        esac
         ;;
     notify)
         case "${1:-status}" in

@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Widgets
 import qs.Common
 import qs.Services
 
@@ -17,6 +18,9 @@ PanelWindow {
     id: root
 
     readonly property var results: Apps.search(input.text)
+
+    // Wie DMS' Spotlight: die Liste bleibt so lang, wie Platz ist, und der
+    // Kasten waechst nicht bei jedem Tastendruck.
     property int selected: 0
 
     // Das Fenster bleibt bestehen und wird nur ein- und ausgeblendet: so ist
@@ -152,7 +156,7 @@ PanelWindow {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: input.text === ""
-                    text: "Anwendung suchen, sonst Befehl"
+                    text: "Anwendung suchen, sonst Befehl ausfuehren"
                     color: Theme.muted
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize
@@ -192,7 +196,7 @@ PanelWindow {
             // Feste Zeilenzahl statt einer Hoehe in Pixeln: der Kasten aendert
             // seine Groesse beim Tippen dann nicht.
             height: rowHeight * Math.min(12, Math.max(1, root.results.length))
-            readonly property real rowHeight: Theme.cellH * 1.6
+            readonly property real rowHeight: Theme.cellH * 2.4
 
             clip: true
             model: root.results
@@ -214,36 +218,94 @@ PanelWindow {
 
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: row.index === root.selected ? "▸ " : "  "
+                    text: row.index === root.selected ? "▸" : " "
                     color: Theme.accent
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize
                     renderType: Text.NativeRendering
                 }
 
-                Text {
-                    id: name
+                // Das Symbol des Programms. Die einzige Stelle im Starter, die
+                // nicht aus Zeichen besteht -- ohne sie sucht das Auge laenger.
+                Item {
+                    id: appIcon
 
                     anchors.left: marker.right
+                    anchors.leftMargin: Theme.cellW
                     anchors.verticalCenter: parent.verticalCenter
-                    text: row.modelData.name
-                    color: row.index === root.selected ? Theme.fgBright : Theme.fg
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
+                    width: Math.round(Theme.cellH * 1.5)
+                    height: width
+
+                    readonly property string iconSource: Apps.iconFor(row.modelData)
+
+                    IconImage {
+                        anchors.fill: parent
+                        visible: appIcon.iconSource !== ""
+                        source: appIcon.iconSource
+                    }
+
+                    // Ersatz fuer Programme ohne Symbol: der erste Buchstabe in
+                    // einem Kasten, wie ein Kuerzel.
+                    Rectangle {
+                        anchors.fill: parent
+                        visible: appIcon.iconSource === ""
+                        color: "transparent"
+                        border.width: Theme.borderWidth
+                        border.color: Theme.muted
+                        radius: Theme.radius
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: (row.modelData.name || "?").charAt(0).toUpperCase()
+                            color: Theme.fgDim
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSize
+                            renderType: Text.NativeRendering
+                        }
+                    }
+                }
+
+                Column {
+                    anchors.left: appIcon.right
+                    anchors.leftMargin: Theme.cellW
+                    anchors.right: badge.left
+                    anchors.rightMargin: Theme.cellW
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 0
+
+                    Text {
+                        width: parent.width
+                        text: row.modelData.name
+                        color: row.index === root.selected ? Theme.fgBright : Theme.fg
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize
+                        renderType: Text.NativeRendering
+                        elide: Text.ElideRight
+                    }
+
+                    Text {
+                        width: parent.width
+                        visible: text !== ""
+                        text: row.modelData.genericName || row.modelData.comment || ""
+                        color: Theme.fgDim
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize
+                        renderType: Text.NativeRendering
+                        elide: Text.ElideRight
+                    }
                 }
 
                 Text {
-                    anchors.left: name.right
-                    anchors.leftMargin: Theme.cellW * 2
+                    id: badge
+
                     anchors.right: parent.right
+                    anchors.rightMargin: Theme.cellW / 2
                     anchors.verticalCenter: parent.verticalCenter
-                    text: row.modelData.genericName || row.modelData.comment || ""
-                    color: Theme.fgDim
+                    text: row.modelData.runInTerminal ? "TUI" : "APP"
+                    color: Theme.muted
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize
                     renderType: Text.NativeRendering
-                    elide: Text.ElideRight
                 }
 
                 MouseArea {
@@ -264,7 +326,7 @@ PanelWindow {
             anchors.margins: Theme.cellW
             height: Theme.cellH * 1.4
             verticalAlignment: Text.AlignVCenter
-            text: root.results.length > 0 ? "↑↓ waehlen · Enter starten · Esc schliessen" : "Enter fuehrt die Eingabe als Befehl aus"
+            text: root.results.length > 0 ? "↑↓ waehlen · Enter starten · Esc schliessen" : (input.text === "" ? "keine Anwendungen gefunden" : "Enter fuehrt \"" + input.text + "\" als Befehl aus")
             color: Theme.muted
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize

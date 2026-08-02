@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import qs.Common
 
 // Anwendungen: suchen und starten.
@@ -13,6 +14,43 @@ Singleton {
     id: root
 
     readonly property var entries: (DesktopEntries.applications?.values ?? []).filter(e => !e.noDisplay)
+
+    // Wie oft was gestartet wurde. Steht in ~/.local/state, nicht in der
+    // Config: es ist Gebrauchsspur, keine Einstellung -- und niemand will das
+    // in seinen Dotfiles wiederfinden.
+    property var usage: ({})
+
+    readonly property string statePath: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/nbshell/usage.json"
+
+    function usageOf(entry) {
+        return usage[entry?.id ?? ""] ?? 0;
+    }
+
+    function remember(entry) {
+        if (!entry?.id)
+            return;
+        const next = JSON.parse(JSON.stringify(usage));
+        next[entry.id] = (next[entry.id] ?? 0) + 1;
+        usage = next;
+        usageFile.setText(JSON.stringify(next));
+    }
+
+    FileView {
+        id: usageFile
+
+        path: root.statePath
+        atomicWrites: true
+        printErrors: false
+
+        onLoaded: {
+            try {
+                root.usage = JSON.parse(text() || "{}");
+            } catch (e) {
+                root.usage = ({});
+            }
+        }
+        onLoadFailed: root.usage = ({})
+    }
 
     // Terminalanwendungen brauchen ein Terminal -- ohne faende ein Klick auf
     // "htop" still nicht statt. Dieselbe Falle wie bei DMS' Launcher.
@@ -54,6 +92,12 @@ Singleton {
     }
 
     function search(query) {
+        // Ohne Eingabe: das zuletzt oft Gestartete zuerst -- so steht beim
+        // Aufklappen schon das Richtige oben.
+        if (!query) {
+            return entries.slice().sort((a, b) => (root.usageOf(b) - root.usageOf(a)) || a.name.localeCompare(b.name));
+        }
+
         const list = [];
         for (var i = 0; i < entries.length; i++) {
             const e = entries[i];
@@ -64,16 +108,29 @@ Singleton {
             if (points > 0)
                 list.push({
                     "entry": e,
-                    "points": points
+                    // Haeufig Gestartetes bekommt einen Schubs, ueberholt aber
+                    // keinen deutlich besseren Treffer.
+                    "points": points + Math.min(8, root.usageOf(e))
                 });
         }
         list.sort((a, b) => b.points - a.points || a.entry.name.localeCompare(b.entry.name));
         return list.map(x => x.entry);
     }
 
+    // Mit `check` liefert Quickshell einen leeren Pfad, wenn es das Symbol
+    // nicht gibt -- sonst kaeme das magentafarbene Karomuster fuer ein
+    // kaputtes Bild zurueck, und gerade Terminalprogramme bringen oft keines
+    // mit. Der Starter zeichnet dann selbst einen Buchstaben.
+    function iconFor(entry) {
+        const name = entry?.icon ?? "";
+        return name ? Quickshell.iconPath(name, true) : "";
+    }
+
     function launch(entry) {
         if (!entry?.command)
             return false;
+
+        root.remember(entry);
 
         const workDir = entry.workingDirectory || Quickshell.env("HOME");
 

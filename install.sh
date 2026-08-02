@@ -83,6 +83,13 @@ else
     echo "Config  -> $DATA_DIR/config.json (vorhanden, unangetastet)"
 fi
 
+# ── niri-Tastenkuerzel fuer den Umstieg ──────────────────────────────────
+# Nur ablegen, nicht einbinden -- das macht `nbshell switch on`.
+if [ -d "$CONFIG_HOME/niri" ]; then
+    install -m 644 "$SRC/niri/nbshell-takeover.kdl" "$CONFIG_HOME/niri/nbshell-takeover.kdl"
+    green "Binds   -> $CONFIG_HOME/niri/nbshell-takeover.kdl (noch nicht eingebunden)"
+fi
+
 # ── Befehl ───────────────────────────────────────────────────────────────
 mkdir -p "$BIN_DIR"
 install -m 755 "$SRC/bin/nbshell" "$BIN_DIR/nbshell"

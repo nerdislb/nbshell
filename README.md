@@ -8,7 +8,7 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **0.9.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Stand: **0.10.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
 Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
@@ -56,7 +56,8 @@ nbshell find ghost       # zeigt, was er finden wuerde
 
 nbshell notify           # Stand der Benachrichtigungen
 nbshell notify dnd       # nicht stoeren
-nbshell notify server on # den D-Bus-Namen uebernehmen (siehe unten)
+nbshell switch on        # DMS weicht (siehe „Der Umschaltmoment")
+nbshell switch off       # zurueck zu DMS
 
 nbshell tray             # was gerade im Tray steckt
 nbshell osd test         # Einblendung ausprobieren
@@ -156,6 +157,16 @@ bei Pipewire in Quickshell.
 waehlt, Enter startet, Esc schliesst. Findet die Eingabe nichts, wird sie als
 Befehl ausgefuehrt — wie in einem Terminal, nur ohne eines zu oeffnen.
 
+Aufgebaut wie DMS' Spotlight: Suchzeile oben, darunter Zeilen mit Symbol,
+Name, Beschreibung und einer Kennzeichnung (`APP` oder `TUI`). Programme ohne
+eigenes Symbol bekommen ihren Anfangsbuchstaben in einem Kasten -- Quickshell
+liefert mit `iconPath(name, true)` einen leeren Pfad statt des magentafarbenen
+Karomusters fuer ein fehlendes Bild.
+
+Ohne Eingabe steht oben, was am haeufigsten gestartet wurde. Die Zaehler
+liegen in `~/.local/state/nbshell/usage.json` -- Gebrauchsspur, keine
+Einstellung, und deshalb bewusst nicht in der Config.
+
 Die Liste kommt von Quickshells `DesktopEntries`, das die .desktop-Dateien
 aller XDG-Pfade schon eingelesen hat. Gesucht wird als Teilfolge mit
 Zuschlaegen: Treffer am Wortanfang zaehlen mehr, aufeinanderfolgende noch
@@ -223,15 +234,34 @@ ist. Umgekehrt gibt Quickshell den Namen von selbst frei und **greift auch von
 selbst zu, sobald der andere ihn loslaesst**; ein Neustart ist dafuer nicht
 noetig.
 
-Umschalten heisst also beides:
+Umschalten heisst deshalb mehrere Dinge auf einmal, und dafuer gibt es einen
+Befehl:
 
 ```bash
-systemctl --user stop dms.service     # und ggf. disable
-nbshell notify server on
+nbshell switch on             # DMS stoppen, Server uebernehmen, Binds umbiegen
+nbshell switch on dauerhaft   # zusaetzlich maskieren
+nbshell switch off            # alles zurueck
+nbshell switch status
 ```
 
-Zurueck geht es genauso: `nbshell notify server off`, dann
-`systemctl --user start dms.service`.
+Er kuemmert sich um drei Dinge, die zusammengehoeren:
+
+1. **`dms.service` stoppen.** `disable` hilft dabei NICHT: DMS haengt ueber ein
+   Drop-in an `niri.service`
+   (`~/.config/systemd/user/niri.service.d/dms.conf`, `Wants=dms.service`) und
+   kommt bei jeder Anmeldung wieder. Dauerhaft weg bleibt es nur mit `mask` --
+   und das nur auf ausdrueckliche Ansage.
+2. **Den Benachrichtigungsserver umlegen.**
+3. **Die Tastenkuerzel**, die bisher DMS gehoerten: `niri/nbshell-takeover.kdl`
+   wird als letzter Include eingehaengt (mit Sicherung und `niri validate`
+   davor) und biegt `Mod+Space` auf den Starter und `Mod+N` auf das
+   Benachrichtigungsarchiv.
+
+**Was danach tot bleibt**, weil nbshell es noch nicht kann: Zwischenablage
+(`Mod+V`), Power-Menue (`Super+X`), Sperrbildschirm (`Mod+Alt+L` -- dafuer
+hyprlock von Hand binden), Prozessliste (`Mod+M`) und die Medientasten
+Play/Next/Prev (kein MPRIS). Die Liste steht auch im Kopf der
+Takeover-Datei.
 
 ## System-Tray
 
@@ -353,6 +383,7 @@ shell/
   Bar/Bar.qml          das Fenster: Insel oder Balken
   Bar/Wallpaper.qml    Hintergrundbild je Bildschirm
   Launcher/Launcher.qml  Anwendungsstarter
+niri/nbshell-takeover.kdl  Binds fuer den Umstieg
   Osd/Osd.qml          die Einblendung je Bildschirm
   Notifications/Popups.qml  die Karten am Rand
   Bar/WidgetHost.qml   Name -> Komponente
@@ -414,8 +445,6 @@ Der Reihe nach, wie es fuer den Alltag zaehlt:
 - **Netz ohne NetworkManager** — nur dessen Backend ist angebunden.
 - **Power-Menue**, **Zwischenablage**.
 - **Anwendungslautstaerken** — die Stroeme einzelner Programme.
-- **Haeufig Benutztes im Starter** — er sortiert nur nach Treffergenauigkeit,
-  merkt sich also nicht, was du oft startest.
 - **Sperrbildschirm** — hier wird bewusst nichts Eigenes gebaut; ein Fehler
   darin sperrt dich aus. hyprlock tut es.
 - **Einstellungsoberflaeche** — bis dahin ist `config.json` die Oberflaeche.
