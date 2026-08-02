@@ -12,7 +12,7 @@ Cell {
 
     shown: MediaService.active
     interactive: true
-    color: MediaService.playing ? Theme.fg : Theme.fgDim
+    color: MediaService.playing ? Theme.text : Theme.textDim
 
     text: {
         const marker = MediaService.playing ? "▶ " : "❚❚ ";

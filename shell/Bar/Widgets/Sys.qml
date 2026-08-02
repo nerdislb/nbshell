@@ -13,5 +13,5 @@ Cell {
     }
 
     text: "CPU " + pad(SysInfo.cpuPercent) + "%  RAM " + pad(SysInfo.memPercent) + "%"
-    color: SysInfo.cpuPercent >= 90 ? Theme.red : Theme.fg
+    color: SysInfo.cpuPercent >= 90 ? Theme.red : Theme.text
 }

@@ -9,7 +9,7 @@ Cell {
 
     interactive: true
     text: (Notify.dnd ? "DND " : "MSG ") + Notify.count
-    color: Notify.dnd ? Theme.fgDim : (Notify.count > 0 ? Theme.fg : Theme.fgDim)
+    color: Notify.dnd ? Theme.fgDim : (Notify.count > 0 ? Theme.text : Theme.textDim)
 
     // Rechtsklick schaltet "Nicht stoeren" -- die Handbewegung, die man am
     // haeufigsten braucht.

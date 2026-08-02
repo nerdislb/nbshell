@@ -15,6 +15,6 @@ Cell {
     readonly property string title: Niri.focusedTitle
 
     shown: title !== ""
-    color: Theme.fgDim
+    color: Theme.textDim
     text: title.length > maxChars ? (title.substring(0, maxChars - 1) + "…") : title
 }

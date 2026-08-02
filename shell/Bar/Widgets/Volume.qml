@@ -10,7 +10,7 @@ Cell {
 
     shown: Audio.ready
     interactive: true
-    color: Audio.muted ? Theme.red : Theme.fg
+    color: Audio.muted ? Theme.red : Theme.text
     text: Audio.muted ? "VOL --" : ("VOL " + Audio.volume + "%")
 
     onWheel: delta => Audio.step(delta > 0 ? 5 : -5)
@@ -74,7 +74,7 @@ Cell {
                     // Feste Breite in Zeichen, damit der Balken beim Regeln
                     // nicht wandert.
                     text: (Audio.muted ? "stumm" : (Audio.volume + "%")).padStart(6, " ")
-                    color: Audio.muted ? Theme.red : Theme.fg
+                    color: Audio.muted ? Theme.red : Theme.text
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize
                     renderType: Text.NativeRendering

@@ -10,7 +10,7 @@ Cell {
     shown: Clipboard.enabled
     interactive: true
     text: "CLP " + Clipboard.entries.length
-    color: Clipboard.entries.length > 0 ? Theme.fg : Theme.fgDim
+    color: Clipboard.entries.length > 0 ? Theme.text : Theme.textDim
 
     // Zurueckmelden, wenn der Kompositor das Popout geschlossen hat.
     onPopoutVisibleChanged: Runtime.clipOpen = root.popoutVisible

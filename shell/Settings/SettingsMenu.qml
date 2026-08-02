@@ -43,6 +43,12 @@ PanelWindow {
             "head": "AUSSEHEN"
         },
         {
+            "key": "widgetColor",
+            "def": "text",
+            "label": "Farbe der Bausteine",
+            "values": ["text", "accent"]
+        },
+        {
             "key": "widgetStyle",
             "def": "box",
             "label": "Bausteine",
@@ -103,6 +109,11 @@ PanelWindow {
             "step": 0.05,
             "min": 0.2,
             "max": 1
+        },
+        {
+            "action": "modules",
+            "label": "Bausteine anordnen …",
+            "hint": "Enter"
         },
         {
             "head": "VERHALTEN"
@@ -199,6 +210,8 @@ PanelWindow {
     }
 
     function shown(entry) {
+        if (entry.action !== undefined)
+            return entry.hint;
         const v = valueOf(entry);
         if (typeof v === "boolean")
             return v ? "an" : "aus";
@@ -210,6 +223,13 @@ PanelWindow {
     // Blaettern: bei Listen zum naechsten Eintrag, bei Zahlen um die
     // Schrittweite -- und an den Enden bleibt es stehen, statt umzuspringen.
     function step(entry, direction) {
+        // Zeilen, die etwas OEFFNEN statt etwas zu aendern.
+        if (entry.action !== undefined) {
+            close();
+            if (entry.action === "modules")
+                Runtime.modulesOpen = true;
+            return;
+        }
         const current = valueOf(entry);
         if (entry.values) {
             var i = entry.values.indexOf(current);

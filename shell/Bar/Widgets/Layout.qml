@@ -9,5 +9,5 @@ Cell {
 
     shown: Niri.keyboardLayout !== ""
     text: Niri.keyboardLayout.substring(0, 2).toUpperCase()
-    color: Theme.fgDim
+    color: Theme.textDim
 }

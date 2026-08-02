@@ -49,6 +49,12 @@ Singleton {
     readonly property color brightGreen: c.bright_green ?? green
     readonly property color brightYellow: c.bright_yellow ?? yellow
 
+    // Farbe der Bausteine in der Leiste: entweder der normale Vordergrund
+    // oder der Akzent des Themes. Warnfarben (leerer Akku, hohe Last) bleiben
+    // davon unberuehrt -- die sollen auffallen, nicht schoen sein.
+    readonly property color text: Config.value("widgetColor", "text") === "accent" ? accent : fg
+    readonly property color textDim: Config.value("widgetColor", "text") === "accent" ? alpha(accent, 0.65) : fgDim
+
     function alpha(color, a) {
         return Qt.rgba(color.r, color.g, color.b, a);
     }

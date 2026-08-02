@@ -14,5 +14,5 @@ Cell {
 
     shown: device !== null && device.isLaptopBattery
     text: (charging ? "↑" : "") + "BAT " + percent + "%"
-    color: percent <= 20 && !charging ? Theme.red : (charging ? Theme.green : Theme.fg)
+    color: percent <= 20 && !charging ? Theme.red : (charging ? Theme.green : Theme.text)
 }

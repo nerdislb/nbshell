@@ -11,7 +11,7 @@ Cell {
     property int seconds: 0
 
     interactive: true
-    color: CaptureService.recording ? Theme.red : Theme.fgDim
+    color: CaptureService.recording ? Theme.red : Theme.textDim
     text: CaptureService.recording ? ("REC " + Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0")) : "CAP"
 
     onClicked: Runtime.captureOpen = true
