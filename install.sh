@@ -38,8 +38,16 @@ fc-list 2>/dev/null | grep -ci "Inconsolata.*Nerd Font" >/dev/null || \
 # Laeuft eine Instanz, wird sie vorher beendet: waehrend des Kopierens ist das
 # Verzeichnis kurz unvollstaendig, und Quickshell laedt bei jeder Aenderung neu
 # -- es wuerde also mitten im Austausch eine halbe Shell lesen und aufgeben.
+# Reihenfolge zaehlt: laeuft nbshell als Dienst, gehoert ihm das Anhalten und
+# das Starten. Wer stattdessen die Instanz killt, bringt die Unit auf
+# "inactive" -- und danach steht eine von Hand gestartete Kopie daneben.
+unit_active=0
+systemctl --user is-active --quiet nbshell.service 2>/dev/null && unit_active=1
+
 was_running=0
-if "$QS_BIN" list --all 2>/dev/null | grep -c "quickshell/nbshell/shell.qml" >/dev/null; then
+if [ $unit_active -eq 1 ]; then
+    systemctl --user stop nbshell.service
+elif "$QS_BIN" list --all 2>/dev/null | grep -c "quickshell/nbshell/shell.qml" >/dev/null; then
     was_running=1
     "${SRC}/bin/nbshell" stop >/dev/null 2>&1 || true
     sleep 0.3
@@ -112,9 +120,9 @@ esac
 # Laeuft nbshell als Dienst, gehoert der Neustart dem Dienst -- sonst steht
 # neben der Unit-Instanz eine zweite, von Hand gestartete, und die Leiste ist
 # doppelt da.
-if systemctl --user is-active --quiet nbshell.service 2>/dev/null; then
-    systemctl --user restart nbshell.service
-    green "Dienst nbshell.service neu gestartet."
+if [ $unit_active -eq 1 ]; then
+    systemctl --user start nbshell.service
+    green "Dienst nbshell.service wieder gestartet."
 elif [ "$was_running" = "1" ]; then
     "$BIN_DIR/nbshell" start -d >/dev/null 2>&1 &
     green "Shell wieder gestartet."
