@@ -6,11 +6,16 @@ import Quickshell.Io
 
 // Anbindung an niri ueber dessen IPC-Socket ($NIRI_SOCKET).
 //
-// Zwei Verbindungen, wie es das Protokoll vorsieht: eine bleibt fuer den
-// Ereignisstrom offen (`"EventStream"` einmal senden, danach kommen Zeilen),
-// die zweite schickt Befehle. Der Strom liefert beim Verbinden erst einen
-// vollstaendigen Zustand (WorkspacesChanged, WindowsChanged), danach nur noch
-// Aenderungen -- man muss also nichts abfragen.
+// Der Socket ist nur zum ZUHOEREN da: `"EventStream"` einmal senden, danach
+// kommen Zeilen. Beim Verbinden liefert er erst den vollstaendigen Zustand
+// (WorkspacesChanged, WindowsChanged), danach nur noch Aenderungen -- man muss
+// also nichts abfragen.
+//
+// Befehle gehen dagegen ueber `niri msg action`, NICHT ueber einen zweiten
+// Socket. Grund: niri beantwortet pro Verbindung genau eine Anfrage und legt
+// dann auf. Ein dauerhaft offener Befehls-Socket funktioniert damit genau
+// einmal und schweigt danach -- lautlos, weil das Schreiben selbst gelingt.
+// Die CLI liegt ohnehin bei, sie IST niri.
 //
 // Bewusst schlank: hier steht nur, was die Leiste anzeigt. Fenstergeometrie,
 // Layouts und Ausgabenverwaltung fehlen absichtlich.
@@ -40,23 +45,12 @@ Singleton {
         return workspaces.filter(w => !output || w.output === output).sort((a, b) => a.idx - b.idx);
     }
 
-    function focusWorkspace(id) {
-        request({
-            "Action": {
-                "FocusWorkspace": {
-                    "reference": {
-                        "Id": id
-                    }
-                }
-            }
-        });
+    function focusWorkspace(idx) {
+        action(["focus-workspace", String(idx)]);
     }
 
-    function request(obj) {
-        if (!requestSocket.connected)
-            return;
-        requestSocket.write(JSON.stringify(obj) + "\n");
-        requestSocket.flush();
+    function action(args) {
+        Quickshell.execDetached(["niri", "msg", "action"].concat(args));
     }
 
     function handle(event) {
@@ -143,10 +137,4 @@ Singleton {
         }
     }
 
-    Socket {
-        id: requestSocket
-
-        path: root.socketPath
-        connected: root.available
-    }
 }

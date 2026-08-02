@@ -8,8 +8,8 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **0.12.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
-Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Prozessliste, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
+Stand: **0.13.0.** Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Prozessliste, Aufnahme, Terminalfarben, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku. Alles Weitere steht unter „Was noch fehlt".
 
 ## Installieren
@@ -63,6 +63,7 @@ nbshell tray             # was gerade im Tray steckt
 nbshell osd test         # Einblendung ausprobieren
 nbshell osd on | off
 
+nbshell capture          # Aufnahme-Menue (screen, window, region, ocr, record)
 nbshell procs            # Prozessliste; `nbshell procs top` als Text
 nbshell power            # Power-Menue (auch: lock, logout, suspend)
 nbshell clip             # Zwischenablage (toggle, list, clear)
@@ -318,6 +319,36 @@ Sperrbildschirm ist ein fremder (`lockCommand`, Vorgabe `hyprlock`) --
 nbshell baut absichtlich keinen eigenen: ein Fehler darin sperrt dich aus dem
 eigenen Rechner aus.
 
+## Aufnehmen
+
+`nbshell capture` — Omarchys Capture-Menue, uebernommen aus dem DMS-Plugin
+[screenCapture](https://github.com/nerdislb/screen-capture): Bildschirm,
+Fenster, Bereich, Texterkennung, Bildschirmaufnahme, letztes Bild bearbeiten,
+Ordner oeffnen. Der Baustein `capture` zeigt waehrend einer Aufnahme die
+Laufzeit in Rot; Rechtsklick startet und stoppt sie direkt.
+
+Die Auswahl macht **niris eigene Screenshot-Oberflaeche**, nicht slurp: sie
+friert das Bild ein UND kennt die Fenster -- unter niri kommt sonst niemand an
+Fensterkoordinaten. Alles danach (warten, melden, Editor, OCR, wf-recorder)
+macht `scripts/capture.sh`, unveraendert aus dem Plugin uebernommen; das ist
+Shell-Arbeit und laesst sich so auch direkt auf eine Taste legen.
+
+Nach der Wahl schliesst das Menue **sofort** und wartet 250 ms, bevor es
+ausloest: niri friert das Bild ein, sobald die Aktion ankommt, und ohne Pause
+haengt das halb verschwundene Menue mit im Screenshot.
+
+## Terminalfarben mitfaerben
+
+Ein Themewechsel hoert nicht an der Leiste auf: nbshell schreibt bei jedem
+Wechsel `~/.config/ghostty/themes/nbcolors` (die 16 ANSI-Farben plus Hinter-
+und Vordergrund, direkt aus der `colors.toml`) und ruft danach
+`~/.config/nbshell/theme-hook.sh` auf, falls es die gibt -- mit Themename und
+Modus als Argumenten. Alles Weitere (btop, fuzzel, was auch immer) gehoert
+dorthin und nicht in die Shell.
+
+In ghostty muss `theme = nbcolors` stehen; `nbshell switch on` biegt die Zeile
+um (und `switch off` zurueck auf `dankcolors`, das matugen fuer DMS schreibt).
+
 ## Prozessliste
 
 `nbshell procs` — der Ersatz fuer DMS' `Mod+M`. Aufgebaut wie der Starter:
@@ -411,7 +442,8 @@ erst beim Aufklappen.
 ## Bausteine
 
 `clock`, `workspaces`, `window`, `sys`, `battery`, `layout`, `themes`,
-`volume`, `control`, `tray`, `notifications`, `clipboard`, `media`, `sep`.
+`volume`, `control`, `tray`, `notifications`, `clipboard`, `media`, `capture`,
+`sep`.
 
 Vier Listen sagen, was wo steht:
 
@@ -457,6 +489,10 @@ niri/nbshell-takeover.kdl  Binds fuer den Umstieg
   Power/PowerMenu.qml  Sitzungsmenue
   Procs/ProcessList.qml  Prozessliste
   Services/Procs.qml   ps lesen, Prozesse beenden
+  Services/CaptureService.qml  Screenshots, Aufnahme, OCR
+  Services/ThemeExport.qml  Palette nach ghostty und ins eigene Skript
+  Capture/CaptureMenu.qml   das Aufnahme-Menue
+  scripts/capture.sh   die Shell-Arbeit danach
   Bar/WidgetHost.qml   Name -> Komponente
   Bar/Widgets/         die Bausteine
   Widgets/Popout.qml   Fenster, das an einer Zelle haengt
@@ -486,6 +522,13 @@ doppelt gebaut werden, und der Uebergang laesst sich animieren.
   sucht den Fehler beim Fenster — obwohl das laengst da ist (`niri msg
   -j layers` zeigt es). Genau so ist die Einblendung anfangs unsichtbar
   geblieben.
+- **niri beantwortet pro Verbindung genau EINE Anfrage** und legt dann auf.
+  Ein dauerhaft offener Befehls-Socket funktioniert damit einmal und schweigt
+  danach — lautlos, weil das Schreiben selbst gelingt. Befehle gehen deshalb
+  ueber `niri msg action`; der Socket bleibt fuers Zuhoeren.
+- **Eine Bindung darf nicht setzen, was sie liest.** `player` las `lastActive`
+  und `onPlayerChanged` schrieb es wieder — „Binding loop detected", und der
+  Wert zappelt. Gemerkt wird jetzt nur noch, wer *spielt*.
 - **Ein Positionierer rechnet seine implizite Groesse selbst aus.** `Column`
   und `Row` verweigern jede Zuweisung an `implicitWidth`/`implicitHeight`
   („read-only property") — die Breite gehoert an die Kinder.

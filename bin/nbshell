@@ -26,6 +26,7 @@ ipc() {
 #   2. der Benachrichtigungsserver in nbshell.
 #   3. die Tastenkuerzel, die bisher DMS gehoerten.
 NIRI_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/niri"
+GHOSTTY="${XDG_CONFIG_HOME:-$HOME/.config}/ghostty/config"
 TAKEOVER="nbshell-takeover.kdl"
 INCLUDE_LINE="include \"$TAKEOVER\""
 
@@ -53,6 +54,18 @@ niri_exclude() {
     echo "  niri:   $INCLUDE_LINE entfernt"
 }
 
+# ghostty liest genau EINE Themedatei. Solange DMS laeuft, schreibt matugen
+# `dankcolors`; danach schreibt nbshell `nbcolors` bei jedem Themewechsel.
+# Umgebogen wird nur die eine Zeile, mit Sicherung daneben.
+ghostty_theme() {
+    local want="$1"
+    [ -f "$GHOSTTY" ] || return 0
+    grep -q "^theme = $want\$" "$GHOSTTY" && return 0
+    cp "$GHOSTTY" "$GHOSTTY.vor-nbshell"
+    sed -i "s/^theme = .*/theme = $want/" "$GHOSTTY"
+    echo "  ghostty: theme = $want (Sicherung: config.vor-nbshell)"
+}
+
 switch_on() {
     echo "nbshell uebernimmt:"
     if [ ! -f "$NIRI_DIR/$TAKEOVER" ]; then
@@ -75,10 +88,12 @@ switch_on() {
     # Ohne DMS malt niemand mehr den Hintergrund -- sonst steht man vor einer
     # schwarzen Flaeche und sucht den Fehler bei sich.
     ipc wallpaper on >/dev/null && echo "  nbshell: Hintergrundbild an"
+    ghostty_theme nbcolors
     echo
-    echo "Mit DMS gehen auch dessen Plugins: screenCapture, aiFillWidget,"
-    echo "dynamicIsland, workspacePills, themeCarousel, themeWallpaper."
-    echo "nbshell ersetzt davon die Insel, die Arbeitsflaechen und die Themewahl."
+    echo "Mit DMS gehen auch dessen Plugins: aiFillWidget, dynamicIsland,"
+    echo "workspacePills, themeCarousel, themeWallpaper, screenCapture."
+    echo "nbshell ersetzt davon Insel, Arbeitsflaechen, Themewahl und Aufnahme;"
+    echo "es fehlt nur das aiFillWidget."
     echo "Tot bleiben Mod+Comma, Mod+Y und Mod+Shift+N -- siehe $TAKEOVER."
 }
 
@@ -86,6 +101,7 @@ switch_off() {
     echo "DMS uebernimmt wieder:"
     ipc notify server off >/dev/null && echo "  nbshell: Benachrichtigungsserver aus"
     ipc wallpaper off >/dev/null && echo "  nbshell: Hintergrundbild aus (DMS malt wieder)"
+    ghostty_theme dankcolors
     niri_exclude || true
     systemctl --user unmask dms.service >/dev/null 2>&1
     systemctl --user start dms.service 2>/dev/null && echo "  dms:    gestartet"
@@ -134,6 +150,7 @@ nbshell -- eigene Shell auf Quickshell
                             uebernimmt org.freedesktop.Notifications von DMS
                             (dessen Unit muss dann gestoppt sein)
 
+  nbshell capture           Aufnahme-Menue (screen, window, region, ocr, record)
   nbshell procs             Prozessliste (auch: top)
   nbshell clip              Verlauf der Zwischenablage (toggle, list, clear)
   nbshell power             Power-Menue (auch: lock, logout, suspend)
@@ -221,6 +238,9 @@ case "$cmd" in
             off) switch_off ;;
             *) switch_status ;;
         esac
+        ;;
+    capture)
+        ipc capture "${1:-menu}"
         ;;
     procs|top)
         ipc procs "${1:-toggle}"

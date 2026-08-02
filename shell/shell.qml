@@ -13,6 +13,7 @@ import qs.Osd
 import qs.Notifications
 import qs.Power
 import qs.Procs
+import qs.Capture
 
 // nbshell -- Einstiegspunkt.
 //
@@ -45,6 +46,8 @@ ShellRoot {
         void MediaService.active;
         void Clipboard.entries;
         void Procs.list;
+        void CaptureService.recording;
+        void ThemeExport.enabled;
     }
 
     Bar {}
@@ -60,6 +63,8 @@ ShellRoot {
     PowerMenu {}
 
     ProcessList {}
+
+    CaptureMenu {}
 
     // ── Steuerung von aussen ──────────────────────────────────────────────
     // Aufrufbar als `nbshell <ziel> <befehl>`, siehe bin/nbshell.
@@ -119,6 +124,35 @@ ShellRoot {
 
         function current(): string {
             return Config.theme;
+        }
+    }
+
+    IpcHandler {
+        target: "capture"
+
+        function menu(): string {
+            Runtime.captureOpen = !Runtime.captureOpen;
+            return Runtime.captureOpen ? "offen" : "zu";
+        }
+
+        function screen(): string {
+            return CaptureService.shoot("screen") ? "Bildschirm" : "niri fehlt";
+        }
+
+        function window(): string {
+            return CaptureService.shoot("window") ? "Fenster" : "niri fehlt";
+        }
+
+        function region(): string {
+            return CaptureService.shoot("region") ? "Bereich" : "niri fehlt";
+        }
+
+        function ocr(): string {
+            return CaptureService.ocr() ? "Texterkennung" : "niri fehlt";
+        }
+
+        function record(): string {
+            return CaptureService.toggleRecording();
         }
     }
 

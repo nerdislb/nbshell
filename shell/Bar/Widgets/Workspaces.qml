@@ -24,7 +24,7 @@ Cell {
             return;
         const next = delta > 0 ? current - 1 : current + 1;
         if (next >= 0 && next < items.length)
-            Niri.focusWorkspace(items[next].id);
+            Niri.focusWorkspace(items[next].idx);
     }
 
     Row {
@@ -47,7 +47,7 @@ Cell {
                     anchors.fill: parent
                     anchors.margins: -Theme.cellW / 2
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: Niri.focusWorkspace(parent.modelData.id)
+                    onClicked: Niri.focusWorkspace(parent.modelData.idx)
                 }
             }
         }

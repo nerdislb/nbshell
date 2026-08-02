@@ -18,10 +18,14 @@ Singleton {
 
     property var lastActive: null
 
+    // Zwei Schritte statt einem: `player` darf `lastActive` LESEN, aber nicht
+    // selbst setzen -- sonst haengt die Bindung an ihrem eigenen Ergebnis
+    // ("Binding loop detected"). Gemerkt wird deshalb nur, wer spielt.
+    readonly property var playingPlayer: players.find(p => p.isPlaying) ?? null
+
     readonly property var player: {
-        const playing = players.find(p => p.isPlaying);
-        if (playing)
-            return playing;
+        if (playingPlayer)
+            return playingPlayer;
         if (lastActive && players.indexOf(lastActive) >= 0)
             return lastActive;
         return players[0] ?? null;
@@ -40,9 +44,9 @@ Singleton {
         return artist ? (artist + " — " + t) : t;
     }
 
-    onPlayerChanged: {
-        if (player)
-            lastActive = player;
+    onPlayingPlayerChanged: {
+        if (playingPlayer)
+            lastActive = playingPlayer;
     }
 
     function playPause() {
