@@ -55,6 +55,12 @@ PanelWindow {
             "values": ["box", "bracket", "plain"]
         },
         {
+            "key": "widgetIcons",
+            "def": true,
+            "label": "Symbole in der Leiste",
+            "values": [true, false]
+        },
+        {
             "key": "fontSize",
             "def": 13,
             "label": "Schriftgroesse",

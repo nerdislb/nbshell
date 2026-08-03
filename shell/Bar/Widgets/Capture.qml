@@ -12,7 +12,9 @@ Cell {
 
     interactive: true
     color: CaptureService.recording ? Theme.red : Theme.textDim
-    text: CaptureService.recording ? ("REC " + Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0")) : "CAP"
+    label: CaptureService.recording ? "REC" : "CAP"
+    icon: CaptureService.recording ? Icons.record : Icons.camera
+    text: CaptureService.recording ? (Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0")) : ""
 
     onClicked: Runtime.captureOpen = true
     onRightClicked: CaptureService.toggleRecording()

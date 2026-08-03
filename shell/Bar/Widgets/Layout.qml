@@ -8,6 +8,7 @@ Cell {
     id: root
 
     shown: Niri.keyboardLayout !== ""
+    icon: Icons.keyboard
     text: Niri.keyboardLayout.substring(0, 2).toUpperCase()
     color: Theme.textDim
 }

@@ -9,7 +9,9 @@ Cell {
 
     shown: Clipboard.enabled
     interactive: true
-    text: "CLP " + Clipboard.entries.length
+    label: "CLP"
+    icon: Icons.clipboard
+    text: Clipboard.entries.length
     color: Clipboard.entries.length > 0 ? Theme.text : Theme.textDim
 
     // Zurueckmelden, wenn der Kompositor das Popout geschlossen hat.

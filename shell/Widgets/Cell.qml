@@ -12,6 +12,16 @@ Item {
 
     property string text: ""
 
+    // Ein Zeichen aus der Nerd-Font-Schrift vor dem Text. Leer heisst: nur
+    // Text. Abschalten laesst sich das fuer alle gemeinsam mit `widgetIcons`.
+    property string icon: ""
+    property bool iconSpins: false
+
+    // Das Kuerzel, das an die Stelle des Symbols tritt, wenn Symbole aus sind
+    // ("VOL", "MSG", …). Ohne das bliebe von der Lautstaerke eine nackte Zahl
+    // uebrig, die neben der Uhr nichts mehr bedeutet.
+    property string label: ""
+
     // Ein Baustein blendet sich hierueber aus, nicht ueber `visible` -- siehe
     // die Erklaerung in Bar/WidgetHost.qml.
     property bool shown: true
@@ -53,9 +63,11 @@ Item {
     readonly property bool boxed: style === "box"
     readonly property bool bracketed: style === "bracket"
 
-    readonly property string shownText: bracketed ? ("[" + text + "]") : text
+    readonly property string labelled: (!Config.widgetIcons && root.label !== "") ? (root.label + (root.text !== "" ? " " + root.text : "")) : root.text
 
-    implicitWidth: (custom ? contentItem.childrenRect.width : label.implicitWidth) + Theme.padX * 2
+    readonly property string shownText: bracketed ? ("[" + labelled + "]") : labelled
+
+    implicitWidth: (custom ? contentItem.childrenRect.width : line.implicitWidth) + Theme.padX * 2
     implicitHeight: Theme.barHeight - Theme.padY
 
     width: implicitWidth
@@ -69,15 +81,15 @@ Item {
         border.color: root.active || popoutLoader.item?.visible ? root.color : Theme.muted
     }
 
-    Text {
-        id: label
+    IconText {
+        id: line
+
         visible: !root.custom
         anchors.centerIn: parent
+        icon: root.icon
+        spins: root.iconSpins
         text: root.shownText
         color: root.color
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
-        renderType: Text.NativeRendering
     }
 
     Item {

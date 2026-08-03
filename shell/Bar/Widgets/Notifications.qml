@@ -8,7 +8,9 @@ Cell {
     id: root
 
     interactive: true
-    text: (Notify.dnd ? "DND " : "MSG ") + Notify.count
+    label: Notify.dnd ? "DND" : "MSG"
+    icon: Notify.dnd ? Icons.bellOff : Icons.bell
+    text: Notify.count
     color: Notify.dnd ? Theme.fgDim : (Notify.count > 0 ? Theme.text : Theme.textDim)
 
     // Rechtsklick schaltet "Nicht stoeren" -- die Handbewegung, die man am

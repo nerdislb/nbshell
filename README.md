@@ -193,7 +193,7 @@ aendert, aendert die ganze Leiste mit — `nbshell set fontSize 15` genuegt.
 Einstellbar in `config.json`: `theme`, `font`, `fontSize`, `mode`, `edge`,
 `gap`, `lines`, `padX`, `padY`, `radius`, `borderWidth`, `opacity`,
 `widgetStyle` (`box` | `bracket` | `plain`), `widgetColor` (`text` | `accent`),
-`barBorder`,
+`widgetIcons`, `barBorder`,
 `collapseDelay`, `clockFormat`,
 `titleLength`, `locale`, `wallpaper`, `wallpaperOverride`, `maxVolume` und die
 vier Bausteinlisten.
@@ -798,6 +798,36 @@ Vier Listen sagen, was wo steht:
 
 `collapsedWidgets` ist die zugeklappte Insel. Die anderen drei sind der
 Balken — und die aufgeklappte Insel zeigt sie hintereinander.
+
+### Symbole
+
+Vor dem Text steht ein Zeichen aus der Nerd-Font-Schrift: Tacho und Stapel fuer
+Last und Speicher, Glocke fuer Meldungen, Lautsprecher, WLAN, Akku, Tastatur,
+Palette. **`widgetIcons: false` schaltet alle ab** — dann steht wieder das
+Kuerzel da (`VOL 16%`, `MSG 2`), und die Leiste ist eine reine Textzeile.
+Deshalb hat jeder Baustein neben `icon` auch ein `label`: ohne das bliebe von
+der Lautstaerke eine nackte Zahl uebrig, die neben der Uhr nichts mehr bedeutet.
+
+Die Zeichen stehen gesammelt in `Common/Icons.qml`. Zwei Dinge, die dabei
+zaehlen:
+
+- **Ein Zeichen wird nach seinem Aussehen bei 14 px gewaehlt, nicht nach seinem
+  Namen.** `nf-md-cpu-64-bit` heisst richtig, ist in der Leiste aber ein
+  dunkler Klecks — die Innenzeichnung des Chips faellt unter die Aufloesung.
+  Ein Tacho tut es. Genauso beim Updater: `nf-fa-download` hat zu feine
+  Striche, das fette `nf-md-download` steht.
+- **Die Groesse steckt nicht in `pixelSize`.** Jedes Zeichen bemalt einen
+  anderen Anteil seiner Zeile; bei gleicher Schriftgroesse ist der eine Pfeil
+  fast zeilenhoch und der andere ein Punkt in der Mitte. `Widgets/Glyph.qml`
+  misst die tatsaechliche Hoehe der Zeichnung bei einer Probegroesse und rechnet
+  daraus zurueck. `Widgets/IconText.qml` setzt Zeichen und Text nebeneinander,
+  jedes in einem eigenen Kaestchen auf Zeilenhoehe — die Kinder eines
+  Positionierers duerfen keine Anker haben.
+
+Der Akku waehlt sein Zeichen nach dem Ladestand (`Icons.battery(percent)`),
+beim Laden steht der Blitz da. Die Reihe `F0079..F0082` ist dabei "voll, 10 %,
+20 % … 90 %" — also nicht nach Prozent sortiert, daher die Fallunterscheidung
+statt einer Rechnung auf dem Zeichencode.
 
 ## Wie es gebaut ist
 

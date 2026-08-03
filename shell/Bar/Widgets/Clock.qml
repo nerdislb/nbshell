@@ -13,6 +13,7 @@ Cell {
     // Ueber die Locale formatiert, nicht ueber Qt.formatDateTime: das nimmt
     // die C-Locale und schreibt "Sat" statt "Sa".
     text: clock.date.toLocaleString(Qt.locale(Config.value("locale", "de_DE")), format)
+    icon: Icons.clock
     color: Theme.text
 
     SystemClock {

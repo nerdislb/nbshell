@@ -13,6 +13,10 @@ Cell {
 
     interactive: true
     popoutTakesKeyboard: true
+
+    // Kabel schlaegt Funk: haengt beides, ist das Kabel die Verbindung, ueber
+    // die es laeuft.
+    icon: Net.wiredConnected ? Icons.lan : (Net.wifiEnabled ? Icons.wifi : Icons.wifiOff)
     text: Net.summary.length > 12 ? (Net.summary.substring(0, 11) + "…") : Net.summary
     color: Net.online ? Theme.text : Theme.textDim
 

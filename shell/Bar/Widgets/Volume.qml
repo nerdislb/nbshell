@@ -11,7 +11,12 @@ Cell {
     shown: Audio.ready
     interactive: true
     color: Audio.muted ? Theme.red : Theme.text
-    text: Audio.muted ? "VOL --" : ("VOL " + Audio.volume + "%")
+
+    // Der Lautsprecher zeigt schon, worum es geht -- das "VOL" davor war
+    // Beschriftung fuer eine Beschriftung.
+    label: "VOL"
+    icon: Audio.muted ? Icons.volumeMuted : (Audio.volume >= 50 ? Icons.volumeHigh : Icons.volumeLow)
+    text: Audio.muted ? "--" : (Audio.volume + "%")
 
     onWheel: delta => Audio.step(delta > 0 ? 5 : -5)
     onRightClicked: Audio.toggleMute()

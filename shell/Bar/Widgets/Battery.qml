@@ -11,11 +11,11 @@ Cell {
     shown: PowerService.available
     interactive: true
 
-    text: {
-        if (hovered)
-            return PowerService.timeText;
-        return (PowerService.charging ? "↑" : "") + "BAT " + PowerService.percent + "%";
-    }
+    // Das Symbol fuellt sich mit dem Ladestand, beim Laden steht der Blitz
+    // da -- den Pfeil davor braucht es dann nicht mehr.
+    label: PowerService.charging ? "BAT ↑" : "BAT"
+    icon: PowerService.charging ? Icons.batteryCharging : Icons.battery(PowerService.percent)
+    text: hovered ? PowerService.timeText : (PowerService.percent + "%")
 
     color: PowerService.percent <= 20 && !PowerService.charging ? Theme.red : (PowerService.charging ? Theme.green : Theme.text)
 

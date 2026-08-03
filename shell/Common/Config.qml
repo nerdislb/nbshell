@@ -45,6 +45,10 @@ Singleton {
     readonly property real opacity: value("opacity", 1.0)
     readonly property string widgetStyle: value("widgetStyle", "box")
 
+    // Symbole vor dem Text der Bausteine. Aus wird die Leiste zur reinen
+    // Textzeile -- naeher am Terminal, aber schmaler zu lesen.
+    readonly property bool widgetIcons: value("widgetIcons", true)
+
     // Aus, solange DMS daneben laeuft: beide malen sonst auf dieselbe Ebene.
     readonly property bool wallpaperEnabled: value("wallpaper", false)
 

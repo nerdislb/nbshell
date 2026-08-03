@@ -8,6 +8,7 @@ import qs.Widgets
 Cell {
     id: root
 
+    icon: Icons.palette
     text: Config.theme
     color: Theme.accent
     interactive: true

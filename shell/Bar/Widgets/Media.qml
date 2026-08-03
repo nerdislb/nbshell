@@ -14,10 +14,11 @@ Cell {
     interactive: true
     color: MediaService.playing ? Theme.text : Theme.textDim
 
+    label: MediaService.playing ? "▶" : "❚❚"
+    icon: MediaService.playing ? Icons.play : Icons.pause
     text: {
-        const marker = MediaService.playing ? "▶ " : "❚❚ ";
         const label = MediaService.label;
-        return marker + (label.length > maxChars ? (label.substring(0, maxChars - 1) + "…") : label);
+        return label.length > maxChars ? (label.substring(0, maxChars - 1) + "…") : label;
     }
 
     onClicked: MediaService.playPause()
