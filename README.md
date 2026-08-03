@@ -521,10 +521,25 @@ um (und `switch off` zurueck auf `dankcolors`, das matugen fuer DMS schreibt).
 
 ## Updates
 
-Der Baustein `updates` zeigt die Zahl offener Systemupdates -- und **nur dann**,
-wenn es welche gibt: eine Null, die man taeglich liest, ist Rauschen. Klick
-oeffnet die Liste (Paket, alte, neue Version), Rechtsklick startet die
-Aktualisierung.
+Der Baustein `updates` zeigt ein Symbol und die Zahl offener Systemupdates --
+und **nur dann**, wenn es welche gibt: eine Null, die man taeglich liest, ist
+Rauschen. Klick oeffnet die Liste (Paket, alte, neue Version), Rechtsklick
+startet die Aktualisierung.
+
+Das Symbol macht es wie DMS: waehrend der Pruefung dreht sich ein Pfeilkreis
+(die Zahl waere in dem Moment die alte), sonst steht dort ein Pfeil nach unten
+und daneben die Anzahl.
+
+Symbole kommen aus der Nerd-Font-Schrift und laufen ueber `Widgets/Glyph.qml`.
+Das misst, **wie viel seiner Zeile ein Zeichen wirklich bemalt**, und rechnet
+daraus die Schriftgroesse fuer die gewuenschte Hoehe. Ohne diesen Umweg sind
+zwei Symbole mit derselben `pixelSize` verschieden gross -- ein Pfeil fuellt die
+Zeile fast aus, ein Punkt sitzt winzig in der Mitte. Derselbe Trick steckt im
+KI-Baustein, dort fuer den Fuellstand.
+
+Bei der Wahl des Zeichens zaehlt nur, wie es bei 14 px aussieht: der erste
+Versuch (`nf-fa-download`) hatte so feine Striche, dass in der Leiste ein
+Fleck uebrig blieb. Jetzt steht dort das fette `nf-md-download`.
 
 Gesucht wird ohne root und **ohne die Systemdatenbank anzufassen**: pacman
 synchronisiert unter `fakeroot` in eine eigene Datenbank, und `-Qu` vergleicht
