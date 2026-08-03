@@ -198,7 +198,7 @@ Einstellbar in `config.json`: `theme`, `font`, `fontSize`, `mode`, `edge`,
 `gap`, `lines`, `padX`, `padY`, `radius`, `borderWidth`, `opacity`,
 `widgetStyle` (`box` | `bracket` | `plain`), `widgetColor` (`text` | `accent`),
 `widgetIcons`, `quietWidgets`, `widgetGap`, `barBorder`, `calendar`, `calendarInterval`,
-`weatherPlace`, `weatherInterval`,
+`weatherPlace`, `weatherInterval`, `sysGpu`,
 `collapseDelay`, `clockFormat`,
 `titleLength`, `locale`, `wallpaper`, `wallpaperOverride`, `maxVolume` und die
 vier Bausteinlisten.
@@ -567,6 +567,37 @@ AUR-Updates kommen von `paru -Qua` (oder `yay`), Repo-Updates aus der eigenen
 Datenbank. Geprueft wird alle vier Stunden (`updateInterval`) und beim Start
 einmal nach einer Minute -- nicht sofort, damit die Anmeldung nicht mit einem
 Datenbankabgleich anfaengt.
+
+## Leistungsanzeige
+
+Der Baustein `sys` zeigt in der Leiste CPU und Speicher. Ein Klick klappt die
+Einzelheiten auf:
+
+- **Prozessor** — Modell, Auslastung als Balken, Takt, die drei Lastmittel,
+  Laufzeit und jeder Kern einzeln.
+- **Speicher** — RAM, Swap, wie viel davon Cache ist, dazu die Wurzelpartition.
+- **Temperatur** — CPU (das Paket, nicht die Kerne), Gehaeuse, SSD, Chipsatz,
+  WLAN und der heisseste Kern. Ab 80 °C gelb, ab 90 °C rot.
+- **Luefter** — Drehzahl, oder „aus", wenn sie stehen. Dass sie stehen, ist
+  auch eine Auskunft.
+- **Grafik** — Name, Auslastung, Speicher und Temperatur.
+
+Zwei Entscheidungen dahinter:
+
+- **Gemessen wird nur, solange jemand hinsieht.** Die Zelle in der Leiste liest
+  `/proc/stat` und `/proc/meminfo` direkt in QML — das kostet nichts. Alles
+  Weitere macht `scripts/sysinfo.sh`, und der laeuft erst, wenn das Popout
+  offen ist.
+- **`nvidia-smi` weckt die Grafikkarte.** Auf einem Optimus-Notebook haelt ein
+  Aufruf alle zwei Sekunden die dedizierte Karte wach und kostet Laufzeit.
+  Deshalb fragt nur das Popout, nie die Leiste — und `sysGpu: false` schaltet
+  es ganz ab.
+
+Die Sensoren werden **gefiltert, nicht gesammelt**: `/sys/class/hwmon` meldet
+hier zwei Dutzend Werte, von denen die meisten Dubletten sind. `dell_smm`
+liefert acht unbeschriftete Temperaturen, die als CPU, Chipsatz und Gehaeuse
+schon dabei sind — seine Luefter sind aber die einzige Quelle, also faellt nur
+sein Temperaturteil weg.
 
 ## Akku und Energieprofil
 

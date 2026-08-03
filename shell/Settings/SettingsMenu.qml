@@ -216,6 +216,12 @@ PanelWindow {
             "values": [true, false]
         },
         {
+            "key": "sysGpu",
+            "def": true,
+            "label": "Grafikkarte abfragen",
+            "values": [true, false]
+        },
+        {
             "key": "calendar",
             "def": true,
             "label": "Kalender (khal)",
