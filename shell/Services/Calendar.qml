@@ -209,9 +209,12 @@ Singleton {
 
     // Im Hintergrund frisch halten. Der Abgleich selbst gehoert vdirsyncers
     // Timer -- hier wird nur neu gelesen, was schon auf der Platte liegt.
+    // Nicht, solange jemand hinsieht: ein neuer Satz Termine baut die Zeilen
+    // im Popout neu auf, und was gerade unter der Maus lag, ist dann ein
+    // anderes Element.
     Timer {
         interval: Config.value("calendarInterval", 900000)
-        running: root.enabled
+        running: root.enabled && !Runtime.calendarOpen
         repeat: true
         onTriggered: root.refresh()
     }

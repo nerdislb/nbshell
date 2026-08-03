@@ -64,7 +64,7 @@ Cell {
                     width: picker.rowWidth
                     height: Theme.cellH * 1.5
                     radius: Theme.radius
-                    color: mouse.containsMouse ? Theme.hover : "transparent"
+                    color: mouse.hovered ? Theme.hover : "transparent"
                     border.width: row.isCurrent ? Theme.borderWidth : 0
                     border.color: Theme.accent
 
@@ -103,12 +103,14 @@ Cell {
                         }
                     }
 
-                    MouseArea {
+                    HoverHandler {
                         id: mouse
-                        anchors.fill: parent
-                        hoverEnabled: true
+
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: {
+                    }
+
+                    TapHandler {
+                        onTapped: {
                             ThemeIndex.apply(row.modelData.name);
                             if (picker.closePopout)
                                 picker.closePopout();

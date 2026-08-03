@@ -60,7 +60,7 @@ Column {
                 width: root.rowWidth
                 height: visible ? Theme.cellH * 1.4 : 0
                 radius: Theme.radius
-                color: mouse.containsMouse && entryColumn.modelData.enabled ? Theme.hover : "transparent"
+                color: mouse.hovered && entryColumn.modelData.enabled ? Theme.hover : "transparent"
 
                 Text {
                     anchors.left: parent.left
@@ -88,14 +88,17 @@ Column {
                     elide: Text.ElideRight
                 }
 
-                MouseArea {
+                HoverHandler {
                     id: mouse
 
-                    anchors.fill: parent
-                    hoverEnabled: true
                     enabled: entryColumn.modelData.enabled
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: {
+                }
+
+                TapHandler {
+                    enabled: entryColumn.modelData.enabled
+
+                    onTapped: {
                         if (entryColumn.modelData.hasChildren) {
                             entryColumn.expanded = !entryColumn.expanded;
                             return;

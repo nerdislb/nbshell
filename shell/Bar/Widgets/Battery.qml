@@ -90,7 +90,7 @@ Cell {
                     width: panel.rowWidth
                     height: Theme.cellH * 1.4
                     radius: Theme.radius
-                    color: mouse.containsMouse ? Theme.hover : "transparent"
+                    color: mouse.hovered ? Theme.hover : "transparent"
 
                     Text {
                         anchors.left: parent.left
@@ -103,12 +103,14 @@ Cell {
                         renderType: Text.NativeRendering
                     }
 
-                    MouseArea {
+                    HoverHandler {
                         id: mouse
-                        anchors.fill: parent
-                        hoverEnabled: true
+
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: PowerService.setProfile(row.modelData)
+                    }
+
+                    TapHandler {
+                        onTapped: PowerService.setProfile(row.modelData)
                     }
                 }
             }

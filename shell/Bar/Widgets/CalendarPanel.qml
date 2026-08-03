@@ -79,19 +79,24 @@ Column {
 
         signal triggered
 
-        color: actionMouse.containsMouse ? Theme.readable(Theme.accent, Theme.bg) : Theme.fgDim
+        color: actionHover.hovered ? Theme.readable(Theme.accent, Theme.bg) : Theme.fgDim
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSize
         renderType: Text.NativeRendering
 
-        MouseArea {
-            id: actionMouse
+        // Handler statt MouseArea -- siehe die Erklaerung bei den Tageszellen
+        // weiter unten: eine MouseArea nimmt das Ueberfahren fuer sich und
+        // laesst das Popout glauben, die Maus sei weg.
+        HoverHandler {
+            id: actionHover
 
-            anchors.fill: parent
-            anchors.margins: -Theme.cellW / 2
-            hoverEnabled: true
+            margin: Theme.cellW / 2
             cursorShape: Qt.PointingHandCursor
-            onClicked: action.triggered()
+        }
+
+        TapHandler {
+            margin: Theme.cellW / 2
+            onTapped: action.triggered()
         }
     }
 
@@ -226,7 +231,7 @@ Column {
                             anchors.fill: parent
                             anchors.margins: 1
                             radius: Theme.radius
-                            color: dayCell.isSelected ? Theme.alpha(Theme.accent, 0.2) : (dayMouse.containsMouse ? Theme.hover : "transparent")
+                            color: dayCell.isSelected ? Theme.alpha(Theme.accent, 0.2) : (dayHover.hovered ? Theme.hover : "transparent")
                             border.width: dayCell.isToday ? Theme.borderWidth : 0
                             border.color: Theme.readable(Theme.accent, Theme.bg)
                         }
@@ -255,13 +260,20 @@ Column {
                             renderType: Text.NativeRendering
                         }
 
-                        MouseArea {
-                            id: dayMouse
+                        // KEINE MouseArea mit `hoverEnabled`: die nimmt das
+                        // Ueberfahren fuer sich, und der HoverHandler des
+                        // Popoutfensters darueber sieht es nicht mehr. Das
+                        // Popout haelt die Maus dann fuer verschwunden und
+                        // klappt nach dem Nachlauf zu -- mitten im Lesen.
+                        // Handler blockieren einander nicht.
+                        HoverHandler {
+                            id: dayHover
 
-                            anchors.fill: parent
-                            hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: panel.selected = dayCell.day
+                        }
+
+                        TapHandler {
+                            onTapped: panel.selected = dayCell.day
                         }
                     }
                 }

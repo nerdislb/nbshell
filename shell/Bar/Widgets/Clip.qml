@@ -90,7 +90,7 @@ Cell {
                     width: panel.rowWidth
                     height: Theme.cellH * 1.4
                     radius: Theme.radius
-                    color: mouse.containsMouse ? Theme.hover : "transparent"
+                    color: mouse.hovered ? Theme.hover : "transparent"
 
                     Text {
                         anchors.left: parent.left
@@ -107,14 +107,17 @@ Cell {
                         elide: Text.ElideRight
                     }
 
-                    MouseArea {
+                    HoverHandler {
                         id: mouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: mouseEvent => {
-                            if (mouseEvent.button === Qt.RightButton) {
+                    }
+
+                    TapHandler {
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+
+                        onTapped: (point, button) => {
+                            if (button === Qt.RightButton) {
                                 Clipboard.remove(row.modelData);
                                 return;
                             }

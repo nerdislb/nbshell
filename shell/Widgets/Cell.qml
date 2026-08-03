@@ -142,6 +142,14 @@ Item {
 
     // Popout von aussen schalten (Tastenkuerzel, IPC).
     function setPopout(open) {
+        // Nur die Zelle, die gerade zu sehen ist: ein Baustein kann in der
+        // zugeklappten Insel UND im Balken stehen (`clock` tut das), und dann
+        // oeffnete ein Tastenkuerzel beide Popouts uebereinander. `enabled`
+        // ist das richtige Merkmal -- die Leiste schaltet damit die Reihe ab,
+        // die gerade ausgeblendet ist. `visible` taugt nicht: beide Reihen
+        // werden ueberblendet, nicht geschaltet.
+        if (open && !root.enabled)
+            return;
         if (popoutLoader.item)
             popoutLoader.item.visible = open;
     }

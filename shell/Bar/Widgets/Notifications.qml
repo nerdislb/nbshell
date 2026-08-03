@@ -110,7 +110,7 @@ Cell {
                     width: panel.rowWidth
                     height: content.implicitHeight + Theme.cellH * 0.6
                     radius: Theme.radius
-                    color: mouse.containsMouse ? Theme.hover : "transparent"
+                    color: mouse.hovered ? Theme.hover : "transparent"
 
                     Column {
                         id: content
@@ -142,12 +142,14 @@ Cell {
                         }
                     }
 
-                    MouseArea {
+                    HoverHandler {
                         id: mouse
-                        anchors.fill: parent
-                        hoverEnabled: true
+
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: Notify.drop(row.modelData.id)
+                    }
+
+                    TapHandler {
+                        onTapped: Notify.drop(row.modelData.id)
                     }
                 }
             }

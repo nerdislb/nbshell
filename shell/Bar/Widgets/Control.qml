@@ -85,19 +85,26 @@ Cell {
 
                 signal triggered
 
-                color: actionMouse.containsMouse ? Theme.readable(Theme.accent, Theme.bg) : (action.on ? Theme.green : Theme.fgDim)
+                color: actionMouse.hovered ? Theme.readable(Theme.accent, Theme.bg) : (action.on ? Theme.green : Theme.fgDim)
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize
                 renderType: Text.NativeRendering
 
-                MouseArea {
+                // Handler statt MouseArea: eine MouseArea mit `hoverEnabled`
+                // nimmt das Ueberfahren fuer sich, und der HoverHandler des
+                // Popoutfensters sieht es nicht mehr -- das Popout haelt die
+                // Maus dann fuer verschwunden und klappt mitten im Lesen zu.
+                // Handler blockieren einander nicht.
+                HoverHandler {
                     id: actionMouse
 
-                    anchors.fill: parent
-                    anchors.margins: -Theme.cellW / 2
-                    hoverEnabled: true
+                    margin: Theme.cellW / 2
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: action.triggered()
+                }
+
+                TapHandler {
+                    margin: Theme.cellW / 2
+                    onTapped: action.triggered()
                 }
             }
 
@@ -186,7 +193,7 @@ Cell {
                         width: panel.rowWidth
                         height: Theme.cellH * 1.4
                         radius: Theme.radius
-                        color: wifiMouse.containsMouse ? Theme.hover : "transparent"
+                        color: wifiMouse.hovered ? Theme.hover : "transparent"
 
                         Text {
                             anchors.left: parent.left
@@ -214,13 +221,14 @@ Cell {
                             renderType: Text.NativeRendering
                         }
 
-                        MouseArea {
+                        HoverHandler {
                             id: wifiMouse
 
-                            anchors.fill: parent
-                            hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: {
+                        }
+
+                        TapHandler {
+                            onTapped: {
                                 if (entry.isCurrent) {
                                     Net.disconnect(entry.modelData);
                                     return;
@@ -331,7 +339,7 @@ Cell {
                     width: panel.rowWidth
                     height: Theme.cellH * 1.4
                     radius: Theme.radius
-                    color: btMouse.containsMouse ? Theme.hover : "transparent"
+                    color: btMouse.hovered ? Theme.hover : "transparent"
 
                     Text {
                         anchors.left: parent.left
@@ -346,12 +354,14 @@ Cell {
                         elide: Text.ElideRight
                     }
 
-                    MouseArea {
+                    HoverHandler {
                         id: btMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
+
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: Bt.toggleDevice(btRow.modelData)
+                    }
+
+                    TapHandler {
+                        onTapped: Bt.toggleDevice(btRow.modelData)
                     }
                 }
             }
