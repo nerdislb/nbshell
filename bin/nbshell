@@ -199,6 +199,7 @@ nbshell -- eigene Shell auf Quickshell
   nbshell procs             Prozessliste (auch: top)
   nbshell clip              Verlauf der Zwischenablage (toggle, list, clear)
   nbshell cal               Kalender (auch: next, sync, status)
+  nbshell plugins           Bausteine auflisten (auch: reload)
   nbshell battery           Akku und Energieprofil (bat <profil> wechselt)
   nbshell power             Power-Menue (auch: lock, logout, suspend)
   nbshell media playpause|next|previous|status
@@ -325,6 +326,9 @@ case "$cmd" in
     cal|calendar)
         ipc calendar "${1:-toggle}"
         ;;
+    plugins|plugin)
+        ipc plugins "${1:-list}"
+        ;;
     clip|clipboard)
         ipc clipboard "${1:-list}"
         ;;
@@ -381,7 +385,20 @@ case "$cmd" in
         ipc config get "${1:?Schluessel fehlt}"
         ;;
     set)
-        ipc config set "${1:?Schluessel fehlt}" "${2:?Wert fehlt}"
+        # Quickshells IPC-Aufrufer liest eckige Klammern als ARGUMENTLISTE und
+        # zerlegt ausserdem an Kommas und Semikola: aus '["a","b"]' werden drei
+        # Argumente, und der Aufruf scheitert mit "2 required but 3 were
+        # provided". Steuerzeichen helfen nicht -- 0x1F ist sein eigenes
+        # Trennzeichen. Also gehen die vier Zeichen prozentkodiert ueber die
+        # Leitung; shell.qml dreht das zurueck.
+        key="${1:?Schluessel fehlt}"
+        value="${2:?Wert fehlt}"
+        value="${value//%/%25}"
+        value="${value//,/%2C}"
+        value="${value//;/%3B}"
+        value="${value//[/%5B}"
+        value="${value//]/%5D}"
+        ipc config set "$key" "$value"
         ;;
     config)
         ipc config dump

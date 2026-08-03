@@ -121,6 +121,17 @@ else
     echo "Config  -> $DATA_DIR/config.json (vorhanden, unangetastet)"
 fi
 
+# ── Plugins ──────────────────────────────────────────────────────────────
+# Nur das Verzeichnis anlegen und die Vorlage hineinlegen, falls sie fehlt.
+# Was hier drin liegt, gehoert dem Benutzer -- es wird nie ueberschrieben.
+mkdir -p "$DATA_DIR/plugins"
+if [ ! -d "$DATA_DIR/plugins/beispiel" ] && [ -d "$SRC/plugins/beispiel" ]; then
+    cp -a "$SRC/plugins/beispiel" "$DATA_DIR/plugins/"
+    green "Plugins -> $DATA_DIR/plugins (Vorlage 'beispiel' angelegt)"
+else
+    echo "Plugins -> $DATA_DIR/plugins ($(find "$DATA_DIR/plugins" -maxdepth 2 -name manifest.json 2>/dev/null | wc -l) Stueck, unangetastet)"
+fi
+
 # ── systemd-Unit ─────────────────────────────────────────────────────────
 # Nur ablegen, nicht einschalten -- das macht `nbshell switch on`. Vorher
 # startet man von Hand (`nbshell start -d`), damit DMS ungestoert bleibt.

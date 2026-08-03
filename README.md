@@ -890,6 +890,60 @@ beim Laden steht der Blitz da. Die Reihe `F0079..F0082` ist dabei "voll, 10 %,
 20 % … 90 %" — also nicht nach Prozent sortiert, daher die Fallunterscheidung
 statt einer Rechnung auf dem Zeichencode.
 
+## Eigene Bausteine (Plugins)
+
+Ein Baustein muss nicht in der Shell stehen. Ein Verzeichnis unter
+`~/.config/nbshell/plugins` reicht:
+
+```
+~/.config/nbshell/plugins/wetter/
+    manifest.json
+    BarWidget.qml
+```
+
+```json
+{
+  "id": "wetter",
+  "name": "Wetter",
+  "description": "Temperatur am Ort",
+  "category": "Plugin",
+  "entry": "BarWidget.qml"
+}
+```
+
+Danach `nbshell plugins reload`, und der Baustein steht im Anordnen-Menue im
+Vorrat — mit `·plugin` dahinter. `nbshell plugins` listet alles auf, Eingebautes
+und Nachinstalliertes nebeneinander.
+
+`install.sh` legt eine Vorlage `beispiel/` an, die alles Noetige zeigt. Sie wird
+**nie ueberschrieben**: was in `plugins/` liegt, gehoert dir und ueberlebt jede
+Aktualisierung. Genau das war der Grund fuer den Umbau — vorher stand jeder
+Baustein in einer `switch`-Anweisung in `WidgetHost.qml` und noch einmal als
+Name im Anordnen-Menue, und beim naechsten `install.sh` war die eigene
+Aenderung weg.
+
+Im Plugin steht zur Verfuegung, was die Shell selbst benutzt:
+
+| | |
+|---|---|
+| `qs.Common` | `Config`, `Theme`, `Icons`, `Runtime` |
+| `qs.Widgets` | `Cell`, `Popout`, `IconText`, `Glyph`, `LevelBar`, `MenuView` |
+| `qs.Services` | `Niri`, `Audio`, `Net`, `Bt`, `Notify`, `MediaService`, `Calendar`, … |
+
+Die Wurzel ist ein `Cell` — die Leiste liest davon `shown`, `implicitWidth` und
+`implicitHeight`. **Ausblenden ueber `shown`, nicht ueber `visible`**: die
+Sichtbarkeit eines Kindes enthaelt immer die des Elternteils, und die Huelle
+wuerde ihre eigene Antwort lesen.
+
+Drei Dinge, die dabei zaehlen:
+
+- **Geladen wird nur, was eingeplant ist.** Ein Plugin, das in keiner der vier
+  Bausteinlisten steht, entsteht gar nicht erst und kostet nichts.
+- **Ein kaputtes Manifest darf die Leiste nicht leeren.** `scripts/plugins.sh`
+  ueberspringt es mit einer Meldung im Journal; der Rest laedt normal.
+- **Eine Kennung wie ein eingebauter Baustein wird abgelehnt**, statt ihn zu
+  ersetzen — sonst kaeme es darauf an, wer zuerst gelesen wurde.
+
 ## Wie es gebaut ist
 
 ```
@@ -948,6 +1002,17 @@ doppelt gebaut werden, und der Uebergang laesst sich animieren.
 
 ## Fallstricke
 
+- **Eine `MouseArea` mit `hoverEnabled` nimmt das Ueberfahren fuer sich.** Ein
+  `HoverHandler` weiter oben — etwa der des Popoutfensters — sieht es dann
+  nicht mehr, haelt die Maus fuer verschwunden und startet den Nachlauf: nach
+  2,5 s klappt das Popout zu, mitten im Lesen. Im Kalender faellt das auf, weil
+  man dort laenger auf einer Zelle verweilt. In Popouts gehoeren deshalb
+  `HoverHandler` und `TapHandler` hin; Handler blockieren einander nicht.
+- **Quickshells IPC-Aufrufer liest eckige Klammern als Argumentliste** und
+  zerlegt ausserdem an Kommas und Semikola: `qs ipc call config set k '["a"]'`
+  kommt als zwei Argumente an. Steuerzeichen helfen nicht, 0x1F ist sein
+  eigenes Trennzeichen — `bin/nbshell` schickt `[ ] , ; %` deshalb
+  prozentkodiert, `shell.qml` dreht es zurueck.
 - **Ein Baustein blendet sich ueber `shown` aus, nie ueber `visible`.** Die
   Sichtbarkeit eines Kindes enthaelt immer die des Elternteils — fragt die
   Huelle `item.visible` ab, um ihr eigenes `visible` zu setzen, liest sie ihre

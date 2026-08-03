@@ -1,8 +1,14 @@
 import QtQuick
 import qs.Common
+import qs.Services
 import "Widgets"
 
 // Loest einen Namen aus der Config zu einem Baustein auf.
+//
+// Zwei Quellen: die eingebauten Bausteine stehen unten als Komponenten, alles
+// Weitere kommt als QML-Datei aus ~/.config/nbshell/plugins (siehe
+// Services/Plugins.qml). Beides sieht von hier aus gleich aus -- ein Plugin ist
+// kein Sonderfall, nur eine andere Herkunft.
 //
 // Der Loader steckt in einer Huelle und bekommt selbst KEINE Groesse: ein
 // Loader mit gesetzter Breite skaliert sein Kind auf genau diese Breite, und
@@ -24,14 +30,21 @@ Item {
     // ausblenden wollen, setzen deshalb `shown`.
     visible: !!item && item.shown && width > 0
 
+    // Leer heisst: eingebaut. Sonst der Pfad zur QML-Datei des Plugins.
+    readonly property string pluginSource: Plugins.source(root.widgetName)
+
     Loader {
         id: loader
 
         anchors.verticalCenter: parent.verticalCenter
-        sourceComponent: root.componentFor(root.widgetName)
+
+        // Nur eines von beiden -- wer `source` setzt, loescht `sourceComponent`
+        // und umgekehrt.
+        sourceComponent: root.pluginSource === "" ? root.componentFor(root.widgetName) : null
+        source: root.pluginSource
 
         onStatusChanged: if (status === Loader.Error)
-            console.warn("nbshell: Baustein", root.widgetName, "laedt nicht");
+            console.warn("nbshell: Baustein", root.widgetName, "laedt nicht —", sourceComponent ? "eingebaut" : root.pluginSource);
     }
 
     // Bausteine, die wissen wollen, auf welchem Bildschirm sie stehen, kriegen
@@ -81,7 +94,10 @@ Item {
         case "updates":
             return updatesComponent;
         }
-        console.warn("nbshell: unbekannter Baustein:", name);
+        // Kein eingebauter -- dann muss es ein Plugin sein. Ist es das auch
+        // nicht, steht ein Name in der Config, den niemand kennt.
+        if (Plugins.source(name) === "" && Plugins.scanned)
+            console.warn("nbshell: unbekannter Baustein:", name);
         return null;
     }
 

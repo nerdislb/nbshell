@@ -1,0 +1,9 @@
+{
+  "id": "beispiel",
+  "name": "Beispiel",
+  "description": "Vorlage: zaehlt Klicks, sonst nichts",
+  "category": "Plugin",
+  "version": "1.0.0",
+  "author": "nbshell",
+  "entry": "BarWidget.qml"
+}

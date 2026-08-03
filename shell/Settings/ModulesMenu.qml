@@ -36,7 +36,10 @@ PanelWindow {
         }
     ]
 
-    readonly property var catalog: ["workspaces", "window", "clock", "media", "sys", "battery", "layout", "tray", "notifications", "clipboard", "capture", "control", "volume", "themes", "ai", "updates", "sep"]
+    // Der Vorrat kommt aus dem Katalog: eingebaute Bausteine und alles, was
+    // unter ~/.config/nbshell/plugins liegt. Hier steht KEINE Liste mehr --
+    // ein eigener Baustein taucht auf, sobald sein Verzeichnis da ist.
+    readonly property var catalog: Plugins.ids
 
     // Feste Breiten am Fenster statt `width: <Column>.width` an den Zeilen:
     // die Verweise vom Kind auf den Positionierer haben hier dazu gefuehrt,
@@ -277,7 +280,7 @@ PanelWindow {
                                     anchors.left: parent.left
                                     anchors.leftMargin: Theme.cellW * 2
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: (row.current ? "◂ ▸ " : "    ") + row.modelData
+                                    text: (row.current ? "◂ ▸ " : "    ") + Plugins.label(row.modelData)
                                     color: row.current ? Theme.readable(Theme.accent, Theme.selection) : Theme.fg
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontSize
@@ -340,7 +343,7 @@ PanelWindow {
                             anchors.left: parent.left
                             anchors.leftMargin: Theme.cellW
                             anchors.verticalCenter: parent.verticalCenter
-                            text: (catRow.current ? "▸ " : "  ") + catRow.modelData
+                            text: (catRow.current ? "▸ " : "  ") + Plugins.label(catRow.modelData) + (Plugins.source(catRow.modelData) === "" ? "" : "  ·plugin")
                             color: catRow.current ? Theme.readable(Theme.accent, Theme.selection) : Theme.fgDim
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSize
@@ -361,7 +364,24 @@ PanelWindow {
                 }
             }
 
+            // Was der gewaehlte Baustein ueberhaupt tut. In der Liste steht
+            // nur sein Name -- bei siebzehn Eintraegen ist das zu wenig.
             Text {
+                anchors.bottom: hint.top
+                anchors.left: parent.left
+                anchors.margins: Theme.cellW
+                anchors.bottomMargin: Theme.cellH * 0.3
+                visible: root.inCatalog
+                text: Plugins.describe(root.catalog[root.catalogIndex] ?? "")
+                color: Theme.fgDim
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize
+                renderType: Text.NativeRendering
+            }
+
+            Text {
+                id: hint
+
                 anchors.bottom: parent.bottom
                 anchors.left: parent.left
                 anchors.margins: Theme.cellW

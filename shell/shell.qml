@@ -53,6 +53,7 @@ ShellRoot {
         void Updates.enabled;
         void PowerService.available;
         void Calendar.enabled;
+        void Plugins.scanned;
         void ThemeExport.enabled;
     }
 
@@ -277,6 +278,23 @@ ShellRoot {
         function top(): string {
             Procs.refresh();
             return Procs.shown.slice(0, 10).map(p => String(p.pid).padStart(7, " ") + "  " + p.cpu.toFixed(1).padStart(5, " ") + "%  " + p.name).join("\n");
+        }
+    }
+
+    IpcHandler {
+        target: "plugins"
+
+        function list(): string {
+            const rows = Plugins.catalog.map(e => {
+                const kind = e.entry ? "plugin" : "eingebaut";
+                return e.id.padEnd(16) + kind.padEnd(11) + e.name;
+            });
+            return rows.join("\n") + "\n\n" + Plugins.plugins.length + " von aussen — " + Plugins.dir;
+        }
+
+        function reload(): string {
+            Plugins.refresh();
+            return "wird neu eingelesen";
         }
     }
 
@@ -709,11 +727,18 @@ ShellRoot {
 
         // Werte kommen als Text herein und werden, wenn moeglich, als JSON
         // gelesen -- so lassen sich auch Zahlen, Wahrheitswerte und Listen
-        // setzen: `nbshell config set rightWidgets '["clock"]'`
+        // setzen: `nbshell set rightWidgets '["clock"]'`
+        //
+        // **Quickshells IPC-Aufrufer liest eckige Klammern als Argumentliste**
+        // und zerlegt ausserdem an Kommas und Semikola. Aus `'["a","b"]'`
+        // werden drei Argumente, und der Aufruf scheitert mit "2 required but
+        // 3 were provided". Steuerzeichen helfen nicht -- 0x1F ist sein
+        // eigenes Trennzeichen. `bin/nbshell` schickt die vier Zeichen deshalb
+        // prozentkodiert; hier stehen sie wieder her.
         function set(key: string, value: string): string {
-            var parsed = value;
+            var parsed = String(value).replace(/%5B/g, "[").replace(/%5D/g, "]").replace(/%2C/g, ",").replace(/%3B/g, ";").replace(/%25/g, "%");
             try {
-                parsed = JSON.parse(value);
+                parsed = JSON.parse(parsed);
             } catch (e) {}
             Config.set(key, parsed);
             return key + " = " + JSON.stringify(parsed);
