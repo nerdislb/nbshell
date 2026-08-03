@@ -200,6 +200,7 @@ nbshell -- eigene Shell auf Quickshell
   nbshell clip              Verlauf der Zwischenablage (toggle, list, clear)
   nbshell cal               Kalender (auch: next, sync, status)
   nbshell plugins           Bausteine auflisten (auch: reload)
+  nbshell popout <name>     Popout eines Bausteins aufklappen
   nbshell battery           Akku und Energieprofil (bat <profil> wechselt)
   nbshell power             Power-Menue (auch: lock, logout, suspend)
   nbshell media playpause|next|previous|status
@@ -328,6 +329,9 @@ case "$cmd" in
         ;;
     plugins|plugin)
         ipc plugins "${1:-list}"
+        ;;
+    popout)
+        ipc popout toggle "${1:?Name fehlt}"
         ;;
     clip|clipboard)
         ipc clipboard "${1:-list}"

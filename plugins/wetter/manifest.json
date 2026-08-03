@@ -1,0 +1,9 @@
+{
+  "id": "wetter",
+  "name": "Wetter",
+  "description": "Temperatur in der Leiste, fuenf Tage im Popout (open-meteo.com)",
+  "category": "Plugin",
+  "version": "1.0.0",
+  "author": "nbshell",
+  "entry": "BarWidget.qml"
+}

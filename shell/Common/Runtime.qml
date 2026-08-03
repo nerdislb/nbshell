@@ -45,6 +45,18 @@ Singleton {
     // Meldungen, keine Aufnahme) zeigen sich nur, solange das der Fall ist.
     property int barHover: 0
 
+    // Ein Popout von aussen aufklappen -- gedacht fuer Plugins, die kein
+    // eigenes IPC-Ziel haben. Der Name ist der des Bausteins, der Zaehler
+    // loest aus: eine blosse Zeichenkette meldete beim zweiten Mal desselben
+    // Namens keine Aenderung mehr.
+    property string popoutTarget: ""
+    property int popoutToken: 0
+
+    function requestPopout(name) {
+        popoutTarget = name;
+        popoutToken += 1;
+    }
+
     // Hochgezaehlt, wenn alle Popouts zugehen sollen -- Esc auf der Leiste,
     // Fensterwechsel in niri. Bewusst eine Property und KEIN Signal: ein
     // `signal closeAll` auf einem Singleton kam bei den Zellen nicht an, eine

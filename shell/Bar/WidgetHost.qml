@@ -47,6 +47,16 @@ Item {
             console.warn("nbshell: Baustein", root.widgetName, "laedt nicht —", sourceComponent ? "eingebaut" : root.pluginSource);
     }
 
+    // Jeder Baustein bekommt seinen Namen angehaengt, damit ein Popout von
+    // aussen aufgeklappt werden kann (`nbshell popout wetter`).
+    Binding {
+        target: root.item
+        when: root.item && "widgetId" in root.item
+        property: "widgetId"
+        value: root.widgetName
+        restoreMode: Binding.RestoreNone
+    }
+
     // Bausteine, die wissen wollen, auf welchem Bildschirm sie stehen, kriegen
     // es angehaengt -- so muss der Name hier nicht in jeder Komponente stehen.
     Binding {

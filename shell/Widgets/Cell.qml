@@ -12,6 +12,12 @@ Item {
 
     property string text: ""
 
+    // Der Name, unter dem dieser Baustein in der Config steht. Die Leiste
+    // haengt ihn an -- gebraucht wird er, um ein Popout von aussen zu oeffnen
+    // (`nbshell popout wetter`), ohne dass jeder Baustein ein eigenes
+    // IPC-Ziel braucht.
+    property string widgetId: ""
+
     // Ein Zeichen aus der Nerd-Font-Schrift vor dem Text. Leer heisst: nur
     // Text. Abschalten laesst sich das fuer alle gemeinsam mit `widgetIcons`.
     property string icon: ""
@@ -137,6 +143,11 @@ Item {
 
         function onCloseTokenChanged() {
             root.setPopout(false);
+        }
+
+        function onPopoutTokenChanged() {
+            if (root.widgetId !== "" && Runtime.popoutTarget === root.widgetId)
+                root.setPopout(!root.popoutVisible);
         }
     }
 

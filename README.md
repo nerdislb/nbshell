@@ -108,6 +108,8 @@ nbshell procs            # Prozessliste; `nbshell procs top` als Text
 nbshell power            # Power-Menue (auch: lock, logout, suspend)
 nbshell clip             # Zwischenablage (toggle, list, clear)
 nbshell cal              # Kalender (auch: next, sync, status)
+nbshell plugins          # Bausteine auflisten (auch: reload)
+nbshell popout wetter    # Popout eines Bausteins aufklappen
 nbshell media playpause  # auch: next, previous, status
 
 nbshell control          # Control Center
@@ -196,6 +198,7 @@ Einstellbar in `config.json`: `theme`, `font`, `fontSize`, `mode`, `edge`,
 `gap`, `lines`, `padX`, `padY`, `radius`, `borderWidth`, `opacity`,
 `widgetStyle` (`box` | `bracket` | `plain`), `widgetColor` (`text` | `accent`),
 `widgetIcons`, `quietWidgets`, `barBorder`, `calendar`, `calendarInterval`,
+`weatherPlace`, `weatherInterval`,
 `collapseDelay`, `clockFormat`,
 `titleLength`, `locale`, `wallpaper`, `wallpaperOverride`, `maxVolume` und die
 vier Bausteinlisten.
@@ -915,7 +918,25 @@ Danach `nbshell plugins reload`, und der Baustein steht im Anordnen-Menue im
 Vorrat — mit `·plugin` dahinter. `nbshell plugins` listet alles auf, Eingebautes
 und Nachinstalliertes nebeneinander.
 
-`install.sh` legt eine Vorlage `beispiel/` an, die alles Noetige zeigt. Sie wird
+Mitgeliefert werden zwei: **`beispiel`** als Vorlage (zaehlt Klicks, sonst
+nichts) und **`wetter`** — Temperatur in der Leiste, Einzelheiten und fuenf
+Tage im Popout. Der Ort steht in der Config:
+
+```bash
+nbshell set weatherPlace Graz
+nbshell popout wetter          # aufklappen, auch fuer eine Taste in niri
+```
+
+**Das Wetter-Plugin ist der einzige Teil von nbshell, der von sich aus ins Netz
+geht.** Es fragt [open-meteo.com](https://open-meteo.com) — ohne Schluessel,
+ohne Konto. Was den Rechner verlaesst: einmal der Ortsname (Umrechnung in
+Koordinaten, das Ergebnis bleibt im Zwischenspeicher liegen), danach alle
+15 Minuten die Koordinaten. Nichts fragt das Geraet nach seinem Standort, und
+ohne `curl` bleibt die Zelle einfach still. Der Zwischenspeicher liegt in
+`~/.cache/nbshell` und wird auch benutzt, wenn gerade kein Netz da ist — dann
+steht eben ein aelterer Stand da, statt dass die Zelle leer wird.
+
+`install.sh` legt beide an, wenn sie fehlen. Sie wird
 **nie ueberschrieben**: was in `plugins/` liegt, gehoert dir und ueberlebt jede
 Aktualisierung. Genau das war der Grund fuer den Umbau — vorher stand jeder
 Baustein in einer `switch`-Anweisung in `WidgetHost.qml` und noch einmal als

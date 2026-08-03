@@ -282,6 +282,21 @@ ShellRoot {
     }
 
     IpcHandler {
+        target: "popout"
+
+        // Klappt das Popout eines beliebigen Bausteins auf -- auch das eines
+        // Plugins, das kein eigenes IPC-Ziel hat. Damit laesst sich jeder
+        // Baustein auf eine Taste legen.
+        function toggle(name: string): string {
+            if (!Plugins.entry(name))
+                return "unbekannter Baustein: " + name;
+            Runtime.islandOpen = true;
+            Runtime.requestPopout(name);
+            return name;
+        }
+    }
+
+    IpcHandler {
         target: "plugins"
 
         function list(): string {

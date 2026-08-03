@@ -51,6 +51,7 @@ missing_optional="$(
     optional_check notify-send   "Meldungen der Skripte"     "libnotify"
     optional_check git           "Themes nachinstallieren"   "git"
     optional_check khal          "Kalender"                  "khal"
+    optional_check curl          "Wetter-Plugin"             "curl"
     optional_check vdirsyncer    "Kalender abgleichen"       "vdirsyncer"
     optional_check wf-recorder   "Bildschirmaufnahme"        "wf-recorder"
     optional_check slurp         "Bereich waehlen"           "slurp"
@@ -125,9 +126,16 @@ fi
 # Nur das Verzeichnis anlegen und die Vorlage hineinlegen, falls sie fehlt.
 # Was hier drin liegt, gehoert dem Benutzer -- es wird nie ueberschrieben.
 mkdir -p "$DATA_DIR/plugins"
-if [ ! -d "$DATA_DIR/plugins/beispiel" ] && [ -d "$SRC/plugins/beispiel" ]; then
-    cp -a "$SRC/plugins/beispiel" "$DATA_DIR/plugins/"
-    green "Plugins -> $DATA_DIR/plugins (Vorlage 'beispiel' angelegt)"
+added=()
+for plugin in "$SRC"/plugins/*/; do
+    [ -d "$plugin" ] || continue
+    name="$(basename "$plugin")"
+    [ -d "$DATA_DIR/plugins/$name" ] && continue
+    cp -a "$plugin" "$DATA_DIR/plugins/"
+    added+=("$name")
+done
+if [ ${#added[@]} -gt 0 ]; then
+    green "Plugins -> $DATA_DIR/plugins (neu: ${added[*]})"
 else
     echo "Plugins -> $DATA_DIR/plugins ($(find "$DATA_DIR/plugins" -maxdepth 2 -name manifest.json 2>/dev/null | wc -l) Stueck, unangetastet)"
 fi
