@@ -61,6 +61,12 @@ PanelWindow {
             "values": [true, false]
         },
         {
+            "key": "islandCenter",
+            "def": true,
+            "label": "Mitte erzwingen (Insel)",
+            "values": [true, false]
+        },
+        {
             "key": "widgetGap",
             "def": 1,
             "label": "Abstand der Bausteine",

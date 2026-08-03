@@ -60,6 +60,11 @@ Singleton {
     // beruehrt. Aus heisst: alle stehen immer da.
     readonly property bool quietWidgets: value("quietWidgets", true)
 
+    // Die Mittelgruppe der ausgeklappten Insel sitzt wirklich in der Mitte des
+    // Bildschirms -- die Insel waechst dafuer um den Unterschied der beiden
+    // Aussengruppen. Aus heisst: gleich grosse Luecken, die Uhr wandert.
+    readonly property bool islandCenter: value("islandCenter", true)
+
     // Aus, solange DMS daneben laeuft: beide malen sonst auf dieselbe Ebene.
     readonly property bool wallpaperEnabled: value("wallpaper", false)
 

@@ -189,6 +189,20 @@ Variants {
                 readonly property real barLeftGap: Math.max(Theme.gap, free / 2 - (leftGroup.implicitWidth - rightGroup.implicitWidth) / 2)
                 readonly property real barRightGap: Math.max(Theme.gap, free - barLeftGap)
 
+                // In der Insel geht das nicht ueber die freie Breite -- sie hat
+                // keine, sie ist genau so breit wie ihr Inhalt. Die Mitte wird
+                // deshalb ueber die Luecken erzwungen: die schmalere Seite
+                // bekommt den Unterschied dazu, und damit sitzt die
+                // Mittelgruppe genau in der Mitte der Insel. Weil die Insel
+                // selbst mittig auf dem Bildschirm steht, sitzt die Uhr damit
+                // auch dort -- ausgeklappt wie zugeklappt.
+                //
+                // Der Preis: die Insel wird um den Unterschied breiter.
+                // `islandCenter: false` nimmt beides zurueck.
+                readonly property real islandDiff: Config.islandCenter ? Math.abs(leftGroup.implicitWidth - rightGroup.implicitWidth) : 0
+                readonly property real islandLeftGap: Theme.gap + (leftGroup.implicitWidth < rightGroup.implicitWidth ? content.islandDiff : 0)
+                readonly property real islandRightGap: Theme.gap + (rightGroup.implicitWidth < leftGroup.implicitWidth ? content.islandDiff : 0)
+
                 Row {
                     id: leftGroup
                     spacing: Theme.gap
@@ -205,7 +219,7 @@ Variants {
                 }
 
                 Item {
-                    width: win.barMode ? content.barLeftGap : Theme.gap
+                    width: win.barMode ? content.barLeftGap : content.islandLeftGap
                     height: 1
                 }
 
@@ -225,7 +239,7 @@ Variants {
                 }
 
                 Item {
-                    width: win.barMode ? content.barRightGap : Theme.gap
+                    width: win.barMode ? content.barRightGap : content.islandRightGap
                     height: 1
                 }
 

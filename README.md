@@ -197,7 +197,7 @@ aendert, aendert die ganze Leiste mit — `nbshell set fontSize 15` genuegt.
 Einstellbar in `config.json`: `theme`, `font`, `fontSize`, `mode`, `edge`,
 `gap`, `lines`, `padX`, `padY`, `radius`, `borderWidth`, `opacity`,
 `widgetStyle` (`box` | `bracket` | `plain`), `widgetColor` (`text` | `accent`),
-`widgetIcons`, `quietWidgets`, `widgetGap`, `barBorder`, `calendar`, `calendarInterval`,
+`widgetIcons`, `quietWidgets`, `widgetGap`, `islandCenter`, `barBorder`, `calendar`, `calendarInterval`,
 `weatherPlace`, `weatherInterval`, `sysGpu`,
 `collapseDelay`, `clockFormat`,
 `titleLength`, `locale`, `wallpaper`, `wallpaperOverride`, `maxVolume` und die
@@ -917,6 +917,25 @@ zaehlen:
   daraus zurueck. `Widgets/IconText.qml` setzt Zeichen und Text nebeneinander,
   jedes in einem eigenen Kaestchen auf Zeilenhoehe — die Kinder eines
   Positionierers duerfen keine Anker haben.
+
+### Die Mitte ist die Mitte
+
+Mittig steht die **Mittelgruppe**, nicht die Uhr — liegt noch etwas anderes
+darin, sitzt die Uhr eben daneben. Wo genau die Gruppe landet, ist in den zwei
+Modi verschieden geloest:
+
+- **Im Balken** gibt es freie Breite. Die beiden Luecken werden so verteilt,
+  dass die Mittelgruppe auf der Bildschirmmitte sitzt, auch wenn links und
+  rechts unterschiedlich viel steht.
+- **In der Insel** gibt es keine freie Breite — sie ist genau so breit wie ihr
+  Inhalt. Die Mitte wird deshalb ueber die Luecken erzwungen: die schmalere
+  Seite bekommt den Unterschied dazu. Damit sitzt die Mittelgruppe in der Mitte
+  der Insel, und weil die Insel mittig auf dem Bildschirm steht, sitzt die Uhr
+  dort — ausgeklappt wie zugeklappt.
+
+Der Preis in der Insel: sie wird um den Unterschied der beiden Aussengruppen
+breiter. `islandCenter: false` nimmt beides zurueck (gleich grosse Luecken, die
+Uhr wandert).
 
 ### Wie eng die Leiste steht
 
