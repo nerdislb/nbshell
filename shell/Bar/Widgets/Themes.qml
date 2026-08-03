@@ -9,7 +9,8 @@ Cell {
     id: root
 
     icon: Icons.palette
-    text: Config.theme
+    // Wie beim Netz: das Symbol reicht, der Name steht in der Liste.
+    text: Config.widgetIcons ? "" : Config.theme
     color: Theme.accent
     interactive: true
 

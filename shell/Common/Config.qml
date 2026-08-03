@@ -34,7 +34,13 @@ Singleton {
     readonly property string edge: value("edge", "top")
     readonly property int gap: value("gap", 6)
     readonly property int lines: value("lines", 1)
-    readonly property int padX: value("padX", 1)
+    // Innenabstand einer Zelle in Zeichen (links wie rechts).
+    readonly property real padX: value("padX", 1)
+
+    // Abstand ZWISCHEN den Bausteinen, ebenfalls in Zeichen. Zusammen mit
+    // `padX` bestimmt er, wie luftig die Leiste wirkt: zwischen zwei Texten
+    // liegen padX + widgetGap + padX Zeichen.
+    readonly property real widgetGap: value("widgetGap", 1)
     readonly property int padY: value("padY", 4)
     readonly property int radius: value("radius", 0)
     readonly property int borderWidth: value("borderWidth", 1)

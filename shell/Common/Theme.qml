@@ -88,7 +88,7 @@ Singleton {
 
     readonly property real padX: Math.round(cellW * Config.padX)
     readonly property real padY: Config.padY
-    readonly property real gap: cellW
+    readonly property real gap: Math.round(cellW * Config.widgetGap)
 
     readonly property real barHeight: Math.round(cellH * Config.lines + padY * 2)
 

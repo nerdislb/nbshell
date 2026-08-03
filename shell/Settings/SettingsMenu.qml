@@ -61,6 +61,22 @@ PanelWindow {
             "values": [true, false]
         },
         {
+            "key": "widgetGap",
+            "def": 1,
+            "label": "Abstand der Bausteine",
+            "step": 0.5,
+            "min": 0,
+            "max": 4
+        },
+        {
+            "key": "padX",
+            "def": 1,
+            "label": "Innenabstand seitlich",
+            "step": 0.5,
+            "min": 0,
+            "max": 3
+        },
+        {
             "key": "fontSize",
             "def": 13,
             "label": "Schriftgroesse",

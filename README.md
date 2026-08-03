@@ -197,7 +197,7 @@ aendert, aendert die ganze Leiste mit — `nbshell set fontSize 15` genuegt.
 Einstellbar in `config.json`: `theme`, `font`, `fontSize`, `mode`, `edge`,
 `gap`, `lines`, `padX`, `padY`, `radius`, `borderWidth`, `opacity`,
 `widgetStyle` (`box` | `bracket` | `plain`), `widgetColor` (`text` | `accent`),
-`widgetIcons`, `quietWidgets`, `barBorder`, `calendar`, `calendarInterval`,
+`widgetIcons`, `quietWidgets`, `widgetGap`, `barBorder`, `calendar`, `calendarInterval`,
 `weatherPlace`, `weatherInterval`,
 `collapseDelay`, `clockFormat`,
 `titleLength`, `locale`, `wallpaper`, `wallpaperOverride`, `maxVolume` und die
@@ -874,6 +874,24 @@ zaehlen:
   daraus zurueck. `Widgets/IconText.qml` setzt Zeichen und Text nebeneinander,
   jedes in einem eigenen Kaestchen auf Zeilenhoehe — die Kinder eines
   Positionierers duerfen keine Anker haben.
+
+### Wie eng die Leiste steht
+
+Zwei Werte, beide in **Zeichen** und beide im Optionsmenue unter AUSSEHEN:
+
+| | |
+|---|---|
+| `padX` | Innenabstand einer Zelle, links wie rechts |
+| `widgetGap` | Abstand zwischen zwei Bausteinen |
+
+Zwischen zwei Texten liegen also `padX + widgetGap + padX` Zeichen — bei den
+Vorgaben (1 und 1) sind das drei, was luftig wirkt. `0.5` und `0.5` ergibt zwei
+und sieht deutlich kompakter aus, ohne dass etwas zusammenlaeuft. Bei `0` und
+`0.5` beruehren sich Zahlen und Symbole fast.
+
+Netz und Theme zeigen ihren Namen **nur ohne Symbole**: das WLAN-Symbol sagt
+schon, ob und wie man haengt, und der Name steht im Popout. Mit `widgetIcons:
+false` kommen beide Namen zurueck, sonst waere die Zelle leer.
 
 ### Feste Slots und stille Bausteine
 

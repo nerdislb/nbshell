@@ -17,7 +17,11 @@ Cell {
     // Kabel schlaegt Funk: haengt beides, ist das Kabel die Verbindung, ueber
     // die es laeuft.
     icon: Net.wiredConnected ? Icons.lan : (Net.wifiEnabled ? Icons.wifi : Icons.wifiOff)
-    text: Net.summary.length > 12 ? (Net.summary.substring(0, 11) + "…") : Net.summary
+    // Der Netzname stand frueher daneben. Das Symbol sagt schon, ob und
+    // wie man haengt -- im Popout steht der Name ohnehin. Ohne Symbole
+    // bleibt er, sonst waere die Zelle leer.
+    label: "NET"
+    text: Config.widgetIcons ? "" : (Net.summary.length > 12 ? (Net.summary.substring(0, 11) + "…") : Net.summary)
     color: Net.online ? Theme.text : Theme.textDim
 
     // Zurueckmelden, wenn der Kompositor das Popout geschlossen hat.
