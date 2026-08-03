@@ -27,6 +27,7 @@ Singleton {
     property bool settingsOpen: false
     property bool modulesOpen: false
     property bool wallpaperOpen: false
+    property bool calendarOpen: false
 
     // Wie viele Popouts gerade offen sind. Die Leiste braucht das: ein
     // Popup-Griff wird vom Kompositor nur erlaubt, wenn die Layer-Flaeche
@@ -39,6 +40,10 @@ Singleton {
     // kommt -- wird das erst beim Oeffnen umgestellt, ist der Griff im selben
     // Durchlauf noch abgelehnt und das Popout erscheint gar nicht.
     property int popoutHover: 0
+
+    // Wie viele Leisten unter der Maus stehen. Stille Bausteine (keine
+    // Meldungen, keine Aufnahme) zeigen sich nur, solange das der Fall ist.
+    property int barHover: 0
 
     // Hochgezaehlt, wenn alle Popouts zugehen sollen -- Esc auf der Leiste,
     // Fensterwechsel in niri. Bewusst eine Property und KEIN Signal: ein

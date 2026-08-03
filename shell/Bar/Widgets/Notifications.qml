@@ -8,6 +8,8 @@ Cell {
     id: root
 
     interactive: true
+    quiet: Notify.count === 0 && !Notify.dnd
+    slotChars: 3
     label: Notify.dnd ? "DND" : "MSG"
     icon: Notify.dnd ? Icons.bellOff : Icons.bell
     text: Notify.count

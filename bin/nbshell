@@ -198,6 +198,7 @@ nbshell -- eigene Shell auf Quickshell
   nbshell capture           Aufnahme-Menue (screen, window, region, ocr, record)
   nbshell procs             Prozessliste (auch: top)
   nbshell clip              Verlauf der Zwischenablage (toggle, list, clear)
+  nbshell cal               Kalender (auch: next, sync, status)
   nbshell battery           Akku und Energieprofil (bat <profil> wechselt)
   nbshell power             Power-Menue (auch: lock, logout, suspend)
   nbshell media playpause|next|previous|status
@@ -320,6 +321,9 @@ case "$cmd" in
         ;;
     procs|top)
         ipc procs "${1:-toggle}"
+        ;;
+    cal|calendar)
+        ipc calendar "${1:-toggle}"
         ;;
     clip|clipboard)
         ipc clipboard "${1:-list}"

@@ -50,6 +50,8 @@ missing_optional="$(
     optional_check tuned-adm     "Energieprofile"            "tuned"
     optional_check notify-send   "Meldungen der Skripte"     "libnotify"
     optional_check git           "Themes nachinstallieren"   "git"
+    optional_check khal          "Kalender"                  "khal"
+    optional_check vdirsyncer    "Kalender abgleichen"       "vdirsyncer"
     optional_check wf-recorder   "Bildschirmaufnahme"        "wf-recorder"
     optional_check slurp         "Bereich waehlen"           "slurp"
     optional_check satty         "Screenshot bearbeiten"     "satty"

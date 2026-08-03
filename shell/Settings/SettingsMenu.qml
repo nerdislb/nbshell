@@ -200,6 +200,18 @@ PanelWindow {
             "values": [true, false]
         },
         {
+            "key": "calendar",
+            "def": true,
+            "label": "Kalender (khal)",
+            "values": [true, false]
+        },
+        {
+            "key": "quietWidgets",
+            "def": true,
+            "label": "Stille Bausteine verstecken",
+            "values": [true, false]
+        },
+        {
             "key": "clipboard",
             "def": true,
             "label": "Zwischenablage",

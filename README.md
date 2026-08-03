@@ -10,7 +10,7 @@ Palette wie das Terminal. Kein Material Design.
 
 Stand: **1.10.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
 Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Prozessliste, Aufnahme, Terminalfarben, KI-Verbrauch, Optionsmenue, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
-Akku. Alles Weitere steht unter „Was noch fehlt".
+Akku, Kalender. Alles Weitere steht unter „Was noch fehlt".
 
 ## Installieren
 
@@ -38,6 +38,7 @@ Pakete gehoeren in die Hand des Benutzers.
 | `tuned` | Energieprofile im Akku-Popout |
 | `libnotify` | Meldungen der Skripte (Screenshot, OCR) |
 | `git` | Themes nachinstallieren |
+| `khal`, `vdirsyncer` | Kalender hinter der Uhr |
 | `wf-recorder`, `slurp` | Bildschirmaufnahme, Bereichswahl |
 | `satty` | Screenshots nachbearbeiten |
 | `tesseract` + Sprachdaten | Texterkennung |
@@ -106,6 +107,7 @@ nbshell capture          # Aufnahme-Menue (screen, window, region, ocr, record)
 nbshell procs            # Prozessliste; `nbshell procs top` als Text
 nbshell power            # Power-Menue (auch: lock, logout, suspend)
 nbshell clip             # Zwischenablage (toggle, list, clear)
+nbshell cal              # Kalender (auch: next, sync, status)
 nbshell media playpause  # auch: next, previous, status
 
 nbshell control          # Control Center
@@ -193,7 +195,7 @@ aendert, aendert die ganze Leiste mit — `nbshell set fontSize 15` genuegt.
 Einstellbar in `config.json`: `theme`, `font`, `fontSize`, `mode`, `edge`,
 `gap`, `lines`, `padX`, `padY`, `radius`, `borderWidth`, `opacity`,
 `widgetStyle` (`box` | `bracket` | `plain`), `widgetColor` (`text` | `accent`),
-`widgetIcons`, `barBorder`,
+`widgetIcons`, `quietWidgets`, `barBorder`, `calendar`, `calendarInterval`,
 `collapseDelay`, `clockFormat`,
 `titleLength`, `locale`, `wallpaper`, `wallpaperOverride`, `maxVolume` und die
 vier Bausteinlisten.
@@ -593,6 +595,52 @@ Gelesen wird mit `ps` -- es steht auf jedem System und kennt die Prozentwerte
 schon. Abgefragt wird **nur, solange die Liste offen ist**; ein Zaehler, der im
 Hintergrund alle zwei Sekunden ein `ps` startet, waere reine Verschwendung.
 
+## Kalender
+
+Ein Klick auf die Uhr klappt ihn auf: Monatsgitter mit Kalenderwochen, ein
+Punkt unter jedem Tag, an dem etwas ansteht, darunter die Termine des
+gewaehlten Tages. Mausrad blaettert durch die Monate, `[ heute ]` kommt
+zurueck. Ohne Popout: `nbshell cal next`.
+
+**Die Shell spricht mit keinem Anbieter.** Sie liest, was schon auf der Platte
+liegt — und zwar durch **khal**, nicht selbst:
+
+```
+Google / iCloud / ICS-Abo
+        │  vdirsyncer (systemd-Timer, alle 15 min)
+        ▼
+~/.local/share/calendars/…      ← ganz normale Ordner mit .ics-Dateien
+        │  khal list --json …
+        ▼
+nbshell
+```
+
+Der Umweg ueber khal ist der Punkt: **Wiederholungen**. Ein „jeden zweiten
+Dienstag, ausser am 24.12." steht als RRULE in der Datei und muss ausgerechnet
+werden. khal kann das; ein Leser in QML koennte es nicht.
+
+Google haengt damit genauso dran wie alles andere — in `~/.config/vdirsyncer/config`
+als Speicher eintragen, in `~/.config/khal/config` den Ordner als Kalender.
+Wer das schon fuer DMS eingerichtet hat, muss nichts tun: es sind dieselben
+Ordner.
+
+Drei Dinge, ueber die man dabei stolpert:
+
+- **khal versteht Datumsangaben nur in dem Format, das in seiner Config
+  steht.** Ein ISO-Datum quittiert es mit „Could not parse". `calendar.sh`
+  liest darum `dateformat` aus der Config und rechnet hin und zurueck.
+- **khal schreibt pro Tag eine eigene JSON-Liste**, nicht eine grosse — und
+  wiederholt einen mehrtaegigen Termin auf jedem Tag, den er beruehrt. Fuer
+  die Punkte im Gitter ist das praktisch, fuer die Liste nicht: doppelte
+  fallen im Dienst raus.
+- **Geladen wird ein Fenster um den angezeigten Monat, kein Jahr.** khal
+  braucht fuer 400 Tage rund fuenf Sekunden, fuer 70 eine halbe. Wer
+  blaettert, loest ein neues Fenster aus.
+
+`[ abgleichen ]` stoesst vdirsyncer an (ueber dessen systemd-Unit, damit nicht
+zwei Abgleiche nebeneinander laufen) und liest acht Sekunden spaeter neu.
+Abschalten: `calendar: false`.
+
 ## Zwischenablage
 
 Der Baustein `clipboard` zeigt die Anzahl, sein Popout den Verlauf; Klick
@@ -823,6 +871,19 @@ zaehlen:
   daraus zurueck. `Widgets/IconText.qml` setzt Zeichen und Text nebeneinander,
   jedes in einem eigenen Kaestchen auf Zeilenhoehe — die Kinder eines
   Positionierers duerfen keine Anker haben.
+
+### Feste Slots und stille Bausteine
+
+Zwei Kleinigkeiten aus Omarchys Leiste, die den Unterschied machen, ob eine
+Leiste ruhig steht:
+
+- **`slotChars` reserviert Platz in Zeichen.** Ohne das wandert die halbe
+  Leiste, sobald die Lautstaerke von 9 % auf 100 % geht oder der Akku beim
+  Ueberfahren auf die Restzeit umschaltet. Reserviert wird der laengste Fall.
+- **`quiet` blendet aus, was gerade nichts zu sagen hat** — keine Meldung,
+  keine Aufnahme, leere Ablage. Beruehrt die Maus die Leiste, kommen die
+  Bausteine gedaempft hervor. Fuenf Symbole, die dauerhaft „nichts" anzeigen,
+  sind das Lauteste an einer Textleiste. Abschalten: `quietWidgets: false`.
 
 Der Akku waehlt sein Zeichen nach dem Ladestand (`Icons.battery(percent)`),
 beim Laden steht der Blitz da. Die Reihe `F0079..F0082` ist dabei "voll, 10 %,

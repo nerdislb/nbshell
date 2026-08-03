@@ -111,6 +111,10 @@ Variants {
                     } else {
                         collapseTimer.restart();
                     }
+                    // Stille Bausteine tauchen auf, solange die Maus irgendwo
+                    // auf der Leiste steht -- gezaehlt, weil es je Bildschirm
+                    // eine Leiste gibt.
+                    Runtime.barHover = Math.max(0, Runtime.barHover + (hovered ? 1 : -1));
                 }
             }
 

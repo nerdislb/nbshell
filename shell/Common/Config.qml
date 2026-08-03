@@ -49,6 +49,11 @@ Singleton {
     // Textzeile -- naeher am Terminal, aber schmaler zu lesen.
     readonly property bool widgetIcons: value("widgetIcons", true)
 
+    // Bausteine ohne Neuigkeit (keine Meldung, keine Aufnahme, leere Ablage)
+    // verstecken sich und kommen erst hervor, wenn die Maus die Leiste
+    // beruehrt. Aus heisst: alle stehen immer da.
+    readonly property bool quietWidgets: value("quietWidgets", true)
+
     // Aus, solange DMS daneben laeuft: beide malen sonst auf dieselbe Ebene.
     readonly property bool wallpaperEnabled: value("wallpaper", false)
 

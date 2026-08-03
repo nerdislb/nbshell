@@ -22,6 +22,21 @@ Item {
     // uebrig, die neben der Uhr nichts mehr bedeutet.
     property string label: ""
 
+    // Mindestbreite in Zeichen. Ohne das wandert die halbe Leiste, sobald die
+    // Lautstaerke von 9 % auf 100 % geht oder der Akku eine Stelle verliert --
+    // die Zelle wird breiter, und alles rechts davon rutscht. Reserviert wird
+    // deshalb Platz fuer den laengsten Fall. (Aus Omarchys Leiste uebernommen,
+    // die dafuer feste "status slots" hat.)
+    property int slotChars: 0
+
+    // Ein Baustein, der gerade nichts zu sagen hat: keine Meldung, keine
+    // Aufnahme, leere Ablage. Er verschwindet -- und taucht auf, sobald die
+    // Maus die Leiste beruehrt. Fuenf Symbole, die immer "nichts" anzeigen,
+    // sind das Lauteste an einer Textleiste.
+    property bool quiet: false
+
+    readonly property bool concealed: root.quiet && Config.quietWidgets && Runtime.barHover === 0 && !root.hovered
+
     // Ein Baustein blendet sich hierueber aus, nicht ueber `visible` -- siehe
     // die Erklaerung in Bar/WidgetHost.qml.
     property bool shown: true
@@ -67,8 +82,26 @@ Item {
 
     readonly property string shownText: bracketed ? ("[" + labelled + "]") : labelled
 
-    implicitWidth: (custom ? contentItem.childrenRect.width : line.implicitWidth) + Theme.padX * 2
+    readonly property real contentWidth: Math.max(custom ? contentItem.childrenRect.width : line.implicitWidth, root.slotChars * Theme.cellW)
+
+    implicitWidth: root.concealed ? 0 : contentWidth + Theme.padX * 2
     implicitHeight: Theme.barHeight - Theme.padY
+
+    // Gedaempft, solange er nur zum Vorschein gekommen ist.
+    opacity: root.quiet && !root.hovered ? 0.55 : 1
+
+    Behavior on implicitWidth {
+        NumberAnimation {
+            duration: 140
+            easing.type: Easing.OutCubic
+        }
+    }
+
+    Behavior on opacity {
+        NumberAnimation {
+            duration: 140
+        }
+    }
 
     width: implicitWidth
     height: implicitHeight

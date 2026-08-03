@@ -11,6 +11,8 @@ Cell {
     property int seconds: 0
 
     interactive: true
+    quiet: !CaptureService.recording
+    slotChars: CaptureService.recording ? 5 : 0
     color: CaptureService.recording ? Theme.red : Theme.textDim
     label: CaptureService.recording ? "REC" : "CAP"
     icon: CaptureService.recording ? Icons.record : Icons.camera

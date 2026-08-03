@@ -9,6 +9,7 @@ Cell {
     id: root
 
     shown: Audio.ready
+    slotChars: 5
     interactive: true
     color: Audio.muted ? Theme.red : Theme.text
 

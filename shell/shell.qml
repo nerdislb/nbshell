@@ -52,6 +52,7 @@ ShellRoot {
         void AiUsage.available;
         void Updates.enabled;
         void PowerService.available;
+        void Calendar.enabled;
         void ThemeExport.enabled;
     }
 
@@ -276,6 +277,39 @@ ShellRoot {
         function top(): string {
             Procs.refresh();
             return Procs.shown.slice(0, 10).map(p => String(p.pid).padStart(7, " ") + "  " + p.cpu.toFixed(1).padStart(5, " ") + "%  " + p.name).join("\n");
+        }
+    }
+
+    IpcHandler {
+        target: "calendar"
+
+        function toggle(): string {
+            Runtime.islandOpen = true;
+            Runtime.calendarOpen = !Runtime.calendarOpen;
+            return Runtime.calendarOpen ? "offen" : "zu";
+        }
+
+        // Was als Naechstes ansteht -- fuers Terminal, ohne Popout.
+        function next(): string {
+            const list = Calendar.upcoming(8);
+            if (list.length === 0)
+                return Calendar.available ? "nichts eingetragen" : ("Kalender nicht verfuegbar: " + Calendar.problem);
+            return list.map(e => Qt.formatDateTime(e.start, "dd.MM") + "  " + (e.allDay ? "ganztags    " : Qt.formatDateTime(e.start, "HH:mm") + "       ") + e.title).join("\n");
+        }
+
+        function sync(): string {
+            Calendar.sync();
+            return "vdirsyncer angestossen";
+        }
+
+        function status(): string {
+            return JSON.stringify({
+                "verfuegbar": Calendar.available,
+                "problem": Calendar.problem,
+                "kalender": Calendar.calendars,
+                "termine": Calendar.events.length,
+                "fenster": Calendar.windowStart
+            });
         }
     }
 

@@ -9,6 +9,9 @@ Cell {
     id: root
 
     shown: PowerService.available
+    // Platz fuer die Restzeit, die beim Ueberfahren an die Stelle des
+    // Ladestands tritt -- sonst zoege die halbe Leiste mit.
+    slotChars: 7
     interactive: true
 
     // Das Symbol fuellt sich mit dem Ladestand, beim Laden steht der Blitz

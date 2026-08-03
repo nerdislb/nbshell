@@ -8,6 +8,8 @@ Cell {
     id: root
 
     shown: Clipboard.enabled
+    quiet: Clipboard.entries.length === 0
+    slotChars: 3
     interactive: true
     label: "CLP"
     icon: Icons.clipboard

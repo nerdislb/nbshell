@@ -16,6 +16,7 @@ Cell {
 
     shown: Updates.enabled && (Updates.count > 0 || Updates.checking)
     interactive: true
+    slotChars: 3
 
     label: "UPD"
     icon: Updates.checking ? Icons.refresh : Icons.download
