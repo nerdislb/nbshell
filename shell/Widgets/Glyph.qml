@@ -22,6 +22,14 @@ Text {
     // die Rechnung im Kreis.
     readonly property real inkRatio: Math.max(0.2, probe.tightBoundingRect.height / 100)
 
+    // Die Zeichnung sitzt nicht mittig in ihrer Zelle. Ein Nerd-Font-Symbol
+    // erbt die Vorschubbreite der Monospace-Zelle, malt aber irgendwo darin --
+    // wer die Zelle zentriert, setzt das Symbol daneben. Gemessen wird deshalb,
+    // wo die Zeichnung wirklich liegt, und um diesen Betrag wird geschoben.
+    // (Denselben Weg geht Omarchys `OpticalGlyph`.)
+    readonly property real inkWidth: Math.max(1, actual.tightBoundingRect.width)
+    readonly property real inkOffsetX: actual.advanceWidth / 2 - (actual.tightBoundingRect.x + actual.tightBoundingRect.width / 2)
+
     font.family: Theme.fontFamily
     font.pixelSize: Math.round(root.inkHeight / root.inkRatio)
     // QtRendering: die Symbole haben feine Rundungen, die das Hinting der
@@ -34,6 +42,16 @@ Text {
 
         font.family: Theme.fontFamily
         font.pixelSize: 100
+        text: root.text
+    }
+
+    // Dieselbe Messung noch einmal in der wirklichen Groesse -- der Versatz
+    // laesst sich aus der Probe nicht sauber hochrechnen, weil das Hinting
+    // ihn bei kleinen Groessen verschiebt.
+    TextMetrics {
+        id: actual
+
+        font: root.font
         text: root.text
     }
 }

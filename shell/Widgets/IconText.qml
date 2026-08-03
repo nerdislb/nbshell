@@ -28,7 +28,9 @@ Row {
     // sonst rechnet die Reihe mit Breite 0. Deshalb je ein Kaestchen auf
     // Zeilenhoehe, in dem Zeichen und Text dann mittig sitzen duerfen.
     Item {
-        width: root.showIcon ? mark.implicitWidth : 0
+        // Die Breite der Zeichnung, nicht die der Zelle: sonst steht neben
+        // schmalen Symbolen ein Loch, das nur aus Vorschub besteht.
+        width: root.showIcon ? Math.ceil(mark.inkWidth) : 0
         height: Theme.cellH
         visible: root.showIcon
 
@@ -36,6 +38,7 @@ Row {
             id: mark
 
             anchors.centerIn: parent
+            anchors.horizontalCenterOffset: mark.inkOffsetX
             text: root.icon
             color: root.color
             inkHeight: root.iconHeight
