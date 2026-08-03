@@ -76,8 +76,39 @@ Singleton {
         Networking.wifiEnabled = value;
     }
 
+    // ── Suchen ────────────────────────────────────────────────────────────
+    //
+    // Die API kennt kein "jetzt einmal suchen", sondern nur einen Schalter:
+    // `scannerEnabled` laesst den NetworkManager regelmaessig abtasten. Ein
+    // Aus-und-wieder-An stoesst also den naechsten Durchgang sofort an.
+    //
+    // Fertig meldet niemand -- weder ein Signal noch ein Zustand. Deshalb
+    // laeuft die Anzeige auf einer Uhr: acht Sekunden sind mehr, als eine
+    // Suche ueblicherweise braucht, und die Liste fuellt sich waehrenddessen
+    // ohnehin nach und nach.
+
+    readonly property bool scanning: scanTimer.running
+
+    Timer {
+        id: scanTimer
+        interval: 8000
+    }
+
     function rescan() {
+        if (!root.wifiDevice || !root.wifiEnabled)
+            return;
+        root.wifiDevice.scannerEnabled = false;
+        root.wifiDevice.scannerEnabled = true;
+        scanTimer.restart();
+    }
+
+    // Solange die Liste jemand ansieht, darf sie sich auffrischen. Danach
+    // wieder aus: ein dauerhaft laufender Scanner kostet Strom und weckt das
+    // Funkmodul aus dem Ruhezustand.
+    function setScanner(value) {
         if (root.wifiDevice)
-            root.wifiDevice.scannerEnabled = true;
+            root.wifiDevice.scannerEnabled = value;
+        if (!value)
+            scanTimer.stop();
     }
 }

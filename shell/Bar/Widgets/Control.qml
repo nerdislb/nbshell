@@ -41,11 +41,60 @@ Cell {
 
             spacing: Theme.cellH * 0.4
 
+            // Solange die Liste offen ist, darf sich das WLAN auffrischen --
+            // sonst steht dort, was beim letzten Blick zufaellig in der Luft
+            // lag. Beim Zugehen geht beides wieder aus: der Scanner kostet
+            // Strom, und eine laufende Bluetooth-Suche laesst obendrein
+            // Kopfhoerer stottern.
+            Component.onCompleted: Net.setScanner(true)
+            Component.onDestruction: {
+                Net.setScanner(false);
+                Bt.scan(false);
+            }
+
+            // Laufendes Licht fuer die Suche. `-\|/` gibt es in jeder Schrift
+            // -- Braille-Punkte oder Viertelbloecke fehlen manchen Nerd-Fonts,
+            // und ein Kaestchen als Anzeige waere albern.
+            property int spinIndex: 0
+            readonly property string spin: "-\\|/".charAt(spinIndex % 4)
+
+            Timer {
+                interval: 150
+                repeat: true
+                running: Net.scanning || Bt.discovering
+                onTriggered: panel.spinIndex++
+            }
+
             component Heading: Text {
                 color: Theme.fgDim
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize
                 renderType: Text.NativeRendering
+            }
+
+            // Ein Knopf aus Text. Angefasst wird ein Stueck ausserhalb mit --
+            // ein Wort ist eine schmale Zielflaeche.
+            component Action: Text {
+                id: action
+
+                property bool on: false
+
+                signal triggered
+
+                color: actionMouse.containsMouse ? Theme.readable(Theme.accent, Theme.bg) : (action.on ? Theme.green : Theme.fgDim)
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize
+                renderType: Text.NativeRendering
+
+                MouseArea {
+                    id: actionMouse
+
+                    anchors.fill: parent
+                    anchors.margins: -Theme.cellW / 2
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: action.triggered()
+                }
             }
 
             // ── Helligkeit ────────────────────────────────────────────────
@@ -86,21 +135,34 @@ Cell {
                     text: "WLAN"
                 }
 
-                Text {
+                Row {
                     anchors.right: parent.right
-                    text: Net.wifiEnabled ? "[ an ]" : "[ aus ]"
-                    color: Net.wifiEnabled ? Theme.green : Theme.fgDim
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: Theme.cellW * 2
 
-                    MouseArea {
-                        anchors.fill: parent
-                        anchors.margins: -Theme.cellW / 2
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: Net.setWifiEnabled(!Net.wifiEnabled)
+                    Action {
+                        visible: Net.wifiEnabled
+                        text: Net.scanning ? ("[ " + panel.spin + " sucht ]") : "[ suchen ]"
+                        onTriggered: Net.rescan()
+                    }
+
+                    Action {
+                        on: Net.wifiEnabled
+                        text: Net.wifiEnabled ? "[ an ]" : "[ aus ]"
+                        onTriggered: Net.setWifiEnabled(!Net.wifiEnabled)
                     }
                 }
+            }
+
+            // Leere Liste heisst nicht "kaputt" -- meistens heisst es, dass
+            // noch niemand gesucht hat.
+            Text {
+                visible: Net.wifiEnabled && Net.wifiNetworks.length === 0
+                text: Net.scanning ? "  sucht …" : "  nichts gefunden — [ suchen ]"
+                color: Theme.fgDim
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize
+                renderType: Text.NativeRendering
             }
 
             Repeater {
@@ -225,25 +287,37 @@ Cell {
                     text: "BLUETOOTH"
                 }
 
-                Text {
+                Row {
                     anchors.right: parent.right
-                    text: Bt.enabled ? "[ an ]" : "[ aus ]"
-                    color: Bt.enabled ? Theme.green : Theme.fgDim
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: Theme.cellW * 2
 
-                    MouseArea {
-                        anchors.fill: parent
-                        anchors.margins: -Theme.cellW / 2
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: Bt.setEnabled(!Bt.enabled)
+                    Action {
+                        visible: Bt.enabled
+                        on: Bt.requested
+                        text: Bt.discovering ? ("[ " + panel.spin + " sucht ]") : "[ suchen ]"
+                        onTriggered: Bt.toggleScan()
+                    }
+
+                    Action {
+                        on: Bt.enabled
+                        text: Bt.enabled ? "[ an ]" : "[ aus ]"
+                        onTriggered: Bt.setEnabled(!Bt.enabled)
                     }
                 }
             }
 
+            Text {
+                visible: Bt.available && Bt.enabled && Bt.sorted.length === 0
+                text: Bt.discovering ? "  sucht …" : "  nichts gekoppelt — [ suchen ]"
+                color: Theme.fgDim
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize
+                renderType: Text.NativeRendering
+            }
+
             Repeater {
-                model: Bt.enabled ? Bt.sorted.slice(0, 6) : []
+                model: Bt.enabled ? Bt.sorted.slice(0, 8) : []
 
                 Rectangle {
                     id: btRow
@@ -260,7 +334,7 @@ Cell {
                         anchors.leftMargin: Theme.cellW / 2
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        text: (btRow.modelData.connected ? "▸ " : "  ") + Bt.label(btRow.modelData) + (btRow.modelData.batteryAvailable ? ("  " + Math.round(btRow.modelData.battery * 100) + "%") : "") + (btRow.modelData.paired || btRow.modelData.connected ? "" : "  ·neu")
+                        text: (btRow.modelData.connected ? "▸ " : "  ") + Bt.label(btRow.modelData) + (btRow.modelData.batteryAvailable ? ("  " + Math.round(btRow.modelData.battery * 100) + "%") : "") + (btRow.modelData.pairing ? "  ·koppelt" : (btRow.modelData.paired || btRow.modelData.connected ? "" : "  ·neu"))
                         color: btRow.modelData.connected ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize

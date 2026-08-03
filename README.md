@@ -309,6 +309,34 @@ reiner Knopf waere verschenkter Platz. Ein Klick klappt drei Abschnitte auf:
 Netz und Bluetooth kommen aus Quickshells eigenen Modulen — kein `nmcli`,
 kein `bluetoothctl` dazwischen.
 
+### Suchen
+
+Beide Abschnitte haben rechts ein `[ suchen ]`. Waehrend gesucht wird, laeuft
+dort ein Strich im Kreis; die Liste fuellt sich waehrenddessen.
+
+Die zwei Funkstandards verhalten sich dabei unterschiedlich, und das merkt man:
+
+- **WLAN.** Die API kennt keinen Einzelauftrag, nur den Dauerschalter
+  `scannerEnabled`. Aus und wieder an stoesst also den naechsten Durchgang an.
+  Fertig meldet niemand — weder Signal noch Zustand —, deshalb laeuft die
+  Anzeige acht Sekunden auf einer Uhr. Solange das Popout offen ist, bleibt der
+  Scanner an, damit die Liste aktuell bleibt; beim Zugehen geht er wieder aus.
+- **Bluetooth.** Hier gibt es einen echten Zustand (`discovering`), angezeigt
+  wird also nichts geraten. Von selbst hoert BlueZ nie auf, darum endet die
+  Suche nach 30 Sekunden und spaetestens beim Schliessen des Popouts: eine
+  laufende Suche haelt das Funkmodul wach und laesst Kopfhoerer stottern.
+  Waehrend der Suche zeigt die Liste auch Geraete ohne Namen als blosse
+  Adresse — den Namen liefern sie erst ein, zwei Sekunden spaeter, und wer sie
+  bis dahin ausblendet, zeigt eine leere Liste, obwohl gerade etwas gefunden
+  wurde.
+
+**`discovering` ist der Zustand des Adapters, nicht der eigene.** BlueZ zaehlt
+Suchen pro Programm: laeuft nebenher eine Einstellungs-App, steht im Popout
+„sucht", obwohl wir nichts angefordert haben — und ein Stopp quittiert BlueZ
+mit „No discovery started". Deshalb merkt sich `Bt.requested` getrennt, ob die
+Suche von uns kommt; das Symbol zeigt den echten Zustand, der Knopf schaltet
+nur die eigene Sitzung.
+
 ## Benachrichtigungen
 
 Karten am rechten Rand, gegenueber der Leiste: Programmname, Zeit als Abstand
