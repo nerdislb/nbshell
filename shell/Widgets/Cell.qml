@@ -73,6 +73,16 @@ Item {
 
     onPopoutVisibleChanged: Runtime.popoutCount = Math.max(0, Runtime.popoutCount + (popoutVisible ? 1 : -1))
 
+    // Verschwindet eine Zelle mit offenem Popout -- weil die Bausteinliste
+    // sich geaendert hat oder die Shell neu laedt --, bliebe der Zaehler oben
+    // stehen. Er haelt danach die Insel offen und die Tastatur bei der Leiste.
+    Component.onDestruction: {
+        if (root.popoutVisible)
+            Runtime.popoutCount = Math.max(0, Runtime.popoutCount - 1);
+        if (root.hovered && root.popout)
+            Runtime.popoutHover = Math.max(0, Runtime.popoutHover - 1);
+    }
+
     // Nur Zellen mit Popout melden sich: sonst zoege ein Klick auf die
     // Arbeitsflaechen dem Fenster darunter die Tastatur weg.
     onHoveredChanged: {

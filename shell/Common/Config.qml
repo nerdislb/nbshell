@@ -68,7 +68,10 @@ Singleton {
     // zeigt -- im Alltag sieht man sie nie.
     readonly property bool wallpaperBlur: value("wallpaperBlur", true)
     readonly property int wallpaperBlurAmount: value("wallpaperBlurAmount", 64)
-    readonly property int collapseDelay: value("collapseDelay", 250)
+    // Wie lange die Insel nach dem Verlassen noch offen bleibt. 250 ms waren
+    // zu knapp: wer die Maus aus der Leiste zieht, um etwas anderes zu tun,
+    // und es sich unterwegs anders ueberlegt, findet sie schon zu.
+    readonly property int collapseDelay: value("collapseDelay", 600)
 
     readonly property var collapsedWidgets: value("collapsedWidgets", ["clock"])
     readonly property var leftWidgets: value("leftWidgets", ["workspaces", "sep", "window"])

@@ -68,10 +68,30 @@ Variants {
             Keys.onEscapePressed: Runtime.closeAll()
         }
 
+        // Zuklappen nach dem Verlassen -- aber NICHT, solange ein Popout offen
+        // ist oder die Maus darauf steht.
+        //
+        // Ein Popout ist ein eigenes Fenster: wer aus der Leiste hinunter in
+        // die Liste faehrt, hat die Leiste damit verlassen, und die Insel klappt
+        // ihm unter der Hand weg -- mitten im Auswaehlen. Der Nachlauf allein
+        // hilft dagegen nicht, er verschiebt es nur.
+        readonly property bool popoutBusy: Runtime.popoutCount > 0 || Runtime.popoutHover > 0
+
+        onPopoutBusyChanged: {
+            if (popoutBusy) {
+                collapseTimer.stop();
+                win.hovering = true;
+            } else if (!barMode) {
+                // Zurueck ist der Weg durch die Leiste -- deshalb nicht sofort.
+                collapseTimer.restart();
+            }
+        }
+
         Timer {
             id: collapseTimer
             interval: Config.collapseDelay
-            onTriggered: win.hovering = false
+            onTriggered: if (!win.popoutBusy)
+                win.hovering = false
         }
 
         Rectangle {

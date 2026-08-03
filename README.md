@@ -772,6 +772,18 @@ durch.
 
 ## Popouts
 
+**Solange eines offen ist, klappt die Insel nicht zu.** Ein Popout ist ein
+eigenes Fenster — wer aus der Leiste hinunter in die Liste faehrt, hat die
+Leiste damit verlassen, und die Insel wuerde ihm unter der Hand wegklappen,
+mitten im Auswaehlen. Ein laengerer Nachlauf hilft dagegen nicht, er verschiebt
+es nur; die Leiste sieht deshalb auf `Runtime.popoutCount` und
+`Runtime.popoutHover`. Erst wenn das letzte Popout zu ist, laeuft der Nachlauf
+(`collapseDelay`, 600 ms) wieder an.
+
+Damit der Zaehler stimmt, meldet sich eine Zelle beim Verschwinden ab: faellt
+sie weg, waehrend ihr Popout offen ist — geaenderte Bausteinliste, neu geladene
+Shell —, bliebe er sonst oben stehen und hielte die Insel fuer immer offen.
+
 Ein Popout ist ein echtes Wayland-Popup (`PopupWindow`), kein zweites
 Layer-Fenster: der Kompositor kennt die Beziehung zur Leiste, haelt es an der
 richtigen Stelle und beendet den Griff selbst, sobald man daneben klickt. Ein
