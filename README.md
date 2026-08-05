@@ -15,7 +15,10 @@ Akku, Kalender. Alles Weitere steht unter „Was noch fehlt".
 
 ## Auf einem neuen Rechner
 
-Der ganze Weg, in sechs Schritten. Wer es eilig hat: Schritt 2 und 4 genuegen.
+Der ganze Weg, in fuenf Schritten. Wer es eilig hat: Schritt 2 und 4 genuegen.
+
+Das Ziel ist, dass beide Rechner dasselbe Setup haben -- nicht nur dieselbe
+Leiste. Deshalb holt `setup.sh` auch das Dotfiles-Repo mit.
 
 **1. Voraussetzungen.** Arch (oder ein Derivat mit `pacman`) und **niri** als
 Kompositor. Ein anderer Wayland-Kompositor geht nicht: die Arbeitsflaechen, der
@@ -26,16 +29,38 @@ privat, der Zugang laeuft also ueber SSH:
 ssh -T git@github.com     # muss deinen Namen nennen, nicht nach Passwort fragen
 ```
 
-**2. Holen und einrichten.** Ein Befehl -- Pakete, Dateien, Dienste:
+**2. Holen und einrichten.** Ein Befehl fuer alles:
 
 ```bash
 git clone git@github.com:nerdislb/nbshell.git ~/projects/nbshell
 cd ~/projects/nbshell && ./setup.sh
 ```
 
-Es fragt an drei Stellen nach (Pakete installieren, Dienste einschalten,
-AUR-Helfer bauen) und macht am Ende die Gegenprobe. Steht `~/.local/bin` nicht
-im `PATH`, sagt es das -- dann findet die Shell den Befehl `nbshell` nicht.
+`setup.sh` macht der Reihe nach:
+
+1. **Pakete** -- die 31, die nbshell braucht
+2. **Dienste** -- NetworkManager, bluetooth, tuned (fragt, siehe unten)
+3. **Dotfiles** -- holt `dotfiles-dms`, zieht dessen Paketlisten nach
+   (110 Repo- und 10 AUR-Pakete) und spielt mit `restore.sh` niri, ghostty,
+   nvim, zsh, DMS und den Kalender ein
+4. **Dateien** -- Shell, Themes, Plugins, Unit, Tastenkuerzel, der Befehl
+5. **Gegenprobe** -- stehen die Befehle wirklich im `PATH`?
+
+nbshell allein macht zwei Rechner naemlich noch nicht gleich; der Rest liegt im
+Dotfiles-Repo. Zwei Dinge dabei sind wichtig genug, um sie zu kennen:
+
+- **`restore.sh` ersetzt `~/.local/bin` vollstaendig.** Was dort liegt und
+  nicht im Dotfiles-Repo steht, ist danach weg -- das `agy`-Binary etwa, das
+  wegen seiner Groesse bewusst nicht im Repo liegt. Von allem Ueberschriebenen
+  legt es vorher eine `.bak`-Kopie an, und es fragt selbst noch einmal nach.
+- **Hardware-Pakete bleiben aussen vor.** `pkglist.txt` ist ein `pacman -Qqe`
+  und enthaelt damit Kernel, Firmware und Grafiktreiber -- 20 von 130.
+  `nvidia-open` auf einem AMD-Rechner ist kein Fehler, der auffaellt: es liegt
+  einfach da und wird bei jedem Update mitgebaut. Sie werden aufgelistet und
+  nur mit `--with-hardware` mitgenommen.
+
+Steht `~/.local/bin` nicht im `PATH`, sagt das Skript das -- sonst findet die
+Shell den Befehl `nbshell` nicht.
 
 **3. Ausprobieren.**
 
@@ -58,11 +83,7 @@ den Autostart an. Laeuft DankMaterialShell auf dem Rechner, weicht sie dabei
 zur Seite (`nbshell switch off` holt sie zurueck); ohne DMS sind diese Schritte
 einfach wirkungslos. `nbshell switch status` zeigt, was gerade gilt.
 
-**5. Die eigene Einstellung mitnehmen.** Sie liegt nicht hier, sondern im
-Dotfiles-Repo -- `~/dotfiles/bin/restore.sh` spielt `config.json` zurueck. Ohne
-das startet nbshell mit den Vorgaben, was auch in Ordnung ist.
-
-**6. Was kein Skript mitbringen kann.** Drei Dinge musst du von Hand nachholen,
+**5. Was kein Skript mitbringen kann.** Drei Dinge musst du von Hand nachholen,
 und zwar aus gutem Grund:
 
 | | |
@@ -80,8 +101,8 @@ holt.
 
 | | |
 |---|---|
-| `setup.sh` | Pakete, Dateien, Dienste -- der ganze Weg, nichts bleibt optional |
-| `install.sh` | nur die Dateien; sagt, was fehlt, holt aber **nichts** |
+| `setup.sh` | Pakete, Dotfiles, Dateien, Dienste -- der ganze Rechner |
+| `install.sh` | nur die Dateien von nbshell; sagt, was fehlt, holt aber **nichts** |
 
 `install.sh` ist der richtige Weg, wenn man nicht weiss, wem der Rechner
 gehoert -- Pakete sind eine Entscheidung. `setup.sh` ist der andere Fall: es
@@ -89,15 +110,22 @@ holt alles, damit hinterher kein Baustein still bleibt und kein Knopf ins Leere
 greift. Es ruft `install.sh` am Ende selbst auf.
 
 ```bash
-./setup.sh --no-packages   # nur die Dateien (dasselbe wie install.sh)
-./setup.sh --no-aur        # den AUR-Helfer nicht bauen
-./setup.sh --yes           # nichts fragen
+./setup.sh --no-packages    # nur die Dateien (dasselbe wie install.sh)
+./setup.sh --no-dotfiles    # ohne das Dotfiles-Repo, nur nbshell
+./setup.sh --no-aur         # den AUR-Helfer nicht bauen
+./setup.sh --with-hardware  # auch nvidia, ucode, mesa … aus der Paketliste
+./setup.sh --yes            # nichts fragen
 ```
 
 **Alles ausser dem AUR-Helfer liegt in den offiziellen Repos** -- auch
 `quickshell`. Es ist also ein `pacman -S --needed` und sonst nichts.
 
-Drei Dinge macht `setup.sh` bewusst **nicht** von allein:
+Die Reihenfolge in `setup.sh` ist keine Geschmacksfrage: **Dotfiles vor
+Dateien.** `restore.sh` ersetzt `~/.local/bin` als Ganzes, also auch den Befehl
+`nbshell` darin -- andersherum gewaenne die Kopie aus dem Dotfiles-Repo, und
+die ist nur so neu wie das letzte `save.sh`.
+
+Vier Dinge macht `setup.sh` bewusst **nicht** von allein:
 
 - **Dienste einschalten.** Es fragt. Wer sein Netz mit systemd-networkd oder
   iwd verwaltet, staende nach einem beherzten `enable NetworkManager` ohne
@@ -109,6 +137,8 @@ Drei Dinge macht `setup.sh` bewusst **nicht** von allein:
 - **Als root laufen.** Es weist das ab: die Dateien gehoeren in `$HOME`, ein
   `sudo ./setup.sh` legte sie in `/root` ab. Fuer pacman ruft es sudo selbst
   auf, an einer einzigen Stelle.
+- **Hardware-Pakete aus der Paketliste holen.** Nur mit `--with-hardware`, und
+  auch mit `--yes` nicht. Sie stehen vorher als Liste da.
 
 Zum Schluss macht es die Gegenprobe: nicht ob die Pakete installiert sind,
 sondern ob die Befehle wirklich im PATH stehen. Das ist nicht dasselbe.

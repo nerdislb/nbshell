@@ -7,10 +7,12 @@
 # ist der andere Fall: es holt alles, was nbshell braucht, damit hinterher
 # kein Baustein still bleibt und kein Knopf ins Leere greift.
 #
-#   setup.sh                 Pakete, Dateien, Dienste -- der ganze Weg
-#   setup.sh --no-packages   nur die Dateien (dasselbe wie install.sh)
-#   setup.sh --no-aur        den AUR-Helfer nicht bauen
-#   setup.sh --yes           nichts fragen, alles ja
+#   setup.sh                  der ganze Weg
+#   setup.sh --no-packages    nur die Dateien (dasselbe wie install.sh)
+#   setup.sh --no-dotfiles    ohne das Dotfiles-Repo
+#   setup.sh --no-aur         den AUR-Helfer nicht bauen
+#   setup.sh --with-hardware  auch die Hardware-Pakete der Paketliste
+#   setup.sh --yes            nichts fragen, alles ja
 #
 # Absichtlich NICHT als root aufzurufen: die Dateien gehoeren in $HOME, und ein
 # `sudo ./setup.sh` legte sie in /root ab. Fuer pacman ruft das Skript sudo
@@ -20,22 +22,35 @@ set -euo pipefail
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 WITH_PACKAGES=1
+WITH_DOTFILES=1
 WITH_AUR=1
+WITH_HARDWARE=0
 ASSUME_YES=0
+
+# Der zweite Teil des Setups: alles, was nicht nbshell ist -- niri, ghostty,
+# nvim, zsh, DMS, Kalender. Zwei Rechner sind erst gleich, wenn beides da ist.
+DOTFILES_REPO="git@github.com:nerdislb/dotfiles-dms.git"
+DOTFILES_DIR="$HOME/dotfiles"
 
 while [ $# -gt 0 ]; do
 	case "$1" in
 	--no-packages) WITH_PACKAGES=0 && shift ;;
+	--no-dotfiles) WITH_DOTFILES=0 && shift ;;
 	--no-aur) WITH_AUR=0 && shift ;;
+	--with-hardware) WITH_HARDWARE=1 && shift ;;
 	-y | --yes) ASSUME_YES=1 && shift ;;
 	-h | --help)
 		cat <<'USAGE'
-setup.sh -- nbshell komplett einrichten: Pakete, Dateien, Dienste.
+setup.sh -- den Rechner einrichten: Pakete, Dotfiles, nbshell, Dienste.
 
-  setup.sh                 Pakete, Dateien, Dienste -- der ganze Weg
-  setup.sh --no-packages   nur die Dateien (dasselbe wie install.sh)
-  setup.sh --no-aur        den AUR-Helfer nicht bauen
-  setup.sh --yes           nichts fragen, alles ja
+  setup.sh                  der ganze Weg
+  setup.sh --no-packages    nur die Dateien (dasselbe wie install.sh)
+  setup.sh --no-dotfiles    ohne das Dotfiles-Repo
+  setup.sh --no-aur         den AUR-Helfer nicht bauen
+  setup.sh --with-hardware  auch die Hardware-Pakete der Paketliste
+                            (nvidia, ucode, mesa ...) -- nur auf gleicher
+                            Hardware sinnvoll
+  setup.sh --yes            nichts fragen, alles ja
 USAGE
 		exit 0
 		;;
@@ -213,11 +228,119 @@ if [ $WITH_PACKAGES -eq 1 ]; then
 	done
 fi
 
+# ── Dotfiles ─────────────────────────────────────────────────────────────
+#
+# nbshell allein macht zwei Rechner noch nicht gleich: niri, ghostty, nvim,
+# zsh, DMS und der Kalender liegen im Dotfiles-Repo. Das holt dieser Block --
+# und danach erst die Dateien, siehe die Reihenfolge unten.
+if [ $WITH_DOTFILES -eq 1 ]; then
+	head2 "Dotfiles"
+
+	if [ -d "$DOTFILES_DIR/.git" ]; then
+		printf '  %s ist da -- hole den neuesten Stand.\n' "${DOTFILES_DIR/#$HOME/\~}"
+		git -C "$DOTFILES_DIR" pull --ff-only --quiet 2>/dev/null ||
+			warn "  git pull ging nicht (eigene Aenderungen?) -- der vorhandene Stand wird benutzt."
+	elif [ -e "$DOTFILES_DIR" ]; then
+		die "$DOTFILES_DIR gibt es, ist aber kein Git-Repo. Bitte selbst aufraeumen."
+	else
+		printf '  hole %s\n' "$DOTFILES_REPO"
+		git clone --quiet "$DOTFILES_REPO" "$DOTFILES_DIR" ||
+			die "Klonen fehlgeschlagen. Liegt dein SSH-Schluessel bei GitHub? Probe: ssh -T git@github.com"
+	fi
+
+	# ── Die Paketliste des anderen Rechners ──────────────────────────
+	#
+	# Sie ist ein `pacman -Qqe` und enthaelt damit auch Kernel, Firmware
+	# und Grafiktreiber. Die gehoeren NICHT blind auf eine andere Maschine:
+	# `nvidia-open` auf einem AMD-Rechner ist kein Fehler, der auffaellt --
+	# er liegt einfach da und wird bei jedem Update mitgebaut. Deshalb
+	# werden sie herausgesucht und nur mit --with-hardware mitgenommen.
+	HW_MUSTER='^(nvidia|lib32-nvidia|libva-nvidia|amd-ucode|intel-ucode|linux|lib32-mesa|mesa|vulkan|lib32-vulkan|xf86-video)'
+
+	if [ $WITH_PACKAGES -eq 1 ] && [ -f "$DOTFILES_DIR/pkglist.txt" ]; then
+		hw=()
+		rest=()
+		while read -r p; do
+			[ -n "$p" ] || continue
+			case "$p" in \#*) continue ;; esac
+			pacman -Qq "$p" >/dev/null 2>&1 && continue
+			if [[ $p =~ $HW_MUSTER ]]; then
+				hw+=("$p")
+			else
+				rest+=("$p")
+			fi
+		done <"$DOTFILES_DIR/pkglist.txt"
+
+		if [ ${#hw[@]} -gt 0 ]; then
+			printf '\n  Hardware-nah, deshalb aussen vor (%d):\n    %s\n' "${#hw[@]}" "${hw[*]}"
+			[ $WITH_HARDWARE -eq 1 ] && rest+=("${hw[@]}") && echo "    --with-hardware: werden mitgenommen."
+		fi
+
+		if [ ${#rest[@]} -eq 0 ]; then
+			green "  Aus pkglist.txt fehlt nichts."
+		else
+			printf '\n  Aus pkglist.txt fehlen %d:\n    %s\n\n' "${#rest[@]}" "${rest[*]}"
+			if ask "  installieren?"; then
+				sudo pacman -S --needed "${rest[@]}" || warn "  pacman ist ausgestiegen."
+			fi
+		fi
+	fi
+
+	# AUR: nur wenn ein Helfer da ist. Ohne einen ginge es nur mit makepkg
+	# je Paket, und das ist kein Schritt fuer ein Einrichtungsskript.
+	if [ $WITH_PACKAGES -eq 1 ] && [ -f "$DOTFILES_DIR/pkglist-aur.txt" ]; then
+		helper="$(command -v paru || command -v yay || true)"
+		if [ -n "$helper" ]; then
+			aur=()
+			while read -r p; do
+				[ -n "$p" ] || continue
+				case "$p" in \#*) continue ;; esac
+				pacman -Qq "$p" >/dev/null 2>&1 || aur+=("$p")
+			done <"$DOTFILES_DIR/pkglist-aur.txt"
+			if [ ${#aur[@]} -eq 0 ]; then
+				green "  Aus pkglist-aur.txt fehlt nichts."
+			else
+				printf '\n  Aus pkglist-aur.txt fehlen %d:\n    %s\n\n' "${#aur[@]}" "${aur[*]}"
+				if ask "  mit $(basename "$helper") bauen?"; then
+					"$helper" -S --needed "${aur[@]}" || warn "  $(basename "$helper") ist ausgestiegen."
+				fi
+			fi
+		else
+			warn "  Kein paru/yay -- die AUR-Liste bleibt liegen."
+		fi
+	fi
+
+	# ── Die Einstellungen selbst ─────────────────────────────────────
+	if [ -x "$DOTFILES_DIR/bin/restore.sh" ]; then
+		echo
+		warn "  restore.sh ERSETZT ~/.local/bin vollstaendig: was dort liegt und"
+		warn "  nicht im Dotfiles-Repo steht, ist danach weg (etwa das agy-Binary)."
+		echo "  Von allem Ueberschriebenen legt es vorher eine .bak-Kopie an."
+		echo
+		if ask "  restore.sh jetzt laufen lassen?"; then
+			# Es fragt selbst noch einmal nach. Mit --yes soll nichts
+			# stehen bleiben, also wird die Antwort hineingereicht.
+			if [ "$ASSUME_YES" = "1" ]; then
+				printf 'j\n' | "$DOTFILES_DIR/bin/restore.sh" || warn "  restore.sh ist ausgestiegen."
+			else
+				"$DOTFILES_DIR/bin/restore.sh" || warn "  restore.sh ist ausgestiegen."
+			fi
+		fi
+	else
+		warn "  $DOTFILES_DIR/bin/restore.sh fehlt -- Einstellungen bleiben, wie sie sind."
+	fi
+fi
+
 # ── Dateien ──────────────────────────────────────────────────────────────
 #
 # Den Rest kann install.sh schon: Shell, Themes, Config, Plugins, Unit,
 # Tastenkuerzel, der Befehl. Zweimal dasselbe zu schreiben hiesse, es zweimal
 # zu pflegen.
+#
+# NACH den Dotfiles, und das ist keine Geschmacksfrage: restore.sh ersetzt
+# ~/.local/bin als Ganzes, also auch den Befehl `nbshell` darin. Andersherum
+# gewaenne die Kopie aus dem Dotfiles-Repo -- und die ist nur so neu wie das
+# letzte save.sh.
 head2 "Dateien"
 NBSHELL_FROM_SETUP=1 "$SRC/install.sh"
 
