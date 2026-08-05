@@ -517,6 +517,13 @@ Klick blendet aus, ein Rechtsklick wirft weg, Ueberfahren haelt sie stehen.
 **Dringendes bleibt** — rot umrandet und mit `!` —, bis man es wegklickt; so
 sieht es die Spezifikation vor.
 
+**Der Stapel laesst der Leiste ihren Platz.** Steht er auf derselben Seite
+(`notifyCorner: top` bei einer Leiste oben), faengt er unter ihr an. Von allein
+tut er das nicht: das Fenster liegt auf der Overlay-Ebene und ignoriert die
+reservierte Zone — was richtig ist, sonst schoebe jede Karte die Fenster
+darunter beiseite. Es nimmt sich den Platz deshalb selbst, in der Insel und in
+der Pille samt Abstand zum Rand.
+
 Der Baustein `notifications` zeigt die Anzahl, sein Popout das Archiv mit
 „nicht stoeren" und „leeren". Rechtsklick auf die Zelle schaltet direkt stumm.
 
@@ -912,6 +919,16 @@ uebernimmt, `r` stellt das Bild wieder her, das das Theme selbst mitbringt,
 `Esc` nimmt zurueck. Beim Blaettern wird das Bild **sofort gesetzt**: man sieht
 es in voller Groesse hinter dem Streifen, statt aus einem Vorschaubild raten zu
 muessen.
+
+**Das aktuelle Bild steht in voller Groesse, die uebrigen sind eingerueckt und
+auf 45 % gedaempft.** Ein staerkerer Rahmen allein reichte nicht — auf einem
+Streifen aus Fotos verschwindet er zwischen den Bildinhalten.
+
+Der Streifen **gleitet** beim Blaettern, statt zu springen: er folgt ueber
+`currentIndex` und einen Vorzugsbereich in der Mitte (`ApplyRange`), nicht ueber
+`positionViewAtIndex` — das setzt `contentX` hart und ueberfaehrt genau die
+Bewegung, die man sehen soll. Nur beim Oeffnen wird hart gesprungen: eine
+Animation aus dem Nichts sieht aus, als haette man schon etwas verstellt.
 
 Die Liste wird bei jedem Oeffnen frisch gelesen, bewusst ohne Zwischenspeicher
 -- genau der hat in der Vorlage (`themeWallpaper`) die Auswahl lahmgelegt: die
@@ -1344,6 +1361,10 @@ doppelt gebaut werden, und der Uebergang laesst sich animieren.
 
 ## Fallstricke
 
+- **Ein `Behavior` braucht eine schreibbare Property.** Auf einer
+  `readonly property` scheitert er mit „is a read-only property" — und weil
+  das ein Ladefehler ist, faellt der ganze Typ aus und die Shell startet nicht
+  mehr. Beim Animieren schreibt der Behavior die Property ja selbst.
 - **Eine `MouseArea` mit `hoverEnabled` nimmt das Ueberfahren fuer sich.** Ein
   `HoverHandler` weiter oben — etwa der des Popoutfensters — sieht es dann
   nicht mehr, haelt die Maus fuer verschwunden und startet den Nachlauf: nach

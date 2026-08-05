@@ -29,6 +29,18 @@ Variants {
             return Config.edge !== "top";
         }
 
+        // Steht die Leiste auf derselben Seite, muss der Stapel UNTER ihr
+        // anfangen. Von allein tut er das nicht: das Fenster liegt auf der
+        // Overlay-Ebene und ignoriert die reservierte Zone
+        // (`ExclusionMode.Ignore`) -- was richtig ist, sonst schoebe jede
+        // Karte die Fenster darunter beiseite. Es muss sich den Platz also
+        // selbst nehmen.
+        //
+        // In der Insel und in der Pille kommt der Abstand zum Rand dazu; im
+        // Balken sitzt die Leiste direkt an der Kante.
+        readonly property bool sameSideAsBar: atTop === (Config.edge === "top")
+        readonly property real barSpace: sameSideAsBar ? Theme.barHeight + (Config.mode === "bar" ? 0 : Config.gap) : 0
+
         screen: modelData
         visible: Notify.popups.length > 0
         color: "transparent"
@@ -43,7 +55,7 @@ Variants {
         anchors.bottom: !atTop
 
         implicitWidth: Theme.cellW * 52
-        implicitHeight: Math.min(screen.height * 0.8, stack.implicitHeight + Theme.cellH * 4)
+        implicitHeight: Math.min(screen.height * 0.8, stack.implicitHeight + Theme.cellH * 4 + barSpace)
 
         // Nur die Karten nehmen Klicks an, der Rest des Streifens nicht.
         mask: Region {
@@ -57,6 +69,8 @@ Variants {
             anchors.top: win.atTop ? parent.top : undefined
             anchors.bottom: win.atTop ? undefined : parent.bottom
             anchors.margins: Theme.cellH
+            anchors.topMargin: Theme.cellH + (win.atTop ? win.barSpace : 0)
+            anchors.bottomMargin: Theme.cellH + (win.atTop ? 0 : win.barSpace)
 
             spacing: Theme.cellH * 0.5
 

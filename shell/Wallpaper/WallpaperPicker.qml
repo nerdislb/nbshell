@@ -50,7 +50,9 @@ PanelWindow {
             return;
         selected = i;
         Wallpapers.apply(list[i]);
-        strip.positionViewAtIndex(i, ListView.Contain);
+        // Kein positionViewAtIndex mehr: das setzt `contentX` hart und
+        // ueberfaehrt damit genau die Bewegung, die man sehen soll. Der
+        // Streifen folgt jetzt ueber `currentIndex` und den Vorzugsbereich.
     }
 
     function cancel() {
@@ -78,7 +80,9 @@ PanelWindow {
             root.jumpPending = false;
             const i = root.list.indexOf(root.previous);
             root.selected = i >= 0 ? i : 0;
-            strip.positionViewAtIndex(root.selected, ListView.Contain);
+            // Beim Oeffnen ohne Bewegung dorthin -- eine Animation aus dem
+            // Nichts sieht aus, als haette man schon etwas verstellt.
+            strip.positionViewAtIndex(root.selected, ListView.Center);
         }
     }
 
@@ -149,6 +153,8 @@ PanelWindow {
             ListView {
                 id: strip
 
+                readonly property real tileWidth: strip.height * 1.6
+
                 anchors.top: header.bottom
                 anchors.left: parent.left
                 anchors.right: parent.right
@@ -161,35 +167,77 @@ PanelWindow {
                 model: root.list
                 boundsBehavior: Flickable.StopAtBounds
 
-                delegate: Rectangle {
+                // Der Streifen gleitet, statt zu springen. `ApplyRange` haelt
+                // das aktuelle Bild in der Mitte, laesst am Anfang und Ende
+                // aber los -- sonst haengt der Streifen beim ersten Bild in
+                // der Mitte fest und die Haelfte davor ist leer.
+                currentIndex: root.selected
+                highlightMoveDuration: 220
+                highlightMoveVelocity: -1
+                highlightRangeMode: ListView.ApplyRange
+                preferredHighlightBegin: (strip.width - strip.tileWidth) / 2
+                preferredHighlightEnd: (strip.width + strip.tileWidth) / 2
+
+                delegate: Item {
+                    id: tile
+
                     required property var modelData
                     required property int index
 
-                    readonly property bool current: index === root.selected
+                    readonly property bool current: tile.index === root.selected
 
-                    width: strip.height * 1.6
+                    // Die uebrigen sind kleiner UND blasser. Ein staerkerer
+                    // Rahmen allein reicht auf einem Streifen aus Fotos nicht
+                    // -- er verschwindet zwischen den Bildinhalten.
+                    //
+                    // NICHT readonly: ein `Behavior` schreibt die Property,
+                    // waehrend er sie animiert, und scheitert an einer
+                    // schreibgeschuetzten ("is a read-only property").
+                    property real inset: tile.current ? 0 : Theme.cellH * 0.7
+
+                    width: strip.tileWidth
                     height: strip.height
-                    color: "transparent"
-                    border.width: current ? Math.max(2, Theme.borderWidth * 2) : Theme.borderWidth
-                    border.color: current ? Theme.accent : Theme.muted
 
-                    Image {
+                    Behavior on inset {
+                        NumberAnimation {
+                            duration: 180
+                            easing.type: Easing.OutCubic
+                        }
+                    }
+
+                    Rectangle {
                         anchors.fill: parent
-                        anchors.margins: parent.border.width
-                        source: "file://" + parent.modelData
-                        fillMode: Image.PreserveAspectCrop
-                        asynchronous: true
-                        cache: true
-                        // Nur so gross laden, wie es angezeigt wird -- sonst
-                        // liegen 20 Vollbilder im Speicher.
-                        sourceSize.width: Math.round(strip.height * 1.6)
+                        anchors.margins: tile.inset
+
+                        color: "transparent"
+                        border.width: tile.current ? Math.max(2, Theme.borderWidth * 2) : Theme.borderWidth
+                        border.color: tile.current ? Theme.accent : Theme.muted
+                        opacity: tile.current ? 1 : 0.45
+
+                        Behavior on opacity {
+                            NumberAnimation {
+                                duration: 180
+                            }
+                        }
+
+                        Image {
+                            anchors.fill: parent
+                            anchors.margins: parent.border.width
+                            source: "file://" + tile.modelData
+                            fillMode: Image.PreserveAspectCrop
+                            asynchronous: true
+                            cache: true
+                            // Nur so gross laden, wie es angezeigt wird --
+                            // sonst liegen 20 Vollbilder im Speicher.
+                            sourceSize.width: Math.round(strip.tileWidth)
+                        }
                     }
 
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            root.preview(parent.index);
+                            root.preview(tile.index);
                             root.close();
                         }
                     }
