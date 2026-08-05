@@ -1051,6 +1051,24 @@ Werten, durch die `←→` blaettert (Mausrad und Klick gehen auch). Das laesst
 sich blind bedienen und braucht keine Pruefung von Eingaben. Geschrieben wird
 sofort — die Leiste aendert sich beim Zusehen, weil die Config beobachtet wird.
 
+**Zwei Spalten**, seit die Liste ueber vierzig Zeilen lang war: links die
+Gruppen (LEISTE, BAUSTEINE, AUSSEHEN, VERHALTEN, DIENSTE), rechts ihre Zeilen.
+`Tab` wechselt die Seite, `↑↓` waehlt auf der Seite, die gerade dran ist, `←→`
+aendert. Eine Wurst aus Ueberschriften und Zeilen liest sich ab einer gewissen
+Laenge nicht mehr — man scrollt an der Ueberschrift vorbei und weiss nicht
+mehr, wo man ist.
+
+Zwei Kleinigkeiten, die den Unterschied machen:
+
+- **Nur die aktive Seite ist markiert.** Waeren beide Auswahlen gleich
+  hervorgehoben, saehe man nicht, wo die naechste Taste landet. Die andere
+  Seite behaelt nur ihren `▸`-Zeiger. Aus demselben Grund stehen die
+  `◂ ▸`-Pfeile am Wert nur, wenn die rechte Seite dran ist — links kaeme
+  `←→` gar nicht an.
+- **Der Kasten behaelt seine Hoehe.** Sie richtet sich nach der groessten
+  Gruppe, nicht nach der offenen. Sonst spraenge er beim Wechseln zwischen vier
+  und neun Zeilen hin und her, und die Gruppenliste links wanderte mit.
+
 Was hier fehlt (Bausteinlisten, Schrift, Themepfade), bleibt in der
 `config.json`; die Datei ist weiterhin die vollstaendige Oberflaeche.
 

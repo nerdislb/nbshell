@@ -14,15 +14,22 @@ import qs.Services
 // Bewusst kein Formular mit Eingabefeldern: jede Zeile ist eine Liste von
 // Werten, durch die man blaettert. Das laesst sich blind bedienen und braucht
 // keine Pruefung von Eingaben.
+//
+// Zwei Spalten, seit die Liste ueber vierzig Zeilen lang war: links die
+// Gruppen, rechts ihre Zeilen. Tab wechselt die Seite. Eine Wurst aus
+// Ueberschriften und Zeilen liest sich ab einer gewissen Laenge nicht mehr --
+// man scrollt an der Ueberschrift vorbei und weiss nicht mehr, wo man ist.
 PanelWindow {
     id: root
 
+    // Welche Seite die Tasten bekommt: 0 = Gruppen links, 1 = Zeilen rechts.
+    property int pane: 1
+    property int group: 0
     property int selected: 0
 
     // Jede Zeile: Schluessel, Beschriftung und die Werte, durch die
     // links/rechts blaettert. `values` leer heisst: Zahl mit Schrittweite.
-    // "head" ist eine Ueberschrift, keine Zeile zum Aendern -- beim Blaettern
-    // wird sie uebersprungen.
+    // "head" beginnt eine neue Gruppe.
     readonly property var entries: [
         {
             "head": "LEISTE"
@@ -40,24 +47,25 @@ PanelWindow {
             "values": ["island", "pill", "bar"]
         },
         {
-            "head": "AUSSEHEN"
+            "key": "gap",
+            "def": 6,
+            "label": "Abstand zum Rand",
+            "step": 1,
+            "min": 0,
+            "max": 40
         },
         {
-            "key": "widgetColor",
-            "def": "text",
-            "label": "Farbe der Bausteine",
-            "values": ["text", "accent"]
+            "key": "lines",
+            "def": 1,
+            "label": "Hoehe in Zeilen",
+            "step": 1,
+            "min": 1,
+            "max": 3
         },
         {
-            "key": "widgetStyle",
-            "def": "box",
-            "label": "Bausteine",
-            "values": ["box", "bracket", "plain"]
-        },
-        {
-            "key": "widgetIcons",
+            "key": "barBorder",
             "def": true,
-            "label": "Symbole in der Leiste",
+            "label": "Rahmen um die Leiste",
             "values": [true, false]
         },
         {
@@ -73,6 +81,38 @@ PanelWindow {
             "values": [true, false]
         },
         {
+            "head": "BAUSTEINE"
+        },
+        {
+            "action": "modules",
+            "label": "Anordnen …",
+            "hint": "Enter"
+        },
+        {
+            "key": "widgetColor",
+            "def": "text",
+            "label": "Farbe",
+            "values": ["text", "accent"]
+        },
+        {
+            "key": "widgetStyle",
+            "def": "box",
+            "label": "Form",
+            "values": ["box", "bracket", "plain"]
+        },
+        {
+            "key": "widgetIcons",
+            "def": true,
+            "label": "Symbole",
+            "values": [true, false]
+        },
+        {
+            "key": "quietWidgets",
+            "def": true,
+            "label": "Stille verstecken",
+            "values": [true, false]
+        },
+        {
             "key": "workspaceStyle",
             "def": "numbers",
             "label": "Arbeitsflaechen",
@@ -81,8 +121,25 @@ PanelWindow {
         {
             "key": "workspaceClassic",
             "def": true,
-            "label": "Figur klassisch gefaerbt",
+            "label": "Figur klassisch",
             "values": [true, false]
+        },
+        {
+            "key": "trayExpanded",
+            "def": false,
+            "label": "Tray aufgeklappt",
+            "values": [true, false]
+        },
+        {
+            "head": "AUSSEHEN"
+        },
+        {
+            "key": "fontSize",
+            "def": 13,
+            "label": "Schriftgroesse",
+            "step": 1,
+            "min": 8,
+            "max": 24
         },
         {
             "key": "widgetGap",
@@ -101,30 +158,6 @@ PanelWindow {
             "max": 3
         },
         {
-            "key": "fontSize",
-            "def": 13,
-            "label": "Schriftgroesse",
-            "step": 1,
-            "min": 8,
-            "max": 24
-        },
-        {
-            "key": "lines",
-            "def": 1,
-            "label": "Hoehe in Zeilen",
-            "step": 1,
-            "min": 1,
-            "max": 3
-        },
-        {
-            "key": "gap",
-            "def": 6,
-            "label": "Abstand zum Rand",
-            "step": 1,
-            "min": 0,
-            "max": 40
-        },
-        {
             "key": "padY",
             "def": 4,
             "label": "Innenabstand",
@@ -141,12 +174,6 @@ PanelWindow {
             "max": 20
         },
         {
-            "key": "barBorder",
-            "def": true,
-            "label": "Rahmen um die Leiste",
-            "values": [true, false]
-        },
-        {
             "key": "borderWidth",
             "def": 1,
             "label": "Rahmenstaerke",
@@ -161,11 +188,6 @@ PanelWindow {
             "step": 0.05,
             "min": 0.2,
             "max": 1
-        },
-        {
-            "action": "modules",
-            "label": "Bausteine anordnen …",
-            "hint": "Enter"
         },
         {
             "head": "VERHALTEN"
@@ -228,12 +250,6 @@ PanelWindow {
             "values": [true, false]
         },
         {
-            "key": "trayExpanded",
-            "def": false,
-            "label": "Tray aufgeklappt",
-            "values": [true, false]
-        },
-        {
             "key": "updates",
             "def": true,
             "label": "Updates pruefen",
@@ -252,12 +268,6 @@ PanelWindow {
             "values": [true, false]
         },
         {
-            "key": "quietWidgets",
-            "def": true,
-            "label": "Stille Bausteine verstecken",
-            "values": [true, false]
-        },
-        {
             "key": "clipboard",
             "def": true,
             "label": "Zwischenablage",
@@ -270,6 +280,38 @@ PanelWindow {
             "values": [true, false]
         }
     ]
+
+    // Aus der flachen Liste die Gruppen bauen. Die Zeilen behalten dabei ihre
+    // Identitaet -- `step()` bekommt weiter denselben Eintrag wie vorher.
+    readonly property var groups: {
+        const out = [];
+        var cur = null;
+        for (var i = 0; i < entries.length; i++) {
+            const e = entries[i];
+            if (e.head !== undefined) {
+                cur = {
+                    "head": e.head,
+                    "items": []
+                };
+                out.push(cur);
+            } else if (cur) {
+                cur.items.push(e);
+            }
+        }
+        return out;
+    }
+
+    readonly property var items: groups[group] ? groups[group].items : []
+
+    // Der Kasten behaelt seine Hoehe, egal welche Gruppe offen ist. Sonst
+    // springt er beim Wechseln zwischen zwei und vierzehn Zeilen hin und her,
+    // und die Gruppenliste links wandert mit.
+    readonly property int maxItems: {
+        var n = 0;
+        for (var i = 0; i < groups.length; i++)
+            n = Math.max(n, groups[i].items.length);
+        return n;
+    }
 
     visible: Runtime.settingsOpen
 
@@ -311,6 +353,8 @@ PanelWindow {
     // Blaettern: bei Listen zum naechsten Eintrag, bei Zahlen um die
     // Schrittweite -- und an den Enden bleibt es stehen, statt umzuspringen.
     function step(entry, direction) {
+        if (!entry)
+            return;
         // Zeilen, die etwas OEFFNEN statt etwas zu aendern.
         if (entry.action !== undefined) {
             close();
@@ -332,18 +376,31 @@ PanelWindow {
         Config.set(entry.key, entry.step < 1 ? Math.round(clamped * 100) / 100 : Math.round(clamped));
     }
 
-    // Ueberschriften ueberspringen.
     function move(delta) {
-        var i = selected + delta;
-        while (i >= 0 && i < entries.length && entries[i].head !== undefined)
-            i += delta;
-        if (i >= 0 && i < entries.length)
-            selected = i;
+        if (root.pane === 0) {
+            const g = root.group + delta;
+            if (g >= 0 && g < root.groups.length) {
+                root.group = g;
+                root.selected = 0;
+            }
+            return;
+        }
+        const i = root.selected + delta;
+        if (i >= 0 && i < root.items.length)
+            root.selected = i;
+    }
+
+    function switchPane() {
+        root.pane = root.pane === 0 ? 1 : 0;
     }
 
     onVisibleChanged: {
         if (visible) {
-            selected = 1;
+            // Rechts anfangen: dann bleibt es bei ↑↓ waehlen, ←→ aendern --
+            // so, wie die Liste sich vorher bedienen liess.
+            pane = 1;
+            group = 0;
+            selected = 0;
             keys.forceActiveFocus();
         }
     }
@@ -362,14 +419,38 @@ PanelWindow {
         Keys.onEscapePressed: root.close()
         Keys.onUpPressed: root.move(-1)
         Keys.onDownPressed: root.move(1)
-        Keys.onLeftPressed: root.step(root.entries[root.selected], -1)
-        Keys.onRightPressed: root.step(root.entries[root.selected], 1)
-        Keys.onReturnPressed: root.step(root.entries[root.selected], 1)
+        Keys.onTabPressed: root.switchPane()
+        Keys.onBacktabPressed: root.switchPane()
+
+        // Links steht die Gruppenliste: dort ist rechts der Weg zu den
+        // Zeilen, nicht das Aendern eines Werts.
+        Keys.onLeftPressed: {
+            if (root.pane === 1)
+                root.step(root.items[root.selected], -1);
+        }
+        Keys.onRightPressed: {
+            if (root.pane === 0)
+                root.pane = 1;
+            else
+                root.step(root.items[root.selected], 1);
+        }
+        Keys.onReturnPressed: {
+            if (root.pane === 0)
+                root.pane = 1;
+            else
+                root.step(root.items[root.selected], 1);
+        }
 
         Rectangle {
+            id: box
+
+            readonly property real rowHeight: Theme.cellH * 1.5
+            readonly property real leftWidth: Theme.cellW * 16
+            readonly property real rightWidth: Theme.cellW * 42
+
             anchors.centerIn: parent
-            width: Theme.cellW * 52
-            height: column.implicitHeight + Theme.cellH * 2
+            width: box.leftWidth + box.rightWidth + Theme.cellW * 3
+            height: header.implicitHeight + root.maxItems * box.rowHeight + footer.implicitHeight + Theme.cellH * 2.5
 
             color: Theme.bg
             radius: Theme.radius
@@ -380,57 +461,60 @@ PanelWindow {
                 anchors.fill: parent
             }
 
-            Column {
-                id: column
+            Text {
+                id: header
 
-                anchors.centerIn: parent
-                width: parent.width - Theme.cellW * 2
+                anchors.left: parent.left
+                anchors.top: parent.top
+                anchors.margins: Theme.cellH * 0.6
+                anchors.leftMargin: Theme.cellW
+                text: "EINSTELLUNGEN"
+                color: Theme.fgDim
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize
+                renderType: Text.NativeRendering
+            }
+
+            // ── Links: die Gruppen ───────────────────────────────────────
+            Column {
+                id: groupColumn
+
+                anchors.left: parent.left
+                anchors.top: header.bottom
+                anchors.topMargin: Theme.cellH * 0.5
+                anchors.leftMargin: Theme.cellW * 0.5
+                width: box.leftWidth
                 spacing: 0
 
-                Text {
-                    text: "EINSTELLUNGEN"
-                    color: Theme.fgDim
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
-                    bottomPadding: Theme.cellH * 0.5
-                }
-
                 Repeater {
-                    model: root.entries
+                    model: root.groups
 
                     Rectangle {
-                        id: row
+                        id: groupRow
 
                         required property var modelData
                         required property int index
 
-                        readonly property bool isHead: modelData.head !== undefined
+                        readonly property bool current: groupRow.index === root.group
 
-                        width: column.width
-                        height: row.isHead ? Theme.cellH * 1.6 : Theme.cellH * 1.5
+                        width: groupColumn.width
+                        height: box.rowHeight
                         radius: Theme.radius
-                        color: !row.isHead && row.index === root.selected ? Theme.selection : "transparent"
+                        // Nur die Seite, die die Tasten hat, bekommt die
+                        // volle Markierung -- sonst sehen beide gleich
+                        // ausgewaehlt aus und man weiss nicht, wo man tippt.
+                        color: groupRow.current && root.pane === 0 ? Theme.selection : "transparent"
 
                         Text {
                             anchors.left: parent.left
                             anchors.leftMargin: Theme.cellW / 2
-                            anchors.bottom: row.isHead ? parent.bottom : undefined
-                            anchors.verticalCenter: row.isHead ? undefined : parent.verticalCenter
-                            text: row.isHead ? row.modelData.head : ((row.index === root.selected ? "▸ " : "  ") + row.modelData.label)
-                            color: row.isHead ? Theme.fgDim : (row.index === root.selected ? Theme.on(Theme.selection) : Theme.fg)
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
-                        }
-
-                        Text {
-                            visible: !row.isHead
-                            anchors.right: parent.right
-                            anchors.rightMargin: Theme.cellW / 2
                             anchors.verticalCenter: parent.verticalCenter
-                            text: (row.index === root.selected ? "◂ " : "  ") + root.shown(row.modelData) + (row.index === root.selected ? " ▸" : "  ")
-                            color: row.index === root.selected ? Theme.readable(Theme.accent, Theme.selection) : Theme.fgDim
+                            text: (groupRow.current ? "▸ " : "  ") + groupRow.modelData.head
+                            color: {
+                                if (groupRow.current && root.pane === 0)
+                                    return Theme.on(Theme.selection);
+                                return groupRow.current ? Theme.readable(Theme.accent, Theme.bg) : Theme.fgDim;
+                            }
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSize
                             renderType: Text.NativeRendering
@@ -438,27 +522,117 @@ PanelWindow {
 
                         MouseArea {
                             anchors.fill: parent
-                            enabled: !row.isHead
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onEntered: {
+                                if (root.group !== groupRow.index) {
+                                    root.group = groupRow.index;
+                                    root.selected = 0;
+                                }
+                            }
+                            onClicked: {
+                                root.group = groupRow.index;
+                                root.selected = 0;
+                                root.pane = 1;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Die Trennlinie zwischen den Spalten -- ein Strich, kein Kasten.
+            Rectangle {
+                anchors.left: groupColumn.right
+                anchors.leftMargin: Theme.cellW
+                anchors.top: groupColumn.top
+                width: Theme.borderWidth
+                height: root.maxItems * box.rowHeight
+                color: Theme.muted
+            }
+
+            // ── Rechts: die Zeilen der Gruppe ────────────────────────────
+            Column {
+                id: itemColumn
+
+                anchors.left: groupColumn.right
+                anchors.leftMargin: Theme.cellW * 2
+                anchors.top: groupColumn.top
+                width: box.rightWidth
+                spacing: 0
+
+                Repeater {
+                    model: root.items
+
+                    Rectangle {
+                        id: row
+
+                        required property var modelData
+                        required property int index
+
+                        readonly property bool current: row.index === root.selected
+
+                        width: itemColumn.width
+                        height: box.rowHeight
+                        radius: Theme.radius
+                        color: row.current && root.pane === 1 ? Theme.selection : "transparent"
+
+                        Text {
+                            anchors.left: parent.left
+                            anchors.leftMargin: Theme.cellW / 2
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: (row.current ? "▸ " : "  ") + row.modelData.label
+                            color: row.current && root.pane === 1 ? Theme.on(Theme.selection) : Theme.fg
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSize
+                            renderType: Text.NativeRendering
+                        }
+
+                        Text {
+                            anchors.right: parent.right
+                            anchors.rightMargin: Theme.cellW / 2
+                            anchors.verticalCenter: parent.verticalCenter
+                            // Die Pfeile nur auf der Seite, die sie auch
+                            // annimmt: links kaeme ←→ nicht hier an.
+                            text: (row.current && root.pane === 1 ? "◂ " : "  ") + root.shown(row.modelData) + (row.current && root.pane === 1 ? " ▸" : "  ")
+                            color: row.current && root.pane === 1 ? Theme.readable(Theme.accent, Theme.selection) : Theme.fgDim
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSize
+                            renderType: Text.NativeRendering
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             acceptedButtons: Qt.LeftButton | Qt.RightButton
-                            onEntered: root.selected = row.index
+                            onEntered: {
+                                root.selected = row.index;
+                                root.pane = 1;
+                            }
                             onClicked: mouseEvent => root.step(row.modelData, mouseEvent.button === Qt.RightButton ? -1 : 1)
                             onWheel: wheelEvent => root.step(row.modelData, wheelEvent.angleDelta.y > 0 ? 1 : -1)
                         }
                     }
                 }
+            }
 
-                Text {
-                    width: column.width
-                    text: "↑↓ waehlen · ←→ aendern · Esc schliesst\nBausteine anordnen: nbshell modules"
-                    color: Theme.muted
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
-                    topPadding: Theme.cellH * 0.5
-                    wrapMode: Text.WordWrap
-                }
+            Text {
+                id: footer
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.margins: Theme.cellH * 0.6
+                anchors.leftMargin: Theme.cellW
+                // Muss in EINE Zeile passen: die Hoehe des Kastens rechnet mit
+                // `footer.implicitHeight`, ein Umbruch schoebe den Fusstext in
+                // die letzte Zeile der Liste.
+                text: "Tab: Seite · ↑↓ waehlen · ←→ aendern · Esc schliesst"
+                color: Theme.muted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize
+                renderType: Text.NativeRendering
+                elide: Text.ElideRight
             }
         }
     }
