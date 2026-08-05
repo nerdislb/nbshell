@@ -226,7 +226,7 @@ Einstellbar in `config.json`: `theme`, `font`, `fontSize`,
 `mode` (`island` | `pill` | `bar`), `edge`,
 `gap`, `lines`, `padX`, `padY`, `radius`, `borderWidth`, `opacity`,
 `widgetStyle` (`box` | `bracket` | `plain`), `widgetColor` (`text` | `accent`),
-`widgetIcons`, `quietWidgets`, `widgetGap`, `islandCenter`, `barBorder`, `calendar`, `calendarInterval`,
+`widgetIcons`, `quietWidgets`, `widgetGap`, `islandCenter`, `osdInPill`, `barBorder`, `calendar`, `calendarInterval`,
 `weatherPlace`, `weatherInterval`, `sysGpu`,
 `collapseDelay`, `clockFormat`,
 `titleLength`, `locale`, `wallpaper`, `wallpaperOverride`, `maxVolume` und die
@@ -748,6 +748,31 @@ der Helligkeit.
 
 Einstellbar: `osd` (an/aus) und `osdTimeout` in Millisekunden. Zum Ausprobieren
 `nbshell osd test`.
+
+### In der Pille
+
+In der Pille gibt es kein zweites Fenster: **die Leiste wird selbst zur
+Einblendung**. Sie schrumpft auf Kuerzel, Balken und Wert zusammen und geht
+danach zurueck — statt dass am gegenueberliegenden Rand etwas aufblinkt.
+
+Das kostet fast nichts, weil die Pille schon alles dafuer hat: zwei Reihen, die
+einander ueberblenden, und einen Rahmen, dessen Breite mitlaeuft. Es kommt eine
+dritte Reihe dazu, dieselben drei Teile wie im eigenen Fenster.
+
+Nur in der Pille. Die Insel ist meistens zugeklappt — sie muesste erst
+aufgehen —, und der Balken ist bildschirmbreit, da waere die Verwandlung keine.
+In beiden erscheint weiterhin das eigene Fenster. `osdInPill: false` schaltet
+es auch in der Pille zurueck.
+
+Die Idee stammt aus [ChillPill-Shell](https://github.com/LUCKYS1NGHH/ChillPill-Shell),
+deren ganze Oberflaeche so funktioniert: eine Pille, die zu allem wird, was sie
+gerade zeigt — Control Center, Starter, Zwischenablage. **Nachgebaut, nicht
+uebernommen**: ChillPill steht unter GPL-3.0, nbshell unter MIT.
+
+Nicht uebernommen habe ich den Rest davon. Alle Popouts in die Leiste zu
+verlegen wuerde zwar viel wegraeumen (`popoutCount`, `popoutHover`, den
+Tastaturfokus-Tanz mit der Layer-Flaeche), aber die Popouts verloeren ihren
+Anker an der Zelle — der Kalender klappt unter der Uhr auf, nicht in der Mitte.
 
 Die ersten anderthalb Sekunden nach dem Start bleibt sie stumm — dort setzen
 sich die Werte erst, und ohne die Sperre blitzte sie bei jedem Neustart auf.

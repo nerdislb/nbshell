@@ -72,6 +72,15 @@ Singleton {
     // Aussengruppen. Aus heisst: gleich grosse Luecken, die Uhr wandert.
     readonly property bool islandCenter: value("islandCenter", true)
 
+    // Die Einblendung erscheint IN der Pille statt in einem eigenen Fenster:
+    // sie wird fuer den Moment selbst zur Anzeige und geht danach zurueck.
+    //
+    // Nur in der Pille. Die Insel ist meistens zugeklappt -- sie muesste dafuer
+    // erst aufgehen --, und der Balken ist bildschirmbreit, da waere die
+    // Verwandlung keine. (Die Idee stammt aus ChillPill-Shell, nachgebaut,
+    // nicht uebernommen: die steht unter GPL, nbshell unter MIT.)
+    readonly property bool osdInPill: value("osdInPill", true)
+
     // Aus, solange DMS daneben laeuft: beide malen sonst auf dieselbe Ebene.
     readonly property bool wallpaperEnabled: value("wallpaper", false)
 

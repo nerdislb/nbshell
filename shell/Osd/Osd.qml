@@ -19,8 +19,13 @@ Variants {
 
         required property var modelData
 
+        // In der Pille zeigt die Leiste die Einblendung selbst -- dann waere
+        // dieses Fenster die zweite Anzeige desselben Werts, gleichzeitig, an
+        // zwei Bildschirmraendern.
+        readonly property bool takenByPill: Config.osdInPill && Config.mode === "pill"
+
         screen: modelData
-        visible: Osd.showing
+        visible: Osd.showing && !takenByPill
         color: "transparent"
 
         WlrLayershell.namespace: "nbshell:osd"

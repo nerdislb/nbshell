@@ -67,6 +67,12 @@ PanelWindow {
             "values": [true, false]
         },
         {
+            "key": "osdInPill",
+            "def": true,
+            "label": "Einblendung in der Pille",
+            "values": [true, false]
+        },
+        {
             "key": "widgetGap",
             "def": 1,
             "label": "Abstand der Bausteine",

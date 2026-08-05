@@ -2,6 +2,8 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import qs.Common
+import qs.Services
+import qs.Widgets
 
 // Die Leiste -- je nach Betriebsart eine freistehende Insel oder ein
 // durchgehender Balken. Ein Fenster je Bildschirm.
@@ -42,6 +44,12 @@ Variants {
         readonly property bool atBottom: Config.edge === "bottom"
         readonly property bool expanded: barMode || pillMode || Runtime.islandOpen || hovering
         property bool hovering: false
+
+        // Die Pille wird beim Regeln fuer zwei Sekunden selbst zur Einblendung.
+        // Sie hat dafuer schon alles: zwei Reihen, die einander ueberblenden,
+        // und einen Rahmen, dessen Breite mitlaeuft -- es kommt nur eine dritte
+        // Reihe dazu. Solange sie steht, tritt der normale Inhalt zurueck.
+        readonly property bool osdInPill: pillMode && Config.osdInPill && Osd.showing
 
         screen: modelData
         color: "transparent"
@@ -115,7 +123,7 @@ Variants {
             width: {
                 if (win.barMode)
                     return win.width;
-                const inner = win.expanded ? content.implicitWidth : collapsed.implicitWidth;
+                const inner = win.osdInPill ? osdRow.implicitWidth : (win.expanded ? content.implicitWidth : collapsed.implicitWidth);
                 return Math.min(win.width, inner + Theme.padX * 2);
             }
 
@@ -155,8 +163,8 @@ Variants {
 
                 anchors.centerIn: parent
                 spacing: Theme.gap
-                opacity: win.expanded ? 0 : 1
-                enabled: !win.expanded
+                opacity: win.expanded || win.osdInPill ? 0 : 1
+                enabled: !win.expanded && !win.osdInPill
 
                 Behavior on opacity {
                     NumberAnimation {
@@ -181,8 +189,8 @@ Variants {
                 anchors.verticalCenter: parent.verticalCenter
                 x: win.barMode ? Theme.padX : (parent.width - width) / 2
                 spacing: 0
-                opacity: win.expanded ? 1 : 0
-                enabled: win.expanded
+                opacity: win.expanded && !win.osdInPill ? 1 : 0
+                enabled: win.expanded && !win.osdInPill
 
                 Behavior on opacity {
                     NumberAnimation {
@@ -264,6 +272,56 @@ Variants {
                             screenName: win.modelData?.name ?? ""
                         }
                     }
+                }
+            }
+
+            // Die Einblendung, wenn sie in der Pille steht -- dieselben drei
+            // Teile wie im eigenen Fenster (Osd/Osd.qml), damit beide Wege
+            // gleich aussehen.
+            //
+            // Sie wird nie abgeschaltet, nur ausgeblendet: der Rahmen oben
+            // fragt ihre `implicitWidth` ab, und ein unsichtbarer Positionierer
+            // meldet keine brauchbare mehr. Aus demselben Grund gibt es die
+            // zugeklappte Reihe zweimal statt einmal geschaltet.
+            Row {
+                id: osdRow
+
+                anchors.centerIn: parent
+                spacing: Theme.cellW * 2
+                opacity: win.osdInPill ? 1 : 0
+                // Nur Anzeige: der Regler steht im Audiofenster, hier waere er
+                // ein Klickziel, das nach zwei Sekunden verschwindet.
+                enabled: false
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: 120
+                    }
+                }
+
+                Text {
+                    text: Osd.label
+                    color: Theme.fgDim
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSize
+                    renderType: Text.NativeRendering
+                }
+
+                LevelBar {
+                    cells: 24
+                    value: Osd.value
+                    interactive: false
+                    fillColor: Osd.muted ? Theme.muted : Osd.tint
+                }
+
+                Text {
+                    // Feste Breite in Zeichen, damit die Pille beim Regeln
+                    // nicht atmet.
+                    text: (Osd.muted ? "stumm" : (Osd.value + "%")).padStart(6, " ")
+                    color: Osd.muted ? Theme.red : Theme.fg
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSize
+                    renderType: Text.NativeRendering
                 }
             }
         }
