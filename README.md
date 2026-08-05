@@ -13,14 +13,67 @@ Stand: **1.10.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es 
 Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Prozessliste, Aufnahme, Terminalfarben, KI-Verbrauch, Optionsmenue, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku, Kalender. Alles Weitere steht unter „Was noch fehlt".
 
-## Installieren
+## Auf einem neuen Rechner
+
+Der ganze Weg, in sechs Schritten. Wer es eilig hat: Schritt 2 und 4 genuegen.
+
+**1. Voraussetzungen.** Arch (oder ein Derivat mit `pacman`) und **niri** als
+Kompositor. Ein anderer Wayland-Kompositor geht nicht: die Arbeitsflaechen, der
+Fenstertitel und die Screenshots reden ueber `niri msg` mit ihm. Das Repo ist
+privat, der Zugang laeuft also ueber SSH:
+
+```bash
+ssh -T git@github.com     # muss deinen Namen nennen, nicht nach Passwort fragen
+```
+
+**2. Holen und einrichten.** Ein Befehl -- Pakete, Dateien, Dienste:
 
 ```bash
 git clone git@github.com:nerdislb/nbshell.git ~/projects/nbshell
 cd ~/projects/nbshell && ./setup.sh
-nbshell start -d          # zum Ausprobieren
-nbshell switch on         # dauerhaft: Autostart, Binds, Benachrichtigungen
 ```
+
+Es fragt an drei Stellen nach (Pakete installieren, Dienste einschalten,
+AUR-Helfer bauen) und macht am Ende die Gegenprobe. Steht `~/.local/bin` nicht
+im `PATH`, sagt es das -- dann findet die Shell den Befehl `nbshell` nicht.
+
+**3. Ausprobieren.**
+
+```bash
+nbshell start -d
+```
+
+Die Leiste sollte oben stehen. Tut sie es nicht, `nbshell start` ohne `-d`
+starten: dann stehen die Meldungen im Terminal.
+
+**4. Dauerhaft einrichten.**
+
+```bash
+nbshell switch on
+```
+
+Das bindet die Tastenkuerzel in die niri-Config ein, schaltet den
+Benachrichtigungsserver und das Hintergrundbild an, faerbt ghostty mit und legt
+den Autostart an. Laeuft DankMaterialShell auf dem Rechner, weicht sie dabei
+zur Seite (`nbshell switch off` holt sie zurueck); ohne DMS sind diese Schritte
+einfach wirkungslos. `nbshell switch status` zeigt, was gerade gilt.
+
+**5. Die eigene Einstellung mitnehmen.** Sie liegt nicht hier, sondern im
+Dotfiles-Repo -- `~/dotfiles/bin/restore.sh` spielt `config.json` zurueck. Ohne
+das startet nbshell mit den Vorgaben, was auch in Ordnung ist.
+
+**6. Was kein Skript mitbringen kann.** Drei Dinge musst du von Hand nachholen,
+und zwar aus gutem Grund:
+
+| | |
+|---|---|
+| **selbst installierte Themes** | Im Repo liegen 21 Stueck. Alles, was du dir mit `nbshell theme install` dazugeholt hast, fehlt drueben -- die `config.json` zeigt dann auf ein Theme, das es nicht gibt, und nbshell faellt auf seine Vorgabefarben zurueck. `nbshell theme list` zeigt hier, welche „selbst installiert" sind. |
+| **Kalenderkonten** | Die iCal-Adressen in `~/.config/vdirsyncer/config` sind so gut wie Passwoerter und liegen deshalb in **keinem** Repo. Im Dotfiles-Repo steht nur `config.template` mit Platzhaltern -- die Adressen traegst du selbst ein. |
+| **der Ort fuers Wetter** | `nbshell set weatherPlace Graz` |
+
+Danach ist der zweite Rechner derselbe wie dieser.
+
+## Installieren
 
 Es gibt **zwei** Skripte, und der Unterschied ist genau einer: wer die Pakete
 holt.
