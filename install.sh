@@ -34,14 +34,15 @@ fi
 fc-list 2>/dev/null | grep -ci "Inconsolata.*Nerd Font" >/dev/null || \
     warn "Hinweis: 'Inconsolata Nerd Font Mono' nicht gefunden — Vorgabeschrift der Config. Paket: ttf-inconsolata-nerd"
 
-# Optionales: fehlt eines davon, bleibt genau EIN Baustein still. Besser hier
-# einmal sagen, als sich spaeter zu wundern, warum ein Knopf nichts tut.
+# Was ohne ein Programm still bleibt. Dieses Skript installiert bewusst nichts
+# -- Pakete gehoeren in die Hand des Benutzers. Wer sie in einem Rutsch will,
+# nimmt setup.sh; das holt alles und ruft danach dieses hier auf.
 optional_check() {
     command -v "$1" >/dev/null 2>&1 || printf '  %-16s %s (%s)\n' "$1" "$2" "$3"
 }
 
 echo
-echo "Optional — was ohne diese Programme still bleibt:"
+echo "Was ohne diese Programme still bleibt (setup.sh holt sie alle):"
 missing_optional="$(
     optional_check wl-paste      "Zwischenablage"            "wl-clipboard"
     optional_check hyprlock      "Sperren"                   "hyprlock"
@@ -57,6 +58,9 @@ missing_optional="$(
     optional_check slurp         "Bereich waehlen"           "slurp"
     optional_check satty         "Screenshot bearbeiten"     "satty"
     optional_check tesseract     "Texterkennung"             "tesseract tesseract-data-deu"
+    optional_check swappy        "Screenshot bearbeiten"     "swappy"
+    optional_check checkupdates  "Updater, schneller Weg"    "pacman-contrib"
+    optional_check jq            "Skripte"                   "jq"
 )"
 if [ -n "$missing_optional" ]; then
     printf '%s\n' "$missing_optional"
@@ -175,6 +179,12 @@ if [ $unit_active -eq 1 ]; then
 elif [ "$was_running" = "1" ]; then
     "$BIN_DIR/nbshell" start -d >/dev/null 2>&1 &
     green "Shell wieder gestartet."
+fi
+
+# Ruft setup.sh dieses Skript auf, folgt sein eigener Abspann gleich danach --
+# zweimal dasselbe untereinander liest sich wie ein Fehler.
+if [ -n "${NBSHELL_FROM_SETUP:-}" ]; then
+    exit 0
 fi
 
 cat <<'EOF'

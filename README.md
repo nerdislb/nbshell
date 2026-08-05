@@ -17,13 +17,48 @@ Akku, Kalender. Alles Weitere steht unter „Was noch fehlt".
 
 ```bash
 git clone git@github.com:nerdislb/nbshell.git ~/projects/nbshell
-cd ~/projects/nbshell && ./install.sh
+cd ~/projects/nbshell && ./setup.sh
 nbshell start -d          # zum Ausprobieren
 nbshell switch on         # dauerhaft: Autostart, Binds, Benachrichtigungen
 ```
 
-`install.sh` sagt beim Laufen, was fehlt -- installiert aber **nichts** nach.
-Pakete gehoeren in die Hand des Benutzers.
+Es gibt **zwei** Skripte, und der Unterschied ist genau einer: wer die Pakete
+holt.
+
+| | |
+|---|---|
+| `setup.sh` | Pakete, Dateien, Dienste -- der ganze Weg, nichts bleibt optional |
+| `install.sh` | nur die Dateien; sagt, was fehlt, holt aber **nichts** |
+
+`install.sh` ist der richtige Weg, wenn man nicht weiss, wem der Rechner
+gehoert -- Pakete sind eine Entscheidung. `setup.sh` ist der andere Fall: es
+holt alles, damit hinterher kein Baustein still bleibt und kein Knopf ins Leere
+greift. Es ruft `install.sh` am Ende selbst auf.
+
+```bash
+./setup.sh --no-packages   # nur die Dateien (dasselbe wie install.sh)
+./setup.sh --no-aur        # den AUR-Helfer nicht bauen
+./setup.sh --yes           # nichts fragen
+```
+
+**Alles ausser dem AUR-Helfer liegt in den offiziellen Repos** -- auch
+`quickshell`. Es ist also ein `pacman -S --needed` und sonst nichts.
+
+Drei Dinge macht `setup.sh` bewusst **nicht** von allein:
+
+- **Dienste einschalten.** Es fragt. Wer sein Netz mit systemd-networkd oder
+  iwd verwaltet, staende nach einem beherzten `enable NetworkManager` ohne
+  Verbindung da -- ein teurer Preis fuer eine Zahl in der Leiste. Bei
+  NetworkManager ist die Vorgabe deshalb „nein".
+- **Den AUR-Helfer bauen.** Das ist der einzige Schritt, der Code von
+  ausserhalb der Repos uebersetzt und ausfuehrt. Danach wird immer gefragt,
+  auch mit `--yes`.
+- **Als root laufen.** Es weist das ab: die Dateien gehoeren in `$HOME`, ein
+  `sudo ./setup.sh` legte sie in `/root` ab. Fuer pacman ruft es sudo selbst
+  auf, an einer einzigen Stelle.
+
+Zum Schluss macht es die Gegenprobe: nicht ob die Pakete installiert sind,
+sondern ob die Befehle wirklich im PATH stehen. Das ist nicht dasselbe.
 
 | gebraucht | wofuer |
 |---|---|
@@ -32,16 +67,23 @@ Pakete gehoeren in die Hand des Benutzers.
 
 | optional | was sonst still bleibt |
 |---|---|
+| `networkmanager`, `bluez`, `bluez-utils` | Netz und Bluetooth im Control Center |
+| `pipewire`, `wireplumber`, `libpulse` | Lautstaerke; `pactl` fuer den Ton der Aufnahme |
+| `upower` | Akku |
 | `wl-clipboard` | Zwischenablage |
 | `hyprlock` | Sperren (`lockCommand`) |
-| `fakeroot` | Updatepruefung |
+| `pacman-contrib` | `checkupdates` -- der schnelle Weg des Updaters |
+| `fakeroot` | sein Rueckweg, wenn `checkupdates` fehlt |
 | `paru` oder `yay` | AUR-Updates und das Aktualisieren selbst |
 | `tuned` | Energieprofile im Akku-Popout |
 | `libnotify` | Meldungen der Skripte (Screenshot, OCR) |
+| `xdg-utils` | `xdg-open` nach einer Aufnahme |
+| `jq` | die Skripte |
 | `git` | Themes nachinstallieren |
 | `khal`, `vdirsyncer` | Kalender hinter der Uhr |
+| `curl` | Wetter-Plugin |
 | `wf-recorder`, `slurp` | Bildschirmaufnahme, Bereichswahl |
-| `satty` | Screenshots nachbearbeiten |
+| `satty`, `swappy` | Screenshots nachbearbeiten |
 | `tesseract` + Sprachdaten | Texterkennung |
 
 **Zwei Dinge kommen NICHT mit** und bleiben auf einem frischen Rechner leer:
@@ -226,7 +268,9 @@ Einstellbar in `config.json`: `theme`, `font`, `fontSize`,
 `mode` (`island` | `pill` | `bar`), `edge`,
 `gap`, `lines`, `padX`, `padY`, `radius`, `borderWidth`, `opacity`,
 `widgetStyle` (`box` | `bracket` | `plain`), `widgetColor` (`text` | `accent`),
-`widgetIcons`, `quietWidgets`, `widgetGap`, `islandCenter`, `osdInPill`, `barBorder`, `calendar`, `calendarInterval`,
+`widgetIcons`, `quietWidgets`, `widgetGap`, `islandCenter`, `osdInPill`,
+`workspaceStyle` (`numbers` | `dots` | `pacman` | `invader`), `workspaceClassic`,
+`barBorder`, `calendar`, `calendarInterval`,
 `weatherPlace`, `weatherInterval`, `sysGpu`,
 `collapseDelay`, `clockFormat`,
 `titleLength`, `locale`, `wallpaper`, `wallpaperOverride`, `maxVolume` und die
@@ -957,6 +1001,35 @@ Vier Listen sagen, was wo steht:
 
 `collapsedWidgets` ist die zugeklappte Insel. Die anderen drei sind der
 Balken — und die aufgeklappte Insel zeigt sie hintereinander.
+
+### Arbeitsflaechen
+
+Vier Stile, `workspaceStyle` in der Config oder **Rechtsklick** auf den
+Baustein -- der geht reihum durch:
+
+| | |
+|---|---|
+| `numbers` | die Nummern, unterstrichen ist die aktive (Vorgabe) |
+| `dots` | dicker Punkt aktiv, kleine Punkte fuer die uebrigen |
+| `pacman` | dieselben Punkte, auf der aktiven sitzt Pac-Man und kaut |
+| `invader` | dieselben Punkte, auf der aktiven ein Space Invader |
+
+Die beiden Figuren arbeiten gleich: eine Reihe Punkte, der aktive ist verdeckt
+-- da steht die Figur. Unterschiedlich ist nur die Zeichnung. Pac-Man dreht
+sich in die Laufrichtung (dafuer muss der vorige Index gemerkt werden, aus dem
+aktuellen Zustand allein ist sie nicht ablesbar), der Invader bleibt aufrecht
+und wechselt zwischen seinen zwei Bildern -- so lief es im Original auch.
+
+Pac-Man ist gelb und der Invader gruen, sonst sind es keine.
+`workspaceClassic: false` holt beide stattdessen aus der Palette des Themes.
+
+Die Punkte sitzen auf dem Zeichenraster (`cellW`, `cellH`), nicht auf festen
+Pixeln: wer die Schriftgroesse aendert, aendert sie mit.
+
+Uebernommen vom Vorgaenger
+[workspace-pills](https://github.com/nerdislb/workspace-pills), der dasselbe
+als DMS-Plugin machte.
+
 
 ### Symbole
 

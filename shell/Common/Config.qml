@@ -72,6 +72,16 @@ Singleton {
     // Aussengruppen. Aus heisst: gleich grosse Luecken, die Uhr wandert.
     readonly property bool islandCenter: value("islandCenter", true)
 
+    // Wie die Arbeitsflaechen aussehen: `numbers` die Nummern, `dots` ein
+    // dicker Punkt fuer die aktive und kleine fuer die uebrigen, `pacman` und
+    // `invader` dieselben Punkte mit einer Figur auf der aktiven. Rechtsklick
+    // auf den Baustein geht reihum durch.
+    readonly property string workspaceStyle: value("workspaceStyle", "numbers")
+
+    // Pac-Man gelb, der Invader gruen -- sonst sind es keine. Aus heisst:
+    // beide kommen aus der Palette des Themes.
+    readonly property bool workspaceClassic: value("workspaceClassic", true)
+
     // Die Einblendung erscheint IN der Pille statt in einem eigenen Fenster:
     // sie wird fuer den Moment selbst zur Anzeige und geht danach zurueck.
     //

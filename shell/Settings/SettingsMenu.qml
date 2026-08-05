@@ -73,6 +73,18 @@ PanelWindow {
             "values": [true, false]
         },
         {
+            "key": "workspaceStyle",
+            "def": "numbers",
+            "label": "Arbeitsflaechen",
+            "values": ["numbers", "dots", "pacman", "invader"]
+        },
+        {
+            "key": "workspaceClassic",
+            "def": true,
+            "label": "Figur klassisch gefaerbt",
+            "values": [true, false]
+        },
+        {
             "key": "widgetGap",
             "def": 1,
             "label": "Abstand der Bausteine",
