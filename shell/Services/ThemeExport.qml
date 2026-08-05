@@ -69,6 +69,35 @@ Singleton {
         // colors.toml nachsehen muss.
         hook.command = ["sh", "-c", "[ -x " + root.hookPath + " ] && exec " + root.hookPath + " " + Config.theme + " " + (Theme.isLight ? "light" : "dark") + " || true"];
         hook.running = true;
+        reloadTimer.restart();
+    }
+
+    // Ghostty liest seine Konfiguration nicht von selbst neu -- die frisch
+    // geschriebene Themedatei saehe man erst im naechsten Fenster. Es hoert
+    // aber auf SIGUSR2; das ist der vorgesehene Weg und im Programm auch so
+    // protokolliert ("received SIGUSR2, reloading configuration").
+    //
+    // Ohne diesen Schritt schreibt die Shell eine Datei, die niemand liest --
+    // und der Themewechsel hoert an der Fensterkante auf.
+    //
+    // Andere Terminals bringen ihr eigenes Nachladen mit (alacritty etwa
+    // beobachtet seine Datei); alles Weitere gehoert in `theme-hook.sh`.
+    Timer {
+        id: reloadTimer
+
+        // Kurz warten: die Themedatei wird atomar geschrieben (schreiben,
+        // umbenennen). Kommt das Signal davor an, liest Ghostty die alte
+        // Fassung und man sieht den Wechsel erst beim naechsten.
+        interval: 200
+        onTriggered: reload.running = true
+    }
+
+    Process {
+        id: reload
+
+        // `-x`: nur der Prozess, der genau so heisst. Ohne das traefe es auch
+        // jede Shell, in deren Befehlszeile "ghostty" vorkommt.
+        command: ["sh", "-c", "pkill -USR2 -x ghostty || true"]
     }
 
     // Nach jedem Themewechsel -- Theme.c wechselt, sobald die neue colors.toml

@@ -698,6 +698,23 @@ dorthin und nicht in die Shell.
 In ghostty muss `theme = nbcolors` stehen; `nbshell switch on` biegt die Zeile
 um (und `switch off` zurueck auf `dankcolors`, das matugen fuer DMS schreibt).
 
+**Eine geschriebene Datei ist noch keine Farbe.** Die beiden Empfaenger
+verhalten sich naemlich verschieden:
+
+| | |
+|---|---|
+| niri | liest den Include von selbst neu, sobald er sich aendert — nichts zu tun |
+| ghostty | liest seine Konfiguration **nicht** von selbst neu |
+
+Ghostty hoert dafuer auf `SIGUSR2` („received SIGUSR2, reloading
+configuration" steht so im Programm), und genau das schickt nbshell nach dem
+Schreiben — sonst saehe man das neue Theme erst im naechsten Fenster. Das
+Signal kommt **verzoegert**: die Datei wird atomar geschrieben (schreiben,
+umbenennen), und kaeme das Signal davor an, laese Ghostty die alte Fassung.
+
+Andere Terminals bringen ihr eigenes Nachladen mit — alacritty beobachtet
+seine Datei. Wer noch etwas anderes mitfaerben will, nimmt `theme-hook.sh`.
+
 ## Updates
 
 Der Baustein `updates` zeigt ein Symbol und die Zahl offener Systemupdates --
