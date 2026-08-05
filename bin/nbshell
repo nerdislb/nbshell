@@ -29,6 +29,7 @@ ipc() {
 NIRI_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/niri"
 UNIT_DROPIN="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/niri.service.d/nbshell.conf"
 GHOSTTY="${XDG_CONFIG_HOME:-$HOME/.config}/ghostty/config"
+ALACRITTY="${XDG_CONFIG_HOME:-$HOME/.config}/alacritty/alacritty.toml"
 TAKEOVER="nbshell-takeover.kdl"
 COLORS="nbshell-colors.kdl"
 INCLUDE_LINE="include \"$TAKEOVER\""
@@ -72,6 +73,20 @@ ghostty_theme() {
     cp "$GHOSTTY" "$GHOSTTY.vor-nbshell"
     sed -i "s/^theme = .*/theme = $want/" "$GHOSTTY"
     echo "  ghostty: theme = $want (Sicherung: config.vor-nbshell)"
+}
+
+# Dasselbe fuer alacritty -- dort ist es kein `theme =`, sondern eine
+# Importzeile. Geschrieben wird die Datei nicht von der Shell, sondern von
+# theme-hook.sh; ohne den bleibt hier nichts zu tun, deshalb die Pruefung auf
+# die Datei statt auf das Programm.
+alacritty_theme() {
+    local want="$1"
+    [ -f "$ALACRITTY" ] || return 0
+    grep -q "$want" "$ALACRITTY" && return 0
+    grep -q "alacritty/\(nb\|dank\)-theme.toml" "$ALACRITTY" || return 0
+    cp "$ALACRITTY" "$ALACRITTY.vor-nbshell"
+    sed -i "s#alacritty/\(nb\|dank\)-theme.toml#alacritty/$want#" "$ALACRITTY"
+    echo "  alacritty: import = $want (Sicherung: alacritty.toml.vor-nbshell)"
 }
 
 # Damit nbshell nach dem Anmelden von selbst da ist. Dasselbe Muster, das DMS
@@ -123,6 +138,7 @@ switch_on() {
     # schwarzen Flaeche und sucht den Fehler bei sich.
     ipc wallpaper on >/dev/null && echo "  nbshell: Hintergrundbild an"
     ghostty_theme nbcolors
+    alacritty_theme nb-theme.toml
     autostart_on
     echo
     echo "Mit DMS gehen auch dessen Plugins -- nbshell hat fuer jedes einen"
@@ -135,6 +151,7 @@ switch_off() {
     ipc notify server off >/dev/null && echo "  nbshell: Benachrichtigungsserver aus"
     ipc wallpaper off >/dev/null && echo "  nbshell: Hintergrundbild aus (DMS malt wieder)"
     ghostty_theme dankcolors
+    alacritty_theme dank-theme.toml
     autostart_off
     niri_exclude || true
     systemctl --user unmask dms.service >/dev/null 2>&1

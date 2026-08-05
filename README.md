@@ -713,7 +713,64 @@ Signal kommt **verzoegert**: die Datei wird atomar geschrieben (schreiben,
 umbenennen), und kaeme das Signal davor an, laese Ghostty die alte Fassung.
 
 Andere Terminals bringen ihr eigenes Nachladen mit — alacritty beobachtet
-seine Datei. Wer noch etwas anderes mitfaerben will, nimmt `theme-hook.sh`.
+seine Datei.
+
+### Der Rest des Systems: `theme-hook.sh`
+
+Alles, was nicht ghostty oder niri ist, laeuft ueber ein eigenes Skript:
+`~/.config/nbshell/theme-hook.sh`, aufgerufen mit Themename und Modus. Gibt es
+die Datei nicht, passiert nichts.
+
+**Die Farben muss es sich nicht zusammensuchen.** nbshell schreibt sie vorher
+nach `~/.config/nbshell/palette.sh`, in einer Form, die eine Shell direkt
+einliest:
+
+```sh
+. ~/.config/nbshell/palette.sh
+echo "$NB_BG $NB_FG $NB_ACCENT $NB_MODE"
+```
+
+Darin sind **beide Dialekte** von Omarchys `colors.toml` schon aufgeloest
+(benannte Schluessel und `color0`…`color15`) und alles Fehlende gemischt. Ein
+Hook, der die `colors.toml` selbst liest, muesste das jedes Mal nachbauen —
+und genau daran ist die Themevorschau schon einmal gescheitert.
+
+Es gibt `NB_BG`, `NB_BG_DARK`, `NB_BG_LIGHT`, `NB_FG`, `NB_FG_DIM`,
+`NB_FG_BRIGHT`, `NB_ACCENT`, `NB_MUTED`, `NB_SELECTION`, die 16 ANSI-Farben als
+`NB_RED` … `NB_BRIGHT_WHITE`, dieselben als Liste in `NB_ANSI`, dazu
+`NB_THEME` und `NB_MODE`.
+
+**Ein fertiges Beispiel liegt in `examples/theme-hook.sh`:**
+
+```bash
+install -m 755 examples/theme-hook.sh ~/.config/nbshell/theme-hook.sh
+```
+
+Es deckt ab, was sich aus einer Palette wirklich erzeugen laesst:
+
+| | |
+|---|---|
+| alacritty | volle Palette nach `nb-theme.toml`; alacritty beobachtet seine Dateien selbst |
+| cava | `[color]` mit Farbverlauf von gedaempft zum Akzent, danach `SIGUSR1` |
+| GTK | hell/dunkel ueber `gsettings … color-scheme` — daran haengen GTK4-Programme, die Portale und damit die Dateiauswahl in Browsern |
+| bat | einmalig `--theme=ansi`: dann nimmt bat die Terminalfarben, und die faerbt nbshell ohnehin mit |
+
+Fuer alacritty muss einmal die Importzeile stimmen — `nbshell switch on` biegt
+sie um, so wie bei ghostty:
+
+```toml
+[general]
+import = ["~/.config/alacritty/nb-theme.toml"]
+```
+
+**Was sich nicht mitfaerben laesst:** ein nvim-Colorscheme ist ein Plugin, keine
+Palette. Die Widgetfarben eines GTK-Themes aus 16 Farben zu erzeugen ist ein
+eigenes Projekt — deshalb nur hell/dunkel. Browser folgen derselben Vorliebe,
+weiter kommt man ohne Erweiterung nicht.
+
+Der Hook laeuft **verzoegert**, aus demselben Grund wie das Signal an ghostty:
+`palette.sh` wird atomar geschrieben, und ein Hook, der zu frueh liest, faerbt
+das halbe System auf das vorige Theme.
 
 ## Updates
 

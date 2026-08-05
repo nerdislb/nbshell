@@ -19,14 +19,49 @@ Singleton {
 
     readonly property string ghosttyPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ghostty/themes/nbcolors"
     readonly property string niriPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/niri/nbshell-colors.kdl"
+    readonly property string palettePath: Config.configDir + "/palette.sh"
     readonly property string hookPath: Config.configDir + "/theme-hook.sh"
 
-    // ghostty will die 16 ANSI-Farben plus Hinter- und Vordergrund. Omarchys
-    // colors.toml hat genau diese Vorstellung von Farbe -- deshalb ist das
-    // hier eine Zuordnung und keine Umrechnung.
+    // Die 16 ANSI-Farben. Omarchys colors.toml hat genau diese Vorstellung von
+    // Farbe -- deshalb ist das hier eine Zuordnung und keine Umrechnung.
+    function palette16() {
+        const c = Theme.c;
+        return [c.background ?? "#000000", c.red ?? "#ff0000", c.green ?? "#00ff00", c.yellow ?? "#ffff00", c.blue ?? "#0000ff", c.magenta ?? "#ff00ff", c.cyan ?? "#00ffff", c.foreground ?? "#ffffff", c.dark_foreground ?? c.muted ?? "#808080", c.bright_red ?? c.red ?? "#ff0000", c.bright_green ?? c.green ?? "#00ff00", c.bright_yellow ?? c.yellow ?? "#ffff00", c.bright_blue ?? c.blue ?? "#0000ff", c.bright_magenta ?? c.magenta ?? "#ff00ff", c.bright_cyan ?? c.cyan ?? "#00ffff", c.bright_foreground ?? c.foreground ?? "#ffffff"];
+    }
+
+    // Dieselbe Palette als Datei, die eine Shell einlesen kann. Sie ist das
+    // Angebot an `theme-hook.sh`: ohne sie muesste jeder Hook die colors.toml
+    // selbst lesen -- und dabei BEIDE Dialekte beherrschen (benannte
+    // Schluessel und color0…color15). Das ist hier schon passiert.
+    function paletteShell() {
+        const c = Theme.c;
+        const p = palette16();
+        const names = ["BLACK", "RED", "GREEN", "YELLOW", "BLUE", "MAGENTA", "CYAN", "WHITE", "BRIGHT_BLACK", "BRIGHT_RED", "BRIGHT_GREEN", "BRIGHT_YELLOW", "BRIGHT_BLUE", "BRIGHT_MAGENTA", "BRIGHT_CYAN", "BRIGHT_WHITE"];
+
+        var out = "# Von nbshell geschrieben -- Theme: " + Config.theme + "\n";
+        out += "# Nicht von Hand aendern, jeder Themewechsel ueberschreibt die Datei.\n";
+        out += "# Gedacht zum Einlesen: . ~/.config/nbshell/palette.sh\n\n";
+        out += "NB_THEME='" + Config.theme + "'\n";
+        out += "NB_MODE='" + (Theme.isLight ? "light" : "dark") + "'\n\n";
+        out += "NB_BG='" + (c.background ?? "#000000") + "'\n";
+        out += "NB_BG_DARK='" + (c.dark_background ?? c.background ?? "#000000") + "'\n";
+        out += "NB_BG_LIGHT='" + (c.lighter_background ?? c.background ?? "#000000") + "'\n";
+        out += "NB_FG='" + (c.foreground ?? "#ffffff") + "'\n";
+        out += "NB_FG_DIM='" + (c.dark_foreground ?? c.muted ?? "#808080") + "'\n";
+        out += "NB_FG_BRIGHT='" + (c.bright_foreground ?? c.foreground ?? "#ffffff") + "'\n";
+        out += "NB_ACCENT='" + (c.accent ?? c.foreground ?? "#ffffff") + "'\n";
+        out += "NB_MUTED='" + (c.muted ?? "#808080") + "'\n";
+        out += "NB_SELECTION='" + (c.selection ?? c.lighter_background ?? "#333333") + "'\n\n";
+        for (var i = 0; i < p.length; i++)
+            out += "NB_" + names[i] + "='" + p[i] + "'\n";
+        out += "\n# Dieselben 16 in ANSI-Reihenfolge, fuer Schleifen.\n";
+        out += "NB_ANSI=\"" + p.join(" ") + "\"\n";
+        return out;
+    }
+
     function ghosttyTheme() {
         const c = Theme.c;
-        const p = [c.background ?? "#000000", c.red ?? "#ff0000", c.green ?? "#00ff00", c.yellow ?? "#ffff00", c.blue ?? "#0000ff", c.magenta ?? "#ff00ff", c.cyan ?? "#00ffff", c.foreground ?? "#ffffff", c.dark_foreground ?? c.muted ?? "#808080", c.bright_red ?? c.red ?? "#ff0000", c.bright_green ?? c.green ?? "#00ff00", c.bright_yellow ?? c.yellow ?? "#ffff00", c.bright_blue ?? c.blue ?? "#0000ff", c.bright_magenta ?? c.magenta ?? "#ff00ff", c.bright_cyan ?? c.cyan ?? "#00ffff", c.bright_foreground ?? c.foreground ?? "#ffffff"];
+        const p = palette16();
 
         var out = "# Von nbshell geschrieben -- Theme: " + Config.theme + "\n";
         out += "# Nicht von Hand aendern, jeder Themewechsel ueberschreibt die Datei.\n";
@@ -65,10 +100,10 @@ Singleton {
             return;
         ghostty.setText(ghosttyTheme());
         niri.setText(niriColors());
+        palette.setText(paletteShell());
         // Das Skript bekommt Name und Modus mit, damit es nicht selbst in der
         // colors.toml nachsehen muss.
         hook.command = ["sh", "-c", "[ -x " + root.hookPath + " ] && exec " + root.hookPath + " " + Config.theme + " " + (Theme.isLight ? "light" : "dark") + " || true"];
-        hook.running = true;
         reloadTimer.restart();
     }
 
@@ -85,11 +120,15 @@ Singleton {
     Timer {
         id: reloadTimer
 
-        // Kurz warten: die Themedatei wird atomar geschrieben (schreiben,
+        // Kurz warten: die Dateien werden atomar geschrieben (schreiben,
         // umbenennen). Kommt das Signal davor an, liest Ghostty die alte
-        // Fassung und man sieht den Wechsel erst beim naechsten.
+        // Fassung -- und der Hook laese eine palette.sh, die noch die vorige
+        // Palette enthaelt. Beides haengt deshalb hier.
         interval: 200
-        onTriggered: reload.running = true
+        onTriggered: {
+            reload.running = true;
+            hook.running = true;
+        }
     }
 
     Process {
@@ -120,6 +159,13 @@ Singleton {
     FileView {
         id: niri
         path: root.niriPath
+        atomicWrites: true
+        printErrors: false
+    }
+
+    FileView {
+        id: palette
+        path: root.palettePath
         atomicWrites: true
         printErrors: false
     }
