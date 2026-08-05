@@ -37,7 +37,7 @@ PanelWindow {
             "key": "mode",
             "def": "island",
             "label": "Form",
-            "values": ["island", "bar"]
+            "values": ["island", "pill", "bar"]
         },
         {
             "head": "AUSSEHEN"

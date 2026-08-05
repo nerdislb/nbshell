@@ -86,9 +86,13 @@ ShellRoot {
         target: "bar"
 
         function mode(value: string): string {
-            const next = value === "toggle" ? (Config.mode === "bar" ? "island" : "bar") : value;
-            if (next !== "island" && next !== "bar")
-                return "unbekannt: " + value + " (island|bar|toggle)";
+            // `toggle` geht seit der Pille im Kreis statt hin und her. Ein
+            // unbekannter Wert in der Config landet dabei auf "island" --
+            // indexOf gibt -1, und -1 + 1 ist die erste Form.
+            const order = ["island", "pill", "bar"];
+            const next = value === "toggle" ? order[(order.indexOf(Config.mode) + 1) % order.length] : value;
+            if (order.indexOf(next) < 0)
+                return "unbekannt: " + value + " (island|pill|bar|toggle)";
             Config.set("mode", next);
             return next;
         }

@@ -29,7 +29,14 @@ Singleton {
     readonly property string fontFamily: value("font", "Inconsolata Nerd Font Mono")
     readonly property int fontSize: value("fontSize", 13)
 
-    // "island" = freistehende Pille, "bar" = durchgehender Balken.
+    // Drei Formen, zwei Geometrien:
+    //
+    //   island  freistehende Pille, die zur Uhr zusammenschrumpft und erst
+    //           beim Ueberfahren alles zeigt.
+    //   pill    dieselbe Pille, die aber offen BLEIBT -- sie schwebt weiter
+    //           ueber den Fenstern, ist aber nie leer.
+    //   bar     durchgehender Balken ueber die volle Breite, der den Fenstern
+    //           ihren Platz wegnimmt.
     readonly property string mode: value("mode", "island")
     readonly property string edge: value("edge", "top")
     readonly property int gap: value("gap", 6)

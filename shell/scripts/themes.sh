@@ -30,17 +30,80 @@ first_wallpaper() {
     printf ''
 }
 
-# Einen Wert aus colors.toml holen. Anfuehrungszeichen weg, Kommentar weg.
-peek() {
-    awk -v key="$2" '
-        $0 ~ "^[[:space:]]*" key "[[:space:]]*=" {
-            sub(/^[^=]*=[[:space:]]*/, "")
-            sub(/[[:space:]]*#[^"]*$/, "")
-            gsub(/"/, "")
-            gsub(/[[:space:]]*$/, "")
-            print
-            exit
-        }' "$1"
+# Die Palette eines Themes -- in BEIDEN Dialekten.
+#
+# Omarchys colors.toml gibt es zweimal:
+#
+#   alt   benannte Schluessel -- red, green, yellow, blue, magenta, mode
+#   neu   ANSI-Nummern -- color0 … color15, ohne `mode`
+#
+# Die mitgelieferten Themes sind der alte Dialekt, frisch geholte fast immer
+# der neue. Wer hier nur den alten liest, bekommt bei einem neu installierten
+# Theme leere Farbkaestchen -- und das faellt kaum auf, weil Hintergrund und
+# Akzent in beiden Dialekten gleich heissen und die Vorschau deshalb nur
+# halb falsch aussieht. Die Shell selbst kennt beide seit jeher
+# (Common/Theme.qml, `normalize`); die Vorschau musste nachziehen.
+#
+# Ausgabe: eine Zeile, Felder durch Tabulator getrennt, in der Reihenfolge
+# mode bg fg accent red green yellow blue magenta.
+palette() {
+    awk '
+        # Relative Luminanz nach WCAG -- nur fuer hell/dunkel gebraucht.
+        function lum(h,   i, v, s) {
+            sub(/^#/, "", h)
+            if (length(h) != 6)
+                return -1
+            s = 0
+            for (i = 0; i < 3; i++) {
+                v = strtonum("0x" substr(h, 1 + i * 2, 2)) / 255
+                v = (v <= 0.03928) ? v / 12.92 : ((v + 0.055) / 1.055) ^ 2.4
+                s += v * (i == 0 ? 0.2126 : i == 1 ? 0.7152 : 0.0722)
+            }
+            return s
+        }
+        # Erster Schluessel, den es gibt -- benannt vor ANSI.
+        function pick(a, b, c) {
+            if (K[a] != "") return K[a]
+            if (b != "" && K[b] != "") return K[b]
+            if (c != "" && K[c] != "") return K[c]
+            return ""
+        }
+        {
+            line = $0
+            sub(/\r$/, "", line)
+            if (line !~ /^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*[[:space:]]*=/)
+                next
+            key = line
+            sub(/[[:space:]]*=.*$/, "", key)
+            gsub(/^[[:space:]]+/, "", key)
+            val = line
+            sub(/^[^=]*=[[:space:]]*/, "", val)
+            # In Anfuehrungszeichen gilt alles darin, sonst blank bis zum
+            # Kommentar. Die Raute leitet NUR den Kommentar ein -- jede Farbe
+            # faengt selbst mit einer an.
+            if (substr(val, 1, 1) == "\"") {
+                sub(/^"/, "", val)
+                sub(/".*$/, "", val)
+            } else {
+                sub(/[[:space:]]*#.*$/, "", val)
+                gsub(/[[:space:]]+$/, "", val)
+            }
+            if (!(key in K))
+                K[key] = val
+        }
+        END {
+            bg = pick("background")
+            mode = pick("mode")
+            # Der neue Dialekt schreibt keinen Modus mehr hin -- er steht im
+            # Hintergrund.
+            if (mode == "" && bg != "") {
+                l = lum(bg)
+                if (l >= 0)
+                    mode = (l > 0.5) ? "light" : "dark"
+            }
+            printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", mode, bg, pick("foreground"), pick("accent", "color4", "blue"), pick("red", "color1"), pick("green", "color2"), pick("yellow", "color3"), pick("blue", "color4"), pick("magenta", "color5")
+        }
+    ' "$1"
 }
 
 printf '['
@@ -48,20 +111,11 @@ first=1
 for dir in "$THEME_DIR"/*/; do
     [ -f "$dir/colors.toml" ] || continue
     name="$(basename "$dir")"
-    toml="$dir/colors.toml"
+    IFS=$'\t' read -r mode bg fg accent red green yellow blue magenta < <(palette "$dir/colors.toml")
     [ $first -eq 1 ] || printf ','
     first=0
     printf '{"name":"%s","mode":"%s","background":"%s","foreground":"%s","accent":"%s","red":"%s","green":"%s","yellow":"%s","blue":"%s","magenta":"%s","wallpaper":"%s"}' \
-        "$name" \
-        "$(peek "$toml" mode)" \
-        "$(peek "$toml" background)" \
-        "$(peek "$toml" foreground)" \
-        "$(peek "$toml" accent)" \
-        "$(peek "$toml" red)" \
-        "$(peek "$toml" green)" \
-        "$(peek "$toml" yellow)" \
-        "$(peek "$toml" blue)" \
-        "$(peek "$toml" magenta)" \
+        "$name" "$mode" "$bg" "$fg" "$accent" "$red" "$green" "$yellow" "$blue" "$magenta" \
         "$(first_wallpaper "${dir%/}" "$name")"
 done
 printf ']\n'

@@ -15,6 +15,9 @@ import qs.Common
 //
 //   Insel   Rahmen so breit wie sein Inhalt, schwebt (exclusiveZone -1),
 //           faehrt beim Ueberfahren auf und zeigt dann alle drei Gruppen.
+//   Pille   dieselbe Insel, die aber nie zuklappt -- sie schwebt weiter, ist
+//           aber immer vollstaendig. Geometrisch ist sie die aufgeklappte
+//           Insel, es faellt nur der zugeklappte Zustand weg.
 //   Balken  Rahmen ueber die volle Breite, schiebt die Fenster weg
 //           (exclusiveZone), Gruppen links/mitte/rechts.
 //
@@ -31,8 +34,13 @@ Variants {
         required property var modelData
 
         readonly property bool barMode: Config.mode === "bar"
+
+        // Die Pille ist die Insel, die nie zuklappt: gleiche Geometrie, gleicher
+        // Schwebezustand, nur ohne das Zusammenschrumpfen auf die Uhr.
+        readonly property bool pillMode: Config.mode === "pill"
+
         readonly property bool atBottom: Config.edge === "bottom"
-        readonly property bool expanded: barMode || Runtime.islandOpen || hovering
+        readonly property bool expanded: barMode || pillMode || Runtime.islandOpen || hovering
         property bool hovering: false
 
         screen: modelData
@@ -81,7 +89,7 @@ Variants {
             if (popoutBusy) {
                 collapseTimer.stop();
                 win.hovering = true;
-            } else if (!barMode) {
+            } else if (!barMode && !pillMode) {
                 // Zurueck ist der Weg durch die Leiste -- deshalb nicht sofort.
                 collapseTimer.restart();
             }

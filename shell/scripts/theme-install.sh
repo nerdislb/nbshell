@@ -7,7 +7,7 @@
 # aus der Zeit vor Omarchys Umstellung auf colors.toml, und das sind bis heute
 # die meisten im Umlauf.
 #
-#   theme-install.sh install <git-url|verzeichnis>
+#   theme-install.sh install [--force] <git-url|verzeichnis>
 #   theme-install.sh remove  <name>
 #   theme-install.sh update
 #   theme-install.sh list
@@ -110,9 +110,44 @@ colors_from_alacritty() {
 	return 0
 }
 
+# Ein Name ohne Trennzeichen und Grossschreibung. `lasthorizon` und
+# `last-horizon` sind dasselbe Theme -- das Repo heisst nun mal anders als das
+# Verzeichnis, das Omarchy mitliefert. Ohne diesen Vergleich steht beides
+# nebeneinander in der Liste, mit derselben Palette und demselben Wallpaper.
+norm() {
+	printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]'
+}
+
+# Der Verzeichnisname eines schon installierten Themes, das so heisst -- oder
+# nur so geschrieben. Leer, wenn es keines gibt.
+installed_twin() {
+	local want t n hit=""
+	want="$(norm "$1")"
+	for t in "$THEME_DIR"/*/; do
+		[ -d "$t" ] || continue
+		n="$(basename "$t")"
+		[ "$(norm "$n")" = "$want" ] || continue
+		# Gibt es beide Schreibweisen, gewinnt die genaue -- sonst meldet die
+		# Sperre einen Namen, den man gar nicht installieren wollte.
+		[ "$n" = "$1" ] && { printf '%s' "$n"; return 0; }
+		[ -z "$hit" ] && hit="$n"
+	done
+	printf '%s' "$hit"
+}
+
 cmd_install() {
-	local src="$1" path name dest
-	[ -n "$src" ] || die "Aufruf: theme-install.sh install <git-url|verzeichnis>"
+	local force=0 src path name dest twin
+
+	while [ $# -gt 0 ]; do
+		case "${1:-}" in
+		-f | --force) force=1 && shift ;;
+		--) shift && break ;;
+		*) break ;;
+		esac
+	done
+
+	src="${1:-}"
+	[ -n "$src" ] || die "Aufruf: theme-install.sh install [--force] <git-url|verzeichnis>"
 
 	# user@host:org/repo.git -- den Prefix abschneiden, damit basename greift.
 	path="$src"
@@ -122,6 +157,24 @@ cmd_install() {
 
 	dest="$THEME_DIR/$name"
 	mkdir -p "$THEME_DIR"
+
+	# VOR dem Holen fragen, ob es das schon gibt. Bisher wurde erst geklont und
+	# danach kommentarlos ersetzt -- wer ein Theme zweimal installierte, sah
+	# nichts davon, und ein selbst geaendertes war weg. Ersetzen soll man
+	# muessen, nicht versehentlich tun.
+	if [ $force -eq 0 ]; then
+		twin="$(installed_twin "$name")"
+		if [ -n "$twin" ]; then
+			if [ "$twin" = "$name" ]; then
+				note "'$name' ist schon installiert -- es wurde nichts geaendert."
+			else
+				note "'$twin' ist schon installiert; '$name' ist nur eine andere Schreibweise davon."
+				note "es wurde nichts geaendert."
+			fi
+			note "trotzdem holen: nbshell theme install --force $src"
+			return 0
+		fi
+	fi
 
 	# ERST holen, DANN ersetzen. Andersherum ist ein vorhandenes Theme weg,
 	# sobald das Klonen scheitert -- und das passiert schon bei einem Tippfehler
@@ -210,12 +263,12 @@ cmd_list() {
 }
 
 case "${1:-}" in
-install) shift && cmd_install "${1:-}" ;;
+install) shift && cmd_install "$@" ;;
 remove) shift && cmd_remove "${1:-}" ;;
 update) cmd_update ;;
 list) cmd_list ;;
 *)
-	echo "Aufruf: $(basename "$0") install <url|verzeichnis> | remove <name> | update | list" >&2
+	echo "Aufruf: $(basename "$0") install [--force] <url|verzeichnis> | remove <name> | update | list" >&2
 	exit 2
 	;;
 esac

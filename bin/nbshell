@@ -158,17 +158,20 @@ nbshell -- eigene Shell auf Quickshell
   nbshell restart
 
   nbshell bar               durchgehender Balken
-  nbshell island            freistehende Insel
-  nbshell mode toggle       zwischen beidem wechseln
+  nbshell island            freistehende Insel, klappt zur Uhr zusammen
+  nbshell pill              dieselbe Insel, bleibt aber offen
+  nbshell mode toggle       reihum durch die drei Formen
   nbshell edge top|bottom|toggle
   nbshell open|close|toggle Insel festhalten (unabhaengig von der Maus)
 
   nbshell theme             zeigt das aktuelle Theme
   nbshell theme <name>      wechselt es
   nbshell themes            listet die vorhandenen
-  nbshell theme install <url|verzeichnis>
+  nbshell theme install [--force] <url|verzeichnis>
                             Omarchy-Theme dazuholen (auch ohne colors.toml:
-                            die Palette wird aus alacritty.toml abgeleitet)
+                            die Palette wird aus alacritty.toml abgeleitet).
+                            Ist es schon da, passiert nichts -- --force
+                            ersetzt es.
   nbshell theme remove <name>
   nbshell theme update      selbst installierte Themes aktualisieren
   nbshell picker            Themewahl aufklappen
@@ -251,7 +254,7 @@ case "$cmd" in
         sleep 0.3
         exec "$QS" -c "$CONFIG_NAME" -d
         ;;
-    bar|island)
+    bar|island|pill)
         ipc bar mode "$cmd" >/dev/null && echo "$cmd"
         ;;
     mode|edge)

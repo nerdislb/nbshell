@@ -3,12 +3,13 @@
 Eine eigene Shell fuer Wayland, gebaut auf [Quickshell](https://quickshell.org)
 und niri.
 
-Kern ist eine **Insel**, die bei Bedarf zum **durchgehenden Balken** aufmacht.
+Kern ist eine **Insel**, die bei Bedarf offen stehen bleibt oder zum
+**durchgehenden Balken** aufmacht.
 Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **1.10.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel und Balken, Popouts, Themewahl mit
+Stand: **1.10.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel, Pille und Balken, Popouts, Themewahl mit
 Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Prozessliste, Aufnahme, Terminalfarben, KI-Verbrauch, Optionsmenue, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku, Kalender. Alles Weitere steht unter „Was noch fehlt".
 
@@ -69,15 +70,16 @@ Die `config.json` wird nur angelegt, wenn es sie noch nicht gibt.
 
 ```bash
 nbshell bar              # durchgehender Balken
-nbshell island           # freistehende Insel
-nbshell mode toggle
+nbshell island           # freistehende Insel, klappt zur Uhr zusammen
+nbshell pill             # dieselbe Insel, bleibt aber offen
+nbshell mode toggle      # reihum durch die drei Formen
 nbshell edge top|bottom|toggle
 nbshell open|close|toggle   # Insel festhalten, unabhaengig von der Maus
 
 nbshell theme            # aktuelles Theme
 nbshell theme gruvbox    # wechseln
 nbshell themes           # alle auflisten
-nbshell theme install <url|verzeichnis>
+nbshell theme install [--force] <url|verzeichnis>
 nbshell picker           # Themewahl aufklappen
 nbshell next | prev      # ein Theme weiter
 
@@ -128,7 +130,7 @@ nbshell state            # was gerade offen ist (Popouts, Overlays)
 Fuer niri:
 
 ```kdl
-Mod+Shift+I hotkey-overlay-title="nbshell: Insel/Balken" {
+Mod+Shift+I hotkey-overlay-title="nbshell: Form der Leiste" {
     spawn "nbshell" "mode" "toggle";
 }
 Mod+Shift+T hotkey-overlay-title="nbshell: Themewahl" {
@@ -141,7 +143,25 @@ Mod+D hotkey-overlay-title="nbshell: Anwendungsstarter" {
 
 ## Aussehen
 
-Zwei Entscheidungen bestimmen alles andere.
+### Drei Formen
+
+`mode` kennt drei Werte — zwei Geometrien, drei Verhaltensweisen:
+
+| | |
+|---|---|
+| `island` | freistehende Pille, die zur Uhr zusammenschrumpft und erst beim Ueberfahren alles zeigt |
+| `pill` | dieselbe Pille, die aber **offen bleibt** — sie schwebt weiter ueber den Fenstern, ist nur nie leer |
+| `bar` | durchgehender Balken ueber die volle Breite, der den Fenstern ihren Platz wegnimmt |
+
+Die Pille ist kein dritter Bauzustand, sondern der **weggelassene**: sie ist die
+aufgeklappte Insel, bei der der zugeklappte Zustand entfaellt. `exclusiveZone`
+bleibt bei −1, sie schwebt also wie die Insel; nur der Nachlauf, der sonst
+zuklappt, laeuft nie an.
+
+`nbshell mode toggle` geht deshalb im Kreis statt hin und her:
+`island → pill → bar → island`.
+
+Danach bestimmen zwei Entscheidungen alles andere.
 
 ### Lesbarkeit statt Hoffnung
 
@@ -182,6 +202,14 @@ Theme. Und weil die Vorgabewerte in `Theme.qml` ein vollstaendiges Theme sind,
 sieht das nicht kaputt aus, sondern nur falsch — Hintergrund und Akzent
 stimmen, die uebrigen Farben stammen vom Vorgabetheme.
 
+Das gilt an **zwei** Stellen, und die zweite ist leicht zu vergessen:
+`Theme.qml` faerbt die laufende Shell, `scripts/themes.sh` fuellt die
+Farbkaestchen im Themewaehler. Lange konnte nur die erste beide Dialekte —
+ein frisch geholtes Theme sah in der Vorschau deshalb anders aus als dasselbe
+Theme mitgeliefert, obwohl beide nach dem Wechsel gleich aussahen. Auch hier
+faellt es kaum auf, weil `background` und `accent` in beiden Dialekten gleich
+heissen: nur die drei rechten Kaestchen waren leer.
+
 **Die Farben kommen aus Omarchys `colors.toml`** — denselben Dateien, die
 [omarchy2dms](https://github.com/nerdislb/omarchy2dms) schon fuer DMS umbaut,
 hier ohne Umweg gelesen. Es gibt keine Farbrollen wie „surfaceContainerHighest",
@@ -194,7 +222,8 @@ Schrift; Hoehen und Abstaende sind Vielfache davon. Deshalb sitzt alles auf
 einem Zeichenraster, so wie in einer Statuszeile. Wer die Schriftgroesse
 aendert, aendert die ganze Leiste mit — `nbshell set fontSize 15` genuegt.
 
-Einstellbar in `config.json`: `theme`, `font`, `fontSize`, `mode`, `edge`,
+Einstellbar in `config.json`: `theme`, `font`, `fontSize`,
+`mode` (`island` | `pill` | `bar`), `edge`,
 `gap`, `lines`, `padX`, `padY`, `radius`, `borderWidth`, `opacity`,
 `widgetStyle` (`box` | `bracket` | `plain`), `widgetColor` (`text` | `accent`),
 `widgetIcons`, `quietWidgets`, `widgetGap`, `islandCenter`, `barBorder`, `calendar`, `calendarInterval`,
@@ -221,10 +250,21 @@ Wallpaper werden an drei Stellen gesucht: beim Theme selbst
 ```bash
 nbshell theme install https://github.com/…/omarchy-<name>-theme
 nbshell theme install ~/pfad/zum/theme
+nbshell theme install --force <url>   # ein vorhandenes bewusst ersetzen
 nbshell theme update          # selbst installierte per git pull
 nbshell theme remove <name>
 nbshell theme list            # mitgeliefert vs. selbst installiert
 ```
+
+**Was schon da ist, wird nicht angefasst.** Frueher wurde erst geklont und
+danach kommentarlos ersetzt — wer ein Theme zweimal holte, sah nichts davon,
+und ein selbst geaendertes war weg. Jetzt kommt eine Meldung, und es passiert
+nichts; `--force` ersetzt.
+
+Verglichen wird dabei **ohne Trennzeichen und Grossschreibung**: `lasthorizon`
+und `last-horizon` sind dasselbe Theme. Das Repo heisst nun mal anders als das
+Verzeichnis, das Omarchy mitliefert — ohne diesen Vergleich stehen beide
+nebeneinander in der Liste, mit derselben Palette und demselben Wallpaper.
 
 Bringt ein Theme **keine `colors.toml`** mit -- und das gilt fuer alle aus der
 Zeit vor Omarchys Umstellung --, wird die Palette aus seiner `alacritty.toml`
@@ -1090,11 +1130,13 @@ niri/nbshell-takeover.kdl  Binds fuer den Umstieg
   scripts/themes.sh    findet Themes und Wallpaper
 ```
 
-**Insel und Balken sind dasselbe Fenster.** Es ist immer bildschirmbreit und
-durchsichtig; nur der Rahmen darin waechst, und eine `Region`-Maske haelt die
-durchsichtige Flaeche klickdurchlaessig. Der Unterschied ist fast nur
-Geometrie — plus die `exclusiveZone`: als Balken reserviert die Leiste ihren
-Platz und schiebt die Fenster weg, als Insel schwebt sie darueber.
+**Insel, Pille und Balken sind dasselbe Fenster.** Es ist immer
+bildschirmbreit und durchsichtig; nur der Rahmen darin waechst, und eine
+`Region`-Maske haelt die durchsichtige Flaeche klickdurchlaessig. Der
+Unterschied ist fast nur Geometrie — plus die `exclusiveZone`: als Balken
+reserviert die Leiste ihren Platz und schiebt die Fenster weg, als Insel und
+als Pille schwebt sie darueber. Die Pille kostet dabei genau eine Zeile:
+`expanded` ist in ihr immer wahr.
 
 **Die drei Gruppen gibt es nur einmal.** Sie sitzen in einer Reihe, deren zwei
 Zwischenraeume ihre Breite wechseln: im Balken so gerechnet, dass die Mitte
