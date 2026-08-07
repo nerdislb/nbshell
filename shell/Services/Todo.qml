@@ -256,13 +256,37 @@ Singleton {
     }
 
     function apply(text) {
+        // **Eine leere Datei heisst NICHT "drueben ist alles geloescht".** Sie
+        // heisst fast immer: da schreibt gerade jemand. Wer eine Datei ersetzt,
+        // ohne sie vorher unter einem anderen Namen fertigzuschreiben, kuerzt
+        // sie zuerst auf 0 Bytes -- `adb pull` tut das, mancher Abgleich auch.
+        // Wird dieser Moment als leere Liste gelesen, gewinnt die eigene Seite
+        // jeden Vergleich und schreibt ihren Stand ueber die Datei, die gerade
+        // erst zur Haelfte angekommen ist. Genau so ging beim Ausprobieren ein
+        // Eintrag vom Telefon verloren.
+        //
+        // Wirklich leer geloescht wird mit "[]" -- das ist Text und faellt hier
+        // nicht durch.
+        const trimmed = String(text || "").trim();
+        if (trimmed === "")
+            return;
+
         var raw = [];
         try {
-            raw = JSON.parse(text || "[]");
+            raw = JSON.parse(trimmed);
         } catch (e) {
+            // Halb geschriebenes JSON. Auch das ist kein Grund, die eigene
+            // Fassung darueberzuschreiben -- der naechste Versuch kommt gleich.
             console.warn("nbshell/todo: Datei unlesbar --", e);
             return;
         }
+        // Gueltiges JSON, aber keine Liste -- das ist keine Aufgabendatei. Sie
+        // als leere zu lesen fuehrte geradewegs zurueck ins Ueberschreiben.
+        if (!Array.isArray(raw) && !(raw && Array.isArray(raw.items))) {
+            console.warn("nbshell/todo: das ist keine Aufgabenliste --", root.file);
+            return;
+        }
+
         const theirs = normalize(raw);
         const merged = purge(merge(root.items, theirs));
         const changed = !same(merged, root.items);
@@ -295,6 +319,18 @@ Singleton {
     Component.onCompleted: if (root.enabled)
         root.foldConflicts()
 
+    Timer {
+        id: settle
+
+        interval: 300
+        onTriggered: {
+            store.reload();
+            // Eine Aenderung von aussen kann eine Konfliktkopie im Schlepptau
+            // haben -- Syncthing schreibt beide im selben Zug.
+            root.foldConflicts();
+        }
+    }
+
     Process {
         id: folder
 
@@ -312,12 +348,12 @@ Singleton {
         atomicWrites: true
         printErrors: false
 
-        onFileChanged: {
-            reload();
-            // Eine Aenderung von aussen kann eine Konfliktkopie im Schlepptau
-            // haben -- Syncthing schreibt beide im selben Zug.
-            root.foldConflicts();
-        }
+        // NICHT sofort lesen: wer die Datei ersetzt, braucht dafuer mehrere
+        // Schritte, und die erste Meldung kommt schon nach dem ersten. Ein
+        // kurzer Moment Abstand liest den fertigen Stand statt eines
+        // Zwischenzustands -- und die Meldungen mehrerer Schritte fallen
+        // ausserdem zu einem Lesen zusammen.
+        onFileChanged: settle.restart()
         // Beim ersten Start gibt es die Datei noch nicht -- `printErrors: false`
         // laesst das durchgehen, und beim ersten Eintrag entsteht sie.
         onLoaded: root.apply(text())

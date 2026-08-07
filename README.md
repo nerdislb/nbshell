@@ -973,8 +973,15 @@ bleibt, wo sie ist. Der eingestellte Pfad steht in der Ueberschrift des
 Fensters -- „auf der falschen Datei gearbeitet" ist sonst der haeufigste Grund,
 warum nichts ankommt.
 
-Das Format ist das des [nblauncher](https://github.com/nerdislb) (Android),
-erweitert um drei Felder:
+Auf dem Telefon macht das der [nblauncher](https://github.com/nerdislb/nblauncher)
+mit: unter `# settings` -> `## todo sync` waehlt man **den Ordner** (nicht die
+Datei -- ein Abgleich, der `todo.json` ersetzt statt sie zu aendern, macht eine
+Berechtigung auf die einzelne Datei ungueltig), und darin findet er `todo.json`.
+Abgeglichen wird beim Start, bei jeder Aenderung und jedes Mal, wenn der
+Launcher wieder in den Vordergrund kommt -- bei einem Homescreen ist das der
+billigste denkbare Auslöser.
+
+Das Format ist das des nblauncher, erweitert um drei Felder:
 
 ```json
 [
@@ -1013,6 +1020,26 @@ Ein Eintrag **ohne** `updated` gilt als uralt (Stempel 0). Neu ist er trotzdem
 immer, wenn seine `id` hier noch niemand kennt -- eine Seite, die keine Stempel
 schreibt, kann also Aufgaben schicken, aber keine Aenderung an einer
 bestehenden durchsetzen.
+
+### Eine leere Datei heisst nicht „leer"
+
+Der Fehler, der beim Ausprobieren wirklich einen Eintrag gekostet hat, und
+zwar in **beiden** Programmen zugleich:
+
+Wer eine Datei ersetzt, ohne sie vorher unter einem anderen Namen
+fertigzuschreiben, **kuerzt sie zuerst auf 0 Bytes**. `adb pull` tut das, `cp`
+tut das, mancher Abgleich auch. Wird genau dieser Moment gelesen und als „die
+andere Seite hat alles geloescht" verstanden, gewinnt die eigene Seite jeden
+Vergleich -- und schreibt ihren Stand ueber eine Datei, die gerade erst zur
+Haelfte angekommen ist. Der Eintrag vom Telefon war weg, ohne eine einzige
+Fehlermeldung.
+
+Deshalb gilt hier wie im Launcher: **leerer oder unlesbarer Inhalt ist keine
+Information.** Dann passiert nichts, und beim naechsten Mal wird noch einmal
+hingesehen. Wirklich leer geraeumt wird als `[]` geschrieben -- das ist Text
+und faellt nicht darunter. Dazu wartet die Shell nach einer gemeldeten
+Aenderung 300 ms, bevor sie liest: das faellt mit den Meldungen mehrerer
+Schreibschritte zu einem Lesen zusammen.
 
 ### Konfliktkopien
 
@@ -1560,6 +1587,10 @@ doppelt gebaut werden, und der Uebergang laesst sich animieren.
   2,5 s klappt das Popout zu, mitten im Lesen. Im Kalender faellt das auf, weil
   man dort laenger auf einer Zelle verweilt. In Popouts gehoeren deshalb
   `HoverHandler` und `TapHandler` hin; Handler blockieren einander nicht.
+- **Eine Datei, die gerade geschrieben wird, ist erst leer.** Wer eine Datei
+  beobachtet und ihren Inhalt als Wahrheit nimmt, liest frueher oder spaeter
+  0 Bytes -- und haelt das fuer eine geleerte Liste. Siehe „Aufgaben"; es hat
+  einen Eintrag gekostet.
 - **Ein Baustein darf nicht heissen wie sein Dienst.** `Bar/Widgets/Todo.qml`
   neben dem Singleton `Todo` aus `qs.Services`: beide Namen liegen in
   `WidgetHost.qml` im selben Gueltigkeitsbereich, und `Todo {}` ist dann
