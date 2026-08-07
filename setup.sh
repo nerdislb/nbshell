@@ -111,10 +111,15 @@ PKG_BAUSTEINE=(wl-clipboard hyprlock tuned libnotify xdg-utils pacman-contrib fa
 # Kalender: khal rechnet die Wiederholungen, vdirsyncer holt sie.
 PKG_KALENDER=(khal vdirsyncer)
 
+# Abgleich der Aufgabenliste mit dem Telefon. Syncthing bewegt nur die Datei;
+# zusammengefuehrt wird sie in nbshell selbst (siehe README, "Aufgaben").
+# Ohne Syncthing funktioniert die Liste trotzdem -- dann eben nur hier.
+PKG_ABGLEICH=(syncthing)
+
 # Aufnehmen, zuschneiden, Text erkennen.
 PKG_AUFNAHME=(wf-recorder slurp satty swappy tesseract tesseract-data-deu tesseract-data-eng)
 
-ALLE=("${PKG_BASIS[@]}" "${PKG_SYSTEM[@]}" "${PKG_BAUSTEINE[@]}" "${PKG_KALENDER[@]}" "${PKG_AUFNAHME[@]}")
+ALLE=("${PKG_BASIS[@]}" "${PKG_SYSTEM[@]}" "${PKG_BAUSTEINE[@]}" "${PKG_KALENDER[@]}" "${PKG_ABGLEICH[@]}" "${PKG_AUFNAHME[@]}")
 
 if [ $WITH_PACKAGES -eq 1 ]; then
 	command -v pacman >/dev/null || die "Kein pacman gefunden. Dieses Skript richtet sich an Arch; auf anderen Systemen: --no-packages und die Liste im Kopf von Hand nachbauen."
@@ -216,6 +221,26 @@ if [ $WITH_PACKAGES -eq 1 ]; then
 	dienst NetworkManager "Netz-Baustein" n
 	dienst bluetooth "Bluetooth-Baustein"
 	dienst tuned "Energieprofile"
+
+	# Syncthing ist der einzige BENUTZERdienst hier: die Dateien, die es
+	# bewegt, gehoeren dem Benutzer, und es haelt seine Einstellungen unter
+	# ~/.local/state. Als Systemdienst muesste es sich beides erst nehmen.
+	# Es laesst sich getrost einschalten, bevor ein Ordner eingerichtet ist
+	# -- ohne Ordner und ohne gekoppeltes Geraet tut es nichts als eine
+	# Oberflaeche auf 127.0.0.1:8384 anzubieten.
+	if [ -n "$(systemctl --user list-unit-files --no-legend syncthing.service 2>/dev/null)" ]; then
+		if systemctl --user is-enabled --quiet syncthing.service 2>/dev/null; then
+			printf '  %-16s laeuft (Aufgaben abgleichen)\n' "syncthing"
+		else
+			printf '  %-16s aus (Aufgabenliste mit dem Telefon abgleichen)\n' "syncthing"
+			if ask "    syncthing einschalten?" j; then
+				systemctl --user enable --now syncthing.service ||
+					warn "    ging nicht -- von Hand: systemctl --user enable --now syncthing.service"
+			fi
+		fi
+	else
+		printf '  %-16s nicht installiert (Aufgaben abgleichen)\n' "syncthing"
+	fi
 
 	# Die beiden laufen je Sitzung und sind ueber Sockets aktiviert; sie
 	# einzuschalten ist selten noetig, ihr Fehlen aber einen Hinweis wert.

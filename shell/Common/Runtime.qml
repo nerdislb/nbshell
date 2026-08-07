@@ -28,6 +28,7 @@ Singleton {
     property bool modulesOpen: false
     property bool wallpaperOpen: false
     property bool calendarOpen: false
+    property bool todoOpen: false
 
     // Wie viele Popouts gerade offen sind. Die Leiste braucht das: ein
     // Popup-Griff wird vom Kompositor nur erlaubt, wenn die Layer-Flaeche

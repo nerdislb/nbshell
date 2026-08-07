@@ -38,7 +38,7 @@ cd ~/projects/nbshell && ./setup.sh
 
 `setup.sh` macht der Reihe nach:
 
-1. **Pakete** -- die 31, die nbshell braucht
+1. **Pakete** -- die 32, die nbshell braucht
 2. **Dienste** -- NetworkManager, bluetooth, tuned (fragt, siehe unten)
 3. **Dotfiles** -- holt `dotfiles-dms`, zieht dessen Paketlisten nach
    (110 Repo- und 10 AUR-Pakete) und spielt mit `restore.sh` niri, ghostty,
@@ -91,6 +91,7 @@ und zwar aus gutem Grund:
 | **selbst installierte Themes** | Im Repo liegen 21 Stueck. Alles, was du dir mit `nbshell theme install` dazugeholt hast, fehlt drueben -- die `config.json` zeigt dann auf ein Theme, das es nicht gibt, und nbshell faellt auf seine Vorgabefarben zurueck. `nbshell theme list` zeigt hier, welche „selbst installiert" sind. |
 | **Kalenderkonten** | Die iCal-Adressen in `~/.config/vdirsyncer/config` sind so gut wie Passwoerter und liegen deshalb in **keinem** Repo. Im Dotfiles-Repo steht nur `config.template` mit Platzhaltern -- die Adressen traegst du selbst ein. |
 | **der Ort fuers Wetter** | `nbshell set weatherPlace Graz` |
+| **der Abgleich der Aufgaben** | Syncthing wird zwar installiert, aber Geraete koppeln sich nur ueber die Oberflaeche auf `127.0.0.1:8384` -- ein Skript kann das nicht. Danach `nbshell set todoFile '~/Sync/nbshell/todo.json'` auf **beiden** Rechnern, sonst fuehrt jeder seine eigene Liste. Siehe „Aufgaben". |
 
 Danach ist der zweite Rechner derselbe wie dieser.
 
@@ -235,6 +236,14 @@ nbshell procs            # Prozessliste; `nbshell procs top` als Text
 nbshell power            # Power-Menue (auch: lock, logout, suspend)
 nbshell clip             # Zwischenablage (toggle, list, clear)
 nbshell cal              # Kalender (auch: next, sync, status)
+
+nbshell todo             # Aufgaben auflisten
+nbshell todo Muell rausbringen   # eintragen (auch: todo add <text>)
+nbshell todo toggle      # die Liste als Fenster (Mod+T)
+nbshell todo done 2      # abhaken, Nummer aus `nbshell todo`
+nbshell todo drop 2      # wegwerfen
+nbshell todo clear       # alle erledigten aufraeumen
+nbshell todo sync        # Konfliktkopien einsammeln und neu lesen
 nbshell plugins          # Bausteine auflisten (auch: reload)
 nbshell popout wetter    # Popout eines Bausteins aufklappen
 nbshell media playpause  # auch: next, previous, status
@@ -589,6 +598,7 @@ Die Takeover-Datei biegt inzwischen alles um, was nbshell kann:
 | `Mod+Y` | Wallpaper-Browser | Hintergrund-Karussell |
 | `Mod+Alt+L` | lock | `lockCommand` (Vorgabe hyprlock) |
 | `XF86AudioPlay/Next/Prev` | mpris | MPRIS-Anbindung |
+| `Mod+T` | — | Aufgabenliste (kein DMS-Erbe, war frei) |
 
 **Was tot bleibt**, weil nbshell es nicht hat: `Mod+Shift+N` (Notizblock).
 
@@ -923,6 +933,107 @@ Drei Dinge, ueber die man dabei stolpert:
 zwei Abgleiche nebeneinander laufen) und liest acht Sekunden spaeter neu.
 Abschalten: `calendar: false`.
 
+## Aufgaben
+
+Der Baustein `todo` zeigt, wie viele Punkte offen sind; sein Popout die Liste,
+Klick hakt ab, Rechtsklick wirft weg. Zum Eintragen braucht es ein
+Eingabefeld und damit die Tastatur -- die gehoert in einem Popout dem Fenster
+darunter, deshalb gibt es dafuer ein eigenes Fenster: **Mod+T**.
+
+```
+AUFGABEN                                    2 offen  ·  1 erledigt
+> neue Aufgabe eintippen, Enter legt sie an
+────────────────────────────────────────────────────────────────
+▸ [ ] Fahrradschlauch flicken                              07.08.
+  [ ] Vom Telefon eingetragen                              07.08.
+  [x] M̶i̶l̶c̶h̶ ̶k̶a̶u̶f̶e̶n̶                                          07.08.
+Tab hakt ab · ↑↓ waehlen · Strg+E aendern · Strg+D loescht · Strg+L raeumt auf
+```
+
+Das Eingabefeld hat immer den Fokus -- man soll losschreiben koennen, ohne
+vorher irgendwohin zu klicken. Deshalb liegt jede Aktion auf einer Taste, die
+beim Tippen nicht im Weg ist. **Ein blankes „Leertaste hakt ab" gaebe es keine
+Aufgabe mit einem Leerzeichen darin.**
+
+Ohne Baustein in der Leiste geht es auch: `nbshell todo Muell rausbringen`
+traegt aus dem Terminal ein, `nbshell todo` listet auf.
+
+### Abgleich mit dem Telefon
+
+Die Liste ist **eine JSON-Datei**, sonst nichts. Wer sie in einen Ordner legt,
+den ein Abgleich mitnimmt (Syncthing, Nextcloud, Dropbox), hat sie auf jedem
+Geraet:
+
+```bash
+nbshell set todoFile '~/Sync/nbshell/todo.json'
+```
+
+Steht dort nichts, liegt sie unter `~/.local/state/nbshell/todo.json` und
+bleibt, wo sie ist. Der eingestellte Pfad steht in der Ueberschrift des
+Fensters -- „auf der falschen Datei gearbeitet" ist sonst der haeufigste Grund,
+warum nichts ankommt.
+
+Das Format ist das des [nblauncher](https://github.com/nerdislb) (Android),
+erweitert um drei Felder:
+
+```json
+[
+  {
+    "id": 1786085468073,
+    "text": "Fahrradschlauch flicken",
+    "done": false,
+    "created": 1786085468073,
+    "updated": 1786085468073,
+    "deleted": false
+  }
+]
+```
+
+`id` ist der Zeitpunkt des Eintragens in Millisekunden -- dasselbe, was
+`System.currentTimeMillis()` vergibt. Ein Leser, der nur `id`, `text` und
+`done` kennt, kann die Datei unveraendert lesen; die drei Zusatzfelder
+ignoriert er.
+
+**Zwei Regeln, und beide sind der Grund, dass beim Abgleich nichts verloren
+geht:**
+
+*Die Datei wird nicht ersetzt, sondern eintragsweise zusammengefuehrt.* Bei
+gleicher `id` gewinnt der groessere `updated`-Stempel. Wer stattdessen die
+ganze Datei uebernimmt, verliert jedes Mal alles, was auf dem Telefon
+dazukam, waehrend der Rechner aus war: die Datei kaeme vollstaendig an und
+wuerde von der eigenen, aelteren Fassung ueberschrieben.
+
+*Geloescht wird mit `deleted: true`, nicht durch Weglassen.* Ein fehlender
+Eintrag ist von einem „auf der anderen Seite noch nicht bekannten" nicht zu
+unterscheiden -- ein weggelassener Eintrag kaeme beim naechsten Abgleich also
+wieder zurueck. Die Grabsteine verfallen nach `todoKeepDays` Tagen (Vorgabe
+30); so lange hat auch ein Telefon Zeit, das drei Wochen im Flugmodus lag.
+
+Ein Eintrag **ohne** `updated` gilt als uralt (Stempel 0). Neu ist er trotzdem
+immer, wenn seine `id` hier noch niemand kennt -- eine Seite, die keine Stempel
+schreibt, kann also Aufgaben schicken, aber keine Aenderung an einer
+bestehenden durchsetzen.
+
+### Konfliktkopien
+
+Ein Dateiabgleich kann zwei gleichzeitige Aenderungen nicht aufloesen. Er
+behaelt eine Fassung und legt die andere daneben:
+
+```
+todo.sync-conflict-20260807-101500-ABCDEFG.json
+```
+
+Wer sie liegen laesst, verliert alles, was nur in ihr steht.
+`scripts/todo.sh merge` faltet sie nach derselben Regel zurueck (gleiche `id`
+-> groesserer `updated`) und loescht sie danach. Aufgerufen wird das beim
+Start, bei jeder Aenderung an der Datei und beim Oeffnen des Fensters -- von
+Hand: `nbshell todo sync`. Laesst sich eine Kopie nicht lesen, bleibt sie
+liegen; lieber eine Datei zuviel als eine Liste kaputt.
+
+Syncthing gehoert seit diesem Baustein zu den Paketen in `setup.sh` und laeuft
+als **Benutzerdienst** (`systemctl --user enable --now syncthing`) -- die
+Dateien gehoeren dem Benutzer.
+
 ## Zwischenablage
 
 Der Baustein `clipboard` zeigt die Anzahl, sein Popout den Verlauf; Klick
@@ -1116,8 +1227,9 @@ WLAN-Passwort getippt.
 `nbshell settings` (nach dem Umstieg `Mod+Comma`) — die haeufigen Schalter
 sichtbar statt in der `config.json`: Rand, Form, Bausteinstil,
 Schriftgroesse, Hoehe, Abstaende, Ecken, Rahmen, Deckkraft, Nachlauf sowie
-Hintergrundbild, Einblendung, Benachrichtigungsserver, Zwischenablage und
-Terminalfarben — gegliedert in LEISTE, AUSSEHEN, VERHALTEN und DIENSTE.
+Hintergrundbild, Einblendung, Benachrichtigungsserver, Zwischenablage,
+Aufgaben und Terminalfarben — gegliedert in LEISTE, AUSSEHEN, VERHALTEN und
+DIENSTE.
 Dazu gehoert auch, in welcher Ecke die Benachrichtigungen aufgehen
 (`notifyCorner`: auto, oben, unten) und wie lange eine Karte steht.
 
@@ -1179,8 +1291,8 @@ woanders hinlegen.
 ## Bausteine
 
 `clock`, `workspaces`, `window`, `sys`, `battery`, `layout`, `themes`,
-`volume`, `control`, `tray`, `notifications`, `clipboard`, `media`, `capture`,
-`ai`, `updates`, `sep`.
+`volume`, `control`, `tray`, `notifications`, `clipboard`, `todo`, `media`,
+`capture`, `ai`, `updates`, `sep`.
 
 Vier Listen sagen, was wo steht:
 
@@ -1394,6 +1506,9 @@ shell/
   Services/Notify.qml  Benachrichtigungsserver, Archiv
   Services/Session.qml Sperren, Abmelden, Ausschalten
   Services/Clipboard.qml  Verlauf ueber wl-paste --watch
+  Services/Todo.qml    Aufgabenliste: lesen, zusammenfuehren, schreiben
+  Todo/TodoList.qml    das Fenster dazu (Mod+T)
+  scripts/todo.sh      Konfliktkopien des Abgleichs zurueckfalten
   Services/MediaService.qml  MPRIS
   Widgets/LevelBar.qml Balken aus Bloecken
   Widgets/MenuView.qml DBus-Menues als Liste
@@ -1445,6 +1560,12 @@ doppelt gebaut werden, und der Uebergang laesst sich animieren.
   2,5 s klappt das Popout zu, mitten im Lesen. Im Kalender faellt das auf, weil
   man dort laenger auf einer Zelle verweilt. In Popouts gehoeren deshalb
   `HoverHandler` und `TapHandler` hin; Handler blockieren einander nicht.
+- **Ein Baustein darf nicht heissen wie sein Dienst.** `Bar/Widgets/Todo.qml`
+  neben dem Singleton `Todo` aus `qs.Services`: beide Namen liegen in
+  `WidgetHost.qml` im selben Gueltigkeitsbereich, und `Todo {}` ist dann
+  mehrdeutig. Deshalb `Tasks` (Baustein) neben `Todo` (Dienst) — dieselbe
+  Trennung, die es bei `Clip` und `Clipboard` schon gab. In der Config heisst
+  der Baustein trotzdem `todo`; die Dateinamen interessieren dort niemanden.
 - **Quickshells IPC-Aufrufer liest eckige Klammern als Argumentliste** und
   zerlegt ausserdem an Kommas und Semikola: `qs ipc call config set k '["a"]'`
   kommt als zwei Argumente an. Steuerzeichen helfen nicht, 0x1F ist sein

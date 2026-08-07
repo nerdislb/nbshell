@@ -61,6 +61,7 @@ missing_optional="$(
     optional_check swappy        "Screenshot bearbeiten"     "swappy"
     optional_check checkupdates  "Updater, schneller Weg"    "pacman-contrib"
     optional_check jq            "Skripte"                   "jq"
+    optional_check syncthing     "Aufgaben abgleichen"       "syncthing"
 )"
 if [ -n "$missing_optional" ]; then
     printf '%s\n' "$missing_optional"

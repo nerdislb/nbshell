@@ -27,6 +27,10 @@ binds {
     // DMS: Wallpaper-Browser -> nbshells Karussell.
     Mod+Y hotkey-overlay-title="nbshell: Hintergrund" { spawn "sh" "-c" "$HOME/.local/bin/nbshell wallpaper pick"; }
 
+    // Kein DMS-Erbe, sondern neu: die Aufgabenliste. Mod+T war als einzige
+    // Buchstabentaste noch frei.
+    Mod+T hotkey-overlay-title="nbshell: Aufgaben" { spawn "sh" "-c" "$HOME/.local/bin/nbshell todo toggle"; }
+
     // DMS: settings -> nbshells Optionsmenue.
     Mod+Comma hotkey-overlay-title="nbshell: Einstellungen" { spawn "sh" "-c" "$HOME/.local/bin/nbshell settings"; }
 

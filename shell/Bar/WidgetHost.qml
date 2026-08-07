@@ -103,6 +103,8 @@ Item {
             return aiComponent;
         case "updates":
             return updatesComponent;
+        case "todo":
+            return todoComponent;
         }
         // Kein eingebauter -- dann muss es ein Plugin sein. Ist es das auch
         // nicht, steht ein Name in der Config, den niemand kennt.
@@ -194,5 +196,13 @@ Item {
     Component {
         id: updatesComponent
         Updates {}
+    }
+
+    // `Tasks`, nicht `Todo`: der Dienst in qs.Services heisst schon so, und
+    // beide Namen im selben Gueltigkeitsbereich waeren mehrdeutig. Dieselbe
+    // Trennung wie bei Clip (Baustein) und Clipboard (Dienst).
+    Component {
+        id: todoComponent
+        Tasks {}
     }
 }

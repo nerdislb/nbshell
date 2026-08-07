@@ -131,6 +131,12 @@ Singleton {
             "category": "System"
         },
         {
+            "id": "todo",
+            "name": "Aufgaben",
+            "description": "offene Punkte, Liste per Mod+T",
+            "category": "System"
+        },
+        {
             "id": "sep",
             "name": "Trenner",
             "description": "senkrechter Strich",

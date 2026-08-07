@@ -219,6 +219,16 @@ nbshell -- eigene Shell auf Quickshell
   nbshell procs             Prozessliste (auch: top)
   nbshell clip              Verlauf der Zwischenablage (toggle, list, clear)
   nbshell cal               Kalender (auch: next, sync, status)
+
+  nbshell todo              Aufgaben auflisten
+  nbshell todo <text>       eintragen (auch: todo add <text>)
+  nbshell todo toggle       die Liste als Fenster (Mod+T)
+  nbshell todo done <nr>    abhaken -- die Nummer aus `nbshell todo`
+  nbshell todo drop <nr>    wegwerfen
+  nbshell todo clear        alle erledigten aufraeumen
+  nbshell todo sync         Konfliktkopien einsammeln und neu lesen
+  nbshell todo status       Zahlen und Ablageort
+
   nbshell plugins           Bausteine auflisten (auch: reload)
   nbshell popout <name>     Popout eines Bausteins aufklappen
   nbshell battery           Akku und Energieprofil (bat <profil> wechselt)
@@ -355,6 +365,43 @@ case "$cmd" in
         ;;
     clip|clipboard)
         ipc clipboard "${1:-list}"
+        ;;
+    todo|aufgaben)
+        case "${1:-list}" in
+            toggle|open) ipc todo toggle ;;
+            list|"")     ipc todo list ;;
+            sync)        ipc todo sync ;;
+            clear)       ipc todo clear ;;
+            status)      ipc todo status ;;
+            done)        ipc todo done "${2:?Nummer fehlt}" ;;
+            drop|rm)     ipc todo drop "${2:?Nummer fehlt}" ;;
+            add)
+                shift
+                [ $# -gt 0 ] || { echo "Text fehlt" >&2; exit 2; }
+                # Alle Wörter als EIN Eintrag: `nbshell todo add Milch kaufen`
+                # soll nicht zwei Aufgaben anlegen.
+                text="$*"
+                # Dieselbe Kodierung wie bei `set`: Quickshells IPC-Aufrufer
+                # zerlegt Kommas, Semikola und eckige Klammern zu Argumenten.
+                text="${text//%/%25}"
+                text="${text//,/%2C}"
+                text="${text//;/%3B}"
+                text="${text//[/%5B}"
+                text="${text//]/%5D}"
+                ipc todo add "$text"
+                ;;
+            *)
+                # Ohne Unterbefehl ist alles Weitere der Text -- der kuerzeste
+                # Weg zum Eintragen: `nbshell todo Milch kaufen`
+                text="$*"
+                text="${text//%/%25}"
+                text="${text//,/%2C}"
+                text="${text//;/%3B}"
+                text="${text//[/%5B}"
+                text="${text//]/%5D}"
+                ipc todo add "$text"
+                ;;
+        esac
         ;;
     battery|bat)
         case "${1:-status}" in

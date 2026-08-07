@@ -91,6 +91,19 @@ Singleton {
     // nicht uebernommen: die steht unter GPL, nbshell unter MIT.)
     readonly property bool osdInPill: value("osdInPill", true)
 
+    // Die Aufgabenliste. `todoFile` ist der einzige Schluessel, der wirklich
+    // wichtig ist: zeigt er in einen Ordner, den ein Abgleich mitnimmt
+    // (Syncthing & Co.), liegt dieselbe Liste auf dem Telefon.
+    //
+    //   nbshell set todoFile '~/Sync/nbshell/todo.json'
+    //
+    // Geloeschtes bleibt `todoKeepDays` Tage als Grabstein liegen, sonst kaeme
+    // es beim naechsten Abgleich vom anderen Geraet zurueck.
+    readonly property bool todo: value("todo", true)
+    readonly property string todoFile: value("todoFile", "")
+    readonly property int todoKeepDays: value("todoKeepDays", 30)
+    readonly property bool todoShowDone: value("todoShowDone", true)
+
     // Aus, solange DMS daneben laeuft: beide malen sonst auf dieselbe Ebene.
     readonly property bool wallpaperEnabled: value("wallpaper", false)
 

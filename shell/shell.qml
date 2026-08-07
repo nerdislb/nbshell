@@ -16,6 +16,7 @@ import qs.Procs
 import qs.Capture
 import qs.Settings
 import qs.Wallpaper
+import qs.Todo
 
 // nbshell -- Einstiegspunkt.
 //
@@ -55,6 +56,11 @@ ShellRoot {
         void Calendar.enabled;
         void Plugins.scanned;
         void ThemeExport.enabled;
+        // Die Aufgaben muessen von Anfang an gelesen werden, nicht erst beim
+        // ersten Blick: sonst stuende in der Leiste eine 0, waehrend in der
+        // Datei drei offene Punkte liegen -- und ein Abgleich vom Telefon
+        // faende beim Schreiben eine leere eigene Seite vor.
+        void Todo.count;
     }
 
     Bar {}
@@ -78,6 +84,8 @@ ShellRoot {
     ModulesMenu {}
 
     WallpaperPicker {}
+
+    TodoList {}
 
     // ── Steuerung von aussen ──────────────────────────────────────────────
     // Aufrufbar als `nbshell <ziel> <befehl>`, siehe bin/nbshell.
@@ -173,6 +181,7 @@ ShellRoot {
                 "einstellungen": Runtime.settingsOpen,
                 "bausteine": Runtime.modulesOpen,
                 "hintergrund": Runtime.wallpaperOpen,
+                "aufgaben": Runtime.todoOpen,
                 "prozesse": Runtime.procsOpen,
                 "aufnahme": Runtime.captureOpen,
                 "power": Runtime.powerOpen
@@ -346,6 +355,72 @@ ShellRoot {
                 "kalender": Calendar.calendars,
                 "termine": Calendar.events.length,
                 "fenster": Calendar.windowStart
+            });
+        }
+    }
+
+    IpcHandler {
+        target: "todo"
+
+        function toggle(): string {
+            Runtime.todoOpen = !Runtime.todoOpen;
+            return Runtime.todoOpen ? "offen" : "zu";
+        }
+
+        // Der Text kommt prozentkodiert herein -- Quickshells IPC-Aufrufer
+        // zerlegt Kommas, Semikola und eckige Klammern zu eigenen Argumenten.
+        // "Milch, Brot und Kaese" waeren sonst drei Argumente und der Aufruf
+        // scheitert. `bin/nbshell` kodiert, hier steht es wieder her.
+        function add(text: string): string {
+            const clean = String(text).replace(/%5B/g, "[").replace(/%5D/g, "]").replace(/%2C/g, ",").replace(/%3B/g, ";").replace(/%25/g, "%");
+            const entry = Todo.add(clean);
+            return entry ? "eingetragen: " + entry.text : "leer -- nichts eingetragen";
+        }
+
+        function list(): string {
+            if (Todo.list.length === 0)
+                return "nichts vorgemerkt";
+            return Todo.list.map((e, i) => String(i + 1).padStart(3, " ") + "  " + (e.done ? "[x]" : "[ ]") + "  " + e.text).join("\n");
+        }
+
+        // Nummern beziehen sich auf genau die Liste, die `list` ausgibt.
+        function done(which: string): string {
+            const e = Todo.list[parseInt(which, 10) - 1];
+            if (!e)
+                return "keine Nummer " + which;
+            Todo.toggle(e.id);
+            return (e.done ? "wieder offen: " : "erledigt: ") + e.text;
+        }
+
+        function drop(which: string): string {
+            const e = Todo.list[parseInt(which, 10) - 1];
+            if (!e)
+                return "keine Nummer " + which;
+            Todo.remove(e.id);
+            return "geloescht: " + e.text;
+        }
+
+        function clear(): string {
+            const n = Todo.clearDone();
+            return n > 0 ? "aufgeraeumt: " + n : "nichts zu erledigen";
+        }
+
+        // Konfliktkopien einsammeln und die Datei neu lesen -- fuer den Fall,
+        // dass der Abgleich lief, waehrend die Shell nicht hinsah.
+        function sync(): string {
+            Todo.foldConflicts();
+            Todo.reload();
+            return "gelesen: " + Todo.file;
+        }
+
+        function status(): string {
+            return JSON.stringify({
+                "an": Todo.enabled,
+                "offen": Todo.count,
+                "erledigt": Todo.doneCount,
+                "gesamt": Todo.items.length,
+                "datei": Todo.file,
+                "grabsteine": Todo.keepDays
             });
         }
     }

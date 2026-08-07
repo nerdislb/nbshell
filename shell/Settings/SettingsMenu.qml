@@ -274,6 +274,18 @@ PanelWindow {
             "values": [true, false]
         },
         {
+            "key": "todo",
+            "def": true,
+            "label": "Aufgaben",
+            "values": [true, false]
+        },
+        {
+            "key": "todoShowDone",
+            "def": true,
+            "label": "Erledigte anzeigen",
+            "values": [true, false]
+        },
+        {
             "key": "themeExport",
             "def": true,
             "label": "Terminalfarben schreiben",
