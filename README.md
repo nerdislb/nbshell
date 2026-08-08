@@ -1467,14 +1467,23 @@ Danach `nbshell plugins reload`, und der Baustein steht im Anordnen-Menue im
 Vorrat — mit `·plugin` dahinter. `nbshell plugins` listet alles auf, Eingebautes
 und Nachinstalliertes nebeneinander.
 
-Mitgeliefert werden zwei: **`beispiel`** als Vorlage (zaehlt Klicks, sonst
-nichts) und **`wetter`** — Temperatur in der Leiste, Einzelheiten und fuenf
-Tage im Popout. Der Ort steht in der Config:
+Mitgeliefert werden drei: **`beispiel`** als Vorlage (zaehlt Klicks, sonst
+nichts), **`wetter`** — Temperatur in der Leiste, Einzelheiten und fuenf
+Tage im Popout — und **`headset`** — Akkustand eines USB-Headsets, ueber
+`headsetcontrol` (Logitech & andere mit HID++-Akkumeldung). Der Ort fuers
+Wetter steht in der Config:
 
 ```bash
 nbshell set weatherPlace Graz
 nbshell popout wetter          # aufklappen, auch fuer eine Taste in niri
 ```
+
+**Das Headset-Plugin zeigt sich nur, wenn ein Geraet wirklich antwortet** --
+aus, Dongle nicht da oder ein Modell ohne `CAP_BATTERY_STATUS` heisst: die
+Zelle bleibt weg, statt mit "—" herumzustehen. Was `headsetcontrol` selbst
+nicht auslesen kann -- etwa ein rein analoges Lautstaerkerad am Headset --
+bleibt fuer jede Software unsichtbar, das ist keine Einschraenkung des
+Plugins.
 
 **Das Wetter-Plugin ist der einzige Teil von nbshell, der von sich aus ins Netz
 geht.** Es fragt [open-meteo.com](https://open-meteo.com) — ohne Schluessel,

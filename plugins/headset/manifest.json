@@ -1,0 +1,9 @@
+{
+  "id": "headset",
+  "name": "Headset",
+  "description": "Akkustand des USB-Headsets in der Leiste (headsetcontrol)",
+  "category": "Plugin",
+  "version": "1.0.0",
+  "author": "nerdi",
+  "entry": "BarWidget.qml"
+}

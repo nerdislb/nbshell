@@ -106,7 +106,8 @@ PKG_SYSTEM=(networkmanager bluez bluez-utils pipewire pipewire-pulse wireplumber
 #   xdg-utils      `xdg-open` nach einer Aufnahme
 #   pacman-contrib `checkupdates` -- ohne das rechnet der Updater langsamer
 #   fakeroot       der Rueckweg des Updaters, wenn checkupdates fehlt
-PKG_BAUSTEINE=(wl-clipboard hyprlock tuned libnotify xdg-utils pacman-contrib fakeroot)
+#   headsetcontrol Akkustand im Headset-Plugin (USB-HID++, Logitech & co.)
+PKG_BAUSTEINE=(wl-clipboard hyprlock tuned libnotify xdg-utils pacman-contrib fakeroot headsetcontrol)
 
 # Kalender: khal rechnet die Wiederholungen, vdirsyncer holt sie.
 PKG_KALENDER=(khal vdirsyncer)
