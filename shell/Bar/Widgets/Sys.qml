@@ -52,14 +52,6 @@ Cell {
 
             spacing: Theme.cellH * 0.25
 
-            component Heading: Text {
-                color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
-                topPadding: Theme.cellH * 0.3
-            }
-
             component Line: Text {
                 color: Theme.fg
                 font.family: Theme.fontFamily
@@ -118,20 +110,13 @@ Cell {
 
             // ── Prozessor ─────────────────────────────────────────────────
 
-            Item {
-                width: panel.rowWidth
-                height: Theme.cellH * 1.2
-
-                Text {
-                    anchors.left: parent.left
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: SysInfo.hasDetail ? String(panel.d.modell) : "PROZESSOR"
-                    color: Theme.readable(Theme.accent, Theme.bg)
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
-                    elide: Text.ElideRight
-                }
+            PanelHead {
+                rowWidth: panel.rowWidth
+                icon: Icons.cpu
+                title: SysInfo.hasDetail ? String(panel.d.modell) : "Prozessor"
+                subtitle: SysInfo.hasDetail && panel.d.mhz ? (panel.d.mhz + " MHz") : ""
+                badge: SysInfo.cpuPercent + " %"
+                badgeColor: SysInfo.cpuPercent >= 90 ? Theme.red : Theme.fgDim
             }
 
             Gauge {
@@ -140,10 +125,19 @@ Cell {
                 value: SysInfo.cpuPercent + " %" + (SysInfo.hasDetail && panel.d.mhz ? "   " + panel.d.mhz + " MHz" : "")
             }
 
-            Line {
+            Facts {
                 visible: SysInfo.hasDetail
-                text: "  Last " + (SysInfo.hasDetail ? panel.d.last.join("  ") : "") + "     Laufzeit " + (SysInfo.hasDetail ? SysInfo.uptimeText(panel.d.laufzeit) : "")
-                color: Theme.fgDim
+                rowWidth: panel.rowWidth
+                pairs: SysInfo.hasDetail ? [
+                    {
+                        "label": "Last",
+                        "value": panel.d.last.join("  ")
+                    },
+                    {
+                        "label": "Laufzeit",
+                        "value": SysInfo.uptimeText(panel.d.laufzeit)
+                    }
+                ] : []
             }
 
             // Die Kerne als Balkenreihe. Ein Zeichen je Kern waere zu wenig,
@@ -182,8 +176,9 @@ Cell {
 
             // ── Speicher ──────────────────────────────────────────────────
 
-            Heading {
-                text: "SPEICHER"
+            Rule {
+                rowWidth: panel.rowWidth
+                label: "SPEICHER"
             }
 
             Gauge {
@@ -216,125 +211,65 @@ Cell {
 
             // ── Temperaturen ──────────────────────────────────────────────
 
-            Heading {
-                visible: SysInfo.hasDetail && (panel.d.temps ?? []).length > 0
-                text: "TEMPERATUR"
+            Rule {
+                rowWidth: panel.rowWidth
+                visible: SysInfo.hasDetail && ((panel.d.temps ?? []).length > 0 || (panel.d.luefter ?? []).length > 0)
+                label: "TEMPERATUR UND LUEFTER"
             }
 
-            Repeater {
-                model: SysInfo.hasDetail ? (panel.d.temps ?? []) : []
-
-                Item {
-                    id: tempRow
-
-                    required property var modelData
-
-                    width: panel.rowWidth
-                    height: Theme.cellH * 1.2
-
-                    Text {
-                        anchors.left: parent.left
-                        anchors.leftMargin: Theme.cellW
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: Theme.cellW * 16
-                        text: tempRow.modelData.name
-                        color: Theme.fgDim
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
-                        renderType: Text.NativeRendering
-                    }
-
-                    Text {
-                        anchors.left: parent.left
-                        anchors.leftMargin: Theme.cellW * 17
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: tempRow.modelData.wert.toFixed(1) + " °C"
-                        color: SysInfo.tempColor(tempRow.modelData.wert)
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
-                        renderType: Text.NativeRendering
-                    }
-                }
-            }
-
-            // Luefter, die stehen, sind eine Aussage -- deshalb "aus" statt
-            // gar keiner Zeile.
-            Repeater {
-                model: SysInfo.hasDetail ? (panel.d.luefter ?? []) : []
-
-                Item {
-                    id: fanRow
-
-                    required property var modelData
-
-                    width: panel.rowWidth
-                    height: Theme.cellH * 1.2
-
-                    Text {
-                        anchors.left: parent.left
-                        anchors.leftMargin: Theme.cellW
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: Theme.cellW * 16
-                        text: fanRow.modelData.name
-                        color: Theme.fgDim
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
-                        renderType: Text.NativeRendering
-                    }
-
-                    Text {
-                        anchors.left: parent.left
-                        anchors.leftMargin: Theme.cellW * 17
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: fanRow.modelData.wert > 0 ? (fanRow.modelData.wert + " U/min") : "aus"
-                        color: fanRow.modelData.wert > 0 ? Theme.fg : Theme.muted
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
-                        renderType: Text.NativeRendering
-                    }
+            // Temperaturen und Luefter zusammen in EINEM Raster: es sind
+            // dieselbe Art Angabe -- ein Name und eine Zahl --, und sie
+            // wechselten sich vorher in zwei fast gleichen Bloecken ab. Ein
+            // stehender Luefter bleibt dabei stehen: "aus" ist eine Aussage,
+            // eine fehlende Zeile waere keine.
+            Facts {
+                rowWidth: panel.rowWidth
+                pairs: {
+                    if (!SysInfo.hasDetail)
+                        return [];
+                    const temps = (panel.d.temps ?? []).map(t => ({
+                                "label": t.name,
+                                "value": t.wert.toFixed(1) + " °C",
+                                "color": SysInfo.tempColor(t.wert)
+                            }));
+                    const fans = (panel.d.luefter ?? []).map(f => ({
+                                "label": f.name,
+                                "value": f.wert > 0 ? (f.wert + " U/min") : "aus",
+                                "color": f.wert > 0 ? Theme.fg : Theme.muted
+                            }));
+                    return temps.concat(fans);
                 }
             }
 
             // ── Grafikkarte ───────────────────────────────────────────────
 
-            Heading {
+            Rule {
+                rowWidth: panel.rowWidth
                 visible: SysInfo.hasDetail && panel.d.gpu
-                text: "GRAFIK"
+                label: "GRAFIK"
             }
 
-            Line {
+            PanelHead {
+                rowWidth: panel.rowWidth
                 visible: SysInfo.hasDetail && panel.d.gpu
-                text: SysInfo.hasDetail && panel.d.gpu ? ("  " + panel.d.gpu.name) : ""
-                color: Theme.fgDim
-                elide: Text.ElideRight
-                width: panel.rowWidth
+                title: SysInfo.hasDetail && panel.d.gpu ? String(panel.d.gpu.name) : ""
+                badge: SysInfo.hasDetail && panel.d.gpu ? (panel.d.gpu.temp.toFixed(0) + " °C") : ""
+                badgeColor: SysInfo.hasDetail && panel.d.gpu ? SysInfo.tempColor(panel.d.gpu.temp) : Theme.fgDim
             }
 
-            Item {
+            Facts {
+                rowWidth: panel.rowWidth
                 visible: SysInfo.hasDetail && panel.d.gpu
-                width: panel.rowWidth
-                height: Theme.cellH * 1.2
-
-                Text {
-                    anchors.left: parent.left
-                    anchors.leftMargin: Theme.cellW
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: SysInfo.hasDetail && panel.d.gpu ? (panel.d.gpu.last + " %   " + panel.d.gpu.benutzt + " / " + panel.d.gpu.gesamt + " MB") : ""
-                    color: Theme.fg
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
-                }
-
-                Text {
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: SysInfo.hasDetail && panel.d.gpu ? (panel.d.gpu.temp.toFixed(0) + " °C") : ""
-                    color: SysInfo.hasDetail && panel.d.gpu ? SysInfo.tempColor(panel.d.gpu.temp) : Theme.fg
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
-                }
+                pairs: SysInfo.hasDetail && panel.d.gpu ? [
+                    {
+                        "label": "Last",
+                        "value": panel.d.gpu.last + " %"
+                    },
+                    {
+                        "label": "Speicher",
+                        "value": panel.d.gpu.benutzt + " / " + panel.d.gpu.gesamt + " MB"
+                    }
+                ] : []
             }
 
             Line {

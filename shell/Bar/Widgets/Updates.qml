@@ -44,6 +44,9 @@ Cell {
                 Text {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
+                    // Keine Marke rechts wie in den anderen Popouts: dort
+                    // stehen hier schon die Knoepfe ([ pruefen ], [ jetzt ]),
+                    // und zwei Dinge am selben Rand sind eines zu viel.
                     text: "UPDATES  (" + Updates.count + ")" + (Updates.aur.length > 0 ? "  ·  davon " + Updates.aur.length + " AUR" : "")
                     color: Theme.fgDim
                     font.family: Theme.fontFamily

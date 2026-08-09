@@ -48,9 +48,25 @@ Singleton {
 
     readonly property bool online: activeWifi !== null || wiredConnected
 
+    // Die Signalstaerke kommt als Anteil zwischen 0 und 1 herein, nicht als
+    // Prozent -- wie `battery` bei Bluetooth-Geraeten. Das ist lange nicht
+    // aufgefallen, weil `bars()` alles unter 25 auf einen Balken abrundet:
+    // JEDES Netz sah gleich schwach aus, und das hielt man fuer die Lage im
+    // Haus. Aufgeflogen ist es erst, als die Zahl selbst in der Kopfzeile
+    // stand ("0.78 %").
+    //
+    // Umgerechnet wird nachsichtig: kommt eines Tages doch ein Wert ueber 1,
+    // gilt er als Prozent. So geht nichts kaputt, falls Quickshell das aendert.
+    function percentOf(strength) {
+        const s = Number(strength);
+        if (!isFinite(s) || s <= 0)
+            return 0;
+        return Math.round(Math.min(100, s <= 1 ? s * 100 : s));
+    }
+
     // Vier Stufen als Balken -- ein Symbol waere hier fehl am Platz.
     function bars(strength) {
-        const s = Math.max(0, Math.min(100, strength));
+        const s = root.percentOf(strength);
         const filled = Math.max(1, Math.ceil(s / 25));
         return "▂▄▆█".substring(0, filled) + "····".substring(0, 4 - filled);
     }

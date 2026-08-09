@@ -34,21 +34,15 @@ Cell {
 
             spacing: Theme.cellH * 0.2
 
-            Text {
-                text: "ENERGIE"
-                color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
-            }
-
-            Text {
-                width: panel.rowWidth
-                text: PowerService.percent + " %   " + PowerService.stateText + (PowerService.full ? "" : "   noch " + PowerService.timeText)
-                color: Theme.fg
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
+            // Der Ladestand als Marke rechts oben: die eine Zahl, die man
+            // ohne Lesen erkennen will.
+            PanelHead {
+                rowWidth: panel.rowWidth
+                icon: PowerService.charging ? Icons.batteryCharging : Icons.battery(PowerService.percent)
+                title: PowerService.stateText
+                subtitle: "Energie"
+                badge: PowerService.percent + " %"
+                badgeColor: PowerService.percent <= 20 && !PowerService.charging ? Theme.red : (PowerService.charging ? Theme.green : Theme.fgDim)
             }
 
             LevelBar {
@@ -58,61 +52,38 @@ Cell {
                 fillColor: PowerService.percent <= 20 && !PowerService.charging ? Theme.red : (PowerService.charging ? Theme.green : Theme.accent)
             }
 
-            Text {
-                width: panel.rowWidth
-                visible: PowerService.health > 0
-                text: "Zustand " + PowerService.health + " %" + (PowerService.rate > 0 ? "   " + PowerService.rate.toFixed(1) + " W" : "")
-                color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
-                bottomPadding: Theme.cellH * 0.4
+            Facts {
+                rowWidth: panel.rowWidth
+                pairs: [
+                    {
+                        "label": PowerService.charging ? "Voll in" : "Rest",
+                        "value": PowerService.full ? "voll" : PowerService.timeText
+                    },
+                    {
+                        "label": PowerService.rate > 0 ? "Leistung" : "",
+                        "value": PowerService.rate > 0 ? PowerService.rate.toFixed(1) + " W" : ""
+                    },
+                    {
+                        "label": PowerService.health > 0 ? "Zustand" : "",
+                        "value": PowerService.health > 0 ? PowerService.health + " %" : "",
+                        "color": PowerService.health > 0 && PowerService.health < 70 ? Theme.yellow : Theme.fg
+                    }
+                ]
             }
 
-            Text {
-                text: "PROFIL  (tuned)"
-                color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
+            Rule {
+                rowWidth: panel.rowWidth
+                label: "PROFIL  (tuned)"
             }
 
-            Repeater {
-                model: PowerService.profiles
-
-                delegate: Rectangle {
-                    id: row
-
-                    required property var modelData
-
-                    readonly property bool current: modelData === PowerService.activeProfile
-
-                    width: panel.rowWidth
-                    height: Theme.cellH * 1.4
-                    radius: Theme.radius
-                    color: mouse.hovered ? Theme.hover : "transparent"
-
-                    Text {
-                        anchors.left: parent.left
-                        anchors.leftMargin: Theme.cellW / 2
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: (row.current ? "▸ " : "  ") + row.modelData
-                        color: row.current ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
-                        renderType: Text.NativeRendering
-                    }
-
-                    HoverHandler {
-                        id: mouse
-
-                        cursorShape: Qt.PointingHandCursor
-                    }
-
-                    TapHandler {
-                        onTapped: PowerService.setProfile(row.modelData)
-                    }
-                }
+            // Untereinander stand hier vorher eine Liste, in der nur das
+            // aktive Profil markiert war. Nebeneinander sieht man dasselbe --
+            // und dazu, wie viele es ueberhaupt gibt.
+            Segments {
+                rowWidth: panel.rowWidth
+                options: PowerService.profiles
+                current: PowerService.activeProfile
+                onChosen: value => PowerService.setProfile(value)
             }
 
             Text {

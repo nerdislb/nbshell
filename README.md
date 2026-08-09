@@ -1387,6 +1387,52 @@ durch.
 
 ## Popouts
 
+### Vier Bausteine, aus denen sie bestehen
+
+Bis vor kurzem baute jedes Popout seine Zeilen selbst — mit von Hand gesetzten
+Spalten (`anchors.leftMargin: Theme.cellW * 17`), einer eigenen `Heading`-Komponente
+je Datei und Abschnitten, die nur durch Abstand getrennt waren. Beim Durchsehen
+von Omarchy 4 fiel auf, dass deren Panels genau vier Muster wiederholen. Die
+stehen jetzt in `shell/Widgets/` und gelten fuer alle:
+
+| | |
+|---|---|
+| `Facts` | Kennwerte als Raster: Beschriftung gedimmt links, Wert hell rechts, zwei Paare je Zeile |
+| `Rule` | Haarlinie, wahlweise mit Ueberschrift darunter — das `---` einer Manpage |
+| `Segments` | Reihe gerahmter Kaestchen, das aktive gefuellt |
+| `PanelHead` | Symbol, Titel, gedimmter Untertitel, gerahmte Marke rechts |
+
+**`Facts` ist der groesste Gewinn.** Acht Werte passen damit auf vier Zeilen,
+und die Zahlen stehen in beiden Spalten untereinander — der Wert sitzt am
+rechten Rand *seiner* Spalte, nicht am Rand des Popouts. Weicht der Platz
+nicht, weicht die **Beschriftung**: eine abgeschnittene Zahl ist wertlos, ein
+abgeschnittenes Wort noch lesbar.
+
+```
+CPU          62.0 °C   Gehaeuse       25.0 °C
+SSD          36.9 °C   Chipsatz       62.0 °C
+WLAN         51.0 °C   CPU-Kern (max) 62.0 °C
+Luefter 1         aus  Luefter 2          aus
+```
+
+**`Segments` beantwortet eine Frage, die vorher niemand beantwortet hat:** was
+es sonst noch gaebe. Die Energieprofile standen als Liste untereinander, die
+Form der Leiste schaltete ein Klick blind weiter. Nebeneinander sieht man beides
+auf einmal — alle Moeglichkeiten, und welche gilt. Ein `Flow` und keine `Row`:
+tuneds Profile heissen Dinge wie `throughput-performance`, drei davon
+nebeneinander waeren breiter als jedes Popout, also brechen sie um.
+
+**`PanelHead`** trennt Sache und Zusammenhang (`Magentanpjuda` / `WLAN`) und
+setzt die eine Zahl, die man ohne Lesen erkennen will, als Marke an den rechten
+Rand — Signalstaerke, Ladestand, Temperatur der Grafikkarte, Anzahl der Themes.
+Nur dort, wo rechts nichts anderes steht: im Update-Popout sitzen da die
+Knoepfe, und zwei Dinge am selben Rand sind eines zu viel.
+
+Was **nicht** uebernommen wurde: Transparenz, weiche Ecken, Schlagschatten —
+und vor allem der Groessensprung. Omarchys Wetter-Panel setzt die Temperatur
+dreimal so gross wie alles andere. Das sieht gut aus und bricht die Regel, die
+unsere Leiste zusammenhaelt: alles ist eine Zeichenzelle hoch.
+
 **Solange eines offen ist, klappt die Insel nicht zu.** Ein Popout ist ein
 eigenes Fenster — wer aus der Leiste hinunter in die Liste faehrt, hat die
 Leiste damit verlassen, und die Insel wuerde ihm unter der Hand wegklappen,
@@ -1767,6 +1813,10 @@ shell/
   scripts/todo.sh      Konfliktkopien des Abgleichs zurueckfalten
   Services/MediaService.qml  MPRIS
   Widgets/LevelBar.qml Balken aus Bloecken
+  Widgets/Facts.qml    Kennwerte als Raster (Label links, Wert rechts)
+  Widgets/Rule.qml     Haarlinie mit Ueberschrift
+  Widgets/Segments.qml Reihe gerahmter Kaestchen, das aktive gefuellt
+  Widgets/PanelHead.qml  Kopfzeile: Titel, Untertitel, Marke
   Widgets/MenuView.qml DBus-Menues als Liste
   Widgets/Cell.qml     der eine Baustein, aus dem alles besteht
   Bar/Bar.qml          das Fenster: Insel oder Balken
@@ -1806,6 +1856,17 @@ doppelt gebaut werden, und der Uebergang laesst sich animieren.
 
 ## Fallstricke
 
+- **Die Signalstaerke ist ein Anteil, kein Prozent.** Quickshell liefert
+  `signalStrength` zwischen 0 und 1 — wie `battery` bei Bluetooth-Geraeten.
+  `Net.bars()` rechnete mit 0..100 und rundete damit **jedes** Netz auf einen
+  Balken ab; das sah aus wie schlechter Empfang im ganzen Haus und war ein
+  Rechenfehler. Aufgeflogen ist es erst, als die Zahl selbst in einer
+  Kopfzeile stand: „0.78 %". Umgerechnet wird jetzt nachsichtig — kommt
+  irgendwann doch ein Wert ueber 1, gilt er als Prozent.
+- **Ein Screenshot direkt nach dem Neustart zeigt die alte Shell.** Zwischen
+  „Dienst aktiv" und „Leiste gezeichnet" liegen ein bis zwei Sekunden, in denen
+  die vorige Instanz noch auf dem Schirm steht. Zwei Aenderungen galten
+  deshalb kurz als wirkungslos, obwohl die Dateien laengst richtig waren.
 - **Eine Zelle nimmt nur Klicks an, wenn sie `interactive` ist.** Die
   `MouseArea` in `Cell.qml` haengt an `clickable` (`interactive || popout`) —
   auch der RECHTE Klick. Die Uhr stand auf `interactive: Config.value("calendar")`,

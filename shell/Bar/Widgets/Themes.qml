@@ -43,13 +43,17 @@ Cell {
 
             spacing: Theme.cellH * 0.3
 
-            Text {
+            // Der Name des aktiven Themes ist die Sache, "Theme" der
+            // Zusammenhang; die Anzahl steht als Marke daneben, statt in
+            // Klammern hinter einer Ueberschrift zu verschwinden.
+            PanelHead {
                 id: header
-                text: "THEMES  (" + ThemeIndex.list.length + ")"
-                color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
+
+                rowWidth: picker.rowWidth
+                icon: Icons.palette
+                title: Config.theme
+                subtitle: "Theme"
+                badge: String(ThemeIndex.list.length)
             }
 
             Repeater {

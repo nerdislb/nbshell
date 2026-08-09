@@ -112,10 +112,40 @@ Cell {
                 }
             }
 
+            // Woran der Rechner haengt, steht jetzt OBEN und nicht mehr
+            // irgendwo in der Netzliste: die Kopfzeile nennt die Sache, der
+            // Untertitel den Zusammenhang, die Marke rechts die eine Zahl.
+            // Abgeschaut bei Omarchys Netz-Panel.
+            PanelHead {
+                rowWidth: panel.rowWidth
+                icon: Net.online ? (Net.activeWifi ? Icons.wifi : Icons.lan) : Icons.wifiOff
+                title: Net.summary
+                subtitle: Net.activeWifi ? "WLAN" : (Net.wiredConnected ? "Kabel" : "nicht verbunden")
+                badge: Net.activeWifi ? (Net.percentOf(Net.activeWifi.signalStrength) + " %") : (Net.wiredConnected ? "LAN" : "")
+                badgeColor: Net.online ? Theme.green : Theme.fgDim
+            }
+
+            Facts {
+                rowWidth: panel.rowWidth
+                visible: Net.activeWifi !== null
+                pairs: Net.activeWifi ? [
+                    {
+                        "label": "Signal",
+                        "value": Net.bars(Net.activeWifi.signalStrength)
+                    },
+                    {
+                        "label": "Sicherheit",
+                        "value": Net.activeWifi.security !== WifiSecurityType.Open ? "gesichert" : "offen",
+                        "color": Net.activeWifi.security !== WifiSecurityType.Open ? Theme.fg : Theme.yellow
+                    }
+                ] : []
+            }
+
             // ── Helligkeit ────────────────────────────────────────────────
 
-            Heading {
-                text: "HELLIGKEIT"
+            Rule {
+                rowWidth: panel.rowWidth
+                label: "HELLIGKEIT"
                 visible: Brightness.available
             }
 
@@ -140,6 +170,11 @@ Cell {
             }
 
             // ── WLAN ──────────────────────────────────────────────────────
+
+            Rule {
+                rowWidth: panel.rowWidth
+                label: ""
+            }
 
             Item {
                 width: panel.rowWidth
@@ -292,6 +327,12 @@ Cell {
             }
 
             // ── Bluetooth ─────────────────────────────────────────────────
+
+            Rule {
+                rowWidth: panel.rowWidth
+                visible: Bt.available
+                label: ""
+            }
 
             Item {
                 width: panel.rowWidth
