@@ -41,6 +41,13 @@ Cell {
             // steht deshalb als eigene Zahl da und geht an die Zeilen.
             readonly property real rowWidth: 34 * Theme.cellW
 
+            // Welches Theme die Vorschau gerade zeigt. Ohne Maus auf einer
+            // Zeile ist das das aktive -- so steht dort nie ein leeres Feld,
+            // und man sieht beim Aufklappen, womit man vergleicht.
+            property string previewName: Config.theme
+
+            readonly property var previewTheme: ThemeIndex.byName(picker.previewName) ?? ThemeIndex.current
+
             spacing: Theme.cellH * 0.3
 
             // Der Name des aktiven Themes ist die Sache, "Theme" der
@@ -51,9 +58,22 @@ Cell {
 
                 rowWidth: picker.rowWidth
                 icon: Icons.palette
-                title: Config.theme
-                subtitle: "Theme"
+                title: picker.previewName
+                subtitle: picker.previewName === Config.theme ? "Theme · aktiv" : "Theme · Vorschau"
                 badge: String(ThemeIndex.list.length)
+            }
+
+            // Die Vorschau steht OBEN und nicht bei der Zeile: sie bleibt
+            // damit an derselben Stelle, waehrend die Maus durch die Liste
+            // faehrt. Wanderte sie mit, muesste das Auge ihr folgen, statt
+            // die Farben zu vergleichen.
+            ThemePreview {
+                rowWidth: picker.rowWidth
+                theme: picker.previewTheme
+            }
+
+            Rule {
+                rowWidth: picker.rowWidth
             }
 
             Repeater {
@@ -112,6 +132,12 @@ Cell {
                         id: mouse
 
                         cursorShape: Qt.PointingHandCursor
+
+                        // Beim Verlassen zurueck auf das aktive Theme, nicht
+                        // auf die zuletzt beruehrte Zeile: sonst behauptet die
+                        // Kopfzeile weiter "Vorschau", obwohl die Maus laengst
+                        // woanders ist.
+                        onHoveredChanged: picker.previewName = mouse.hovered ? row.modelData.name : Config.theme
                     }
 
                     TapHandler {

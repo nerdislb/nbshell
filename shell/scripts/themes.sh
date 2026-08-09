@@ -45,7 +45,12 @@ first_wallpaper() {
 # (Common/Theme.qml, `normalize`); die Vorschau musste nachziehen.
 #
 # Ausgabe: eine Zeile, Felder durch Tabulator getrennt, in der Reihenfolge
-# mode bg fg accent red green yellow blue magenta.
+# mode bg fg accent red green yellow blue magenta muted dimfg brightfg cyan.
+#
+# Die letzten vier kamen mit der Vorschau dazu: um eine Leiste im fremden Theme
+# zu zeichnen, reichen Hintergrund und Akzent nicht -- es fehlten der Rahmen
+# (muted), die gedaempfte Schrift und die helle. Fehlen sie im Theme, faellt
+# jede auf etwas zurueck, das es sicher gibt, statt auf Schwarz.
 palette() {
     awk '
         # Relative Luminanz nach WCAG -- nur fuer hell/dunkel gebraucht.
@@ -101,7 +106,8 @@ palette() {
                 if (l >= 0)
                     mode = (l > 0.5) ? "light" : "dark"
             }
-            printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", mode, bg, pick("foreground"), pick("accent", "color4", "blue"), pick("red", "color1"), pick("green", "color2"), pick("yellow", "color3"), pick("blue", "color4"), pick("magenta", "color5")
+            fg = pick("foreground")
+            printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", mode, bg, fg, pick("accent", "color4", "blue"), pick("red", "color1"), pick("green", "color2"), pick("yellow", "color3"), pick("blue", "color4"), pick("magenta", "color5"), pick("muted", "color8"), pick("dark_foreground", "color7"), pick("bright_foreground", "color15"), pick("cyan", "color6")
         }
     ' "$1"
 }
@@ -111,11 +117,18 @@ first=1
 for dir in "$THEME_DIR"/*/; do
     [ -f "$dir/colors.toml" ] || continue
     name="$(basename "$dir")"
-    IFS=$'\t' read -r mode bg fg accent red green yellow blue magenta < <(palette "$dir/colors.toml")
+    IFS=$'\t' read -r mode bg fg accent red green yellow blue magenta muted dimfg brightfg cyan < <(palette "$dir/colors.toml")
+    # Was das Theme nicht nennt, wird abgeleitet -- eine leere Farbe waere in
+    # QML durchsichtig, und die Miniatur haette Loecher.
+    [ -n "$muted" ] || muted="$fg"
+    [ -n "$dimfg" ] || dimfg="$fg"
+    [ -n "$brightfg" ] || brightfg="$fg"
+    [ -n "$cyan" ] || cyan="$blue"
     [ $first -eq 1 ] || printf ','
     first=0
-    printf '{"name":"%s","mode":"%s","background":"%s","foreground":"%s","accent":"%s","red":"%s","green":"%s","yellow":"%s","blue":"%s","magenta":"%s","wallpaper":"%s"}' \
+    printf '{"name":"%s","mode":"%s","background":"%s","foreground":"%s","accent":"%s","red":"%s","green":"%s","yellow":"%s","blue":"%s","magenta":"%s","muted":"%s","dimForeground":"%s","brightForeground":"%s","cyan":"%s","wallpaper":"%s"}' \
         "$name" "$mode" "$bg" "$fg" "$accent" "$red" "$green" "$yellow" "$blue" "$magenta" \
+        "$muted" "$dimfg" "$brightfg" "$cyan" \
         "$(first_wallpaper "${dir%/}" "$name")"
 done
 printf ']\n'

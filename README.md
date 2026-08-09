@@ -393,8 +393,38 @@ vier Bausteinlisten.
 Umrechnen muss nbshell nichts: es liest Omarchys `colors.toml` direkt, es gibt
 kein Zielformat mehr. Von [omarchy2dms](https://github.com/nerdislb/omarchy2dms)
 bleibt damit nur das Suchen und Auflisten uebrig, und das erledigt
-`scripts/themes.sh` in einem Aufruf — Name, Modus, fuenf Farben fuer die
+`scripts/themes.sh` in einem Aufruf — Name, Modus, zwoelf Farben fuer die
 Vorschau und das erste Wallpaper.
+
+### Die Vorschau
+
+Der Themewaehler (`nbshell picker`, oder ein Klick auf den Baustein `themes`)
+zeigt oben eine **Miniatur der eigenen Leiste, in den Farben des Kandidaten
+gezeichnet**, darunter dessen Palette als lueckenloser Streifen. Faehrt die
+Maus durch die Liste, wechselt die Vorschau mit; verlaesst sie die Liste, steht
+wieder das aktive Theme da. Die Kopfzeile sagt, was gerade gilt:
+`THEME · AKTIV` oder `THEME · VORSCHAU`.
+
+Omarchy 4 loest dasselbe mit einem Karussell aus **vorgerenderten
+Desktop-Screenshots** — pro Theme ein Bild, das jemand aufnehmen und
+mitliefern muss. Das geht hier nicht und soll es auch nicht: unsere Themes
+bringen nur ihre `colors.toml` mit (84 KB statt 91 MB, siehe oben). Gezeichnet
+statt geladen heisst: nichts im Zwischenspeicher, nichts nachzuladen, und ein
+frisch installiertes Theme hat seine Vorschau sofort.
+
+Und sie zeigt das Richtige. Ein fremder Desktop beantwortet „wie sieht das
+aus" mit einem Bild von jemand anderes Bildschirm; die Miniatur antwortet mit
+der Leiste, die man gleich vor sich hat.
+
+Zwei Kleinigkeiten stecken darin:
+
+- **Was ein Theme nicht nennt, wird abgeleitet** — schon in `themes.sh`, nicht
+  erst in QML. Ein leerer Farbwert ist in QML durchsichtig, und die Miniatur
+  haette Loecher, durch die das AKTUELLE Theme durchscheint: die
+  irrefuehrendste aller Vorschauen.
+- **Kein Fenstertitel in der Miniatur.** Bei 34 Zeichen Breite stiess er in
+  der Mitte auf die Uhr, und „nbshell12:34" ist keine Vorschau, sondern ein
+  Fehler.
 
 Wallpaper werden an drei Stellen gesucht: beim Theme selbst
 (`<theme>/backgrounds/`), im Zwischenspeicher von omarchy2dms
@@ -1817,6 +1847,7 @@ shell/
   Widgets/Rule.qml     Haarlinie mit Ueberschrift
   Widgets/Segments.qml Reihe gerahmter Kaestchen, das aktive gefuellt
   Widgets/PanelHead.qml  Kopfzeile: Titel, Untertitel, Marke
+  Widgets/ThemePreview.qml  Miniatur der Leiste in fremden Farben
   Widgets/MenuView.qml DBus-Menues als Liste
   Widgets/Cell.qml     der eine Baustein, aus dem alles besteht
   Bar/Bar.qml          das Fenster: Insel oder Balken
