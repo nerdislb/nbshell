@@ -565,7 +565,7 @@ ShellRoot {
         function list(): string {
             if (Notify.count === 0)
                 return "nichts da";
-            return Notify.history.map(e => (e.notification?.appName || "System") + ": " + (e.notification?.summary ?? "")).join("\n");
+            return Notify.history.map(e => (e.appName || "System") + ": " + (e.summary ?? "")).join("\n");
         }
     }
 
@@ -630,17 +630,58 @@ ShellRoot {
         }
 
         function toggle(): string {
+            Runtime.launcherPrefill = "";
             Runtime.launcherOpen = !Runtime.launcherOpen;
             return Runtime.launcherOpen ? "offen" : "zu";
         }
 
-        // Zum Pruefen ohne Tastatur -- und praktisch fuer Skripte.
+        // Dieselbe Flaeche, nur mit gesetztem Praefix: ">" nur Befehle,
+        // "!" nur Anwendungen.
+        function palette(): string {
+            Runtime.launcherPrefill = ">";
+            Runtime.launcherOpen = true;
+            return "offen";
+        }
+
+        function apps(): string {
+            Runtime.launcherPrefill = "!";
+            Runtime.launcherOpen = true;
+            return "offen";
+        }
+
+        // Zum Pruefen ohne Tastatur -- und praktisch fuer Skripte. Zeigt
+        // dieselbe Mischung aus Anwendungen und Befehlen wie das Fenster,
+        // damit man die Reihenfolge nachsehen kann, ohne sie zu erraten.
         function find(query: string): string {
-            return Apps.search(query).slice(0, 10).map(e => e.name).join("\n");
+            const apps = Apps.rank(query);
+            const cmds = Commands.rank(query).map(x => ({
+                        "entry": x.entry,
+                        "points": x.points * 0.9
+                    }));
+            const merged = query ? apps.concat(cmds).sort((a, b) => b.points - a.points) : apps.concat(cmds);
+            return merged.slice(0, 10).map(x => (x.entry.kind === "cmd" ? "BEFEHL  " : "APP     ") + x.entry.name).join("\n");
+        }
+
+        // Einen Befehl ohne Fenster ausloesen -- fuer Skripte und zum Pruefen.
+        // Was in der Palette nachfragt (Ausschalten, Abmelden), tut das hier
+        // nicht: es lehnt ab. Ein Skript, das sich vertippt, soll nicht den
+        // Rechner herunterfahren.
+        function exec(query: string): string {
+            const hit = Commands.search(query)[0];
+            if (!hit)
+                return "kein Befehl passt zu: " + query;
+            if (hit.confirm)
+                return hit.name + " fragt nach und geht nur im Fenster (Mod+Space)";
+            Commands.invoke(hit);
+            return hit.name;
+        }
+
+        function commands(query: string): string {
+            return Commands.search(query).map(e => (e.category + "         ").substring(0, 9) + " " + e.name).join("\n");
         }
 
         function count(): string {
-            return String(Apps.entries.length);
+            return String(Apps.entries.length) + " Anwendungen, " + String(Commands.all.length) + " Befehle";
         }
     }
 

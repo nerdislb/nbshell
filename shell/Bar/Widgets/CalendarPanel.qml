@@ -57,16 +57,6 @@ Column {
         return new Date(year, month + 1, 0).getDate();
     }
 
-    // Kalenderwoche nach ISO 8601: die Woche mit dem ersten Donnerstag des
-    // Jahres ist Woche 1. Qt hat dafuer kein Format, also von Hand.
-    function isoWeek(date) {
-        const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-        d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
-        const firstThursday = new Date(d.getFullYear(), 0, 4);
-        firstThursday.setDate(firstThursday.getDate() + 3 - ((firstThursday.getDay() + 6) % 7));
-        return 1 + Math.round((d.getTime() - firstThursday.getTime()) / (7 * 86400000));
-    }
-
     component Heading: Text {
         color: Theme.fgDim
         font.family: Theme.fontFamily
@@ -205,7 +195,7 @@ Column {
 
                     Heading {
                         anchors.centerIn: parent
-                        text: panel.isoWeek(week.weekStart)
+                        text: Calendar.isoWeek(week.weekStart)
                         color: Theme.muted
                     }
                 }

@@ -71,6 +71,22 @@ else
 fi
 echo
 
+# Der Agent fuer Rechteabfragen laesst sich nicht ueber `command -v` finden:
+# er liegt unter /usr/lib und wird als User-Unit gestartet, nicht aufgerufen.
+# Fehlt er, merkt man es erst, wenn ein Programm nach Rechten fragt und
+# scheinbar nichts passiert -- deshalb steht der Hinweis hier und nicht in der
+# Liste oben.
+polkit_found=""
+for unit in hyprpolkitagent polkit-gnome-authentication-agent-1 lxqt-policykit-agent mate-polkit; do
+    systemctl --user cat "$unit.service" >/dev/null 2>&1 && { polkit_found="$unit"; break; }
+done
+if [ -z "$polkit_found" ]; then
+    warn "Kein Polkit-Agent installiert — Programme, die nach Rechten fragen,"
+    echo "  scheitern dann still (kein Passwortfenster). Vorschlag:"
+    echo "  sudo pacman -S hyprpolkitagent   und danach: nbshell polkit on"
+    echo
+fi
+
 # ── Shell ────────────────────────────────────────────────────────────────
 # Laeuft eine Instanz, wird sie vorher beendet: waehrend des Kopierens ist das
 # Verzeichnis kurz unvollstaendig, und Quickshell laedt bei jeder Aenderung neu
@@ -89,6 +105,20 @@ elif "$QS_BIN" list --all 2>/dev/null | grep -c "quickshell/nbshell/shell.qml" >
     "${SRC}/bin/nbshell" stop >/dev/null 2>&1 || true
     sleep 0.3
 fi
+
+# Ab hier laeuft keine Leiste mehr. Endet das Skript vor dem regulaeren
+# Neustart -- durch einen Fehler unter `set -e`, durch Strg-C oder durch ein
+# SIGPIPE, weil jemand die Ausgabe nach `head` geschickt hat --, dann steht
+# der Benutzer ohne Leiste da und sucht den Grund woanders. Der EXIT-Trap holt
+# sie in jedem dieser Faelle zurueck; nach einem sauberen Durchlauf hat der
+# Abschnitt unten sie schon gestartet, und dann ist er wirkungslos.
+zurueckholen() {
+    if [ $unit_active -eq 1 ]; then
+        systemctl --user is-active --quiet nbshell.service 2>/dev/null || \
+            systemctl --user start nbshell.service 2>/dev/null || true
+    fi
+}
+trap zurueckholen EXIT
 
 mkdir -p "$SHELL_DIR"
 rm -rf "${SHELL_DIR:?}"/*

@@ -23,6 +23,19 @@ Singleton {
 
     readonly property bool enabled: Config.value("calendar", true)
 
+    // Kalenderwoche nach ISO 8601: die Woche mit dem ersten Donnerstag des
+    // Jahres ist Woche 1. Qt hat dafuer kein Format, also von Hand. Steht hier
+    // und nicht im Kalenderfenster, weil die Uhr sie ebenfalls anzeigen kann --
+    // zweimal dieselbe Rechnung waere zweimal dieselbe Gelegenheit, sie
+    // unterschiedlich falsch zu machen.
+    function isoWeek(date) {
+        const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+        const firstThursday = new Date(d.getFullYear(), 0, 4);
+        firstThursday.setDate(firstThursday.getDate() + 3 - ((firstThursday.getDay() + 6) % 7));
+        return 1 + Math.round((d.getTime() - firstThursday.getTime()) / (7 * 86400000));
+    }
+
     // Termine des geladenen Fensters, nach Beginn sortiert.
     property var events: []
     property var calendars: []

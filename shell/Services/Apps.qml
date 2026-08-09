@@ -91,11 +91,17 @@ Singleton {
         return points + Math.max(0, 10 - t.length / 4);
     }
 
-    function search(query) {
-        // Ohne Eingabe: das zuletzt oft Gestartete zuerst -- so steht beim
-        // Aufklappen schon das Richtige oben.
+    // Wie `search`, aber mit den Punkten. Der Starter mischt Anwendungen und
+    // Befehle in EINE Liste -- dafuer muss er vergleichen koennen, wie gut
+    // beide Seiten passen, und nicht nur, in welcher Reihenfolge jede Seite
+    // fuer sich sortiert waere.
+    function rank(query) {
         if (!query) {
-            return entries.slice().sort((a, b) => (root.usageOf(b) - root.usageOf(a)) || a.name.localeCompare(b.name));
+            const plain = entries.slice().sort((a, b) => (root.usageOf(b) - root.usageOf(a)) || a.name.localeCompare(b.name));
+            return plain.map(e => ({
+                        "entry": e,
+                        "points": 0
+                    }));
         }
 
         const list = [];
@@ -114,7 +120,11 @@ Singleton {
                 });
         }
         list.sort((a, b) => b.points - a.points || a.entry.name.localeCompare(b.entry.name));
-        return list.map(x => x.entry);
+        return list;
+    }
+
+    function search(query) {
+        return rank(query).map(x => x.entry);
     }
 
     // Mit `check` liefert Quickshell einen leeren Pfad, wenn es das Symbol
@@ -126,6 +136,41 @@ Singleton {
         return name ? Quickshell.iconPath(name, true) : "";
     }
 
+    // ── Jede Anwendung in ihren eigenen Scope ────────────────────────────
+    //
+    // Ohne das haengt alles Gestartete an nbshell und damit im selben Cgroup
+    // wie die Shell. Laeuft ein Programm dann mit dem Speicher davon, sucht
+    // systemd-oomd sich das groesste Cgroup -- und das ist die Sitzung, nicht
+    // der Uebeltaeter. Ein eigener Scope je Anwendung macht sie einzeln
+    // sichtbar und einzeln abraeumbar: `systemctl --user status app-nbshell-*`.
+    //
+    // `--scope` und nicht `--user <dienst>`: der Scope wird von systemd-run
+    // selbst abgezweigt und erbt damit die Umgebung der Shell -- Anzeige,
+    // Wayland-Socket, alles. Ein Dienst bekaeme stattdessen die des
+    // User-Managers und faende keinen Bildschirm.
+    //
+    // `--collect` raeumt einen gescheiterten Scope gleich weg, sonst stuende er
+    // bis zum Abmelden als "failed" in der Liste.
+    readonly property bool useScopes: Config.value("appScopes", true)
+
+    // Erst pruefen, dann verwenden: gibt es systemd-run nicht, wuerde sonst
+    // nichts mehr starten -- ein hoher Preis fuer eine Aufraeumhilfe.
+    property bool scopesReady: false
+
+    function scoped(command, name) {
+        if (!root.useScopes || !root.scopesReady)
+            return command;
+        const safe = String(name || "app").replace(/[^A-Za-z0-9_.-]/g, "_").substring(0, 40);
+        const unit = "app-nbshell-" + safe + "-" + Math.floor(Math.random() * 1000000);
+        return ["systemd-run", "--user", "--scope", "--quiet", "--collect", "--slice=app.slice", "--unit=" + unit, "--"].concat(command);
+    }
+
+    Process {
+        running: true
+        command: ["sh", "-c", "command -v systemd-run >/dev/null"]
+        onExited: code => root.scopesReady = (code === 0)
+    }
+
     function launch(entry) {
         if (!entry?.command)
             return false;
@@ -133,18 +178,19 @@ Singleton {
         root.remember(entry);
 
         const workDir = entry.workingDirectory || Quickshell.env("HOME");
+        const name = entry.id || entry.name;
 
         if (entry.runInTerminal) {
             const quoted = entry.command.map(a => "'" + String(a).replace(/'/g, "'\\''") + "'").join(" ");
             Quickshell.execDetached({
-                "command": [root.terminal, "-e", "sh", "-c", quoted],
+                "command": root.scoped([root.terminal, "-e", "sh", "-c", quoted], name),
                 "workingDirectory": workDir
             });
             return true;
         }
 
         Quickshell.execDetached({
-            "command": entry.command,
+            "command": root.scoped(entry.command, name),
             "workingDirectory": workDir
         });
         return true;
@@ -157,7 +203,7 @@ Singleton {
         if (!text)
             return false;
         Quickshell.execDetached({
-            "command": ["sh", "-c", text],
+            "command": root.scoped(["sh", "-c", text], "befehl"),
             "workingDirectory": Quickshell.env("HOME")
         });
         return true;

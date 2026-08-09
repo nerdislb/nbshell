@@ -18,8 +18,15 @@
 // spawn-Befehle mit dem PATH des systemd-User-Managers, in dem ~/.local/bin
 // nicht steht. Ein blosses `spawn "nbshell"` laeuft still ins Leere.
 binds {
-    // DMS: spotlight -> nbshells Anwendungsstarter.
+    // DMS: spotlight -> nbshells Anwendungsstarter. Er sucht seit der
+    // Befehlspalette in beidem: Anwendungen und allem, was die Shell kann.
     Mod+Space hotkey-overlay-title="nbshell: Anwendungsstarter" { spawn "sh" "-c" "$HOME/.local/bin/nbshell launcher"; }
+
+    // Dieselbe Flaeche, aber nur die Befehle -- fuer den Fall, dass man weiss,
+    // dass man KEIN Programm sucht. Wie Omarchys getrennte Anwendungsliste,
+    // nur andersherum: dort sind die Anwendungen der Sonderfall, hier die
+    // Befehle.
+    Mod+Shift+Space hotkey-overlay-title="nbshell: Befehlspalette" { spawn "sh" "-c" "$HOME/.local/bin/nbshell palette"; }
 
     // DMS: notification center -> nbshells Archiv.
     Mod+N hotkey-overlay-title="nbshell: Benachrichtigungen" { spawn "sh" "-c" "$HOME/.local/bin/nbshell notify toggle"; }

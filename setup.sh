@@ -107,7 +107,11 @@ PKG_SYSTEM=(networkmanager bluez bluez-utils pipewire pipewire-pulse wireplumber
 #   pacman-contrib `checkupdates` -- ohne das rechnet der Updater langsamer
 #   fakeroot       der Rueckweg des Updaters, wenn checkupdates fehlt
 #   headsetcontrol Akkustand im Headset-Plugin (USB-HID++, Logitech & co.)
-PKG_BAUSTEINE=(wl-clipboard hyprlock tuned libnotify xdg-utils pacman-contrib fakeroot headsetcontrol)
+#   hyprpolkitagent das Fenster, das nach dem Passwort fragt, wenn ein Programm
+#                  Rechte will. polkitd selbst fragt NIEMANDEN -- ohne einen
+#                  Agenten in der Sitzung scheitert jede Anfrage still. Ein
+#                  Desktop bringt ihn mit, niri nicht.
+PKG_BAUSTEINE=(wl-clipboard hyprlock tuned libnotify xdg-utils pacman-contrib fakeroot headsetcontrol hyprpolkitagent)
 
 # Kalender: khal rechnet die Wiederholungen, vdirsyncer holt sie.
 PKG_KALENDER=(khal vdirsyncer)

@@ -8,6 +8,7 @@ set -euo pipefail
 CONFIG_NAME="nbshell"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/nbshell"
 THEME_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/theme-install.sh"
+PLUGIN_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/plugins.sh"
 
 qs_bin() {
     if command -v qs >/dev/null 2>&1; then echo qs; else echo quickshell; fi
@@ -89,6 +90,100 @@ alacritty_theme() {
     echo "  alacritty: import = $want (Sicherung: alacritty.toml.vor-nbshell)"
 }
 
+# ── Schriftgroesse in einem Zug ──────────────────────────────────────────
+#
+# Die Idee stammt aus Omarchy 4 ("omarchy display text size"): EIN Regler, der
+# Shell, GTK und Terminal zusammen bewegt. Vorher stellte man die Leiste um,
+# fand die Menues zu klein, stellte GTK nach, und das Terminal blieb, wie es
+# war.
+#
+# Drei Vorsichtsmassnahmen stecken darin:
+#
+#   1. Das Terminal wird NICHT auf die Pixelgroesse der Shell gesetzt. Es
+#      rechnet in Punkt und stand hier auf 12, waehrend die Leiste auf 13 px
+#      steht -- eine stumpfe Umrechnung haette es beim ersten Aufruf um ein
+#      Viertel geschrumpft. Stattdessen wird das Verhaeltnis beim ersten Mal
+#      gemessen und in der Config abgelegt (`terminalRatio`), danach bleibt es
+#      erhalten.
+#   2. GTKs Skalierung wird so gerundet, dass die GTK-Schrift auf einer GANZEN
+#      Punktgroesse landet. Krumme Werte schneiden in GTK Menueeintraege ab --
+#      derselbe Fehler, den Omarchy in dieser Runde behoben hat.
+#   3. Geschrieben wird nur, was es schon gibt: keine ghostty-Config, kein
+#      Eingriff; kein gsettings, kein GTK-Teil.
+TEXT_MIN=8
+TEXT_MAX=28
+
+text_size() {
+    local want="${1:-}"
+    local shell_now
+    shell_now="$("$0" get fontSize 2>/dev/null || true)"
+    # KEIN `[ … ] || [ … ] && x`: schlagen beide Tests fehl, ist der Rueckgabewert
+    # der Zeile 1 -- und unter `set -e` endet die Funktion genau hier, still.
+    if [ -z "$shell_now" ] || [ "$shell_now" = "null" ]; then
+        shell_now=13
+    fi
+
+    if [ -z "$want" ]; then
+        printf 'Shell      %s px\n' "$shell_now"
+        if [ -f "$GHOSTTY" ]; then
+            printf 'ghostty    %s pt\n' "$(awk -F'= *' '/^font-size/ {print $2}' "$GHOSTTY")"
+        fi
+        if command -v gsettings >/dev/null 2>&1; then
+            printf 'GTK        Faktor %s\n' "$(gsettings get org.gnome.desktop.interface text-scaling-factor 2>/dev/null)"
+        fi
+        echo
+        echo "Aendern: nbshell text <$TEXT_MIN..$TEXT_MAX>"
+        return 0
+    fi
+
+    case "$want" in
+        ''|*[!0-9]*) echo "Zahl erwartet: nbshell text <$TEXT_MIN..$TEXT_MAX>" >&2; return 1 ;;
+    esac
+    if [ "$want" -lt "$TEXT_MIN" ] || [ "$want" -gt "$TEXT_MAX" ]; then
+        echo "Ausserhalb von $TEXT_MIN..$TEXT_MAX: $want" >&2
+        return 1
+    fi
+
+    # Terminal: Verhaeltnis einmal messen, dann behalten.
+    local ratio term_now
+    ratio="$("$0" get terminalRatio 2>/dev/null || true)"
+    if [ -f "$GHOSTTY" ]; then
+        term_now="$(awk -F'= *' '/^font-size/ {print $2}' "$GHOSTTY" | tr -d ' ')"
+        if [ "$ratio" = "null" ] || [ -z "$ratio" ]; then
+            ratio="$(python3 -c "print(round(float('${term_now:-12}') / float('${shell_now:-13}'), 4))")"
+            "$0" set terminalRatio "$ratio" >/dev/null
+        fi
+    fi
+
+    "$0" set fontSize "$want" >/dev/null
+    echo "Shell      $want px"
+
+    if [ -f "$GHOSTTY" ] && [ -n "${term_now:-}" ]; then
+        local term_new
+        term_new="$(python3 -c "print(max(6, round($want * float('$ratio'))))")"
+        cp "$GHOSTTY" "$GHOSTTY.vor-nbshell"
+        sed -i "s/^font-size *=.*/font-size = $term_new/" "$GHOSTTY"
+        echo "ghostty    $term_new pt (Sicherung: config.vor-nbshell)"
+        # ghostty liest von selbst nicht neu -- dasselbe Signal wie beim Theme.
+        pkill -USR2 -x ghostty 2>/dev/null || true
+    fi
+
+    if command -v gsettings >/dev/null 2>&1; then
+        local base factor
+        base="$(gsettings get org.gnome.desktop.interface font-name 2>/dev/null | tr -d "'" | awk '{print $NF}')"
+        factor="$(python3 -c "
+base = float('${base:-11}')
+want, ref = float('$want'), 13.0
+# Auf eine ganze Punktgroesse einrasten, sonst schneidet GTK Menues ab.
+print(round(max(1.0, round(base * want / ref) / base), 3))
+")"
+        if gsettings set org.gnome.desktop.interface text-scaling-factor "$factor" 2>/dev/null; then
+            echo "GTK        Faktor $factor (${base:-11} pt -> $(python3 -c "print(round(float('${base:-11}')*float('$factor')))") pt)"
+        fi
+    fi
+    return 0
+}
+
 # Damit nbshell nach dem Anmelden von selbst da ist. Dasselbe Muster, das DMS
 # benutzt: ein Drop-in an niri.service, das die Unit mitzieht. Eine EIGENE
 # Datei -- dms.conf bleibt unangetastet, damit der Rueckweg frei bleibt.
@@ -109,6 +204,57 @@ autostart_off() {
     systemctl --user disable nbshell.service >/dev/null 2>&1
     systemctl --user daemon-reload 2>/dev/null
     echo "  nbshell: startet nicht mehr automatisch (laeuft weiter)"
+}
+
+# ── Rechteabfragen ───────────────────────────────────────────────────────
+#
+# polkitd fragt niemanden selbst. Es erwartet einen Agenten IN der Sitzung, der
+# das Fenster mit der Passwortabfrage aufmacht -- ohne ihn scheitert `pkexec`
+# still, und die Anwendung, die nach Rechten gefragt hat, meldet bestenfalls
+# "nicht berechtigt". Unter einem Desktop bringt die Umgebung ihn mit; unter
+# niri bringt ihn niemand mit, und man merkt es erst, wenn etwas nicht geht.
+#
+# nbshell hat keinen eigenen -- Quickshell hat keine Anbindung an polkit --,
+# also wird ein vorhandener eingeschaltet. `hyprpolkitagent` ist die naechste
+# Wahl: Qt/QML wie die Shell selbst, in `extra`, laeuft unter jedem
+# wlroots-Kompositor und bringt seine eigene User-Unit mit.
+POLKIT_UNITS="hyprpolkitagent.service polkit-gnome-authentication-agent-1.service lxqt-policykit-agent.service mate-polkit.service"
+
+polkit_unit() {
+    local unit
+    for unit in $POLKIT_UNITS; do
+        systemctl --user cat "$unit" >/dev/null 2>&1 && { echo "$unit"; return 0; }
+    done
+    return 1
+}
+
+polkit_running() {
+    # Der Agent meldet sich als org.freedesktop.PolicyKit1.AuthenticationAgent
+    # bei polkitd an -- am Bus sieht man ihn aber nur an seinem Prozess.
+    pgrep -f 'polkit.*(agent|Agent)|polkit-gnome|lxqt-policykit|hyprpolkitagent' >/dev/null 2>&1
+}
+
+polkit_on() {
+    local unit
+    if unit="$(polkit_unit)"; then
+        systemctl --user enable --now "$unit" >/dev/null 2>&1 \
+            && echo "  polkit: $unit laeuft und startet mit" \
+            || echo "  polkit: $unit liess sich nicht starten"
+    else
+        echo "  polkit: kein Agent installiert -- ohne ihn scheitert jede"
+        echo "          Rechteabfrage still. sudo pacman -S hyprpolkitagent"
+    fi
+}
+
+polkit_status() {
+    local unit
+    if unit="$(polkit_unit)"; then
+        printf 'Agent            %s (%s)\n' "$unit" "$(systemctl --user is-active "$unit" 2>/dev/null)"
+    elif polkit_running; then
+        printf 'Agent            laeuft (ohne Unit, von Hand gestartet)\n'
+    else
+        printf 'Agent            keiner -- pacman -S hyprpolkitagent\n'
+    fi
 }
 
 switch_on() {
@@ -139,6 +285,10 @@ switch_on() {
     ipc wallpaper on >/dev/null && echo "  nbshell: Hintergrundbild an"
     ghostty_theme nbcolors
     alacritty_theme nb-theme.toml
+    # Bleibt auch nach `switch off` an: der Agent gehoert nicht DMS, und DMS
+    # bringt selbst keinen mit -- ihn wieder abzuschalten hiesse, das Loch
+    # zurueckzugeben.
+    polkit_on
     autostart_on
     echo
     echo "Mit DMS gehen auch dessen Plugins -- nbshell hat fuer jedes einen"
@@ -164,6 +314,7 @@ switch_status() {
     printf 'niri-Binds       %s\n' "$(grep -qF "$INCLUDE_LINE" "$NIRI_DIR/config.kdl" && echo "nbshell" || echo "DMS")"
     printf 'Fensterrahmen    %s\n' "$(grep -qF "$COLORS_LINE" "$NIRI_DIR/config.kdl" && echo "nbshell" || echo "DMS")"
     printf 'nbshell-Autostart %s\n' "$([ -f "$UNIT_DROPIN" ] && echo "an ($(systemctl --user is-active nbshell.service))" || echo "aus")"
+    polkit_status
 }
 
 usage() {
@@ -230,6 +381,10 @@ nbshell -- eigene Shell auf Quickshell
   nbshell todo status       Zahlen und Ablageort
 
   nbshell plugins           Bausteine auflisten (auch: reload)
+  nbshell plugin add <url>  fremdes Bar-Widget aus git holen (laeuft IN der
+                            Shell -- nur, wem du traust)
+  nbshell plugin update [name]
+  nbshell plugin remove <name>
   nbshell popout <name>     Popout eines Bausteins aufklappen
   nbshell battery           Akku und Energieprofil (bat <profil> wechselt)
   nbshell power             Power-Menue (auch: lock, logout, suspend)
@@ -257,6 +412,18 @@ nbshell -- eigene Shell auf Quickshell
                             Tastenkuerzel zu nbshell
   nbshell switch off        alles zurueck zu DMS
   nbshell switch status
+
+  nbshell launcher          Starter: Anwendungen UND Befehle
+  nbshell palette           derselbe Starter, nur die Befehle
+  nbshell find <text>       was der Starter zu <text> anbietet
+  nbshell befehle [text]    alle Befehle der Palette (Mod+Space, ">")
+  nbshell befehl <text>     den besten Treffer ausfuehren
+
+  nbshell text              welche Schriftgroessen gerade gelten
+  nbshell text <8..28>      Shell, GTK und Terminal zusammen umstellen
+
+  nbshell polkit            laeuft ein Agent fuer Rechteabfragen?
+  nbshell polkit on         einen vorhandenen einschalten
 
 Alles andere geht unveraendert an Quickshell:
   nbshell log, nbshell ipc show, ...
@@ -323,14 +490,32 @@ case "$cmd" in
     launcher|run)
         ipc launcher "${1:-toggle}"
         ;;
+    palette)
+        ipc launcher palette
+        ;;
     find)
         ipc launcher find "${1:?Suchbegriff fehlt}"
+        ;;
+    befehle|commands)
+        ipc launcher commands "${1:-}"
+        ;;
+    befehl)
+        ipc launcher exec "${1:?Name fehlt}"
         ;;
     switch)
         case "${1:-status}" in
             on) shift; switch_on "$@" ;;
             off) switch_off ;;
             *) switch_status ;;
+        esac
+        ;;
+    text)
+        text_size "${1:-}"
+        ;;
+    polkit)
+        case "${1:-status}" in
+            on) polkit_on ;;
+            *) polkit_status ;;
         esac
         ;;
     state)
@@ -358,7 +543,18 @@ case "$cmd" in
         ipc calendar "${1:-toggle}"
         ;;
     plugins|plugin)
-        ipc plugins "${1:-list}"
+        # `list` fragt die laufende Shell (die kennt auch die eingebauten
+        # Bausteine); alles andere greift auf die Verzeichnisse zu und geht
+        # deshalb direkt an das Skript -- es muss auch dann gehen, wenn die
+        # Shell gerade nicht laeuft.
+        case "${1:-list}" in
+            add|remove|rm|update)
+                "$PLUGIN_TOOL" "$@"
+                ;;
+            *)
+                ipc plugins "${1:-list}"
+                ;;
+        esac
         ;;
     popout)
         ipc popout toggle "${1:?Name fehlt}"

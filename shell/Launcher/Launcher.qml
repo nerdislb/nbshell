@@ -5,7 +5,7 @@ import Quickshell.Widgets
 import qs.Common
 import qs.Services
 
-// Anwendungsstarter.
+// Anwendungsstarter und Befehlspalette in einem.
 //
 // Ein Vollbildfenster auf der obersten Ebene, das die Tastatur exklusiv
 // bekommt, solange es offen ist -- anders liesse sich nicht tippen, waehrend
@@ -14,14 +14,62 @@ import qs.Services
 //
 // Es gibt es nur einmal, nicht je Bildschirm: ein zweiter Starter auf dem
 // zweiten Monitor waere ein zweites Eingabefeld mit eigenem Zustand.
+//
+// Gesucht wird in beidem gleichzeitig: Anwendungen UND alles, was die Shell
+// selbst kann (siehe Services/Commands.qml). Ein fuehrendes ">" schraenkt auf
+// die Befehle ein, ein "!" auf die Anwendungen. Sortiert wird nach Punkten,
+// nicht nach Herkunft -- wer "gruv" tippt, will das Theme, wer "fire" tippt,
+// den Browser, und keiner von beiden will erst durch die andere Liste.
 PanelWindow {
     id: root
 
-    readonly property var results: Apps.search(input.text)
+    // Anwendungen tragen ihren Namen im Namen; Befehle bekommen einen kleinen
+    // Abschlag, damit bei gleichem Treffer die Anwendung vorn steht. Sie ist
+    // das, wofuer der Starter urspruenglich da war.
+    readonly property real commandBias: 0.9
+
+    readonly property string mode: {
+        const t = input.text;
+        if (t.startsWith(">"))
+            return "cmd";
+        if (t.startsWith("!"))
+            return "app";
+        return "beides";
+    }
+
+    readonly property string query: root.mode === "beides" ? input.text : input.text.substring(1).trim()
+
+    readonly property var results: {
+        const q = root.query;
+        if (root.mode === "cmd")
+            return Commands.rank(q).map(x => x.entry);
+        if (root.mode === "app")
+            return Apps.rank(q).map(x => x.entry);
+
+        const apps = Apps.rank(q);
+        const cmds = Commands.rank(q);
+
+        // Ohne Eingabe gibt es nichts zu vergleichen -- dann stehen die
+        // Anwendungen nach Haeufigkeit oben und die Befehle darunter.
+        if (!q)
+            return apps.map(x => x.entry).concat(cmds.map(x => x.entry));
+
+        const merged = apps.concat(cmds.map(x => ({
+                    "entry": x.entry,
+                    "points": x.points * root.commandBias
+                })));
+        merged.sort((a, b) => b.points - a.points || a.entry.name.localeCompare(b.entry.name));
+        return merged.map(x => x.entry);
+    }
 
     // Wie DMS' Spotlight: die Liste bleibt so lang, wie Platz ist, und der
     // Kasten waechst nicht bei jedem Tastendruck.
     property int selected: 0
+
+    // Was sich nicht zurueckdrehen laesst (Ausschalten, Abmelden), verlangt
+    // ein zweites Enter. In einer Suchpalette liegt sonst der Feierabend einen
+    // Tippfehler entfernt.
+    property var pending: null
 
     // Das Fenster bleibt bestehen und wird nur ein- und ausgeblendet: so ist
     // die Liste beim naechsten Oeffnen sofort da.
@@ -46,25 +94,46 @@ PanelWindow {
 
     function accept() {
         const entry = results[selected];
-        if (entry)
+        if (!entry) {
+            // Nichts getroffen: die Eingabe war offenbar ein Befehl fuer die
+            // Shell darunter, kein Suchbegriff.
+            Apps.run(root.mode === "beides" ? input.text : root.query);
+            close();
+            return;
+        }
+
+        if (entry.kind === "cmd") {
+            if (entry.confirm && root.pending !== entry) {
+                root.pending = entry;
+                return;
+            }
+            Commands.invoke(entry);
+        } else {
             Apps.launch(entry);
-        else
-            Apps.run(input.text);
+        }
         close();
     }
 
     function move(delta) {
         if (results.length === 0)
             return;
+        root.pending = null;
         selected = Math.max(0, Math.min(results.length - 1, selected + delta));
         list.positionViewAtIndex(selected, ListView.Contain);
     }
 
     onVisibleChanged: {
         if (visible) {
-            input.text = "";
+            input.text = Runtime.launcherPrefill;
+            input.cursorPosition = input.text.length;
             selected = 0;
+            pending = null;
             input.forceActiveFocus();
+        } else {
+            // Der Praefix gilt fuer EIN Oeffnen. Bliebe er stehen, kaeme der
+            // Starter beim naechsten Mal wieder als Palette hoch, ohne dass
+            // jemand danach gefragt haette.
+            Runtime.launcherPrefill = "";
         }
     }
 
@@ -132,10 +201,19 @@ PanelWindow {
 
                 onTextChanged: {
                     root.selected = 0;
+                    root.pending = null;
                     list.positionViewAtBeginning();
                 }
 
-                Keys.onEscapePressed: root.close()
+                // Erst die Rueckfrage abraeumen, dann das Fenster: wer sich bei
+                // "Ausschalten" vertippt hat, will nicht blind ein zweites Mal
+                // Esc druecken muessen und dabei raten, was gerade passiert.
+                Keys.onEscapePressed: {
+                    if (root.pending)
+                        root.pending = null;
+                    else
+                        root.close();
+                }
                 Keys.onReturnPressed: root.accept()
                 Keys.onEnterPressed: root.accept()
                 Keys.onUpPressed: root.move(-1)
@@ -156,7 +234,7 @@ PanelWindow {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: input.text === ""
-                    text: "Anwendung suchen, sonst Befehl ausfuehren"
+                    text: "Anwendung oder Befehl suchen  (> nur Befehle, ! nur Anwendungen)"
                     color: Theme.muted
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize
@@ -236,7 +314,11 @@ PanelWindow {
                     width: Math.round(Theme.cellH * 1.5)
                     height: width
 
-                    readonly property string iconSource: Apps.iconFor(row.modelData)
+                    // Befehle haben kein Symbol und sollen auch keines
+                    // vortaeuschen: sie bekommen das Prompt-Zeichen, an dem
+                    // man sie auf einen Blick von einer Anwendung trennt.
+                    readonly property bool isCommand: row.modelData.kind === "cmd"
+                    readonly property string iconSource: isCommand ? "" : Apps.iconFor(row.modelData)
 
                     IconImage {
                         anchors.fill: parent
@@ -251,13 +333,13 @@ PanelWindow {
                         visible: appIcon.iconSource === ""
                         color: "transparent"
                         border.width: Theme.borderWidth
-                        border.color: Theme.muted
+                        border.color: appIcon.isCommand ? Theme.accent : Theme.muted
                         radius: Theme.radius
 
                         Text {
                             anchors.centerIn: parent
-                            text: (row.modelData.name || "?").charAt(0).toUpperCase()
-                            color: Theme.fgDim
+                            text: appIcon.isCommand ? ">" : (row.modelData.name || "?").charAt(0).toUpperCase()
+                            color: appIcon.isCommand ? Theme.accent : Theme.fgDim
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSize
                             renderType: Text.NativeRendering
@@ -301,8 +383,8 @@ PanelWindow {
                     anchors.right: parent.right
                     anchors.rightMargin: Theme.cellW / 2
                     anchors.verticalCenter: parent.verticalCenter
-                    text: row.modelData.runInTerminal ? "TUI" : "APP"
-                    color: Theme.muted
+                    text: row.modelData.kind === "cmd" ? (row.modelData.category || "BEFEHL").toUpperCase() : (row.modelData.runInTerminal ? "TUI" : "APP")
+                    color: row.modelData.kind === "cmd" ? Theme.fgDim : Theme.muted
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize
                     renderType: Text.NativeRendering
@@ -326,8 +408,16 @@ PanelWindow {
             anchors.margins: Theme.cellW
             height: Theme.cellH * 1.4
             verticalAlignment: Text.AlignVCenter
-            text: root.results.length > 0 ? "↑↓ waehlen · Enter starten · Esc schliessen" : (input.text === "" ? "keine Anwendungen gefunden" : "Enter fuehrt \"" + input.text + "\" als Befehl aus")
-            color: Theme.muted
+            text: {
+                if (root.pending)
+                    return "\"" + root.pending.name + "\" -- nochmal Enter bestaetigt, Esc bricht ab";
+                if (root.results.length > 0)
+                    return "↑↓ waehlen · Enter starten · Esc schliessen";
+                if (input.text === "")
+                    return "nichts gefunden";
+                return "Enter fuehrt \"" + root.query + "\" als Befehl aus";
+            }
+            color: root.pending ? Theme.red : Theme.muted
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize
             renderType: Text.NativeRendering

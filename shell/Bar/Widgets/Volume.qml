@@ -19,7 +19,15 @@ Cell {
     icon: Audio.muted ? Icons.volumeMuted : (Audio.volume >= 50 ? Icons.volumeHigh : Icons.volumeLow)
     text: Audio.muted ? "--" : (Audio.volume + "%")
 
-    onWheel: delta => Audio.step(delta > 0 ? 5 : -5)
+    // Die Schrittweite haengt daran, WIE gescrollt wurde: ein Mausrad rastet
+    // und meldet 120 pro Rastung -- das sind die vollen 5 %. Ein Touchpad
+    // meldet dagegen ein Dutzend kleiner Werte je Fingerbewegung; mit festen
+    // 5 % waere die Lautstaerke bei der kleinsten Geste am Anschlag. Ein
+    // Prozent ist die Untergrenze, sonst passierte gar nichts mehr.
+    onWheel: delta => {
+        const step = Math.max(1, Math.round(Math.abs(delta) / 120 * 5));
+        Audio.step(delta > 0 ? step : -step);
+    }
     onRightClicked: Audio.toggleMute()
 
     // Auch per Tastenkuerzel aufklappbar -- nicht als Bindung, sonst

@@ -82,8 +82,12 @@ Variants {
 
                     required property var modelData
 
+                    // Angezeigt wird der Eintrag, nicht die Benachrichtigung:
+                    // was aus dem Archiv auf der Platte kommt, hat kein
+                    // lebendes Objekt mehr. Nur die Aktionsknoepfe brauchen es
+                    // -- die gibt es dann eben nicht.
                     readonly property var n: modelData.notification
-                    readonly property bool urgent: n?.urgency === NotificationUrgency.Critical
+                    readonly property bool urgent: modelData.urgency === NotificationUrgency.Critical
 
                     width: Theme.cellW * 48
                     height: body.implicitHeight + Theme.cellH
@@ -97,7 +101,7 @@ Variants {
                     Timer {
                         interval: Notify.popupTimeout
                         running: !card.urgent && !hover.hovered
-                        onTriggered: Notify.dismissPopup(card.modelData.id)
+                        onTriggered: Notify.dismissPopup(card.modelData.key)
                     }
 
                     HoverHandler {
@@ -115,7 +119,7 @@ Variants {
 
                         Text {
                             width: parent.width
-                            text: (card.urgent ? "! " : "") + (card.n?.appName || "System") + "  ·  " + Notify.ago(card.modelData.time)
+                            text: (card.urgent ? "! " : "") + (card.modelData.appName || "System") + "  ·  " + Notify.ago(card.modelData.time)
                             color: card.urgent ? Theme.red : Theme.fgDim
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSize
@@ -126,7 +130,7 @@ Variants {
                         Text {
                             width: parent.width
                             visible: text !== ""
-                            text: card.n?.summary ?? ""
+                            text: card.modelData.summary ?? ""
                             color: Theme.fgBright
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSize
@@ -142,7 +146,7 @@ Variants {
                             // Der Text darf Auszeichnung enthalten; als
                             // RichText gelesen bleibt <b> ein Fettdruck statt
                             // sichtbarer Klammern.
-                            text: card.n?.body ?? ""
+                            text: card.modelData.body ?? ""
                             textFormat: Text.RichText
                             color: Theme.fg
                             font.family: Theme.fontFamily
@@ -187,7 +191,7 @@ Variants {
                                         anchors.fill: parent
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: Notify.invoke(card.modelData.id, actionButton.modelData)
+                                        onClicked: Notify.invoke(card.modelData.key, actionButton.modelData)
                                     }
                                 }
                             }
@@ -201,9 +205,9 @@ Variants {
                         acceptedButtons: Qt.LeftButton | Qt.RightButton
                         onClicked: mouseEvent => {
                             if (mouseEvent.button === Qt.RightButton)
-                                Notify.drop(card.modelData.id);
+                                Notify.drop(card.modelData.key);
                             else
-                                Notify.dismissPopup(card.modelData.id);
+                                Notify.dismissPopup(card.modelData.key);
                         }
                     }
                 }

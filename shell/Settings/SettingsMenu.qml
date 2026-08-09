@@ -274,6 +274,12 @@ PanelWindow {
             "values": [true, false]
         },
         {
+            "key": "clipboardGuardSecrets",
+            "def": true,
+            "label": "Passwoerter aussperren",
+            "values": [true, false]
+        },
+        {
             "key": "todo",
             "def": true,
             "label": "Aufgaben",

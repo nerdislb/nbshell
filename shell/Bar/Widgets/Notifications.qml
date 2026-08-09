@@ -105,8 +105,6 @@ Cell {
 
                     required property var modelData
 
-                    readonly property var n: modelData.notification
-
                     width: panel.rowWidth
                     height: content.implicitHeight + Theme.cellH * 0.6
                     radius: Theme.radius
@@ -123,7 +121,7 @@ Cell {
 
                         Text {
                             width: parent.width
-                            text: (row.n?.appName || "System") + "  ·  " + Notify.ago(row.modelData.time)
+                            text: (row.modelData.appName || "System") + "  ·  " + Notify.ago(row.modelData.time)
                             color: Theme.fgDim
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSize
@@ -133,7 +131,7 @@ Cell {
 
                         Text {
                             width: parent.width
-                            text: (row.n?.summary ?? "") + (row.n?.body ? ("  —  " + String(row.n.body).replace(/<[^>]*>/g, "")) : "")
+                            text: (row.modelData.summary ?? "") + (row.modelData.body ? ("  —  " + String(row.modelData.body).replace(/<[^>]*>/g, "")) : "")
                             color: Theme.fg
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSize
@@ -149,7 +147,7 @@ Cell {
                     }
 
                     TapHandler {
-                        onTapped: Notify.drop(row.modelData.id)
+                        onTapped: Notify.drop(row.modelData.key)
                     }
                 }
             }

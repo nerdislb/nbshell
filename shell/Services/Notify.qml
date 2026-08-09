@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.Notifications
 import qs.Common
 
@@ -23,6 +24,22 @@ import qs.Common
 //
 // `keepOnReload: false`: nach dem Neuladen der QML-Dateien faengt die Liste
 // leer an, statt Karteileichen aus der vorigen Runde zu behalten.
+//
+// Das Archiv liegt trotzdem auf der Platte, und zwar aus einem handfesten
+// Grund: jedes `install.sh` und jedes `nbshell restart` startet die Shell neu.
+// Lag die Liste nur im Speicher, war eine Meldung, die man noch nicht gelesen
+// hatte, danach weg -- ausgerechnet beim Aktualisieren, wo am ehesten etwas
+// schiefgeht. Deshalb steht jeder Eintrag als flaches Objekt in
+// ~/.local/state/nbshell/notifications.json.
+//
+// Der Eintrag ist die Kopie, nicht die Benachrichtigung selbst: `notification`
+// zeigt auf das lebende Objekt (fuer Aktionen und `dismiss`) und ist bei allem,
+// was aus der Datei kommt, schlicht nicht da. Alles, was angezeigt wird, steht
+// im Eintrag.
+//
+// Gesucht wird ueber `key`, nicht ueber `id`: der Server faengt seine Zaehlung
+// nach einem Neustart wieder bei 1 an -- eine frische Meldung haette sonst
+// dieselbe id wie eine aus der Datei, und ein Klick raeumte beide weg.
 Singleton {
     id: root
 
@@ -32,6 +49,11 @@ Singleton {
     readonly property int popupTimeout: Config.value("notifyTimeout", 6000)
     readonly property int keep: Config.value("notifyKeep", 50)
 
+    // Wie alt eine Karte hoechstens sein darf, um einen Neustart der Shell zu
+    // ueberleben. Ohne Grenze staende nach einer Nacht im Standby der ganze
+    // Stapel von gestern wieder da.
+    readonly property int popupRevive: Config.value("notifyReviveMs", 300000)
+
     // Alles, was hereinkam -- neueste zuerst.
     property var history: []
 
@@ -40,19 +62,21 @@ Singleton {
 
     readonly property int count: history.length
 
-    // Gesucht wird ueber die id, NICHT ueber das Objekt: was ein Repeater als
-    // `modelData` herausgibt, ist eine eigene Verpackung desselben Werts --
-    // `!==` trifft damit immer zu, und die Karte bliebe ewig stehen. Genau so
-    // ist es passiert.
-    function dismissPopup(id) {
-        popups = popups.filter(p => p.id !== id);
+    // Gesucht wird ueber den Schluessel, NICHT ueber das Objekt: was ein
+    // Repeater als `modelData` herausgibt, ist eine eigene Verpackung desselben
+    // Werts -- `!==` trifft damit immer zu, und die Karte bliebe ewig stehen.
+    // Genau so ist es passiert.
+    function dismissPopup(key) {
+        popups = popups.filter(p => p.key !== key);
+        save();
     }
 
-    function drop(id) {
-        const entry = history.find(p => p.id === id) ?? popups.find(p => p.id === id);
-        popups = popups.filter(p => p.id !== id);
-        history = history.filter(p => p.id !== id);
+    function drop(key) {
+        const entry = history.find(p => p.key === key) ?? popups.find(p => p.key === key);
+        popups = popups.filter(p => p.key !== key);
+        history = history.filter(p => p.key !== key);
         entry?.notification?.dismiss();
+        save();
     }
 
     function clear() {
@@ -61,17 +85,20 @@ Singleton {
         popups = [];
         for (var i = 0; i < items.length; i++)
             items[i].notification?.dismiss();
+        save();
     }
 
     function setDnd(value) {
         Config.set("dnd", value);
-        if (value)
+        if (value) {
             popups = [];
+            save();
+        }
     }
 
-    function invoke(id, action) {
+    function invoke(key, action) {
         action.invoke();
-        dismissPopup(id);
+        dismissPopup(key);
     }
 
     // Zeit als "vor 3 min", nicht als Uhrzeit: bei einer Benachrichtigung
@@ -85,6 +112,67 @@ Singleton {
         if (secs < 86400)
             return "vor " + Math.floor(secs / 3600) + " h";
         return "vor " + Math.floor(secs / 86400) + " d";
+    }
+
+    // ── Archiv auf der Platte ────────────────────────────────────────────
+    readonly property string statePath: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/nbshell/notifications.json"
+
+    // Geschrieben wird die Kopie ohne `notification`: das lebende Objekt
+    // gehoert Quickshell und liesse sich ohnehin nicht in JSON fassen.
+    function save() {
+        const pending = root.popups;
+        const out = root.history.map(e => ({
+                    "key": e.key,
+                    "id": e.id,
+                    "appName": e.appName,
+                    "summary": e.summary,
+                    "body": e.body,
+                    "urgency": e.urgency,
+                    "time": e.time.getTime(),
+                    "pending": pending.some(p => p.key === e.key)
+                }));
+        store.setText(JSON.stringify(out));
+    }
+
+    FileView {
+        id: store
+
+        path: root.statePath
+        atomicWrites: true
+        printErrors: false
+
+        onLoaded: {
+            var raw = [];
+            try {
+                raw = JSON.parse(text() || "[]");
+            } catch (e) {
+                raw = [];
+            }
+            if (!Array.isArray(raw))
+                return;
+
+            const now = Date.now();
+            const restored = raw.map(e => ({
+                        "key": String(e.key ?? e.id),
+                        "id": e.id,
+                        "appName": e.appName,
+                        "summary": e.summary,
+                        "body": e.body,
+                        "urgency": e.urgency,
+                        "time": new Date(e.time),
+                        "pending": e.pending === true,
+                        "notification": null
+                    })).slice(0, root.keep);
+
+            root.history = restored;
+            // Nur was beim Beenden noch am Rand stand und nicht laengst
+            // veraltet ist, kommt zurueck auf den Bildschirm.
+            root.popups = restored.filter(e => e.pending && (now - e.time.getTime()) < root.popupRevive);
+        }
+        onLoadFailed: {
+            root.history = [];
+            root.popups = [];
+        }
     }
 
     // Der Server steckt in einem Loader: nur so laesst er sich wirklich
@@ -112,10 +200,18 @@ Singleton {
                 // wieder weg -- sie waere dann nur ein Signal ohne Inhalt.
                 notification.tracked = true;
 
+                const now = new Date();
                 const entry = {
-                    "notification": notification,
-                    "time": new Date(),
-                    "id": notification.id
+                    // Zeitpunkt UND id: die id allein wiederholt sich nach
+                    // einem Neustart des Servers.
+                    "key": now.getTime() + ":" + notification.id,
+                    "id": notification.id,
+                    "appName": notification.appName,
+                    "summary": notification.summary,
+                    "body": notification.body,
+                    "urgency": notification.urgency,
+                    "time": now,
+                    "notification": notification
                 };
 
                 root.history = [entry].concat(root.history).slice(0, root.keep);
@@ -126,8 +222,11 @@ Singleton {
                 if (!root.dnd)
                     root.popups = [entry].concat(root.popups);
 
+                root.save();
+
                 notification.closed.connect(() => {
-                    root.popups = root.popups.filter(p => p.id !== entry.id);
+                    root.popups = root.popups.filter(p => p.key !== entry.key);
+                    root.save();
                 });
             }
         }

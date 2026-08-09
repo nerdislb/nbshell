@@ -163,8 +163,23 @@ cmd_rec_start() {
 		local geo
 		geo=$(slurp 2>/dev/null)
 		[[ -n $geo ]] || exit 0 # abgebrochen
-		args+=(-g "$geo")
-	else
+		# Ein Klick ohne Ziehen heisst "alles": slurp gibt dann ein paar
+		# Pixel zurueck, mit denen niemand etwas anfangen kann. Statt eine
+		# 3x2-Aufnahme zu starten (oder wortlos abzubrechen und den Nutzer
+		# raten zu lassen), gilt das als Ansage fuer den ganzen Bildschirm --
+		# dieselbe Handbewegung wie in Omarchys Regionswaehler.
+		local gw gh
+		gw=${geo##* }
+		gh=${gw#*x}
+		gw=${gw%x*}
+		if [[ ${gw:-0} -lt 8 || ${gh:-0} -lt 8 ]]; then
+			region=0
+		else
+			args+=(-g "$geo")
+		fi
+	fi
+
+	if [[ $region == 0 ]]; then
 		# Ohne -o nimmt wf-recorder irgendeinen Ausgang; wir wollen den,
 		# auf dem der Nutzer gerade arbeitet.
 		local out

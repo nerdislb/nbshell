@@ -15,11 +15,21 @@ import qs.Common
 // sonst zerfiele ein mehrzeiliger Text in lauter Einzelmeldungen. Zurueck
 // kommt er ueber den Umweg ueber `escape`, weil Qt.atob byteweise dekodiert
 // und Umlaute sonst zerbroeseln.
+//
+// Passwoerter kommen hier NICHT an: wer ein Geheimnis in die Zwischenablage
+// legt, haengt dem Angebot den Mime-Typ `x-kde-passwordManagerHint` an
+// (KeePassXC, 1Password, Bitwarden, Vaultwarden-Clients, gnome-keyring). Der
+// Wachhund fragt die Typen des laufenden Angebots ab und schweigt dann --
+// sonst laege jedes kopierte Passwort im Klartext in ~/.local/state, und zwar
+// dauerhaft, waehrend es in der echten Zwischenablage nach Sekunden verfaellt.
 Singleton {
     id: root
 
     readonly property bool enabled: Config.value("clipboard", true)
     readonly property int keep: Config.value("clipboardKeep", 50)
+
+    // Nur abschalten, wenn man weiss, was man tut.
+    readonly property bool guardSecrets: Config.value("clipboardGuardSecrets", true)
 
     property var entries: []
 
@@ -81,11 +91,21 @@ Singleton {
         onLoadFailed: root.entries = []
     }
 
+    // Erst lesen, dann pruefen, dann erst weitergeben: `wl-paste --watch`
+    // schiebt den Inhalt in die Standardeingabe des Befehls: wer sie nicht
+    // leert und einfach aussteigt, schickt dem Wachhund ein SIGPIPE. Deshalb
+    // wird immer gelesen und nur die Ausgabe unterdrueckt.
+    readonly property string watchCommand: {
+        const read = "data=$(base64 -w0)";
+        const guard = root.guardSecrets ? "wl-paste --list-types 2>/dev/null | grep -qi passwordmanagerhint && exit 0" : ":";
+        return "wl-paste --type text --watch sh -c '" + read + "; " + guard + "; printf \"%s\\n\" \"$data\"'";
+    }
+
     Process {
         id: watcher
 
         running: root.enabled
-        command: ["sh", "-c", "wl-paste --type text --watch sh -c 'base64 -w0; echo'"]
+        command: ["sh", "-c", root.watchCommand]
 
         stdout: SplitParser {
             onRead: line => {

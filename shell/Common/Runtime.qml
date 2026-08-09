@@ -19,6 +19,12 @@ Singleton {
     property bool audioPanelOpen: false
     property bool controlOpen: false
     property bool launcherOpen: false
+
+    // Womit der Starter aufgeht. Leer heisst: mit nichts, also mit den
+    // Anwendungen. ">" oeffnet ihn direkt als Befehlspalette, "!" nur mit
+    // Anwendungen -- dafuer gibt es eigene Tastenkuerzel, damit man den
+    // Praefix nicht jedes Mal tippt.
+    property string launcherPrefill: ""
     property bool notifyOpen: false
     property bool powerOpen: false
     property bool clipOpen: false

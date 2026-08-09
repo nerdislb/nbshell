@@ -38,7 +38,7 @@ cd ~/projects/nbshell && ./setup.sh
 
 `setup.sh` macht der Reihe nach:
 
-1. **Pakete** -- die 32, die nbshell braucht
+1. **Pakete** -- die 34, die nbshell braucht
 2. **Dienste** -- NetworkManager, bluetooth, tuned (fragt, siehe unten)
 3. **Dotfiles** -- holt `dotfiles-dms`, zieht dessen Paketlisten nach
    (110 Repo- und 10 AUR-Pakete) und spielt mit `restore.sh` niri, ghostty,
@@ -169,6 +169,9 @@ sondern ob die Befehle wirklich im PATH stehen. Das ist nicht dasselbe.
 | `wf-recorder`, `slurp` | Bildschirmaufnahme, Bereichswahl |
 | `satty`, `swappy` | Screenshots nachbearbeiten |
 | `tesseract` + Sprachdaten | Texterkennung |
+| `hyprpolkitagent` | das Fenster, das nach dem Passwort fragt (siehe „Rechteabfragen") |
+| `headsetcontrol` | Akkustand im Headset-Plugin |
+| `syncthing` | Aufgabenliste mit dem Telefon abgleichen |
 
 **Zwei Dinge kommen NICHT mit** und bleiben auf einem frischen Rechner leer:
 
@@ -214,8 +217,21 @@ nbshell audio mute
 nbshell audio 40         # fest einstellen
 nbshell audio panel      # Regler und Geraeteliste
 
-nbshell launcher         # Anwendungsstarter (Alias: run)
+nbshell launcher         # Starter: Anwendungen UND Befehle (Alias: run)
+nbshell palette          # derselbe Starter, nur die Befehle
 nbshell find ghost       # zeigt, was er finden wuerde
+nbshell befehle [text]   # alle Befehle der Palette
+nbshell befehl "Ton aus" # den besten Treffer ausfuehren
+
+nbshell text             # Schriftgroessen von Shell, GTK und Terminal
+nbshell text 15          # alle drei zusammen umstellen
+
+nbshell polkit           # laeuft ein Agent fuer Rechteabfragen?
+nbshell polkit on
+
+nbshell plugin add <url> # fremdes Bar-Widget aus git holen
+nbshell plugin update
+nbshell plugin remove <name>
 
 nbshell notify           # Stand der Benachrichtigungen
 nbshell notify dnd       # nicht stoeren
@@ -272,6 +288,9 @@ Mod+Shift+T hotkey-overlay-title="nbshell: Themewahl" {
 }
 Mod+D hotkey-overlay-title="nbshell: Anwendungsstarter" {
     spawn "nbshell" "launcher";
+}
+Mod+Shift+D hotkey-overlay-title="nbshell: Befehlspalette" {
+    spawn "nbshell" "palette";
 }
 ```
 
@@ -364,7 +383,8 @@ Einstellbar in `config.json`: `theme`, `font`, `fontSize`,
 `workspaceStyle` (`numbers` | `dots` | `pacman` | `invader`), `workspaceClassic`,
 `barBorder`, `calendar`, `calendarInterval`,
 `weatherPlace`, `weatherInterval`, `sysGpu`,
-`collapseDelay`, `clockFormat`,
+`collapseDelay`, `clockFormat`, `clockFormats`,
+`clipboardGuardSecrets`, `notifyReviveMs`, `appScopes`, `terminalRatio`,
 `titleLength`, `locale`, `wallpaper`, `wallpaperOverride`, `maxVolume` und die
 vier Bausteinlisten.
 
@@ -438,11 +458,64 @@ Ohne Beobachter (`PwObjectTracker`) bleiben Pipewires Knoten leer — die Daten
 kommen erst, wenn jemand sie im Auge behaelt. Das ist der uebliche Stolperstein
 bei Pipewire in Quickshell.
 
-## Anwendungsstarter
+## Anwendungsstarter und Befehlspalette
 
-`Mod+D` oder `nbshell launcher`. Tippen sucht, `↑↓` (oder `Ctrl-N`/`Ctrl-P`)
+`Mod+Space` (mit dem Takeover, sonst frei belegbar) oder `nbshell launcher`.
+Tippen sucht, `↑↓` (oder `Ctrl-N`/`Ctrl-P`)
 waehlt, Enter startet, Esc schliesst. Findet die Eingabe nichts, wird sie als
 Befehl ausgefuehrt — wie in einem Terminal, nur ohne eines zu oeffnen.
+
+Gesucht wird in **beidem**: in den installierten Anwendungen und in allem, was
+nbshell selbst kann. „gruv" und Enter wechselt das Theme, „aufgab" oeffnet die
+Liste, „stumm" schaltet den Ton ab. Der Gedanke stammt aus Omarchy 4: dort sind
+Starter und Systemmenue zu einer Flaeche verschmolzen, weil zwei Paletten mit
+zwei Tastenkuerzeln nichts trennen, was zusammengehoert. Vorher musste man
+wissen, dass das Theme hinter `Mod+Comma` steckt und die Aufgaben hinter
+`Mod+T`.
+
+| Eingabe | sucht in |
+|---|---|
+| `firefox` | Anwendungen **und** Befehlen, nach Punkten gemischt |
+| `>theme` | nur Befehlen (`Mod+Shift+Space` oeffnet gleich so) |
+| `!term` | nur Anwendungen |
+
+Befehle erkennt man an drei Dingen: dem `>` im Kasten statt eines Symbols, der
+Kategorie am rechten Rand (`FENSTER`, `THEME`, `SITZUNG`, …) und daran, dass
+bei gleichem Treffer die Anwendung vorn steht — der Starter war zuerst fuer sie
+da (`commandBias`, 0.9).
+
+Was sich nicht zurueckdrehen laesst — Ausschalten, Neu starten, Abmelden,
+Ruhezustand — **fragt nach**: das erste Enter markiert, die Fusszeile wird rot,
+das zweite fuehrt aus, Esc nimmt zurueck. In einer Suchpalette liegt der
+Feierabend sonst einen Tippfehler entfernt.
+
+Auf der Befehlszeile:
+
+```
+nbshell befehle           alle Eintraege mit Kategorie
+nbshell befehle theme     danach gefiltert
+nbshell find gruv         was der Starter zu "gruv" anbietet, gemischt
+nbshell befehl "Ton aus"  den besten Treffer ausfuehren
+nbshell palette           Starter gleich als Befehlspalette oeffnen
+```
+
+`nbshell befehl` fuehrt **nicht** aus, was nachfragt: ein Skript, das sich
+vertippt, soll den Rechner nicht herunterfahren. Solche Befehle gehen nur im
+Fenster.
+
+Eigene Eintraege kommen aus `~/.config/nbshell/commands.json` — eine Liste, die
+beim Speichern sofort greift:
+
+```json
+[
+  { "name": "Notizen", "comment": "Obsidian-Tresor", "run": "obsidian" },
+  { "name": "VPN an", "category": "Netz", "run": "nmcli con up buero" }
+]
+```
+
+Eingebaute Befehle rufen die Shell direkt an; nur eigene starten einen Prozess.
+Der Unterschied ist Absicht: fuer ein `Runtime.todoOpen = true` ein Programm zu
+starten, das der Shell per IPC zurueckruft, waere dreimal um den Block.
 
 Aufgebaut wie DMS' Spotlight: Suchzeile oben, darunter Zeilen mit Symbol,
 Name, Beschreibung und einer Kennzeichnung (`APP` oder `TUI`). Programme ohne
@@ -464,6 +537,20 @@ nach vorn, weil in seinem Fliesstext zufaellig die Buchstaben vorkommen.
 Anwendungen mit `Terminal=true` bekommen eines: `$TERMINAL`, oder was in der
 Config unter `terminal` steht. Ohne das faende ein Start von `htop` still
 nicht statt.
+
+**Jede Anwendung bekommt ihren eigenen systemd-Scope**
+(`app-nbshell-<name>-<zahl>.scope` in `app.slice`). Ohne das haengt alles
+Gestartete an nbshell und damit im selben Cgroup wie die Shell: laeuft ein
+Programm mit dem Speicher davon, sucht sich `systemd-oomd` das groesste Cgroup
+— und das ist dann die Sitzung, nicht der Uebeltaeter. Uebernommen aus
+Omarchy 4.
+
+`--scope` und nicht `--user <dienst>`: der Scope wird von `systemd-run` selbst
+abgezweigt und erbt die Umgebung der Shell samt Wayland-Socket; ein Dienst
+bekaeme die des User-Managers und faende keinen Bildschirm. Fehlt `systemd-run`,
+wird direkt gestartet — geprueft wird das einmal beim Start, denn ein fehlendes
+Werkzeug darf nicht heissen, dass gar nichts mehr aufgeht. Abschalten:
+`appScopes: false`.
 
 Das Fenster nimmt sich die Tastatur exklusiv (`keyboardFocus: Exclusive`) --
 sonst liesse sich nicht tippen, waehrend darunter ein Fenster den Fokus haelt.
@@ -536,6 +623,27 @@ der Pille samt Abstand zum Rand.
 Der Baustein `notifications` zeigt die Anzahl, sein Popout das Archiv mit
 „nicht stoeren" und „leeren". Rechtsklick auf die Zelle schaltet direkt stumm.
 
+### Das Archiv ueberlebt den Neustart
+
+Es liegt in `~/.local/state/nbshell/notifications.json`. Der Grund ist
+handfest: **jedes `install.sh` und jedes `nbshell restart` startet die Shell
+neu.** Lag die Liste nur im Speicher, war eine ungelesene Meldung danach weg —
+ausgerechnet beim Aktualisieren, wo am ehesten etwas schiefgeht. Karten, die
+beim Beenden noch am Rand standen, kommen sogar zurueck auf den Bildschirm,
+sofern sie juenger sind als `notifyReviveMs` (5 min); ohne diese Grenze staende
+nach einer Nacht im Standby der ganze Stapel von gestern wieder da. Dieselbe
+Ueberlegung wie in Omarchy 4 („popups survive shell restarts").
+
+Ein Eintrag ist die **Kopie**, nicht die Benachrichtigung: Programmname, Titel,
+Text, Dringlichkeit, Zeitpunkt. Das lebende Objekt haengt daneben und nur
+solange es das gibt — es liefert die Aktionsknoepfe und das `dismiss`. Was aus
+der Datei kommt, hat keines; deshalb zeigt eine wiederhergestellte Karte keine
+Knoepfe mehr.
+
+Gesucht wird ueber `key` (Zeitstempel + id), **nicht** ueber `id`: der Server
+faengt nach einem Neustart wieder bei 1 an, eine frische Meldung haette sonst
+dieselbe id wie eine aus der Datei — und ein Klick raeumte beide weg.
+
 ### Der Umschaltmoment
 
 `org.freedesktop.Notifications` bekommt genau **ein** Prozess. Deshalb ist
@@ -589,7 +697,8 @@ Die Takeover-Datei biegt inzwischen alles um, was nbshell kann:
 
 | Taste | vorher DMS | jetzt |
 |---|---|---|
-| `Mod+Space` | spotlight | Anwendungsstarter |
+| `Mod+Space` | spotlight | Starter: Anwendungen **und** Befehle |
+| `Mod+Shift+Space` | — | dieselbe Flaeche, nur die Befehle |
 | `Mod+N` | notification center | Benachrichtigungsarchiv |
 | `Mod+V` | clipboard | Zwischenablage |
 | `Super+X` | powermenu | Sitzungsmenue |
@@ -648,6 +757,53 @@ Sperrbildschirm ist ein fremder (`lockCommand`, Vorgabe `hyprlock`) --
 nbshell baut absichtlich keinen eigenen: ein Fehler darin sperrt dich aus dem
 eigenen Rechner aus.
 
+## Rechteabfragen (polkit)
+
+```bash
+nbshell polkit        # laeuft einer?
+nbshell polkit on     # einen vorhandenen einschalten
+```
+
+**`polkitd` fragt niemanden.** Es erwartet einen Agenten *in* der Sitzung, der
+das Fenster mit der Passwortabfrage aufmacht. Unter einem Desktop bringt die
+Umgebung ihn mit; unter niri bringt ihn niemand mit — und man merkt es erst,
+wenn ein Programm nach Rechten fragt und scheinbar nichts passiert. Kein
+Fehler, keine Meldung, nur „nicht berechtigt".
+
+nbshell hat **keinen eigenen**: Quickshell hat keine Anbindung an polkit.
+Stattdessen wird ein vorhandener eingeschaltet, in dieser Reihenfolge:
+`hyprpolkitagent` (Qt/QML wie die Shell selbst, in `extra`, laeuft unter jedem
+wlroots-Kompositor), `polkit-gnome`, `lxqt-policykit`, `mate-polkit`.
+
+`nbshell switch on` schaltet ihn mit ein, `nbshell switch status` zeigt ihn an.
+`switch off` laesst ihn **an**: der Agent gehoert nicht DMS, und DMS bringt
+selbst keinen mit — ihn wieder abzuschalten hiesse, das Loch zurueckzugeben.
+
+## Schriftgroesse in einem Zug
+
+```bash
+nbshell text          # was gerade gilt
+nbshell text 15       # Shell, GTK und Terminal zusammen
+```
+
+Nach Omarchys `omarchy display text size`. Vorher stellte man die Leiste um,
+fand die Menues zu klein, stellte GTK nach — und das Terminal blieb, wie es
+war. Drei Vorsichtsmassnahmen stecken darin:
+
+1. **Das Terminal wird nicht auf die Pixelgroesse der Shell gesetzt.** Es
+   rechnet in Punkt: hier stand ghostty auf 12 pt, waehrend die Leiste auf
+   13 px steht. Die stumpfe Umrechnung (13 px = 9,75 pt) haette es beim ersten
+   Aufruf um ein Viertel geschrumpft. Stattdessen wird das Verhaeltnis beim
+   ersten Mal gemessen und als `terminalRatio` abgelegt.
+2. **GTKs Skalierung rastet auf eine ganze Punktgroesse ein.** Krumme Werte
+   schneiden in GTK Menueeintraege ab — derselbe Fehler, den Omarchy in dieser
+   Runde behoben hat. Gerechnet wird gegen die echte GTK-Schrift
+   (`gsettings get org.gnome.desktop.interface font-name`).
+3. **Geschrieben wird nur, was es schon gibt.** Keine ghostty-Config, kein
+   Eingriff; kein `gsettings`, kein GTK-Teil. Von der ghostty-Config liegt
+   vorher eine Sicherung als `config.vor-nbshell` daneben, und ghostty
+   bekommt danach `SIGUSR2` — von selbst liest es nicht neu.
+
 ## Aufnehmen
 
 `nbshell capture` — Omarchys Capture-Menue, uebernommen aus dem DMS-Plugin
@@ -665,6 +821,12 @@ Shell-Arbeit und laesst sich so auch direkt auf eine Taste legen.
 Nach der Wahl schliesst das Menue **sofort** und wartet 250 ms, bevor es
 ausloest: niri friert das Bild ein, sobald die Aktion ankommt, und ohne Pause
 haengt das halb verschwundene Menue mit im Screenshot.
+
+**Bei der Videoaufnahme heisst ein Klick ohne Ziehen „alles".** Dort waehlt
+`slurp` den Bereich, und ein versehentlicher Klick gab bisher eine Geometrie
+von wenigen Pixeln zurueck — wf-recorder haette brav ein 3×2-Video begonnen.
+Alles unter 8 px Kantenlaenge gilt jetzt als Ansage fuer den ganzen
+Bildschirm, dieselbe Handbewegung wie in Omarchys Regionswaehler.
 
 ## KI-Verbrauch
 
@@ -894,6 +1056,18 @@ Punkt unter jedem Tag, an dem etwas ansteht, darunter die Termine des
 gewaehlten Tages. Mausrad blaettert durch die Monate, `[ heute ]` kommt
 zurueck. Ohne Popout: `nbshell cal next`.
 
+**Ein Rechtsklick auf die Uhr wechselt ihr Format** und geht dabei reihum durch
+`clockFormats`: lang, kurz, Kalenderwoche, 12 Stunden mit AM/PM. Uebernommen
+aus Omarchy 4, wo die Uhr dasselbe kann. `%W` ist der einzige eigene
+Platzhalter — Qts Locale-Formate kennen keine Kalenderwoche, die rechnet
+`Calendar.isoWeek()` aus (dieselbe Funktion, die das Monatsgitter benutzt; sie
+zweimal zu haben hiesse, sie zweimal unterschiedlich falsch zu haben).
+
+```bash
+nbshell set clockFormat "'KW'%W  ddd  HH:mm"     # KW32  So.  11:33
+nbshell set clockFormats '["HH:mm","ddd dd.MM  HH:mm"]'
+```
+
 **Die Shell spricht mit keinem Anbieter.** Sie liest, was schon auf der Platte
 liegt — und zwar durch **khal**, nicht selbst:
 
@@ -1073,6 +1247,26 @@ Wachhund schickt jeden Eintrag **base64-kodiert in einer Zeile** -- sonst
 zerfiele ein mehrzeiliger Text in lauter Einzelmeldungen. Zurueck kommt er
 ueber `decodeURIComponent(escape(Qt.atob(...)))`, weil `Qt.atob` byteweise
 dekodiert und Umlaute sonst zerbroeseln (geprueft mit „Grueße, Öl, Straße").
+
+### Passwoerter kommen hier nicht an
+
+Wer ein Geheimnis in die Zwischenablage legt, haengt dem Angebot den Mime-Typ
+`x-kde-passwordManagerHint` an — KeePassXC, 1Password, Bitwarden und die
+uebrigen tun das. Der Wachhund fragt die Typen des laufenden Angebots ab
+(`wl-paste --list-types`) und schweigt dann.
+
+Das ist kein Feinschliff, sondern der Unterschied zwischen „das Passwort
+verfaellt in der Zwischenablage nach Sekunden" und „das Passwort steht im
+Klartext in `~/.local/state/nbshell/clipboard.json`, bis fuenfzig andere
+Eintraege es hinausgeschoben haben". Uebernommen aus Omarchy 4
+(„sensitive-content exclusion").
+
+Gelesen wird immer, auch wenn nichts gespeichert wird: `wl-paste --watch`
+schiebt den Inhalt in die Standardeingabe des Befehls, und wer sie nicht leert
+und einfach aussteigt, schickt dem Wachhund ein SIGPIPE.
+
+Abschalten kann man den Schutz mit `clipboardGuardSecrets: false` — sinnvoll
+ist das eigentlich nie.
 
 ## Medien
 
@@ -1467,6 +1661,31 @@ Danach `nbshell plugins reload`, und der Baustein steht im Anordnen-Menue im
 Vorrat — mit `·plugin` dahinter. `nbshell plugins` listet alles auf, Eingebautes
 und Nachinstalliertes nebeneinander.
 
+### Fremde Plugins hereinholen
+
+```bash
+nbshell plugin add https://github.com/jemand/nbshell-uhrzeit
+nbshell plugin add ~/basteln/mein-widget mein-widget
+nbshell plugin update            # alle geklonten nachziehen
+nbshell plugin remove uhrzeit
+```
+
+Nach Omarchys `omarchy plugin add <git-url>`. Geklont wird **flach** in ein
+Nebenverzeichnis, dort geprueft (`manifest.json` da? Einstiegsdatei da?) und
+erst dann an seinen Platz geschoben — ein halb geklontes oder falsches Repo
+soll nicht als Baustein gelten, nur weil es im Ordner liegt. Ein vorhandenes
+Plugin wird nie ueberschrieben; `.git` bleibt liegen, sonst koennte `update`
+nichts nachziehen.
+
+> **Ein Plugin ist QML, das IN der Shell laeuft.** Es kann alles, was die Shell
+> kann: Dateien lesen, Programme starten, die Zwischenablage sehen. Es gibt
+> keine Sandbox und es wird auch keine geben — `nbshell plugin add` sagt das
+> vor dem Klonen noch einmal. Nur hereinholen, was du gelesen hast oder wem du
+> traust.
+
+`add`, `update` und `remove` gehen direkt an `scripts/plugins.sh` und nicht
+ueber IPC: sie muessen auch dann gehen, wenn die Shell gerade nicht laeuft.
+
 Mitgeliefert werden drei: **`beispiel`** als Vorlage (zaehlt Klicks, sonst
 nichts), **`wetter`** — Temperatur in der Leiste, Einzelheiten und fuenf
 Tage im Popout — und **`headset`** — Akkustand eines USB-Headsets, ueber
@@ -1534,7 +1753,8 @@ shell/
   Services/Niri.qml    niri-IPC: Arbeitsflaechen, Fenster, Tastatur
   Services/SysInfo.qml /proc/stat und /proc/meminfo
   Services/Audio.qml   Pipewire: Lautstaerke, Geraete
-  Services/Apps.qml    .desktop-Eintraege, Suche, Starten
+  Services/Apps.qml    .desktop-Eintraege, Suche, Starten (je Scope)
+  Services/Commands.qml  die Befehlspalette: was die Shell selbst kann
   Services/Net.qml     NetworkManager ueber Quickshell
   Services/Bt.qml      BlueZ ueber Quickshell
   Services/Brightness.qml  sysfs lesen, logind setzen
@@ -1586,6 +1806,29 @@ doppelt gebaut werden, und der Uebergang laesst sich animieren.
 
 ## Fallstricke
 
+- **Eine Zelle nimmt nur Klicks an, wenn sie `interactive` ist.** Die
+  `MouseArea` in `Cell.qml` haengt an `clickable` (`interactive || popout`) —
+  auch der RECHTE Klick. Die Uhr stand auf `interactive: Config.value("calendar")`,
+  und ohne khal waere ihr neuer Rechtsklick fuer den Formatwechsel ein totes
+  Feld gewesen, ohne dass irgendwo etwas gemeldet haette.
+- **Die id einer Benachrichtigung wiederholt sich.** Der Server faengt nach
+  einem Neustart wieder bei 1 an. Solange alles im Speicher lag, fiel das nicht
+  auf; mit einem Archiv auf der Platte haette eine frische Meldung dieselbe id
+  wie eine alte — und ein Klick raeumte beide weg. Deshalb `key` aus Zeitpunkt
+  und id.
+- **`wl-paste --watch` will, dass man liest.** Der Inhalt kommt in der
+  Standardeingabe des aufgerufenen Befehls. Wer sie nicht leert und einfach
+  aussteigt (etwa weil er ein Passwort nicht speichern will), schickt dem
+  Wachhund ein SIGPIPE. Erst lesen, dann verwerfen.
+- **`./install.sh | head` liess die Leiste weg.** Das Skript stoppt den Dienst,
+  tauscht das Verzeichnis und startet ihn am Ende wieder. Schliesst `head` die
+  Pipe vorher, faellt es unter `set -o pipefail` mit SIGPIPE aus — genau
+  zwischen „gestoppt" und „gestartet". Jetzt holt ein `trap … EXIT` die Leiste
+  in jedem Abbruchfall zurueck.
+- **`A || B && C` ist unter `set -e` eine Falle.** Schlagen A und B fehl, ist
+  der Rueckgabewert der Zeile 1 — und die Funktion endet dort, still und ohne
+  Meldung. In `text_size` stand genau das (`[ -z "$x" ] || [ "$x" = null ] && x=13`);
+  daraus wurde ein `if`.
 - **Ein `Behavior` braucht eine schreibbare Property.** Auf einer
   `readonly property` scheitert er mit „is a read-only property" — und weil
   das ein Ladefehler ist, faellt der ganze Typ aus und die Shell startet nicht
