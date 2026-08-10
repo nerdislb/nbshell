@@ -33,7 +33,7 @@ Cell {
 
             property var closePopout: null
 
-            readonly property real rowWidth: 44 * Theme.cellW
+            readonly property real rowWidth: 58 * Theme.cellW
 
             spacing: Theme.cellH * 0.2
 
@@ -43,11 +43,14 @@ Cell {
 
                 Text {
                     anchors.left: parent.left
+                    anchors.right: actions.left
+                    anchors.rightMargin: Theme.cellW
                     anchors.verticalCenter: parent.verticalCenter
+                    elide: Text.ElideRight
                     // Keine Marke rechts wie in den anderen Popouts: dort
                     // stehen hier schon die Knoepfe ([ pruefen ], [ jetzt ]),
                     // und zwei Dinge am selben Rand sind eines zu viel.
-                    text: "UPDATES  (" + Updates.count + ")" + (Updates.aur.length > 0 ? "  ·  davon " + Updates.aur.length + " AUR" : "")
+                    text: "UPDATES  (" + Updates.count + ")"
                     color: Theme.fgDim
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize
@@ -55,6 +58,8 @@ Cell {
                 }
 
                 Row {
+                    id: actions
+
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: Theme.cellW * 2
@@ -104,19 +109,45 @@ Cell {
             }
 
             Repeater {
-                model: Updates.repo.concat(Updates.aur).slice(0, 18)
+                model: Updates.repo.concat(Updates.aur).concat(Updates.flatpak).slice(0, 18)
 
                 delegate: Text {
                     required property var modelData
 
                     width: panel.rowWidth
-                    text: "  " + modelData.name + "   " + modelData.from + " → " + modelData.to
+                    // Bei Flatpaks stehen oft zwei gleiche Versionen da: eine
+                    // neue Fassung muss die Versionsnummer nicht aendern, das
+                    // Paket ist trotzdem ein anderes. "v1.6.0 → v1.6.0" saehe
+                    // aus wie ein Fehler.
+                    text: modelData.from === modelData.to ? ("  " + modelData.name + "   " + modelData.to + "  (neuer Build)") : ("  " + modelData.name + "   " + modelData.from + " → " + modelData.to)
                     color: Theme.fg
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize
                     renderType: Text.NativeRendering
                     elide: Text.ElideRight
                 }
+            }
+
+            // Woher sie kommen, steht UNTER der Liste: oben teilt sich die
+            // Zeile den Platz mit zwei Knoepfen, und die Aufschluesselung
+            // verlor ihn.
+            Text {
+                visible: Updates.aur.length > 0 || Updates.flatpak.length > 0
+                text: {
+                    const parts = [];
+                    if (Updates.repo.length > 0)
+                        parts.push(Updates.repo.length + " aus den Repos");
+                    if (Updates.aur.length > 0)
+                        parts.push(Updates.aur.length + " AUR");
+                    if (Updates.flatpak.length > 0)
+                        parts.push(Updates.flatpak.length + " Flatpak");
+                    return "  " + parts.join(" · ");
+                }
+                color: Theme.muted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize
+                renderType: Text.NativeRendering
+                topPadding: Theme.cellH * 0.3
             }
 
             Text {

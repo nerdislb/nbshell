@@ -298,7 +298,7 @@ ShellRoot {
         function list(): string {
             if (Updates.count === 0)
                 return Updates.ready ? "alles aktuell" : "noch nicht geprueft";
-            return Updates.repo.concat(Updates.aur).map(u => u.name + "  " + u.from + " -> " + u.to).join("\n");
+            return Updates.repo.concat(Updates.aur).concat(Updates.flatpak).map(u => u.name + "  " + (u.from === u.to ? u.to + " (neuer Build)" : u.from + " -> " + u.to)).join("\n");
         }
 
         function run(): string {
@@ -311,6 +311,7 @@ ShellRoot {
                 "anzahl": Updates.count,
                 "repo": Updates.repo.length,
                 "aur": Updates.aur.length,
+                "flatpak": Updates.flatpak.length,
                 "prueft": Updates.checking,
                 "befehl": Updates.updateCommand(),
                 "terminal": Updates.terminal

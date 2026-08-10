@@ -385,7 +385,7 @@ Einstellbar in `config.json`: `theme`, `font`, `fontSize`,
 `weatherPlace`, `weatherInterval`, `sysGpu`,
 `collapseDelay`, `clockFormat`, `clockFormats`,
 `clipboardGuardSecrets`, `notifyReviveMs`, `appScopes`, `terminalRatio`,
-`accent` (Rolle), `widgets` (Aussehen je Baustein),
+`accent` (Rolle), `widgets` (Aussehen je Baustein), `updateNoconfirm`,
 `titleLength`, `locale`, `wallpaper`, `wallpaperOverride`, `maxVolume` und die
 vier Bausteinlisten.
 
@@ -1074,6 +1074,48 @@ dagegen -- derselbe Trick wie in `checkupdates`. Ein `pacman -Sy` auf die echte
 Datenbank waere die uebliche Falle: danach steht das System auf einem halben
 Stand, und der naechste Paketwunsch zieht Bibliotheken in Versionen, die zum
 Rest nicht passen.
+
+### Flatpaks zaehlen mit
+
+Ist `flatpak` installiert, kommen dessen Updates in dieselbe Zahl und dieselbe
+Liste. Gefragt wird `flatpak remote-ls --updates`; die installierte Version
+steht in `flatpak list`, und erst beide zusammen ergeben das „von → nach".
+
+**Zwei gleiche Versionen sind kein Fehler.** Ein Flatpak kann eine neue Fassung
+bekommen, ohne die Versionsnummer zu aendern -- es ist ein anderer Commit.
+`v1.6.0 → v1.6.0` saehe aus wie ein Bug, deshalb steht dort `v1.6.0 (neuer
+Build)`.
+
+Die Abfrage geht ins Netz und bekommt darum eine Zeitgrenze (`timeout`): ein
+haengendes Flathub darf die Pruefung nicht blockieren.
+
+### Aktualisieren ohne Rueckfrage
+
+`[ aktualisieren ]` im Popout oder ein Rechtsklick auf die Zelle oeffnet ein
+Terminal und laesst `scripts/updates.sh run` laufen: erst die Systempakete,
+dann die Flatpaks. **Gefragt wird nur nach dem Passwort** -- `--noconfirm` und
+`flatpak update -y`.
+
+Was das mitbringt, gehoert dazugesagt: `--noconfirm` beantwortet auch die
+Rueckfragen, die keine Ja/Nein-Frage sind. Ein Paket, das ein anderes ersetzt,
+wird ersetzt; ein Konflikt wird zugunsten des neuen Pakets aufgeloest; bei
+mehreren Anbietern gewinnt der erste; und paru legt keine PKGBUILDs mehr zur
+Durchsicht vor. Wer das nicht will:
+
+```bash
+nbshell set updateNoconfirm false
+```
+
+Dann fragt wieder jeder Schritt nach, und `flatpak update` laeuft ohne `-y`.
+
+Beide Teile laufen, auch wenn der erste etwas zu meckern hatte -- ein
+gescheitertes AUR-Paket soll die Flatpaks nicht aufhalten. Der Rueckgabewert
+bleibt trotzdem der schlechteste von beiden, und das Terminal bleibt bis zum
+Tastendruck stehen: sonst sieht man nie, ob etwas schiefging.
+
+Zwei Minuten nach dem Start prueft die Shell von selbst noch einmal nach. Wann
+das Terminal fertig ist, weiss sie nicht -- aber eine Zahl in der Leiste, die
+nach dem Update noch die alte ist, waere schlimmer als eine spaete.
 
 Zwei Dinge, ueber die man dabei stolpert:
 
@@ -1852,8 +1894,9 @@ nicht auslesen kann -- etwa ein rein analoges Lautstaerkerad am Headset --
 bleibt fuer jede Software unsichtbar, das ist keine Einschraenkung des
 Plugins.
 
-**Das Wetter-Plugin ist der einzige Teil von nbshell, der von sich aus ins Netz
-geht.** Es fragt [open-meteo.com](https://open-meteo.com) — ohne Schluessel,
+**Das Wetter-Plugin und die Updatepruefung sind die einzigen Teile von nbshell,
+die von sich aus ins Netz gehen.**  (Die Updatepruefung holt Paketdatenbanken
+und fragt Flathub -- das ist ihre Aufgabe; siehe „Updates".) Es fragt [open-meteo.com](https://open-meteo.com) — ohne Schluessel,
 ohne Konto. Was den Rechner verlaesst: einmal der Ortsname (Umrechnung in
 Koordinaten, das Ergebnis bleibt im Zwischenspeicher liegen), danach alle
 15 Minuten die Koordinaten. Nichts fragt das Geraet nach seinem Standort, und

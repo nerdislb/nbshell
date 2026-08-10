@@ -265,6 +265,13 @@ PanelWindow {
             "values": [true, false]
         },
         {
+            // Aus heisst: pacman/paru fragen wieder bei jedem Schritt nach.
+            "key": "updateNoconfirm",
+            "def": true,
+            "label": "Update ohne Rueckfrage",
+            "values": [true, false]
+        },
+        {
             "key": "sysGpu",
             "def": true,
             "label": "Grafikkarte abfragen",
