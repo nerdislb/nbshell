@@ -385,6 +385,7 @@ Einstellbar in `config.json`: `theme`, `font`, `fontSize`,
 `weatherPlace`, `weatherInterval`, `sysGpu`,
 `collapseDelay`, `clockFormat`, `clockFormats`,
 `clipboardGuardSecrets`, `notifyReviveMs`, `appScopes`, `terminalRatio`,
+`accent` (Rolle), `widgets` (Aussehen je Baustein),
 `titleLength`, `locale`, `wallpaper`, `wallpaperOverride`, `maxVolume` und die
 vier Bausteinlisten.
 
@@ -430,6 +431,77 @@ Wallpaper werden an drei Stellen gesucht: beim Theme selbst
 (`<theme>/backgrounds/`), im Zwischenspeicher von omarchy2dms
 (`~/.local/share/omarchy2dms/wallpapers/<theme>/`, den beide teilen) und unter
 `~/.local/share/nbshell/wallpapers/<theme>/`.
+
+### Der Akzent ist eine Rolle, keine Farbe
+
+```bash
+nbshell accent           # welche Rolle gilt, und wie jede im aktuellen Theme aussieht
+nbshell accent yellow
+nbshell accent theme     # zurueck zum Vorschlag des Themes
+```
+
+In der Config steht nicht `#e0af68`, sondern `yellow`. Aufgeloest wird das
+gegen die Palette des **gerade aktiven** Themes: wer „das Gelbe" waehlt,
+bekommt beim Wechsel von gruvbox auf nord nordens Gelb. Zur Wahl stehen
+`theme` (Vorgabe), `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`,
+`orange` und `foreground`.
+
+Die Idee stammt aus [Shibumi-Shell](https://github.com/HANCORE-linux/Shibumi-Shell)
+(HANCORE, MIT), wo der Akzent als `color01`…`color08` gespeichert wird. Der
+Gewinn ist nicht die Auswahl, sondern **was nicht passiert**: ein fester
+Farbwert waere nach dem naechsten Themewechsel ein Fremdkoerper — im besten
+Fall unpassend, im schlechtesten auf dem neuen Hintergrund nicht mehr zu
+lesen. Eine Rolle kann das nicht, weil jede Wahl aus einer Palette kommt, die
+der Themeautor abgestimmt hat.
+
+Der gewaehlte Akzent gilt **auch ausserhalb der Leiste**: `NB_ACCENT` in der
+Palettendatei, der Cursor in ghostty und die Fensterrahmen in niri. Wer die
+Leiste auf Gruen stellt, will keinen blauen Rahmen daneben.
+
+Im Themewaehler steht die Reihe als Farbkaestchen unter der Vorschau — das
+aktive mit hellem Ring, `theme` mit einem Punkt, weil es keine eigene Farbe
+ist, sondern ein Verweis.
+
+### Aussehen je Baustein
+
+Form, Symbol und Farbe gelten fuer alle gemeinsam — ausser fuer die Bausteine
+mit eigenem Eintrag:
+
+```bash
+nbshell widget                     # wer ein eigenes Aussehen hat
+nbshell widget battery display icon    # nur das Symbol (full | icon | text | auto)
+nbshell widget clock style plain       # ohne Kasten (box | bracket | plain | auto)
+nbshell widget updates color red       # eine Farbe DES THEMES (auto = wie alle)
+nbshell widget updates reset
+nbshell widget reset all
+```
+
+In der Config:
+
+```json
+"widgets": {
+  "battery": { "display": "icon" },
+  "updates": { "color": "red" }
+}
+```
+
+Nachgebaut nach Shibumis Appearance-Seite, die dieselben drei Regler je
+Baustein hat (DISPLAY / SURFACE / COLOR). Was nicht eingetragen ist — oder auf
+`auto` steht —, kommt weiter aus der allgemeinen Einstellung: wer nichts setzt,
+merkt von der ganzen Sache nichts, und die Config bleibt kurz.
+
+Zwei Feinheiten:
+
+- **Die Farbe ersetzt nur die neutrale.** Ein roter Akku und eine rote
+  Prozessorlast sind Warnungen, keine Gestaltung — sie einzufaerben hiesse,
+  die einzige Aussage zu loeschen, die die Zelle in dem Moment hat. Die
+  gedaempfte Fassung (`Theme.textDim`) bleibt gedaempft.
+- **`display` wirkt nicht auf Bausteine mit eigenem Inhalt** (`custom: true`:
+  Arbeitsflaechen, Systemlast, Medien). Die bauen ihre Zeile selbst und fragen
+  `widgetIcons` direkt; ihnen ein Symbol wegzunehmen hiesse, sie umzuschreiben.
+
+Nachschlagen kann das jede Zelle selbst, weil sie ihre `widgetId` ohnehin
+kennt — die Leiste haengt sie fuer die Popout-Steuerung an.
 
 ### Themes dazuholen
 
@@ -1887,6 +1959,10 @@ doppelt gebaut werden, und der Uebergang laesst sich animieren.
 
 ## Fallstricke
 
+- **Was an einem `IpcHandler` haengt, will Quickshell ueber IPC anbieten.**
+  Zwei Hilfslisten als `property var` darin genuegten fuer „Type QVariant
+  cannot be used across IPC" bei jedem Start. Sie gehoeren daneben, nicht
+  hinein.
 - **Die Signalstaerke ist ein Anteil, kein Prozent.** Quickshell liefert
   `signalStrength` zwischen 0 und 1 — wie `battery` bei Bluetooth-Geraeten.
   `Net.bars()` rechnete mit 0..100 und rundete damit **jedes** Netz auf einen

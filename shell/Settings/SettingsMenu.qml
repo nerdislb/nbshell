@@ -134,6 +134,15 @@ PanelWindow {
             "head": "AUSSEHEN"
         },
         {
+            // Eine Rolle, keine Farbe: `theme` ist der Vorschlag des Themes,
+            // alles andere eine Farbe AUS dessen Palette. Nach einem
+            // Themewechsel gilt dieselbe Rolle im neuen Theme.
+            "key": "accent",
+            "def": "theme",
+            "label": "Akzentfarbe",
+            "values": ["theme", "red", "green", "yellow", "blue", "magenta", "cyan", "orange", "foreground"]
+        },
+        {
             "key": "fontSize",
             "def": 13,
             "label": "Schriftgroesse",

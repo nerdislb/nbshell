@@ -481,6 +481,16 @@ case "$cmd" in
     picker)
         ipc themes toggle
         ;;
+    accent|akzent)
+        ipc theme accent "${1:-status}"
+        ;;
+    widget|baustein)
+        case "${1:-list}" in
+            ""|list)  ipc widget list ;;
+            reset)    shift; ipc widget reset "${1:-all}" ;;
+            *)        ipc widget set "${1:?Baustein fehlt}" "${2:?Merkmal fehlt (display|style|color)}" "${3:?Wert fehlt}" ;;
+        esac
+        ;;
     audio)
         case "${1:-status}" in
             up|down|mute|micmute|status|panel) ipc audio "${1:-status}" ;;

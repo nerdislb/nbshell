@@ -33,7 +33,10 @@ Singleton {
     readonly property color fgDim: c.dark_foreground ?? muted
     readonly property color fgBright: c.bright_foreground ?? fg
 
-    readonly property color accent: c.accent ?? "#7aa2f7"
+    // Was das Theme selbst als Akzent vorschlaegt. Von hier aus wird der
+    // wirklich benutzte Akzent bestimmt -- siehe `accent` weiter unten.
+    readonly property color themeAccent: c.accent ?? "#7aa2f7"
+
     readonly property color muted: c.muted ?? "#414868"
     readonly property color selection: c.selection ?? bgLight
 
@@ -47,7 +50,9 @@ Singleton {
     readonly property color red: c.red ?? "#f7768e"
     readonly property color green: c.green ?? "#9ece6a"
     readonly property color yellow: c.yellow ?? "#e0af68"
-    readonly property color blue: c.blue ?? accent
+    // Nicht auf `accent` zurueckfallen, sondern auf den des THEMES: `accent`
+    // darf inzwischen selbst blau sein, und das waere ein Kreis.
+    readonly property color blue: c.blue ?? themeAccent
     readonly property color magenta: c.magenta ?? "#ad8ee6"
     readonly property color cyan: c.cyan ?? "#449dab"
     readonly property color orange: c.orange ?? yellow
@@ -55,6 +60,54 @@ Singleton {
     readonly property color brightRed: c.bright_red ?? red
     readonly property color brightGreen: c.bright_green ?? green
     readonly property color brightYellow: c.bright_yellow ?? yellow
+
+    // ── Der Akzent ist eine ROLLE, keine Farbe ───────────────────────────
+    //
+    // In der Config steht nicht `#e0af68`, sondern `yellow`. Aufgeloest wird
+    // das gegen die Palette des GERADE aktiven Themes -- wer "das Gelbe" waehlt,
+    // bekommt beim Wechsel von gruvbox auf nord nordens Gelb.
+    //
+    // Die Idee stammt aus Shibumi-Shell (HANCORE, MIT), wo der Akzent als
+    // `color01`…`color08` gespeichert wird. Der Gewinn ist nicht die Auswahl,
+    // sondern was NICHT passiert: ein fester Farbwert waere nach dem naechsten
+    // Themewechsel ein Fremdkoerper -- im besten Fall unpassend, im
+    // schlechtesten auf dem neuen Hintergrund nicht mehr zu lesen. Eine Rolle
+    // kann das nicht, weil jede Wahl aus einer Palette kommt, die der
+    // Themeautor abgestimmt hat.
+    //
+    //   nbshell accent          zeigt die Rolle und die Auswahl
+    //   nbshell accent green
+    //   nbshell accent theme    zurueck zum Vorschlag des Themes
+    readonly property var accentRoles: ["theme", "red", "green", "yellow", "blue", "magenta", "cyan", "orange", "foreground"]
+
+    readonly property string accentRole: {
+        const wish = String(Config.value("accent", "theme")).toLowerCase();
+        return root.accentRoles.indexOf(wish) >= 0 ? wish : "theme";
+    }
+
+    function roleColor(role) {
+        switch (String(role).toLowerCase()) {
+        case "red":
+            return root.red;
+        case "green":
+            return root.green;
+        case "yellow":
+            return root.yellow;
+        case "blue":
+            return root.blue;
+        case "magenta":
+            return root.magenta;
+        case "cyan":
+            return root.cyan;
+        case "orange":
+            return root.orange;
+        case "foreground":
+            return root.fgBright;
+        }
+        return root.themeAccent;
+    }
+
+    readonly property color accent: roleColor(root.accentRole)
 
     // Farbe der Bausteine in der Leiste: entweder der normale Vordergrund
     // oder der Akzent des Themes. Warnfarben (leerer Akku, hohe Last) bleiben

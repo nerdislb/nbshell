@@ -163,6 +163,90 @@ ShellRoot {
             ThemeExport.exportNow();
             return "geschrieben";
         }
+
+        // Der Akzent als Rolle. `theme` heisst: was das Theme selbst
+        // vorschlaegt.
+        function accent(role: string): string {
+            if (!role || role === "status") {
+                return Theme.accentRole + "  (" + String(Theme.accent) + ")\n" + Theme.accentRoles.map(r => (r === Theme.accentRole ? "▸ " : "  ") + r + "  " + String(Theme.roleColor(r))).join("\n");
+            }
+            const wish = String(role).toLowerCase();
+            if (Theme.accentRoles.indexOf(wish) < 0)
+                return "unbekannte Rolle: " + role + "  (" + Theme.accentRoles.join(" ") + ")";
+            Config.set("accent", wish);
+            return wish + "  " + String(Theme.roleColor(wish));
+        }
+    }
+
+    // Aussehen einzelner Bausteine. Alles hier schreibt in `widgets` in der
+    // Config; was nicht gesetzt ist, kommt weiter aus der allgemeinen
+    // Einstellung.
+    // Die erlaubten Werte stehen NEBEN dem IpcHandler, nicht darin: alles, was
+    // dort als Property haengt, versucht Quickshell ueber IPC anzubieten -- und
+    // meldet bei jedem Start "Type QVariant cannot be used across IPC".
+    QtObject {
+        id: widgetOptions
+
+        readonly property var keys: ["display", "style", "color"]
+
+        readonly property var choices: ({
+                "display": ["auto", "full", "icon", "text"],
+                "style": ["auto", "box", "bracket", "plain"],
+                "color": ["auto", "theme", "red", "green", "yellow", "blue", "magenta", "cyan", "orange", "foreground"]
+            })
+    }
+
+    IpcHandler {
+        target: "widget"
+
+        function list(): string {
+            const all = Config.value("widgets", ({})) ?? ({});
+            const names = Object.keys(all);
+            if (names.length === 0)
+                return "keine Ueberschreibungen — alle Bausteine folgen den allgemeinen Einstellungen\n\nnbshell widget <baustein> display|style|color <wert>";
+            return names.map(n => (n + "            ").substring(0, 12) + widgetOptions.keys.filter(k => all[n][k]).map(k => k + "=" + all[n][k]).join("  ")).join("\n");
+        }
+
+        function set(name: string, key: string, value: string): string {
+            if (!name)
+                return "Baustein fehlt";
+            if (widgetOptions.keys.indexOf(key) < 0)
+                return "unbekannt: " + key + "  (" + widgetOptions.keys.join(" ") + ")";
+            if (widgetOptions.choices[key].indexOf(value) < 0)
+                return "unbekannt: " + value + "  (" + widgetOptions.choices[key].join(" ") + ")";
+
+            // Kopieren statt aendern: `Config.set` vergleicht das Objekt, und
+            // eine Aenderung IN der vorhandenen Struktur bliebe unbemerkt.
+            const all = JSON.parse(JSON.stringify(Config.value("widgets", ({})) ?? ({})));
+            const one = all[name] ?? ({});
+            if (value === "auto")
+                delete one[key];
+            else
+                one[key] = value;
+
+            // Ein leerer Eintrag ist kein Eintrag: sonst sammelt die Config
+            // Namen ohne Inhalt an.
+            if (Object.keys(one).length === 0)
+                delete all[name];
+            else
+                all[name] = one;
+
+            Config.set("widgets", all);
+            return name + ": " + key + " = " + value;
+        }
+
+        function reset(name: string): string {
+            const all = JSON.parse(JSON.stringify(Config.value("widgets", ({})) ?? ({})));
+            if (!name || name === "all") {
+                Config.set("widgets", ({}));
+                return "alle Ueberschreibungen entfernt";
+            }
+            if (!all[name])
+                return name + " hatte keine";
+            delete all[name];
+            Config.set("widgets", all);
+            return name + " folgt wieder den allgemeinen Einstellungen";
+        }
     }
 
     IpcHandler {

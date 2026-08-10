@@ -49,7 +49,12 @@ Singleton {
         out += "NB_FG='" + (c.foreground ?? "#ffffff") + "'\n";
         out += "NB_FG_DIM='" + (c.dark_foreground ?? c.muted ?? "#808080") + "'\n";
         out += "NB_FG_BRIGHT='" + (c.bright_foreground ?? c.foreground ?? "#ffffff") + "'\n";
-        out += "NB_ACCENT='" + (c.accent ?? c.foreground ?? "#ffffff") + "'\n";
+        // Der GEWAEHLTE Akzent, nicht der des Themes: wer die Leiste auf Gruen
+        // stellt, will keinen blauen Cursor im Terminal und keinen blauen
+        // Fensterrahmen daneben. `Theme.accent` loest die Rolle auf, und wenn
+        // keine gesetzt ist, ist das genau der Vorschlag des Themes.
+        out += "NB_ACCENT='" + Theme.accent + "'\n";
+        out += "NB_ACCENT_ROLE='" + Theme.accentRole + "'\n";
         out += "NB_MUTED='" + (c.muted ?? "#808080") + "'\n";
         out += "NB_SELECTION='" + (c.selection ?? c.lighter_background ?? "#333333") + "'\n\n";
         for (var i = 0; i < p.length; i++)
@@ -69,7 +74,7 @@ Singleton {
             out += "palette = " + i + "=" + p[i] + "\n";
         out += "background = " + (c.background ?? "#000000") + "\n";
         out += "foreground = " + (c.foreground ?? "#ffffff") + "\n";
-        out += "cursor-color = " + (c.accent ?? c.foreground ?? "#ffffff") + "\n";
+        out += "cursor-color = " + Theme.accent + "\n";
         out += "selection-background = " + (c.selection ?? c.lighter_background ?? "#333333") + "\n";
         out += "selection-foreground = " + (c.bright_foreground ?? c.foreground ?? "#ffffff") + "\n";
         return out;
@@ -80,7 +85,7 @@ Singleton {
     // eben aus Omarchys Palette statt aus matugen.
     function niriColors() {
         const c = Theme.c;
-        const active = c.accent ?? c.foreground ?? "#ffffff";
+        const active = String(Theme.accent);
         const inactive = c.muted ?? c.dark_foreground ?? "#555555";
         const urgent = c.red ?? "#ff0000";
 
@@ -140,11 +145,16 @@ Singleton {
     }
 
     // Nach jedem Themewechsel -- Theme.c wechselt, sobald die neue colors.toml
-    // gelesen ist.
+    // gelesen ist -- und nach jedem Wechsel der Akzentrolle: die Farbe der
+    // Fensterrahmen und des Cursors haengt daran, das Theme aber nicht.
     Connections {
         target: Theme
 
         function onCChanged() {
+            root.exportNow();
+        }
+
+        function onAccentRoleChanged() {
             root.exportNow();
         }
     }

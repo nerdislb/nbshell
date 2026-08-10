@@ -74,6 +74,14 @@ Singleton {
             out.push(entry("Theme: " + name, name === Config.theme ? "gerade aktiv" : "Farben wechseln", "Theme", () => ThemeIndex.apply(name)));
         }
 
+        // Der Akzent als Rolle -- dieselbe Liste wie im Themewaehler, nur
+        // ohne Maus. "akzent gelb" und Enter.
+        const roles = Theme.accentRoles;
+        for (var r = 0; r < roles.length; r++) {
+            const role = roles[r];
+            out.push(entry("Akzent: " + role, role === Theme.accentRole ? "gerade aktiv" : "Farbe aus der Palette des Themes", "Theme", () => Config.set("accent", role)));
+        }
+
         // ── Dienste ──────────────────────────────────────────────────────
         out.push(entry(Notify.dnd ? "Nicht stoeren aus" : "Nicht stoeren an", "Karten unterdruecken", "Dienste", () => Notify.setDnd(!Notify.dnd)));
         out.push(entry(Audio.muted ? "Ton an" : "Ton aus", "Lautsprecher stumm schalten", "Dienste", () => Audio.toggleMute()));

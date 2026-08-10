@@ -20,7 +20,12 @@ Row {
 
     property real iconHeight: Math.round(Theme.cellH * 0.72)
 
-    readonly property bool showIcon: root.icon !== "" && Config.widgetIcons
+    // Vorgabe ist die allgemeine Einstellung; `Cell` setzt hier das Ergebnis
+    // seiner eigenen Rechnung hinein, weil ein Baustein sie ueberschreiben
+    // darf (`widgets.<id>.display`).
+    property bool icons: Config.widgetIcons
+
+    readonly property bool showIcon: root.icon !== "" && root.icons
 
     spacing: (showIcon && root.text !== "") ? Math.round(Theme.cellW * 0.6) : 0
 

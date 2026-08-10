@@ -90,13 +90,71 @@ Item {
             Runtime.popoutHover = Math.max(0, Runtime.popoutHover + (hovered ? 1 : -1));
     }
 
-    readonly property string style: Config.widgetStyle
+    // ── Aussehen je Baustein ─────────────────────────────────────────────
+    //
+    // Form, Symbol und Farbe gelten fuer alle gemeinsam -- ausser fuer die
+    // Bausteine, die in `widgets` einen eigenen Eintrag haben:
+    //
+    //   "widgets": {
+    //       "sys":   { "display": "icon", "color": "green" },
+    //       "clock": { "style": "plain" }
+    //   }
+    //
+    // Nachgebaut nach Shibumi-Shell, wo dieselben drei Regler je Baustein
+    // stehen (DISPLAY / SURFACE / COLOR). Was nicht dort steht -- oder auf
+    // "auto" --, kommt weiter aus der allgemeinen Einstellung: wer nichts
+    // eintraegt, merkt von der ganzen Sache nichts, und die Config bleibt
+    // kurz.
+    //
+    // Nachschlagen kann die Zelle das selbst, weil sie ihre `widgetId` schon
+    // kennt -- die Leiste haengt sie ohnehin an.
+    readonly property var overrides: {
+        const all = Config.value("widgets", ({}));
+        if (root.widgetId === "" || !all)
+            return ({});
+        return all[root.widgetId] ?? ({});
+    }
+
+    function pick(key, fallback) {
+        const v = root.overrides[key];
+        return (v === undefined || v === null || v === "" || v === "auto") ? fallback : v;
+    }
+
+    readonly property string style: pick("style", Config.widgetStyle)
     readonly property bool boxed: style === "box"
     readonly property bool bracketed: style === "bracket"
 
-    readonly property string labelled: (!Config.widgetIcons && root.label !== "") ? (root.label + (root.text !== "" ? " " + root.text : "")) : root.text
+    // full = Symbol und Text, icon = nur Symbol, text = nur Text (mit Kuerzel).
+    readonly property string display: pick("display", Config.widgetIcons ? "full" : "text")
 
-    readonly property string shownText: bracketed ? ("[" + labelled + "]") : labelled
+    readonly property bool wantIcon: (root.display === "full" || root.display === "icon") && root.icon !== ""
+
+    // "icon" bei einem Baustein ohne Symbol waere eine leere Zelle -- dann
+    // gilt weiter der Text.
+    readonly property bool wantText: root.display !== "icon" || root.icon === ""
+
+    readonly property string labelled: {
+        if (!root.wantText)
+            return "";
+        return (!root.wantIcon && root.label !== "") ? (root.label + (root.text !== "" ? " " + root.text : "")) : root.text;
+    }
+
+    readonly property string shownText: (bracketed && labelled !== "") ? ("[" + labelled + "]") : labelled
+
+    // Die Farbe wird nur ersetzt, wenn der Baustein die NEUTRALE benutzt. Ein
+    // roter Akku und eine rote Prozessorlast sind Warnungen, keine Gestaltung
+    // -- sie einzufaerben hiesse, die einzige Aussage zu loeschen, die die
+    // Zelle in dem Moment hat. Die gedaempfte Fassung bleibt gedaempft.
+    readonly property color shownColor: {
+        const role = root.pick("color", "");
+        if (role === "")
+            return root.color;
+        const dim = Qt.colorEqual(root.color, Theme.textDim);
+        if (!dim && !Qt.colorEqual(root.color, Theme.text))
+            return root.color;
+        const tinted = Theme.roleColor(role);
+        return dim ? Theme.readable(Theme.mix(tinted, Theme.bg, 0.45), Theme.bg, 3.0) : Theme.readable(tinted, Theme.bg, 4.5);
+    }
 
     readonly property real contentWidth: Math.max(custom ? contentItem.childrenRect.width : line.implicitWidth, root.slotChars * Theme.cellW)
 
@@ -125,9 +183,9 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: Theme.radius
-        color: root.active || popoutLoader.item?.visible ? Theme.alpha(root.color, 0.15) : (mouse.containsMouse && root.clickable ? Theme.hover : "transparent")
+        color: root.active || popoutLoader.item?.visible ? Theme.alpha(root.shownColor, 0.15) : (mouse.containsMouse && root.clickable ? Theme.hover : "transparent")
         border.width: root.boxed ? Theme.borderWidth : 0
-        border.color: root.active || popoutLoader.item?.visible ? root.color : Theme.muted
+        border.color: root.active || popoutLoader.item?.visible ? root.shownColor : Theme.muted
     }
 
     IconText {
@@ -136,9 +194,10 @@ Item {
         visible: !root.custom
         anchors.centerIn: parent
         icon: root.icon
+        icons: root.wantIcon
         spins: root.iconSpins
         text: root.shownText
-        color: root.color
+        color: root.shownColor
     }
 
     Item {

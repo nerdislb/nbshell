@@ -72,6 +72,83 @@ Cell {
                 theme: picker.previewTheme
             }
 
+            // ── Der Akzent ───────────────────────────────────────────────
+            // Gewaehlt wird eine ROLLE, keine Farbe: die Kaestchen zeigen, wie
+            // sie im AKTIVEN Theme aussieht, und nach einem Themewechsel
+            // dieselbe Rolle im neuen. Nachgebaut nach Shibumi-Shell, wo die
+            // Reihe `Auto 01 … 08 FG` heisst.
+            Item {
+                width: picker.rowWidth
+                height: Theme.cellH * 1.2
+
+                Text {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "AKZENT"
+                    color: Theme.fgDim
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSize
+                    renderType: Text.NativeRendering
+                }
+
+                Text {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: Theme.accentRole
+                    color: Theme.readable(Theme.accent, Theme.bg)
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSize
+                    renderType: Text.NativeRendering
+                }
+            }
+
+            Row {
+                spacing: Theme.cellW * 0.4
+
+                Repeater {
+                    model: Theme.accentRoles
+
+                    Rectangle {
+                        id: swatch
+
+                        required property var modelData
+
+                        readonly property bool active: swatch.modelData === Theme.accentRole
+
+                        width: (picker.rowWidth - Theme.cellW * 0.4 * (Theme.accentRoles.length - 1)) / Theme.accentRoles.length
+                        height: Theme.cellH * 1.2
+                        color: Theme.roleColor(swatch.modelData)
+                        radius: Theme.radius
+
+                        // Das aktive Feld bekommt einen Ring in der Schriftfarbe,
+                        // nicht im Akzent: der IST ja die Fuellung, und ein Ring
+                        // in derselben Farbe waere unsichtbar.
+                        border.width: swatch.active ? Math.max(2, Theme.borderWidth * 2) : Theme.borderWidth
+                        border.color: swatch.active ? Theme.fgBright : Theme.muted
+
+                        // "theme" ist keine eigene Farbe, sondern ein Verweis --
+                        // der Punkt sagt, dass hier das Theme entscheidet.
+                        Text {
+                            anchors.centerIn: parent
+                            visible: swatch.modelData === "theme"
+                            text: "·"
+                            color: Theme.on(Theme.roleColor("theme"))
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSize
+                            renderType: Text.NativeRendering
+                        }
+
+                        HoverHandler {
+                            cursorShape: Qt.PointingHandCursor
+                        }
+
+                        TapHandler {
+                            onTapped: Config.set("accent", swatch.modelData)
+                        }
+                    }
+                }
+            }
+
             Rule {
                 rowWidth: picker.rowWidth
             }
