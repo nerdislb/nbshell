@@ -345,6 +345,20 @@ nbshell -- eigene Shell auf Quickshell
   nbshell picker            Themewahl aufklappen
   nbshell next | prev       ein Theme weiter/zurueck
 
+  nbshell accent            welche Akzentrolle gilt (und die Auswahl)
+  nbshell accent green      Akzent auf eine Farbe DES THEMES legen
+  nbshell accent theme      zurueck zum Vorschlag des Themes
+
+  nbshell widget                    wer ein eigenes Aussehen hat
+  nbshell widget battery display icon
+                            full | icon | text | auto
+  nbshell widget clock style plain
+                            box | bracket | plain | auto
+  nbshell widget updates color red
+                            eine Farbe des Themes, auto = wie alle
+  nbshell widget updates reset
+  nbshell widget reset all
+
   nbshell audio up|down     Lautstaerke (fuer die Multimediatasten)
   nbshell audio mute        stumm schalten
   nbshell audio <prozent>   fest einstellen
