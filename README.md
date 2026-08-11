@@ -185,6 +185,19 @@ sondern ob die Befehle wirklich im PATH stehen. Das ist nicht dasselbe.
   DMS-Plugin `aiOverviewControl`. Fehlt es, bleibt die Zelle still (`aiHelper`
   in der Config zeigt auf einen eigenen Pfad).
 
+**Mehrere Anbieter gleichzeitig** -- das Skript kennt ueber dreissig, gefragt
+wird, was in `aiProviders` steht. Je Anbieter eine Zeile mit Balken, darunter
+die weiteren Toepfe.
+
+Die Anbieter zaehlen dabei verschieden: Claude hat **Zeitfenster** ("5 hour",
+"7 day") und beschreibt sie in `resetDescription`, Antigravity hat
+**Modellgruppen** ("Gemini Models", "Claude & OpenAI Models") und legt den
+Namen in `name`. Beides ist die Beschriftung des Balkens, deshalb gilt `name`
+zuerst und `resetDescription` danach -- sonst stuende bei Antigravity dreimal
+derselbe Text und man wuesste nicht, welcher Balken wofuer ist. Und weil
+Antigravity einen dritten Topf hat, ist die Liste offen statt auf zwei
+festgelegt.
+
 Gebraucht werden `quickshell` und `niri`; als Schrift ist
 `Inconsolata Nerd Font Mono` voreingestellt (Paket `ttf-inconsolata-nerd`).
 Das Skript legt drei Dinge an:
@@ -1052,6 +1065,11 @@ Alles unter 8 px Kantenlaenge gilt jetzt als Ansage fuer den ganzen
 Bildschirm, dieselbe Handbewegung wie in Omarchys Regionswaehler.
 
 ## KI-Verbrauch
+
+```bash
+nbshell set aiProviders "claude,antigravity"   # mehrere, kommagetrennt
+nbshell ai                                      # Stand auf der Befehlszeile
+```
 
 Der Baustein `ai` zeigt ein Symbol, das sich **von unten fuellt** -- so weit,
 wie das laufende Zeitfenster verbraucht ist. Das Popout nennt Prozent, Fenster

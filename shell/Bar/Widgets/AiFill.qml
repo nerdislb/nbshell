@@ -128,7 +128,10 @@ Cell {
 
             property var closePopout: null
 
-            readonly property real rowWidth: 34 * Theme.cellW
+            // 46 statt 34 Zeichen: seit Antigravity dazukam, stehen dort
+            // Modellgruppen ("Claude & OpenAI Models") statt kurzer Fenster
+            // ("5 hour") -- bei 34 brach schon die erste Zeile ab.
+            readonly property real rowWidth: 46 * Theme.cellW
 
             spacing: Theme.cellH * 0.3
 
@@ -152,7 +155,9 @@ Cell {
                     spacing: 0
 
                     Text {
-                        text: entry.modelData.id + "   " + entry.modelData.percent + "%   " + entry.modelData.window + ", " + AiUsage.untilReset(entry.modelData)
+                        width: panel.rowWidth
+                        elide: Text.ElideRight
+                        text: entry.modelData.id + "   " + entry.modelData.percent + "%   " + entry.modelData.window + (AiUsage.untilReset(entry.modelData) !== "" ? (", " + AiUsage.untilReset(entry.modelData)) : "")
                         color: entry.modelData.percent >= 90 ? Theme.red : Theme.fg
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize
@@ -166,15 +171,22 @@ Cell {
                         fillColor: entry.modelData.percent >= 90 ? Theme.red : Theme.accent
                     }
 
-                    Text {
-                        visible: entry.modelData.secondary >= 0
-                        text: "        " + entry.modelData.secondary + "%   " + entry.modelData.secondaryWindow + ", " + AiUsage.untilReset({
-                                "resetsAt": entry.modelData.secondaryResetsAt
-                            })
-                        color: Theme.fgDim
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
-                        renderType: Text.NativeRendering
+                    // Die weiteren Toepfe desselben Anbieters. Claude hat
+                    // einen (die Woche), Antigravity zwei (Modellgruppen).
+                    Repeater {
+                        model: entry.modelData.more ?? []
+
+                        Text {
+                            required property var modelData
+
+                            width: panel.rowWidth
+                            elide: Text.ElideRight
+                            text: "        " + modelData.percent + "%   " + modelData.label + (AiUsage.untilReset(modelData) !== "" ? (", " + AiUsage.untilReset(modelData)) : "")
+                            color: modelData.percent >= 90 ? Theme.red : Theme.fgDim
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSize
+                            renderType: Text.NativeRendering
+                        }
                     }
                 }
             }

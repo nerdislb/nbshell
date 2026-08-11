@@ -23,6 +23,7 @@ Singleton {
     property bool available: helper !== ""
 
     // Welche Anbieter gefragt werden -- das Skript nimmt sie als Kommaliste.
+    // Es kennt ueber dreissig; welche man hat, weiss nur der Benutzer.
     readonly property string providers: Config.value("aiProviders", "claude")
 
     property var list: []
@@ -76,15 +77,42 @@ Singleton {
             onStreamFinished: {
                 try {
                     const raw = JSON.parse(text);
-                    root.list = raw.map(item => ({
-                                "id": item.provider,
-                                "percent": Math.round(item.usage?.primary?.usedPercent ?? 0),
-                                "secondary": item.usage?.secondary?.usedPercent !== undefined ? Math.round(item.usage.secondary.usedPercent) : -1,
-                                "resetsAt": item.usage?.primary?.resetsAt ?? "",
-                                "window": item.usage?.primary?.resetDescription ?? "",
-                                "secondaryResetsAt": item.usage?.secondary?.resetsAt ?? "",
-                                "secondaryWindow": item.usage?.secondary?.resetDescription ?? ""
-                            }));
+                    // Die Anbieter melden ihre Toepfe unterschiedlich. Claude
+                    // hat ZEITFENSTER ("5 hour", "week") und beschreibt sie in
+                    // `resetDescription`; Antigravity hat MODELLGRUPPEN
+                    // ("Gemini Models", "Claude & OpenAI Models") und legt den
+                    // Namen in `name`. Beides ist die Beschriftung des
+                    // Balkens -- deshalb `name` zuerst, `resetDescription`
+                    // danach. Sonst stuende bei Antigravity dreimal derselbe
+                    // Text, und man wuesste nicht, welcher Balken wofuer ist.
+                    function topf(t) {
+                        if (!t || t.usedPercent === undefined || t.usedPercent === null)
+                            return null;
+                        return {
+                            "percent": Math.round(t.usedPercent),
+                            "label": t.name || t.resetDescription || "",
+                            "resetsAt": t.resetsAt ?? ""
+                        };
+                    }
+
+                    root.list = raw.map(item => {
+                        const u = item.usage ?? ({});
+                        // Antigravity hat einen dritten Topf. Wer ihn nicht
+                        // hat, bekommt hier `null` und die Zeile faellt weg.
+                        const weitere = [topf(u.secondary), topf(u.tertiary)].filter(t => t !== null);
+                        const erst = topf(u.primary) ?? ({
+                                "percent": 0,
+                                "label": "",
+                                "resetsAt": ""
+                            });
+                        return {
+                            "id": item.provider,
+                            "percent": erst.percent,
+                            "window": erst.label,
+                            "resetsAt": erst.resetsAt,
+                            "more": weitere
+                        };
+                    });
                 } catch (e) {
                     console.warn("nbshell/ai: Antwort unlesbar —", e);
                 }
