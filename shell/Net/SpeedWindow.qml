@@ -165,12 +165,9 @@ PanelWindow {
 
                 spacing: 0
 
-                Text {
+                Line {
                     text: messwert.label
                     color: Theme.fgDim
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                 }
 
                 Row {
@@ -186,13 +183,10 @@ PanelWindow {
                         interactive: false
                     }
 
-                    Text {
+                    Line {
                         width: Theme.cellW * 14
                         text: messwert.laeuft ? "misst …" : (messwert.wert > 0 ? (messwert.wert.toFixed(1) + " " + messwert.einheit) : "—")
                         color: messwert.laeuft ? Theme.muted : Theme.fg
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
-                        renderType: Text.NativeRendering
                     }
                 }
             }
@@ -247,24 +241,18 @@ PanelWindow {
                 ]
             }
 
-            Text {
+            Line {
                 width: inhalt.rowWidth
                 visible: root.result !== null && root.result.ok !== true
                 text: "  " + (root.result ? root.result.grund : "")
                 color: Theme.red
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
                 wrapMode: Text.WordWrap
             }
 
-            Text {
+            Line {
                 width: inhalt.rowWidth
                 text: "Leertaste misst erneut · Esc schliesst"
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
         }
     }

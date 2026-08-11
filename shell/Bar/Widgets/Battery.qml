@@ -86,13 +86,10 @@ Cell {
                 onChosen: value => PowerService.setProfile(value)
             }
 
-            Text {
+            Line {
                 width: panel.rowWidth
                 text: "weitere Profile: tuned-adm list"
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
                 topPadding: Theme.cellH * 0.3
             }
         }

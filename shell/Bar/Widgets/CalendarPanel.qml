@@ -57,22 +57,16 @@ Column {
         return new Date(year, month + 1, 0).getDate();
     }
 
-    component Heading: Text {
+    component Heading: Line {
         color: Theme.fgDim
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
-        renderType: Text.NativeRendering
     }
 
-    component Action: Text {
+    component Action: Line {
         id: action
 
         signal triggered
 
         color: actionHover.hovered ? Theme.readable(Theme.accent, Theme.bg) : Theme.fgDim
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
-        renderType: Text.NativeRendering
 
         // Handler statt MouseArea -- siehe die Erklaerung bei den Tageszellen
         // weiter unten: eine MouseArea nimmt das Ueberfahren fuer sich und
@@ -226,28 +220,22 @@ Column {
                             border.color: Theme.readable(Theme.accent, Theme.bg)
                         }
 
-                        Text {
+                        Line {
                             anchors.centerIn: parent
                             anchors.verticalCenterOffset: -Theme.cellH * 0.3
                             text: dayCell.day.getDate()
                             color: dayCell.inMonth ? (dayCell.isToday ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg) : Theme.muted
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
                         }
 
                         // Der Punkt sagt nur "da steht etwas an" -- wie viel,
                         // sagt die Liste darunter.
-                        Text {
+                        Line {
                             anchors.horizontalCenter: parent.horizontalCenter
                             anchors.bottom: parent.bottom
                             anchors.bottomMargin: Theme.cellH * 0.1
                             visible: dayCell.busy
                             text: "·"
                             color: dayCell.inMonth ? Theme.readable(Theme.accent, Theme.bg) : Theme.muted
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
                         }
 
                         // KEINE MouseArea mit `hoverEnabled`: die nimmt das
@@ -297,24 +285,18 @@ Column {
         }
     }
 
-    Text {
+    Line {
         visible: !Calendar.available
         width: panel.rowWidth
         text: "  " + (Calendar.problem === "khal fehlt" ? "khal ist nicht installiert — pacman -S khal vdirsyncer" : Calendar.problem)
         color: Theme.yellow
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
-        renderType: Text.NativeRendering
         wrapMode: Text.WordWrap
     }
 
-    Text {
+    Line {
         visible: Calendar.available && Calendar.eventsOn(panel.selected).length === 0
         text: "  nichts eingetragen"
         color: Theme.muted
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
-        renderType: Text.NativeRendering
     }
 
     Repeater {
@@ -328,7 +310,7 @@ Column {
             width: panel.rowWidth
             height: Theme.cellH * 1.3
 
-            Text {
+            Line {
                 id: when
 
                 anchors.left: parent.left
@@ -337,9 +319,6 @@ Column {
                 width: Theme.cellW * 12
                 text: Calendar.timeLabel(entry.modelData)
                 color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
             Rectangle {
@@ -352,28 +331,22 @@ Column {
                 color: Calendar.colorFor(entry.modelData.calendar)
             }
 
-            Text {
+            Line {
                 anchors.left: mark.right
                 anchors.leftMargin: Theme.cellW
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 text: entry.modelData.title
                 color: Theme.fg
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
                 elide: Text.ElideRight
             }
         }
     }
 
-    Text {
+    Line {
         visible: Calendar.eventsOn(panel.selected).length > 8
         text: "  … und " + (Calendar.eventsOn(panel.selected).length - 8) + " weitere"
         color: Theme.muted
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
-        renderType: Text.NativeRendering
     }
 
     // ── Fusszeile: welche Kalender ueberhaupt dabei sind ───────────────────
@@ -397,12 +370,9 @@ Column {
                     color: Calendar.colorFor(parent.modelData)
                 }
 
-                Text {
+                Line {
                     text: parent.modelData
                     color: Theme.muted
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                 }
             }
         }

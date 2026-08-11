@@ -80,12 +80,9 @@ Variants {
                 anchors.centerIn: parent
                 spacing: Theme.cellW * 2
 
-                Text {
+                Line {
                     text: Osd.label
                     color: Theme.fgDim
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                 }
 
                 LevelBar {
@@ -95,14 +92,11 @@ Variants {
                     fillColor: Osd.muted ? Theme.muted : Osd.tint
                 }
 
-                Text {
+                Line {
                     // Feste Breite in Zeichen, damit der Kasten beim Regeln
                     // nicht atmet.
                     text: (Osd.muted ? "stumm" : (Osd.value + "%")).padStart(6, " ")
                     color: Osd.muted ? Theme.red : Theme.fg
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                 }
             }
         }

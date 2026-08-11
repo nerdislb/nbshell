@@ -53,23 +53,17 @@ Cell {
 
             spacing: Theme.cellH * 0.4
 
-            Text {
+            Line {
                 text: "AUDIO"
                 color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
             // ── Ausgabe ───────────────────────────────────────────────────
 
-            Text {
+            Line {
                 width: panel.rowWidth
                 text: Audio.label(Audio.sink)
                 color: Theme.fg
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
                 elide: Text.ElideRight
             }
 
@@ -84,14 +78,11 @@ Cell {
                     onMoved: v => Audio.setVolume(v)
                 }
 
-                Text {
+                Line {
                     // Feste Breite in Zeichen, damit der Balken beim Regeln
                     // nicht wandert.
                     text: (Audio.muted ? "stumm" : (Audio.volume + "%")).padStart(6, " ")
                     color: Audio.muted ? Theme.red : Theme.text
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                 }
             }
 
@@ -108,12 +99,9 @@ Cell {
                     fillColor: Audio.micMuted ? Theme.muted : Theme.green
                 }
 
-                Text {
+                Line {
                     text: (Audio.micMuted ? "stumm" : ("MIC " + Audio.micVolume + "%")).padStart(6, " ")
                     color: Audio.micMuted ? Theme.red : Theme.fgDim
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
 
                     MouseArea {
                         anchors.fill: parent
@@ -125,12 +113,9 @@ Cell {
 
             // ── Geraete ───────────────────────────────────────────────────
 
-            Text {
+            Line {
                 text: "AUSGABE"
                 color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
             Repeater {
@@ -148,16 +133,13 @@ Cell {
                     radius: Theme.radius
                     color: mouse.hovered ? Theme.hover : "transparent"
 
-                    Text {
+                    Line {
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.leftMargin: Theme.cellW / 2
                         anchors.verticalCenter: parent.verticalCenter
                         text: (device.isCurrent ? "▸ " : "  ") + Audio.label(device.modelData)
                         color: device.isCurrent ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
-                        renderType: Text.NativeRendering
                         elide: Text.ElideRight
                     }
 

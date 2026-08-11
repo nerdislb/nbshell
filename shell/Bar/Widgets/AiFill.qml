@@ -135,12 +135,9 @@ Cell {
 
             spacing: Theme.cellH * 0.3
 
-            Text {
+            Line {
                 text: "VERBRAUCH"
                 color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
             Repeater {
@@ -154,14 +151,11 @@ Cell {
                     width: panel.rowWidth
                     spacing: 0
 
-                    Text {
+                    Line {
                         width: panel.rowWidth
                         elide: Text.ElideRight
                         text: entry.modelData.id + "   " + entry.modelData.percent + "%   " + entry.modelData.window + (AiUsage.untilReset(entry.modelData) !== "" ? (", " + AiUsage.untilReset(entry.modelData)) : "")
                         color: entry.modelData.percent >= 90 ? Theme.red : Theme.fg
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
-                        renderType: Text.NativeRendering
                     }
 
                     LevelBar {
@@ -176,27 +170,21 @@ Cell {
                     Repeater {
                         model: entry.modelData.more ?? []
 
-                        Text {
+                        Line {
                             required property var modelData
 
                             width: panel.rowWidth
                             elide: Text.ElideRight
                             text: "        " + modelData.percent + "%   " + modelData.label + (AiUsage.untilReset(modelData) !== "" ? (", " + AiUsage.untilReset(modelData)) : "")
                             color: modelData.percent >= 90 ? Theme.red : Theme.fgDim
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
                         }
                     }
                 }
             }
 
-            Text {
+            Line {
                 text: "Klick auf das Symbol aktualisiert"
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
         }
     }

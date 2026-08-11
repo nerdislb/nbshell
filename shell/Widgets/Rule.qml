@@ -37,15 +37,12 @@ Item {
         color: Theme.muted
     }
 
-    Text {
+    Line {
         anchors.left: parent.left
         anchors.top: line.bottom
         anchors.topMargin: Theme.cellH * 0.3
         visible: root.label !== ""
         text: root.label
         color: Theme.fgDim
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
-        renderType: Text.NativeRendering
     }
 }

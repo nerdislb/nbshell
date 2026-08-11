@@ -81,24 +81,18 @@ Cell {
                 width: picker.rowWidth
                 height: Theme.cellH * 1.2
 
-                Text {
+                Line {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: "AKZENT"
                     color: Theme.fgDim
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                 }
 
-                Text {
+                Line {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     text: Theme.accentRole
                     color: Theme.readable(Theme.accent, Theme.bg)
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                 }
             }
 
@@ -128,14 +122,11 @@ Cell {
 
                         // "theme" ist keine eigene Farbe, sondern ein Verweis --
                         // der Punkt sagt, dass hier das Theme entscheidet.
-                        Text {
+                        Line {
                             anchors.centerIn: parent
                             visible: swatch.modelData === "theme"
                             text: "·"
                             color: Theme.on(Theme.roleColor("theme"))
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
                         }
 
                         HoverHandler {
@@ -170,7 +161,7 @@ Cell {
                     border.width: row.isCurrent ? Theme.borderWidth : 0
                     border.color: Theme.accent
 
-                    Text {
+                    Line {
                         anchors.left: parent.left
                         anchors.leftMargin: Theme.cellW
                         anchors.verticalCenter: parent.verticalCenter
@@ -178,9 +169,6 @@ Cell {
                         // Auswahl im Terminal aussieht.
                         text: (row.isCurrent ? "▸ " : "  ") + row.modelData.name
                         color: row.isCurrent ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
-                        renderType: Text.NativeRendering
                     }
 
                     // Farbprobe: dieselben fuenf Farben, die auch das Terminal

@@ -1064,6 +1064,29 @@ von wenigen Pixeln zurueck — wf-recorder haette brav ein 3×2-Video begonnen.
 Alles unter 8 px Kantenlaenge gilt jetzt als Ansage fuer den ganzen
 Bildschirm, dieselbe Handbewegung wie in Omarchys Regionswaehler.
 
+### Woher die Shell weiss, dass gerade aufgenommen wird
+
+Frueher: ein Timer, der **alle fuenf Sekunden** ein `pgrep -x wf-recorder`
+startete. Rund 17.000 Prozesse am Tag, um in aller Regel „nein" zu hoeren.
+
+Dabei fuehrt `capture.sh` laengst selbst Buch. Es legt beim Start eine Datei an
+(`$XDG_RUNTIME_DIR/screen-capture-recording`, darin der Pfad des Videos) und
+raeumt sie beim Stoppen wieder weg. Genau die wird jetzt beobachtet: **Datei da
+= Aufnahme laeuft.** Kein Timer, keine Verzoegerung bis zu fuenf Sekunden, und
+richtig auch dann, wenn die Aufnahme im Terminal gestartet wurde oder die Shell
+zwischendurch neu geladen hat — beim Start wird der Pfad einmal gelesen.
+
+Dass das traegt, haengt an einer Eigenschaft, die nicht selbstverstaendlich
+ist: eine `FileView` meldet auch das **Anlegen** eines bis dahin fehlenden
+Pfades, nicht nur Aenderungen an einer bestehenden Datei. Nachgemessen, bevor
+der Timer rausflog.
+
+Bleibt der Fall, dass wf-recorder abstuerzt — dann liegt die Datei da und die
+Leiste zeigte ewig einen roten Punkt. Dagegen laeuft ein `pgrep`, aber **nur
+waehrend einer Aufnahme** (alle 15 s): findet es nichts, wird die Karteileiche
+weggeraeumt und die Anzeige faellt zurueck. Im Ruhezustand passiert hier gar
+nichts mehr.
+
 ## KI-Verbrauch
 
 ```bash
@@ -1878,6 +1901,39 @@ Ueberblendet wird ueber zwei Bildflaechen: die verdeckte laedt das neue Bild
 und wird erst eingeblendet, wenn es steht — sonst blitzt beim Wechsel Schwarz
 durch.
 
+## Eine Zeile Text
+
+Der kleinste Baustein von allen ist `Widgets/Line.qml`, und er entstand aus
+einer Zaehlung: in 146 Textstuecken quer durch die Shell standen dieselben drei
+Zeilen untereinander.
+
+```qml
+font.family: Theme.fontFamily
+font.pixelSize: Theme.fontSize
+renderType: Text.NativeRendering
+```
+
+438 Zeilen, die nichts sagen. Schlimmer als ihre Zahl ist, was sie unmoeglich
+machen: Wer die Schrift anfassen will — eine andere Renderart, ein
+Buchstabenabstand, ein zweites Schriftgewicht —, muss 146 Stellen finden und
+darf keine vergessen. Genau daran scheitert eine Oberflaeche, die einheitlich
+aussehen soll.
+
+Jetzt heisst es ueberall `Line { text: … }`, und die drei Zeilen stehen einmal.
+Ueberschrieben wird wie bei jedem `Text`: `font.bold`, ein anderer
+`font.pixelSize`, eine andere `color` einfach am Aufrufort setzen — die
+Vorgaben gelten nur, wo niemand widerspricht.
+
+`NativeRendering` ist dabei kein Geschmack. Es ist der Grund, warum die Schrift
+auf dem Pixelraster sitzt statt weichgezeichnet daneben — bei einer
+Oberflaeche, die sich in Zeichenzellen misst, ist alles andere unscharf.
+
+Eine Falle beim Umbau: `Sys.qml` hatte laengst eine eigene Zeilenkomponente,
+und die hiess auch noch `Line`. Aus `component Line: Text` wurde
+`component Line: Line` — Quickshell meldete `Inline components form a cycle!`
+und die ganze Leiste blieb weg. Die inline-Komponente war danach ueberfluessig
+und ist raus.
+
 ## Popouts
 
 ### Vier Bausteine, aus denen sie bestehen
@@ -2286,7 +2342,12 @@ Drei Dinge, die dabei zaehlen:
 
 ```
 shell/
-  shell.qml            Einstiegspunkt, IPC
+  shell.qml            Einstiegspunkt: woraus die Shell besteht (113 Zeilen)
+  Ipc/LookIpc.qml      Steuerung von aussen: Aussehen
+  Ipc/SystemIpc.qml    ", System
+  Ipc/DesktopIpc.qml   ", Oberflaeche
+  Ipc/DataIpc.qml      ", Inhalte
+  Ipc/DeviceIpc.qml    ", Geraet
   Common/Config.qml    config.json, beobachtet
   Common/Theme.qml     Palette + Zeichenraster
   Common/Runtime.qml   fluechtiger Zustand, den alle Fenster teilen
@@ -2306,6 +2367,7 @@ shell/
   Todo/TodoList.qml    das Fenster dazu (Mod+T)
   scripts/todo.sh      Konfliktkopien des Abgleichs zurueckfalten
   Services/MediaService.qml  MPRIS
+  Widgets/Line.qml     eine Zeile Text: Schrift und Renderart an einer Stelle
   Widgets/LevelBar.qml Balken aus Bloecken
   Widgets/Facts.qml    Kennwerte als Raster (Label links, Wert rechts)
   Widgets/Rule.qml     Haarlinie mit Ueberschrift
@@ -2341,6 +2403,18 @@ niri/nbshell-takeover.kdl  Binds fuer den Umstieg
   scripts/cursors.sh   welche Themen es gibt, und eines setzen
   scripts/themes.sh    findet Themes und Wallpaper
 ```
+
+**`shell.qml` sagt, woraus die Shell besteht — mehr nicht.** Lange stand darin
+auch die ganze Fernsteuerung: 30 `IpcHandler` mit 120 Funktionen, 945 von 1088
+Zeilen. Die eigentliche Frage — welche Fenster gibt es hier? — war unter der
+Fernsteuerung begraben, und die Datei wuchs mit jedem neuen Befehl weiter. Die
+Handler sprechen ausschliesslich mit Singletons, kein einziger griff auf die
+Wurzel zu; der Schnitt nach `Ipc/` war deshalb schmerzlos. Uebrig bleiben 113
+Zeilen, die man in einem Blick liest.
+
+Aufgeteilt nach Sachgebiet, nicht nach Ziel: 30 Dateien mit je zwanzig Zeilen
+waeren dasselbe Problem in kleiner. Wer `nbshell theme`, `nbshell widget` oder
+`nbshell wallpaper` sucht, findet alle drei in `LookIpc.qml`.
 
 **Insel, Pille und Balken sind dasselbe Fenster.** Es ist immer
 bildschirmbreit und durchsichtig; nur der Rahmen darin waechst, und eine

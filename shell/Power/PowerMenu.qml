@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import qs.Common
 import qs.Services
+import qs.Widgets
 
 // Power-Menue.
 //
@@ -102,12 +103,9 @@ PanelWindow {
                 width: parent.width - Theme.cellW * 2
                 spacing: Theme.cellH * 0.2
 
-                Text {
+                Line {
                     text: "SITZUNG"
                     color: Theme.fgDim
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                     bottomPadding: Theme.cellH * 0.4
                 }
 
@@ -125,15 +123,12 @@ PanelWindow {
                         radius: Theme.radius
                         color: row.index === root.selected ? Theme.selection : "transparent"
 
-                        Text {
+                        Line {
                             anchors.left: parent.left
                             anchors.leftMargin: Theme.cellW / 2
                             anchors.verticalCenter: parent.verticalCenter
                             text: (row.index === root.selected ? "▸ " : "  ") + "[" + row.modelData.key + "]  " + row.modelData.label
                             color: row.index === root.selected ? Theme.on(Theme.selection) : Theme.fg
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
                         }
 
                         MouseArea {
@@ -146,12 +141,9 @@ PanelWindow {
                     }
                 }
 
-                Text {
+                Line {
                     text: "Esc schliesst"
                     color: Theme.muted
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                     topPadding: Theme.cellH * 0.4
                 }
             }

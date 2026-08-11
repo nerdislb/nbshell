@@ -68,25 +68,19 @@ Cell {
 
             // Verbundene Geraete OHNE Akkumeldung: sie fehlen sonst wortlos,
             // und man sucht den Fehler bei der Zelle statt beim Geraet.
-            Text {
+            Line {
                 width: panel.rowWidth
                 visible: Bt.connected.length > Bt.withBattery.length
                 text: "  " + (Bt.connected.length - Bt.withBattery.length) + " verbunden, ohne Akkumeldung"
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
                 topPadding: Theme.cellH * 0.3
             }
 
-            Text {
+            Line {
                 width: panel.rowWidth
                 visible: Bt.withBattery.length === 0
                 text: "  kein Geraet meldet seinen Akku"
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
         }
     }

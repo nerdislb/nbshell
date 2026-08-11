@@ -93,34 +93,25 @@ Cell {
                 rowWidth: panel.rowWidth
             }
 
-            Text {
+            Line {
                 width: panel.rowWidth
                 text: Idle.caffeine ? "Klick laesst die Automatik wieder zu." : "Klick haelt den Rechner wach."
                 color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
                 wrapMode: Text.WordWrap
             }
 
-            Text {
+            Line {
                 width: panel.rowWidth
                 text: "Rechtsklick schaltet die Automatik " + (Idle.enabled ? "ganz ab." : "wieder ein.")
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
                 wrapMode: Text.WordWrap
             }
 
-            Text {
+            Line {
                 width: panel.rowWidth
                 visible: !Brightness.available
                 text: "Kein Helligkeitsregler gefunden -- gedimmt wird dann nicht."
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
                 wrapMode: Text.WordWrap
                 topPadding: Theme.cellH * 0.3
             }

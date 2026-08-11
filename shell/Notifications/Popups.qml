@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import Quickshell.Services.Notifications
 import qs.Common
 import qs.Services
+import qs.Widgets
 
 // Die Karten, die bei einer neuen Benachrichtigung aufgehen.
 //
@@ -117,30 +118,24 @@ Variants {
                         anchors.margins: Theme.cellW
                         spacing: Theme.cellH * 0.2
 
-                        Text {
+                        Line {
                             width: parent.width
                             text: (card.urgent ? "! " : "") + (card.modelData.appName || "System") + "  ·  " + Notify.ago(card.modelData.time)
                             color: card.urgent ? Theme.red : Theme.fgDim
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
                             elide: Text.ElideRight
                         }
 
-                        Text {
+                        Line {
                             width: parent.width
                             visible: text !== ""
                             text: card.modelData.summary ?? ""
                             color: Theme.fgBright
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
                             wrapMode: Text.WordWrap
                             maximumLineCount: 2
                             elide: Text.ElideRight
                         }
 
-                        Text {
+                        Line {
                             width: parent.width
                             visible: text !== ""
                             // Der Text darf Auszeichnung enthalten; als
@@ -149,9 +144,6 @@ Variants {
                             text: card.modelData.body ?? ""
                             textFormat: Text.RichText
                             color: Theme.fg
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
                             wrapMode: Text.WordWrap
                             maximumLineCount: 4
                             elide: Text.ElideRight
@@ -176,14 +168,11 @@ Variants {
                                     border.width: Theme.borderWidth
                                     border.color: Theme.muted
 
-                                    Text {
+                                    Line {
                                         id: actionText
                                         anchors.centerIn: parent
                                         text: actionButton.modelData.text
                                         color: Theme.accent
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSize
-                                        renderType: Text.NativeRendering
                                     }
 
                                     MouseArea {

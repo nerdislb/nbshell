@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import Quickshell.Widgets
 import qs.Common
 import qs.Services
+import qs.Widgets
 
 // Anwendungsstarter und Befehlspalette in einem.
 //
@@ -173,16 +174,13 @@ PanelWindow {
             anchors.margins: Theme.cellW
             height: Theme.cellH * 1.8
 
-            Text {
+            Line {
                 id: prompt
 
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
                 text: "> "
                 color: Theme.accent
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
             TextInput {
@@ -231,27 +229,21 @@ PanelWindow {
                     }
                 }
 
-                Text {
+                Line {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: input.text === ""
                     text: "Anwendung oder Befehl suchen  (> nur Befehle, ! nur Anwendungen)"
                     color: Theme.muted
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                 }
             }
 
-            Text {
+            Line {
                 id: counter
 
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.results.length + ""
                 color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
             Rectangle {
@@ -291,16 +283,13 @@ PanelWindow {
                 height: list.rowHeight
                 color: index === root.selected ? Theme.selection : "transparent"
 
-                Text {
+                Line {
                     id: marker
 
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: row.index === root.selected ? "▸" : " "
                     color: Theme.accent
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                 }
 
                 // Das Symbol des Programms. Die einzige Stelle im Starter, die
@@ -336,13 +325,10 @@ PanelWindow {
                         border.color: appIcon.isCommand ? Theme.accent : Theme.muted
                         radius: Theme.radius
 
-                        Text {
+                        Line {
                             anchors.centerIn: parent
                             text: appIcon.isCommand ? ">" : (row.modelData.name || "?").charAt(0).toUpperCase()
                             color: appIcon.isCommand ? Theme.accent : Theme.fgDim
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
                         }
                     }
                 }
@@ -355,29 +341,23 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 0
 
-                    Text {
+                    Line {
                         width: parent.width
                         text: row.modelData.name
                         color: row.index === root.selected ? Theme.on(Theme.selection) : Theme.fg
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
-                        renderType: Text.NativeRendering
                         elide: Text.ElideRight
                     }
 
-                    Text {
+                    Line {
                         width: parent.width
                         visible: text !== ""
                         text: row.modelData.genericName || row.modelData.comment || ""
                         color: Theme.fgDim
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
-                        renderType: Text.NativeRendering
                         elide: Text.ElideRight
                     }
                 }
 
-                Text {
+                Line {
                     id: badge
 
                     anchors.right: parent.right
@@ -385,9 +365,6 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     text: row.modelData.kind === "cmd" ? (row.modelData.category || "BEFEHL").toUpperCase() : (row.modelData.runInTerminal ? "TUI" : "APP")
                     color: row.modelData.kind === "cmd" ? Theme.fgDim : Theme.muted
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                 }
 
                 MouseArea {
@@ -400,7 +377,7 @@ PanelWindow {
             }
         }
 
-        Text {
+        Line {
             id: footer
 
             anchors.bottom: parent.bottom
@@ -418,9 +395,6 @@ PanelWindow {
                 return "Enter fuehrt \"" + root.query + "\" als Befehl aus";
             }
             color: root.pending ? Theme.red : Theme.muted
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize
-            renderType: Text.NativeRendering
         }
     }
 }

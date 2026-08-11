@@ -22,7 +22,7 @@ Item {
     implicitWidth: cells * Theme.cellW
     implicitHeight: Theme.cellH
 
-    Text {
+    Line {
         id: text
 
         anchors.fill: parent
@@ -30,9 +30,6 @@ Item {
         // aufwaendiger als eines mit Auszeichnung.
         text: "<font color=\"" + root.fillColor + "\">" + "█".repeat(root.filled) + "</font>" + "<font color=\"" + Theme.muted + "\">" + "░".repeat(Math.max(0, root.cells - root.filled)) + "</font>"
         textFormat: Text.RichText
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
-        renderType: Text.NativeRendering
         verticalAlignment: Text.AlignVCenter
     }
 

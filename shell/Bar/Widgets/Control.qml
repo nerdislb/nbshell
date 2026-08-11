@@ -75,16 +75,13 @@ Cell {
                 onTriggered: panel.spinIndex++
             }
 
-            component Heading: Text {
+            component Heading: Line {
                 color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
             // Ein Knopf aus Text. Angefasst wird ein Stueck ausserhalb mit --
             // ein Wort ist eine schmale Zielflaeche.
-            component Action: Text {
+            component Action: Line {
                 id: action
 
                 property bool on: false
@@ -92,9 +89,6 @@ Cell {
                 signal triggered
 
                 color: actionMouse.hovered ? Theme.readable(Theme.accent, Theme.bg) : (action.on ? Theme.green : Theme.fgDim)
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
 
                 // Handler statt MouseArea: eine MouseArea mit `hoverEnabled`
                 // nimmt das Ueberfahren fuer sich, und der HoverHandler des
@@ -162,12 +156,9 @@ Cell {
                     onMoved: v => Brightness.set(v)
                 }
 
-                Text {
+                Line {
                     text: (Brightness.percent + "%").padStart(5, " ")
                     color: Theme.fg
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                 }
             }
 
@@ -232,13 +223,10 @@ Cell {
 
             // Leere Liste heisst nicht "kaputt" -- meistens heisst es, dass
             // noch niemand gesucht hat.
-            Text {
+            Line {
                 visible: Net.wifiEnabled && Net.wifiNetworks.length === 0
                 text: Net.scanning ? "  sucht …" : "  nichts gefunden — [ suchen ]"
                 color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
             Repeater {
@@ -260,20 +248,17 @@ Cell {
                         radius: Theme.radius
                         color: wifiMouse.hovered ? Theme.hover : "transparent"
 
-                        Text {
+                        Line {
                             anchors.left: parent.left
                             anchors.leftMargin: Theme.cellW / 2
                             anchors.right: strength.left
                             anchors.verticalCenter: parent.verticalCenter
                             text: (entry.isCurrent ? "▸ " : "  ") + entry.modelData.name + (entry.modelData.known && !entry.isCurrent ? "  ·gespeichert" : "")
                             color: entry.isCurrent ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
                             elide: Text.ElideRight
                         }
 
-                        Text {
+                        Line {
                             id: strength
 
                             anchors.right: parent.right
@@ -281,9 +266,6 @@ Cell {
                             anchors.verticalCenter: parent.verticalCenter
                             text: (entry.modelData.security !== WifiSecurityType.Open ? "🔒 " : "   ") + Net.bars(entry.modelData.signalStrength)
                             color: Theme.fgDim
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
                         }
 
                         HoverHandler {
@@ -338,14 +320,11 @@ Cell {
                                 panel.pendingNetwork = null;
                             }
 
-                            Text {
+                            Line {
                                 anchors.verticalCenter: parent.verticalCenter
                                 visible: pskField.text === ""
                                 text: "Passwort, Enter verbindet"
                                 color: Theme.fgDim
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSize
-                                renderType: Text.NativeRendering
                             }
                         }
                     }
@@ -390,13 +369,10 @@ Cell {
                 }
             }
 
-            Text {
+            Line {
                 visible: Bt.available && Bt.enabled && Bt.sorted.length === 0
                 text: Bt.discovering ? "  sucht …" : "  nichts gekoppelt — [ suchen ]"
                 color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
             Repeater {
@@ -412,16 +388,13 @@ Cell {
                     radius: Theme.radius
                     color: btMouse.hovered ? Theme.hover : "transparent"
 
-                    Text {
+                    Line {
                         anchors.left: parent.left
                         anchors.leftMargin: Theme.cellW / 2
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         text: (btRow.modelData.connected ? "▸ " : "  ") + Bt.label(btRow.modelData) + (btRow.modelData.batteryAvailable ? ("  " + Math.round(btRow.modelData.battery * 100) + "%") : "") + (btRow.modelData.pairing ? "  ·koppelt" : (btRow.modelData.paired || btRow.modelData.connected ? "" : "  ·neu"))
                         color: btRow.modelData.connected ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
-                        renderType: Text.NativeRendering
                         elide: Text.ElideRight
                     }
 

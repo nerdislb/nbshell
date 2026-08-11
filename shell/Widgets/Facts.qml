@@ -56,7 +56,7 @@ Grid {
             width: root.cellWidth
             height: Theme.cellH * 1.3
 
-            Text {
+            Line {
                 id: key
 
                 anchors.left: parent.left
@@ -66,22 +66,16 @@ Grid {
                 width: Math.max(0, pair.width - value.implicitWidth - Theme.cellW)
                 text: String(pair.modelData.label ?? "")
                 color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
                 elide: Text.ElideRight
             }
 
-            Text {
+            Line {
                 id: value
 
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 text: String(pair.modelData.value ?? "")
                 color: pair.modelData.color ?? Theme.fg
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
         }
     }

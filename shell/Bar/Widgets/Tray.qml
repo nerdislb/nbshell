@@ -36,15 +36,12 @@ Cell {
         spacing: Theme.cellW / 2
 
         // Der Pfeil klappt auf und zu; eingeklappt steht die Anzahl daneben.
-        Text {
+        Line {
             id: toggle
 
             anchors.verticalCenter: parent.verticalCenter
             text: root.expanded ? "▾" : ("▸" + root.items.length)
             color: Theme.textDim
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize
-            renderType: Text.NativeRendering
 
             MouseArea {
                 anchors.fill: parent
@@ -126,12 +123,9 @@ Cell {
         Column {
             spacing: Theme.cellH * 0.3
 
-            Text {
+            Line {
                 text: root.menuItem?.title || root.menuItem?.id || ""
                 color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
             MenuView {

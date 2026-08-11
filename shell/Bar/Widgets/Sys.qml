@@ -52,13 +52,6 @@ Cell {
 
             spacing: Theme.cellH * 0.25
 
-            component Line: Text {
-                color: Theme.fg
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
-            }
-
             // Eine Zeile aus Beschriftung, Balken und Wert -- dreimal
             // dasselbe Raster, damit die Zahlen untereinander stehen.
             component Gauge: Item {
@@ -72,7 +65,7 @@ Cell {
                 width: panel.rowWidth
                 height: Theme.cellH * 1.3
 
-                Text {
+                Line {
                     id: gaugeLabel
 
                     anchors.left: parent.left
@@ -80,9 +73,6 @@ Cell {
                     width: Theme.cellW * 9
                     text: gauge.label
                     color: Theme.fgDim
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                 }
 
                 LevelBar {
@@ -96,15 +86,12 @@ Cell {
                     interactive: false
                 }
 
-                Text {
+                Line {
                     anchors.left: gaugeBar.right
                     anchors.leftMargin: Theme.cellW
                     anchors.verticalCenter: parent.verticalCenter
                     text: gauge.value
                     color: Theme.fg
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                 }
             }
 
@@ -156,12 +143,9 @@ Cell {
 
                         spacing: Theme.cellW * 0.5
 
-                        Text {
+                        Line {
                             text: String(parent.index).padStart(2, " ")
                             color: Theme.muted
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
                         }
 
                         LevelBar {

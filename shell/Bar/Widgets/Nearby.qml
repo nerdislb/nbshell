@@ -44,14 +44,11 @@ Cell {
                 badge: Nearby.scanning ? "sucht" : String(Nearby.devices.length)
             }
 
-            Text {
+            Line {
                 width: panel.rowWidth
                 visible: Nearby.devices.length === 0
                 text: Nearby.scanning ? "  sucht …" : "  niemand da — die Gegenstelle muss LocalSend offen haben"
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
                 wrapMode: Text.WordWrap
             }
 
@@ -69,39 +66,30 @@ Cell {
                         width: panel.rowWidth
                         height: Theme.cellH * 1.4
 
-                        Text {
+                        Line {
                             anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
                             text: eintrag.modelData.alias
                             color: Theme.fg
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
                         }
 
-                        Text {
+                        Line {
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
                             text: eintrag.modelData.model + "  " + eintrag.modelData.ip
                             color: Theme.muted
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
                         }
                     }
 
                     Row {
                         spacing: Theme.cellW * 2
 
-                        component Knopf: Text {
+                        component Knopf: Line {
                             id: knopf
 
                             signal triggered
 
                             color: maus.hovered ? Theme.readable(Theme.accent, Theme.bg) : Theme.fgDim
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
 
                             HoverHandler {
                                 id: maus
@@ -134,24 +122,18 @@ Cell {
                 visible: Nearby.status !== ""
             }
 
-            Text {
+            Line {
                 width: panel.rowWidth
                 visible: Nearby.status !== ""
                 text: "  " + Nearby.status
                 color: Nearby.status.indexOf("ging nicht") === 0 ? Theme.red : Theme.green
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
                 wrapMode: Text.WordWrap
             }
 
-            Text {
+            Line {
                 width: panel.rowWidth
                 text: "  Dateien: nbshell nearby send <datei>"
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
                 topPadding: Theme.cellH * 0.3
             }
         }

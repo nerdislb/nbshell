@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import qs.Common
 import qs.Services
+import qs.Widgets
 
 // Wallpaper-Karussell -- die Bilder des aktuellen Themes als Streifen.
 //
@@ -130,7 +131,7 @@ PanelWindow {
                 anchors.fill: parent
             }
 
-            Text {
+            Line {
                 id: header
 
                 anchors.top: parent.top
@@ -145,9 +146,6 @@ PanelWindow {
                     return "HINTERGRUND  ·  " + Config.theme + "  ·  " + (root.selected + 1) + "/" + root.list.length + "  ·  " + Wallpapers.nameOf(root.list[root.selected] ?? "");
                 }
                 color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
             ListView {
@@ -244,15 +242,12 @@ PanelWindow {
                 }
             }
 
-            Text {
+            Line {
                 anchors.bottom: parent.bottom
                 anchors.right: parent.right
                 anchors.margins: Theme.cellW
                 text: "←→ blaettern · Enter uebernehmen · r Themebild · Esc zurueck"
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
         }
     }

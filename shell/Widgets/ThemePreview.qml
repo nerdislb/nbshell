@@ -64,11 +64,7 @@ Column {
         // Kein `anchors` in der Komponente: die meisten dieser Texte sitzen
         // in einer `Row`, und ein Kind eines Positionierers darf sich nicht
         // selbst verankern -- die Row richtet sie aus.
-        component Mini: Text {
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize
-            renderType: Text.NativeRendering
-        }
+        component Mini: Line {}
 
         Row {
             anchors.left: parent.left

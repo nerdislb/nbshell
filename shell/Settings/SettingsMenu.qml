@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import qs.Common
 import qs.Services
+import qs.Widgets
 
 // Einstellungen.
 //
@@ -552,7 +553,7 @@ PanelWindow {
                 anchors.fill: parent
             }
 
-            Text {
+            Line {
                 id: header
 
                 anchors.left: parent.left
@@ -561,9 +562,6 @@ PanelWindow {
                 anchors.leftMargin: Theme.cellW
                 text: "EINSTELLUNGEN"
                 color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
             // ── Links: die Gruppen ───────────────────────────────────────
@@ -596,7 +594,7 @@ PanelWindow {
                         // ausgewaehlt aus und man weiss nicht, wo man tippt.
                         color: groupRow.current && root.pane === 0 ? Theme.selection : "transparent"
 
-                        Text {
+                        Line {
                             anchors.left: parent.left
                             anchors.leftMargin: Theme.cellW / 2
                             anchors.verticalCenter: parent.verticalCenter
@@ -606,9 +604,6 @@ PanelWindow {
                                     return Theme.on(Theme.selection);
                                 return groupRow.current ? Theme.readable(Theme.accent, Theme.bg) : Theme.fgDim;
                             }
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
                         }
 
                         MouseArea {
@@ -667,18 +662,15 @@ PanelWindow {
                         radius: Theme.radius
                         color: row.current && root.pane === 1 ? Theme.selection : "transparent"
 
-                        Text {
+                        Line {
                             anchors.left: parent.left
                             anchors.leftMargin: Theme.cellW / 2
                             anchors.verticalCenter: parent.verticalCenter
                             text: (row.current ? "▸ " : "  ") + row.modelData.label
                             color: row.current && root.pane === 1 ? Theme.on(Theme.selection) : Theme.fg
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
                         }
 
-                        Text {
+                        Line {
                             anchors.right: parent.right
                             anchors.rightMargin: Theme.cellW / 2
                             anchors.verticalCenter: parent.verticalCenter
@@ -686,9 +678,6 @@ PanelWindow {
                             // annimmt: links kaeme ←→ nicht hier an.
                             text: (row.current && root.pane === 1 ? "◂ " : "  ") + root.shown(row.modelData) + (row.current && root.pane === 1 ? " ▸" : "  ")
                             color: row.current && root.pane === 1 ? Theme.readable(Theme.accent, Theme.selection) : Theme.fgDim
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
                         }
 
                         MouseArea {
@@ -707,7 +696,7 @@ PanelWindow {
                 }
             }
 
-            Text {
+            Line {
                 id: footer
 
                 anchors.left: parent.left
@@ -720,9 +709,6 @@ PanelWindow {
                 // die letzte Zeile der Liste.
                 text: "Tab: Seite · ↑↓ waehlen · ←→ aendern · Esc schliesst"
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
                 elide: Text.ElideRight
             }
         }

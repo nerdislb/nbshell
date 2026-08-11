@@ -66,15 +66,12 @@ Row {
         height: Theme.cellH
         visible: root.text !== ""
 
-        Text {
+        Line {
             id: label
 
             anchors.centerIn: parent
             text: root.text
             color: root.color
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize
-            renderType: Text.NativeRendering
         }
     }
 }

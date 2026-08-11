@@ -44,25 +44,19 @@ Cell {
                 width: panel.rowWidth
                 height: Theme.cellH * 1.4
 
-                Text {
+                Line {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: "AUFGABEN  (" + Todo.count + (Todo.doneCount > 0 ? " offen, " + Todo.doneCount + " erledigt" : "") + ")"
                     color: Theme.fgDim
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                 }
 
-                Text {
+                Line {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     visible: Todo.doneCount > 0
                     text: "[ aufraeumen ]"
                     color: Theme.red
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
 
                     MouseArea {
                         anchors.fill: parent
@@ -72,13 +66,10 @@ Cell {
                 }
             }
 
-            Text {
+            Line {
                 visible: Todo.list.length === 0
                 text: "nichts vorgemerkt"
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
             Repeater {
@@ -94,17 +85,14 @@ Cell {
                     radius: Theme.radius
                     color: mouse.hovered ? Theme.hover : "transparent"
 
-                    Text {
+                    Line {
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.leftMargin: Theme.cellW / 2
                         anchors.verticalCenter: parent.verticalCenter
                         text: (row.modelData.done ? "[x]  " : "[ ]  ") + row.modelData.text
                         color: row.modelData.done ? Theme.muted : Theme.fg
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
                         font.strikeout: row.modelData.done
-                        renderType: Text.NativeRendering
                         elide: Text.ElideRight
                     }
 
@@ -127,13 +115,10 @@ Cell {
                 }
             }
 
-            Text {
+            Line {
                 width: panel.rowWidth
                 text: (Todo.list.length > 12 ? "… und " + (Todo.list.length - 12) + " weitere  ·  " : "") + "Klick hakt ab · Rechtsklick loescht · Mod+T eintragen"
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
                 elide: Text.ElideRight
             }
         }

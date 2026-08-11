@@ -63,7 +63,7 @@ Flow {
             border.color: segment.active ? Theme.accent : Theme.muted
             color: segment.active ? Theme.selection : (hover.hovered ? Theme.hover : "transparent")
 
-            Text {
+            Line {
                 id: text
 
                 anchors.centerIn: parent
@@ -71,9 +71,6 @@ Flow {
                 // Das gefuellte Kaestchen bestimmt die Textfarbe mit -- sonst
                 // steht bei einem hellen Theme dunkles Grau auf dunklem Grund.
                 color: segment.active ? Theme.on(Theme.selection) : Theme.fg
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
             HoverHandler {

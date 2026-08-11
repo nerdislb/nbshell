@@ -62,7 +62,7 @@ Column {
                 radius: Theme.radius
                 color: mouse.hovered && entryColumn.modelData.enabled ? Theme.hover : "transparent"
 
-                Text {
+                Line {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.leftMargin: Theme.cellW / 2 + root.depth * Theme.cellW * 2
@@ -82,9 +82,6 @@ Column {
                         return prefix + e.text + suffix;
                     }
                     color: !entryColumn.modelData.enabled ? Theme.muted : Theme.fg
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                     elide: Text.ElideRight
                 }
 

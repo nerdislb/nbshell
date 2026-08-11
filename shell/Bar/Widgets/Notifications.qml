@@ -44,25 +44,19 @@ Cell {
                 width: panel.rowWidth
                 height: Theme.cellH
 
-                Text {
+                Line {
                     anchors.left: parent.left
                     text: "BENACHRICHTIGUNGEN  (" + Notify.count + ")"
                     color: Theme.fgDim
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                 }
 
                 Row {
                     anchors.right: parent.right
                     spacing: Theme.cellW * 2
 
-                    Text {
+                    Line {
                         text: Notify.dnd ? "[ nicht stoeren ]" : "[ stumm ]"
                         color: Notify.dnd ? Theme.yellow : Theme.fgDim
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
-                        renderType: Text.NativeRendering
 
                         MouseArea {
                             anchors.fill: parent
@@ -71,13 +65,10 @@ Cell {
                         }
                     }
 
-                    Text {
+                    Line {
                         visible: Notify.count > 0
                         text: "[ leeren ]"
                         color: Theme.red
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
-                        renderType: Text.NativeRendering
 
                         MouseArea {
                             anchors.fill: parent
@@ -88,13 +79,10 @@ Cell {
                 }
             }
 
-            Text {
+            Line {
                 visible: Notify.count === 0
                 text: "nichts da"
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
             Repeater {
@@ -119,23 +107,17 @@ Cell {
                         anchors.margins: Theme.cellW / 2
                         spacing: 0
 
-                        Text {
+                        Line {
                             width: parent.width
                             text: (row.modelData.appName || "System") + "  ·  " + Notify.ago(row.modelData.time)
                             color: Theme.fgDim
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
                             elide: Text.ElideRight
                         }
 
-                        Text {
+                        Line {
                             width: parent.width
                             text: (row.modelData.summary ?? "") + (row.modelData.body ? ("  —  " + String(row.modelData.body).replace(/<[^>]*>/g, "")) : "")
                             color: Theme.fg
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
                             elide: Text.ElideRight
                         }
                     }

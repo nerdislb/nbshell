@@ -41,25 +41,19 @@ Cell {
                 width: panel.rowWidth
                 height: Theme.cellH * 1.4
 
-                Text {
+                Line {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: "ZWISCHENABLAGE  (" + Clipboard.entries.length + ")"
                     color: Theme.fgDim
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                 }
 
-                Text {
+                Line {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     visible: Clipboard.entries.length > 0
                     text: "[ leeren ]"
                     color: Theme.red
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
 
                     MouseArea {
                         anchors.fill: parent
@@ -69,13 +63,10 @@ Cell {
                 }
             }
 
-            Text {
+            Line {
                 visible: Clipboard.entries.length === 0
                 text: "noch nichts kopiert"
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
             Repeater {
@@ -92,7 +83,7 @@ Cell {
                     radius: Theme.radius
                     color: mouse.hovered ? Theme.hover : "transparent"
 
-                    Text {
+                    Line {
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.leftMargin: Theme.cellW / 2
@@ -101,9 +92,6 @@ Cell {
                         // beim Hinsehen, wie weit man zurueckgreift.
                         text: (row.index < 9 ? (row.index + 1) + "  " : "   ") + Clipboard.preview(row.modelData, 46)
                         color: row.index === 0 ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
-                        renderType: Text.NativeRendering
                         elide: Text.ElideRight
                     }
 

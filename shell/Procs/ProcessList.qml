@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import qs.Common
 import qs.Services
+import qs.Widgets
 
 // Prozessliste -- der Ersatz fuer DMS' Mod+M.
 //
@@ -89,16 +90,13 @@ PanelWindow {
             anchors.margins: Theme.cellW
             height: Theme.cellH * 3.2
 
-            Text {
+            Line {
                 id: prompt
 
                 anchors.left: parent.left
                 anchors.top: parent.top
                 text: "/ "
                 color: Theme.accent
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
             TextInput {
@@ -140,39 +138,30 @@ PanelWindow {
                     }
                 }
 
-                Text {
+                Line {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: filterInput.text === ""
                     text: "filtern nach Name oder PID"
                     color: Theme.muted
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                 }
             }
 
-            Text {
+            Line {
                 id: totals
 
                 anchors.right: parent.right
                 anchors.top: parent.top
                 text: "CPU " + SysInfo.cpuPercent + "%   RAM " + SysInfo.memPercent + "%   " + Procs.list.length + " Prozesse"
                 color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
             // Spaltenkopf, mit Markierung, wonach gerade sortiert wird.
-            Text {
+            Line {
                 anchors.left: parent.left
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: Theme.cellH * 0.3
                 text: "    PID   " + (Procs.sort === "cpu" ? "▾" : " ") + "CPU     " + (Procs.sort === "mem" ? "▾" : " ") + "RAM        RSS   " + (Procs.sort === "name" ? "▾" : " ") + "NAME"
                 color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
             Rectangle {
@@ -214,7 +203,7 @@ PanelWindow {
                     return String(value).padStart(width, " ");
                 }
 
-                Text {
+                Line {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
@@ -222,9 +211,6 @@ PanelWindow {
                     // Auffuellen mit Leerzeichen, kein Tabellenlayout noetig.
                     text: (row.index === root.selected ? "▸ " : "  ") + row.pad(row.modelData.pid, 7) + "  " + row.pad(row.modelData.cpu.toFixed(1), 5) + "%  " + row.pad(row.modelData.mem.toFixed(1), 5) + "%  " + row.pad((row.modelData.rss / 1024).toFixed(0), 7) + "M   " + row.modelData.name
                     color: row.index === root.selected ? Theme.on(Theme.selection) : (row.modelData.cpu >= 50 ? Theme.red : Theme.fg)
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                     elide: Text.ElideRight
                 }
 
@@ -237,7 +223,7 @@ PanelWindow {
             }
         }
 
-        Text {
+        Line {
             id: footer
 
             anchors.bottom: parent.bottom
@@ -247,9 +233,6 @@ PanelWindow {
             verticalAlignment: Text.AlignVCenter
             text: "↑↓ waehlen · Ctrl-K beenden · Ctrl-Shift-K erzwingen · Ctrl-S sortieren · Esc schliessen"
             color: Theme.muted
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize
-            renderType: Text.NativeRendering
         }
     }
 }

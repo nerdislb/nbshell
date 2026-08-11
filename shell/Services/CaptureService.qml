@@ -96,20 +96,54 @@ Singleton {
         return true;
     }
 
-    // Nachsehen statt merken: so stimmt der Zustand auch, wenn die Aufnahme im
-    // Terminal gestartet wurde oder die Shell zwischendurch neu geladen hat.
+    // ── Laeuft gerade eine Aufnahme? ─────────────────────────────────────
+    //
+    // Frueher stand hier ein Timer, der alle fuenf Sekunden ein `pgrep`
+    // gestartet hat -- rund 17.000 Prozesse am Tag, um in aller Regel "nein"
+    // zu hoeren. Dabei fuehrt capture.sh selbst Buch: es legt beim Start eine
+    // Datei an (`rec-start`) und raeumt sie beim Stoppen wieder weg. Genau
+    // diese Datei wird jetzt beobachtet.
+    //
+    // Der Test oben hat bestaetigt, dass eine FileView auch das ANLEGEN eines
+    // bis dahin fehlenden Pfades meldet, nicht nur Aenderungen an einer
+    // bestehenden Datei. Damit gilt: Datei da = Aufnahme laeuft. Ohne Timer,
+    // ohne Verzoegerung, und auch dann richtig, wenn capture.sh im Terminal
+    // gestartet wurde oder die Shell zwischendurch neu geladen hat -- beim
+    // Start wird der Pfad einmal gelesen.
+    readonly property string stateFile: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/screen-capture-recording"
+
+    FileView {
+        id: recState
+
+        path: root.stateFile
+        watchChanges: true
+        printErrors: false
+
+        onFileChanged: recState.reload()
+        onLoaded: root.recording = true
+        onLoadFailed: root.recording = false
+    }
+
+    // Ein Rekorder kann auch abstuerzen -- dann bleibt die Datei liegen und die
+    // Leiste zeigte ewig einen roten Punkt. Dagegen wird nachgesehen, aber NUR
+    // waehrend einer Aufnahme: im Ruhezustand laeuft hier nichts.
     Process {
         id: probe
 
         command: ["pgrep", "-x", "wf-recorder"]
-        onExited: code => root.recording = (code === 0)
+        onExited: code => {
+            if (code === 0 || !root.recording)
+                return;
+            // Verwaist: erst die Karteileiche wegraeumen, dann abschalten.
+            Quickshell.execDetached(["rm", "-f", root.stateFile]);
+            root.recording = false;
+        }
     }
 
     Timer {
-        interval: root.recording ? 1000 : 5000
-        running: true
+        interval: 15000
+        running: root.recording
         repeat: true
-        triggeredOnStart: true
         onTriggered: if (!probe.running)
             probe.running = true
     }

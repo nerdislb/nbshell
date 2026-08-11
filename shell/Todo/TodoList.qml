@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import qs.Common
 import qs.Services
+import qs.Widgets
 
 // Die Aufgabenliste als eigenes Fenster (Mod+T).
 //
@@ -165,7 +166,7 @@ PanelWindow {
             anchors.margins: Theme.cellW
             height: Theme.cellH * 3.4
 
-            Text {
+            Line {
                 id: title
 
                 anchors.top: parent.top
@@ -175,24 +176,18 @@ PanelWindow {
                 elide: Text.ElideMiddle
                 text: "AUFGABEN" + (root.shortPath !== "" ? "  ·  " + root.shortPath : "")
                 color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
-            Text {
+            Line {
                 id: counts
 
                 anchors.top: parent.top
                 anchors.right: parent.right
                 text: Todo.count + " offen" + (Todo.doneCount > 0 ? "  ·  " + Todo.doneCount + " erledigt" : "")
                 color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
-            Text {
+            Line {
                 id: prompt
 
                 anchors.bottom: line.top
@@ -202,9 +197,6 @@ PanelWindow {
                 // Eingabefeld genauso aus wie ein halb getippter neuer Eintrag.
                 text: root.editing !== "" ? "✎ " : "> "
                 color: root.editing !== "" ? Theme.yellow : Theme.accent
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
             TextInput {
@@ -261,14 +253,11 @@ PanelWindow {
                     }
                 }
 
-                Text {
+                Line {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: input.text === ""
                     text: "neue Aufgabe eintippen, Enter legt sie an"
                     color: Theme.muted
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                 }
             }
 
@@ -301,16 +290,13 @@ PanelWindow {
             currentIndex: root.selected
             boundsBehavior: Flickable.StopAtBounds
 
-            Text {
+            Line {
                 anchors.left: parent.left
                 anchors.top: parent.top
                 anchors.topMargin: Theme.cellH * 0.3
                 visible: root.list.length === 0
                 text: Todo.doneCount > 0 ? "alles erledigt." : "nichts vorgemerkt."
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
             delegate: Rectangle {
@@ -325,19 +311,16 @@ PanelWindow {
                 height: rows.rowHeight
                 color: row.chosen ? Theme.selection : "transparent"
 
-                Text {
+                Line {
                     id: marker
 
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: row.chosen ? "▸" : " "
                     color: Theme.accent
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                 }
 
-                Text {
+                Line {
                     id: mark
 
                     anchors.left: marker.right
@@ -345,12 +328,9 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     text: row.modelData.done ? "[x]" : "[ ]"
                     color: row.modelData.done ? Theme.green : Theme.fgDim
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                 }
 
-                Text {
+                Line {
                     anchors.left: mark.right
                     anchors.leftMargin: Theme.cellW
                     anchors.right: age.left
@@ -358,14 +338,11 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     text: row.modelData.text
                     color: row.modelData.done ? Theme.muted : (row.chosen ? Theme.on(Theme.selection) : Theme.fg)
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
                     font.strikeout: row.modelData.done
-                    renderType: Text.NativeRendering
                     elide: Text.ElideRight
                 }
 
-                Text {
+                Line {
                     id: age
 
                     anchors.right: parent.right
@@ -373,9 +350,6 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     text: Qt.formatDateTime(new Date(row.modelData.created), "dd.MM.")
                     color: Theme.muted
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                 }
 
                 MouseArea {
@@ -404,15 +378,12 @@ PanelWindow {
             anchors.margins: Theme.cellW
             height: Theme.cellH * 1.4
 
-            Text {
+            Line {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.editing !== "" ? "Enter uebernimmt · Esc bricht ab" : "Tab hakt ab · ↑↓ waehlen · Strg+E aendern · Strg+D loescht · Strg+L raeumt auf"
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
                 elide: Text.ElideRight
             }
         }

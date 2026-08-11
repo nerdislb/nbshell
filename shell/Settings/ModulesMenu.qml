@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import qs.Common
 import qs.Services
+import qs.Widgets
 
 // Bausteine anordnen -- links die vier Gruppen mit ihrem Inhalt, rechts alles,
 // was es gibt.
@@ -218,12 +219,9 @@ PanelWindow {
                 width: root.leftWidth
                 spacing: 0
 
-                Text {
+                Line {
                     text: "BAUSTEINE"
                     color: root.inCatalog ? Theme.muted : Theme.fgDim
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                     bottomPadding: Theme.cellH * 0.4
                 }
 
@@ -239,22 +237,16 @@ PanelWindow {
                         width: root.leftWidth
                         spacing: 0
 
-                        Text {
+                        Line {
                             text: group.modelData.label
                             color: Theme.fgDim
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
                             topPadding: Theme.cellH * 0.3
                         }
 
-                        Text {
+                        Line {
                             visible: Config.value(group.modelData.key, []).length === 0
                             text: "     —"
                             color: Theme.muted
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
                         }
 
                         Repeater {
@@ -276,15 +268,12 @@ PanelWindow {
                                 radius: Theme.radius
                                 color: row.current ? Theme.selection : "transparent"
 
-                                Text {
+                                Line {
                                     anchors.left: parent.left
                                     anchors.leftMargin: Theme.cellW * 2
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: (row.current ? "◂ ▸ " : "    ") + Plugins.label(row.modelData)
                                     color: row.current ? Theme.readable(Theme.accent, Theme.selection) : Theme.fg
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSize
-                                    renderType: Text.NativeRendering
                                 }
 
                                 MouseArea {
@@ -314,12 +303,9 @@ PanelWindow {
                 width: root.rightWidth
                 spacing: 0
 
-                Text {
+                Line {
                     text: "VORRAT"
                     color: root.inCatalog ? Theme.fgDim : Theme.muted
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                     bottomPadding: Theme.cellH * 0.4
                 }
 
@@ -339,15 +325,12 @@ PanelWindow {
                         radius: Theme.radius
                         color: catRow.current ? Theme.selection : "transparent"
 
-                        Text {
+                        Line {
                             anchors.left: parent.left
                             anchors.leftMargin: Theme.cellW
                             anchors.verticalCenter: parent.verticalCenter
                             text: (catRow.current ? "▸ " : "  ") + Plugins.label(catRow.modelData) + (Plugins.source(catRow.modelData) === "" ? "" : "  ·plugin")
                             color: catRow.current ? Theme.readable(Theme.accent, Theme.selection) : Theme.fgDim
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            renderType: Text.NativeRendering
                         }
 
                         MouseArea {
@@ -366,7 +349,7 @@ PanelWindow {
 
             // Was der gewaehlte Baustein ueberhaupt tut. In der Liste steht
             // nur sein Name -- bei siebzehn Eintraegen ist das zu wenig.
-            Text {
+            Line {
                 anchors.bottom: hint.top
                 anchors.left: parent.left
                 anchors.margins: Theme.cellW
@@ -374,12 +357,9 @@ PanelWindow {
                 visible: root.inCatalog
                 text: Plugins.describe(root.catalog[root.catalogIndex] ?? "")
                 color: Theme.fgDim
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
-            Text {
+            Line {
                 id: hint
 
                 anchors.bottom: parent.bottom
@@ -387,9 +367,6 @@ PanelWindow {
                 anchors.margins: Theme.cellW
                 text: "↑↓ waehlen · ←→ verschieben · Shift+←→ in andere Gruppe · x entfernen · Tab Vorrat · Enter anhaengen · Esc"
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
         }
     }

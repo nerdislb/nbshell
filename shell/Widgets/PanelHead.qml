@@ -40,7 +40,7 @@ Item {
         color: Theme.accent
     }
 
-    Text {
+    Line {
         id: title
 
         anchors.left: root.icon !== "" ? mark.right : parent.left
@@ -50,22 +50,16 @@ Item {
         anchors.rightMargin: Theme.cellW
         text: root.title
         color: Theme.fgBright
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
-        renderType: Text.NativeRendering
         elide: Text.ElideRight
     }
 
-    Text {
+    Line {
         anchors.left: title.left
         anchors.top: title.bottom
         anchors.right: parent.right
         visible: root.subtitle !== ""
         text: root.subtitle.toUpperCase()
         color: Theme.fgDim
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
-        renderType: Text.NativeRendering
         elide: Text.ElideRight
     }
 
@@ -83,15 +77,12 @@ Item {
         border.width: Theme.borderWidth
         border.color: root.badgeColor
 
-        Text {
+        Line {
             id: badgeText
 
             anchors.centerIn: parent
             text: root.badge
             color: root.badgeColor
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize
-            renderType: Text.NativeRendering
         }
     }
 }

@@ -41,7 +41,7 @@ Cell {
                 width: panel.rowWidth
                 height: Theme.cellH * 1.4
 
-                Text {
+                Line {
                     anchors.left: parent.left
                     anchors.right: actions.left
                     anchors.rightMargin: Theme.cellW
@@ -52,9 +52,6 @@ Cell {
                     // und zwei Dinge am selben Rand sind eines zu viel.
                     text: "UPDATES  (" + Updates.count + ")"
                     color: Theme.fgDim
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                 }
 
                 Row {
@@ -64,12 +61,9 @@ Cell {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: Theme.cellW * 2
 
-                    Text {
+                    Line {
                         text: Updates.checking ? "[ prueft … ]" : "[ neu pruefen ]"
                         color: pruefenHover.hovered ? Theme.readable(Theme.accent, Theme.bg) : Theme.fgDim
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
-                        renderType: Text.NativeRendering
 
                         // HoverHandler + TapHandler statt MouseArea: eine
                         // MouseArea nimmt das Ueberfahren fuer sich, der
@@ -86,13 +80,10 @@ Cell {
                         }
                     }
 
-                    Text {
+                    Line {
                         visible: Updates.count > 0
                         text: "[ aktualisieren ]"
                         color: aktualisierenHover.hovered ? Theme.readable(Theme.green, Theme.bg) : Theme.green
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
-                        renderType: Text.NativeRendering
 
                         HoverHandler {
                             id: aktualisierenHover
@@ -111,19 +102,16 @@ Cell {
                 }
             }
 
-            Text {
+            Line {
                 visible: Updates.count === 0
                 text: Updates.ready ? "alles aktuell" : "noch nicht geprueft"
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
 
             Repeater {
                 model: Updates.repo.concat(Updates.aur).concat(Updates.flatpak).slice(0, 18)
 
-                delegate: Text {
+                delegate: Line {
                     required property var modelData
 
                     width: panel.rowWidth
@@ -133,9 +121,6 @@ Cell {
                     // aus wie ein Fehler.
                     text: modelData.from === modelData.to ? ("  " + modelData.name + "   " + modelData.to + "  (neuer Build)") : ("  " + modelData.name + "   " + modelData.from + " → " + modelData.to)
                     color: Theme.fg
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    renderType: Text.NativeRendering
                     elide: Text.ElideRight
                 }
             }
@@ -143,7 +128,7 @@ Cell {
             // Woher sie kommen, steht UNTER der Liste: oben teilt sich die
             // Zeile den Platz mit zwei Knoepfen, und die Aufschluesselung
             // verlor ihn.
-            Text {
+            Line {
                 visible: Updates.aur.length > 0 || Updates.flatpak.length > 0
                 text: {
                     const parts = [];
@@ -156,19 +141,13 @@ Cell {
                     return "  " + parts.join(" · ");
                 }
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
                 topPadding: Theme.cellH * 0.3
             }
 
-            Text {
+            Line {
                 visible: Updates.count > 18
                 text: "  … und " + (Updates.count - 18) + " weitere"
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
             }
         }
     }

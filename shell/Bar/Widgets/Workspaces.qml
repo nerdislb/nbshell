@@ -91,15 +91,12 @@ Cell {
             Repeater {
                 model: root.list
 
-                Text {
+                Line {
                     required property var modelData
 
                     text: modelData.name ? modelData.name : String(modelData.idx)
                     color: root.colorFor(modelData)
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
                     font.underline: modelData.is_active
-                    renderType: Text.NativeRendering
 
                     MouseArea {
                         anchors.fill: parent

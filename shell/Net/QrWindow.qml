@@ -183,35 +183,26 @@ PanelWindow {
                 }
             }
 
-            Text {
+            Line {
                 width: qrCard.width
                 visible: root.qr !== null && root.qr.ok !== true
                 text: root.loading ? "…" : ("  " + (root.qr ? root.qr.grund : ""))
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
                 wrapMode: Text.WordWrap
             }
 
-            Text {
+            Line {
                 width: qrCard.width
                 visible: root.qr !== null && root.qr.ok === true && String(root.qr.note) !== ""
                 text: root.qr ? String(root.qr.note) : ""
                 color: Theme.yellow
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
                 wrapMode: Text.WordWrap
             }
 
-            Text {
+            Line {
                 width: qrCard.width
                 text: "Esc schliesst"
                 color: Theme.muted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
                 horizontalAlignment: Text.AlignHCenter
             }
         }
