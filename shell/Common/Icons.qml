@@ -56,6 +56,13 @@ Singleton {
     // Medien und Aufnahme
     readonly property string play: cp(0xF040A)
     readonly property string pause: cp(0xF03E4)
+
+    // Wiedergabe vor und zurueck sowie der Zufall. Nachgesehen statt geraten:
+    // die beiden naheliegenden Unicode-Zeichen U+23EE/U+23ED kennt die Schrift
+    // gar nicht -- gerendert kam nichts. Die MDI-Glyphen sind da.
+    readonly property string skipPrevious: cp(0xF04AE)
+    readonly property string skipNext: cp(0xF04AD)
+    readonly property string shuffle: cp(0xF049D)
     readonly property string camera: cp(0xF0100)
     readonly property string record: cp(0xF044A)
 

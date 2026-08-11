@@ -36,6 +36,15 @@ PanelWindow {
 
     readonly property var shown: Music.shown
 
+    // Der Kasten und was hineinpasst. Die Zeilenzahl wird GERECHNET, nicht
+    // gesetzt: 22 standen hier zuerst als Zahl, und weil Kopf, Trennlinie und
+    // Fusszeile zusammen sechs Zellen brauchen, lief die Liste unten aus dem
+    // Kasten heraus und legte sich ueber die Fusszeile.
+    readonly property real boxW: Theme.cellW * 108
+    readonly property real boxH: Theme.cellH * 30
+    readonly property real zeilenH: Theme.cellH * 1.25
+    readonly property int sicht: Math.max(4, Math.floor((root.boxH - Theme.cellH * 6) / root.zeilenH))
+
     visible: Runtime.musicOpen
 
     screen: Quickshell.screens[0] ?? null
@@ -153,6 +162,9 @@ PanelWindow {
             case Qt.Key_Space:
                 MediaService.playPause();
                 break;
+            case Qt.Key_S:
+                Music.toggleShuffle();
+                break;
             case Qt.Key_F5:
                 Music.ladePlaylists();
                 break;
@@ -169,15 +181,38 @@ PanelWindow {
         Rectangle {
             id: kasten
 
-            anchors.centerIn: parent
+            // Mittig -- aber nur, bis jemand ihn wegzieht. Das ist Absicht und
+            // kein Ersatz-Fenstermanager: ein Layer-Shell-Fenster kann niri
+            // NICHT verschieben (Mod+Ziehen gilt nur fuer normale Fenster), es
+            // liegt ausserhalb seiner Zustaendigkeit. Also macht es der Kasten
+            // selbst -- der DragHandler schreibt x und y und loest die
+            // Zentrierung dabei auf.
+            x: (parent.width - width) / 2
+            y: (parent.height - height) / 2
 
-            width: Theme.cellW * 108
-            height: Theme.cellH * 30
+            width: root.boxW
+            height: root.boxH
+
+            DragHandler {
+                id: schieber
+
+                // Mit gedrueckter Mod-Taste, wie man es von niri kennt. Ohne
+                // Modifikator waere jeder Klick auf eine Zeile ein Zugversuch.
+                acceptedModifiers: Qt.MetaModifier
+                cursorShape: Qt.ClosedHandCursor
+
+                // Nicht ueber den Bildschirmrand hinaus -- ein Kasten, den man
+                // nicht mehr fassen kann, ist verloren bis zum Neustart.
+                xAxis.minimum: 0
+                xAxis.maximum: root.width - kasten.width
+                yAxis.minimum: 0
+                yAxis.maximum: root.height - kasten.height
+            }
 
             color: Theme.bg
             radius: Theme.radius
             border.width: Theme.borderWidth
-            border.color: Theme.border
+            border.color: Theme.accent
 
             // Klicks im Kasten sollen nicht zum Schliessen durchfallen.
             MouseArea {
@@ -209,10 +244,12 @@ PanelWindow {
                     Column {
                         id: linke
 
+                        clip: true
+
                         readonly property real spalte: Theme.cellW * 32
 
                         width: linke.spalte
-                        height: kasten.height - Theme.cellH * 6
+                        height: root.sicht * root.zeilenH
 
                         Repeater {
                             model: Music.playlists
@@ -224,7 +261,7 @@ PanelWindow {
                                 required property int index
 
                                 width: linke.spalte
-                                height: Theme.cellH * 1.25
+                                height: root.zeilenH
 
                                 Rectangle {
                                     anchors.fill: parent
@@ -267,17 +304,19 @@ PanelWindow {
                     // Trennlinie zwischen den Spalten -- senkrecht, ein Pixel.
                     Rectangle {
                         width: Theme.borderWidth
-                        height: kasten.height - Theme.cellH * 6
-                        color: Theme.border
+                        height: root.sicht * root.zeilenH
+                        color: Theme.muted
                     }
 
                     Column {
                         id: rechte
 
+                        clip: true
+
                         readonly property real spalte: kasten.width - linke.spalte - Theme.cellW * 7
 
                         width: rechte.spalte
-                        height: kasten.height - Theme.cellH * 6
+                        height: root.sicht * root.zeilenH
 
                         Line {
                             visible: root.shown.length === 0
@@ -288,7 +327,7 @@ PanelWindow {
                         Repeater {
                             // Mehr als das passt nicht ins Fenster; gescrollt
                             // wird, indem das Fenster mitwandert (siehe unten).
-                            model: root.shown.slice(root.fenster, root.fenster + 22)
+                            model: root.shown.slice(root.fenster, root.fenster + root.sicht)
 
                             Item {
                                 id: tzeile
@@ -299,7 +338,7 @@ PanelWindow {
                                 readonly property int echt: root.fenster + tzeile.index
 
                                 width: rechte.spalte
-                                height: Theme.cellH * 1.25
+                                height: root.zeilenH
 
                                 Rectangle {
                                     anchors.fill: parent
@@ -362,7 +401,7 @@ PanelWindow {
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: Theme.cellH / 2
 
-                text: root.typing ? "Suche: " + root.query + "█   Enter sucht · Esc verwirft" : "↑↓ wählen · Tab Spalte · Enter spielt · / suchen · Leertaste Pause · F5 neu · Esc zurück"
+                text: root.typing ? "Suche: " + root.query + "█   Enter sucht · Esc verwirft" : "↑↓ wählen · Tab Spalte · Enter spielt · / suchen · Leertaste Pause · S Zufall" + (Music.shuffle ? " [an]" : "") + " · Mod+ziehen verschiebt · Esc zurück"
                 color: Theme.muted
             }
         }
@@ -372,9 +411,8 @@ PanelWindow {
     // bleibt. Kein Flickable: bei 400 Titeln waeren das 400 gebaute Zeilen,
     // von denen 22 zu sehen sind.
     readonly property int fenster: {
-        const sicht = 22;
-        if (root.trackSel < sicht - 2)
+        if (root.trackSel < root.sicht - 2)
             return 0;
-        return Math.min(root.trackSel - sicht + 3, Math.max(0, root.shown.length - sicht));
+        return Math.min(root.trackSel - root.sicht + 3, Math.max(0, root.shown.length - root.sicht));
     }
 }

@@ -38,9 +38,26 @@ Singleton {
     property var queue: []
     property int position: -1
 
-    readonly property var current: root.position >= 0 && root.position < root.queue.length ? root.queue[root.position] : null
+    // Welcher Titel gerade laeuft. Die Stelle in der Warteschlange allein
+    // reicht nicht: mpv rueckt selbst weiter, wenn ein Stueck zu Ende ist, und
+    // davon erfaehrt `position` nichts -- die Markierung im Fenster bliebe auf
+    // dem ersten Titel stehen. Deshalb zuerst ueber den Namen, den MPRIS
+    // meldet, und nur ersatzweise ueber die Stelle.
+    readonly property var current: {
+        const gespielt = MediaService.title;
+        if (gespielt !== "") {
+            const treffer = root.queue.find(t => t.titel === gespielt);
+            if (treffer)
+                return treffer;
+        }
+        return root.position >= 0 && root.position < root.queue.length ? root.queue[root.position] : null;
+    }
 
-    property bool running: false
+    // Laeuft ein Abspieler? Das beantwortet der Socket, nicht ein Prozessobjekt:
+    // nach einem Neustart der Shell ist mpv noch da, der Process waere neu.
+    readonly property bool running: sock.connected
+    property bool starting: false
+
     property string status: ""
 
     // Startlautstaerke von mpv. Nicht die Systemlautstaerke -- die bleibt, wo
@@ -140,14 +157,26 @@ Singleton {
 
     // ── mpv ──────────────────────────────────────────────────────────────
 
+    // mpv laeuft LOSGELOEST, nicht als Kind der Shell.
+    //
+    // Als `Process` war es eines -- und starb mit jedem Neuladen der Shell
+    // mitten im Titel. Bei einer Shell, die man beim Basteln zwanzigmal am Tag
+    // neu startet, ist das der Unterschied zwischen brauchbar und aergerlich.
+    // Losgeloest spielt es weiter, und die Shell findet es nach dem Neustart
+    // ueber den Socket wieder: Musik laeuft durch, die Leiste hat sie wieder.
     function ensure() {
-        if (daemon.running)
+        if (sock.connected || root.starting)
             return;
-        daemon.command = ["mpv", "--idle=yes", "--no-video", "--no-terminal", "--force-window=no",
+        root.starting = true;
+        // `systemd-run --scope` statt `setsid`: die Shell laeuft als
+        // systemd-Dienst, und beim Neustart raeumt systemd die GANZE
+        // Prozessgruppe des Dienstes ab -- eine eigene Sitzung allein rettet
+        // mpv davor nicht, es haengt weiter in derselben cgroup. Ein eigener
+        // Scope loest es heraus; --collect raeumt ihn auf, wenn mpv endet.
+        Quickshell.execDetached(["systemd-run", "--user", "--scope", "--collect", "--quiet", "mpv", "--idle=yes", "--no-video", "--no-terminal", "--force-window=no",
             // Nur Ton holen, nicht das Video dazu -- spart bei jedem Titel ein
             // Vielfaches an Daten.
-            "--ytdl-format=bestaudio", "--volume=" + root.volume, "--input-ipc-server=" + root.socketPath];
-        daemon.running = true;
+            "--ytdl-format=bestaudio", "--volume=" + root.volume, "--input-ipc-server=" + root.socketPath]);
     }
 
     // Zwischen „mpv gestartet" und „Socket nimmt Verbindungen an" liegen ein
@@ -191,16 +220,48 @@ Singleton {
         root.status = titel.titel;
     }
 
+    // ── Zufall ───────────────────────────────────────────────────────────
+    //
+    // Der angeklickte Titel bleibt der erste. Wer auf einem Stueck Enter
+    // drueckt, will DIESES hoeren -- gewuerfelt wird, was danach kommt.
+    // Gemischt wird hier und nicht in mpv (`--shuffle`), weil die Reihenfolge
+    // sonst nur mpv kennt und die Warteschlange im Fenster etwas anderes
+    // zeigte als das, was spielt.
+    readonly property bool shuffle: Config.value("musicShuffle", false)
+
+    function toggleShuffle() {
+        Config.set("musicShuffle", !root.shuffle);
+        return !root.shuffle;
+    }
+
+    function mischen(liste) {
+        // Fisher-Yates: jede Reihenfolge gleich wahrscheinlich. Ein
+        // `sort(() => Math.random() - 0.5)` waere kuerzer und verzerrt.
+        const a = liste.slice();
+        for (let i = a.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+    }
+
     function spieleListe(titel, ab) {
         if (!titel || titel.length === 0)
             return;
         const start = ab ?? 0;
-        root.queue = titel;
-        root.position = start;
-        root.send(["loadfile", root.url(titel[start]), "replace"]);
-        for (let i = start + 1; i < titel.length; i++)
-            root.send(["loadfile", root.url(titel[i]), "append"]);
-        root.status = titel.length + " Titel";
+        let reihe = titel;
+        if (root.shuffle) {
+            const erster = titel[start];
+            reihe = [erster].concat(root.mischen(titel.filter((t, i) => i !== start)));
+        } else if (start > 0) {
+            reihe = titel.slice(start);
+        }
+        root.queue = reihe;
+        root.position = 0;
+        root.send(["loadfile", root.url(reihe[0]), "replace"]);
+        for (let i = 1; i < reihe.length; i++)
+            root.send(["loadfile", root.url(reihe[i]), "append"]);
+        root.status = reihe.length + " Titel" + (root.shuffle ? ", gemischt" : "");
     }
 
     function haengeAn(titel) {
@@ -216,15 +277,6 @@ Singleton {
         root.position = -1;
     }
 
-    Process {
-        id: daemon
-
-        // Stirbt mpv (Absturz, `pkill`), faellt `running` zurueck -- der
-        // naechste Titel startet es dann einfach neu.
-        onExited: root.running = false
-        onStarted: root.running = true
-    }
-
     // Verbunden wird nicht per Bindung, sondern auf Zuruf: schlaegt ein
     // Versuch fehl, setzt Quickshell `connected` selbst zurueck -- eine Bindung
     // waere danach kaputt und der zweite Versuch fiele aus.
@@ -233,14 +285,43 @@ Singleton {
 
         path: root.socketPath
 
-        onConnectedChanged: if (sock.connected)
-            root.nachreichen()
+        onConnectedChanged: {
+            if (!sock.connected)
+                return;
+            root.starting = false;
+            root.nachreichen();
+        }
+
+
+    }
+
+    // Uebernahme nach einem Neustart der Shell: laeuft von vorhin noch ein mpv,
+    // wird es wieder angebunden. Gefragt wird zuerst MPRIS -- ein blindes
+    // Verbinden auf einen Socket, den es nicht gibt, waere bei jedem Start eine
+    // Fehlzeile im Journal.
+    Timer {
+        interval: 1500
+        running: true
+        onTriggered: {
+            if (sock.connected)
+                return;
+            const meins = MediaService.players.some(p => String(p?.identity ?? "").toLowerCase().indexOf("mpv") >= 0);
+            if (meins)
+                sock.connected = true;
+        }
     }
 
     Timer {
         interval: 300
         repeat: true
-        running: root.running && !sock.connected
-        onTriggered: sock.connected = true
+        running: root.starting && !sock.connected
+        // Erst aus, dann an: ein fehlgeschlagener Versuch laesst `connected`
+        // gesetzt zuruecke, und ein zweites `= true` waere dann eine Zuweisung
+        // desselben Wertes -- also gar kein neuer Versuch. Genau daran ging der
+        // erste Ladebefehl verloren.
+        onTriggered: {
+            sock.connected = false;
+            sock.connected = true;
+        }
     }
 }

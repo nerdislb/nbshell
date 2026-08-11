@@ -137,8 +137,22 @@ PanelWindow {
     Rectangle {
         id: box
 
-        anchors.horizontalCenter: parent.horizontalCenter
+        // Mittig oben -- bis jemand ihn wegzieht. niri kann dieses Fenster
+        // nicht verschieben: es ist eine Layer-Shell-Flaeche und liegt
+        // ausserhalb seiner Zustaendigkeit, Mod+Ziehen gilt nur fuer normale
+        // Fenster. Also zieht der Kasten sich selbst.
+        x: Math.round((parent.width - width) / 2)
         y: Math.round(parent.height * 0.18)
+
+        DragHandler {
+            acceptedModifiers: Qt.MetaModifier
+            cursorShape: Qt.ClosedHandCursor
+
+            xAxis.minimum: 0
+            xAxis.maximum: root.width - box.width
+            yAxis.minimum: 0
+            yAxis.maximum: root.height - box.height
+        }
 
         // Breiter als der Starter (64 Zeichen): hier steht in der Fusszeile
         // neben den Tasten auch der Ablageort, und beides zusammen passt sonst
