@@ -51,6 +51,10 @@ Item {
 
     // Klappt beim Klick auf. Der Inhalt bekommt `closePopout` gesetzt.
     property Component popout: null
+
+    // Popouts gehen sonst erst auf Klick auf. Fuer Bausteine, die nur etwas
+    // ZEIGEN und nichts zu bedienen haben, ist das eine Bedienung zu viel.
+    property bool popoutOnHover: false
     property bool popoutTakesKeyboard: false
     property bool active: false
     property alias hovered: mouse.containsMouse
@@ -88,6 +92,13 @@ Item {
     onHoveredChanged: {
         if (root.popout)
             Runtime.popoutHover = Math.max(0, Runtime.popoutHover + (hovered ? 1 : -1));
+        // Beim Ueberfahren aufgehen, wenn der Baustein das will. Nur oeffnen,
+        // nicht schliessen: das Popout hat dafuer seinen eigenen Nachlauf und
+        // weiss auch, ob der Zeiger inzwischen IN ihm steht -- ein Schliessen
+        // von hier wuerde es genau in dem Moment wegnehmen, in dem man
+        // hineinfaehrt.
+        if (root.popoutOnHover && root.hovered)
+            root.setPopout(true);
     }
 
     // ── Aussehen je Baustein ─────────────────────────────────────────────

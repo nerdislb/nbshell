@@ -59,6 +59,18 @@ Singleton {
             "category": "Ton"
         },
         {
+            "id": "musik",
+            "name": "Wiedergabe",
+            "description": "zurueck, Pause, weiter, Zufall",
+            "category": "Ton"
+        },
+        {
+            "id": "vis",
+            "name": "Ausschlag",
+            "description": "Balken, solange etwas spielt (cava)",
+            "category": "Ton"
+        },
+        {
             "id": "sys",
             "name": "Systemlast",
             "description": "CPU und Speicher",

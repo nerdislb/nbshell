@@ -23,6 +23,14 @@ Cell {
     // die Nachbarn wuerden bei jedem Bild neu ausgerichtet.
     slotChars: Cava.bars
 
+    // Beim Ueberfahren zeigen, was laeuft -- der Baustein selbst hat dafuer
+    // keinen Platz. Auf Hover statt auf Klick, weil hier nichts auszuwaehlen
+    // ist: man will es sehen, nicht bedienen.
+    popoutOnHover: true
+    popout: Component {
+        NowPlaying {}
+    }
+
     Line {
         // Die Blockschrift hat acht Stufen, cava liefert 0 bis 7 -- deshalb
         // wird hier nicht gerechnet, sondern nachgeschlagen.

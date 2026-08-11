@@ -36,6 +36,14 @@ Cell {
     // Element ausrichtet, dreht sich damit im Kreis -- die Zelle blieb schmal
     // und der letzte Knopf lag unter dem Nachbarbaustein. Die Zelle zentriert
     // den Inhalt ohnehin selbst.
+    // Beim Ueberfahren zeigen, was laeuft -- der Baustein selbst hat dafuer
+    // keinen Platz. Auf Hover statt auf Klick, weil hier nichts auszuwaehlen
+    // ist: man will es sehen, nicht bedienen.
+    popoutOnHover: true
+    popout: Component {
+        NowPlaying {}
+    }
+
     Row {
         spacing: Theme.cellW * 0.6
 
