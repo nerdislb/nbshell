@@ -1878,6 +1878,7 @@ Tastatur, weil man beim Musikhören selten die Maus in der Hand hat.
 | `+` `−` | Lautstärke |
 | `A` | den Titel rechts in die **links gewählte** Playlist legen |
 | `D` | den Titel aus der offenen Playlist entfernen (zweimal drücken) |
+| `P` | anheften (bleibt stehen, gibt die Tastatur ab) |
 | `S` | Zufall an und aus |
 | `F5` | Playlists neu holen |
 | `Esc` | zurück in die Playlists, dann zu |
@@ -1908,6 +1909,30 @@ Dazu ein Vergleich zwischen *gewünschter* und *gerade geholter* Playlist: beim
 schnellen Blättern läuft die Antwort der Auswahl hinterher, und ohne ihn landen
 die Titel der vorletzten Liste in einer Ansicht, die längst eine andere zeigt.
 Der Fehler zeigt sich nur bei genau der richtigen Geschwindigkeit.
+
+### Anheften
+
+`P` im Fenster, `[ anheften ]` unten rechts, oder `nbshell music pin`: dann
+bleibt das Fenster stehen, statt bei `Esc` oder einem Klick daneben zu
+verschwinden.
+
+Dabei sind **zwei Dinge getrennt**, die sonst eines wären:
+
+| | |
+|---|---|
+| offen | hat den Fokus, wird mit Tasten bedient (`Mod+P`) |
+| angeheftet | ist zu sehen, nimmt nur noch die Maus |
+
+Ein Fenster, das dauerhaft sichtbar ist **und** die Tastatur exklusiv hält, wäre
+ein Rechner, an dem man nichts mehr tippen kann. Angeheftet gibt es die Tastatur
+deshalb ab — `Mod+P` holt sie zurück, `Esc` gibt sie wieder her und lässt das
+Fenster stehen. Und weil es dann keine Tasten mehr annimmt, muss das Lösen mit
+der Maus gehen: dafür die Marke unten rechts.
+
+**Ohne Maske wäre es unbenutzbar.** Das Fenster ist bildschirmgroß und nur der
+Kasten darin sichtbar; angeheftet läge sonst eine unsichtbare Fläche über allem,
+und man käme an kein Fenster darunter mehr heran. `mask: Region { item: kasten }`
+lässt Klicks überall sonst durch — dasselbe Mittel wie bei der Leiste.
 
 ### Playlists bearbeiten
 

@@ -34,6 +34,25 @@ PanelWindow {
     property string query: ""
     property bool typing: false
 
+    // ── Angeheftet ───────────────────────────────────────────────────────
+    //
+    // Das Fenster bleibt stehen, statt bei Esc oder einem Klick daneben zu
+    // verschwinden. Wichtig dabei: es gibt dann die TASTATUR AB. Ein Fenster,
+    // das dauerhaft sichtbar ist UND die Tastatur exklusiv haelt, waere ein
+    // Rechner, an dem man nichts mehr tippen kann.
+    //
+    // Also zwei getrennte Dinge:
+    //   Runtime.musicOpen  -- hat den Fokus, wird mit Tasten bedient
+    //   pinned             -- ist zu sehen, nimmt nur noch die Maus
+    //
+    // Mod+P holt sich die Tastatur zurueck, auch waehrend es angeheftet ist;
+    // Esc gibt sie wieder her und laesst das Fenster stehen.
+    readonly property bool pinned: Config.value("musicPinned", false)
+
+    function anheften() {
+        Config.set("musicPinned", !root.pinned);
+    }
+
     // Auf welcher Zeile eine Loeschfrage offen steht (-1 = keine).
     property int loeschFrage: -1
 
@@ -48,7 +67,7 @@ PanelWindow {
     readonly property real zeilenH: Theme.cellH * 1.25
     readonly property int sicht: Math.max(4, Math.floor((root.boxH - Theme.cellH * 8.5) / root.zeilenH))
 
-    visible: Runtime.musicOpen
+    visible: Runtime.musicOpen || root.pinned
 
     screen: Quickshell.screens[0] ?? null
     color: "transparent"
@@ -62,6 +81,17 @@ PanelWindow {
     anchors.right: true
     anchors.top: true
     anchors.bottom: true
+
+    // Angeheftet nimmt NUR der Kasten Klicks an. Ohne diese Maske laege eine
+    // unsichtbare, bildschirmgrosse Flaeche ueber allem -- man kaeme an kein
+    // Fenster darunter mehr heran. Dasselbe Mittel wie bei der Leiste.
+    mask: root.pinned && !Runtime.musicOpen ? kastenRegion : null
+
+    Region {
+        id: kastenRegion
+
+        item: kasten
+    }
 
     function close() {
         Runtime.musicOpen = false;
@@ -267,6 +297,9 @@ PanelWindow {
                         Music.hinzufuegen(ziel.id, root.shown[root.trackSel]);
                 }
                 break;
+            case Qt.Key_P:
+                root.anheften();
+                break;
             case Qt.Key_S:
                 Music.toggleShuffle();
                 break;
@@ -280,6 +313,7 @@ PanelWindow {
         // Daneben klicken schliesst -- wie bei allen anderen Fenstern hier.
         MouseArea {
             anchors.fill: parent
+            enabled: Runtime.musicOpen
             onClicked: root.close()
         }
 
@@ -574,7 +608,8 @@ PanelWindow {
                 anchors.left: parent.left
                 anchors.leftMargin: Theme.cellW
                 anchors.right: parent.right
-                anchors.rightMargin: Theme.cellW
+                // Platz fuer die Anheft-Marke rechts daneben.
+                anchors.rightMargin: Theme.cellW * 16
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: Theme.cellH / 2
 
@@ -593,6 +628,28 @@ PanelWindow {
                     return "↑↓ wählen · Enter spielt · / suchen · A hinzufügen · D entfernen · S Zufall" + (Music.shuffle ? " [an]" : "") + " · +/− Ton · Esc zurück";
                 }
                 color: root.loeschFrage >= 0 ? Theme.yellow : (Music.aktion.indexOf("ging nicht") === 0 ? Theme.red : Theme.muted)
+            }
+
+            // Angeheftet gibt das Fenster die Tastatur ab -- das Loesen muss
+            // also mit der Maus gehen.
+            Line {
+                anchors.right: parent.right
+                anchors.rightMargin: Theme.cellW
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: Theme.cellH / 2
+
+                text: root.pinned ? "[ angeheftet ]" : "[ anheften ]"
+                color: root.pinned ? Theme.readable(Theme.accent, Theme.bg) : (nadel.hovered ? Theme.fg : Theme.muted)
+
+                HoverHandler {
+                    id: nadel
+
+                    cursorShape: Qt.PointingHandCursor
+                }
+
+                TapHandler {
+                    onTapped: root.anheften()
+                }
             }
         }
     }
