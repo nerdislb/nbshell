@@ -103,6 +103,8 @@ Item {
             return mediaComponent;
         case "musik":
             return musicControlsComponent;
+        case "vis":
+            return visualizerComponent;
         case "clipboard":
             return clipComponent;
         case "capture":
@@ -197,6 +199,12 @@ Item {
     Component {
         id: notificationsComponent
         Notifications {}
+    }
+
+    Component {
+        id: visualizerComponent
+
+        Visualizer {}
     }
 
     Component {

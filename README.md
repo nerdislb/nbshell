@@ -1977,9 +1977,52 @@ bindet den laufenden mpv über den Socket wieder an; gefragt wird zuerst MPRIS,
 denn ein blindes Verbinden auf einen Socket, den es nicht gibt, wäre bei jedem
 Start eine Fehlzeile im Journal.
 
+### Die Visualisierung
+
+Der Baustein `vis` (neben den Knöpfen): zwölf Balken, die mitgehen.
+
+**Gemessen wird nicht von uns.** `cava` macht genau das seit Jahren — es hängt
+sich an den Monitor der Ausgabe, rechnet die Fouriertransformation und glättet
+das Ergebnis so, dass es fürs Auge stimmt. Ein Nachbau in QML wäre ein
+Wochenendprojekt mit schlechterem Ergebnis, und die Shell kommt an den
+Audiostrom ohnehin nicht heran.
+
+Der Trick ist cavas Rohausgabe: `output_method = raw` schreibt je Bild eine
+Zeile Zahlen auf die Standardausgabe, statt selbst zu zeichnen.
+
+```
+3;2;4;1;3;4;4;3;1;4;2;3;
+```
+
+Zwölf Werte von 0 bis 7 — genau das Format, das ein `SplitParser` Zeile für
+Zeile hereinreicht. Nachgemessen, bevor etwas gebaut wurde: mit laufender Musik
+bewegen sich die Zahlen, über Bluetooth genauso wie über die eingebauten
+Lautsprecher.
+
+Gezeichnet wird mit **Blockzeichen** (`▁▂▃▄▅▆▇█`), nicht mit Rechtecken: so
+sitzen die Balken im selben Zeichenraster wie die Uhr daneben und wachsen mit
+der Schriftgröße mit, ohne dass jemand eine Pixelhöhe nachzieht. Und es ist
+eine Texteigenschaft je Bild statt zwölf Rechtecken mit je einer Höhenbindung —
+bei dreißig Bildern in der Sekunde ein Unterschied.
+
+Zwei Dinge, die man erst im Betrieb sieht: Die Blockzeichen füllen ihre Zeile
+vollständig aus und **ragten unten aus der Leiste heraus**; sie stehen deshalb
+etwas kleiner und auf Zellenhöhe begrenzt. Und die Zellenbreite ist **fest**
+(`slotChars`) — sonst richtet sich die halbe Leiste bei jedem Bild neu aus und
+zappelt im Takt der Musik.
+
+**cava läuft nur, solange etwas spielt.** Ein Prozess, der dreißigmal je Sekunde
+eine Zeile schreibt, wäre den ganzen Tag über genau die Sorte Hintergrundarbeit,
+die beim Aufräumen gerade herausgeflogen ist — und ohne Ton hätte er nur Nullen
+zu melden. Ob etwas spielt, beantwortet MPRIS; ein Blick auf den Pegel hieße,
+dauernd zu messen, was wir ja vermeiden wollen.
+
+Die Anzahl der Balken: `nbshell set visualizerBars <n>`. Die cava-Konfiguration
+schreibt die Shell selbst nach `~/.config/nbshell/cava.conf` — von Hand
+geänderte Werte überleben den nächsten Start nicht.
+
 ### Noch offen
 
-- Die Visualisierung in der Leiste (`cava` mit `output_method = raw`).
 - Playlists **bearbeiten** — das Skript kann Titel hinzufügen und entfernen,
   im Fenster liegt noch keine Taste darauf.
 - **Der Mediendienst nimmt den Player, der gerade spielt** — läuft nebenher ein
@@ -2303,7 +2346,7 @@ woanders hinlegen.
 
 `clock`, `workspaces`, `window`, `sys`, `battery`, `layout`, `themes`,
 `volume`, `control`, `tray`, `notifications`, `clipboard`, `todo`, `media`,
-`musik`, `capture`, `ai`, `updates`, `sep`.
+`musik`, `vis`, `capture`, `ai`, `updates`, `sep`.
 
 Vier Listen sagen, was wo steht:
 
@@ -2565,6 +2608,8 @@ shell/
   Services/Music.qml   YouTube Music: Mediathek und Warteschlange
   Music/MusicWindow.qml  die Mediathek als Fenster (Mod+P)
   Bar/Widgets/MusicControls.qml  zurueck, Pause, weiter, Zufall
+  Services/Cava.qml    cava-Rohausgabe: der Ausschlag je Balken
+  Bar/Widgets/Visualizer.qml  derselbe als Blockzeichen
   scripts/ytm.py       das Konto: Suche, Playlists, Bearbeiten
   Widgets/Line.qml     eine Zeile Text: Schrift und Renderart an einer Stelle
   Widgets/LevelBar.qml Balken aus Bloecken
