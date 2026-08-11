@@ -41,9 +41,9 @@ PanelWindow {
     // Fusszeile zusammen sechs Zellen brauchen, lief die Liste unten aus dem
     // Kasten heraus und legte sich ueber die Fusszeile.
     readonly property real boxW: Theme.cellW * 108
-    readonly property real boxH: Theme.cellH * 30
+    readonly property real boxH: Theme.cellH * 32
     readonly property real zeilenH: Theme.cellH * 1.25
-    readonly property int sicht: Math.max(4, Math.floor((root.boxH - Theme.cellH * 6) / root.zeilenH))
+    readonly property int sicht: Math.max(4, Math.floor((root.boxH - Theme.cellH * 8.5) / root.zeilenH))
 
     visible: Runtime.musicOpen
 
@@ -161,6 +161,13 @@ PanelWindow {
                 break;
             case Qt.Key_Space:
                 MediaService.playPause();
+                break;
+            case Qt.Key_Plus:
+            case Qt.Key_Equal:
+                MediaService.setVolume(MediaService.volume + 0.05);
+                break;
+            case Qt.Key_Minus:
+                MediaService.setVolume(MediaService.volume - 0.05);
                 break;
             case Qt.Key_S:
                 Music.toggleShuffle();
@@ -395,13 +402,90 @@ PanelWindow {
             }
 
             // ── Fusszeile ────────────────────────────────────────────────
+            // ── Was gerade laeuft ────────────────────────────────────────
+            //
+            // Titel, Stelle, Laenge, Lautstaerke -- und beide Balken sind
+            // bedienbar: `LevelBar` meldet beim Ziehen den Wert, das genuegt
+            // fuer Spulen und Lautstaerke, ohne einen eigenen Regler zu bauen.
+            Row {
+                anchors.left: parent.left
+                anchors.leftMargin: Theme.cellW
+                anchors.right: parent.right
+                anchors.rightMargin: Theme.cellW
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: Theme.cellH * 1.7
+
+                visible: MediaService.active
+                spacing: Theme.cellW
+
+                Line {
+                    width: Theme.cellW * 2
+                    text: MediaService.playing ? Icons.play : Icons.pause
+                    color: Theme.readable(Theme.accent, Theme.bg)
+                }
+
+                Line {
+                    width: root.boxW * 0.28
+                    elide: Text.ElideRight
+                    text: MediaService.label
+                    color: Theme.fg
+                }
+
+                Line {
+                    width: Theme.cellW * 6
+                    horizontalAlignment: Text.AlignRight
+                    text: MediaService.zeit(MediaService.position)
+                    color: Theme.muted
+                }
+
+                LevelBar {
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    cells: 34
+                    value: Math.round(MediaService.position)
+                    maximum: Math.max(1, Math.round(MediaService.length))
+                    interactive: MediaService.seekable
+                    onMoved: v => MediaService.seek(v)
+                }
+
+                Line {
+                    width: Theme.cellW * 6
+                    text: MediaService.zeit(MediaService.length)
+                    color: Theme.muted
+                }
+
+                Line {
+                    width: Theme.cellW * 4
+                    text: "  VOL"
+                    color: Theme.muted
+                }
+
+                LevelBar {
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    cells: 10
+                    value: Math.round(MediaService.volume * 100)
+                    maximum: 100
+                    fillColor: Theme.green
+                    interactive: MediaService.volumeSupported
+                    onMoved: v => MediaService.setVolume(v / 100)
+                }
+            }
+
             Line {
                 anchors.left: parent.left
                 anchors.leftMargin: Theme.cellW
+                anchors.right: parent.right
+                anchors.rightMargin: Theme.cellW
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: Theme.cellH / 2
 
-                text: root.typing ? "Suche: " + root.query + "█   Enter sucht · Esc verwirft" : "↑↓ wählen · Tab Spalte · Enter spielt · / suchen · Leertaste Pause · S Zufall" + (Music.shuffle ? " [an]" : "") + " · Mod+ziehen verschiebt · Esc zurück"
+                // Mit Breite und `elide`: der Hinweis lief vorher rechts aus
+                // dem Kasten heraus, weil ein Text ohne Breite so lang wird,
+                // wie er will.
+                elide: Text.ElideRight
+
+                text: root.typing ? "Suche: " + root.query + "█   Enter sucht · Esc verwirft" : "↑↓ wählen · Tab Spalte · Enter spielt · / suchen · Leertaste Pause · +/− Lautstärke · S Zufall" + (Music.shuffle ? " [an]" : "") + " · Mod+ziehen · Esc zurück"
                 color: Theme.muted
             }
         }

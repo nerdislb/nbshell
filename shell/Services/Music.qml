@@ -213,10 +213,19 @@ Singleton {
         return "https://music.youtube.com/watch?v=" + titel.id;
     }
 
+    // `pause` ist in mpv eine EIGENSCHAFT DES SPIELERS, nicht der Datei: wer
+    // einmal pausiert hat, bei dem laedt auch jeder naechste Titel pausiert
+    // nach -- man klickt auf ein Stueck und es passiert scheinbar nichts.
+    function losspielen() {
+        root.send(["set_property", "pause", false]);
+    }
+
     function spiele(titel) {
         root.queue = [titel];
         root.position = 0;
         root.send(["loadfile", root.url(titel), "replace"]);
+        root.losspielen();
+        root.merken();
         root.status = titel.titel;
     }
 
@@ -261,12 +270,15 @@ Singleton {
         root.send(["loadfile", root.url(reihe[0]), "replace"]);
         for (let i = 1; i < reihe.length; i++)
             root.send(["loadfile", root.url(reihe[i]), "append"]);
+        root.losspielen();
+        root.merken();
         root.status = reihe.length + " Titel" + (root.shuffle ? ", gemischt" : "");
     }
 
     function haengeAn(titel) {
         root.queue = root.queue.concat([titel]);
         root.send(["loadfile", root.url(titel), "append"]);
+        root.merken();
         root.status = "angehaengt: " + titel.titel;
     }
 
@@ -275,6 +287,39 @@ Singleton {
         root.send(["stop"]);
         root.queue = [];
         root.position = -1;
+        root.merken();
+    }
+
+    // ── Die Warteschlange ueberlebt den Neustart ─────────────────────────
+    //
+    // Die Musik lief nach einem Neustart der Shell zwar weiter (mpv haengt in
+    // einem eigenen Scope), aber die Liste dazu war weg -- keine Markierung im
+    // Fenster, kein Zufallsknopf. Deshalb liegt sie in einer Datei. Klein
+    // genug, dass das Schreiben bei jeder Aenderung nicht auffaellt; gelesen
+    // wird sie genau einmal, beim Start.
+    function merken() {
+        queueFile.setText(JSON.stringify({
+            "queue": root.queue,
+            "position": root.position
+        }));
+    }
+
+    FileView {
+        id: queueFile
+
+        path: Config.configDir + "/queue.json"
+        printErrors: false
+        atomicWrites: true
+
+        onLoaded: {
+            try {
+                const d = JSON.parse(queueFile.text());
+                root.queue = d.queue ?? [];
+                root.position = d.position ?? -1;
+            } catch (e) {
+                root.queue = [];
+            }
+        }
     }
 
     // Verbunden wird nicht per Bindung, sondern auf Zuruf: schlaegt ein

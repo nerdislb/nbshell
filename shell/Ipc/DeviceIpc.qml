@@ -128,6 +128,9 @@ Scope {
         function status(): string {
             return JSON.stringify({
                 "spielt": MediaService.playing,
+                "position": MediaService.zeit(MediaService.position),
+                "laenge": MediaService.zeit(MediaService.length),
+                "lautstaerke": Math.round(MediaService.volume * 100),
                 "titel": MediaService.title,
                 "interpret": MediaService.artist,
                 "player": MediaService.players.map(p => p.identity)

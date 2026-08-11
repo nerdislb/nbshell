@@ -37,6 +37,48 @@ Singleton {
     readonly property string title: player?.trackTitle ?? ""
     readonly property string artist: player?.trackArtist ?? ""
 
+    // ── Wo stehen wir? ───────────────────────────────────────────────────
+    //
+    // MPRIS meldet die Position NICHT von selbst -- sie ist eine Eigenschaft,
+    // die man abfragt, sonst stuende die Anzeige still. Quickshell laesst sie
+    // mit `positionChanged()` neu einlesen; einmal je Sekunde reicht fuer eine
+    // Anzeige, die in Sekunden rechnet.
+    //
+    // Der Takt laeuft NUR, solange etwas spielt. Pausiert bewegt sich nichts,
+    // und ohne Player gibt es nichts zu lesen.
+    readonly property real position: player?.position ?? 0
+    readonly property real length: player?.length ?? 0
+    readonly property bool seekable: player?.canSeek ?? false
+
+    readonly property real volume: player?.volume ?? 0
+    readonly property bool volumeSupported: player?.volumeSupported ?? false
+
+    function setVolume(v) {
+        if (player?.volumeSupported)
+            player.volume = Math.max(0, Math.min(1, v));
+    }
+
+    function seek(sekunden) {
+        if (player?.canSeek)
+            player.position = Math.max(0, Math.min(root.length, sekunden));
+    }
+
+    // mm:ss -- Stunden kommen bei Musik nicht vor, und wenn doch, zaehlen die
+    // Minuten einfach weiter.
+    function zeit(sekunden) {
+        if (!(sekunden > 0))
+            return "0:00";
+        const s = Math.floor(sekunden % 60);
+        return Math.floor(sekunden / 60) + ":" + (s < 10 ? "0" : "") + s;
+    }
+
+    Timer {
+        interval: 1000
+        repeat: true
+        running: root.playing
+        onTriggered: root.player?.positionChanged()
+    }
+
     readonly property string label: {
         if (!active)
             return "";
