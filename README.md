@@ -1368,7 +1368,24 @@ Die zehn decken die Spielarten ab, die auf neun Zeilen ueberhaupt zur Geltung
 kommen; der Rest von TTEs Liste lebt von grossen Bildern.
 
 Der Schriftzug ist aus der eigenen Schrift **gerastert**, nicht von Hand gemalt
--- so sitzen die Proportionen. Die Farbe kommt aus `palette.sh`, also aus dem
+-- so sitzen die Proportionen -- und zwar mit **Halbbloecken** (`▀▄█`): eine
+Textzeile traegt damit zwei Pixelzeilen, und die Rundungen von b, s, e kommen
+ueberhaupt erst zur Geltung. Das war der eigentliche Unterschied zu Omarchys
+Logo, nicht dessen Groesse: 81x10 dort gegen 90x9 hier, aber sie benutzen
+genau diese drei Zeichen und ich anfangs nur den vollen Block.
+
+Zwei Fassungen liegen bereit, 197x10 und 98x5; genommen wird die grosse, wenn
+sie ganz hineinpasst (im Vollbild misst das Terminal hier 239 Spalten). Ein
+abgeschnittener Schriftzug ist keiner.
+
+Drei Einstellungen sind von Omarchys `ttfx`-Aufruf uebernommen und machen
+zusammen den Eindruck aus:
+
+| | |
+|---|---|
+| `--frame-rate 120` | ein Bild alle 8-12 ms statt alle 30-45 -- was vorher ruckelte, fliesst |
+| `--canvas-width/-height 0` | die Leinwand ist der GANZE Schirm, nicht der Kasten um den Text. Effekte duerfen von weit ausserhalb kommen |
+| `--reuse-canvas` | zwischen zwei Effekten wird nicht geloescht; der Uebergang blitzt sonst schwarz auf | Die Farbe kommt aus `palette.sh`, also aus dem
 laufenden Theme: nach einem Themewechsel hat der Schoner denselben Akzent wie
 die Leiste.
 

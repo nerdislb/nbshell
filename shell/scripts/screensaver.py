@@ -22,8 +22,22 @@ Zehn Effekte, einer nach dem anderen, in zufaelliger Reihenfolge:
     schnitt         waagerecht durchgeschnitten, beide Haelften fahren ein
 
 Vorbild ist TTE (terminaltexteffects), das Omarchy benutzt -- das bringt 39
-Effekte mit. So viele werden es hier nicht; die zehn decken die Spielarten ab,
-die auf neun Zeilen ueberhaupt zur Geltung kommen.
+Effekte mit. So viele werden es hier nicht.
+
+Omarchy ruft TTE so auf:
+
+    ttfx -i screensaver.txt --frame-rate 120 --canvas-width 0 --canvas-height 0
+         --reuse-canvas --anchor-canvas c --anchor-text c --random-effect
+
+Drei davon sind uebernommen, und sie machen den Unterschied:
+
+  --frame-rate 120      hier: ein Bild alle 8-12 ms statt alle 30-45. Was
+                        vorher ruckelte, fliesst.
+  --canvas 0            die Leinwand ist der GANZE Schirm, nicht der Kasten um
+                        den Text. Effekte duerfen von weit ausserhalb kommen --
+                        das ist der halbe Eindruck.
+  --reuse-canvas        zwischen zwei Effekten wird nicht geloescht; der
+                        Uebergang blitzt sonst schwarz auf.
 
 Die Farben kommen aus dem laufenden Theme: nbshell schreibt seine Palette nach
 ~/.config/nbshell/palette.sh, und die wird hier gelesen. Der Schriftzug hat
@@ -54,17 +68,35 @@ import termios
 import time
 import tty
 
-# Aus der eigenen Schrift gerastert (Inconsolata, 2:1 fuer die Zellenform).
-WORT = r"""
-             ██                         ██                          █████        █████
-             ██                         ██                             ██           ██
-      █      ██    █           ██       ██    █           ██           ██           ██
-█████████    ██████████     ████████    █████████      ████████        ██           ██
-███     ██   ███     ███   ███          ███     ██    ██     ███       ██           ██
-██      ██   ██       ██     ██████     ██      ██   ███████████       ██           ██
-██      ██   ██       ██          ███   ██      ██   ██                ██           ██
-██      ██   ███     ██    ██      ██   ██      ██    ███     █        ██           ███
-██      ██   ██ ██████      ███████      █      ██      ███████    ██████████    █████████
+# Aus der eigenen Schrift gerastert, mit HALBBLOECKEN (▀▄█).
+#
+# Der erste Wurf nahm nur den vollen Block und sah daneben grob aus. Omarchys
+# Logo (81x10) benutzt genau diese drei Zeichen -- damit hat eine Textzeile
+# zwei Pixelzeilen, und die Rundungen von b, s, e kommen ueberhaupt erst zur
+# Geltung. Das ist der eigentliche Unterschied gewesen, nicht die Groesse.
+#
+# Zwei Fassungen: im Vollbild misst das Terminal hier 239 Spalten, da passt die
+# grosse bequem. Die kleine ist fuer alles andere -- ein abgeschnittener
+# Schriftzug ist keiner.
+GROSS = r"""
+                             ████                                                       █████                                                       ████████████                 ████████████
+                             ████                                                       █████                                                              █████                         ████
+                             ████                                                       █████                                                              █████                         ████
+████  ▄▄██████████▄▄         ████ ▄▄▄██████████▄▄            ▄▄█████████████▄▄▄         █████ ▄▄▄█████████▄▄            ▄▄▄███████████▄▄▄                  █████                         ████
+██████▀▀       ▀▀████        ██████▀▀        ▀████▄         ████            ▀█▀         ██████▀▀        ▀████         ▄███▀          ▀████▄                █████                         ████
+████▀            ████        ████▀             ▀████        ▀▀████▄▄▄▄                  █████            ████▄      ▄████ ▄          ▄ ████▄               █████                         ████
+████             ████        ████               ████             ▀▀▀▀▀██████▄▄▄         █████            █████      █████▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀               █████                         ████
+████             ████        ████▄             ▄████                      ▀▀████▄       █████            █████      ▀████                                  █████                         ████
+████             ████        ██████▄▄       ▄▄████▀       ▄▄██▄▄           ▄████        █████            █████        ▀████▄▄         ▄▄▄▄                 █████                         ████
+████             ████        ███▀ ▀▀▀████████▀▀▀            ▀▀▀▀███████████▀▀▀          ▀███▀            ▀███▀           ▀▀▀███████████▀▀▀         ▀███████████████████▀         ████████████████████
+""".strip("\n").split("\n")
+
+KLEIN = r"""
+              ███                           ██                            ▀▀▀██         ▀▀▀▀██
+▄▄ ▄▄▄▄▄▄     ███▄▄▄▄▄▄▄       ▄▄▄▄▄▄▄▄     ██ ▄▄▄▄▄▄       ▄▄▄▄▄▄▄▄         ██             ██
+██▀▀    ▀█▄   ███▀     ▀█▄    ██▄▄    ▀     ██▀     ██    ▄█▀      ██        ██             ██
+██       ██   ███       ██       ▀▀▀▀██▄    ██      ██▀   ██▀▀▀▀▀▀▀▀▀        ██             ██
+██      ▀██   ██▀█▄▄▄▄██▀    ▀██▄▄▄▄▄▄█▀    ██      ██▀    ▀██▄▄▄▄▄█     ▄▄▄▄███▄▄▄     ▄▄▄▄██▄▄▄▄
 """.strip("\n").split("\n")
 
 ZAPPEL = "▚▞▛▜▙▟▄▀▌▐░▒▓#*+=-_"
@@ -122,7 +154,7 @@ def zeig():
     try:
         sys.stdout.flush()
     except BlockingIOError:
-        time.sleep(0.02)
+        time.sleep(0.008)
 
 
 class Schirm:
@@ -130,7 +162,10 @@ class Schirm:
         self.w, self.h = shutil.get_terminal_size((80, 24))
         # Die Kunst sitzt mittig. Passt sie nicht, wird sie beschnitten statt
         # umgebrochen -- ein umgebrochener Schriftzug ist keiner mehr.
-        self.kunst = [z[:self.w] for z in WORT]
+        # Die grosse Fassung nur, wenn sie ganz hineinpasst.
+        breit = max(len(z) for z in GROSS)
+        passt = self.w >= breit + 4 and self.h >= len(GROSS) + 6
+        self.kunst = GROSS if passt else [z[:self.w] for z in KLEIN]
         self.kh = len(self.kunst)
         self.kw = max(len(z) for z in self.kunst)
         self.x0 = max(0, (self.w - self.kw) // 2)
@@ -166,7 +201,7 @@ def effekt_entschluesseln(s, akzent, fg, halt):
         for (x, y), ch in fest.items():
             s.setz(s.x0 + x, s.y0 + y, farbe(akzent) + ch + AUS)
         zeig()
-        time.sleep(0.045)
+        time.sleep(0.006)
 
 
 def effekt_regen(s, akzent, fg, halt):
@@ -186,7 +221,7 @@ def effekt_regen(s, akzent, fg, halt):
             elif stueck[1] >= 0:
                 s.setz(s.x0 + x, stueck[1], farbe(fg, 0.5) + ch + AUS)
         zeig()
-        time.sleep(0.02)
+        time.sleep(0.008)
 
 
 def effekt_fegen(s, akzent, fg, halt):
@@ -201,7 +236,7 @@ def effekt_fegen(s, akzent, fg, halt):
             hell = 1.6 if d < 2 else (1.0 if d < 6 else 0.85)
             s.setz(s.x0 + x, s.y0 + y, farbe(akzent, hell) + ch + AUS)
         zeig()
-        time.sleep(0.012)
+        time.sleep(0.006)
 
 
 def effekt_schreibmaschine(s, akzent, fg, halt):
@@ -215,7 +250,7 @@ def effekt_schreibmaschine(s, akzent, fg, halt):
             if x % 3 == 0:
                 s.setz(s.x0 + x + 1, s.y0 + y, farbe(fg, 1.4) + "▌" + AUS)
                 zeig()
-                time.sleep(0.004)
+                time.sleep(0.002)
                 s.setz(s.x0 + x + 1, s.y0 + y, " ")
         zeig()
 
@@ -257,7 +292,7 @@ def effekt_matrix(s, akzent, fg, halt):
             s.setz(s.x0 + x, s.y0 + y, farbe(akzent, 1.5) + ch + AUS)
         zeig()
         runden += 1
-        time.sleep(0.03)
+        time.sleep(0.01)
         if len(fest) == len(ziele):
             break
     for (x, y), ch in ziele.items():
@@ -285,7 +320,7 @@ def effekt_feuerwerk(s, akzent, fg, halt):
             for x, yy, ch in gesetzt:
                 s.setz(s.x0 + x, s.y0 + yy, farbe(akzent) + ch + AUS)
             zeig()
-            time.sleep(0.012)
+            time.sleep(0.006)
         s.setz(start_x, gipfel, " ")
         # Explosion: die Funken fliegen von der Rakete zu ihren Plaetzen.
         schritte = 9
@@ -300,7 +335,7 @@ def effekt_feuerwerk(s, akzent, fg, halt):
                 if 0 <= px < s.w and 0 <= py < s.h:
                     s.setz(px, py, farbe(akzent, 1.5 - anteil * 0.5) + (ch if anteil > 0.75 else random.choice("·∙*")) + AUS)
             zeig()
-            time.sleep(0.03)
+            time.sleep(0.01)
             if i < schritte:
                 for x, y, ch in gruppe:
                     anteil2 = i / schritte
@@ -337,7 +372,7 @@ def effekt_schwarzesloch(s, akzent, fg, halt):
                 if 0 <= px < s.w and 0 <= py < s.h:
                     s.setz(px, py, farbe(akzent, 0.6 + a * 0.9) + (ch if not von_ring and a > 0.8 else random.choice("·∙•")) + AUS)
             zeig()
-            time.sleep(0.035)
+            time.sleep(0.012)
             s.leer()
     for x, y, ch in ziele:
         s.setz(s.x0 + x, s.y0 + y, farbe(akzent) + ch + AUS)
@@ -349,12 +384,14 @@ def effekt_strahlen(s, akzent, fg, halt):
     ziele = {(x, y): ch for x, y, ch in zellen(s)}
     hell = {}
     for durchgang in ("waagerecht", "senkrecht"):
-        laenge = s.kh if durchgang == "waagerecht" else s.kw
+        # Ueber den GANZEN Schirm, nicht nur ueber den Kasten um das Wort:
+        # der Balken kommt dann sichtbar von weit her (Omarchys canvas 0).
+        laenge = s.h if durchgang == "waagerecht" else s.w
         for pos in range(laenge + 6):
             if halt():
                 return
             for (x, y), ch in ziele.items():
-                d = abs((y if durchgang == "waagerecht" else x) - pos)
+                d = abs(((s.y0 + y) if durchgang == "waagerecht" else (s.x0 + x)) - pos)
                 if d == 0:
                     hell[(x, y)] = 1.9
                 elif (x, y) not in hell:
@@ -383,7 +420,7 @@ def effekt_brennen(s, akzent, fg, halt):
                 else:
                     s.setz(s.x0 + x, s.y0 + y, " ")
             zeig()
-            time.sleep(0.03)
+            time.sleep(0.01)
     for x, y, ch in ziele:
         s.setz(s.x0 + x, s.y0 + y, farbe(akzent) + ch + AUS)
     zeig()
@@ -403,7 +440,7 @@ def effekt_schnitt(s, akzent, fg, halt):
             if 0 <= px < s.w:
                 s.setz(px, s.y0 + y, farbe(akzent, 1.0 if schritt < weit // 6 else 0.75) + ch + AUS)
         zeig()
-        time.sleep(0.022)
+        time.sleep(0.008)
     for x, y, ch in zellen(s):
         s.setz(s.x0 + x, s.y0 + y, farbe(akzent) + ch + AUS)
     zeig()
@@ -424,7 +461,7 @@ def ruhe(s, akzent, fg, halt, sekunden):
             s.setz(s.x0 + x, s.y0 + y, farbe(akzent, welle) + ch + AUS)
         zeig()
         t += 0.28
-        time.sleep(0.07)
+        time.sleep(0.05)
 
 
 def main():
@@ -499,8 +536,10 @@ def main():
                    effekt_schnitt]
         random.shuffle(effekte)
         i = 0
+        s.leer()
         while not halt():
-            s.leer()
+            # KEIN Loeschen zwischen zwei Effekten (Omarchys --reuse-canvas):
+            # der Uebergang blitzt sonst schwarz auf.
             effekte[i % len(effekte)](s, akzent, fg, halt)
             if halt():
                 break
