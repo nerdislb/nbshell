@@ -52,6 +52,7 @@ kennt --canvas-height && flags+=(--canvas-height 0)
 kennt --anchor-canvas && flags+=(--anchor-canvas c)
 kennt --anchor-text && flags+=(--anchor-text c)
 kennt --no-eol && flags+=(--no-eol)
+kennt --no-restore-cursor && flags+=(--no-restore-cursor)
 
 printf '\033]0;nbshell-screensaver\007'
 printf '\033[?25l'
@@ -86,6 +87,11 @@ while true; do
 		fi
 	done
 	wait "$kind" 2>/dev/null
+
+	# tte laesst den Cursor stehen (wir bitten es mit --no-restore-cursor
+	# ausdruecklich darum, ihn nicht anzufassen) -- unter dem Schriftzug blinkt
+	# dann ein Strich. Nach jeder Runde wieder wegnehmen.
+	printf '\033[?25l' 
 
 	# Kurz stehen lassen, sonst hetzt ein Effekt den naechsten.
 	if read -rsn1 -t 4; then
