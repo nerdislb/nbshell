@@ -38,6 +38,11 @@ binds {
     // Buchstabentaste noch frei.
     Mod+T hotkey-overlay-title="nbshell: Aufgaben" { spawn "sh" "-c" "$HOME/.local/bin/nbshell todo toggle"; }
 
+    // Die Mediathek (YouTube Music). Mod+M waere naheliegend gewesen und ist
+    // die Prozessliste -- niri hat den Doppelbelag beim Pruefen gemeldet.
+    // Von den sechs freien Buchstaben passt P wie Player am besten.
+    Mod+P hotkey-overlay-title="nbshell: Musik" { spawn "sh" "-c" "$HOME/.local/bin/nbshell music fenster"; }
+
     // DMS: settings -> nbshells Optionsmenue.
     Mod+Comma hotkey-overlay-title="nbshell: Einstellungen" { spawn "sh" "-c" "$HOME/.local/bin/nbshell settings"; }
 

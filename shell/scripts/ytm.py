@@ -160,10 +160,9 @@ def cmd_status(_):
 
 def cmd_playlists(_):
     y = api()
-    eigene = [liste_von(p) for p in y.get_library_playlists(limit=100)]
-    # „Meine Mediathek" hat keine Playlist-ID, ist aber der haeufigste Einstieg.
-    # Sie kommt als erster Eintrag mit einer Kennung, die nur wir verstehen.
-    raus(playlists=[{"id": "LM", "titel": "Meine Titel", "anzahl": 0, "beschreibung": "geliked"}] + eigene)
+    # „Liked Music" (id LM) liefert die Schnittstelle selbst mit -- ein eigener
+    # Eintrag dafuer stand einmal hier und war schlicht doppelt.
+    raus(playlists=[liste_von(p) for p in y.get_library_playlists(limit=100)])
 
 
 def cmd_playlist(args):

@@ -33,6 +33,16 @@ Scope {
             return "spielt: " + (titel === "" ? id : titel);
         }
 
+        function open(): string {
+            Runtime.musicOpen = true;
+            return "offen";
+        }
+
+        function toggle(): string {
+            Runtime.musicOpen = !Runtime.musicOpen;
+            return Runtime.musicOpen ? "offen" : "zu";
+        }
+
         function stop(): string {
             Music.leeren();
             return "gestoppt";

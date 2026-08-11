@@ -646,6 +646,10 @@ ein Passwort-Aequivalent. Sie sind vom Dotfiles-Repo ausgeschlossen.
 Jetzt einfuegen:
 ENDE
                 python3 "$MUSIC_TOOL" login ;;
+            fenster|window) ipc music toggle ;;
+            play|spiel)     ipc music play "${1:?Titel-ID fehlt}" "${2:-}" ;;
+            stop)           ipc music stop ;;
+            queue|liste)    ipc music queue ;;
             suche|search)   python3 "$MUSIC_TOOL" search "$@" ;;
             *)              python3 "$MUSIC_TOOL" "$unter" "$@" ;;
         esac

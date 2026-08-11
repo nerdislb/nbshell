@@ -18,6 +18,7 @@ import qs.Settings
 import qs.Wallpaper
 import qs.Todo
 import qs.Net
+import qs.Music
 import qs.Ipc
 
 // nbshell -- Einstiegspunkt.
@@ -98,6 +99,8 @@ ShellRoot {
     QrWindow {}
 
     SpeedWindow {}
+
+    MusicWindow {}
 
     // ── Steuerung von aussen ──────────────────────────────────────────────
     // Alles, was `nbshell <ziel> <befehl>` erreichbar macht, liegt in qs/Ipc

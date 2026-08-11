@@ -48,6 +48,96 @@ Singleton {
     // Schreck.
     readonly property int volume: Config.value("musicVolume", 60)
 
+    // ── Mediathek ────────────────────────────────────────────────────────
+    //
+    // Geladen wird auf Zuruf, nicht im Hintergrund: die Playlists holt das
+    // Fenster beim Oeffnen, die Titel beim Anklicken einer Playlist. Ein
+    // Abgleich, der staendig mitlaeuft, waere fuer eine Liste, die sich
+    // hoechstens taeglich aendert, die falsche Rechnung.
+
+    property var playlists: []
+    property var tracks: []
+    property string listName: ""
+    property string listId: ""
+
+    property var results: []
+    property string query: ""
+
+    property bool busy: false
+    property string error: ""
+
+    // Was im rechten Feld steht: Titel einer Playlist oder Suchtreffer.
+    readonly property var shown: root.query !== "" ? root.results : root.tracks
+
+    function auswerten(text, dann) {
+        root.busy = false;
+        try {
+            const d = JSON.parse(text);
+            if (!d.ok) {
+                root.error = String(d.grund);
+                return;
+            }
+            root.error = "";
+            dann(d);
+        } catch (e) {
+            root.error = "Antwort unlesbar";
+        }
+    }
+
+    function ladePlaylists() {
+        root.busy = true;
+        listen.command = ["python3", root.script, "playlists"];
+        listen.running = true;
+    }
+
+    function ladePlaylist(id, name) {
+        root.busy = true;
+        root.query = "";
+        root.listId = id;
+        root.listName = name ?? "";
+        titel.command = ["python3", root.script, "playlist", id];
+        titel.running = true;
+    }
+
+    function suche(text) {
+        if (text === "") {
+            root.query = "";
+            return;
+        }
+        root.busy = true;
+        root.query = text;
+        sucher.command = ["python3", root.script, "search", text];
+        sucher.running = true;
+    }
+
+    Process {
+        id: listen
+
+        stdout: StdioCollector {
+            onStreamFinished: root.auswerten(text, d => root.playlists = d.playlists ?? [])
+        }
+    }
+
+    Process {
+        id: titel
+
+        stdout: StdioCollector {
+            onStreamFinished: root.auswerten(text, d => {
+                root.tracks = d.titel ?? [];
+                if (d.name)
+                    root.listName = d.name;
+            })
+        }
+    }
+
+    Process {
+        id: sucher
+
+        stdout: StdioCollector {
+            onStreamFinished: root.auswerten(text, d => root.results = d.treffer ?? [])
+        }
+    }
+
     // ── mpv ──────────────────────────────────────────────────────────────
 
     function ensure() {
