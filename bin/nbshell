@@ -515,6 +515,9 @@ nbshell -- eigene Shell auf Quickshell
   nbshell befehle [text]    alle Befehle der Palette (Mod+Space, ">")
   nbshell befehl <text>     den besten Treffer ausfuehren
 
+  nbshell qr                WLAN als QR-Code (Fenster, Esc schliesst)
+  nbshell speed             Durchsatz messen (Fenster, Leertaste wiederholt)
+
   nbshell wach              Rechner wachhalten (aus/an, ohne Argument: um)
   nbshell idle              Stand der Leerlauf-Automatik
   nbshell idle on|off       Automatik ein- oder ausschalten
@@ -631,6 +634,12 @@ case "$cmd" in
         ;;
     text)
         text_size "${1:-}"
+        ;;
+    qr)
+        ipc net qr
+        ;;
+    speed|speedtest)
+        ipc net speed
         ;;
     wach|caffeine|koffein)
         ipc idle caffeine "${1:-toggle}"

@@ -389,7 +389,7 @@ Einstellbar in `config.json`: `theme`, `font`, `fontSize`,
 `clipboardGuardSecrets`, `notifyReviveMs`, `appScopes`, `terminalRatio`,
 `accent` (Rolle), `widgets` (Aussehen je Baustein), `updateNoconfirm`,
 `idle`, `caffeine`, `idleDim`, `idleScreenOff`, `idleLock`, `idleDimPercent`,
-`batteryWarnAt`, `deviceLowAt`, `deviceWarnAt`,
+`batteryWarnAt`, `deviceLowAt`, `deviceWarnAt`, `speedScale`,
 `titleLength`, `locale`, `wallpaper`, `wallpaperOverride`, `maxVolume` und die
 vier Bausteinlisten.
 
@@ -866,26 +866,52 @@ eigenen Rechner aus.
 ### QR-Code und Durchsatz
 
 Zwei Knoepfe in der WLAN-Zeile des Control Centers, beide aus dem
-Plugin-Katalog uebernommen:
+Plugin-Katalog uebernommen. Beide oeffnen ein **Fenster**, kein Popout -- ein
+Popout klappt zu, sobald die Maus es verlaesst, und genau das tut man, wenn
+man zum Telefon greift oder eine halbe Minute auf eine Messung wartet. Auch
+per `nbshell qr` und `nbshell speed`.
 
-- **`[ qr ]`** zeigt das verbundene Netz als QR-Code zum Abscannen. Der Code
-  kommt als **Text** aus `qrencode -t UTF8` und wird gezeigt wie jede andere
-  Zeile -- ein Popout aus Zeichen braucht kein Bild, das erst irgendwohin
-  geschrieben, geladen und wieder aufgeraeumt werden muesste. Solange er
-  steht, tritt die Netzliste zurueck; beides uebereinander waere eine
-  Rolltreppe. Der Zeilenabstand ist auf 0.85 gesetzt: mit dem normalen stehen
-  zwischen den Halbblockreihen weisse Streifen, und keine Kamera erkennt ihn
-  mehr.
-- **`[ speed ]`** misst Ping, Herunterladen und Hochladen. Bevorzugt wird
-  `speedtest-cli` aus `extra` und nicht Ooklas eigenes `speedtest` aus dem
-  AUR: letzteres will beim ersten Start eine Lizenz bestaetigt haben.
+**Der QR-Code.** Erster Versuch: der Code als Halbblockzeichen in den Farben
+des Themes, mitten ins Popout. Das sah zur Shell passend aus und **liess sich
+nicht scannen** -- gleich dreifach falsch:
 
-Das Passwort fuer den QR-Code holt `nmcli -s`. Gehoert die Verbindung dem
-System und nicht dir, fragt dabei polkit nach -- dafuer gibt es den Agenten.
-Kommt keines zurueck, wird der Code trotzdem gebaut, und die Zeile darunter
-sagt, woran es lag.
+1. hell auf dunkel ist die Umkehrung dessen, was ein QR-Code sein soll, und
+   viele Kameras lesen sie nicht;
+2. die Ruhezone war ein Modul breit statt der vorgeschriebenen vier;
+3. der gestauchte Zeilenabstand (0.85) verzerrte die Module.
 
-Fehlt eines der beiden Programme, sagt der Knopf das statt still zu bleiben.
+Jetzt liefert `wifi-qr.sh` die **Modulmatrix** als JSON, und das Fenster malt
+sie als schwarze Quadrate auf eine weisse Karte, gut 400 px breit. Das ist die
+eine Stelle in nbshell, an der das Theme nichts zu sagen hat: ein Code, den
+niemand scannen kann, ist kein Code.
+
+Nachgeprueft wurde das nicht mit dem Auge, sondern gerechnet -- die Matrix
+wurde als Bild nachgebaut und Pixel fuer Pixel mit dem PNG verglichen, das
+`qrencode` selbst aus derselben Nutzlast macht: **0 Abweichungen**. Dabei fiel
+auch auf, dass `printf '…;;\n'` den Zeilenumbruch in die NUTZLAST schreibt und
+mitkodiert wird; er ist raus.
+
+Das Passwort holt `nmcli -s`. Gehoert die Verbindung dem System und nicht dir,
+fragt dabei polkit nach -- dafuer gibt es den Agenten. Kommt keines zurueck,
+wird der Code trotzdem gebaut, und die Zeile darunter sagt, woran es lag.
+
+**Der Durchsatz.** Balken statt Zahlenzeile, dieselben Bloecke wie ueberall.
+Die Skala ist nicht fest, sondern waechst mit dem schnellsten je gemessenen
+Wert (`speedScale`) -- 50 Mbit/s sind im Hotel viel und zu Hause wenig -- und
+bleibt danach stehen, damit man vergleichen kann.
+
+`speedtest-cli` liefert seine drei Werte alle auf einmal am Ende; es gibt also
+nichts, was live steigen koennte. Statt einen Fortschritt zu erfinden, laeuft
+waehrenddessen ein Lauflicht durch die Balken: man sieht, dass es arbeitet, und
+wird nicht ueber den Stand belogen.
+
+Der **Ping bekommt keinen Balken** -- bei ihm ist klein gut, und ein Balken,
+der bei "gut" fast leer ist, liest sich falsch herum. Unplausible Werte werden
+verschwiegen statt gezeigt: `speedtest-cli` meldet gegen manche Gegenstellen
+1.800.000 ms, und eine offensichtlich falsche Zahl ist schlechter als keine.
+
+Bevorzugt wird `speedtest-cli` aus `extra` und nicht Ooklas eigenes aus dem
+AUR: letzteres will beim ersten Start eine Lizenz bestaetigt haben.
 
 ## Mauszeiger
 
@@ -2090,6 +2116,8 @@ shell/
   Widgets/Segments.qml Reihe gerahmter Kaestchen, das aktive gefuellt
   Widgets/PanelHead.qml  Kopfzeile: Titel, Untertitel, Marke
   Widgets/ThemePreview.qml  Miniatur der Leiste in fremden Farben
+  Net/QrWindow.qml     das WLAN als QR-Code
+  Net/SpeedWindow.qml  Durchsatz als Balken
   Widgets/MenuView.qml DBus-Menues als Liste
   Widgets/Cell.qml     der eine Baustein, aus dem alles besteht
   Bar/Bar.qml          das Fenster: Insel oder Balken
@@ -2129,6 +2157,11 @@ doppelt gebaut werden, und der Uebergang laesst sich animieren.
 
 ## Fallstricke
 
+- **Eine Property darf nicht `data` heissen.** `data` ist die Standard-
+  Kindliste jedes QtObject. Eine eigene Property dieses Namens verdeckt sie --
+  die Kinder des Fensters landen dann in einer Variablen statt in der Szene.
+  Das Fenster liegt an (`niri msg -j layers` zeigt es), nimmt die Tastatur und
+  ist vollstaendig leer. Keine Fehlermeldung, nichts.
 - **Was an einem `IpcHandler` haengt, will Quickshell ueber IPC anbieten.**
   Zwei Hilfslisten als `property var` darin genuegten fuer „Type QVariant
   cannot be used across IPC" bei jedem Start. Sie gehoeren daneben, nicht

@@ -17,6 +17,7 @@ import qs.Capture
 import qs.Settings
 import qs.Wallpaper
 import qs.Todo
+import qs.Net
 
 // nbshell -- Einstiegspunkt.
 //
@@ -90,6 +91,10 @@ ShellRoot {
     WallpaperPicker {}
 
     TodoList {}
+
+    QrWindow {}
+
+    SpeedWindow {}
 
     // ── Steuerung von aussen ──────────────────────────────────────────────
     // Aufrufbar als `nbshell <ziel> <befehl>`, siehe bin/nbshell.
@@ -291,6 +296,21 @@ ShellRoot {
         }
     }
 
+    // Die beiden Netzfenster.
+    IpcHandler {
+        target: "net"
+
+        function qr(): string {
+            Runtime.qrOpen = !Runtime.qrOpen;
+            return Runtime.qrOpen ? "offen" : "zu";
+        }
+
+        function speed(): string {
+            Runtime.speedOpen = !Runtime.speedOpen;
+            return Runtime.speedOpen ? "offen" : "zu";
+        }
+    }
+
     IpcHandler {
         target: "state"
 
@@ -308,6 +328,8 @@ ShellRoot {
                 "bausteine": Runtime.modulesOpen,
                 "hintergrund": Runtime.wallpaperOpen,
                 "aufgaben": Runtime.todoOpen,
+                "qr": Runtime.qrOpen,
+                "speedtest": Runtime.speedOpen,
                 "prozesse": Runtime.procsOpen,
                 "aufnahme": Runtime.captureOpen,
                 "power": Runtime.powerOpen
