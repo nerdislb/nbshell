@@ -1793,14 +1793,17 @@ greifen die Medientasten mal ins Leere, mal in den falschen Player.
 
 ## Musik (YouTube Music)
 
-> **Im Bau.** Abspielen und Mediathek stehen, das Fenster und die Visualisierung
-> in der Leiste noch nicht. Was hier steht, funktioniert.
+> **Im Bau.** Alles hier funktioniert; offen ist die Visualisierung in der
+> Leiste und das Bearbeiten von Playlists im Fenster.
 
 ```bash
 nbshell music login          # einmalig: Cookies aus dem Browser
 nbshell music status         # angemeldet? wie viele Playlists?
 nbshell music playlists
 nbshell music suche <text>
+nbshell music fenster        # die Mediathek (auch Mod+P)
+nbshell music queue          # was in der Warteschlange steht
+nbshell music stop
 ```
 
 Vier Teile, von denen zwei schon vorher da waren:
@@ -1860,15 +1863,128 @@ nbshell steht auf Systemprotokollen (MPRIS, PipeWire, `ext-idle-notify`) und
 bricht nicht; das hier kann brechen, wenn Google etwas umbaut. Darum gibt jeder
 Fehler im Skript eine lesbare Zeile zurück statt eines Stapelabzugs.
 
+### Das Fenster (Mod+P)
+
+Zwei Spalten: links die Playlists, rechts die Titel darin. Bedient wird mit der
+Tastatur, weil man beim Musikhören selten die Maus in der Hand hat.
+
+| Taste | |
+|---|---|
+| `↑` `↓` | wählen |
+| `Tab` / `→` `←` | Spalte wechseln |
+| `Enter` | Playlist öffnen · auf einem Titel: **ab dort** abspielen |
+| `/` | suchen (Enter sucht, Esc verwirft) |
+| `Leertaste` | Pause |
+| `+` `−` | Lautstärke |
+| `S` | Zufall an und aus |
+| `F5` | Playlists neu holen |
+| `Esc` | zurück in die Playlists, dann zu |
+
+**Enter auf einem Titel spielt ab dieser Stelle weiter**, nicht nur den einen —
+alles andere wäre bei einer Playlist die falsche Erwartung.
+
+`Mod+M` wäre das naheliegende Kürzel gewesen und gehört der Prozessliste; niri
+hat den Doppelbelag beim Prüfen gemeldet. Von den sechs freien Buchstaben passt
+`P` wie Player.
+
+Kein echtes Terminalprogramm, obwohl es so aussieht: Farben, Zeichenraster,
+Tastenführung und die Bausteine gibt es hier schon, und ein `ncurses`-Fenster
+könnte weder die Themefarben noch die Zellenbreite dieser Shell mitbenutzen.
+
+### Beim Blättern lädt die Playlist gleich mit
+
+Wer durch die Playlists fährt, sieht rechts sofort ihren Inhalt. Zwei
+Vorkehrungen, damit das nicht teuer wird:
+
+**Ein Takt von 260 ms** wartet, bis die Auswahl stillsteht — ohne ihn löst eine
+gedrückt gehaltene Pfeiltaste sechzehn Netzabfragen aus, für fünfzehn Listen,
+die niemand angesehen hat. **Was einmal geholt wurde, bleibt gemerkt**; eine
+Playlist ändert sich nicht, während man an ihr vorbeiscrollt (`F5` wirft den
+Speicher weg).
+
+Dazu ein Vergleich zwischen *gewünschter* und *gerade geholter* Playlist: beim
+schnellen Blättern läuft die Antwort der Auswahl hinterher, und ohne ihn landen
+die Titel der vorletzten Liste in einer Ansicht, die längst eine andere zeigt.
+Der Fehler zeigt sich nur bei genau der richtigen Geschwindigkeit.
+
+### Die Player-Leiste
+
+Unten im Fenster: Symbol, Interpret — Titel, Stelle, Balken, Länge, dann `VOL`
+mit eigenem Balken. **Beide Balken sind bedienbar.** `LevelBar` meldet beim
+Ziehen den Wert — damit sind Spulen und Lautstärke erledigt, ohne einen eigenen
+Regler zu bauen.
+
+MPRIS meldet die Position **nicht von selbst**; sie ist eine Eigenschaft, die
+man abfragt, sonst steht die Anzeige still. Sie wird einmal je Sekunde neu
+eingelesen — und nur, solange etwas spielt.
+
+### Die Knöpfe in der Leiste
+
+Der Baustein `musik` (neben den Arbeitsflächen): zurück, Pause, weiter, Zufall.
+Gesteuert über MPRIS, also gelten sie auch für Browser oder Spotify. Nur der
+Zufallsknopf erscheint bloß bei unserer eigenen Warteschlange — MPRIS kann das
+nicht, und ein wirkungsloser Knopf wäre eine Lüge.
+
+Vier Knöpfe in **einer** Zelle: vier Rahmen für eine zusammengehörige Sache
+wären dreimal zu viel.
+
+Die Symbole wurden vorher gerendert und angesehen, nicht nach Namen gewählt:
+die naheliegenden `⏮`/`⏭` (U+23EE/U+23ED) kennt die Schrift **gar nicht**, da
+kam nichts. Es sind die MDI-Glyphen der Nerd Font.
+
+### Zufall
+
+Gemischt wird im Dienst, nicht mit mpvs `--shuffle`: sonst kennt nur mpv die
+Reihenfolge, und die Warteschlange im Fenster zeigte etwas anderes als das, was
+spielt. Der angeklickte Titel bleibt der erste — wer auf einem Stück Enter
+drückt, will *dieses* hören; gewürfelt wird, was danach kommt. Fisher-Yates,
+nicht `sort(() => Math.random() - 0.5)`: das wäre kürzer und verzerrt.
+
+### Die Fenster lassen sich verschieben
+
+`Mod`+ziehen, wie man es von niri kennt — für die Mediathek und die
+Aufgabenliste. **niri kann das nicht übernehmen:** beides sind
+Layer-Shell-Flächen und liegen außerhalb seiner Zuständigkeit, `Mod`+Ziehen
+gilt nur für normale Fenster. Also zieht der Kasten sich selbst, mit einer
+Grenze am Bildschirmrand, damit er nicht unerreichbar wird.
+
+### Drei Fallen, die dabei auftauchten
+
+**`pause` ist in mpv eine Eigenschaft des Spielers, nicht der Datei.** Wer
+einmal pausiert hatte, bei dem lud auch jeder nächste Titel pausiert nach — man
+klickt auf ein Stück, mpv holt es brav, und es passiert scheinbar nichts. Zu
+sehen war das erst am Socket: `playlist-count: 1`, Pfad gesetzt, `pause: True`,
+Position 0.001. Beim Abspielen wird die Pause jetzt ausdrücklich gelöst.
+
+**Ein fehlgeschlagener Verbindungsversuch lässt `connected` gesetzt zurück.**
+Das erneute `sock.connected = true` war damit dieselbe Zuweisung — also gar
+kein neuer Versuch, und der erste Ladebefehl ging still verloren. Jetzt erst
+aus, dann an.
+
+**`setsid` rettet mpv nicht vor einem Shell-Neustart.** Die Shell läuft als
+systemd-Dienst, und beim Neustart räumt systemd die **ganze cgroup** des
+Dienstes ab — eine eigene Sitzung ändert daran nichts, der Prozess hängt weiter
+darin. Mit `systemd-run --user --scope --collect` läuft die Musik durch;
+geprüft, indem `install.sh` mitten im Titel lief und derselbe Titel bei 1:06
+ununterbrochen weiterspielte.
+
+### Was den Neustart überlebt
+
+Die Musik läuft weiter (eigener Scope), und die Warteschlange steht in
+`~/.config/nbshell/queue.json` — sonst wäre nach jedem Neuladen der Shell die
+Liste weg, samt Markierung des laufenden Titels und Zufallsknopf. Die Shell
+bindet den laufenden mpv über den Socket wieder an; gefragt wird zuerst MPRIS,
+denn ein blindes Verbinden auf einen Socket, den es nicht gibt, wäre bei jedem
+Start eine Fehlzeile im Journal.
+
 ### Noch offen
 
-- Das TUI-Fenster (Playlists, Suche, Bearbeiten) — als QML-Fenster wie
-  `TodoList`, nicht als echtes Terminalprogramm: gleiche Optik, gleiche
-  Tastenführung.
-- Die Visualisierung in der Leiste.
+- Die Visualisierung in der Leiste (`cava` mit `output_method = raw`).
+- Playlists **bearbeiten** — das Skript kann Titel hinzufügen und entfernen,
+  im Fenster liegt noch keine Taste darauf.
 - **Der Mediendienst nimmt den Player, der gerade spielt** — läuft nebenher ein
-  Video im Browser, gewinnt der. Für den Musikbaustein muss gezielt die eigene
-  mpv-Instanz gefragt werden, nicht „irgendwer".
+  Video im Browser, gewinnt der. Für den Musikbaustein müsste gezielt die
+  eigene mpv-Instanz gefragt werden, nicht „irgendwer".
 
 ## Einblendung (OSD)
 
@@ -2187,7 +2303,7 @@ woanders hinlegen.
 
 `clock`, `workspaces`, `window`, `sys`, `battery`, `layout`, `themes`,
 `volume`, `control`, `tray`, `notifications`, `clipboard`, `todo`, `media`,
-`capture`, `ai`, `updates`, `sep`.
+`musik`, `capture`, `ai`, `updates`, `sep`.
 
 Vier Listen sagen, was wo steht:
 
@@ -2445,7 +2561,11 @@ shell/
   Services/Todo.qml    Aufgabenliste: lesen, zusammenfuehren, schreiben
   Todo/TodoList.qml    das Fenster dazu (Mod+T)
   scripts/todo.sh      Konfliktkopien des Abgleichs zurueckfalten
-  Services/MediaService.qml  MPRIS
+  Services/MediaService.qml  MPRIS: Zustand, Position, Lautstaerke
+  Services/Music.qml   YouTube Music: Mediathek und Warteschlange
+  Music/MusicWindow.qml  die Mediathek als Fenster (Mod+P)
+  Bar/Widgets/MusicControls.qml  zurueck, Pause, weiter, Zufall
+  scripts/ytm.py       das Konto: Suche, Playlists, Bearbeiten
   Widgets/Line.qml     eine Zeile Text: Schrift und Renderart an einer Stelle
   Widgets/LevelBar.qml Balken aus Bloecken
   Widgets/Facts.qml    Kennwerte als Raster (Label links, Wert rechts)
