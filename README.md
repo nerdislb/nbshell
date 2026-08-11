@@ -390,7 +390,7 @@ Einstellbar in `config.json`: `theme`, `font`, `fontSize`,
 `accent` (Rolle), `widgets` (Aussehen je Baustein), `updateNoconfirm`,
 `idle`, `caffeine`, `idleDim`, `idleScreenOff`, `idleLock`, `idleDimPercent`,
 `batteryWarnAt`, `deviceLowAt`, `deviceWarnAt`, `speedScale`,
-`cursorTheme`, `cursorSize`,
+`cursorTheme`, `cursorSize`, `nearby`,
 `titleLength`, `locale`, `wallpaper`, `wallpaperOverride`, `maxVolume` und die
 vier Bausteinlisten.
 
@@ -1581,6 +1581,52 @@ Syncthing gehoert seit diesem Baustein zu den Paketen in `setup.sh` und laeuft
 als **Benutzerdienst** (`systemctl --user enable --now syncthing`) -- die
 Dateien gehoeren dem Benutzer.
 
+## In der Naehe (LocalSend)
+
+```bash
+nbshell nearby scan               # wer ist da
+nbshell nearby                    # gefundene Geraete
+nbshell nearby send <datei> [alias]
+```
+
+Der Baustein `nearby` zeigt, wie viele Geraete gerade erreichbar sind; sein
+Popout listet sie mit zwei Knoepfen je Geraet: **Zwischenablage** und
+**letztes Bild**. Das sind die beiden Dinge, die man tatsaechlich schnell
+hinueberschiebt; alles andere geht ueber die Befehlszeile, weil ein
+Dateiwaehler in einer Leiste zwei Bedienungen zu viel waere.
+
+Die Idee stammt aus dem [Omarchy-Plugin-Katalog](https://omarchyplugins.com)
+(`Nearby` von jfg96). Dort erledigt ein **vorkompilierter Rust-Helfer** die
+Arbeit; hier reicht `python3`, das ohnehin Pflicht ist. Das Protokoll steht in
+`scripts/nearby.py`: Multicast-Erkennung, `register`, `prepare-upload`,
+`upload` -- rund 300 Zeilen Standardbibliothek, kein Paket, kein Kompilat.
+
+**Gesucht wird nur, solange das Popout offen ist.** Eine Suche im Hintergrund
+hiesse: alle paar Sekunden ein Multicast-Paket ins WLAN, den ganzen Tag, fuer
+eine Liste, die niemand ansieht. Dieselbe Regel wie beim Bluetooth-Scanner.
+
+Und einmal rufen statt nur lauschen: LocalSend kuendigt sich vor allem beim
+Start an. Wer nur wartet, sieht ein Telefon, das seit zehn Minuten offen ist,
+nie -- die Ankuendigung mit `announce: true` ist die Aufforderung zu antworten.
+
+### Was es NICHT kann: empfangen
+
+Dafuer braeuchte es einen dauerhaft laufenden HTTPS-Server mit eigenem
+Zertifikat, eine Zustimmungsabfrage und einen offenen Port in der Firewall.
+Das ist ein eigenes Stueck Arbeit; zum Empfangen bleibt die LocalSend-App.
+Zum schnellen Hinschicken braucht es sie nicht mehr.
+
+Alle Gegenstellen sprechen HTTPS mit **selbstsigniertem** Zertifikat, geprueft
+wird es deshalb nicht. Das ist kein Versehen: im Protokoll ist der
+Fingerabdruck die Kennung, keine Zertifikatskette. Der eigene liegt in
+`~/.local/state/nbshell/nearby.json` und bleibt -- wechselt er, ist man fuer
+die Gegenstelle ein neues, unbekanntes Geraet.
+
+Ohne Ziel schickt `nbshell nearby send` nur, wenn genau EIN Geraet gefunden
+wurde. Bei mehreren nennt es die Namen und verlangt eine Entscheidung: wortlos
+das erste zu nehmen waere die Sorte Hilfsbereitschaft, die Dateien an Fremde
+schickt.
+
 ## Zwischenablage
 
 Der Baustein `clipboard` zeigt die Anzahl, sein Popout den Verlauf; Klick
@@ -2189,6 +2235,8 @@ niri/nbshell-takeover.kdl  Binds fuer den Umstieg
   Widgets/Popout.qml   Fenster, das an einer Zelle haengt
   Services/ThemeIndex.qml  Themeliste, Wechsel, Blaettern
   Services/Cursor.qml  Zeigerthema: Config -> niri und GTK
+  Services/Nearby.qml  Geraete in der Naehe, senden
+  scripts/nearby.py    das LocalSend-Protokoll (Erkennung, Senden)
   scripts/cursors.sh   welche Themen es gibt, und eines setzen
   scripts/themes.sh    findet Themes und Wallpaper
 ```

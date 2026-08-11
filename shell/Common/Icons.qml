@@ -67,6 +67,10 @@ Singleton {
     readonly property string sleep: cp(0xF04B2)
     readonly property string sleepOff: cp(0xF04B3)
 
+    // In der Naehe. Der Papierflieger (F048A) waere naheliegender, wird bei
+    // 13 px aber zu einem duennen Strich -- die Knotengrafik haelt sich.
+    readonly property string share: cp(0xF0497)
+
     // Updates
     readonly property string download: cp(0xF01DA)
     readonly property string refresh: cp(0xF0450)

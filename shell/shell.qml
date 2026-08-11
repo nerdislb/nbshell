@@ -67,6 +67,7 @@ ShellRoot {
         // Leiste anfasst -- also nie.
         void Idle.enabled;
         void Cursor.themes;
+        void Nearby.enabled;
     }
 
     Bar {}
@@ -309,6 +310,51 @@ ShellRoot {
         function speed(): string {
             Runtime.speedOpen = !Runtime.speedOpen;
             return Runtime.speedOpen ? "offen" : "zu";
+        }
+    }
+
+    // In der Naehe -- LocalSend ohne die App.
+    IpcHandler {
+        target: "nearby"
+
+        function list(): string {
+            if (Nearby.devices.length === 0)
+                return Nearby.scanning ? "sucht …" : "niemand gefunden (erst `nbshell nearby scan`)";
+            return Nearby.devices.map(d => (d.alias + "                    ").substring(0, 20) + d.ip + ":" + d.port + "  " + d.model).join("\n");
+        }
+
+        function scan(): string {
+            Nearby.scan();
+            return "sucht …";
+        }
+
+        // Ohne Zielangabe an das EINE gefundene Geraet -- gibt es mehrere,
+        // muss man sich entscheiden. Wortlos das erste zu nehmen waere die
+        // Sorte Hilfsbereitschaft, die Dateien an Fremde schickt.
+        function send(file: string): string {
+            if (Nearby.devices.length === 0)
+                return "niemand gefunden -- erst `nbshell nearby scan`";
+            if (Nearby.devices.length > 1)
+                return "mehrere Geraete da:\n" + Nearby.devices.map(d => "  " + d.alias + "  (" + d.ip + ")").join("\n") + "\nZiel angeben: nbshell nearby send <datei> <alias>";
+            Nearby.sendFiles(Nearby.devices[0], [file]);
+            return "sendet an " + Nearby.devices[0].alias;
+        }
+
+        function sendTo(file: string, alias: string): string {
+            const ziel = Nearby.devices.find(d => d.alias === alias || d.ip === alias);
+            if (!ziel)
+                return "nicht gefunden: " + alias;
+            Nearby.sendFiles(ziel, [file]);
+            return "sendet an " + ziel.alias;
+        }
+
+        function status(): string {
+            return JSON.stringify({
+                "geraete": Nearby.devices.length,
+                "sucht": Nearby.scanning,
+                "sendet": Nearby.sending,
+                "meldung": Nearby.status
+            });
         }
     }
 

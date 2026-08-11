@@ -143,6 +143,12 @@ Singleton {
             "category": "System"
         },
         {
+            "id": "nearby",
+            "name": "In der Naehe",
+            "description": "Zwischenablage und Bilder ans Telefon (LocalSend)",
+            "category": "System"
+        },
+        {
             "id": "caffeine",
             "name": "Wachhalten",
             "description": "haelt Dimmen, Bildschirm-aus und Sperren an",
