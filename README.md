@@ -390,6 +390,7 @@ Einstellbar in `config.json`: `theme`, `font`, `fontSize`,
 `accent` (Rolle), `widgets` (Aussehen je Baustein), `updateNoconfirm`,
 `idle`, `caffeine`, `idleDim`, `idleScreenOff`, `idleLock`, `idleDimPercent`,
 `batteryWarnAt`, `deviceLowAt`, `deviceWarnAt`, `speedScale`,
+`cursorTheme`, `cursorSize`,
 `titleLength`, `locale`, `wallpaper`, `wallpaperOverride`, `maxVolume` und die
 vier Bausteinlisten.
 
@@ -929,6 +930,21 @@ laufende Programme behalten ihren Zeiger.
 **GTK zieht mit.** Dateidialoge, nautilus und alles andere auf GTK-Basis
 fragen nicht niri, sondern gsettings -- ohne diesen Teil haette man einen
 halben Wechsel, der genau dort auffaellt, wo man ihn am wenigsten erwartet.
+
+Beides steht auch im Optionsmenue unter AUSSEHEN (**Mauszeiger** und
+**Zeigergroesse**) -- die Werte kommen dort aus dem Dateisystem, nicht aus einer
+gepflegten Liste: welche Themen es gibt, weiss nur, wer nachsieht. Ein leerer
+erster Eintrag heisst „nbshell laesst die Finger davon"; auf einem Rechner, auf
+dem jemand seinen Zeiger schon anders eingerichtet hat, soll die blosse
+Anwesenheit der Shell nichts umstellen.
+
+Die Wahrheit steht dabei in der **Config** (`cursorTheme`, `cursorSize`), nicht
+in der niri-Datei: `Services/Cursor.qml` zieht beide anderen Stellen nach,
+sobald sich einer der Werte aendert. Wer direkt in die kdl schriebe, haette
+zwei Wahrheiten, und die naechste Aenderung im Menue ueberschriebe sie wortlos.
+Beim Blaettern im Menue wartet der Dienst 250 ms ab -- sonst schriebe jeder
+Tastendruck eine Datei, riefe zweimal gsettings, und niri laedt bei jeder
+Aenderung seine Config neu.
 
 ### Ein Theme dazuholen
 
@@ -2163,6 +2179,8 @@ niri/nbshell-takeover.kdl  Binds fuer den Umstieg
   Bar/Widgets/         die Bausteine
   Widgets/Popout.qml   Fenster, das an einer Zelle haengt
   Services/ThemeIndex.qml  Themeliste, Wechsel, Blaettern
+  Services/Cursor.qml  Zeigerthema: Config -> niri und GTK
+  scripts/cursors.sh   welche Themen es gibt, und eines setzen
   scripts/themes.sh    findet Themes und Wallpaper
 ```
 

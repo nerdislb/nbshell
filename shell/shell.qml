@@ -66,6 +66,7 @@ ShellRoot {
         // Blick auf die Zelle: sonst begaenne die Frist erst, wenn jemand die
         // Leiste anfasst -- also nie.
         void Idle.enabled;
+        void Cursor.themes;
     }
 
     Bar {}

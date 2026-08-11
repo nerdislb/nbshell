@@ -143,6 +143,23 @@ PanelWindow {
             "values": ["theme", "red", "green", "yellow", "blue", "magenta", "cyan", "orange", "foreground"]
         },
         {
+            // Die Werte kommen aus dem Dateisystem, nicht aus dieser Liste:
+            // welche Zeigerthemen es gibt, weiss nur, wer nachsieht. Ein
+            // leerer erster Eintrag heisst "nbshell laesst die Finger davon".
+            "key": "cursorTheme",
+            "def": "",
+            "label": "Mauszeiger",
+            "values": [""].concat(Cursor.themes)
+        },
+        {
+            "key": "cursorSize",
+            "def": 24,
+            "label": "Zeigergroesse",
+            "step": 4,
+            "min": 12,
+            "max": 64
+        },
+        {
             "key": "fontSize",
             "def": 13,
             "label": "Schriftgroesse",

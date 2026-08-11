@@ -94,39 +94,25 @@ alacritty_theme() {
 
 # ── Mauszeiger ───────────────────────────────────────────────────────────
 #
-# niri setzt Thema und Groesse des Zeigers -- und exportiert beides an alles,
-# was es startet (XCURSOR_THEME/XCURSOR_SIZE). Geschrieben wird dafuer eine
-# eigene Datei neben den anderen nbshell-Includes, nicht die config.kdl selbst.
-#
-# Nebenbei faellt dabei ein Erbstueck auf: `dms/cursor.kdl` ist 0 Bytes gross
-# und wird trotzdem eingebunden. Es tut nichts -- gemeldet wird es hier
-# trotzdem, denn zwei Stellen fuer dieselbe Sache sind eine zu viel.
-CURSOR="nbshell-cursor.kdl"
-CURSOR_LINE="include \"$CURSOR\""
-
-cursor_themes() {
-    local d
-    for d in /usr/share/icons/*/cursors "$HOME"/.icons/*/cursors "$HOME"/.local/share/icons/*/cursors; do
-        [ -d "$d" ] || continue
-        basename "$(dirname "$d")"
-    done | sort -u
-}
+# Gesetzt wird die CONFIG, nicht die niri-Datei: dort haengt seit dem
+# Optionsmenue ein Dienst dran (Services/Cursor.qml), der beides nachzieht --
+# niri und GTK. Wer hier direkt schriebe, haette zwei Wahrheiten, und die
+# naechste Aenderung im Menue ueberschriebe sie wortlos.
+CURSOR_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/cursors.sh"
 
 cursor_status() {
-    local datei="$NIRI_DIR/$CURSOR"
-    if [ -f "$datei" ]; then
-        printf 'Thema     %s\n' "$(awk -F'"' '/xcursor-theme/ {print $2}' "$datei")"
-        printf 'Groesse   %s\n' "$(awk '/xcursor-size/ {print $2}' "$datei")"
-    else
-        printf 'Thema     %s (aus der Umgebung, nicht von nbshell)\n' "${XCURSOR_THEME:-unbekannt}"
-        printf 'Groesse   %s\n' "${XCURSOR_SIZE:-unbekannt}"
-    fi
+    local jetzt
+    jetzt="$(bash "$CURSOR_TOOL" current 2>/dev/null)"
+    printf 'Thema     %s\n' "$(printf '%s' "$jetzt" | python3 -c 'import json,sys; print(json.load(sys.stdin)["theme"] or "(keins gesetzt)")' 2>/dev/null)"
+    printf 'Groesse   %s px\n' "$(printf '%s' "$jetzt" | python3 -c 'import json,sys; print(json.load(sys.stdin)["size"])' 2>/dev/null)"
     if command -v gsettings >/dev/null 2>&1; then
         printf 'GTK       %s, %s px\n' "$(gsettings get org.gnome.desktop.interface cursor-theme 2>/dev/null | tr -d "'")" "$(gsettings get org.gnome.desktop.interface cursor-size 2>/dev/null)"
     fi
     echo
     echo "Installiert:"
-    cursor_themes | sed 's/^/  /'
+    bash "$CURSOR_TOOL" list | python3 -c 'import json,sys; [print("  "+t) for t in json.load(sys.stdin)]'
+    echo
+    echo "Weitere dazulegen: siehe README, \"Ein Theme dazuholen\""
     if [ -f "$NIRI_DIR/dms/cursor.kdl" ] && [ ! -s "$NIRI_DIR/dms/cursor.kdl" ]; then
         echo
         warn "niri bindet ausserdem dms/cursor.kdl ein -- die Datei ist LEER."
@@ -137,51 +123,20 @@ cursor_status() {
 
 cursor_set() {
     local thema="$1" groesse="${2:-}"
-    cursor_themes | grep -qx "$thema" || {
+    bash "$CURSOR_TOOL" list | grep -q "\"$thema\"" || {
         echo "Unbekanntes Zeigerthema: $thema" >&2
         echo "Da waeren:" >&2
-        cursor_themes | sed 's/^/  /' >&2
+        bash "$CURSOR_TOOL" list | python3 -c 'import json,sys; [print("  "+t) for t in json.load(sys.stdin)]' >&2
         return 1
     }
-    if [ -z "$groesse" ]; then
-        groesse="$(awk '/xcursor-size/ {print $2}' "$NIRI_DIR/$CURSOR" 2>/dev/null)"
-        [ -n "$groesse" ] || groesse="${XCURSOR_SIZE:-24}"
+    "$0" set cursorTheme "$thema" >/dev/null
+    if [ -n "$groesse" ]; then
+        case "$groesse" in
+            ''|*[!0-9]*) echo "Groesse muss eine Zahl sein: $groesse" >&2; return 1 ;;
+        esac
+        "$0" set cursorSize "$groesse" >/dev/null
     fi
-    case "$groesse" in
-        ''|*[!0-9]*) echo "Groesse muss eine Zahl sein: $groesse" >&2; return 1 ;;
-    esac
-
-    mkdir -p "$NIRI_DIR"
-    cat > "$NIRI_DIR/$CURSOR" <<KDL
-// Von nbshell geschrieben -- \`nbshell cursor\` aendert diese Datei.
-cursor {
-    xcursor-theme "$thema"
-    xcursor-size $groesse
-}
-KDL
-
-    local cfg="$NIRI_DIR/config.kdl"
-    if ! grep -qF "$CURSOR_LINE" "$cfg"; then
-        cp "$cfg" "$cfg.vor-cursor"
-        printf '\n// Mauszeiger, von nbshell verwaltet\n%s\n' "$CURSOR_LINE" >> "$cfg"
-        if ! niri validate >/dev/null 2>&1; then
-            mv "$cfg.vor-cursor" "$cfg"
-            echo "niri-Config waere ungueltig geworden -- zurueckgenommen." >&2
-            return 1
-        fi
-        echo "  niri: $CURSOR_LINE eingetragen (Sicherung: config.kdl.vor-cursor)"
-    fi
-    # GTK fragt nicht niri, sondern gsettings. Ohne diesen Teil behielten
-    # Dateidialoge, nautilus und alles andere auf GTK-Basis den alten Zeiger --
-    # und man haette einen halben Wechsel, der genau dort auffaellt, wo man ihn
-    # am wenigsten erwartet.
-    if command -v gsettings >/dev/null 2>&1; then
-        gsettings set org.gnome.desktop.interface cursor-theme "$thema" 2>/dev/null || true
-        gsettings set org.gnome.desktop.interface cursor-size "$groesse" 2>/dev/null || true
-        echo "  gtk:  cursor-theme = $thema, cursor-size = $groesse"
-    fi
-
-    echo "Zeiger: $thema, $groesse px"
+    echo "Zeiger: $thema${groesse:+, $groesse px}"
     echo "Gilt sofort fuer neue Fenster; laufende Programme behalten ihren."
 }
 
