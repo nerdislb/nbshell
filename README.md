@@ -1929,6 +1929,17 @@ deshalb ab — `Mod+P` holt sie zurück, `Esc` gibt sie wieder her und lässt da
 Fenster stehen. Und weil es dann keine Tasten mehr annimmt, muss das Lösen mit
 der Maus gehen: dafür die Marke unten rechts.
 
+**Verschoben wird angeheftet an der Kopfzeile**, ohne Modifikator. `Mod`+ziehen
+funktioniert dort nämlich nicht — und das ist kein Fehler, sondern eine Folge:
+ohne Tastaturfokus schickt der Kompositor dem Fenster auch **keinen
+Modifikatorzustand** mehr, ein Zieh-Handler, der auf `Mod` wartet, kann also gar
+nicht auslösen. Die Kopfzeile ist ohnehin der Griff, den man an einem Fenster
+zuerst sucht.
+
+**Lösen lässt das Fenster stehen**, statt es wegzunehmen: sichtbar war es bis
+dahin über die Nadel, und ohne Zutun fiele es beim Lösen sofort weg. Wer die
+Nadel zieht, will es weiter sehen — jetzt eben mit Tastatur.
+
 **Ohne Maske wäre es unbenutzbar.** Das Fenster ist bildschirmgroß und nur der
 Kasten darin sichtbar; angeheftet läge sonst eine unsichtbare Fläche über allem,
 und man käme an kein Fenster darunter mehr heran. `mask: Region { item: kasten }`
@@ -1974,7 +1985,15 @@ Stelle, Länge und Lautstärke — dazu die nächsten drei aus der Warteschlange
 sofern wir sie kennen. Beide Balken sind auch hier bedienbar.
 
 Auf **Hover** statt auf Klick, weil es nichts auszuwählen gibt: man will es
-sehen, nicht bedienen (`popoutOnHover` an der Zelle). Die Zelle öffnet dabei
+sehen, nicht bedienen (`popoutOnHover` an der Zelle).
+
+Das hatte eine Nebenwirkung, die erst beim Benutzen auffiel: **die Knöpfe in der
+Leiste ließen sich nicht mehr drücken.** Ein Popout macht die Zelle anklickbar,
+und ihre Mausfläche liegt über dem Inhalt — sie schluckte jeden Druck auf die
+Wiedergabetasten. Sie abzuschalten wäre die falsche Lösung gewesen, denn damit
+fiele auch das Überfahren weg und das Popout ginge nie wieder auf. Zellen mit
+Hover-Popout nehmen deshalb `Qt.NoButton`: die Drücker fallen durch, das Hovern
+bleibt. Die Zelle öffnet dabei
 nur — geschlossen wird nicht von ihr, denn das Popout hat dafür seinen eigenen
 Nachlauf und weiß auch, ob der Zeiger inzwischen **in** ihm steht. Ein
 Schließen von der Zelle aus nähme es genau in dem Moment weg, in dem man

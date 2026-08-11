@@ -50,7 +50,13 @@ PanelWindow {
     readonly property bool pinned: Config.value("musicPinned", false)
 
     function anheften() {
-        Config.set("musicPinned", !root.pinned);
+        const jetzt = !root.pinned;
+        Config.set("musicPinned", jetzt);
+        // Loesen darf das Fenster nicht wegnehmen: sichtbar war es bis eben
+        // ueber `pinned`, und ohne das hier fiele `visible` sofort auf falsch.
+        // Wer die Nadel zieht, will es weiter sehen -- jetzt eben mit Tastatur.
+        if (!jetzt)
+            Runtime.musicOpen = true;
     }
 
     // Auf welcher Zeile eine Loeschfrage offen steht (-1 = keine).
@@ -367,6 +373,25 @@ PanelWindow {
                 PanelHead {
                     rowWidth: kasten.width - Theme.cellW * 2
                     icon: Icons.play
+
+                    // Ziehen an der Kopfzeile, ohne Modifikator.
+                    //
+                    // Angeheftet nimmt das Fenster die Tastatur nicht mehr an
+                    // -- und ohne Tastaturfokus schickt der Kompositor ihm auch
+                    // KEINEN Modifikatorzustand mehr. Ein DragHandler, der auf
+                    // Mod wartet, kann dort also gar nicht ausloesen. Die
+                    // Kopfzeile ist ohnehin der Griff, den man an einem Fenster
+                    // zuerst sucht.
+                    DragHandler {
+                        target: kasten
+
+                        xAxis.minimum: 0
+                        xAxis.maximum: root.width - kasten.width
+                        yAxis.minimum: 0
+                        yAxis.maximum: root.height - kasten.height
+
+                        cursorShape: Qt.ClosedHandCursor
+                    }
                     title: root.query !== "" ? "Suche: " + root.query : (Music.listName || "Mediathek")
                     subtitle: "YouTube Music"
                     badge: Music.busy ? "…" : String(root.shown.length)

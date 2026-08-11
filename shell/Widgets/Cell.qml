@@ -55,6 +55,8 @@ Item {
     // Popouts gehen sonst erst auf Klick auf. Fuer Bausteine, die nur etwas
     // ZEIGEN und nichts zu bedienen haben, ist das eine Bedienung zu viel.
     property bool popoutOnHover: false
+
+    readonly property bool nimmtKlicks: root.interactive || (root.popout !== null && !root.popoutOnHover)
     property bool popoutTakesKeyboard: false
     property bool active: false
     property alias hovered: mouse.containsMouse
@@ -69,6 +71,16 @@ Item {
     signal wheel(int delta)
 
     readonly property bool clickable: interactive || popout !== null
+
+    // Nimmt die Zelle SELBST Klicks an?
+    //
+    // Nicht, wenn ihr Popout schon beim Ueberfahren aufgeht: dann hat ihr
+    // Inhalt eigene Knoepfe (die Wiedergabetasten), und die Mausflaeche der
+    // Zelle liegt darueber -- sie schluckte jeden Druck darauf.
+    //
+    // `enabled: false` waere die falsche Loesung: damit fiele auch das
+    // Ueberfahren weg, und das Popout ginge nie wieder auf. `Qt.NoButton`
+    // laesst die Druecker durch und behaelt das Hovern.
 
     // Damit ein Baustein mitbekommt, wenn der Kompositor das Popout von sich
     // aus geschlossen hat -- sonst denkt ein Tastenkuerzel, es sei noch offen,
@@ -267,8 +279,8 @@ Item {
         anchors.fill: parent
         enabled: root.clickable
         hoverEnabled: true
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
-        cursorShape: root.clickable ? Qt.PointingHandCursor : Qt.ArrowCursor
+        acceptedButtons: root.nimmtKlicks ? (Qt.LeftButton | Qt.RightButton) : Qt.NoButton
+        cursorShape: root.nimmtKlicks ? Qt.PointingHandCursor : Qt.ArrowCursor
         onClicked: mouseEvent => {
             if (mouseEvent.button === Qt.RightButton) {
                 root.rightClicked();

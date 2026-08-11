@@ -45,8 +45,12 @@ Scope {
 
         // Angeheftet bleibt das Fenster stehen und gibt die Tastatur ab.
         function pin(): string {
-            Config.set("musicPinned", !Config.value("musicPinned", false));
-            return Config.value("musicPinned", false) ? "angeheftet" : "geloest";
+            const jetzt = !Config.value("musicPinned", false);
+            Config.set("musicPinned", jetzt);
+            // Wie im Fenster: Loesen laesst es stehen, statt es wegzunehmen.
+            if (!jetzt)
+                Runtime.musicOpen = true;
+            return jetzt ? "angeheftet" : "geloest, bleibt offen";
         }
 
         function stop(): string {
