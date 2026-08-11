@@ -926,6 +926,30 @@ davor, wie bei allen anderen Eingriffen in die niri-Config. niri exportiert
 Thema und Groesse an alles, was es startet (`XCURSOR_THEME`, `XCURSOR_SIZE`);
 laufende Programme behalten ihren Zeiger.
 
+**GTK zieht mit.** Dateidialoge, nautilus und alles andere auf GTK-Basis
+fragen nicht niri, sondern gsettings -- ohne diesen Teil haette man einen
+halben Wechsel, der genau dort auffaellt, wo man ihn am wenigsten erwartet.
+
+### Ein Theme dazuholen
+
+Ein Zeigerthema ist nur ein Verzeichnis mit Bilddateien, kein Programm. Es
+gehoert nach `~/.local/share/icons/<Name>/` und steht danach sofort zur Wahl --
+nichts wird installiert, nichts gestartet, kein sudo.
+
+So kamen die macOS-Zeiger hierher (`apple_cursor`, GPL-3.0):
+
+```bash
+curl -LO https://github.com/ful1e5/apple_cursor/releases/latest/download/macOS.tar.xz
+tar -tJf macOS.tar.xz | head            # erst hineinsehen
+tar -xJf macOS.tar.xz -C ~/.local/share/icons --strip-components=1
+nbshell cursor macOS 24
+```
+
+Das Archiv enthaelt ausser `.theme`-Dateien nur Zeigerbilder und relative
+Verweise (`arrow -> left_ptr`) -- keine Skripte, keine absoluten Pfade. Das ist
+der Grund, warum man es guten Gewissens von Hand auspacken kann, statt ein
+AUR-Paket bauen zu lassen, das dafuer ein PKGBUILD ausfuehren wuerde.
+
 `nbshell cursor` ohne Argumente meldet nebenbei ein Erbstueck, falls es da ist:
 `dms/cursor.kdl` wird von der niri-Config eingebunden, ist aber **0 Bytes
 gross**. Es tut nichts -- aber zwei Stellen fuer dieselbe Sache sind eine zu

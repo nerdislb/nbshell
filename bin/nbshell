@@ -121,6 +121,9 @@ cursor_status() {
         printf 'Thema     %s (aus der Umgebung, nicht von nbshell)\n' "${XCURSOR_THEME:-unbekannt}"
         printf 'Groesse   %s\n' "${XCURSOR_SIZE:-unbekannt}"
     fi
+    if command -v gsettings >/dev/null 2>&1; then
+        printf 'GTK       %s, %s px\n' "$(gsettings get org.gnome.desktop.interface cursor-theme 2>/dev/null | tr -d "'")" "$(gsettings get org.gnome.desktop.interface cursor-size 2>/dev/null)"
+    fi
     echo
     echo "Installiert:"
     cursor_themes | sed 's/^/  /'
@@ -168,6 +171,16 @@ KDL
         fi
         echo "  niri: $CURSOR_LINE eingetragen (Sicherung: config.kdl.vor-cursor)"
     fi
+    # GTK fragt nicht niri, sondern gsettings. Ohne diesen Teil behielten
+    # Dateidialoge, nautilus und alles andere auf GTK-Basis den alten Zeiger --
+    # und man haette einen halben Wechsel, der genau dort auffaellt, wo man ihn
+    # am wenigsten erwartet.
+    if command -v gsettings >/dev/null 2>&1; then
+        gsettings set org.gnome.desktop.interface cursor-theme "$thema" 2>/dev/null || true
+        gsettings set org.gnome.desktop.interface cursor-size "$groesse" 2>/dev/null || true
+        echo "  gtk:  cursor-theme = $thema, cursor-size = $groesse"
+    fi
+
     echo "Zeiger: $thema, $groesse px"
     echo "Gilt sofort fuer neue Fenster; laufende Programme behalten ihren."
 }
