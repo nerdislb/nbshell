@@ -813,10 +813,19 @@ Die Takeover-Datei biegt inzwischen alles um, was nbshell kann:
 | `Mod+Comma` | settings | Optionsmenue |
 | `Mod+Y` | Wallpaper-Browser | Hintergrund-Karussell |
 | `Mod+Alt+L` | lock | `lockCommand` (Vorgabe hyprlock) |
+| `XF86MonBrightnessUp/Down` | brightness | nbshells Helligkeitsdienst |
 | `XF86AudioPlay/Next/Prev` | mpris | MPRIS-Anbindung |
 | `Mod+T` | — | Aufgabenliste (kein DMS-Erbe, war frei) |
 
-**Was tot bleibt**, weil nbshell es nicht hat: `Mod+Shift+N` (Notizblock).
+**Was tot bleibt**, weil nbshell es nicht hat: `Mod+Shift+N` (Notizblock),
+`Mod+Shift+W` (Fensterregeln), `Ctrl+Shift+R` (Arbeitsflaeche umbenennen) und
+`Ctrl`+Lautstaerke (Lautstaerke des Players statt der Anlage). Alle vier stehen
+in `dms/binds.kdl` und zeigen auf ein abgeschaltetes DMS -- sie tun nichts,
+kosten aber auch nichts.
+
+**Die Helligkeitstasten waren monatelang genau so tot** und niemandem
+aufgefallen: eine Taste, die nichts tut, meldet sich ja nicht. Gefunden hat sie
+erst das Durchzaehlen der DMS-Altlasten.
 
 **Achtung Sperrbildschirm:** auf diesem Rechner ist *keiner* installiert.
 `nbshell power lock` sagt das per Benachrichtigung, statt still nichts zu tun --

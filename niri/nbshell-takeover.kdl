@@ -54,6 +54,15 @@ binds {
     // DMS: lock -> der Sperrbildschirm aus lockCommand (Vorgabe hyprlock).
     Mod+Alt+L hotkey-overlay-title="nbshell: Sperren" { spawn "sh" "-c" "$HOME/.local/bin/nbshell power lock"; }
 
+    // DMS: brightness -> nbshells Helligkeitsdienst.
+    //
+    // Diese beiden waren nach dem Umstieg TOT: dms/binds.kdl legt sie auf
+    // `dms ipc brightness`, und DMS ist maskiert. Aufgefallen ist es erst beim
+    // Durchzaehlen der Altlasten -- eine Taste, die nichts tut, meldet sich ja
+    // nicht.
+    XF86MonBrightnessUp   allow-when-locked=true { spawn "sh" "-c" "$HOME/.local/bin/nbshell brightness up"; }
+    XF86MonBrightnessDown allow-when-locked=true { spawn "sh" "-c" "$HOME/.local/bin/nbshell brightness down"; }
+
     // DMS: mpris -> nbshells MPRIS-Anbindung.
     XF86AudioPlay  allow-when-locked=true { spawn "sh" "-c" "$HOME/.local/bin/nbshell media playpause"; }
     XF86AudioPause allow-when-locked=true { spawn "sh" "-c" "$HOME/.local/bin/nbshell media playpause"; }
