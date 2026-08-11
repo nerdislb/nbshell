@@ -34,6 +34,9 @@ PanelWindow {
     property string query: ""
     property bool typing: false
 
+    // Auf welcher Zeile eine Loeschfrage offen steht (-1 = keine).
+    property int loeschFrage: -1
+
     readonly property var shown: Music.shown
 
     // Der Kasten und was hineinpasst. Die Zeilenzahl wird GERECHNET, nicht
@@ -95,6 +98,8 @@ PanelWindow {
 
     onListSelChanged: if (root.visible)
         blaettern.restart()
+
+    onTrackSelChanged: root.loeschFrage = -1
 
     // Beim allerersten Oeffnen sind die Playlists noch unterwegs. Sobald sie
     // da sind, wird die erste gleich mitgeladen -- sonst bliebe die rechte
@@ -203,6 +208,30 @@ PanelWindow {
                 break;
             case Qt.Key_Minus:
                 MediaService.setVolume(MediaService.volume - 0.05);
+                break;
+            case Qt.Key_D:
+            case Qt.Key_Delete:
+                // Zweimal druecken. Ein Titel ist schnell weg und muss dann
+                // von Hand wiedergefunden werden -- das ist die Sorte
+                // Aktion, die eine Rueckfrage verdient, aber keinen Dialog.
+                if (root.inTracks && root.query === "" && Music.listId !== "") {
+                    if (root.loeschFrage === root.trackSel) {
+                        Music.entfernen(Music.listId, root.shown[root.trackSel]);
+                        root.loeschFrage = -1;
+                    } else {
+                        root.loeschFrage = root.trackSel;
+                    }
+                }
+                break;
+            case Qt.Key_A:
+                // Aus der Suche in die links gewaehlte Playlist. Genau
+                // andersherum gedacht als das Loeschen: links steht das Ziel,
+                // rechts das, was hinein soll.
+                if (root.inTracks && root.shown[root.trackSel]) {
+                    const ziel = Music.playlists[root.listSel];
+                    if (ziel)
+                        Music.hinzufuegen(ziel.id, root.shown[root.trackSel]);
+                }
                 break;
             case Qt.Key_S:
                 Music.toggleShuffle();
@@ -520,8 +549,16 @@ PanelWindow {
                 // wie er will.
                 elide: Text.ElideRight
 
-                text: root.typing ? "Suche: " + root.query + "█   Enter sucht · Esc verwirft" : "↑↓ wählen · Tab Spalte · Enter spielt · / suchen · Leertaste Pause · +/− Lautstärke · S Zufall" + (Music.shuffle ? " [an]" : "") + " · Mod+ziehen · Esc zurück"
-                color: Theme.muted
+                text: {
+                    if (root.typing)
+                        return "Suche: " + root.query + "█   Enter sucht · Esc verwirft";
+                    if (root.loeschFrage >= 0)
+                        return "„" + (root.shown[root.loeschFrage]?.titel ?? "") + "“ aus der Playlist entfernen? Noch einmal D drückt zu.";
+                    if (Music.aktion !== "")
+                        return Music.aktion;
+                    return "↑↓ wählen · Enter spielt · / suchen · A hinzufügen · D entfernen · S Zufall" + (Music.shuffle ? " [an]" : "") + " · +/− Ton · Esc zurück";
+                }
+                color: root.loeschFrage >= 0 ? Theme.yellow : (Music.aktion.indexOf("ging nicht") === 0 ? Theme.red : Theme.muted)
             }
         }
     }

@@ -1876,6 +1876,8 @@ Tastatur, weil man beim Musikhören selten die Maus in der Hand hat.
 | `/` | suchen (Enter sucht, Esc verwirft) |
 | `Leertaste` | Pause |
 | `+` `−` | Lautstärke |
+| `A` | den Titel rechts in die **links gewählte** Playlist legen |
+| `D` | den Titel aus der offenen Playlist entfernen (zweimal drücken) |
 | `S` | Zufall an und aus |
 | `F5` | Playlists neu holen |
 | `Esc` | zurück in die Playlists, dann zu |
@@ -1907,6 +1909,28 @@ schnellen Blättern läuft die Antwort der Auswahl hinterher, und ohne ihn lande
 die Titel der vorletzten Liste in einer Ansicht, die längst eine andere zeigt.
 Der Fehler zeigt sich nur bei genau der richtigen Geschwindigkeit.
 
+### Playlists bearbeiten
+
+`A` legt ab, `D` nimmt heraus — und die beiden sind **entgegengesetzt gedacht**:
+Beim Entfernen ist die offene Playlist gemeint, in der der Titel steht. Beim
+Hinzufügen steht links das Ziel und rechts (meist ein Suchtreffer) das, was
+hinein soll. So braucht das Ablegen keinen zweiten Auswahlschritt.
+
+`D` fragt einmal nach: ein Titel ist schnell weg und muss dann von Hand
+wiedergefunden werden. Ein zweites `D` führt aus, jede Bewegung verwirft die
+Frage. Kein Dialog — die Frage steht in der Fußzeile.
+
+**Entfernen braucht die `setVideoId`**, nicht nur die Video-ID: dieselbe
+Aufnahme kann mehrfach in einer Playlist stehen, und ohne sie wüsste YouTube
+nicht, welche gemeint ist. Sie steht in jedem Titel als `slot`.
+
+Nach jeder Änderung wird der Zwischenspeicher **dieser** Playlist verworfen und
+sie neu geholt: die Antwort enthält neue `setVideoId`s, und mit den alten
+schlüge das nächste Entfernen fehl.
+
+Geprüft wurde der volle Kreis an einer eigens angelegten Playlist — anlegen,
+hinzufügen, entfernen, löschen — nicht an einer echten.
+
 ### Die Player-Leiste
 
 Unten im Fenster: Symbol, Interpret — Titel, Stelle, Balken, Länge, dann `VOL`
@@ -1917,6 +1941,22 @@ Regler zu bauen.
 MPRIS meldet die Position **nicht von selbst**; sie ist eine Eigenschaft, die
 man abfragt, sonst steht die Anzeige still. Sie wird einmal je Sekunde neu
 eingelesen — und nur, solange etwas spielt.
+
+### Beim Überfahren zeigen, was läuft
+
+Die Maus über die Knöpfe oder den Ausschlag: ein Popout mit Titel, Interpret,
+Stelle, Länge und Lautstärke — dazu die nächsten drei aus der Warteschlange,
+sofern wir sie kennen. Beide Balken sind auch hier bedienbar.
+
+Auf **Hover** statt auf Klick, weil es nichts auszuwählen gibt: man will es
+sehen, nicht bedienen (`popoutOnHover` an der Zelle). Die Zelle öffnet dabei
+nur — geschlossen wird nicht von ihr, denn das Popout hat dafür seinen eigenen
+Nachlauf und weiß auch, ob der Zeiger inzwischen **in** ihm steht. Ein
+Schließen von der Zelle aus nähme es genau in dem Moment weg, in dem man
+hineinfährt.
+
+Gefüllt wird aus MPRIS, also steht dort auch etwas, wenn die Musik aus dem
+Browser kommt.
 
 ### Die Knöpfe in der Leiste
 
@@ -2023,8 +2063,6 @@ geänderte Werte überleben den nächsten Start nicht.
 
 ### Noch offen
 
-- Playlists **bearbeiten** — das Skript kann Titel hinzufügen und entfernen,
-  im Fenster liegt noch keine Taste darauf.
 - **Der Mediendienst nimmt den Player, der gerade spielt** — läuft nebenher ein
   Video im Browser, gewinnt der. Für den Musikbaustein müsste gezielt die
   eigene mpv-Instanz gefragt werden, nicht „irgendwer".

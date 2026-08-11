@@ -202,6 +202,69 @@ Singleton {
         }
     }
 
+    // ── Playlists bearbeiten ─────────────────────────────────────────────
+    //
+    // Nach jeder Aenderung wird der Zwischenspeicher DIESER Playlist verworfen
+    // und sie neu geholt: die Antwort von YouTube enthaelt neue `setVideoId`s,
+    // und mit den alten schluege das naechste Entfernen fehl.
+
+    property string aktion: ""
+
+    function entfernen(playlistId, titel) {
+        if (!playlistId || !titel || !titel.slot) {
+            root.aktion = "geht hier nicht — kein Platz in einer Playlist";
+            return;
+        }
+        root.aktion = "entferne " + titel.titel + " …";
+        bearbeiter.command = ["python3", root.script, "remove", playlistId, titel.id, titel.slot];
+        root.aendert = playlistId;
+        bearbeiter.running = true;
+    }
+
+    function hinzufuegen(playlistId, titel) {
+        if (!playlistId || !titel) {
+            root.aktion = "wohin?";
+            return;
+        }
+        root.aktion = "lege " + titel.titel + " ab …";
+        bearbeiter.command = ["python3", root.script, "add", playlistId, titel.id];
+        root.aendert = playlistId;
+        bearbeiter.running = true;
+    }
+
+    property string aendert: ""
+
+    Process {
+        id: bearbeiter
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text);
+                    root.aktion = d.ok ? "erledigt" : ("ging nicht: " + d.grund);
+                } catch (e) {
+                    root.aktion = "Antwort unlesbar";
+                }
+                if (root.aendert !== "") {
+                    const c = root.cache;
+                    delete c[root.aendert];
+                    root.cache = c;
+                    if (root.listId === root.aendert)
+                        root.hole(root.aendert);
+                    root.aendert = "";
+                }
+                quittung.restart();
+            }
+        }
+    }
+
+    Timer {
+        id: quittung
+
+        interval: 4000
+        onTriggered: root.aktion = ""
+    }
+
     // ── mpv ──────────────────────────────────────────────────────────────
 
     // mpv laeuft LOSGELOEST, nicht als Kind der Shell.
