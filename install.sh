@@ -63,6 +63,8 @@ missing_optional="$(
     optional_check jq            "Skripte"                   "jq"
     optional_check syncthing     "Aufgaben abgleichen"       "syncthing"
     optional_check headsetcontrol "Headset-Akku"             "headsetcontrol"
+    optional_check qrencode      "WLAN als QR-Code"          "qrencode"
+    optional_check speedtest-cli "Durchsatz messen"          "speedtest-cli"
 )"
 if [ -n "$missing_optional" ]; then
     printf '%s\n' "$missing_optional"

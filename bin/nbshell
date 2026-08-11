@@ -20,6 +20,8 @@ ipc() {
     "$QS" -c "$CONFIG_NAME" ipc call "$@"
 }
 
+warn() { printf '\033[33m%s\033[0m\n' "$1"; }
+
 # ── Umschalten zwischen DMS und nbshell ──────────────────────────────────
 #
 # Drei Dinge gehoeren zusammen, sonst ist der Zustand halb:
@@ -88,6 +90,86 @@ alacritty_theme() {
     cp "$ALACRITTY" "$ALACRITTY.vor-nbshell"
     sed -i "s#alacritty/\(nb\|dank\)-theme.toml#alacritty/$want#" "$ALACRITTY"
     echo "  alacritty: import = $want (Sicherung: alacritty.toml.vor-nbshell)"
+}
+
+# ── Mauszeiger ───────────────────────────────────────────────────────────
+#
+# niri setzt Thema und Groesse des Zeigers -- und exportiert beides an alles,
+# was es startet (XCURSOR_THEME/XCURSOR_SIZE). Geschrieben wird dafuer eine
+# eigene Datei neben den anderen nbshell-Includes, nicht die config.kdl selbst.
+#
+# Nebenbei faellt dabei ein Erbstueck auf: `dms/cursor.kdl` ist 0 Bytes gross
+# und wird trotzdem eingebunden. Es tut nichts -- gemeldet wird es hier
+# trotzdem, denn zwei Stellen fuer dieselbe Sache sind eine zu viel.
+CURSOR="nbshell-cursor.kdl"
+CURSOR_LINE="include \"$CURSOR\""
+
+cursor_themes() {
+    local d
+    for d in /usr/share/icons/*/cursors "$HOME"/.icons/*/cursors "$HOME"/.local/share/icons/*/cursors; do
+        [ -d "$d" ] || continue
+        basename "$(dirname "$d")"
+    done | sort -u
+}
+
+cursor_status() {
+    local datei="$NIRI_DIR/$CURSOR"
+    if [ -f "$datei" ]; then
+        printf 'Thema     %s\n' "$(awk -F'"' '/xcursor-theme/ {print $2}' "$datei")"
+        printf 'Groesse   %s\n' "$(awk '/xcursor-size/ {print $2}' "$datei")"
+    else
+        printf 'Thema     %s (aus der Umgebung, nicht von nbshell)\n' "${XCURSOR_THEME:-unbekannt}"
+        printf 'Groesse   %s\n' "${XCURSOR_SIZE:-unbekannt}"
+    fi
+    echo
+    echo "Installiert:"
+    cursor_themes | sed 's/^/  /'
+    if [ -f "$NIRI_DIR/dms/cursor.kdl" ] && [ ! -s "$NIRI_DIR/dms/cursor.kdl" ]; then
+        echo
+        warn "niri bindet ausserdem dms/cursor.kdl ein -- die Datei ist LEER."
+        warn "Ein Erbstueck von DMS. Es tut nichts; wer aufraeumen will, nimmt"
+        warn "die include-Zeile aus der config.kdl."
+    fi
+}
+
+cursor_set() {
+    local thema="$1" groesse="${2:-}"
+    cursor_themes | grep -qx "$thema" || {
+        echo "Unbekanntes Zeigerthema: $thema" >&2
+        echo "Da waeren:" >&2
+        cursor_themes | sed 's/^/  /' >&2
+        return 1
+    }
+    if [ -z "$groesse" ]; then
+        groesse="$(awk '/xcursor-size/ {print $2}' "$NIRI_DIR/$CURSOR" 2>/dev/null)"
+        [ -n "$groesse" ] || groesse="${XCURSOR_SIZE:-24}"
+    fi
+    case "$groesse" in
+        ''|*[!0-9]*) echo "Groesse muss eine Zahl sein: $groesse" >&2; return 1 ;;
+    esac
+
+    mkdir -p "$NIRI_DIR"
+    cat > "$NIRI_DIR/$CURSOR" <<KDL
+// Von nbshell geschrieben -- \`nbshell cursor\` aendert diese Datei.
+cursor {
+    xcursor-theme "$thema"
+    xcursor-size $groesse
+}
+KDL
+
+    local cfg="$NIRI_DIR/config.kdl"
+    if ! grep -qF "$CURSOR_LINE" "$cfg"; then
+        cp "$cfg" "$cfg.vor-cursor"
+        printf '\n// Mauszeiger, von nbshell verwaltet\n%s\n' "$CURSOR_LINE" >> "$cfg"
+        if ! niri validate >/dev/null 2>&1; then
+            mv "$cfg.vor-cursor" "$cfg"
+            echo "niri-Config waere ungueltig geworden -- zurueckgenommen." >&2
+            return 1
+        fi
+        echo "  niri: $CURSOR_LINE eingetragen (Sicherung: config.kdl.vor-cursor)"
+    fi
+    echo "Zeiger: $thema, $groesse px"
+    echo "Gilt sofort fuer neue Fenster; laufende Programme behalten ihren."
 }
 
 # ── Schriftgroesse in einem Zug ──────────────────────────────────────────
@@ -437,6 +519,9 @@ nbshell -- eigene Shell auf Quickshell
   nbshell idle              Stand der Leerlauf-Automatik
   nbshell idle on|off       Automatik ein- oder ausschalten
 
+  nbshell cursor            Zeigerthema und -groesse, und was installiert ist
+  nbshell cursor Adwaita 28 beides setzen (Groesse ist freiwillig)
+
   nbshell text              welche Schriftgroessen gerade gelten
   nbshell text <8..28>      Shell, GTK und Terminal zusammen umstellen
 
@@ -536,6 +621,13 @@ case "$cmd" in
             off) switch_off ;;
             *) switch_status ;;
         esac
+        ;;
+    cursor|zeiger)
+        if [ $# -eq 0 ]; then
+            cursor_status
+        else
+            cursor_set "$@"
+        fi
         ;;
     text)
         text_size "${1:-}"

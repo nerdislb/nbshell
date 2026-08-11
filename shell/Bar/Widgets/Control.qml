@@ -1,4 +1,6 @@
 import QtQuick
+import Quickshell
+import Quickshell.Io
 import Quickshell.Networking
 import qs.Common
 import qs.Services
@@ -71,6 +73,62 @@ Cell {
                 repeat: true
                 running: Net.scanning || Bt.discovering
                 onTriggered: panel.spinIndex++
+            }
+
+            // ── QR-Code des WLANs ────────────────────────────────────────
+            // Der Code kommt als TEXT aus qrencode und wird hier gezeigt wie
+            // jede andere Zeile auch -- ein Popout aus Zeichen braucht kein
+            // Bild. Solange er offen ist, tritt die Netzliste zurueck: beides
+            // uebereinander waere eine Rolltreppe.
+            property string qrText: ""
+
+            Process {
+                id: qrProc
+
+                stdout: StdioCollector {
+                    onStreamFinished: panel.qrText = text
+                }
+            }
+
+            function zeigeQr() {
+                if (panel.qrText !== "") {
+                    panel.qrText = "";
+                    return;
+                }
+                panel.qrText = "…";
+                qrProc.command = ["bash", Qt.resolvedUrl("../../scripts/wifi-qr.sh").toString().replace("file://", "")];
+                qrProc.running = true;
+            }
+
+            // ── Durchsatz ────────────────────────────────────────────────
+            property var speed: null
+            property bool measuring: false
+
+            Process {
+                id: speedProc
+
+                stdout: StdioCollector {
+                    onStreamFinished: {
+                        panel.measuring = false;
+                        try {
+                            panel.speed = JSON.parse(text);
+                        } catch (e) {
+                            panel.speed = ({
+                                    "ok": false,
+                                    "grund": "Antwort unlesbar"
+                                });
+                        }
+                    }
+                }
+            }
+
+            function messen() {
+                if (panel.measuring)
+                    return;
+                panel.measuring = true;
+                panel.speed = null;
+                speedProc.command = ["bash", Qt.resolvedUrl("../../scripts/speedtest.sh").toString().replace("file://", "")];
+                speedProc.running = true;
             }
 
             component Heading: Text {
@@ -191,6 +249,20 @@ Cell {
                     spacing: Theme.cellW * 2
 
                     Action {
+                        visible: Net.online
+                        on: panel.measuring
+                        text: panel.measuring ? ("[ " + panel.spin + " misst ]") : "[ speed ]"
+                        onTriggered: panel.messen()
+                    }
+
+                    Action {
+                        visible: Net.activeWifi !== null
+                        on: panel.qrText !== ""
+                        text: "[ qr ]"
+                        onTriggered: panel.zeigeQr()
+                    }
+
+                    Action {
                         visible: Net.wifiEnabled
                         text: Net.scanning ? ("[ " + panel.spin + " sucht ]") : "[ suchen ]"
                         onTriggered: Net.rescan()
@@ -204,10 +276,61 @@ Cell {
                 }
             }
 
+            Facts {
+                rowWidth: panel.rowWidth
+                visible: panel.speed !== null && panel.speed.ok === true
+                pairs: (panel.speed && panel.speed.ok) ? [
+                    {
+                        "label": "Ping",
+                        "value": panel.speed.ping + " ms"
+                    },
+                    {
+                        "label": "Gegenstelle",
+                        "value": String(panel.speed.server)
+                    },
+                    {
+                        "label": "Herunterladen",
+                        "value": panel.speed.down + " Mbit/s",
+                        "color": Theme.green
+                    },
+                    {
+                        "label": "Hochladen",
+                        "value": panel.speed.up + " Mbit/s"
+                    }
+                ] : []
+            }
+
+            Text {
+                width: panel.rowWidth
+                visible: panel.speed !== null && panel.speed.ok !== true
+                text: "  " + (panel.speed ? panel.speed.grund : "")
+                color: Theme.muted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize
+                renderType: Text.NativeRendering
+                wrapMode: Text.WordWrap
+            }
+
+            // Der Code selbst. Halbblockzeichen, deshalb `lineHeight` unter 1:
+            // mit dem normalen Zeilenabstand stehen zwischen den Reihen weisse
+            // Streifen, und keine Kamera erkennt ihn mehr.
+            Text {
+                visible: panel.qrText !== ""
+                text: panel.qrText
+                color: Theme.fgBright
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize
+                lineHeight: 0.85
+                lineHeightMode: Text.ProportionalHeight
+                renderType: Text.NativeRendering
+                horizontalAlignment: Text.AlignHCenter
+                width: panel.rowWidth
+            }
+
             // Leere Liste heisst nicht "kaputt" -- meistens heisst es, dass
             // noch niemand gesucht hat.
             Text {
-                visible: Net.wifiEnabled && Net.wifiNetworks.length === 0
+                visible: panel.qrText === "" && Net.wifiEnabled && Net.wifiNetworks.length === 0
                 text: Net.scanning ? "  sucht …" : "  nichts gefunden — [ suchen ]"
                 color: Theme.fgDim
                 font.family: Theme.fontFamily
@@ -216,7 +339,7 @@ Cell {
             }
 
             Repeater {
-                model: Net.wifiEnabled ? Net.wifiNetworks.slice(0, 8) : []
+                model: (panel.qrText === "" && Net.wifiEnabled) ? Net.wifiNetworks.slice(0, 8) : []
 
                 Column {
                     id: entry

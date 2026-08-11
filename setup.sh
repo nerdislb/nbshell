@@ -111,7 +111,9 @@ PKG_SYSTEM=(networkmanager bluez bluez-utils pipewire pipewire-pulse wireplumber
 #                  Rechte will. polkitd selbst fragt NIEMANDEN -- ohne einen
 #                  Agenten in der Sitzung scheitert jede Anfrage still. Ein
 #                  Desktop bringt ihn mit, niri nicht.
-PKG_BAUSTEINE=(wl-clipboard hyprlock tuned libnotify xdg-utils pacman-contrib fakeroot headsetcontrol hyprpolkitagent)
+#   qrencode       WLAN als QR-Code im Control Center
+#   speedtest-cli  Durchsatz messen, ebenda
+PKG_BAUSTEINE=(wl-clipboard hyprlock tuned libnotify xdg-utils pacman-contrib fakeroot headsetcontrol hyprpolkitagent qrencode speedtest-cli)
 
 # Kalender: khal rechnet die Wiederholungen, vdirsyncer holt sie.
 PKG_KALENDER=(khal vdirsyncer)

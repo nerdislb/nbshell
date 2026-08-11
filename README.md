@@ -38,7 +38,7 @@ cd ~/projects/nbshell && ./setup.sh
 
 `setup.sh` macht der Reihe nach:
 
-1. **Pakete** -- die 34, die nbshell braucht
+1. **Pakete** -- die 36, die nbshell braucht
 2. **Dienste** -- NetworkManager, bluetooth, tuned (fragt, siehe unten)
 3. **Dotfiles** -- holt `dotfiles-dms`, zieht dessen Paketlisten nach
    (110 Repo- und 10 AUR-Pakete) und spielt mit `restore.sh` niri, ghostty,
@@ -170,6 +170,8 @@ sondern ob die Befehle wirklich im PATH stehen. Das ist nicht dasselbe.
 | `satty`, `swappy` | Screenshots nachbearbeiten |
 | `tesseract` + Sprachdaten | Texterkennung |
 | `hyprpolkitagent` | das Fenster, das nach dem Passwort fragt (siehe „Rechteabfragen") |
+| `qrencode` | WLAN als QR-Code im Control Center |
+| `speedtest-cli` | Durchsatz messen, ebenda |
 | `headsetcontrol` | Akkustand im Headset-Plugin |
 | `syncthing` | Aufgabenliste mit dem Telefon abgleichen |
 
@@ -860,6 +862,48 @@ Alles laeuft ueber `systemctl` und `niri msg action quit`. Der
 Sperrbildschirm ist ein fremder (`lockCommand`, Vorgabe `hyprlock`) --
 nbshell baut absichtlich keinen eigenen: ein Fehler darin sperrt dich aus dem
 eigenen Rechner aus.
+
+### QR-Code und Durchsatz
+
+Zwei Knoepfe in der WLAN-Zeile des Control Centers, beide aus dem
+Plugin-Katalog uebernommen:
+
+- **`[ qr ]`** zeigt das verbundene Netz als QR-Code zum Abscannen. Der Code
+  kommt als **Text** aus `qrencode -t UTF8` und wird gezeigt wie jede andere
+  Zeile -- ein Popout aus Zeichen braucht kein Bild, das erst irgendwohin
+  geschrieben, geladen und wieder aufgeraeumt werden muesste. Solange er
+  steht, tritt die Netzliste zurueck; beides uebereinander waere eine
+  Rolltreppe. Der Zeilenabstand ist auf 0.85 gesetzt: mit dem normalen stehen
+  zwischen den Halbblockreihen weisse Streifen, und keine Kamera erkennt ihn
+  mehr.
+- **`[ speed ]`** misst Ping, Herunterladen und Hochladen. Bevorzugt wird
+  `speedtest-cli` aus `extra` und nicht Ooklas eigenes `speedtest` aus dem
+  AUR: letzteres will beim ersten Start eine Lizenz bestaetigt haben.
+
+Das Passwort fuer den QR-Code holt `nmcli -s`. Gehoert die Verbindung dem
+System und nicht dir, fragt dabei polkit nach -- dafuer gibt es den Agenten.
+Kommt keines zurueck, wird der Code trotzdem gebaut, und die Zeile darunter
+sagt, woran es lag.
+
+Fehlt eines der beiden Programme, sagt der Knopf das statt still zu bleiben.
+
+## Mauszeiger
+
+```bash
+nbshell cursor            # Thema, Groesse, und was installiert ist
+nbshell cursor Adwaita 28
+```
+
+Geschrieben wird `~/.config/niri/nbshell-cursor.kdl` und einmalig eine
+include-Zeile in die `config.kdl` -- mit Sicherung daneben und `niri validate`
+davor, wie bei allen anderen Eingriffen in die niri-Config. niri exportiert
+Thema und Groesse an alles, was es startet (`XCURSOR_THEME`, `XCURSOR_SIZE`);
+laufende Programme behalten ihren Zeiger.
+
+`nbshell cursor` ohne Argumente meldet nebenbei ein Erbstueck, falls es da ist:
+`dms/cursor.kdl` wird von der niri-Config eingebunden, ist aber **0 Bytes
+gross**. Es tut nichts -- aber zwei Stellen fuer dieselbe Sache sind eine zu
+viel, und wer aufraeumen will, weiss jetzt davon.
 
 ## Rechteabfragen (polkit)
 
