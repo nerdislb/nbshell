@@ -66,30 +66,42 @@ Cell {
 
                     Text {
                         text: Updates.checking ? "[ prueft … ]" : "[ neu pruefen ]"
-                        color: Theme.fgDim
+                        color: pruefenHover.hovered ? Theme.readable(Theme.accent, Theme.bg) : Theme.fgDim
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize
                         renderType: Text.NativeRendering
 
-                        MouseArea {
-                            anchors.fill: parent
+                        // HoverHandler + TapHandler statt MouseArea: eine
+                        // MouseArea nimmt das Ueberfahren fuer sich, der
+                        // HoverHandler in Popout.qml sieht es dann nicht mehr
+                        // und schliesst das Fenster waehrend man noch drin ist.
+                        HoverHandler {
+                            id: pruefenHover
+
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: Updates.refresh()
+                        }
+
+                        TapHandler {
+                            onTapped: Updates.refresh()
                         }
                     }
 
                     Text {
                         visible: Updates.count > 0
                         text: "[ aktualisieren ]"
-                        color: Theme.green
+                        color: aktualisierenHover.hovered ? Theme.readable(Theme.green, Theme.bg) : Theme.green
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize
                         renderType: Text.NativeRendering
 
-                        MouseArea {
-                            anchors.fill: parent
+                        HoverHandler {
+                            id: aktualisierenHover
+
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: {
+                        }
+
+                        TapHandler {
+                            onTapped: {
                                 Updates.update();
                                 if (panel.closePopout)
                                     panel.closePopout();
