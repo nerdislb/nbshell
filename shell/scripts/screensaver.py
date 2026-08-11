@@ -33,6 +33,7 @@ hingehoert wird.
 import os
 import random
 import re
+import select
 import shutil
 import signal
 import sys
@@ -98,6 +99,19 @@ def farbe(c, hell=1.0):
 AUS = "\033[0m"
 
 
+def zeig():
+    """Ausgabe rausschreiben, ohne daran zu scheitern.
+
+    Ein Terminal, das gerade nicht annimmt, ist ein Grund zu warten -- kein
+    Grund, den Bildschirmschoner zu beenden. (Der urspruengliche Absturz kam
+    von woanders, siehe `main`; das hier ist das Netz darunter.)
+    """
+    try:
+        sys.stdout.flush()
+    except BlockingIOError:
+        time.sleep(0.02)
+
+
 class Schirm:
     def __init__(self):
         self.w, self.h = shutil.get_terminal_size((80, 24))
@@ -138,7 +152,7 @@ def effekt_entschluesseln(s, akzent, fg, halt):
             s.setz(s.x0 + x, s.y0 + y, farbe(akzent, 0.5) + random.choice(ZAPPEL) + AUS)
         for (x, y), ch in fest.items():
             s.setz(s.x0 + x, s.y0 + y, farbe(akzent) + ch + AUS)
-        sys.stdout.flush()
+        zeig()
         time.sleep(0.045)
 
 
@@ -158,7 +172,7 @@ def effekt_regen(s, akzent, fg, halt):
                 unterwegs.remove(stueck)
             elif stueck[1] >= 0:
                 s.setz(s.x0 + x, stueck[1], farbe(fg, 0.5) + ch + AUS)
-        sys.stdout.flush()
+        zeig()
         time.sleep(0.02)
 
 
@@ -173,7 +187,7 @@ def effekt_fegen(s, akzent, fg, halt):
             d = spalte - x
             hell = 1.6 if d < 2 else (1.0 if d < 6 else 0.85)
             s.setz(s.x0 + x, s.y0 + y, farbe(akzent, hell) + ch + AUS)
-        sys.stdout.flush()
+        zeig()
         time.sleep(0.012)
 
 
@@ -187,10 +201,10 @@ def effekt_schreibmaschine(s, akzent, fg, halt):
                 s.setz(s.x0 + x, s.y0 + y, farbe(akzent) + zeile[x] + AUS)
             if x % 3 == 0:
                 s.setz(s.x0 + x + 1, s.y0 + y, farbe(fg, 1.4) + "▌" + AUS)
-                sys.stdout.flush()
+                zeig()
                 time.sleep(0.004)
                 s.setz(s.x0 + x + 1, s.y0 + y, " ")
-        sys.stdout.flush()
+        zeig()
 
 
 def ruhe(s, akzent, fg, halt, sekunden):
@@ -206,7 +220,7 @@ def ruhe(s, akzent, fg, halt, sekunden):
         for x, y, ch in zellen(s):
             welle = 0.75 + 0.45 * (0.5 + 0.5 * __import__("math").sin((x / 9.0) - t))
             s.setz(s.x0 + x, s.y0 + y, farbe(akzent, welle) + ch + AUS)
-        sys.stdout.flush()
+        zeig()
         t += 0.28
         time.sleep(0.07)
 
@@ -230,15 +244,31 @@ def main():
     if sys.stdin.isatty():
         alt = termios.tcgetattr(sys.stdin)
         tty.setcbreak(sys.stdin.fileno())
-        os.set_blocking(sys.stdin.fileno(), False)
+
+    # NICHT os.set_blocking(stdin, False): an einem Terminal teilen sich stdin,
+    # stdout und stderr DIESELBE Dateibeschreibung. Wer stdin auf
+    # nicht-blockierend stellt, stellt die Ausgabe gleich mit um -- und der
+    # erste groessere Bildaufbau scheitert mit "BlockingIOError: write could
+    # not complete without blocking". Genau daran ist der Schoner abgestuerzt,
+    # Sekunden nachdem er aufging.
+    #
+    # Ob eine Taste anliegt, beantwortet `select`: es fragt, ohne etwas am
+    # Zustand der Datei zu aendern. Gelesen wird dann mit os.read, weil ein
+    # blockierendes sys.stdin.read(1) genau hier haengen bliebe.
+    def taste_liegt_an():
+        if alt is None:
+            return False
+        try:
+            bereit, _, _ = select.select([sys.stdin], [], [], 0)
+            if not bereit:
+                return False
+            return bool(os.read(sys.stdin.fileno(), 1024))
+        except (OSError, ValueError):
+            return False
 
     # Was beim Starten noch im Puffer liegt, gehoert nicht dazu.
-    if alt is not None:
-        try:
-            while sys.stdin.read(1):
-                pass
-        except (TypeError, OSError):
-            pass
+    while taste_liegt_an():
+        pass
 
     # Vor Ablauf der Schonfrist wird gar nicht erst hingehoert: der Klick oder
     # Tastendruck, mit dem man den Schoner startet, trifft sonst ihn selbst.
@@ -249,12 +279,7 @@ def main():
             return True
         if time.time() < frist:
             return False
-        try:
-            if sys.stdin.read(1):
-                return True
-        except (TypeError, OSError):
-            pass
-        return False
+        return taste_liegt_an()
 
     # Der Fenstertitel ist die Kennung, an der niri das Fenster erkennt und
     # bildschirmfuellend oeffnet. Ueber die App-Kennung ginge es nicht:
@@ -264,7 +289,7 @@ def main():
 
     # Alternativer Schirm, Cursor weg. KEINE Maus-Meldung -- siehe Kopf.
     sys.stdout.write("\033[?1049h\033[?25l")
-    sys.stdout.flush()
+    zeig()
     try:
         effekte = [effekt_entschluesseln, effekt_regen, effekt_fegen, effekt_schreibmaschine]
         random.shuffle(effekte)
@@ -278,7 +303,7 @@ def main():
             i += 1
     finally:
         sys.stdout.write("\033[?25h\033[?1049l" + AUS)
-        sys.stdout.flush()
+        zeig()
         if alt is not None:
             termios.tcsetattr(sys.stdin, termios.TCSADRAIN, alt)
 
