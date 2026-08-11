@@ -70,6 +70,19 @@ binds {
     XF86AudioPrev  allow-when-locked=true { spawn "sh" "-c" "$HOME/.local/bin/nbshell media previous"; }
 }
 
+// Der Bildschirmschoner: bildschirmfuellend, ohne Rahmen, ohne Schatten.
+//
+// Erkannt am TITEL, nicht an der App-Kennung: ghostty vergibt die fest
+// (`com.mitchellh.ghostty`), und `--class` aendert daran nichts. Den Titel
+// setzt das Skript selbst per Escape-Sequenz -- das geht mit jedem Terminal.
+window-rule {
+    match title="nbshell-screensaver"
+    open-fullscreen true
+    open-focused true
+    border { off; }
+    shadow { off; }
+}
+
 // Die weichgezeichnete Kopie des Hintergrunds gehoert in niris Backdrop --
 // dann zeigt die Uebersicht (Mod+Tab) sie statt einer leeren Flaeche.
 // Weichzeichnen kann niri nicht selbst; nbshell haelt die Kopie bereit.

@@ -493,6 +493,7 @@ nbshell -- eigene Shell auf Quickshell
   nbshell wach              Rechner wachhalten (aus/an, ohne Argument: um)
   nbshell idle              Stand der Leerlauf-Automatik
   nbshell idle on|off       Automatik ein- oder ausschalten
+  nbshell saver             Bildschirmschoner jetzt starten
 
   nbshell cursor            Zeigerthema und -groesse, und was installiert ist
   nbshell cursor Adwaita 28 beides setzen (Groesse ist freiwillig)
@@ -632,6 +633,9 @@ case "$cmd" in
             off|aus) ipc idle off ;;
             *)       ipc idle status ;;
         esac
+        ;;
+    saver|schoner)
+        ipc idle saver
         ;;
     polkit)
         case "${1:-status}" in

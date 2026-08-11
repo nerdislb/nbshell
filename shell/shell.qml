@@ -296,6 +296,12 @@ ShellRoot {
             Config.set("idle", false);
             return "Automatik aus";
         }
+
+        // Von Hand starten -- zum Ansehen, und fuer eine Taste in niri.
+        function saver(): string {
+            Idle.startSaver();
+            return "Bildschirmschoner laeuft";
+        }
     }
 
     // Die beiden Netzfenster.

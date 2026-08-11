@@ -401,7 +401,7 @@ Einstellbar in `config.json`: `theme`, `font`, `fontSize`,
 `collapseDelay`, `clockFormat`, `clockFormats`,
 `clipboardGuardSecrets`, `notifyReviveMs`, `appScopes`, `terminalRatio`,
 `accent` (Rolle), `widgets` (Aussehen je Baustein), `updateNoconfirm`,
-`idle`, `caffeine`, `idleDim`, `idleScreenOff`, `idleLock`, `idleDimPercent`,
+`idle`, `caffeine`, `idleSaver`, `idleDim`, `idleScreenOff`, `idleLock`, `idleDimPercent`,
 `batteryWarnAt`, `deviceLowAt`, `deviceWarnAt`, `speedScale`,
 `cursorTheme`, `cursorSize`, `nearby`,
 `titleLength`, `locale`, `wallpaper`, `wallpaperOverride`, `maxVolume` und die
@@ -1325,6 +1325,7 @@ Drei Stufen mit eigenen Fristen:
 
 | Stufe | Vorgabe | was passiert |
 |---|---|---|
+| `idleSaver` | 180 s | Bildschirmschoner |
 | `idleDim` | 240 s | Bildschirm wird dunkler (`idleDimPercent`, 20 %) |
 | `idleScreenOff` | 600 s | DPMS aus ueber `niri msg action power-off-monitors` |
 | `idleLock` | 900 s | `lockCommand` -- derselbe wie im Sitzungsmenue |
@@ -1337,6 +1338,34 @@ ein Stueck dunkler.
 `respectInhibitors` ist an: ein Programm, das eine Sperre anfordert (jeder
 Videoplayer tut das), haelt alle drei Stufen an. Ohne das ginge der Bildschirm
 mitten im Film aus, und man lernt, die ganze Sache abzuschalten.
+
+### Der Bildschirmschoner
+
+Nach `idleSaver` (Vorgabe 180 s, also VOR dem Dimmen) geht ein Vollbildterminal
+mit dem nbshell-Schriftzug auf. Von Hand: `nbshell saver`.
+
+Nach Omarchys Vorbild -- dort laeuft `ttfx` mit einem zufaelligen Effekt auf
+einer ASCII-Datei. `ttfx` gibt es nicht in den Repos, und ein Zeichenraster
+ueber neun Zeilen zu bewegen braucht keine Bibliothek: `scripts/screensaver.py`
+macht es selbst, mit vier Effekten in zufaelliger Reihenfolge
+(entschluesseln, regen, fegen, schreibmaschine) und einem langsam wandernden
+Helligkeitsverlauf dazwischen.
+
+Der Schriftzug ist aus der eigenen Schrift **gerastert**, nicht von Hand gemalt
+-- so sitzen die Proportionen. Die Farbe kommt aus `palette.sh`, also aus dem
+laufenden Theme: nach einem Themewechsel hat der Schoner denselben Akzent wie
+die Leiste.
+
+Zwei Dinge, die dabei zaehlen:
+
+- **Erkannt wird das Fenster am TITEL**, nicht an der App-Kennung. ghostty
+  vergibt die fest (`com.mitchellh.ghostty`), `--class` aendert daran nichts
+  (geprueft mit 1.3.1). Den Titel setzt das Skript selbst per Escape-Sequenz --
+  das geht mit jedem Terminal.
+- **Beendet wird auf zwei Wegen.** Das Skript steigt bei Tastendruck und
+  Mausbewegung aus; zusaetzlich schickt nbshell ein SIGTERM, sobald der
+  Leerlauf endet. Das zweite ist noetig, weil eine Mausbewegung ausserhalb des
+  Terminalfensters dort nie ankommt.
 
 ### Der Kaffee-Knopf
 

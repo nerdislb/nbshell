@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Io
 import qs.Common
 
 // Was passiert, wenn niemand mehr etwas tut.
@@ -34,6 +35,10 @@ Singleton {
 
     // Fristen in Sekunden. Die Reihenfolge wird nicht erzwungen -- wer lieber
     // sofort sperrt und nie dimmt, setzt die Fristen entsprechend.
+    // Der Bildschirmschoner kommt ZUERST -- er ist der freundlichste Schritt:
+    // man sieht sofort, dass der Rechner sich langweilt, und ein Tastendruck
+    // holt alles zurueck. Erst danach wird gedimmt und abgeschaltet.
+    readonly property int saverAfter: Config.value("idleSaver", 180)
     readonly property int dimAfter: Config.value("idleDim", 240)
     readonly property int offAfter: Config.value("idleScreenOff", 600)
     readonly property int lockAfter: Config.value("idleLock", 900)
@@ -62,6 +67,12 @@ Singleton {
         return root.caffeine;
     }
 
+    // Wer wachhaelt oder die Automatik abschaltet, will den Schoner sofort weg.
+    onArmedChanged: {
+        if (!root.armed)
+            root.stopSaver();
+    }
+
     // Nur wahr, wenn wirklich etwas passieren soll.
     readonly property bool armed: root.enabled && !root.caffeine
 
@@ -74,6 +85,8 @@ Singleton {
             return "aus";
         if (root.caffeine)
             return "wach";
+        if (saver.running)
+            return "Schoner";
         if (lockMonitor.isIdle)
             return "gesperrt";
         if (offMonitor.isIdle)
@@ -101,6 +114,47 @@ Singleton {
             return;
         Brightness.set(root.dimmedBrightness);
         root.dimmedBrightness = -1;
+    }
+
+    // ── Bildschirmschoner ────────────────────────────────────────────────
+    //
+    // Ein Vollbildterminal mit dem nbshell-Schriftzug, nach Omarchys Vorbild.
+    // Beendet wird er auf zwei Wegen: das Skript steigt bei Tastendruck und
+    // Mausbewegung selbst aus, und WIR schicken ihm ein SIGTERM, sobald der
+    // Leerlauf endet. Das zweite ist noetig, weil eine Mausbewegung ausserhalb
+    // des Terminalfensters dort nie ankommt.
+    readonly property string saverScript: Qt.resolvedUrl("../scripts/screensaver.py").toString().replace("file://", "")
+    readonly property string terminal: Config.value("terminal", "") || Quickshell.env("TERMINAL") || "ghostty"
+
+    function startSaver() {
+        if (saver.running)
+            return;
+        saver.command = [root.terminal, "-e", "python3", root.saverScript];
+        saver.running = true;
+    }
+
+    function stopSaver() {
+        if (saver.running)
+            saver.running = false;
+    }
+
+    Process {
+        id: saver
+    }
+
+    IdleMonitor {
+        id: saverMonitor
+
+        enabled: root.armed && root.saverAfter > 0
+        timeout: root.saverAfter
+        respectInhibitors: true
+
+        onIsIdleChanged: {
+            if (saverMonitor.isIdle)
+                root.startSaver();
+            else
+                root.stopSaver();
+        }
     }
 
     IdleMonitor {
