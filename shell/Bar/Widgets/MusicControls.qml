@@ -23,18 +23,33 @@ Cell {
     shown: MediaService.active
     quiet: !MediaService.playing
 
+    // Breite VORGEBEN, nicht messen lassen. Cells `contentItem` misst sich zwar
+    // an seinen Kindern, aber bei Glyphen, deren Schriftgroesse erst aus einer
+    // Messung hervorgeht, kam dabei rund nichts heraus: die Zelle blieb schmal,
+    // und weil ihr Inhalt zentriert sitzt, quoll er nach links ueber die
+    // Arbeitsflaechen-Punkte. `slotChars` ist die Untergrenze, die Cell dafuer
+    // schon kennt -- vier Knoepfe zu 1,6 Zellen plus drei Luecken zu 0,6.
+    slotChars: Math.round(4 * 1.6 + 3 * 0.6)
+
     // KEIN `anchors` an dieser Reihe: Cells `contentItem` misst sich an seinen
     // Kindern (`width: childrenRect.width`). Ein Kind, das sich am Eltern-
     // Element ausrichtet, dreht sich damit im Kreis -- die Zelle blieb schmal
     // und der letzte Knopf lag unter dem Nachbarbaustein. Die Zelle zentriert
     // den Inhalt ohnehin selbst.
     Row {
-        spacing: Theme.cellW * 0.8
+        spacing: Theme.cellW * 0.6
 
         component Knopf: Glyph {
             id: knopf
 
             signal triggered
+
+            // Jeder Knopf so breit wie der naechste, damit die Reihe ein Raster
+            // bleibt: die Glyphen sind verschieden breit, und ohne feste Breite
+            // wandern die Abstaende mit dem Symbol (Pause und Play sind nicht
+            // gleich breit -- die Reihe zuckte bei jedem Umschalten).
+            width: Theme.cellW * 1.6
+            horizontalAlignment: Text.AlignHCenter
 
             // Nach aussen gereicht, weil die ids einer inline-Komponente an
             // der Aufrufstelle nicht sichtbar sind -- der Zufallsknopf unten
