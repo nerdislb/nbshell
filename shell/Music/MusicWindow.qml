@@ -78,6 +78,8 @@ PanelWindow {
             Music.ladePlaylists();
         else if (Music.shown.length === 0)
             root.vorschauLaden();
+        else
+            root.folgen();
     }
 
     // Beim Blaettern durch die Playlists laedt die rechte Spalte mit -- man
@@ -100,6 +102,38 @@ PanelWindow {
         blaettern.restart()
 
     onTrackSelChanged: root.loeschFrage = -1
+
+    // Der Liste hinterherspringen, wenn der Titel wechselt.
+    //
+    // Im Zufallsmodus ist das der eigentliche Punkt: der naechste Titel steht
+    // nicht in der naechsten Zeile, sondern irgendwo in der Playlist -- ohne
+    // Sprung sucht man ihn jedesmal selbst. Die Markierung ▸ allein hilft
+    // nicht, wenn sie zwanzig Zeilen ausserhalb des Fensters sitzt.
+    //
+    // Nur, wenn der laufende Titel ueberhaupt in dem steht, was gerade zu
+    // sehen ist: wer waehrenddessen in einer anderen Playlist blaettert oder
+    // sucht, soll nicht bei jedem Titelwechsel herausgerissen werden.
+    function folgen() {
+        if (!root.visible || !Music.current || root.query !== "")
+            return;
+        const i = root.shown.findIndex(t => t.id === Music.current.id);
+        if (i >= 0 && i !== root.trackSel)
+            root.trackSel = i;
+    }
+
+    Connections {
+        target: Music
+
+        function onCurrentChanged() {
+            root.folgen();
+        }
+
+        // Auch nach dem Laden einer Playlist: wer die Liste oeffnet, in der
+        // gerade etwas laeuft, landet gleich an der richtigen Stelle.
+        function onTracksChanged() {
+            root.folgen();
+        }
+    }
 
     // Beim allerersten Oeffnen sind die Playlists noch unterwegs. Sobald sie
     // da sind, wird die erste gleich mitgeladen -- sonst bliebe die rechte

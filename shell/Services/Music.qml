@@ -45,11 +45,12 @@ Singleton {
     // meldet, und nur ersatzweise ueber die Stelle.
     readonly property var current: {
         const gespielt = MediaService.title;
-        if (gespielt !== "") {
-            const treffer = root.queue.find(t => t.titel === gespielt);
-            if (treffer)
-                return treffer;
-        }
+        if (gespielt !== "")
+            // Meldet MPRIS einen Titel, gilt der -- und nur der. Der Rueckgriff
+            // auf die gemerkte Stelle waere hier schaedlich: sie steht immer
+            // noch auf dem ersten Stueck, und das Fenster spraenge bei jedem
+            // Wechsel dorthin statt zum laufenden.
+            return root.queue.find(t => t.titel === gespielt) ?? null;
         return root.position >= 0 && root.position < root.queue.length ? root.queue[root.position] : null;
     }
 
