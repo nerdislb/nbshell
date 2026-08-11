@@ -1791,6 +1791,85 @@ spielt und pausiert, Mausrad blaettert, Rechtsklick stoppt. Laufen mehrere
 Player, gewinnt der spielende, sonst der zuletzt benutzte -- ohne diese Regel
 greifen die Medientasten mal ins Leere, mal in den falschen Player.
 
+## Musik (YouTube Music)
+
+> **Im Bau.** Abspielen und Mediathek stehen, das Fenster und die Visualisierung
+> in der Leiste noch nicht. Was hier steht, funktioniert.
+
+```bash
+nbshell music login          # einmalig: Cookies aus dem Browser
+nbshell music status         # angemeldet? wie viele Playlists?
+nbshell music playlists
+nbshell music suche <text>
+```
+
+Vier Teile, von denen zwei schon vorher da waren:
+
+| | |
+|---|---|
+| Mediathek | `scripts/ytm.py` über `ytmusicapi` — Suche, Playlists, Bearbeiten |
+| Abspielen | `mpv` im Leerlauf mit Befehlssocket, Stream über `yt-dlp` |
+| Zustand und Steuerung | **MPRIS**, also `Services/MediaService.qml` — war schon da |
+| Visualisierung | `cava` mit `output_method = raw` (noch nicht gebaut) |
+
+**`Services/Music.qml` ist absichtlich klein.** Es tut genau eines: Adressen in
+mpv laden. Titel, Interpret, Position, Play/Pause, die Medientasten, die
+OSD-Einblendung — das alles kam in dem Moment kostenlos dazu, als mpv startete:
+`mpv-mpris` liegt auf Arch in `/etc/mpv/scripts/`, wird also von jeder
+mpv-Instanz geladen, ohne Flagge und ohne Zutun. Der Beweis war eine Zeile:
+
+```
+{"spielt":true,"titel":"Test","interpret":"Little Dragon","player":["mpv"]}
+```
+
+Das ist die bestehende Medienabfrage, unverändert, während mpv einen
+YouTube-Music-Stream spielte.
+
+**mpv startet erst beim ersten Titel**, nicht beim Anmelden — ein stiller
+Abspieler, der den ganzen Tag mitläuft, wäre genau die Sorte Hintergrundarbeit,
+die beim Aufräumen gerade herausgeflogen ist.
+
+### Der erste Befehl kommt zu früh
+
+Zwischen „mpv gestartet" und „der Socket nimmt Verbindungen an" liegen ein paar
+hundert Millisekunden. Der allererste Titel fiele sonst ins Leere — und zwar
+genau einmal pro Sitzung, was die unangenehmste Sorte Fehler ist: nicht
+reproduzierbar, sobald man hinsieht. Deshalb sammelt `send()` die Befehle,
+solange niemand zuhört, und ein Timer verbindet alle 300 ms neu, bis es klappt.
+
+Verbunden wird dabei **nicht per Bindung**: schlägt ein Versuch fehl, setzt
+Quickshell `connected` selbst zurück, und eine Bindung wäre danach kaputt — der
+zweite Versuch fiele aus.
+
+### Die Anmeldung ist der wunde Punkt
+
+YouTube Music hat keinen Weg für fremde Programme. `ytmusicapi` meldet sich mit
+den **Cookies einer angemeldeten Browsersitzung** an; `nbshell music login`
+führt durch das Kopieren der Request-Header. Sie landen in
+`~/.config/nbshell/ytmusic.json` mit Rechten 600.
+
+**Die Datei ist ein Passwort-Äquivalent** — wer sie hat, ist im Konto. `save.sh`
+kopiert aus `~/.config/nbshell` ohnehin nur `config.json`; zusätzlich steht sie
+in der `.gitignore` des Dotfiles-Repos, gleich neben der vdirsyncer-Config.
+
+Cookies laufen nach Wochen bis Monaten ab. Dann meldet `status` „nicht
+angemeldet", und der Weg wird einmal wiederholt. Einen besseren gibt es nicht.
+
+Und: `ytmusicapi` ist **keine offizielle Schnittstelle**. Alles andere in
+nbshell steht auf Systemprotokollen (MPRIS, PipeWire, `ext-idle-notify`) und
+bricht nicht; das hier kann brechen, wenn Google etwas umbaut. Darum gibt jeder
+Fehler im Skript eine lesbare Zeile zurück statt eines Stapelabzugs.
+
+### Noch offen
+
+- Das TUI-Fenster (Playlists, Suche, Bearbeiten) — als QML-Fenster wie
+  `TodoList`, nicht als echtes Terminalprogramm: gleiche Optik, gleiche
+  Tastenführung.
+- Die Visualisierung in der Leiste.
+- **Der Mediendienst nimmt den Player, der gerade spielt** — läuft nebenher ein
+  Video im Browser, gewinnt der. Für den Musikbaustein muss gezielt die eigene
+  mpv-Instanz gefragt werden, nicht „irgendwer".
+
 ## Einblendung (OSD)
 
 Wer an Lautstaerke, Mikrofon oder Helligkeit dreht, sieht kurz einen Kasten

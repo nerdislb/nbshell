@@ -15,6 +15,36 @@ import qs.Services
 // begraben lag. Sie sprechen ausschliesslich mit Singletons, also war der
 // Schnitt schmerzlos.
 Scope {
+    // Musik. Die Mediathek (Playlists, Suche) laeuft NICHT hierueber, sondern
+    // direkt ueber scripts/ytm.py -- `nbshell music` muss auch dann noch
+    // antworten, wenn die Shell gerade nicht laeuft. Hier steht nur, was einen
+    // laufenden Abspieler braucht.
+    IpcHandler {
+        target: "music"
+
+        function play(id: string, titel: string): string {
+            if (id === "")
+                return "welcher Titel?";
+            Music.spiele({
+                "id": id,
+                "titel": titel === "" ? id : titel,
+                "interpret": ""
+            });
+            return "spielt: " + (titel === "" ? id : titel);
+        }
+
+        function stop(): string {
+            Music.leeren();
+            return "gestoppt";
+        }
+
+        function queue(): string {
+            if (Music.queue.length === 0)
+                return "die Warteschlange ist leer";
+            return Music.queue.map((t, i) => (i === Music.position ? "▸ " : "  ") + t.titel + (t.interpret ? "  —  " + t.interpret : "")).join("\n");
+        }
+    }
+
     IpcHandler {
         target: "calendar"
 
