@@ -102,16 +102,44 @@ Singleton {
     }
 
     function ladePlaylists() {
+        root.cache = ({});
         root.busy = true;
         listen.command = ["python3", root.script, "playlists"];
         listen.running = true;
     }
 
+    // Schon Geholtes wird gemerkt. Beim Blaettern durch die Playlists wird
+    // sonst dieselbe Liste dreimal am Nachmittag geholt -- eine Playlist
+    // aendert sich nicht, waehrend man an ihr vorbeiscrollt. F5 wirft den
+    // Speicher weg.
+    property var cache: ({})
+
+    // Welche Playlist zuletzt GEWUENSCHT wurde, und welche gerade GEHOLT wird.
+    // Beim schnellen Blaettern laeuft die Antwort der Auswahl hinterher: ohne
+    // diesen Vergleich landen die Titel der vorletzten Playlist in einer
+    // Ansicht, die laengst eine andere zeigt.
+    property string wunschId: ""
+    property string holeId: ""
+
     function ladePlaylist(id, name) {
-        root.busy = true;
         root.query = "";
         root.listId = id;
         root.listName = name ?? "";
+        root.wunschId = id;
+
+        if (root.cache[id]) {
+            root.tracks = root.cache[id];
+            root.busy = false;
+            return;
+        }
+        if (titel.running)
+            return;          // laeuft noch -- danach wird der Wunsch nachgeholt
+        root.hole(id);
+    }
+
+    function hole(id) {
+        root.busy = true;
+        root.holeId = id;
         titel.command = ["python3", root.script, "playlist", id];
         titel.running = true;
     }
@@ -140,10 +168,29 @@ Singleton {
 
         stdout: StdioCollector {
             onStreamFinished: root.auswerten(text, d => {
-                root.tracks = d.titel ?? [];
-                if (d.name)
-                    root.listName = d.name;
+                const liste = d.titel ?? [];
+                const c = root.cache;
+                c[root.holeId] = liste;
+                root.cache = c;
+                // Nur anzeigen, wenn die Antwort noch zu dem gehoert, was
+                // gerade ausgewaehlt ist.
+                if (root.holeId === root.wunschId) {
+                    root.tracks = liste;
+                    if (d.name)
+                        root.listName = d.name;
+                }
             })
+        }
+
+        // Beim Blaettern staut sich hoechstens ein Wunsch -- der wird jetzt
+        // geholt. Die uebersprungenen dazwischen interessieren niemanden mehr.
+        onRunningChanged: {
+            if (titel.running || root.wunschId === "" || root.wunschId === root.holeId)
+                return;
+            if (root.cache[root.wunschId])
+                root.tracks = root.cache[root.wunschId];
+            else
+                root.hole(root.wunschId);
         }
     }
 

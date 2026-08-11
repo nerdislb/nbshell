@@ -73,16 +73,51 @@ PanelWindow {
         root.typing = false;
         if (Music.playlists.length === 0)
             Music.ladePlaylists();
+        else if (Music.shown.length === 0)
+            root.vorschauLaden();
     }
 
-    function playlistOeffnen() {
+    // Beim Blaettern durch die Playlists laedt die rechte Spalte mit -- man
+    // sieht sofort, was drin ist, ohne jede Liste erst zu oeffnen.
+    //
+    // Aber NICHT bei jedem Tastendruck: wer mit gedrueckter Pfeiltaste durch
+    // sechzehn Playlists faehrt, loeste sechzehn Netzabfragen aus. Der Takt
+    // wartet, bis die Auswahl einen Moment stillsteht; schon Geholtes kommt
+    // ohnehin aus dem Zwischenspeicher und ist sofort da.
+    function vorschauLaden() {
         const p = Music.playlists[root.listSel];
         if (!p)
             return;
         root.query = "";
-        Music.suche("");
         Music.ladePlaylist(p.id, p.titel);
         root.trackSel = 0;
+    }
+
+    onListSelChanged: if (root.visible)
+        blaettern.restart()
+
+    // Beim allerersten Oeffnen sind die Playlists noch unterwegs. Sobald sie
+    // da sind, wird die erste gleich mitgeladen -- sonst bliebe die rechte
+    // Spalte leer, bis jemand eine Taste drueckt.
+    Connections {
+        target: Music
+
+        function onPlaylistsChanged() {
+            if (root.visible && Music.shown.length === 0)
+                root.vorschauLaden();
+        }
+    }
+
+    Timer {
+        id: blaettern
+
+        interval: 260
+        onTriggered: root.vorschauLaden()
+    }
+
+    function playlistOeffnen() {
+        blaettern.stop();
+        root.vorschauLaden();
         root.inTracks = true;
     }
 
