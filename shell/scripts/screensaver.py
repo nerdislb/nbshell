@@ -17,10 +17,17 @@ Die Farben kommen aus dem laufenden Theme: nbshell schreibt seine Palette nach
 ~/.config/nbshell/palette.sh, und die wird hier gelesen. Der Schriftzug hat
 damit denselben Akzent wie die Leiste, auch nach einem Themewechsel.
 
-Beendet wird bei JEDEM Tastendruck, bei Mausbewegung im Terminal und auf
-SIGTERM -- das Letzte ist der Weg, den nbshell nimmt, wenn der Leerlauf endet:
-eine bewegte Maus erzeugt keinen Tastendruck, und der Bildschirmschoner soll
-trotzdem verschwinden.
+Beendet wird bei jedem Tastendruck und auf SIGTERM. Das SIGTERM ist der Weg,
+den nbshell nimmt, sobald der Leerlauf endet -- und damit auch der Weg, auf dem
+eine bewegte Maus ihn beendet: die meldet sich beim Kompositor, nicht hier.
+
+Die Maus-Meldung des Terminals (`?1003h`) war der erste Versuch und ein
+Eigentor: schon das Hineinfahren des Zeigers in das neu geoeffnete
+Vollbildfenster schickt ein Ereignis, und der Schoner ging in derselben
+Sekunde wieder zu, in der er aufging. Dieselbe Falle stellt der Start selbst --
+der Tastendruck oder Klick, mit dem man ihn ausloest, liegt danach noch im
+Puffer. Deshalb: Puffer leeren und eine kurze Schonfrist, bevor ueberhaupt
+hingehoert wird.
 """
 
 import os
@@ -225,9 +232,23 @@ def main():
         tty.setcbreak(sys.stdin.fileno())
         os.set_blocking(sys.stdin.fileno(), False)
 
+    # Was beim Starten noch im Puffer liegt, gehoert nicht dazu.
+    if alt is not None:
+        try:
+            while sys.stdin.read(1):
+                pass
+        except (TypeError, OSError):
+            pass
+
+    # Vor Ablauf der Schonfrist wird gar nicht erst hingehoert: der Klick oder
+    # Tastendruck, mit dem man den Schoner startet, trifft sonst ihn selbst.
+    frist = time.time() + 1.2
+
     def halt():
         if beendet["ja"]:
             return True
+        if time.time() < frist:
+            return False
         try:
             if sys.stdin.read(1):
                 return True
@@ -241,9 +262,8 @@ def main():
     # daran nichts -- geprueft mit 1.3.1.
     sys.stdout.write("\033]0;nbshell-screensaver\007")
 
-    # Alternativer Schirm, Cursor weg, Maus meldet Bewegung: so beendet auch
-    # ein Ruckeln an der Maus, ohne dass jemand eine Taste treffen muss.
-    sys.stdout.write("\033[?1049h\033[?25l\033[?1003h")
+    # Alternativer Schirm, Cursor weg. KEINE Maus-Meldung -- siehe Kopf.
+    sys.stdout.write("\033[?1049h\033[?25l")
     sys.stdout.flush()
     try:
         effekte = [effekt_entschluesseln, effekt_regen, effekt_fegen, effekt_schreibmaschine]
@@ -257,7 +277,7 @@ def main():
             ruhe(s, akzent, fg, halt, 12)
             i += 1
     finally:
-        sys.stdout.write("\033[?1003l\033[?25h\033[?1049l" + AUS)
+        sys.stdout.write("\033[?25h\033[?1049l" + AUS)
         sys.stdout.flush()
         if alt is not None:
             termios.tcsetattr(sys.stdin, termios.TCSADRAIN, alt)
