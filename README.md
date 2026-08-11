@@ -1347,9 +1347,25 @@ mit dem nbshell-Schriftzug auf. Von Hand: `nbshell saver`.
 Nach Omarchys Vorbild -- dort laeuft `ttfx` mit einem zufaelligen Effekt auf
 einer ASCII-Datei. `ttfx` gibt es nicht in den Repos, und ein Zeichenraster
 ueber neun Zeilen zu bewegen braucht keine Bibliothek: `scripts/screensaver.py`
-macht es selbst, mit vier Effekten in zufaelliger Reihenfolge
-(entschluesseln, regen, fegen, schreibmaschine) und einem langsam wandernden
-Helligkeitsverlauf dazwischen.
+macht es selbst, mit **zehn** Effekten in zufaelliger Reihenfolge und einem
+langsam wandernden Helligkeitsverlauf dazwischen:
+
+| | |
+|---|---|
+| entschluesseln | die Zeichen zappeln und rasten nacheinander ein |
+| regen | sie fallen von oben an ihren Platz |
+| fegen | ein heller Balken faehrt durch |
+| schreibmaschine | Zeile fuer Zeile, mit Cursorblock |
+| matrix | Zeichenregen ueber den ganzen Schirm; wo er das Wort streift, bleibt es stehen |
+| feuerwerk | Raketen steigen, zerplatzen, die Funken sinken auf ihre Plaetze |
+| schwarzesloch | alles wird in die Mitte gesogen und wieder ausgeworfen |
+| strahlen | Lichtbalken waagerecht und senkrecht |
+| brennen | das Wort brennt von unten nach oben an |
+| schnitt | waagerecht durchgeschnitten, beide Haelften fahren ein |
+
+TTE, das Omarchy benutzt, bringt **39** mit -- so viele werden es hier nicht.
+Die zehn decken die Spielarten ab, die auf neun Zeilen ueberhaupt zur Geltung
+kommen; der Rest von TTEs Liste lebt von grossen Bildern.
 
 Der Schriftzug ist aus der eigenen Schrift **gerastert**, nicht von Hand gemalt
 -- so sitzen die Proportionen. Die Farbe kommt aus `palette.sh`, also aus dem
@@ -1358,10 +1374,13 @@ die Leiste.
 
 Zwei Dinge, die dabei zaehlen:
 
-- **Erkannt wird das Fenster am TITEL**, nicht an der App-Kennung. ghostty
-  vergibt die fest (`com.mitchellh.ghostty`), `--class` aendert daran nichts
-  (geprueft mit 1.3.1). Den Titel setzt das Skript selbst per Escape-Sequenz --
-  das geht mit jedem Terminal.
+- **Der Titel steht schon beim Oeffnen.** niri wertet seine Fensterregel aus,
+  sobald das Fenster auftaucht -- zu dem Zeitpunkt hiess es noch "ghostty", und
+  `open-fullscreen` griff nie. Dass das Skript den Titel spaeter selbst setzt,
+  kam fuer die Regel zu spaet; er wird deshalb schon auf der Befehlszeile
+  mitgegeben (`--title=`), dazu `--fullscreen=true`. Ueber die App-Kennung
+  ginge es gar nicht: ghostty vergibt die fest, `--class` aendert daran nichts
+  (geprueft mit 1.3.1).
 - **Beendet wird auf zwei Wegen.** Das Skript steigt bei Tastendruck und
   Mausbewegung aus; zusaetzlich schickt nbshell ein SIGTERM, sobald der
   Leerlauf endet. Das zweite ist noetig, weil eine Mausbewegung ausserhalb des

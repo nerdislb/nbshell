@@ -6,12 +6,24 @@ zufaelligen Effekt auf einer ASCII-Datei, und jeder Tastendruck beendet es.
 Dasselbe hier, nur ohne das Programm: `ttfx` ist nicht in den Repos, und ein
 Zeichenraster ueber neun Zeilen zu bewegen braucht keine Bibliothek.
 
-Vier Effekte, einer nach dem anderen, in zufaelliger Reihenfolge:
+Zehn Effekte, einer nach dem anderen, in zufaelliger Reihenfolge:
 
     entschluesseln  die Zeichen zappeln und rasten nacheinander ein
     regen           sie fallen von oben an ihren Platz
     fegen           ein heller Balken faehrt durch und laesst sie stehen
     schreibmaschine Zeile fuer Zeile, mit blinkendem Cursor
+    matrix          Zeichenregen ueber den ganzen Schirm; wo er das Wort
+                    streift, bleibt es stehen
+    feuerwerk       Raketen steigen auf, zerplatzen, die Funken sinken auf
+                    ihre Plaetze
+    schwarzesloch   alles wird in die Mitte gesogen und wieder ausgeworfen
+    strahlen        Lichtbalken fahren waagerecht und senkrecht durch
+    brennen         das Wort brennt von unten nach oben an
+    schnitt         waagerecht durchgeschnitten, beide Haelften fahren ein
+
+Vorbild ist TTE (terminaltexteffects), das Omarchy benutzt -- das bringt 39
+Effekte mit. So viele werden es hier nicht; die zehn decken die Spielarten ab,
+die auf neun Zeilen ueberhaupt zur Geltung kommen.
 
 Die Farben kommen aus dem laufenden Theme: nbshell schreibt seine Palette nach
 ~/.config/nbshell/palette.sh, und die wird hier gelesen. Der Schriftzug hat
@@ -30,6 +42,7 @@ Puffer. Deshalb: Puffer leeren und eine kurze Schonfrist, bevor ueberhaupt
 hingehoert wird.
 """
 
+import math
 import os
 import random
 import re
@@ -207,6 +220,195 @@ def effekt_schreibmaschine(s, akzent, fg, halt):
         zeig()
 
 
+def effekt_matrix(s, akzent, fg, halt):
+    """Zeichenregen ueber den ganzen Schirm; das Wort bleibt zurueck.
+
+    Der Regen faellt ueber die volle Breite, nicht nur ueber das Wort -- sonst
+    sieht man sofort, wo der Schriftzug steht, und die Aufloesung am Ende ist
+    keine Ueberraschung mehr.
+    """
+    ziele = {(x, y): ch for x, y, ch in zellen(s)}
+    fest = {}
+    spalten = [random.randint(-s.h, 0) for _ in range(s.w)]
+    tempo = [random.choice((1, 1, 2)) for _ in range(s.w)]
+    runden = 0
+    while runden < 90 and not halt():
+        for x in range(s.w):
+            kopf = spalten[x]
+            # Der Schweif hinter dem Kopf verblasst.
+            for i, hell in ((0, 1.6), (1, 0.9), (2, 0.6), (3, 0.35), (7, 0.0)):
+                y = kopf - i
+                if not (0 <= y < s.h):
+                    continue
+                if (x - s.x0, y - s.y0) in fest:
+                    continue
+                if hell == 0.0:
+                    s.setz(x, y, " ")
+                else:
+                    s.setz(x, y, farbe(akzent, hell) + random.choice(ZAPPEL) + AUS)
+            # Streift der Kopf eine Zelle des Wortes, rastet sie ein.
+            zk = (x - s.x0, kopf - s.y0)
+            if zk in ziele and zk not in fest and runden > 12:
+                fest[zk] = ziele[zk]
+            spalten[x] += tempo[x]
+            if spalten[x] > s.h + 8:
+                spalten[x] = random.randint(-12, -1)
+        for (x, y), ch in fest.items():
+            s.setz(s.x0 + x, s.y0 + y, farbe(akzent, 1.5) + ch + AUS)
+        zeig()
+        runden += 1
+        time.sleep(0.03)
+        if len(fest) == len(ziele):
+            break
+    for (x, y), ch in ziele.items():
+        s.setz(s.x0 + x, s.y0 + y, farbe(akzent) + ch + AUS)
+    zeig()
+
+
+def effekt_feuerwerk(s, akzent, fg, halt):
+    """Raketen steigen, zerplatzen, die Funken sinken auf ihre Plaetze."""
+    ziele = list(zellen(s))
+    random.shuffle(ziele)
+    gruppen = [ziele[i::5] for i in range(5)]
+    gesetzt = []
+    for gruppe in gruppen:
+        if halt():
+            break
+        start_x = random.randint(s.w // 5, s.w * 4 // 5)
+        gipfel = random.randint(2, max(3, s.y0))
+        # Aufstieg
+        for y in range(s.h - 1, gipfel, -3):
+            if halt():
+                return
+            s.setz(start_x, y, farbe(fg, 1.4) + "│" + AUS)
+            s.setz(start_x, min(s.h - 1, y + 3), " ")
+            for x, yy, ch in gesetzt:
+                s.setz(s.x0 + x, s.y0 + yy, farbe(akzent) + ch + AUS)
+            zeig()
+            time.sleep(0.012)
+        s.setz(start_x, gipfel, " ")
+        # Explosion: die Funken fliegen von der Rakete zu ihren Plaetzen.
+        schritte = 9
+        for i in range(schritte + 1):
+            if halt():
+                return
+            anteil = i / schritte
+            for x, y, ch in gruppe:
+                zx, zy = s.x0 + x, s.y0 + y
+                px = round(start_x + (zx - start_x) * anteil)
+                py = round(gipfel + (zy - gipfel) * anteil)
+                if 0 <= px < s.w and 0 <= py < s.h:
+                    s.setz(px, py, farbe(akzent, 1.5 - anteil * 0.5) + (ch if anteil > 0.75 else random.choice("·∙*")) + AUS)
+            zeig()
+            time.sleep(0.03)
+            if i < schritte:
+                for x, y, ch in gruppe:
+                    anteil2 = i / schritte
+                    px = round(start_x + (s.x0 + x - start_x) * anteil2)
+                    py = round(gipfel + (s.y0 + y - gipfel) * anteil2)
+                    if 0 <= px < s.w and 0 <= py < s.h:
+                        s.setz(px, py, " ")
+        gesetzt.extend(gruppe)
+        for x, y, ch in gruppe:
+            s.setz(s.x0 + x, s.y0 + y, farbe(akzent) + ch + AUS)
+        zeig()
+
+
+def effekt_schwarzesloch(s, akzent, fg, halt):
+    """Alles wird in die Mitte gesogen und wieder ausgeworfen."""
+    ziele = list(zellen(s))
+    mx, my = s.w // 2, s.h // 2
+    # Erst auf einem Ring verteilt einsammeln, dann nach aussen an den Platz.
+    for phase, (von_ring, nach_ring) in enumerate(((True, False), (False, True))):
+        schritte = 14
+        for i in range(schritte + 1):
+            if halt():
+                return
+            a = i / schritte
+            for n, (x, y, ch) in enumerate(ziele):
+                winkel = n * 0.7 + a * (6.0 if von_ring else 3.0)
+                radius = (1 - a) * max(s.w, s.h) * 0.42 if von_ring else a * 0.0
+                if von_ring:
+                    px = round(mx + math.cos(winkel) * radius * 1.6)
+                    py = round(my + math.sin(winkel) * radius * 0.7)
+                else:
+                    px = round(mx + (s.x0 + x - mx) * a)
+                    py = round(my + (s.y0 + y - my) * a)
+                if 0 <= px < s.w and 0 <= py < s.h:
+                    s.setz(px, py, farbe(akzent, 0.6 + a * 0.9) + (ch if not von_ring and a > 0.8 else random.choice("·∙•")) + AUS)
+            zeig()
+            time.sleep(0.035)
+            s.leer()
+    for x, y, ch in ziele:
+        s.setz(s.x0 + x, s.y0 + y, farbe(akzent) + ch + AUS)
+    zeig()
+
+
+def effekt_strahlen(s, akzent, fg, halt):
+    """Lichtbalken fahren waagerecht und senkrecht durch das Wort."""
+    ziele = {(x, y): ch for x, y, ch in zellen(s)}
+    hell = {}
+    for durchgang in ("waagerecht", "senkrecht"):
+        laenge = s.kh if durchgang == "waagerecht" else s.kw
+        for pos in range(laenge + 6):
+            if halt():
+                return
+            for (x, y), ch in ziele.items():
+                d = abs((y if durchgang == "waagerecht" else x) - pos)
+                if d == 0:
+                    hell[(x, y)] = 1.9
+                elif (x, y) not in hell:
+                    hell[(x, y)] = 0.32
+                s.setz(s.x0 + x, s.y0 + y, farbe(akzent, hell[(x, y)]) + ch + AUS)
+                if hell[(x, y)] > 1.0:
+                    hell[(x, y)] = max(1.0, hell[(x, y)] - 0.22)
+            zeig()
+            time.sleep(0.03 if durchgang == "waagerecht" else 0.012)
+
+
+def effekt_brennen(s, akzent, fg, halt):
+    """Das Wort brennt von unten nach oben an."""
+    ziele = list(zellen(s))
+    glut = ((255, 220, 120), (255, 150, 40), (220, 70, 20))
+    for reihe in range(s.kh - 1, -2, -1):
+        for zuck in range(4):
+            if halt():
+                return
+            for x, y, ch in ziele:
+                if y > reihe + 1:
+                    s.setz(s.x0 + x, s.y0 + y, farbe(akzent) + ch + AUS)
+                elif y >= reihe:
+                    c = glut[random.randint(0, 2)]
+                    s.setz(s.x0 + x, s.y0 + y, farbe(c, 1.0) + random.choice("▓▒░") + AUS)
+                else:
+                    s.setz(s.x0 + x, s.y0 + y, " ")
+            zeig()
+            time.sleep(0.03)
+    for x, y, ch in ziele:
+        s.setz(s.x0 + x, s.y0 + y, farbe(akzent) + ch + AUS)
+    zeig()
+
+
+def effekt_schnitt(s, akzent, fg, halt):
+    """Waagerecht durchgeschnitten; beide Haelften fahren von aussen ein."""
+    mitte = s.kh // 2
+    weit = s.w
+    for schritt in range(weit, -1, -max(1, weit // 26)):
+        if halt():
+            return
+        s.leer()
+        for x, y, ch in zellen(s):
+            versatz = -schritt if y < mitte else schritt
+            px = s.x0 + x + versatz
+            if 0 <= px < s.w:
+                s.setz(px, s.y0 + y, farbe(akzent, 1.0 if schritt < weit // 6 else 0.75) + ch + AUS)
+        zeig()
+        time.sleep(0.022)
+    for x, y, ch in zellen(s):
+        s.setz(s.x0 + x, s.y0 + y, farbe(akzent) + ch + AUS)
+    zeig()
+
+
 def ruhe(s, akzent, fg, halt, sekunden):
     """Steht und atmet: ein langsamer Helligkeitsverlauf ueber dem Wort.
 
@@ -218,7 +420,7 @@ def ruhe(s, akzent, fg, halt, sekunden):
     t = 0.0
     while time.time() < ende and not halt():
         for x, y, ch in zellen(s):
-            welle = 0.75 + 0.45 * (0.5 + 0.5 * __import__("math").sin((x / 9.0) - t))
+            welle = 0.75 + 0.45 * (0.5 + 0.5 * math.sin((x / 9.0) - t))
             s.setz(s.x0 + x, s.y0 + y, farbe(akzent, welle) + ch + AUS)
         zeig()
         t += 0.28
@@ -291,7 +493,10 @@ def main():
     sys.stdout.write("\033[?1049h\033[?25l")
     zeig()
     try:
-        effekte = [effekt_entschluesseln, effekt_regen, effekt_fegen, effekt_schreibmaschine]
+        effekte = [effekt_entschluesseln, effekt_regen, effekt_fegen,
+                   effekt_schreibmaschine, effekt_matrix, effekt_feuerwerk,
+                   effekt_schwarzesloch, effekt_strahlen, effekt_brennen,
+                   effekt_schnitt]
         random.shuffle(effekte)
         i = 0
         while not halt():
@@ -299,7 +504,7 @@ def main():
             effekte[i % len(effekte)](s, akzent, fg, halt)
             if halt():
                 break
-            ruhe(s, akzent, fg, halt, 12)
+            ruhe(s, akzent, fg, halt, 4)
             i += 1
     finally:
         sys.stdout.write("\033[?25h\033[?1049l" + AUS)

@@ -126,10 +126,22 @@ Singleton {
     readonly property string saverScript: Qt.resolvedUrl("../scripts/screensaver.py").toString().replace("file://", "")
     readonly property string terminal: Config.value("terminal", "") || Quickshell.env("TERMINAL") || "ghostty"
 
+    // Der Titel muss BEIM OEFFNEN stehen, nicht danach: niri wertet seine
+    // Fensterregel aus, sobald das Fenster auftaucht -- zu dem Zeitpunkt hiess
+    // es noch "ghostty", und `open-fullscreen` griff nie. Dass das Skript den
+    // Titel spaeter selbst setzt, kam fuer die Regel zu spaet; deshalb sagt es
+    // ihn dem Terminal jetzt schon auf der Befehlszeile.
+    //
+    // `--fullscreen` obendrauf, weil es der kuerzeste Weg ist und nicht von
+    // einer Regel in einer fremden Datei abhaengt. Terminals, die die Flaggen
+    // nicht kennen, bekommen sie nicht -- fuer die bleibt die niri-Regel.
+    readonly property bool ghostty: root.terminal.indexOf("ghostty") >= 0
+
     function startSaver() {
         if (saver.running)
             return;
-        saver.command = [root.terminal, "-e", "python3", root.saverScript];
+        const vorn = root.ghostty ? [root.terminal, "--title=nbshell-screensaver", "--fullscreen=true"] : [root.terminal];
+        saver.command = vorn.concat(["-e", "python3", root.saverScript]);
         saver.running = true;
     }
 
