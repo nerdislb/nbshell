@@ -61,6 +61,10 @@ ShellRoot {
         // Datei drei offene Punkte liegen -- und ein Abgleich vom Telefon
         // faende beim Schreiben eine leere eigene Seite vor.
         void Todo.count;
+        // Die Leerlaufuhren muessen von Anfang an laufen, nicht erst beim ersten
+        // Blick auf die Zelle: sonst begaenne die Frist erst, wenn jemand die
+        // Leiste anfasst -- also nie.
+        void Idle.enabled;
     }
 
     Bar {}
@@ -246,6 +250,44 @@ ShellRoot {
             delete all[name];
             Config.set("widgets", all);
             return name + " folgt wieder den allgemeinen Einstellungen";
+        }
+    }
+
+    // Leerlauf und Wachhalten.
+    IpcHandler {
+        target: "idle"
+
+        function status(): string {
+            return JSON.stringify({
+                "automatik": Idle.enabled,
+                "wach": Idle.caffeine,
+                "zustand": Idle.state,
+                "dimmen": Idle.dimAfter,
+                "bildschirmAus": Idle.offAfter,
+                "sperren": Idle.lockAfter
+            });
+        }
+
+        // `caffeine` ohne Argument schaltet um -- das ist die Geste, die man
+        // auf eine Taste legt.
+        function caffeine(value: string): string {
+            if (value === "on" || value === "an")
+                Idle.setCaffeine(true);
+            else if (value === "off" || value === "aus")
+                Idle.setCaffeine(false);
+            else
+                Idle.toggleCaffeine();
+            return Idle.caffeine ? "bleibt wach" : "Automatik laeuft";
+        }
+
+        function on(): string {
+            Config.set("idle", true);
+            return "Automatik an";
+        }
+
+        function off(): string {
+            Config.set("idle", false);
+            return "Automatik aus";
         }
     }
 

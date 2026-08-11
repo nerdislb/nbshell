@@ -51,6 +51,59 @@ Singleton {
 
     readonly property string stateText: full ? "voll" : (charging ? "laedt" : "entlaedt")
 
+    // ── Warnen, bevor es zu spaet ist ────────────────────────────────────
+    //
+    // Bis hierher wurde die Zelle bei 20 % rot -- und das war alles. Steht die
+    // Insel zugeklappt auf der Uhr, sieht man davon nichts, und der Rechner
+    // geht irgendwann einfach aus.
+    //
+    // Gewarnt wird an festen Schwellen, jede genau EINMAL je Entladung. Ohne
+    // das Merken kaeme bei 19,6 % / 19,4 % / 19,2 % dreimal dieselbe Meldung;
+    // zurueckgesetzt wird, sobald wieder geladen wird oder der Stand ueber der
+    // Schwelle liegt.
+    readonly property var warnAt: Config.value("batteryWarnAt", [20, 10, 5])
+
+    property var warned: []
+
+    function warn(level) {
+        const kritisch = level <= 5;
+        Quickshell.execDetached(["notify-send", "--app-name=nbshell", "--icon=battery-caution", kritisch ? "--urgency=critical" : "--urgency=normal", "Akku " + root.percent + " %", kritisch ? "Gleich ist Schluss — jetzt anstecken." : ("Noch " + root.timeText + ".")]);
+    }
+
+    onPercentChanged: {
+        if (!root.available)
+            return;
+
+        // Am Kabel gibt es nichts zu warnen, und die Merkliste faengt von vorn
+        // an: nach dem Abstecken soll wieder gewarnt werden duerfen.
+        if (root.charging || root.full) {
+            if (root.warned.length > 0)
+                root.warned = [];
+            return;
+        }
+
+        const offen = [];
+        var neu = root.warned.slice();
+        for (var i = 0; i < root.warnAt.length; i++) {
+            const level = root.warnAt[i];
+            if (root.percent > level) {
+                // Wieder darueber -- die Schwelle darf erneut ausloesen.
+                neu = neu.filter(l => l !== level);
+                continue;
+            }
+            if (neu.indexOf(level) < 0) {
+                neu.push(level);
+                offen.push(level);
+            }
+        }
+        if (neu.length !== root.warned.length || offen.length > 0)
+            root.warned = neu;
+        // Nur die niedrigste erreichte Schwelle meldet sich -- wer von 25 auf
+        // 4 % springt (Standby), bekommt eine Meldung, nicht drei.
+        if (offen.length > 0)
+            root.warn(Math.min.apply(null, offen));
+    }
+
     // ── tuned ─────────────────────────────────────────────────────────────
 
     readonly property var profiles: Config.value("powerProfiles", ["powersave", "laptop-battery-powersave", "balanced-battery", "balanced", "desktop", "throughput-performance"])

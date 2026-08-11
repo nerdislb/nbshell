@@ -232,6 +232,46 @@ PanelWindow {
             "max": 20000
         },
         {
+            "head": "LEERLAUF"
+        },
+        {
+            "key": "idle",
+            "def": true,
+            "label": "Automatik",
+            "values": [true, false]
+        },
+        {
+            "key": "caffeine",
+            "def": false,
+            "label": "Wachhalten",
+            "values": [true, false]
+        },
+        {
+            // 0 heisst: diese Stufe faellt aus.
+            "key": "idleDim",
+            "def": 240,
+            "label": "dimmen nach (s)",
+            "step": 30,
+            "min": 0,
+            "max": 3600
+        },
+        {
+            "key": "idleScreenOff",
+            "def": 600,
+            "label": "Bildschirm aus nach (s)",
+            "step": 60,
+            "min": 0,
+            "max": 7200
+        },
+        {
+            "key": "idleLock",
+            "def": 900,
+            "label": "sperren nach (s)",
+            "step": 60,
+            "min": 0,
+            "max": 7200
+        },
+        {
             "head": "DIENSTE"
         },
         {

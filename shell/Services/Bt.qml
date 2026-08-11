@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Bluetooth
+import qs.Common
 
 // Bluetooth. Wie beim Netz spricht Quickshell selbst mit BlueZ; hier steht nur
 // die Auswahl, die das Control Center zeigt.
@@ -29,6 +30,56 @@ Singleton {
     })
 
     readonly property var connected: devices.filter(d => d.connected)
+
+    // ── Akkus der Geraete ────────────────────────────────────────────────
+    //
+    // BlueZ meldet den Stand als Anteil zwischen 0 und 1 -- wie die
+    // Signalstaerke beim WLAN, und wie dort wird hier EINMAL umgerechnet,
+    // statt an jeder Anzeigestelle neu.
+    //
+    // Bisher stand das nur im Control-Popout, ganz unten in der Geraeteliste.
+    // Eine Maus, die morgen leer ist, sieht man dort nie.
+    function batteryOf(device) {
+        return device?.batteryAvailable ? Math.round(device.battery * 100) : -1;
+    }
+
+    readonly property var withBattery: connected.filter(d => d.batteryAvailable).map(d => ({
+                "label": root.label(d),
+                "percent": root.batteryOf(d)
+            })).sort((a, b) => a.percent - b.percent)
+
+    readonly property var lowest: withBattery.length > 0 ? withBattery[0] : null
+
+    // Ab wann es der Rede wert ist. Darueber bleibt die Zelle still.
+    readonly property int lowAt: Config.value("deviceLowAt", 30)
+    readonly property int warnAt: Config.value("deviceWarnAt", 15)
+
+    // Gemeldet wird je Geraet einmal. Erst wenn es wieder ueber `warnAt + 10`
+    // steigt (also geladen wurde), darf es sich erneut melden -- sonst haengt
+    // eine Maus, die um 15 % pendelt, den ganzen Tag in den Meldungen.
+    property var warnedDevices: []
+
+    onWithBatteryChanged: {
+        var merk = root.warnedDevices.slice();
+        const neu = [];
+        for (var i = 0; i < root.withBattery.length; i++) {
+            const d = root.withBattery[i];
+            const drin = merk.indexOf(d.label) >= 0;
+            if (d.percent > root.warnAt + 10) {
+                if (drin)
+                    merk = merk.filter(n => n !== d.label);
+                continue;
+            }
+            if (d.percent <= root.warnAt && !drin) {
+                merk.push(d.label);
+                neu.push(d);
+            }
+        }
+        if (merk.length !== root.warnedDevices.length)
+            root.warnedDevices = merk;
+        for (var k = 0; k < neu.length; k++)
+            Quickshell.execDetached(["notify-send", "--app-name=nbshell", "--icon=battery-caution", neu[k].label, "Akku bei " + neu[k].percent + " %"]);
+    }
 
     function label(device) {
         return device?.deviceName || device?.name || device?.address || "?";

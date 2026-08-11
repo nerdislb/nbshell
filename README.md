@@ -386,6 +386,8 @@ Einstellbar in `config.json`: `theme`, `font`, `fontSize`,
 `collapseDelay`, `clockFormat`, `clockFormats`,
 `clipboardGuardSecrets`, `notifyReviveMs`, `appScopes`, `terminalRatio`,
 `accent` (Rolle), `widgets` (Aussehen je Baustein), `updateNoconfirm`,
+`idle`, `caffeine`, `idleDim`, `idleScreenOff`, `idleLock`, `idleDimPercent`,
+`batteryWarnAt`, `deviceLowAt`, `deviceWarnAt`,
 `titleLength`, `locale`, `wallpaper`, `wallpaperOverride`, `maxVolume` und die
 vier Bausteinlisten.
 
@@ -1163,6 +1165,59 @@ liefert acht unbeschriftete Temperaturen, die als CPU, Chipsatz und Gehaeuse
 schon dabei sind — seine Luefter sind aber die einzige Quelle, also faellt nur
 sein Temperaturteil weg.
 
+## Leerlauf und Wachhalten
+
+```bash
+nbshell idle              # Stand der Automatik
+nbshell wach              # Rechner wachhalten -- umschalten
+nbshell idle off          # Automatik ganz abschalten
+```
+
+Bis vor kurzem passierte im Leerlauf **nichts**: der Bildschirm blieb an,
+gesperrt wurde nie. Auf einem Geraet, das in eine Tasche wandert, war das die
+groesste Luecke -- gefunden beim Durchsehen von
+[omarchyplugins.com](https://omarchyplugins.com), wo es dafuer einen eigenen
+Dienst gibt.
+
+**Ohne Zusatzprogramm.** Quickshell spricht `ext-idle-notify` selbst
+(`IdleMonitor`), und niri kann das Protokoll. `swayidle` oder `hypridle` waeren
+ein zweiter Daemon mit einer zweiten Konfiguration, die man vergisst, sobald
+man hier etwas aendert.
+
+Drei Stufen mit eigenen Fristen:
+
+| Stufe | Vorgabe | was passiert |
+|---|---|---|
+| `idleDim` | 240 s | Bildschirm wird dunkler (`idleDimPercent`, 20 %) |
+| `idleScreenOff` | 600 s | DPMS aus ueber `niri msg action power-off-monitors` |
+| `idleLock` | 900 s | `lockCommand` -- derselbe wie im Sitzungsmenue |
+
+`0` laesst eine Stufe ausfallen. Eingeschaltet wird der Bildschirm **nicht**
+von uns: niri weckt ihn bei der naechsten Eingabe selbst. Die alte Helligkeit
+wird gemerkt, nicht gerechnet -- sonst waere der Bildschirm nach jedem Zyklus
+ein Stueck dunkler.
+
+`respectInhibitors` ist an: ein Programm, das eine Sperre anfordert (jeder
+Videoplayer tut das), haelt alle drei Stufen an. Ohne das ginge der Bildschirm
+mitten im Film aus, und man lernt, die ganze Sache abzuschalten.
+
+### Der Kaffee-Knopf
+
+Der Baustein `caffeine` sitzt neben der Uhr. Klick haelt den Rechner wach,
+noch ein Klick laesst die Automatik wieder zu; Rechtsklick schaltet die
+Automatik ganz ab. Das Popout nennt die drei Fristen, damit man nachsehen
+kann, wann was passiert waere.
+
+**Sichtbar ist er nur, wenn er an ist** -- als gelbe Tasse. Das ist der ganze
+Trick: ein Knopf, der dauernd dasteht, wird zu Moebel, und dann vergisst man,
+dass der Rechner seit drei Tagen wachgehalten wird. Er steht deshalb auch in
+`collapsedWidgets`: in der zugeklappten Insel, neben der Uhr, sieht man den
+Kaffee auch dann, wenn sonst nichts zu sehen ist.
+
+Der Zustand liegt in der Config (`caffeine`), nicht nur im Speicher: wer den
+Rechner wachhaelt, weil ein langer Lauf durchgeht, will nicht, dass ein
+`install.sh` das stillschweigend zuruecknimmt.
+
 ## Akku und Energieprofil
 
 Der Baustein `battery` zeigt in Ruhe den Ladestand, **unter der Maus die
@@ -1178,6 +1233,34 @@ spricht nur mit ppd, deshalb ist es hier nicht benutzt.)
 tuned kennt ueber 30 Profile, von SAP HANA bis Realtime. In der Leiste steht
 eine kurze Auswahl, die auf einem Notebook Sinn ergibt (`powerProfiles` in der
 Config); alles andere bleibt `tuned-adm` vorbehalten.
+
+### Warnen, bevor es zu spaet ist
+
+Die Zelle wurde bei 20 % rot -- und das war alles. Steht die Insel zugeklappt
+auf der Uhr, sieht man davon nichts, und der Rechner geht irgendwann einfach
+aus. Jetzt kommt eine Meldung an festen Schwellen (`batteryWarnAt`,
+Vorgabe `[20, 10, 5]`), unter 5 % als `critical`.
+
+Jede Schwelle meldet sich **genau einmal je Entladung**: ohne das Merken kaeme
+bei 19,6 / 19,4 / 19,2 % dreimal dieselbe Meldung. Zurueckgesetzt wird beim
+Anstecken. Und wer aus dem Standby mit 4 % aufwacht, bekommt eine Meldung, nicht
+drei -- gemeldet wird nur die niedrigste erreichte Schwelle.
+
+### Akkus der Geraete
+
+Der Baustein `devices` zeigt das **schwaechste** angeschlossene Bluetooth-Geraet
+-- Maus, Kopfhoerer, Tastatur --, sein Popout alle. Die Zahlen lagen laengst
+vor (BlueZ meldet sie, wie die WLAN-Staerke als Anteil zwischen 0 und 1), sie
+standen nur ganz unten in der Geraeteliste des Control Centers, wo sie niemand
+sieht.
+
+Die Zelle ist **still, solange alles ueber 30 % steht** (`deviceLowAt`) und
+meldet sich je Geraet einmal, wenn es unter 15 % faellt (`deviceWarnAt`).
+Erneut erst, wenn es wieder ueber 25 % war -- sonst haengt eine Maus, die um
+die Schwelle pendelt, den ganzen Tag in den Meldungen.
+
+Das USB-Headset steht dort **nicht**: das ist kein Bluetooth-Geraet und kommt
+weiter ueber das `headset`-Plugin.
 
 ## Prozessliste
 

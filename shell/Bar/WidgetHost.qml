@@ -71,6 +71,10 @@ Item {
         switch (name) {
         case "clock":
             return clockComponent;
+        case "caffeine":
+            return caffeineComponent;
+        case "devices":
+            return devicesComponent;
         case "workspaces":
             return workspacesComponent;
         case "window":
@@ -111,6 +115,18 @@ Item {
         if (Plugins.source(name) === "" && Plugins.scanned)
             console.warn("nbshell: unbekannter Baustein:", name);
         return null;
+    }
+
+    Component {
+        id: caffeineComponent
+
+        Caffeine {}
+    }
+
+    Component {
+        id: devicesComponent
+
+        Devices {}
     }
 
     Component {

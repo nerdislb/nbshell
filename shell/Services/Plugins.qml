@@ -137,6 +137,18 @@ Singleton {
             "category": "System"
         },
         {
+            "id": "devices",
+            "name": "Geraeteakkus",
+            "description": "Maus, Kopfhoerer -- meldet sich nur, wenn es knapp wird",
+            "category": "System"
+        },
+        {
+            "id": "caffeine",
+            "name": "Wachhalten",
+            "description": "haelt Dimmen, Bildschirm-aus und Sperren an",
+            "category": "System"
+        },
+        {
             "id": "sep",
             "name": "Trenner",
             "description": "senkrechter Strich",

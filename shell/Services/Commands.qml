@@ -87,6 +87,8 @@ Singleton {
         out.push(entry(Audio.muted ? "Ton an" : "Ton aus", "Lautsprecher stumm schalten", "Dienste", () => Audio.toggleMute()));
         out.push(entry(Audio.micMuted ? "Mikrofon an" : "Mikrofon aus", "Aufnahme stumm schalten", "Dienste", () => Audio.setMicMuted(!Audio.micMuted)));
         out.push(entry("Updates pruefen", "Paketliste neu holen", "Dienste", () => Updates.refresh()));
+        out.push(entry(Idle.caffeine ? "Wachhalten aus" : "Wachhalten an", "Dimmen, Bildschirm-aus und Sperren anhalten", "Dienste", () => Idle.toggleCaffeine()));
+        out.push(entry(Idle.enabled ? "Leerlauf-Automatik aus" : "Leerlauf-Automatik an", "dimmen, abschalten, sperren", "Dienste", () => Config.set("idle", !Idle.enabled)));
         out.push(entry("Themeliste neu lesen", "nach neuen Themes suchen", "Dienste", () => ThemeIndex.refresh()));
 
         // ── Sitzung ──────────────────────────────────────────────────────

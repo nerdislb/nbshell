@@ -59,6 +59,14 @@ Singleton {
     readonly property string camera: cp(0xF0100)
     readonly property string record: cp(0xF044A)
 
+    // Wachhalten. Die Tasse (nf-md-coffee) ist bei 13 px noch als Tasse zu
+    // erkennen -- mit Dampf darueber, und genau der macht sie eindeutig. Das
+    // zZz daneben ist absichtlich das leisere Zeichen: es steht fuer den
+    // Normalfall, und der soll nicht auffallen.
+    readonly property string coffee: cp(0xF0176)
+    readonly property string sleep: cp(0xF04B2)
+    readonly property string sleepOff: cp(0xF04B3)
+
     // Updates
     readonly property string download: cp(0xF01DA)
     readonly property string refresh: cp(0xF0450)
