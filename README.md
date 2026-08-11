@@ -1363,9 +1363,27 @@ langsam wandernden Helligkeitsverlauf dazwischen:
 | brennen | das Wort brennt von unten nach oben an |
 | schnitt | waagerecht durchgeschnitten, beide Haelften fahren ein |
 
-TTE, das Omarchy benutzt, bringt **39** mit -- so viele werden es hier nicht.
-Die zehn decken die Spielarten ab, die auf neun Zeilen ueberhaupt zur Geltung
-kommen; der Rest von TTEs Liste lebt von grossen Bildern.
+### Die 39 Effekte von Omarchy
+
+Sie sind nicht nachgebaut, sie werden **benutzt**: TerminalTextEffects ist ein
+Paket, und 39 Effekte handzuschreiben waere Wochen Arbeit und am Ende doch nur
+die Imitation.
+
+```bash
+paru -S python-terminaltexteffects
+```
+
+Danach nimmt `scripts/screensaver.sh` `tte` statt der eigenen zehn -- mit
+Omarchys Aufrufwerten, Flagge fuer Flagge. Ohne das Paket bleibt es bei den
+zehn eigenen; nichts bricht.
+
+Die Vorlage liegt als `~/.config/nbshell/screensaver.txt` und wird beim ersten
+Start aus dem eingebauten Schriftzug geschrieben. Wer etwas anderes will,
+ueberschreibt die Datei -- dieselbe Idee wie Omarchys branding-Datei.
+
+**Nicht jede Fassung von `tte` kennt jede Flagge.** Das Skript fragt deshalb
+`tte --help` und gibt nur weiter, was dort auftaucht: eine unbekannte Flagge
+waere ein sofortiger Abbruch und ein schwarzer Schirm.
 
 Der Schriftzug ist aus der eigenen Schrift **gerastert**, nicht von Hand gemalt
 -- so sitzen die Proportionen -- und zwar mit **Halbbloecken** (`▀▄█`): eine

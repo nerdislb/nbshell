@@ -464,7 +464,24 @@ def ruhe(s, akzent, fg, halt, sekunden):
         time.sleep(0.05)
 
 
+def wortmarke_ausgeben():
+    """Den Schriftzug als Textdatei ausgeben -- Futter fuer TTE.
+
+    Damit liegt die Vorlage an genau einer Stelle: hier. Wer sie aendern will,
+    schreibt in ~/.config/nbshell/screensaver.txt; das Startskript nimmt die
+    Datei, wenn es sie findet, und sonst diese Ausgabe.
+    """
+    breit = max(len(z) for z in GROSS)
+    spalten = shutil.get_terminal_size((239, 63)).columns
+    art = GROSS if spalten >= breit + 4 else KLEIN
+    print("\n".join(art))
+
+
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] in ("--wortmarke", "-w"):
+        wortmarke_ausgeben()
+        return
+
     beendet = {"ja": False}
 
     def stop(*_):

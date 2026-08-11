@@ -123,7 +123,10 @@ Singleton {
     // Mausbewegung selbst aus, und WIR schicken ihm ein SIGTERM, sobald der
     // Leerlauf endet. Das zweite ist noetig, weil eine Mausbewegung ausserhalb
     // des Terminalfensters dort nie ankommt.
-    readonly property string saverScript: Qt.resolvedUrl("../scripts/screensaver.py").toString().replace("file://", "")
+    // Das Startskript, nicht das Python direkt: es entscheidet, ob TTE da ist
+    // (39 Effekte, dasselbe Programm wie bei Omarchy) oder ob unsere zehn
+    // eigenen laufen.
+    readonly property string saverScript: Qt.resolvedUrl("../scripts/screensaver.sh").toString().replace("file://", "")
     readonly property string terminal: Config.value("terminal", "") || Quickshell.env("TERMINAL") || "ghostty"
 
     // Der Titel muss BEIM OEFFNEN stehen, nicht danach: niri wertet seine
@@ -141,7 +144,7 @@ Singleton {
         if (saver.running)
             return;
         const vorn = root.ghostty ? [root.terminal, "--title=nbshell-screensaver", "--fullscreen=true"] : [root.terminal];
-        saver.command = vorn.concat(["-e", "python3", root.saverScript]);
+        saver.command = vorn.concat(["-e", "bash", root.saverScript]);
         saver.running = true;
     }
 
