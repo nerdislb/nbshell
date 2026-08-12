@@ -3010,6 +3010,15 @@ doppelt gebaut werden, und der Uebergang laesst sich animieren.
 
 ## Fallstricke
 
+- **`cellW` gilt fuer die Ziffer, nicht fuer jedes Zeichen.** `Theme.cellW` ist
+  die Vorschubbreite der „0" (6,5 px). Die Blockzeichen des Balkens legt Qt
+  aber mit rund 7 px um — bei 24 Zellen sind das 168 statt 156 px, knapp zwei
+  Zeichen ueber den eigenen Kasten hinaus. Der Nachbar in derselben Reihe wird
+  brav nach 156 px gesetzt und liegt dann unter dem Balkenende. Aufgefallen ist
+  es erst am Mikrofonregler: der steht meist auf 100 %, und ein **voller**
+  Balken ist sichtbar, ein leerer nicht. `LevelBar` misst sich seither an dem,
+  was wirklich gemalt wird (`implicitWidth: bloecke.implicitWidth`) — wer eine
+  Zeile mit Balken fest bemasst, rechnet mit ein paar Zeichen mehr.
 - **Eine Property darf nicht `data` heissen.** `data` ist die Standard-
   Kindliste jedes QtObject. Eine eigene Property dieses Namens verdeckt sie --
   die Kinder des Fensters landen dann in einer Variablen statt in der Szene.

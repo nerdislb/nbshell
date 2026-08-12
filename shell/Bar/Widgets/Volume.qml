@@ -84,9 +84,15 @@ Cell {
                 }
 
                 Line {
-                    // Feste Breite in Zeichen, damit der Balken beim Regeln
-                    // nicht wandert.
-                    text: (Audio.muted ? "stumm" : (Audio.volume + "%")).padStart(6, " ")
+                    // Feste Breite und rechtsbuendig, damit der Balken beim
+                    // Regeln nicht wandert und die Zahl unter der des
+                    // Mikrofons steht. Vorher stand hier ein `padStart(6)`:
+                    // das reicht fuer "35%", aber nicht fuer "MIC 100%" --
+                    // acht Zeichen in sechs Stellen, und die Beschriftung
+                    // klebte am vollen Balken.
+                    width: Theme.cellW * 9
+                    horizontalAlignment: Text.AlignRight
+                    text: Audio.muted ? "stumm" : (Audio.volume + "%")
                     color: Audio.muted ? Theme.red : Theme.text
                 }
             }
@@ -105,7 +111,9 @@ Cell {
                 }
 
                 Line {
-                    text: (Audio.micMuted ? "stumm" : ("MIC " + Audio.micVolume + "%")).padStart(6, " ")
+                    width: Theme.cellW * 9
+                    horizontalAlignment: Text.AlignRight
+                    text: Audio.micMuted ? "stumm" : ("MIC " + Audio.micVolume + "%")
                     color: Audio.micMuted ? Theme.red : Theme.fgDim
 
                     MouseArea {

@@ -47,7 +47,11 @@ Cell {
 
             property var closePopout: null
 
-            readonly property real rowWidth: Theme.cellW * 46
+            // Zwei Zeichen mehr als frueher: die Balken sind seit der Korrektur an
+            // LevelBar so breit, wie sie gemalt werden -- und damit ein Stueck
+            // breiter als 20 Zellen. Ohne die zwei Zellen mehr rutschte das "GB"
+            // der Plattenzeile aus dem Kasten.
+            readonly property real rowWidth: Theme.cellW * 48
             readonly property var d: SysInfo.detail
 
             spacing: Theme.cellH * 0.25
@@ -75,7 +79,7 @@ Cell {
                     color: Theme.fgDim
                     // Neun Zeichen sind das, was die Zeile hergibt: dahinter
                     // stehen 20 Balkenzellen und die Zahlen, und die Zeile ist
-                    // 46 Zeichen breit. Ein langer Einhaengepunkt schiebt sonst
+                    // 48 Zeichen breit. Ein langer Einhaengepunkt schiebt sonst
                     // die Zahlen aus dem Kasten.
                     elide: Text.ElideRight
                 }
