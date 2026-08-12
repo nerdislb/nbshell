@@ -493,6 +493,7 @@ nbshell -- eigene Shell auf Quickshell
   nbshell music playlists   eigene Playlists auflisten
   nbshell music suche <text>  Titel suchen
 
+  nbshell ton               Ton zurueck auf die Bluetooth-Hoerer
   nbshell qr                WLAN als QR-Code (Fenster, Esc schliesst)
   nbshell speed             Durchsatz messen (Fenster, Leertaste wiederholt)
 
@@ -653,6 +654,9 @@ ENDE
             suche|search)   python3 "$MUSIC_TOOL" search "$@" ;;
             *)              python3 "$MUSIC_TOOL" "$unter" "$@" ;;
         esac
+        ;;
+    ton|audio)
+        ipc audio zurueck
         ;;
     qr)
         ipc net qr

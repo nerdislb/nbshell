@@ -157,6 +157,18 @@ Scope {
     IpcHandler {
         target: "audio"
 
+        // Ton zurueck auf die Bluetooth-Hoerer, nachdem das Telefon sie
+        // uebernommen hatte.
+        function zurueck(): string {
+            Audio.tonZurueck();
+            return "hole …";
+        }
+
+        function tonstatus(): string {
+            return Audio.tonStatus === "" ? "nichts zu melden" : Audio.tonStatus;
+        }
+
+
         // Fuer die Multimediatasten: XF86AudioRaiseVolume -> `nbshell audio up`
         function up(): string {
             return String(Audio.step(5));

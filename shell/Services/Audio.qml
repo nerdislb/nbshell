@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.Pipewire
 import qs.Common
 
@@ -27,6 +28,70 @@ Singleton {
 
     readonly property int micVolume: source?.audio ? Math.round(source.audio.volume * 100) : 0
     readonly property bool micMuted: source?.audio ? source.audio.muted : false
+
+    // ── Ton zurueckholen ─────────────────────────────────────────────────
+    //
+    // Bluetooth-Hoerer mit Multipoint wandern beim Anruf ans Telefon und
+    // kommen nicht von selbst zurueck -- Googles „Audio Switch" schaltet nur
+    // zwischen Geraeten desselben Kontos, ein Linux-Laptop ist dort nicht
+    // dabei. Die Arbeit macht scripts/ton.sh; hier steht nur, wann.
+    readonly property string tonSkript: Qt.resolvedUrl("../scripts/ton.sh").toString().replace("file://", "")
+
+    property string tonStatus: ""
+    property bool tonLaeuft: false
+
+    function tonZurueck() {
+        if (root.tonLaeuft)
+            return;
+        root.tonLaeuft = true;
+        root.tonStatus = "hole den Ton zurück …";
+        holer.command = ["bash", root.tonSkript];
+        holer.running = true;
+    }
+
+    Process {
+        id: holer
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.tonLaeuft = false;
+                let d = null;
+                try {
+                    d = JSON.parse(text);
+                } catch (e) {
+                    root.tonStatus = "Antwort unlesbar";
+                    quittung.restart();
+                    return;
+                }
+                if (!d.ok) {
+                    root.tonStatus = String(d.grund);
+                    // Gemeldet wird per Benachrichtigung, nicht still in einer
+                    // Eigenschaft: der Befehl kommt aus der Palette oder vom
+                    // Terminal, und beide sind weg, bevor die Antwort da ist.
+                    // Ein Fehlschlag, den niemand sieht, ist derselbe wie
+                    // keiner -- man drueckt noch dreimal und wundert sich.
+                    Quickshell.execDetached(["notify-send", "-a", "nbshell", "-u", "normal", "Ton kam nicht zurück", String(d.grund)]);
+                    quittung.restart();
+                    return;
+                }
+                root.tonStatus = "Ton ist wieder da";
+                Quickshell.execDetached(["notify-send", "-a", "nbshell", "-t", "2500", "Ton ist wieder da", String(d.senke ?? "")]);
+                // Die Musik stand ja still, deshalb wurde der Knopf gedrueckt.
+                // Aber nur fortsetzen, was PAUSIERT ist -- ein gestoppter
+                // Spieler soll nicht von allein losspielen.
+                if (Music.spieler && !Music.spielt && Music.queue.length > 0)
+                    Music.playPause();
+                quittung.restart();
+            }
+        }
+    }
+
+    Timer {
+        id: quittung
+
+        interval: 5000
+        onTriggered: root.tonStatus = ""
+    }
 
     function label(node) {
         return node?.nickname || node?.description || node?.name || "?";

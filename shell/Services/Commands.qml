@@ -48,6 +48,7 @@ Singleton {
         out.push(entry("Einstellungen", "Optionen der Shell", "Fenster", () => Runtime.settingsOpen = true));
         out.push(entry("Bausteine", "welche Zellen in der Leiste stehen", "Fenster", () => Runtime.modulesOpen = true));
         out.push(entry("Aufgaben", "die Liste (Mod+T)", "Fenster", () => Runtime.todoOpen = true));
+        out.push(entry("Ton zurückholen", "Kopfhörer wieder auf den Laptop", "Ton", () => Audio.tonZurueck()));
         out.push(entry("Zwischenablage", "Verlauf (Mod+V)", "Fenster", () => Runtime.clipOpen = true));
         out.push(entry("Benachrichtigungen", "Archiv (Mod+N)", "Fenster", () => Runtime.notifyOpen = true));
         out.push(entry("Prozesse", "was laeuft und was frisst", "Fenster", () => Runtime.procsOpen = true));

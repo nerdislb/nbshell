@@ -557,6 +557,64 @@ sie per Tastenkuerzel.
 
 ## Audio
 
+### Ton zurückholen (`nbshell ton`)
+
+Bluetooth-Hörer mit Multipoint hängen an zwei Geräten gleichzeitig. Kommt ein
+Anruf aufs Telefon, wechseln sie dorthin — und danach **nicht von selbst
+zurück**.
+
+Zwei Gründe, und beide liegen nicht an einem Fehler:
+
+**Googles „Audio Switch" kann den Laptop gar nicht meinen.** Das Feature
+schaltet zwischen Geräten mit demselben Google-Konto (Telefon, Chromebook,
+Pixel Tablet). Ein Arch-Laptop ist dort nicht dabei; für die Hörer ist er ein
+gewöhnlicher Multipoint-Partner. Zurück geht es nur, wenn diese Seite wieder
+Ton anmeldet.
+
+**Genau das tut sie nach fünf Sekunden nicht mehr.** WirePlumber legt untätige
+Senken schlafen — nachgelesen in `suspend-node.lua`:
+
+```lua
+tonumber(node.properties["session.suspend-timeout-seconds"]) or 5
+```
+
+Während des Telefonats pausiert die Musik, die Senke schläft ein, und danach
+ist nichts mehr da, wohin die Hörer zurückkehren könnten.
+
+Man könnte die Senke am Einschlafen hindern (`session.suspend-timeout-seconds
+= 0` per WirePlumber-Drop-in). Dann bliebe die Verbindung dauernd offen: mehr
+Akkuverbrauch an den Hörern, und manche rauschen bei offenem, stillem Stream
+leise vor sich hin. Deshalb hier der Weg auf Knopfdruck — `nbshell ton`, die
+Befehlspalette (`Ton zurückholen`) oder das Geräte-Popout.
+
+**Zwei Fälle behandelt das Skript**, und der zweite kam erst beim Nachsehen
+heraus:
+
+| | |
+|---|---|
+| Hörer noch verbunden, Senke schläft | Profil einmal `off` und zurück auf `a2dp-sink` |
+| Hörer ganz getrennt (keine Karte, keine Senke) | `bluetoothctl connect` — genau das war hier der Fall |
+
+Welches Gerät gemeint ist, merkt sich das Skript in
+`~/.local/state/nbshell/ton-geraet`; beim ersten Mal nimmt es das erste
+gepaarte Gerät, dessen Icon auf Ton hindeutet (ein Tastatureintrag hilft hier
+nicht). Danach werden **laufende Streams mitgezogen** — ohne das hängen
+Programme an der alten, verschwundenen Senke und schweigen, obwohl alles
+verbunden aussieht.
+
+**Mit Deckel:** `bluetoothctl connect` wartet sonst bis zu einer Minute auf ein
+Gerät, das gar nicht antworten kann. Gemessen: 52 Sekunden, bevor die Antwort
+kam. Für einen Knopf, der den Ton zurückholen soll, ist eine Minute Schweigen
+dasselbe wie ein Fehler, nur länger — jetzt ist nach acht Sekunden Schluss.
+
+Gemeldet wird per **Benachrichtigung**, nicht still in einer Eigenschaft: der
+Befehl kommt aus der Palette oder vom Terminal, und beide sind weg, bevor die
+Antwort da ist. Ein Fehlschlag, den niemand sieht, ist derselbe wie keiner —
+man drückt noch dreimal und wundert sich.
+
+Klappt es, läuft pausierte Musik weiter. Nur pausierte: ein gestoppter Spieler
+soll nicht von allein losspielen.
+
 Der Baustein `volume` zeigt die Lautstaerke; Mausrad regelt, Rechtsklick
 schaltet stumm, ein Klick klappt Regler, Mikrofon und die Liste der Ausgaben
 auf. Die Anbindung ist Quickshells Pipewire-Modul — kein `pactl` und kein
