@@ -498,6 +498,8 @@ nbshell -- eigene Shell auf Quickshell
   nbshell keys liste        dieselben Kuerzel im Terminal
 
   nbshell ton               Ton zurueck auf die Bluetooth-Hoerer
+  nbshell codec             welcher Bluetooth-Codec laeuft
+  nbshell codec beste       auf den besten verfuegbaren wechseln
   nbshell qr                WLAN als QR-Code (Fenster, Esc schliesst)
   nbshell speed             Durchsatz messen (Fenster, Leertaste wiederholt)
 
@@ -628,6 +630,13 @@ case "$cmd" in
                     if [ -n "${2:-}" ]; then ipc nearby sendTo "$datei" "$2"; else ipc nearby send "$datei"; fi ;;
             *)      ipc nearby status ;;
         esac
+        ;;
+    codec)
+        # Ohne Argument die Auskunft, mit Argument umschalten:
+        #   nbshell codec           -> AAC  (es ginge …)
+        #   nbshell codec beste     -> den hoechstplatzierten nehmen
+        #   nbshell codec sbc-xq    -> einen bestimmten
+        ipc audio codec "${1:-}"
         ;;
     keys|tasten)
         case "${1:-fenster}" in

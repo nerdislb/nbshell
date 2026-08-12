@@ -168,6 +168,27 @@ Scope {
             return Audio.tonStatus === "" ? "nichts zu melden" : Audio.tonStatus;
         }
 
+        // Welcher Bluetooth-Codec laeuft -- und umschalten. Ohne Argument nur
+        // die Auskunft; `beste` nimmt den, den PipeWire selbst vorn einsortiert.
+        function codec(wunsch: string): string {
+            Audio.codecsLesen();
+            if (!Audio.btGelesen)
+                return "sehe nach — gleich nochmal";
+            if (wunsch === "")
+                return Audio.btDa ? (Audio.btCodec + (Audio.btSchlechter ? "  (es ginge " + (Audio.btCodecs.length > 0 ? Audio.btCodecs[0].codec : "?") + ")" : "")) : "kein Bluetooth-Tongeraet";
+            if (!Audio.btDa)
+                return "kein Bluetooth-Tongeraet";
+
+            if (wunsch === "beste" || wunsch === "best") {
+                Audio.setzeCodec(Audio.btBeste);
+                return "schalte auf " + (Audio.btCodecs.length > 0 ? Audio.btCodecs[0].codec : Audio.btBeste);
+            }
+            const treffer = Audio.btCodecs.find(c => c.codec.toLowerCase() === wunsch.toLowerCase() || c.profil === wunsch);
+            if (!treffer)
+                return "kenne ich nicht: " + wunsch + " — da waeren: " + Audio.btCodecs.map(c => c.codec).join(", ");
+            Audio.setzeCodec(treffer.profil);
+            return "schalte auf " + treffer.codec;
+        }
 
         // Fuer die Multimediatasten: XF86AudioRaiseVolume -> `nbshell audio up`
         function up(): string {

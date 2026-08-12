@@ -21,15 +21,21 @@ Column {
 
     readonly property date today: new Date()
 
-    readonly property real cellWidth: Math.round(Theme.cellW * 4)
+    // Sechs Zeichen je Tag, nicht vier: das Gitter darf Luft haben wie bei
+    // omacal. Vier war die Breite, in die "31" gerade so passt -- daneben sah
+    // es aus wie eine Tabelle, nicht wie ein Kalender.
+    readonly property real cellWidth: Math.round(Theme.cellW * 6)
 
     // Zwei Zeilen hoch: die Zahl oben, der Punkt darunter. Bei anderthalb
     // Zeilen sass der Punkt auf der Zahl -- "31" sah aus wie "3.1".
-    readonly property real cellHeight: Math.round(Theme.cellH * 1.9)
+    readonly property real cellHeight: Math.round(Theme.cellH * 2.1)
+
+    // Wie breit das Gitter selbst ist: sieben Tage plus die KW-Spalte.
+    readonly property real gridWidth: cellWidth * 7 + Theme.cellW * 5
 
     // Breit genug fuer die Terminzeile darunter, nicht nur fuer das Gitter:
     // Uhrzeit, Farbstreifen und ein Titel, von dem noch etwas uebrig bleibt.
-    readonly property real rowWidth: Math.max(cellWidth * 7 + Theme.cellW * 4, Theme.cellW * 54)
+    readonly property real rowWidth: Math.max(gridWidth, Theme.cellW * 58)
 
     // Die Kopfzeile nach dem Vorbild von omacal: nicht bloss "AUGUST 2026",
     // sondern Tag, Kalenderwoche und Jahr -- "12. AUGUST  W33  2026". Damit
@@ -156,134 +162,148 @@ Column {
     }
 
     // ── Monatsgitter ──────────────────────────────────────────────────────
+    //
+    // In einem Kasten von voller Breite und darin MITTIG. Das Gitter ist
+    // schmaler als die Terminzeilen darunter (die brauchen Platz fuer Uhrzeit
+    // und Titel); links buendig sass es sonst am Rand und liess rechts eine
+    // leere Spalte stehen. Der Kasten drumherum ist noetig, weil ein
+    // Positionierer seine Kinder selbst setzt -- eine Column zentriert nichts,
+    // auch wenn man ihr eine Breite gibt.
+    Item {
+        width: panel.rowWidth
+        height: gitter.height
 
-    Column {
-        spacing: 0
+        Column {
+            id: gitter
 
-        // Blaettern mit dem Mausrad -- die Hand liegt ohnehin dort.
-        //
-        // Ein `WheelHandler` und KEINE MouseArea: eine MouseArea waere ein
-        // Kind des Positionierers, bekaeme von ihm eine Position zugewiesen
-        // und braeuchte Anker, um die Flaeche zu fuellen -- womit das ganze
-        // Gitter nicht mehr gebaut wird. Genau das ist hier zuerst passiert:
-        // die Kopfzeile stand da, die Wochen fehlten.
-        WheelHandler {
-            onWheel: wheelEvent => panel.moveMonth(wheelEvent.angleDelta.y > 0 ? -1 : 1)
-        }
-
-        Row {
+            anchors.horizontalCenter: parent.horizontalCenter
             spacing: 0
 
-            Item {
-                width: Theme.cellW * 4
-                height: panel.cellHeight
-
-                Heading {
-                    anchors.centerIn: parent
-                    text: "KW"
-                }
+            // Blaettern mit dem Mausrad -- die Hand liegt ohnehin dort.
+            //
+            // Ein `WheelHandler` und KEINE MouseArea: eine MouseArea waere ein
+            // Kind des Positionierers, bekaeme von ihm eine Position zugewiesen
+            // und braeuchte Anker, um die Flaeche zu fuellen -- womit das ganze
+            // Gitter nicht mehr gebaut wird. Genau das ist hier zuerst passiert:
+            // die Kopfzeile stand da, die Wochen fehlten.
+            WheelHandler {
+                onWheel: wheelEvent => panel.moveMonth(wheelEvent.angleDelta.y > 0 ? -1 : 1)
             }
-
-            Repeater {
-                model: ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
-
-                Item {
-                    required property var modelData
-                    required property int index
-
-                    width: panel.cellWidth
-                    height: panel.cellHeight
-
-                    Heading {
-                        anchors.centerIn: parent
-                        text: parent.modelData
-                        color: parent.index >= 5 ? Theme.muted : Theme.fgDim
-                    }
-                }
-            }
-        }
-
-        Repeater {
-            model: 6
 
             Row {
-                id: week
-
-                required property int index
-
-                readonly property date weekStart: new Date(panel.viewDate.getFullYear(), panel.viewDate.getMonth(), 1 - panel.firstColumn(panel.viewDate.getFullYear(), panel.viewDate.getMonth()) + week.index * 7)
-
                 spacing: 0
 
                 Item {
-                    width: Theme.cellW * 4
+                    width: Theme.cellW * 5
                     height: panel.cellHeight
 
                     Heading {
                         anchors.centerIn: parent
-                        text: Calendar.isoWeek(week.weekStart)
-                        color: Theme.muted
+                        text: "KW"
                     }
                 }
 
                 Repeater {
-                    model: 7
+                    model: ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
 
                     Item {
-                        id: dayCell
-
+                        required property var modelData
                         required property int index
-
-                        readonly property date day: new Date(week.weekStart.getFullYear(), week.weekStart.getMonth(), week.weekStart.getDate() + dayCell.index)
-                        readonly property bool inMonth: day.getMonth() === panel.viewDate.getMonth()
-                        readonly property bool isToday: Calendar.sameDay(day, panel.today)
-                        readonly property bool isSelected: Calendar.sameDay(day, panel.selected)
-                        readonly property bool busy: Calendar.hasEvents(day)
 
                         width: panel.cellWidth
                         height: panel.cellHeight
 
-                        Rectangle {
-                            anchors.fill: parent
-                            anchors.margins: 1
-                            radius: Theme.radius
-                            color: dayCell.isSelected ? Theme.alpha(Theme.accent, 0.2) : (dayHover.hovered ? Theme.hover : "transparent")
-                            border.width: dayCell.isToday ? Theme.borderWidth : 0
-                            border.color: Theme.readable(Theme.accent, Theme.bg)
-                        }
-
-                        Line {
+                        Heading {
                             anchors.centerIn: parent
-                            anchors.verticalCenterOffset: -Theme.cellH * 0.3
-                            text: dayCell.day.getDate()
-                            color: dayCell.inMonth ? (dayCell.isToday ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg) : Theme.muted
+                            text: parent.modelData
+                            color: parent.index >= 5 ? Theme.muted : Theme.fgDim
                         }
+                    }
+                }
+            }
 
-                        // Der Punkt sagt nur "da steht etwas an" -- wie viel,
-                        // sagt die Liste darunter.
-                        Line {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            anchors.bottom: parent.bottom
-                            anchors.bottomMargin: Theme.cellH * 0.1
-                            visible: dayCell.busy
-                            text: "·"
-                            color: dayCell.inMonth ? Theme.readable(Theme.accent, Theme.bg) : Theme.muted
+            Repeater {
+                model: 6
+
+                Row {
+                    id: week
+
+                    required property int index
+
+                    readonly property date weekStart: new Date(panel.viewDate.getFullYear(), panel.viewDate.getMonth(), 1 - panel.firstColumn(panel.viewDate.getFullYear(), panel.viewDate.getMonth()) + week.index * 7)
+
+                    spacing: 0
+
+                    Item {
+                        width: Theme.cellW * 5
+                        height: panel.cellHeight
+
+                        Heading {
+                            anchors.centerIn: parent
+                            text: Calendar.isoWeek(week.weekStart)
+                            color: Theme.muted
                         }
+                    }
 
-                        // KEINE MouseArea mit `hoverEnabled`: die nimmt das
-                        // Ueberfahren fuer sich, und der HoverHandler des
-                        // Popoutfensters darueber sieht es nicht mehr. Das
-                        // Popout haelt die Maus dann fuer verschwunden und
-                        // klappt nach dem Nachlauf zu -- mitten im Lesen.
-                        // Handler blockieren einander nicht.
-                        HoverHandler {
-                            id: dayHover
+                    Repeater {
+                        model: 7
 
-                            cursorShape: Qt.PointingHandCursor
-                        }
+                        Item {
+                            id: dayCell
 
-                        TapHandler {
-                            onTapped: panel.selected = dayCell.day
+                            required property int index
+
+                            readonly property date day: new Date(week.weekStart.getFullYear(), week.weekStart.getMonth(), week.weekStart.getDate() + dayCell.index)
+                            readonly property bool inMonth: day.getMonth() === panel.viewDate.getMonth()
+                            readonly property bool isToday: Calendar.sameDay(day, panel.today)
+                            readonly property bool isSelected: Calendar.sameDay(day, panel.selected)
+                            readonly property bool busy: Calendar.hasEvents(day)
+
+                            width: panel.cellWidth
+                            height: panel.cellHeight
+
+                            Rectangle {
+                                anchors.fill: parent
+                                anchors.margins: 1
+                                radius: Theme.radius
+                                color: dayCell.isSelected ? Theme.alpha(Theme.accent, 0.2) : (dayHover.hovered ? Theme.hover : "transparent")
+                                border.width: dayCell.isToday ? Theme.borderWidth : 0
+                                border.color: Theme.readable(Theme.accent, Theme.bg)
+                            }
+
+                            Line {
+                                anchors.centerIn: parent
+                                anchors.verticalCenterOffset: -Theme.cellH * 0.3
+                                text: dayCell.day.getDate()
+                                color: dayCell.inMonth ? (dayCell.isToday ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg) : Theme.muted
+                            }
+
+                            // Der Punkt sagt nur "da steht etwas an" -- wie viel,
+                            // sagt die Liste darunter.
+                            Line {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.bottom: parent.bottom
+                                anchors.bottomMargin: Theme.cellH * 0.1
+                                visible: dayCell.busy
+                                text: "·"
+                                color: dayCell.inMonth ? Theme.readable(Theme.accent, Theme.bg) : Theme.muted
+                            }
+
+                            // KEINE MouseArea mit `hoverEnabled`: die nimmt das
+                            // Ueberfahren fuer sich, und der HoverHandler des
+                            // Popoutfensters darueber sieht es nicht mehr. Das
+                            // Popout haelt die Maus dann fuer verschwunden und
+                            // klappt nach dem Nachlauf zu -- mitten im Lesen.
+                            // Handler blockieren einander nicht.
+                            HoverHandler {
+                                id: dayHover
+
+                                cursorShape: Qt.PointingHandCursor
+                            }
+
+                            TapHandler {
+                                onTapped: panel.selected = dayCell.day
+                            }
                         }
                     }
                 }
@@ -332,7 +352,7 @@ Column {
     }
 
     Repeater {
-        model: Calendar.eventsOn(panel.selected).slice(0, 8)
+        model: Calendar.eventsOn(panel.selected).slice(0, 12)
 
         Item {
             id: entry
@@ -340,7 +360,7 @@ Column {
             required property var modelData
 
             width: panel.rowWidth
-            height: Theme.cellH * 1.3
+            height: Theme.cellH * 1.45
 
             Line {
                 id: when
@@ -376,8 +396,8 @@ Column {
     }
 
     Line {
-        visible: Calendar.eventsOn(panel.selected).length > 8
-        text: "  … und " + (Calendar.eventsOn(panel.selected).length - 8) + " weitere"
+        visible: Calendar.eventsOn(panel.selected).length > 12
+        text: "  … und " + (Calendar.eventsOn(panel.selected).length - 12) + " weitere"
         color: Theme.muted
     }
 

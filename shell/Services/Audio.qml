@@ -93,6 +93,91 @@ Singleton {
         onTriggered: root.tonStatus = ""
     }
 
+    // ── Bluetooth-Codec ──────────────────────────────────────────────────
+    //
+    // Der Gedanke ist von bt.codecs geborgt: am Hoerer entscheidet der Codec
+    // ueber den Klang, und man sieht ihm nirgends an, welcher ausgehandelt
+    // wurde. Unter PipeWire ist jeder Codec ein Kartenprofil -- Umschalten
+    // heisst also Profil wechseln, und der Ton setzt dabei kurz aus.
+    //
+    // Gelesen wird NUR auf Zuruf: beim Aufklappen des Popouts und nach einem
+    // Wechsel. Ein Takt im Hintergrund waere ein `pactl list cards` alle paar
+    // Sekunden fuer eine Angabe, die sich zwischen zwei Verbindungen nie
+    // aendert.
+    readonly property string codecSkript: Qt.resolvedUrl("../scripts/codec.py").toString().replace("file://", "")
+
+    property string btKarte: ""
+    property string btGeraet: ""
+    property string btCodec: ""
+    property string btBeste: ""
+    property bool btTelefonie: false
+    property var btCodecs: []
+
+    // Ob ueberhaupt schon einmal gelesen wurde. Ohne das antwortet der erste
+    // Aufruf nach dem Start "kein Bluetooth-Tongeraet" -- was nicht stimmt,
+    // sondern nur heisst, dass die Antwort noch unterwegs ist.
+    property bool btGelesen: false
+
+    readonly property bool btDa: root.btKarte !== ""
+
+    // Laeuft der Hoerer unter Wert? Genau das war hier der Fall: die Buds
+    // koennen AAC, standen aber auf SBC.
+    readonly property bool btSchlechter: root.btDa && !root.btTelefonie && root.btBeste !== "" && root.btBeste !== root.btAktiv
+
+    property string btAktiv: ""
+
+    function codecsLesen() {
+        if (!codecProc.running)
+            codecProc.running = true;
+    }
+
+    function setzeCodec(profil) {
+        if (root.btKarte === "" || profil === "")
+            return;
+        Quickshell.execDetached(["pactl", "set-card-profile", root.btKarte, profil]);
+        // PipeWire baut die Verbindung dabei neu auf -- vorher steht die alte
+        // Antwort noch da.
+        codecNach.restart();
+    }
+
+    Timer {
+        id: codecNach
+
+        interval: 1200
+        onTriggered: root.codecsLesen()
+    }
+
+    Process {
+        id: codecProc
+
+        command: ["python3", root.codecSkript]
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let d = null;
+                try {
+                    d = JSON.parse(text);
+                } catch (e) {
+                    return;
+                }
+                root.btGelesen = true;
+                if (!d.ok) {
+                    root.btKarte = "";
+                    root.btCodecs = [];
+                    root.btCodec = "";
+                    return;
+                }
+                root.btKarte = d.karte ?? "";
+                root.btGeraet = d.geraet ?? "";
+                root.btCodec = d.codec ?? "";
+                root.btAktiv = d.aktiv ?? "";
+                root.btBeste = d.beste ?? "";
+                root.btTelefonie = d.telefonie ?? false;
+                root.btCodecs = d.codecs ?? [];
+            }
+        }
+    }
+
     function label(node) {
         return node?.nickname || node?.description || node?.name || "?";
     }

@@ -618,6 +618,47 @@ man drückt noch dreimal und wundert sich.
 Klappt es, läuft pausierte Musik weiter. Nur pausierte: ein gestoppter Spieler
 soll nicht von allein losspielen.
 
+**Und es holt jetzt den besten Codec zurück, nicht den ersten.** Das war ein
+echter Fehler und fiel erst beim Bauen der Codec-Anzeige auf: `pactl` listet
+`a2dp-sink-sbc` zuerst, und `a2dp-sink` **ohne** Anhängsel ist nicht etwa der
+Standard, sondern AAC. Die alte awk-Regel nahm den ersten Treffer — und holte
+die Pixel Buds damit jedes Mal auf SBC zurück, den schlechtesten der vier
+verfügbaren, obwohl sie AAC können. Jetzt entscheidet die **Priorität**, die
+PipeWire selbst vergibt (AAC 135 > Opus 134 > SBC 133 > SBC-XQ 132).
+
+### Bluetooth-Codec (`nbshell codec`)
+
+Nach dem Vorbild von [bt.codecs](https://github.com/nightdevil00/bt.codecs):
+am Hörer entscheidet der Codec über den Klang, und man sieht ihm nirgends an,
+welcher gerade ausgehandelt wurde. Im Popout der Lautstärke steht deshalb eine
+Reihe — der aktive Codec umrahmt, ein Klick wechselt:
+
+```
+CODEC  —  Pixel Buds Pro 2 von Bernhard
+ AAC   Opus  [SBC]  SBC-XQ
+   geht besser: AAC
+```
+
+Die gelbe Zeile ist der Punkt der ganzen Sache: **läuft der Hörer unter Wert**,
+sieht man es sofort und ein Klick behebt es. Unter PipeWire ist jeder Codec ein
+Kartenprofil, Umschalten heißt also Profil wechseln — der Ton setzt dabei kurz
+aus, weil die Verbindung neu ausgehandelt wird.
+
+```bash
+nbshell codec            # AAC  (es ginge …)
+nbshell codec beste      # auf den höchstplatzierten wechseln
+nbshell codec sbc-xq     # einen bestimmten
+```
+
+Zwei Dinge, die dabei wichtig sind:
+
+- **Gelesen wird nur auf Zuruf** — beim Aufklappen des Popouts und nach einem
+  Wechsel. Ein Takt im Hintergrund wäre ein `pactl list cards` alle paar
+  Sekunden für eine Angabe, die sich zwischen zwei Verbindungen nie ändert.
+- **Headset-Profile stehen nicht zur Wahl.** Beim Telefonieren stellt das
+  System sie selbst ein; dann zeigt das Popout „Telefonie (LC3-SWB) —
+  schmalbandig, mit Mikrofon" statt Knöpfen. Das ist eine Folge, keine Wahl.
+
 Der Baustein `volume` zeigt die Lautstaerke; Mausrad regelt, Rechtsklick
 schaltet stumm, ein Klick klappt Regler, Mikrofon und die Liste der Ausgaben
 auf. Die Anbindung ist Quickshells Pipewire-Modul — kein `pactl` und kein
@@ -1696,6 +1737,13 @@ man sie stellt.
 Blaettert man aus dem Monat des gewaehlten Tages heraus, faellt der Titel auf
 den Monat zurueck. Ein Tagesdatum, das gar nicht im Gitter steht, waere eine
 falsche Auskunft.
+
+Das Gitter selbst hat mehr Luft bekommen — sechs Zeichen je Tag statt vier —
+und sitzt **mittig** im Kasten (nachgemessen: 305,5 px Gitter in 377 px
+Kastenbreite, 36 px Rand auf beiden Seiten). Der Kasten drumherum ist noetig,
+weil ein Positionierer seine Kinder selbst setzt: eine Column zentriert nichts,
+auch wenn man ihr eine Breite gibt. Darunter stehen die Termine des gewaehlten
+Tages untereinander, bis zu zwoelf.
 
 Rechts daneben die **Mondsichel des gewaehlten Tages**, in 28 Stufen. Die
 Rechnung (Sonnen- und Mondlaenge aus dem julianischen Datum, die Differenz ist
@@ -2888,6 +2936,7 @@ shell/
   Services/MediaService.qml  MPRIS: Zustand, Position, Lautstaerke
   Services/Music.qml   YouTube Music: Mediathek und Warteschlange
   Music/MusicWindow.qml  die Mediathek als Fenster (Mod+P)
+  scripts/codec.py     welcher Bluetooth-Codec laeuft, und welche es gaebe
   Services/Binds.qml   niris Tastenkuerzel (heisst nicht Keys -- das ist QML)
   Keys/KeysWindow.qml  die Uebersicht dazu (Mod+K)
   scripts/keys.py      liest die niri-Konfiguration samt include

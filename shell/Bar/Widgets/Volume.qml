@@ -33,7 +33,12 @@ Cell {
     // Auch per Tastenkuerzel aufklappbar -- nicht als Bindung, sonst
     // ueberschriebe sie den Klick auf die Zelle.
     // Zurueckmelden, wenn der Kompositor das Popout geschlossen hat.
-    onPopoutVisibleChanged: Runtime.audioPanelOpen = root.popoutVisible
+    onPopoutVisibleChanged: {
+        Runtime.audioPanelOpen = root.popoutVisible;
+        // Den Codec erst jetzt lesen -- er interessiert nur den, der hinsieht.
+        if (root.popoutVisible)
+            Audio.codecsLesen();
+    }
 
     Connections {
         target: Runtime
@@ -108,6 +113,88 @@ Cell {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: Audio.setMicMuted(!Audio.micMuted)
                     }
+                }
+            }
+
+            // ── Bluetooth-Codec ───────────────────────────────────────────
+            //
+            // Nur da, wenn ein Hoerer verbunden ist. Der aktive Codec ist
+            // hervorgehoben, ein Klick wechselt -- und der Ton setzt dabei
+            // kurz aus, weil PipeWire die Verbindung neu aushandelt.
+
+            Line {
+                visible: Audio.btDa
+                text: "CODEC" + (Audio.btGeraet !== "" ? "  —  " + Audio.btGeraet : "")
+                color: Theme.fgDim
+                width: panel.rowWidth
+                elide: Text.ElideRight
+            }
+
+            // Beim Telefonieren steht das Geraet im Headset-Profil: schmale
+            // Bandbreite, dafuer mit Mikrofon. Das ist keine Wahl, sondern eine
+            // Folge -- also hier auch keine Knoepfe, sondern eine Auskunft.
+            Line {
+                visible: Audio.btDa && Audio.btTelefonie
+                text: "  Telefonie (" + Audio.btCodec + ") — schmalbandig, mit Mikrofon"
+                color: Theme.yellow
+            }
+
+            Row {
+                visible: Audio.btDa && !Audio.btTelefonie
+                spacing: Theme.cellW
+
+                Repeater {
+                    model: Audio.btCodecs
+
+                    delegate: Rectangle {
+                        id: codec
+
+                        required property var modelData
+
+                        readonly property bool aktiv: codec.modelData.profil === Audio.btAktiv
+
+                        width: name.implicitWidth + Theme.cellW * 2
+                        height: Theme.cellH * 1.4
+                        radius: Theme.radius
+                        color: codec.aktiv ? Theme.alpha(Theme.accent, 0.2) : (hover.hovered ? Theme.hover : "transparent")
+                        border.width: codec.aktiv ? Theme.borderWidth : 0
+                        border.color: Theme.readable(Theme.accent, Theme.bg)
+
+                        Line {
+                            id: name
+
+                            anchors.centerIn: parent
+                            text: codec.modelData.codec
+                            color: codec.aktiv ? Theme.readable(Theme.accent, Theme.bg) : Theme.fgDim
+                        }
+
+                        HoverHandler {
+                            id: hover
+
+                            cursorShape: Qt.PointingHandCursor
+                        }
+
+                        TapHandler {
+                            onTapped: Audio.setzeCodec(codec.modelData.profil)
+                        }
+                    }
+                }
+            }
+
+            // Der Hinweis, wegen dem das Ganze hier steht: die Buds koennen
+            // AAC und standen trotzdem auf SBC. Ohne diese Zeile faellt so
+            // etwas nie auf.
+            Line {
+                visible: Audio.btSchlechter
+                text: "  geht besser: " + (Audio.btCodecs.length > 0 ? Audio.btCodecs[0].codec : "")
+                color: Theme.yellow
+
+                HoverHandler {
+                    cursorShape: Qt.PointingHandCursor
+                }
+
+                TapHandler {
+                    onTapped: Audio.setzeCodec(Audio.btBeste)
                 }
             }
 

@@ -83,12 +83,31 @@ fi
 mkdir -p "$(dirname "$MERKER")"
 printf '%s' "${karte#bluez_card.}" | tr '_' ':' > "$MERKER"
 
-# Welches Ausgabeprofil das Geraet ueberhaupt kann. a2dp-sink ist das mit der
-# guten Qualitaet; ohne Mikrofon. Wer telefoniert, landet ohnehin im
-# Headset-Profil, und dann soll dieser Befehl nicht dazwischenfunken.
+# Welches Ausgabeprofil das Geraet ueberhaupt kann. A2DP ist das mit der guten
+# Qualitaet; ohne Mikrofon. Wer telefoniert, landet ohnehin im Headset-Profil,
+# und dann soll dieser Befehl nicht dazwischenfunken.
+#
+# NICHT das erste A2DP-Profil, sondern das mit der hoechsten Prioritaet. Das
+# war hier ein echter Fehler und faellt nur auf, wenn man hinsieht: pactl
+# listet `a2dp-sink-sbc` zuerst, und `a2dp-sink` OHNE Anhaengsel ist nicht
+# etwa der Standard, sondern AAC. Die alte Fassung holte die Pixel Buds
+# deshalb jedesmal auf SBC zurueck -- den schlechtesten der vier, obwohl sie
+# AAC koennen. Die Prioritaet in der Klammer ist PipeWires eigene Rangfolge
+# und die ehrlichste Quelle dafuer, was hier "das Beste" heisst.
 profil="$(pactl list cards 2>/dev/null |
-	awk -v k="$karte" '$0 ~ "Name: "k {gefunden=1} gefunden && /a2dp-sink[^:]*:/ {print $1; exit}' |
-	tr -d ':')"
+	awk -v k="$karte" '
+		# Nur `Card #` beendet den Block -- pactl rueckt mit Tabulatoren ein,
+		# und ein Versuch, ueber die Einrueckung abzugrenzen, schlug fehl:
+		# "Driver:" steht auf derselben Ebene wie "Name:" und beendete den
+		# Block sofort nach der ersten Zeile.
+		/^Card #/ { gefunden = 0 }
+		$0 ~ "Name: "k { gefunden = 1; next }
+		gefunden && /a2dp/ && /priority:/ {
+			name = $1; sub(/:$/, "", name)
+			if (match($0, /priority: [0-9]+/))
+				print substr($0, RSTART + 10, RLENGTH - 10), name
+		}' |
+	sort -rn | head -1 | awk '{print $2}')"
 [ -n "$profil" ] || profil="a2dp-sink"
 
 vorher="$(pactl get-default-sink 2>/dev/null)"
