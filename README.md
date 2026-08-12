@@ -2002,6 +2002,32 @@ hineinfährt.
 Gefüllt wird aus MPRIS, also steht dort auch etwas, wenn die Musik aus dem
 Browser kommt.
 
+### Auf welchen Spieler die Knöpfe zielen
+
+„Der spielende gewinnt, sonst der zuletzt benutzte" ist für die allgemeinen
+Medientasten richtig und für die **Musik** falsch. Der Fall, an dem es auffiel:
+Playlist über die Leiste pausiert, im Browser eine Sprachnachricht angehört,
+fortsetzen wollen — ging nicht. Die Sprachnachricht hatte den mpv als Ziel
+verdrängt; der Play-Knopf zielte auf den Browser, und die Playlist musste von
+vorn.
+
+Die Musikbausteine fragen deshalb **gezielt nach unserem mpv** (erkannt an der
+Kennung, die `mpv-mpris` meldet) und fallen nur dann auf die allgemeine Wahl
+zurück, wenn keiner läuft. Der Baustein `media` daneben behält die alte Regel —
+er ist ja für „was auch immer gerade läuft" da.
+
+Nachgemessen mit laufendem Brave im Hintergrund:
+
+```
+{"spieler":"mpv","eigener":true,"spielt":true,"titel":"Himmelblau",
+ "alle":["Brave","mpv"]}
+```
+
+Aufgefrischt wird die Position seitdem für **jeden** spielenden Player, nicht
+nur für den ausgewählten: sonst stünde die Anzeige der Musik still, sobald
+nebenher etwas anderes läuft. `nbshell music status` sagt jederzeit, auf wen
+gezielt wird.
+
 ### Die Knöpfe in der Leiste
 
 Der Baustein `musik` (neben den Arbeitsflächen): zurück, Pause, weiter, Zufall.
@@ -2107,9 +2133,7 @@ geänderte Werte überleben den nächsten Start nicht.
 
 ### Noch offen
 
-- **Der Mediendienst nimmt den Player, der gerade spielt** — läuft nebenher ein
-  Video im Browser, gewinnt der. Für den Musikbaustein müsste gezielt die
-  eigene mpv-Instanz gefragt werden, nicht „irgendwer".
+- Noch nichts.
 
 ## Einblendung (OSD)
 

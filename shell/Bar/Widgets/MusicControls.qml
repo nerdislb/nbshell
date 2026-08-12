@@ -20,8 +20,8 @@ Cell {
     id: root
 
     // Ohne Abspieler waeren es drei tote Knoepfe.
-    shown: MediaService.active
-    quiet: !MediaService.playing
+    shown: Music.da
+    quiet: !Music.spielt
 
     // Breite VORGEBEN, nicht messen lassen. Cells `contentItem` misst sich zwar
     // an seinen Kindern, aber bei Glyphen, deren Schriftgroesse erst aus einer
@@ -83,17 +83,17 @@ Cell {
 
         Knopf {
             text: Icons.skipPrevious
-            onTriggered: MediaService.previous()
+            onTriggered: Music.zurueck()
         }
 
         Knopf {
-            text: MediaService.playing ? Icons.pause : Icons.play
-            onTriggered: MediaService.playPause()
+            text: Music.spielt ? Icons.pause : Icons.play
+            onTriggered: Music.playPause()
         }
 
         Knopf {
             text: Icons.skipNext
-            onTriggered: MediaService.next()
+            onTriggered: Music.weiter()
         }
 
         // Der Zufall gilt nur fuer unsere eigene Warteschlange -- MPRIS kann

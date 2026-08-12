@@ -22,10 +22,10 @@ Column {
 
     PanelHead {
         rowWidth: panel.rowWidth
-        icon: MediaService.playing ? Icons.play : Icons.pause
-        title: MediaService.title || "nichts"
-        subtitle: MediaService.artist
-        badge: MediaService.zeit(MediaService.position)
+        icon: Music.spielt ? Icons.play : Icons.pause
+        title: Music.titel || "nichts"
+        subtitle: Music.interpret
+        badge: MediaService.zeit(Music.stelle)
     }
 
     Rule {
@@ -45,7 +45,7 @@ Column {
             anchors.verticalCenter: parent.verticalCenter
 
             width: Theme.cellW * 6
-            text: MediaService.zeit(MediaService.position)
+            text: MediaService.zeit(Music.stelle)
             color: Theme.muted
         }
 
@@ -56,10 +56,10 @@ Column {
             anchors.verticalCenter: parent.verticalCenter
 
             cells: 36
-            value: Math.round(MediaService.position)
-            maximum: Math.max(1, Math.round(MediaService.length))
-            interactive: MediaService.seekable
-            onMoved: v => MediaService.seek(v)
+            value: Math.round(Music.stelle)
+            maximum: Math.max(1, Math.round(Music.laenge))
+            interactive: Music.spulbar
+            onMoved: v => Music.spulen(v)
         }
 
         Line {
@@ -68,7 +68,7 @@ Column {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
 
-            text: MediaService.zeit(MediaService.length)
+            text: MediaService.zeit(Music.laenge)
             color: Theme.muted
         }
     }
@@ -78,7 +78,7 @@ Column {
         width: panel.rowWidth
         height: Theme.cellH * 1.4
 
-        visible: MediaService.volumeSupported
+        visible: Music.lautstaerkeGeht
 
         Line {
             id: vlabel
@@ -96,17 +96,17 @@ Column {
             anchors.verticalCenter: parent.verticalCenter
 
             cells: 20
-            value: Math.round(MediaService.volume * 100)
+            value: Math.round(Music.lautstaerke * 100)
             maximum: 100
             fillColor: Theme.green
-            onMoved: v => MediaService.setVolume(v / 100)
+            onMoved: v => Music.setzeLautstaerke(v / 100)
         }
 
         Line {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
 
-            text: Math.round(MediaService.volume * 100) + "%"
+            text: Math.round(Music.lautstaerke * 100) + "%"
             color: Theme.muted
         }
     }

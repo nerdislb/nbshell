@@ -31,6 +31,36 @@ Singleton {
         return players[0] ?? null;
     }
 
+    // ── Der eigene Spieler ───────────────────────────────────────────────
+    //
+    // Die Regel oben ("der spielende gewinnt, sonst der zuletzt benutzte") ist
+    // fuer die allgemeinen Medientasten richtig, fuer die MUSIK aber falsch:
+    // wer die Playlist pausiert, sich im Browser eine Sprachnachricht anhoert
+    // und dann fortsetzen will, findet den Browser als Ziel vor -- die
+    // Sprachnachricht hat den mpv verdraengt. Fortsetzen ging nicht mehr, die
+    // Playlist musste von vorn.
+    //
+    // Die Musikbausteine fragen deshalb gezielt nach unserem mpv. Erkannt wird
+    // er an der Kennung, die mpv-mpris meldet.
+    readonly property var mpv: players.find(p => String(p?.identity ?? "").toLowerCase().indexOf("mpv") >= 0) ?? null
+
+    // Steuerung fuer einen BESTIMMTEN Spieler -- die Musikbausteine reichen
+    // ihren eigenen herein, alles andere nimmt weiter den ausgewaehlten.
+    function toggleOn(p) {
+        if (p?.canTogglePlaying)
+            p.togglePlaying();
+    }
+
+    function nextOn(p) {
+        if (p?.canGoNext)
+            p.next();
+    }
+
+    function prevOn(p) {
+        if (p?.canGoPrevious)
+            p.previous();
+    }
+
     readonly property bool active: player !== null
     readonly property bool playing: player?.isPlaying ?? false
 
@@ -72,11 +102,18 @@ Singleton {
         return Math.floor(sekunden / 60) + ":" + (s < 10 ? "0" : "") + s;
     }
 
+    // Aufgefrischt wird JEDER spielende Spieler, nicht nur der ausgewaehlte:
+    // die Musikbausteine sehen auf den eigenen mpv, und dessen Position stuende
+    // sonst still, sobald nebenher etwas anderes laeuft.
     Timer {
         interval: 1000
         repeat: true
-        running: root.playing
-        onTriggered: root.player?.positionChanged()
+        running: root.players.some(p => p?.isPlaying)
+        onTriggered: {
+            for (const p of root.players)
+                if (p?.isPlaying)
+                    p.positionChanged();
+        }
     }
 
     readonly property string label: {

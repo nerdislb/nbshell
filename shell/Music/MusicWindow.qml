@@ -270,14 +270,14 @@ PanelWindow {
                     root.playlistOeffnen();
                 break;
             case Qt.Key_Space:
-                MediaService.playPause();
+                Music.playPause();
                 break;
             case Qt.Key_Plus:
             case Qt.Key_Equal:
-                MediaService.setVolume(MediaService.volume + 0.05);
+                Music.setzeLautstaerke(Music.lautstaerke + 0.05);
                 break;
             case Qt.Key_Minus:
-                MediaService.setVolume(MediaService.volume - 0.05);
+                Music.setzeLautstaerke(Music.lautstaerke - 0.05);
                 break;
             case Qt.Key_D:
             case Qt.Key_Delete:
@@ -572,26 +572,26 @@ PanelWindow {
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: Theme.cellH * 1.7
 
-                visible: MediaService.active
+                visible: Music.da
                 spacing: Theme.cellW
 
                 Line {
                     width: Theme.cellW * 2
-                    text: MediaService.playing ? Icons.play : Icons.pause
+                    text: Music.spielt ? Icons.play : Icons.pause
                     color: Theme.readable(Theme.accent, Theme.bg)
                 }
 
                 Line {
                     width: root.boxW * 0.28
                     elide: Text.ElideRight
-                    text: MediaService.label
+                    text: Music.beschriftung
                     color: Theme.fg
                 }
 
                 Line {
                     width: Theme.cellW * 6
                     horizontalAlignment: Text.AlignRight
-                    text: MediaService.zeit(MediaService.position)
+                    text: MediaService.zeit(Music.stelle)
                     color: Theme.muted
                 }
 
@@ -599,15 +599,15 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
 
                     cells: 34
-                    value: Math.round(MediaService.position)
-                    maximum: Math.max(1, Math.round(MediaService.length))
-                    interactive: MediaService.seekable
-                    onMoved: v => MediaService.seek(v)
+                    value: Math.round(Music.stelle)
+                    maximum: Math.max(1, Math.round(Music.laenge))
+                    interactive: Music.spulbar
+                    onMoved: v => Music.spulen(v)
                 }
 
                 Line {
                     width: Theme.cellW * 6
-                    text: MediaService.zeit(MediaService.length)
+                    text: MediaService.zeit(Music.laenge)
                     color: Theme.muted
                 }
 
@@ -621,11 +621,11 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
 
                     cells: 10
-                    value: Math.round(MediaService.volume * 100)
+                    value: Math.round(Music.lautstaerke * 100)
                     maximum: 100
                     fillColor: Theme.green
-                    interactive: MediaService.volumeSupported
-                    onMoved: v => MediaService.setVolume(v / 100)
+                    interactive: Music.lautstaerkeGeht
+                    onMoved: v => Music.setzeLautstaerke(v / 100)
                 }
             }
 

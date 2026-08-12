@@ -44,7 +44,7 @@ Singleton {
     // dem ersten Titel stehen. Deshalb zuerst ueber den Namen, den MPRIS
     // meldet, und nur ersatzweise ueber die Stelle.
     readonly property var current: {
-        const gespielt = MediaService.title;
+        const gespielt = root.titel;
         if (gespielt !== "")
             // Meldet MPRIS einen Titel, gilt der -- und nur der. Der Rueckgriff
             // auf die gemerkte Stelle waere hier schaedlich: sie steht immer
@@ -65,6 +65,49 @@ Singleton {
     // sie steht. 100 waere das mpv-Standardmass und beim ersten Titel ein
     // Schreck.
     readonly property int volume: Config.value("musicVolume", 60)
+
+    // ── Der Spieler, den die Musikbausteine meinen ───────────────────────
+    //
+    // Unser eigenes mpv, solange es laeuft -- sonst der, den der Mediendienst
+    // ohnehin gewaehlt haette. Damit zielen Knoepfe, Popout und Fenster auf die
+    // Musik und nicht auf das, was zuletzt im Browser Ton gemacht hat.
+    readonly property var spieler: MediaService.mpv ?? MediaService.player
+
+    readonly property bool da: root.spieler !== null
+    readonly property bool spielt: root.spieler?.isPlaying ?? false
+
+    readonly property string titel: root.spieler?.trackTitle ?? ""
+    readonly property string interpret: root.spieler?.trackArtist ?? ""
+    readonly property string beschriftung: root.titel === "" ? "" : (root.interpret ? root.interpret + " — " + root.titel : root.titel)
+
+    readonly property real stelle: root.spieler?.position ?? 0
+    readonly property real laenge: root.spieler?.length ?? 0
+    readonly property bool spulbar: root.spieler?.canSeek ?? false
+
+    readonly property real lautstaerke: root.spieler?.volume ?? 0
+    readonly property bool lautstaerkeGeht: root.spieler?.volumeSupported ?? false
+
+    function playPause() {
+        MediaService.toggleOn(root.spieler);
+    }
+
+    function weiter() {
+        MediaService.nextOn(root.spieler);
+    }
+
+    function zurueck() {
+        MediaService.prevOn(root.spieler);
+    }
+
+    function spulen(sekunden) {
+        if (root.spieler?.canSeek)
+            root.spieler.position = Math.max(0, Math.min(root.laenge, sekunden));
+    }
+
+    function setzeLautstaerke(v) {
+        if (root.spieler?.volumeSupported)
+            root.spieler.volume = Math.max(0, Math.min(1, v));
+    }
 
     // ── Mediathek ────────────────────────────────────────────────────────
     //

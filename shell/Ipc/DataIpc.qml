@@ -53,6 +53,29 @@ Scope {
             return jetzt ? "angeheftet" : "geloest, bleibt offen";
         }
 
+        // Auf WEN zielen die Musikknoepfe gerade? Genau das war die Frage, als
+        // eine Sprachnachricht im Browser den mpv verdraengt hatte.
+        function status(): string {
+            return JSON.stringify({
+                "spieler": String(Music.spieler?.identity ?? "keiner"),
+                "eigener": MediaService.mpv !== null,
+                "spielt": Music.spielt,
+                "titel": Music.titel,
+                "stelle": MediaService.zeit(Music.stelle),
+                "warteschlange": Music.queue.length,
+                "alle": MediaService.players.map(p => String(p?.identity ?? "?"))
+            });
+        }
+
+        function pause(): string {
+            // Vorher lesen: nach dem Umschalten steht der neue Zustand noch
+            // nicht da, MPRIS meldet ihn erst zurueck. Die Antwort waere sonst
+            // jedesmal die falsche.
+            const lief = Music.spielt;
+            Music.playPause();
+            return lief ? "pausiert" : "spielt";
+        }
+
         function stop(): string {
             Music.leeren();
             return "gestoppt";
