@@ -43,6 +43,10 @@ binds {
     // Von den sechs freien Buchstaben passt P wie Player am besten.
     Mod+P hotkey-overlay-title="nbshell: Musik" { spawn "sh" "-c" "$HOME/.local/bin/nbshell music fenster"; }
 
+    // Ton zurueck auf die Bluetooth-Hoerer, wenn sie beim Telefon geblieben
+    // sind. Z war frei und liegt neben der linken Hand.
+    Mod+Z hotkey-overlay-title="nbshell: Ton zurueckholen" { spawn "sh" "-c" "$HOME/.local/bin/nbshell ton"; }
+
     // DMS: settings -> nbshells Optionsmenue.
     Mod+Comma hotkey-overlay-title="nbshell: Einstellungen" { spawn "sh" "-c" "$HOME/.local/bin/nbshell settings"; }
 

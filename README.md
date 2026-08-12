@@ -584,8 +584,8 @@ ist nichts mehr da, wohin die Hörer zurückkehren könnten.
 Man könnte die Senke am Einschlafen hindern (`session.suspend-timeout-seconds
 = 0` per WirePlumber-Drop-in). Dann bliebe die Verbindung dauernd offen: mehr
 Akkuverbrauch an den Hörern, und manche rauschen bei offenem, stillem Stream
-leise vor sich hin. Deshalb hier der Weg auf Knopfdruck — `nbshell ton`, die
-Befehlspalette (`Ton zurückholen`) oder das Geräte-Popout.
+leise vor sich hin. Deshalb hier der Weg auf Knopfdruck: **`Mod+Z`**, `nbshell ton` oder die
+Befehlspalette (`Ton zurückholen`).
 
 **Zwei Fälle behandelt das Skript**, und der zweite kam erst beim Nachsehen
 heraus:
