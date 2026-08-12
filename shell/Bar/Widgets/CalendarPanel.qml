@@ -31,20 +31,48 @@ Column {
     // Uhrzeit, Farbstreifen und ein Titel, von dem noch etwas uebrig bleibt.
     readonly property real rowWidth: Math.max(cellWidth * 7 + Theme.cellW * 4, Theme.cellW * 54)
 
+    // Die Kopfzeile nach dem Vorbild von omacal: nicht bloss "AUGUST 2026",
+    // sondern Tag, Kalenderwoche und Jahr -- "12. AUGUST  W33  2026". Damit
+    // beantwortet der Titel die Frage, wegen der man den Kalender ueberhaupt
+    // aufklappt, ohne dass man sie stellen muss.
+    //
+    // Blaettert man aus dem Monat des gewaehlten Tages heraus, faellt er auf den
+    // Monat zurueck: ein Tagesdatum, das gar nicht im Gitter steht, waere eine
+    // falsche Auskunft.
+    readonly property string title: {
+        const loc = Qt.locale(Config.value("locale", "de_DE"));
+        if (panel.selected.getFullYear() === panel.viewDate.getFullYear() && panel.selected.getMonth() === panel.viewDate.getMonth())
+            return panel.selected.toLocaleString(loc, "d. MMMM").toUpperCase() + "  W" + Calendar.isoWeek(panel.selected) + "  " + panel.selected.getFullYear();
+        return panel.viewDate.toLocaleString(loc, "MMMM yyyy").toUpperCase();
+    }
+
     spacing: Theme.cellH * 0.3
 
-    Component.onCompleted: {
-        // Beim Oeffnen auf heute zurueck -- und die Termine des angezeigten
-        // Monats holen, falls das Fenster woanders steht.
-        panel.viewDate = new Date();
-        panel.selected = new Date();
-        Calendar.ensure(panel.viewDate);
-    }
+    // Omacals Tastatursteuerung (Pfeile blaettern, Enter geht auf heute) ist
+    // hier NICHT nachgebaut, und zwar nicht aus Bequemlichkeit: nachgemessen
+    // bekommt der Inhalt eines Popouts nie `activeFocus` -- weder das Fenster
+    // noch der Rahmen darin meldet ihn je. Die Leiste ist eine Layer-Flaeche
+    // ohne Tastatur, und daran haengen ihre Popups mit. Tasten kaemen also gar
+    // nicht an; sie zu behandeln waere toter Code mit einer Anleitung daneben,
+    // die nicht stimmt.
+    //
+    // Geblaettert wird stattdessen mit dem Mausrad ueber dem Gitter und mit den
+    // Knoepfen in der Kopfzeile -- beides hat omacal nicht.
+
+    // Beim Oeffnen auf heute zurueck -- und die Termine des angezeigten Monats
+    // holen, falls das Fenster woanders steht.
+    Component.onCompleted: panel.heute()
 
     function moveMonth(delta) {
         const next = new Date(panel.viewDate.getFullYear(), panel.viewDate.getMonth() + delta, 1);
         panel.viewDate = next;
         Calendar.ensure(next);
+    }
+
+    function heute() {
+        panel.viewDate = new Date();
+        panel.selected = new Date();
+        Calendar.ensure(panel.viewDate);
     }
 
     // Montag als erster Tag. `getDay()` zaehlt ab Sonntag, deshalb der Dreh.
@@ -93,7 +121,7 @@ Column {
         Heading {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            text: panel.viewDate.toLocaleString(Qt.locale(Config.value("locale", "de_DE")), "MMMM yyyy").toUpperCase()
+            text: panel.title
             color: Theme.readable(Theme.accent, Theme.bg)
         }
 
@@ -102,6 +130,14 @@ Column {
             anchors.verticalCenter: parent.verticalCenter
             spacing: Theme.cellW * 1.5
 
+            // Die Mondsichel des gewaehlten Tages -- der eine Zierrat, den
+            // omacal sich leistet, und der einzige, der hier dazukommt. Leise
+            // gefaerbt: sie steht neben Knoepfen, ist aber keiner.
+            Heading {
+                text: Icons.moon(Calendar.moonIndex(panel.selected, Icons.moonSteps))
+                color: Theme.muted
+            }
+
             Action {
                 text: "[ ‹ ]"
                 onTriggered: panel.moveMonth(-1)
@@ -109,11 +145,7 @@ Column {
 
             Action {
                 text: "[ heute ]"
-                onTriggered: {
-                    panel.viewDate = new Date();
-                    panel.selected = new Date();
-                    Calendar.ensure(panel.viewDate);
-                }
+                onTriggered: panel.heute()
             }
 
             Action {

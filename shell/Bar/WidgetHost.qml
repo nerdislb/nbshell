@@ -113,6 +113,8 @@ Item {
             return aiComponent;
         case "updates":
             return updatesComponent;
+        case "units":
+            return unitsComponent;
         case "todo":
             return todoComponent;
         }
@@ -236,6 +238,13 @@ Item {
     Component {
         id: updatesComponent
         Updates {}
+    }
+
+    // `Failed`, nicht `Units`: der Dienst in qs.Services heisst schon so --
+    // dieselbe Falle wie bei `Tasks`/`Todo` weiter unten.
+    Component {
+        id: unitsComponent
+        Failed {}
     }
 
     // `Tasks`, nicht `Todo`: der Dienst in qs.Services heisst schon so, und

@@ -100,6 +100,7 @@ alacritty_theme() {
 # naechste Aenderung im Menue ueberschriebe sie wortlos.
 CURSOR_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/cursors.sh"
 MUSIC_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/ytm.py"
+KEYS_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/keys.py"
 
 cursor_status() {
     local jetzt
@@ -493,6 +494,9 @@ nbshell -- eigene Shell auf Quickshell
   nbshell music playlists   eigene Playlists auflisten
   nbshell music suche <text>  Titel suchen
 
+  nbshell keys              alle Tastenkuerzel (Fenster, Mod+K)
+  nbshell keys liste        dieselben Kuerzel im Terminal
+
   nbshell ton               Ton zurueck auf die Bluetooth-Hoerer
   nbshell qr                WLAN als QR-Code (Fenster, Esc schliesst)
   nbshell speed             Durchsatz messen (Fenster, Leertaste wiederholt)
@@ -623,6 +627,34 @@ case "$cmd" in
                     datei="$(realpath -e "${1:?Datei fehlt}")" || exit 1
                     if [ -n "${2:-}" ]; then ipc nearby sendTo "$datei" "$2"; else ipc nearby send "$datei"; fi ;;
             *)      ipc nearby status ;;
+        esac
+        ;;
+    keys|tasten)
+        case "${1:-fenster}" in
+            # Die Liste kommt DIREKT aus dem Skript, nicht ueber die Shell:
+            # sie liest niris Konfiguration, nicht den Zustand der Shell -- und
+            # soll deshalb auch antworten, wenn nbshell gar nicht laeuft.
+            liste|list)
+                python3 "$KEYS_TOOL" | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+if not d.get("ok"):
+    sys.exit(d.get("grund", "unbekannt"))
+# Nach Gruppen sortiert wie im Fenster, nicht in der Reihenfolge der
+# Konfiguration -- sonst steht dieselbe Ueberschrift viermal da.
+ordnung = ["Programme", "Fenster", "Arbeitsflaechen", "Bildschirme",
+           "Ton und Licht", "Aufnahme", "Sitzung", "Sonstiges"]
+d["binds"].sort(key=lambda b: ordnung.index(b["gruppe"]) if b["gruppe"] in ordnung else len(ordnung))
+gruppe = None
+for b in d["binds"]:
+    if b["gruppe"] != gruppe:
+        gruppe = b["gruppe"]
+        print()
+        print(gruppe.upper())
+    print("  %-26s %s" % (b["taste"], b["text"]))
+' ;;
+            neu|reload)      ipc keys reload ;;
+            *)               ipc keys toggle ;;
         esac
         ;;
     music|musik)

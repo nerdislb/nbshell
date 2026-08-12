@@ -13,19 +13,24 @@ import qs.Widgets
 // Format setzt, das nicht in der Liste steht, faengt beim naechsten
 // Rechtsklick vorne an -- die Liste ist ein Vorschlag, kein Zwang.
 //
-// `%W` ist der einzige eigene Platzhalter: Qts Locale-Formate kennen keine
-// Kalenderwoche, die rechnet der Kalenderdienst aus.
+// `%W` und `%M` sind die beiden eigenen Platzhalter: Qts Locale-Formate kennen
+// weder die Kalenderwoche noch die Mondphase, beides rechnet der Kalenderdienst
+// aus. Der Mond ist von omacal geborgt, das ihn ebenfalls neben der Uhr traegt.
 Cell {
     id: root
 
     readonly property string format: Config.value("clockFormat", "ddd dd.MM  HH:mm")
-    readonly property var formats: Config.value("clockFormats", ["ddd dd.MM  HH:mm", "HH:mm", "'KW'%W  ddd  HH:mm", "ddd dd.MM  h:mm AP"])
+    readonly property var formats: Config.value("clockFormats", ["ddd dd.MM  HH:mm", "HH:mm", "'KW'%W  ddd  HH:mm", "ddd dd.MM  HH:mm  %M", "ddd dd.MM  h:mm AP"])
 
     // Ueber die Locale formatiert, nicht ueber Qt.formatDateTime: das nimmt
     // die C-Locale und schreibt "Sat" statt "Sa".
     text: {
-        const out = clock.date.toLocaleString(Qt.locale(Config.value("locale", "de_DE")), root.format);
-        return out.indexOf("%W") >= 0 ? out.replace("%W", Calendar.isoWeek(clock.date)) : out;
+        let out = clock.date.toLocaleString(Qt.locale(Config.value("locale", "de_DE")), root.format);
+        if (out.indexOf("%W") >= 0)
+            out = out.replace("%W", Calendar.isoWeek(clock.date));
+        if (out.indexOf("%M") >= 0)
+            out = out.replace("%M", Icons.moon(Calendar.moonIndex(clock.date, Icons.moonSteps)));
+        return out;
     }
     icon: Icons.clock
     color: Theme.text

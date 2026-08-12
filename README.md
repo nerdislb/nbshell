@@ -241,6 +241,9 @@ nbshell befehl "Ton aus" # den besten Treffer ausfuehren
 nbshell text             # Schriftgroessen von Shell, GTK und Terminal
 nbshell text 15          # alle drei zusammen umstellen
 
+nbshell keys             # alle Tastenkuerzel als Fenster (Mod+K)
+nbshell keys liste       # dieselben im Terminal
+
 nbshell polkit           # laeuft ein Agent fuer Rechteabfragen?
 nbshell polkit on
 
@@ -1352,6 +1355,40 @@ Datenbank. Geprueft wird alle vier Stunden (`updateInterval`) und beim Start
 einmal nach einer Minute -- nicht sofort, damit die Anmeldung nicht mit einem
 Datenbankabgleich anfaengt.
 
+## Kaputte Dienste
+
+Der Baustein `units` ist **unsichtbar, solange alles laeuft**. Erst wenn systemd
+eine Einheit aufgegeben hat, steht dort, wo vorher nichts war, ein rotes
+Warndreieck mit der Anzahl — und ist genau deshalb nicht zu uebersehen. Der
+Gedanke ist von
+[omarchy-systemd-widget](https://github.com/tpatzelt/omarchy-systemd-widget):
+das Interessante an systemd ist nicht die Liste der 300 laufenden Dienste,
+sondern die Handvoll, die es nicht geschafft hat. Eine Zelle, die dauerhaft
+„0 Fehler" anzeigt, liest nach drei Tagen niemand mehr.
+
+Im Popout steht je Einheit, was sie ist, woher sie kommt und was mit ihr
+geschehen soll:
+
+- `[ neu starten ]` — eigene Einheit sofort (`systemctl --user restart`),
+  Systemeinheit **im Terminal mit sudo**. Dieselbe Regel wie beim Updater: eine
+  Passwortfrage, die unsichtbar in einer Leiste haengt, ist keine.
+- `[ protokoll ]` — `journalctl -u …` im Terminal. Die Antwort auf „warum?"
+  steht dort und nicht in einer Leiste.
+- `[ abraeumen ]` — `reset-failed`, fuer die Einheit, die einmal gescheitert
+  ist und gar nicht wieder laufen soll.
+
+Gefragt wird `systemctl --failed` in beiden Bereichen, alle zwei Minuten und
+beim Aufklappen. Kein Fuenf-Sekunden-Takt — eine kaputte Einheit ist kaputt,
+bis jemand hinsieht. Zwei Minuten sind der Preis dafuer, dass die Zahl auch
+dann verschwindet, wenn man die Einheit im Terminal repariert: systemd meldet
+uns nichts von sich aus. Die Antwort kommt als JSON aus `systemctl` selbst
+(`--output=json`), also ohne eigenes Skript und ohne `awk` auf Spaltenbreiten.
+
+```bash
+nbshell set units false                 # ganz abschalten
+nbshell set unitsInterval 300000        # seltener nachsehen
+```
+
 ## Leistungsanzeige
 
 Der Baustein `sys` zeigt in der Leiste CPU und Speicher. Ein Klick klappt die
@@ -1359,7 +1396,16 @@ Einzelheiten auf:
 
 - **Prozessor** — Modell, Auslastung als Balken, Takt, die drei Lastmittel,
   Laufzeit und jeder Kern einzeln.
-- **Speicher** — RAM, Swap, wie viel davon Cache ist, dazu die Wurzelpartition.
+- **Speicher** — RAM, Swap, wie viel davon Cache ist.
+- **Platten** — jeder Datentraeger einzeln, ab 90 % rot. Der Gedanke ist von
+  [omarchy-diskspace](https://github.com/tpatzelt/omarchy-diskspace): die
+  Wurzel ist selten die, die volllaeuft — eher `/boot` oder die Karte, die noch
+  im Leser steckt. Zusammengefasst wird ueber den **Geraetenamen**: auf btrfs
+  sind `/`, `/home`, `/var/log` und der Paketcache vier Untervolumen desselben
+  Traegers, und vier gleiche Zeilen mit vier gleichen Zahlen waeren die
+  schlechteste Art, 22 % zu sagen. (Der erste Versuch lief ueber `st_dev` und
+  zeigte alle vier — btrfs gibt jedem Untervolumen eine eigene anonyme
+  Geraetenummer.)
 - **Temperatur** — CPU (das Paket, nicht die Kerne), Gehaeuse, SSD, Chipsatz,
   WLAN und der heisseste Kern. Ab 80 °C gelb, ab 90 °C rot.
 - **Luefter** — Drehzahl, oder „aus", wenn sie stehen. Dass sie stehen, ist
@@ -1563,6 +1609,46 @@ die Schwelle pendelt, den ganzen Tag in den Meldungen.
 Das USB-Headset steht dort **nicht**: das ist kein Bluetooth-Geraet und kommt
 weiter ueber das `headset`-Plugin.
 
+## Tastenkuerzel (Mod+K)
+
+`Mod+K` klappt alle Kuerzel auf, die niri kennt — zwei Spalten, nach Gruppen
+sortiert, **Tippen filtert sofort**. Kein `/` davor wie in der Mediathek: hier
+gibt es keinen zweiten Modus, in dem ein Buchstabe etwas anderes bedeuten
+koennte. `↑↓` blaettert zeilenweise, `←→` seitenweise, `F5` liest neu, `Esc`
+nimmt erst die Suche zurueck und schliesst dann.
+
+```bash
+nbshell keys              # Fenster auf/zu
+nbshell keys liste        # dieselben Kuerzel im Terminal
+```
+
+niri bringt selbst eine Uebersicht mit (`Mod+Shift+/`), die aber nur zeigt, was
+jemand mit `hotkey-overlay-title` beschriftet hat — hier weniger als die
+Haelfte. `scripts/keys.py` liest deshalb die Konfiguration selbst; niri gibt
+seine Bindungen nicht ueber IPC heraus (`niri msg` kennt Ausgaenge, Fenster und
+Arbeitsflaechen, keine Tasten).
+
+Drei Dinge entscheiden dabei ueber richtig und falsch:
+
+- **`include` verfolgen.** Diese Konfiguration steht in acht Dateien — die von
+  DMS, die eigenen Overrides, die Uebernahme durch nbshell. Wer nur
+  `config.kdl` liest, findet die Haelfte.
+- **Die Reihenfolge einhalten.** In niri gewinnt die zuletzt gelesene Bindung.
+  `my-binds.kdl` biegt `Mod+Return` von alacritty auf ghostty um; stuende in
+  der Liste beides, waere sie falsch. Behalten wird die letzte, an der Stelle,
+  an der die Taste zuerst auftauchte.
+- **Eine Beschreibung, die man lesen kann.** `hotkey-overlay-title` zuerst,
+  weil ein Mensch sie geschrieben hat. Sonst wird die Aktion uebersetzt:
+  `focus-column-left` sagt niemandem etwas, „eine Spalte nach links" schon. Bei
+  `spawn` faellt der Umweg ueber die Shell weg — was in `sh -c` steht, ist der
+  eigentliche Befehl, und aus `--app=https://…` wird „Webapp …".
+
+**`Mod+K` war nicht frei:** `dms/binds.kdl` legt darauf `focus-window-up`, die
+vim-Reihe H/J/K/L. `nbshell-takeover.kdl` wird spaeter eingebunden und gewinnt
+deshalb. Nach oben kommt man weiterhin mit `Mod+Pfeil-hoch`; wer die vim-Taste
+zurueck will, loescht die Zeile dort und legt das Fenster auf eine andere
+Taste.
+
 ## Prozessliste
 
 `nbshell procs` — der Ersatz fuer DMS' `Mod+M`. Aufgebaut wie der Starter:
@@ -1585,16 +1671,47 @@ gewaehlten Tages. Mausrad blaettert durch die Monate, `[ heute ]` kommt
 zurueck. Ohne Popout: `nbshell cal next`.
 
 **Ein Rechtsklick auf die Uhr wechselt ihr Format** und geht dabei reihum durch
-`clockFormats`: lang, kurz, Kalenderwoche, 12 Stunden mit AM/PM. Uebernommen
-aus Omarchy 4, wo die Uhr dasselbe kann. `%W` ist der einzige eigene
-Platzhalter — Qts Locale-Formate kennen keine Kalenderwoche, die rechnet
-`Calendar.isoWeek()` aus (dieselbe Funktion, die das Monatsgitter benutzt; sie
-zweimal zu haben hiesse, sie zweimal unterschiedlich falsch zu haben).
+`clockFormats`: lang, kurz, Kalenderwoche, mit Mondsichel, 12 Stunden mit
+AM/PM. Uebernommen aus Omarchy 4, wo die Uhr dasselbe kann. `%W` und `%M` sind
+die beiden eigenen Platzhalter — Qts Locale-Formate kennen weder die
+Kalenderwoche noch die Mondphase, beides rechnet der Kalenderdienst aus
+(dieselben Funktionen, die das Monatsgitter benutzt; sie zweimal zu haben
+hiesse, sie zweimal unterschiedlich falsch zu haben).
 
 ```bash
 nbshell set clockFormat "'KW'%W  ddd  HH:mm"     # KW32  So.  11:33
+nbshell set clockFormat "ddd dd.MM  HH:mm  %M"   # Mi. 12.08  22:19  🌑
 nbshell set clockFormats '["HH:mm","ddd dd.MM  HH:mm"]'
 ```
+
+### Die Kopfzeile — von omacal geborgt
+
+Ueber dem Gitter steht nicht bloss „AUGUST 2026", sondern **Tag, Kalenderwoche
+und Jahr**: `12. AUGUST  W33  2026`. Das ist die Optik von
+[omacal](https://github.com/brianblakely/omacal) (MIT), einem Omarchy-Plugin,
+und der Grund dafuer ist gut: die Frage, wegen der man den Kalender aufklappt,
+ist meistens „welche Woche haben wir?" — der Titel beantwortet sie, ohne dass
+man sie stellt.
+
+Blaettert man aus dem Monat des gewaehlten Tages heraus, faellt der Titel auf
+den Monat zurueck. Ein Tagesdatum, das gar nicht im Gitter steht, waere eine
+falsche Auskunft.
+
+Rechts daneben die **Mondsichel des gewaehlten Tages**, in 28 Stufen. Die
+Rechnung (Sonnen- und Mondlaenge aus dem julianischen Datum, die Differenz ist
+die Phase) steht in `Calendar.moonPhase()` — gegen die mittlere Lunation
+nachgerechnet weicht sie um hoechstens zwei Drittel eines Tages ab, und das ist
+fuer ein Zeichen in einer Kopfzeile reichlich. Die Glyphen sind
+`nf-weather-moon_*`; nachgesehen, nicht geraten: alle 28 stecken in Inconsolata
+Nerd Font und bleiben auch bei 14 px als Sichel erkennbar.
+
+**Was NICHT uebernommen wurde: omacals Tastensteuerung.** Dort blaettern Pfeile
+und HJKL durch die Monate. Hier kaemen sie nie an — nachgemessen bekommt der
+Inhalt eines Popouts nie `activeFocus`, weil die Leiste eine Layer-Flaeche ohne
+Tastatur ist und ihre Popups daran haengen. Tastencode zu schreiben, den kein
+Tastendruck erreicht, waere toter Code mit einer falschen Anleitung daneben.
+Geblaettert wird stattdessen mit dem Mausrad und den Knoepfen — beides hat
+omacal nicht.
 
 **Die Shell spricht mit keinem Anbieter.** Sie liest, was schon auf der Platte
 liegt — und zwar durch **khal**, nicht selbst:
@@ -2771,6 +2888,11 @@ shell/
   Services/MediaService.qml  MPRIS: Zustand, Position, Lautstaerke
   Services/Music.qml   YouTube Music: Mediathek und Warteschlange
   Music/MusicWindow.qml  die Mediathek als Fenster (Mod+P)
+  Services/Binds.qml   niris Tastenkuerzel (heisst nicht Keys -- das ist QML)
+  Keys/KeysWindow.qml  die Uebersicht dazu (Mod+K)
+  scripts/keys.py      liest die niri-Konfiguration samt include
+  Services/Units.qml   fehlgeschlagene systemd-Einheiten
+  Bar/Widgets/Failed.qml  das Warndreieck dazu (heisst nicht Units, s.o.)
   Bar/Widgets/MusicControls.qml  zurueck, Pause, weiter, Zufall
   Services/Cava.qml    cava-Rohausgabe: der Ausschlag je Balken
   Bar/Widgets/Visualizer.qml  derselbe als Blockzeichen

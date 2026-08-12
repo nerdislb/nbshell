@@ -58,6 +58,31 @@ Scope {
         }
     }
 
+    // Die Tastenuebersicht (Mod+K).
+    //
+    // Nur das Fenster steht hier. Die LISTE holt `nbshell keys liste` direkt
+    // aus scripts/keys.py -- sie liest niris Konfiguration und nicht den
+    // Zustand der Shell, und soll deshalb auch antworten, wenn nbshell gar
+    // nicht laeuft. Dieselbe Trennung wie bei der Mediathek.
+    IpcHandler {
+        target: "keys"
+
+        function toggle(): string {
+            Runtime.keysOpen = !Runtime.keysOpen;
+            return Runtime.keysOpen ? "offen" : "zu";
+        }
+
+        function open(): string {
+            Runtime.keysOpen = true;
+            return "offen";
+        }
+
+        function reload(): string {
+            Binds.load();
+            return "liest neu";
+        }
+    }
+
     IpcHandler {
         target: "popout"
 

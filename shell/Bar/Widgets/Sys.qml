@@ -73,6 +73,11 @@ Cell {
                     width: Theme.cellW * 9
                     text: gauge.label
                     color: Theme.fgDim
+                    // Neun Zeichen sind das, was die Zeile hergibt: dahinter
+                    // stehen 20 Balkenzellen und die Zahlen, und die Zeile ist
+                    // 46 Zeichen breit. Ein langer Einhaengepunkt schiebt sonst
+                    // die Zahlen aus dem Kasten.
+                    elide: Text.ElideRight
                 }
 
                 LevelBar {
@@ -185,9 +190,34 @@ Cell {
                 color: Theme.fgDim
             }
 
+            // Alle Datentraeger, nicht nur die Wurzel -- der Gedanke ist von
+            // omarchy-diskspace. Untervolumen desselben Traegers fasst das
+            // Skript schon zusammen; hier steht nur noch, was uebrig bleibt:
+            // die Platte, /boot, und was gerade im Kartenleser steckt.
+            //
+            // Ab 90 % wird der Balken rot. Das ist die Warnung, wegen der man
+            // so eine Liste ueberhaupt aufmacht.
+            Repeater {
+                model: SysInfo.hasDetail ? (panel.d.platten ?? []) : []
+
+                delegate: Gauge {
+                    required property var modelData
+
+                    // Neun Zeichen Platz: kurze Pfade ganz, lange nur mit dem
+                    // letzten Stueck -- "/run/media/nerdi/NIKON D750" sagt als
+                    // "NIKON D7…" mehr als als "/run/med…".
+                    label: modelData.ort.length <= 9 ? modelData.ort : modelData.ort.split("/").filter(t => t !== "").pop()
+                    percent: modelData.prozent
+                    value: modelData.benutzt + " / " + modelData.gesamt + " GB"
+                    fill: modelData.prozent >= 90 ? Theme.red : Theme.cyan
+                }
+            }
+
+            // Faellt die Liste aus (alte Antwort im Zwischenspeicher), bleibt
+            // wenigstens die Wurzel stehen.
             Gauge {
-                visible: SysInfo.hasDetail && panel.d.platte
-                label: "Platte /"
+                visible: SysInfo.hasDetail && panel.d.platte && (panel.d.platten ?? []).length === 0
+                label: "/"
                 percent: SysInfo.hasDetail && panel.d.platte ? panel.d.platte.prozent : 0
                 value: SysInfo.hasDetail && panel.d.platte ? (panel.d.platte.benutzt + " / " + panel.d.platte.gesamt + " GB") : ""
                 fill: Theme.cyan

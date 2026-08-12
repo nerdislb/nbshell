@@ -47,6 +47,12 @@ binds {
     // sind. Z war frei und liegt neben der linken Hand.
     Mod+Z hotkey-overlay-title="nbshell: Ton zurueckholen" { spawn "sh" "-c" "$HOME/.local/bin/nbshell ton"; }
 
+    // Die Tastenuebersicht. K war NICHT frei: dms/binds.kdl legt darauf
+    // `focus-window-up` (die vim-Reihe H/J/K/L). Diese Datei wird spaeter
+    // eingebunden und gewinnt deshalb -- gewollt, aber erwaehnenswert. Nach
+    // oben kommt man weiterhin mit Mod+Pfeil-hoch.
+    Mod+K hotkey-overlay-title="nbshell: Tastenkuerzel" { spawn "sh" "-c" "$HOME/.local/bin/nbshell keys"; }
+
     // DMS: settings -> nbshells Optionsmenue.
     Mod+Comma hotkey-overlay-title="nbshell: Einstellungen" { spawn "sh" "-c" "$HOME/.local/bin/nbshell settings"; }
 

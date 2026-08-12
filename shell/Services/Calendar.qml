@@ -36,6 +36,56 @@ Singleton {
         return 1 + Math.round((d.getTime() - firstThursday.getTime()) / (7 * 86400000));
     }
 
+    // ── Mond ──────────────────────────────────────────────────────────────
+    //
+    // Reine Rechnerei, kein Abruf: aus dem julianischen Datum die Laenge von
+    // Sonne und Mond, und der Abstand der beiden IST die Phase -- 0 ist
+    // Neumond, 0,5 Vollmond. Die Reihe stammt aus omacal (MIT), dort in QML
+    // derselben Art; sie steht hier im Dienst und nicht im Kalenderfenster, aus
+    // demselben Grund wie die Kalenderwoche oben.
+    //
+    // Genauigkeit: gegen die mittlere Lunation nachgerechnet weicht sie um
+    // hoechstens zwei Drittel eines Tages ab. Fuer ein Zeichen in der Kopfzeile
+    // ist das reichlich -- schon die echten Mondlaeufe schwanken um mehr.
+    function gradNorm(grad) {
+        const g = grad % 360;
+        return g < 0 ? g + 360 : g;
+    }
+
+    function sinGrad(grad) {
+        return Math.sin(grad * Math.PI / 180);
+    }
+
+    function moonPhase(date) {
+        // Mittags gemessen, nicht zur aktuellen Uhrzeit: sonst waere ein Tag je
+        // nach Nachfragezeitpunkt zwei verschiedene Sicheln.
+        const probe = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 12));
+        const tage = probe.getTime() / 86400000 + 2440587.5 - 2451545.0;
+
+        const sonneMittel = root.gradNorm(280.46646 + 0.98564736 * tage);
+        const sonneAnomalie = root.gradNorm(357.52911 + 0.98560028 * tage);
+        const sonne = root.gradNorm(sonneMittel + 1.914602 * root.sinGrad(sonneAnomalie) + 0.019993 * root.sinGrad(2 * sonneAnomalie));
+
+        const mondMittel = root.gradNorm(218.3164477 + 13.17639648 * tage);
+        const mondAnomalie = root.gradNorm(134.9633964 + 13.06499295 * tage);
+        const mondElongation = root.gradNorm(297.8501921 + 12.19074912 * tage);
+        const mond = root.gradNorm(mondMittel + 6.289 * root.sinGrad(mondAnomalie) + 1.274 * root.sinGrad(2 * mondElongation - mondAnomalie) + 0.658 * root.sinGrad(2 * mondElongation) + 0.214 * root.sinGrad(2 * mondAnomalie) - 0.186 * root.sinGrad(sonneAnomalie));
+
+        return root.gradNorm(mond - sonne) / 360;
+    }
+
+    // In wie viele Stufen geteilt, sagt der Aufrufer: die Schrift hat 28
+    // Sicheln, die Namen darunter nur acht.
+    function moonIndex(date, stufen) {
+        return Math.floor(root.moonPhase(date) * stufen + 0.5) % stufen;
+    }
+
+    readonly property var moonNames: ["Neumond", "zunehmende Sichel", "erstes Viertel", "zunehmender Mond", "Vollmond", "abnehmender Mond", "letztes Viertel", "abnehmende Sichel"]
+
+    function moonName(date) {
+        return root.moonNames[root.moonIndex(date, 8)];
+    }
+
     // Termine des geladenen Fensters, nach Beginn sortiert.
     property var events: []
     property var calendars: []

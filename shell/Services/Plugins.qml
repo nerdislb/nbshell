@@ -143,6 +143,12 @@ Singleton {
             "category": "System"
         },
         {
+            "id": "units",
+            "name": "Kaputte Dienste",
+            "description": "fehlgeschlagene systemd-Einheiten -- unsichtbar, solange alles laeuft",
+            "category": "System"
+        },
+        {
             "id": "todo",
             "name": "Aufgaben",
             "description": "offene Punkte, Liste per Mod+T",

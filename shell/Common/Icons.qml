@@ -82,6 +82,12 @@ Singleton {
     readonly property string download: cp(0xF01DA)
     readonly property string refresh: cp(0xF0450)
 
+    // Etwas ist kaputt. Das Warndreieck (nf-md-alert) und nicht das Achteck
+    // daneben: bei 14 px bleibt vom Achteck ein Klecks mit Punkt, das Dreieck
+    // behaelt seine Form. Verwechseln kann man es mit nichts sonst in der
+    // Leiste -- die Glocke der Meldungen ist rund.
+    readonly property string alert: cp(0xF0026)
+
     // Akku. Die Reihe F0079..F0082 ist voll, 10 %, 20 % … 90 % -- also nicht
     // fortlaufend nach Prozent sortiert, sondern "voll" zuerst. Daher die
     // Fallunterscheidung statt einer Rechnung auf dem Zeichencode.
@@ -92,5 +98,21 @@ Singleton {
             return cp(0xF0079);
         const step = Math.max(1, Math.min(9, Math.round(percent / 10)));
         return cp(0xF0079 + step);
+    }
+
+    // Mond. 28 Sicheln aus dem Wetterteil der Schrift (`nf-weather-moon_*`),
+    // von Neumond ueber Vollmond zurueck zum Neumond. Hier ist der Zeichenblock
+    // ausnahmsweise wirklich der Reihe nach sortiert, also genuegt eine
+    // Addition -- anders als beim Akku darueber.
+    //
+    // Nachgesehen statt geraten: alle 28 stecken in Inconsolata Nerd Font, und
+    // auch bei 14 px bleibt die Sichel eine Sichel. Die naheliegenden Material-
+    // Zeichen (nf-md-moon-*) waren es NICHT -- die Codepunkte, die man dafuer
+    // haelt, liefern ein Dokumentsymbol.
+    readonly property int moonSteps: 28
+
+    function moon(index) {
+        const i = ((Math.round(index) % root.moonSteps) + root.moonSteps) % root.moonSteps;
+        return cp(0xE38D + i);
     }
 }

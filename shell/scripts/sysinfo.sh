@@ -204,6 +204,50 @@ disk = {
     "prozent": round(100 * usage.used / usage.total),
 }
 
+# Alle echten Dateisysteme, nicht nur "/". Der Gedanke stammt von
+# omarchy-diskspace: die Wurzel ist selten die, die volllaeuft -- eher /boot
+# oder die Karte, die noch im Leser steckt.
+#
+# Zwei Filter, und beide sind noetig:
+#
+#   * nur was auf /dev/ liegt -- tmpfs, proc, cgroup und die Portale des
+#     Desktops sind keine Platten, und ihre "Belegung" sagt nichts.
+#   * je Datentraeger nur EINMAL. Auf btrfs sind /, /home, /var/log und der
+#     Paketcache vier Untervolumen DESSELBEN Datentraegers; vier gleiche
+#     Zeilen mit vier gleichen Zahlen waeren die schlechteste Art, 22 % zu
+#     sagen.
+#
+# Zusammengefasst wird ueber den Geraetenamen, NICHT ueber st_dev: btrfs gibt
+# jedem Untervolumen eine eigene anonyme Geraetenummer, damit blieben genau
+# die vier Zeilen stehen, die weg sollen. Nachgemessen, nicht vermutet -- der
+# erste Versuch lief mit st_dev und zeigte alle vier.
+platten = []
+gesehen = set()
+for zeile in (read("/proc/mounts") or "").splitlines():
+    teile = zeile.split()
+    if len(teile) < 2 or not teile[0].startswith("/dev/"):
+        continue
+    ort = teile[1].replace("\\040", " ")
+    if teile[0] in gesehen:
+        continue
+    try:
+        nutzung = shutil.disk_usage(ort)
+    except OSError:
+        continue
+    if nutzung.total == 0:
+        continue
+    gesehen.add(teile[0])
+    platten.append({
+        "ort": ort,
+        "gesamt": round(nutzung.total / 2**30, 1),
+        "benutzt": round(nutzung.used / 2**30, 1),
+        "prozent": round(100 * nutzung.used / nutzung.total),
+    })
+
+# Die Wurzel nach oben, der Rest nach Belegung -- was am vollsten ist, steht
+# zuerst.
+platten.sort(key=lambda p: (0 if p["ort"] == "/" else 1, -p["prozent"]))
+
 print(json.dumps({
     "ok": True,
     "modell": model,
@@ -219,6 +263,7 @@ print(json.dumps({
         "swap_benutzt": round((swap_total - swap_free) / 2**20, 1),
     },
     "platte": disk,
+    "platten": platten,
     "temps": sensors["temps"],
     "luefter": sensors["fans"],
     "gpu": gpu,
