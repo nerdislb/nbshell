@@ -155,7 +155,15 @@ Scope {
                 return "kein Helferskript gefunden";
             if (AiUsage.list.length === 0)
                 return "noch keine Zahlen";
-            return AiUsage.list.map(e => e.id + "  " + e.percent + "%  " + e.window + ", " + AiUsage.untilReset(e)).join("\n");
+            return AiUsage.list.map(e => {
+                const time = AiUsage.untilReset(e);
+                var s = e.id + "  " + e.percent + "%";
+                if (e.window !== "")
+                    s += "  " + e.window;
+                if (time !== "")
+                    s += (e.window !== "" ? ", " : "  ") + time;
+                return s;
+            }).join("\n");
         }
 
         function refresh(): string {

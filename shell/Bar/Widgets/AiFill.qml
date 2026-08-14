@@ -11,7 +11,8 @@ Cell {
 
     readonly property var glyphs: ({
             "claude": String.fromCodePoint(0xF167A),
-            "antigravity": String.fromCodePoint(0xF0674)
+            "antigravity": String.fromCodePoint(0xF0674),
+            "agy": String.fromCodePoint(0xF0674)
         })
 
     // Die gewuenschte Tintenhoehe. NICHT die Schriftgroesse: jedes Zeichen
@@ -154,7 +155,15 @@ Cell {
                     Line {
                         width: panel.rowWidth
                         elide: Text.ElideRight
-                        text: entry.modelData.id + "   " + entry.modelData.percent + "%   " + entry.modelData.window + (AiUsage.untilReset(entry.modelData) !== "" ? (", " + AiUsage.untilReset(entry.modelData)) : "")
+                        text: {
+                            const time = AiUsage.untilReset(entry.modelData);
+                            var s = entry.modelData.id + "   " + entry.modelData.percent + "%";
+                            if (entry.modelData.window !== "")
+                                s += "   " + entry.modelData.window;
+                            if (time !== "")
+                                s += (entry.modelData.window !== "" ? ", " : "   ") + time;
+                            return s;
+                        }
                         color: entry.modelData.percent >= 90 ? Theme.red : Theme.fg
                     }
 
@@ -175,7 +184,15 @@ Cell {
 
                             width: panel.rowWidth
                             elide: Text.ElideRight
-                            text: "        " + modelData.percent + "%   " + modelData.label + (AiUsage.untilReset(modelData) !== "" ? (", " + AiUsage.untilReset(modelData)) : "")
+                            text: {
+                                const time = AiUsage.untilReset(modelData);
+                                var s = "        " + modelData.percent + "%";
+                                if (modelData.label !== "")
+                                    s += "   " + modelData.label;
+                                if (time !== "")
+                                    s += (modelData.label !== "" ? ", " : "   ") + time;
+                                return s;
+                            }
                             color: modelData.percent >= 90 ? Theme.red : Theme.fgDim
                         }
                     }

@@ -33,7 +33,8 @@ Singleton {
     function refresh() {
         if (!available || fetch.running)
             return;
-        fetch.command = ["bash", root.helper, root.providers];
+        const provs = root.providers.replace(/\bagy\b/g, "antigravity");
+        fetch.command = ["bash", root.helper, provs];
         fetch.running = true;
     }
 
@@ -77,36 +78,40 @@ Singleton {
             onStreamFinished: {
                 try {
                     const raw = JSON.parse(text);
-                    // Die Anbieter melden ihre Toepfe unterschiedlich. Claude
-                    // hat ZEITFENSTER ("5 hour", "week") und beschreibt sie in
-                    // `resetDescription`; Antigravity hat MODELLGRUPPEN
-                    // ("Gemini Models", "Claude & OpenAI Models") und legt den
-                    // Namen in `name`. Beides ist die Beschriftung des
-                    // Balkens -- deshalb `name` zuerst, `resetDescription`
-                    // danach. Sonst stuende bei Antigravity dreimal derselbe
-                    // Text, und man wuesste nicht, welcher Balken wofuer ist.
-                    function topf(t) {
+                    function topf(t, isAgy) {
                         if (!t || t.usedPercent === undefined || t.usedPercent === null)
                             return null;
+                        var label = t.name || t.resetDescription || "";
+                        if (isAgy) {
+                            // "Gemini Models" muss nicht da stehen, damit die Reset-Zeit
+                            // sofort und ohne Zeilenumbruch lesbar ist.
+                            if (label.toLowerCase().indexOf("gemini") !== -1) {
+                                label = "";
+                            } else if (label.toLowerCase().indexOf("claude & openai") !== -1) {
+                                label = "Claude/OpenAI";
+                            } else if (label.toLowerCase().indexOf("other") !== -1) {
+                                label = "Other";
+                            }
+                        }
                         return {
                             "percent": Math.round(t.usedPercent),
-                            "label": t.name || t.resetDescription || "",
+                            "label": label,
                             "resetsAt": t.resetsAt ?? ""
                         };
                     }
 
                     root.list = raw.map(item => {
+                        const isAgy = item.provider === "antigravity" || item.provider === "agy";
+                        const dispId = isAgy ? "agy" : item.provider;
                         const u = item.usage ?? ({});
-                        // Antigravity hat einen dritten Topf. Wer ihn nicht
-                        // hat, bekommt hier `null` und die Zeile faellt weg.
-                        const weitere = [topf(u.secondary), topf(u.tertiary)].filter(t => t !== null);
-                        const erst = topf(u.primary) ?? ({
+                        const weitere = [topf(u.secondary, isAgy), topf(u.tertiary, isAgy)].filter(t => t !== null);
+                        const erst = topf(u.primary, isAgy) ?? ({
                                 "percent": 0,
                                 "label": "",
                                 "resetsAt": ""
                             });
                         return {
-                            "id": item.provider,
+                            "id": dispId,
                             "percent": erst.percent,
                             "window": erst.label,
                             "resetsAt": erst.resetsAt,
