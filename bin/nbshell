@@ -545,8 +545,20 @@ case "$cmd" in
         exec "$QS" -c "$CONFIG_NAME" kill
         ;;
     restart)
+        # Duplikatsicher: laeuft nbshell als systemd-Dienst, uebernimmt der die
+        # Einzel-Instanz-Garantie. Frueher liess `qs kill` detachte Instanzen
+        # ueberleben und `-d` startete eine ZWEITE neben dem Dienst -> mehrere
+        # Bars. Deshalb erst dem Dienst den Vortritt geben.
+        if systemctl --user is-enabled nbshell.service >/dev/null 2>&1 \
+           || systemctl --user is-active nbshell.service >/dev/null 2>&1; then
+            exec systemctl --user restart nbshell.service
+        fi
+        # Fallback ohne Dienst: ALLE nbshell-qs-Instanzen sicher beenden.
         "$QS" -c "$CONFIG_NAME" kill 2>/dev/null || true
-        sleep 0.3
+        for pid in $(pgrep -x qs 2>/dev/null); do
+            grep -qz -- "$CONFIG_NAME" "/proc/$pid/cmdline" 2>/dev/null && kill "$pid" 2>/dev/null
+        done
+        sleep 0.4
         exec "$QS" -c "$CONFIG_NAME" -d
         ;;
     bar|island|pill)
