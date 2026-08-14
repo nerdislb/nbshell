@@ -92,8 +92,13 @@ Singleton {
             break;
         case "WindowFocusChanged":
             focusedWindowId = data.id ?? -1;
-            // Wer in ein anderes Fenster klickt, will das Popout nicht mehr.
-            if (Runtime.popoutCount > 0)
+            // Wer in ein anderes Fenster KLICKT, will das Popout nicht mehr.
+            // ABER: mit focus-follows-mouse feuert dieses Event auch beim
+            // blossen Mausbewegen -- etwa auf dem Weg von der Leiste durch die
+            // Luecke zum Popout, wenn dort ein anderes Fenster liegt. Der
+            // focusGuard unterdrueckt das Schliessen, solange die Maus die
+            // Leiste/das Popout gerade benutzt oder eben verlassen hat.
+            if (Runtime.popoutCount > 0 && !focusGuard.running)
                 Runtime.closeAll();
             break;
         case "KeyboardLayoutsChanged":
@@ -141,4 +146,20 @@ Singleton {
         }
     }
 
+    // Guard gegen focus-follows-mouse (siehe WindowFocusChanged). Jede Hover-
+    // Aktivitaet an Leiste oder Popout haelt ihn frisch -- besonders der Moment,
+    // in dem die Maus die Leiste verlaesst (barHover 1->0), um durch die Luecke
+    // zum Popout zu wandern. Ein echter "Klick woanders hin" passiert erst,
+    // nachdem die Maus die Leiste laenger als das Intervall verlassen hat.
+    Timer {
+        id: focusGuard
+        interval: 600
+    }
+
+    Connections {
+        target: Runtime
+        function onBarHoverChanged() { focusGuard.restart(); }
+        function onPopoutHoverChanged() { focusGuard.restart(); }
+        function onPopoutCountChanged() { if (Runtime.popoutCount > 0) focusGuard.restart(); }
+    }
 }
