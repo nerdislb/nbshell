@@ -96,7 +96,9 @@ Variants {
                     color: Theme.bg
                     radius: Theme.radius
                     border.width: Theme.borderWidth
-                    border.color: card.urgent ? Theme.red : Theme.muted
+                    // Akzent-Rahmen wie bei den Bar-Popouts und dem Optionsmenue
+                    // (vorher Theme.muted -> kaum sichtbar). Dringendes bleibt rot.
+                    border.color: card.urgent ? Theme.red : Theme.accent
 
                     // Dringendes bleibt stehen, bis es jemand wegklickt.
                     Timer {
