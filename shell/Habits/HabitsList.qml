@@ -484,7 +484,7 @@ PanelWindow {
 
                             Row {
                                 spacing: 6
-                                visible: modelData.mode === "COUNTER" || modelData.mode === "NUMBER" || modelData.mode === "DURATION"
+                                visible: modelData.mode === "COUNTER" || modelData.mode === "NUMBER" || modelData.mode === "DURATION" || modelData.mode === "TIMER"
 
                                 Text {
                                     text: row.curVal + " / " + modelData.targetValue + " " + (modelData.unit || "")
@@ -581,8 +581,37 @@ PanelWindow {
                                 }
                             }
 
+                            // TIMER (Focus): der Pomodoro laeuft in der App --
+                            // hier markiert der Knopf die Fokus-Session erledigt
+                            // (ersetzt fuer diesen Modus die Checkbox).
+                            Rectangle {
+                                visible: modelData.mode === "TIMER"
+                                width: 92
+                                height: 26
+                                radius: 3
+                                color: row.isDone ? Theme.alpha(Theme.magenta, 0.35) : Theme.alpha(Theme.magenta, 0.2)
+                                border.width: 1
+                                border.color: Theme.magenta
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: row.isDone ? "[ ⏱ DONE ]" : "[ ▶ FOCUS ]"
+                                    font.family: Theme.fontFamily
+                                    font.bold: true
+                                    font.pixelSize: 10
+                                    color: Theme.magenta
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: Habits.toggle(modelData.id)
+                                }
+                            }
+
                             // Checkbox Button
                             Rectangle {
+                                visible: modelData.mode !== "TIMER"
                                 width: row.isDone ? 74 : 64
                                 height: 26
                                 radius: 3

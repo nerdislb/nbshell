@@ -1,9 +1,0 @@
-{
-  "id": "habits",
-  "name": "Gewohnheiten",
-  "description": "nbHabits / init.Habits Tracker mit 20-Wochen-Heatmap Matrix und Streaks",
-  "category": "Produktivität",
-  "version": "1.0.0",
-  "author": "nbshell",
-  "entry": "BarWidget.qml"
-}

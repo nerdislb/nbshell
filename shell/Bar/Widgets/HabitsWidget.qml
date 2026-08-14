@@ -127,8 +127,8 @@ Cell {
                         }
 
                         Line {
-                            visible: modelData.mode === "COUNTER" || modelData.mode === "NUMBER"
-                            text: "(" + row.curVal + "/" + modelData.targetValue + ")"
+                            visible: modelData.mode === "COUNTER" || modelData.mode === "NUMBER" || modelData.mode === "DURATION" || modelData.mode === "TIMER"
+                            text: "(" + row.curVal + "/" + modelData.targetValue + (modelData.mode === "TIMER" || modelData.mode === "DURATION" ? " min" : "") + ")"
                             color: Theme.fgDim
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -166,7 +166,36 @@ Cell {
                             }
                         }
 
+                        // TIMER (Focus): der eigentliche Pomodoro laeuft in der
+                        // App; hier markiert ▶ die Fokus-Session als erledigt
+                        // (ersetzt fuer diesen Modus die generische Checkbox).
                         Rectangle {
+                            visible: modelData.mode === "TIMER"
+                            width: 24
+                            height: 20
+                            radius: 2
+                            color: row.isDone ? Theme.green : Theme.alpha(Theme.magenta, 0.2)
+                            border.width: 1
+                            border.color: row.isDone ? Theme.green : Theme.magenta
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: row.isDone ? "✔" : "▶"
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 10
+                                font.bold: true
+                                color: row.isDone ? Theme.bg : Theme.magenta
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: Habits.toggle(modelData.id)
+                            }
+                        }
+
+                        Rectangle {
+                            visible: modelData.mode !== "TIMER"
                             width: 22
                             height: 20
                             radius: 2
