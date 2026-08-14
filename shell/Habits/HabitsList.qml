@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
 import qs.Common
@@ -148,60 +147,70 @@ PanelWindow {
             spacing: 12
 
             // ── Kopfbereich ────────────────────────────────────────────────
-            Row {
+            Item {
                 width: parent.width
-                spacing: 8
+                height: 24
 
-                Text {
-                    text: "[h]"
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize + 1
-                    font.bold: true
-                    color: Theme.accent
-                }
-
-                Text {
-                    text: "init.habits"
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize + 1
-                    font.bold: true
-                    color: Theme.fg
-                }
-
-                Item { width: 1; height: 1; Layout.fillWidth: true }
-
-                Rectangle {
-                    radius: 3
-                    color: Theme.alpha(Theme.accent, 0.15)
-                    border.width: 1
-                    border.color: Theme.accent
-                    width: themeLabel.width + 12
-                    height: 20
+                Row {
+                    anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
+                    spacing: 8
 
                     Text {
-                        id: themeLabel
-                        anchors.centerIn: parent
-                        text: Config.theme.toUpperCase()
+                        text: "[h]"
                         font.family: Theme.fontFamily
-                        font.pixelSize: 10
+                        font.pixelSize: Theme.fontSize + 1
                         font.bold: true
                         color: Theme.accent
                     }
+
+                    Text {
+                        text: "init.habits"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize + 1
+                        font.bold: true
+                        color: Theme.fg
+                    }
                 }
 
-                Text {
-                    text: "[ × CLOSE ]"
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize - 1
-                    font.bold: true
-                    color: Theme.red
+                Row {
+                    anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
+                    spacing: 10
 
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.close()
+                    Rectangle {
+                        radius: 3
+                        color: Theme.alpha(Theme.accent, 0.15)
+                        border.width: 1
+                        border.color: Theme.accent
+                        width: themeLabel.width + 12
+                        height: 20
+                        anchors.verticalCenter: parent.verticalCenter
+
+                        Text {
+                            id: themeLabel
+                            anchors.centerIn: parent
+                            text: Config.theme.toUpperCase()
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 10
+                            font.bold: true
+                            color: Theme.accent
+                        }
+                    }
+
+                    Text {
+                        text: "[ × CLOSE ]"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize - 1
+                        font.bold: true
+                        color: Theme.red
+                        anchors.verticalCenter: parent.verticalCenter
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.close()
+                        }
                     }
                 }
             }
@@ -220,19 +229,22 @@ PanelWindow {
                     anchors.margins: 8
                     spacing: 4
 
-                    Row {
+                    Item {
                         width: parent.width
+                        height: 16
 
                         Text {
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
                             text: "$ status --today // " + Habits.todayString
                             font.family: Theme.fontFamily
                             font.pixelSize: 11
                             color: Theme.cyan
                         }
 
-                        Item { width: 1; height: 1; Layout.fillWidth: true }
-
                         Text {
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
                             text: root.shortPath !== "" ? root.shortPath : "Sync aktiv"
                             font.family: Theme.fontFamily
                             font.pixelSize: 10
@@ -240,17 +252,12 @@ PanelWindow {
                         }
                     }
 
-                    Row {
-                        width: parent.width
-                        spacing: 8
-
-                        Text {
-                            text: Habits.doneCount + " of " + Habits.count + " COMPLETED (" + Habits.progressPercent + "%)"
-                            font.family: Theme.fontFamily
-                            font.pixelSize: 12
-                            font.bold: true
-                            color: Habits.progressPercent >= 100 ? Theme.green : Theme.accent
-                        }
+                    Text {
+                        text: Habits.doneCount + " of " + Habits.count + " COMPLETED (" + Habits.progressPercent + "%)"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 12
+                        font.bold: true
+                        color: Habits.progressPercent >= 100 ? Theme.green : Theme.accent
                     }
 
                     // Progress Bar
@@ -284,19 +291,22 @@ PanelWindow {
                     anchors.margins: 8
                     spacing: 6
 
-                    Row {
+                    Item {
                         width: parent.width
+                        height: 16
 
                         Text {
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
                             text: "$ matrix --heatmap // 20-WEEK CONTRIBUTION MATRIX"
                             font.family: Theme.fontFamily
                             font.pixelSize: 10
                             color: Theme.cyan
                         }
 
-                        Item { width: 1; height: 1; Layout.fillWidth: true }
-
                         Text {
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
                             text: "less ░ ▒ ▓ █ more"
                             font.family: Theme.fontFamily
                             font.pixelSize: 9
@@ -619,58 +629,69 @@ PanelWindow {
                 border.width: 1
                 border.color: input.activeFocus ? Theme.accent : Theme.alpha(Theme.fg, 0.15)
 
-                Row {
-                    anchors.fill: parent
-                    anchors.margins: 8
-                    spacing: 8
+                Text {
+                    id: prompt
+                    anchors.left: parent.left
+                    anchors.leftMargin: 12
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: ">"
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 13
+                    font.bold: true
+                    color: Theme.green
+                }
 
-                    Text {
-                        text: ">"
-                        font.family: Theme.fontFamily
-                        font.pixelSize: 13
-                        font.bold: true
-                        color: Theme.green
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
+                TextInput {
+                    id: input
+                    anchors.left: prompt.right
+                    anchors.leftMargin: 8
+                    anchors.right: hintText.left
+                    anchors.rightMargin: 12
+                    anchors.verticalCenter: parent.verticalCenter
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSize
+                    color: Theme.fg
+                    focus: true
+                    selectByMouse: true
+                    selectionColor: Theme.selection
+                    selectedTextColor: Theme.on(Theme.selection)
 
-                    TextInput {
-                        id: input
-                        width: parent.width - 140
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
-                        color: Theme.fg
-                        focus: true
-                        selectByMouse: true
-                        anchors.verticalCenter: parent.verticalCenter
-
-                        Keys.onReturnPressed: root.accept()
-                        Keys.onEscapePressed: root.close()
-                        Keys.onUpPressed: root.move(-1)
-                        Keys.onDownPressed: root.move(1)
-                        Keys.onTabPressed: (event) => {
-                            event.accepted = true;
-                            root.toggleCurrent();
+                    Keys.onReturnPressed: root.accept()
+                    Keys.onEnterPressed: root.accept()
+                    Keys.onEscapePressed: {
+                        if (input.text !== "") {
+                            input.text = "";
+                        } else {
+                            root.close();
                         }
                     }
+                    Keys.onUpPressed: root.move(-1)
+                    Keys.onDownPressed: root.move(1)
+                    Keys.onTabPressed: (event) => {
+                        event.accepted = true;
+                        root.toggleCurrent();
+                    }
 
                     Text {
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
                         visible: input.text === ""
                         text: "Neue Gewohnheit eintragen (z.B. joggen // workout)..."
                         font.family: Theme.fontFamily
                         font.pixelSize: 11
                         color: Theme.fgDim
-                        anchors.verticalCenter: parent.verticalCenter
                     }
+                }
 
-                    Item { width: 1; height: 1; Layout.fillWidth: true }
-
-                    Text {
-                        text: "↵ Hinzufuegen"
-                        font.family: Theme.fontFamily
-                        font.pixelSize: 10
-                        color: Theme.accent
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
+                Text {
+                    id: hintText
+                    anchors.right: parent.right
+                    anchors.rightMargin: 12
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "↵ Hinzufuegen"
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 10
+                    color: Theme.accent
                 }
             }
         }
