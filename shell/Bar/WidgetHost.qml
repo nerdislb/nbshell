@@ -117,6 +117,8 @@ Item {
             return unitsComponent;
         case "todo":
             return todoComponent;
+        case "habits":
+            return habitsComponent;
         }
         // Kein eingebauter -- dann muss es ein Plugin sein. Ist es das auch
         // nicht, steht ein Name in der Config, den niemand kennt.
@@ -253,5 +255,10 @@ Item {
     Component {
         id: todoComponent
         Tasks {}
+    }
+
+    Component {
+        id: habitsComponent
+        HabitsWidget {}
     }
 }

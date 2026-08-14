@@ -35,6 +35,7 @@ Singleton {
     property bool wallpaperOpen: false
     property bool calendarOpen: false
     property bool todoOpen: false
+    property bool habitsOpen: false
     property bool qrOpen: false
     property bool speedOpen: false
     property bool musicOpen: false

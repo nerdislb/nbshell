@@ -155,6 +155,12 @@ Singleton {
             "category": "System"
         },
         {
+            "id": "habits",
+            "name": "Gewohnheiten",
+            "description": "nbHabits / init.Habits Tracker mit 20-Wochen-Heatmap Matrix und Streaks",
+            "category": "System"
+        },
+        {
             "id": "devices",
             "name": "Geraeteakkus",
             "description": "Maus, Kopfhoerer -- meldet sich nur, wenn es knapp wird",

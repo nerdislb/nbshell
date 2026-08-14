@@ -47,11 +47,11 @@ Singleton {
     readonly property string bellOff: cp(0xF009B)
     readonly property string clipboard: cp(0xF0EA)
 
-    // Aufgaben: ein Kaestchen mit Haken. Der naheliegende `nf-md-format-list-
-    // checks` (F05C7) ist in Leistengroesse ein Fleck -- drei duenne Linien und
-    // ein Haken auf 13 px sind nicht mehr auseinanderzuhalten. Das Kaestchen
-    // behaelt seine Form.
+    // Aufgaben: ein Kaestchen mit Haken.
     readonly property string todo: cp(0xF0135)
+    readonly property string habit: cp(0xF0238) // nf-md-fire (Streaks & Habits)
+    readonly property string shield: cp(0xF0498) // nf-md-shield
+    readonly property string matrix: cp(0xF0746) // nf-md-view-grid
 
     // Medien und Aufnahme
     readonly property string play: cp(0xF040A)

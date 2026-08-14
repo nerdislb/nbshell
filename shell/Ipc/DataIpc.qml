@@ -188,6 +188,111 @@ Scope {
     }
 
     IpcHandler {
+        target: "habits"
+
+        function toggle(): string {
+            Runtime.habitsOpen = !Runtime.habitsOpen;
+            return Runtime.habitsOpen ? "offen" : "zu";
+        }
+
+        function open(): string {
+            Runtime.habitsOpen = true;
+            return "offen";
+        }
+
+        function list(): string {
+            if (Habits.habits.length === 0)
+                return "keine Gewohnheiten eingerichtet";
+            return Habits.habits.map((h, i) => {
+                const e = Habits.todayMap[String(h.id)];
+                const done = e ? e.isCompleted : false;
+                const curVal = e ? e.currentValue : 0.0;
+                const streak = Habits.calculateStreak(h.id);
+                var line = String(i + 1).padStart(2, " ") + "  " + (done ? "[✔]" : "[ ]") + "  " + (h.icon || "✨") + "  " + h.name;
+                if (h.mode === "COUNTER" || h.mode === "NUMBER" || h.mode === "DURATION") {
+                    line += " (" + curVal + "/" + h.targetValue + " " + (h.unit || "") + ")";
+                }
+                if (streak.current > 0) {
+                    line += "  🔥" + streak.current + "d";
+                }
+                return line;
+            }).join("\n");
+        }
+
+        function done(which: string): string {
+            const h = Habits.habits[parseInt(which, 10) - 1];
+            if (!h)
+                return "keine Nummer " + which;
+            Habits.toggle(h.id);
+            const e = Habits.todayMap[String(h.id)];
+            return (e && e.isCompleted ? "erledigt: " : "wieder offen: ") + h.name;
+        }
+
+        function inc(which: string, delta: string): string {
+            const h = Habits.habits[parseInt(which, 10) - 1];
+            if (!h)
+                return "keine Nummer " + which;
+            const step = delta !== "" ? parseFloat(delta) : 1.0;
+            Habits.increment(h.id, isNaN(step) ? 1.0 : step);
+            const e = Habits.todayMap[String(h.id)];
+            const curVal = e ? e.currentValue : 0.0;
+            return h.name + " -> " + curVal + " / " + h.targetValue + " " + (h.unit || "");
+        }
+
+        function add(text: string): string {
+            const clean = String(text).replace(/%5B/g, "[").replace(/%5D/g, "]").replace(/%2C/g, ",").replace(/%3B/g, ";").replace(/%25/g, "%");
+            var name = clean;
+            var routine = "general";
+            var icon = "✨";
+            var mode = "CHECKBOX";
+            var target = 1.0;
+            var unit = "times";
+
+            if (clean.indexOf("//") !== -1) {
+                const parts = clean.split("//");
+                name = parts[0].trim();
+                const tag = parts[1].trim().toLowerCase();
+                if (["morning", "workout", "work", "evening", "general"].indexOf(tag) !== -1) {
+                    routine = tag;
+                }
+            }
+
+            if (routine === "morning") icon = "🌅";
+            else if (routine === "workout") icon = "💪";
+            else if (routine === "work") icon = "💻";
+            else if (routine === "evening") icon = "🌙";
+
+            const h = Habits.add(name, icon, routine, mode, target, unit, 2);
+            return h ? "eingetragen: " + h.name + " // " + h.routine : "nichts eingetragen";
+        }
+
+        function drop(which: string): string {
+            const h = Habits.habits[parseInt(which, 10) - 1];
+            if (!h)
+                return "keine Nummer " + which;
+            Habits.remove(h.id);
+            return "geloescht: " + h.name;
+        }
+
+        function sync(): string {
+            Habits.foldConflicts();
+            Habits.reload();
+            return "gelesen: " + Habits.file;
+        }
+
+        function status(): string {
+            return JSON.stringify({
+                "an": Habits.enabled,
+                "offen": Habits.count - Habits.doneCount,
+                "erledigt": Habits.doneCount,
+                "gesamt": Habits.count,
+                "prozent": Habits.progressPercent,
+                "datei": Habits.file
+            });
+        }
+    }
+
+    IpcHandler {
         target: "clipboard"
 
         function toggle(): string {

@@ -446,6 +446,15 @@ nbshell -- eigene Shell auf Quickshell
   nbshell todo sync         Konfliktkopien einsammeln und neu lesen
   nbshell todo status       Zahlen und Ablageort
 
+  nbshell habits            Gewohnheiten (nbHabits) auflisten (auch: habits list)
+  nbshell habits toggle <nr> abhaken / toggle
+  nbshell habits done <nr>  als erledigt markieren
+  nbshell habits inc <nr> [x] Zaehler erhoehen (z.B. habits inc 1 1)
+  nbshell habits <text>     neue Gewohnheit eintragen (z.B. habits joggen // workout)
+  nbshell habits open       Vollbildfenster mit 20-Wochen-Heatmap oeffnen
+  nbshell habits sync       Konfliktkopien einsammeln und neu lesen
+  nbshell habits status     Zahlen, Quote und Ablageort
+
   nbshell plugins           Bausteine auflisten (auch: reload)
   nbshell plugin add <url>  fremdes Bar-Widget aus git holen (laeuft IN der
                             Shell -- nur, wem du traust)
@@ -802,6 +811,37 @@ ENDE
                 text="${text//[/%5B}"
                 text="${text//]/%5D}"
                 ipc todo add "$text"
+                ;;
+        esac
+        ;;
+    habits|gewohnheiten)
+        case "${1:-list}" in
+            toggle|open) ipc habits toggle ;;
+            list|"")     ipc habits list ;;
+            sync)        ipc habits sync ;;
+            status)      ipc habits status ;;
+            done)        ipc habits done "${2:?Nummer fehlt}" ;;
+            inc)         ipc habits inc "${2:?Nummer fehlt}" "${3:-1}" ;;
+            drop|rm)     ipc habits drop "${2:?Nummer fehlt}" ;;
+            add)
+                shift
+                [ $# -gt 0 ] || { echo "Text fehlt (z.B. joggen // workout)" >&2; exit 2; }
+                text="$*"
+                text="${text//%/%25}"
+                text="${text//,/%2C}"
+                text="${text//;/%3B}"
+                text="${text//[/%5B}"
+                text="${text//]/%5D}"
+                ipc habits add "$text"
+                ;;
+            *)
+                text="$*"
+                text="${text//%/%25}"
+                text="${text//,/%2C}"
+                text="${text//;/%3B}"
+                text="${text//[/%5B}"
+                text="${text//]/%5D}"
+                ipc habits add "$text"
                 ;;
         esac
         ;;
