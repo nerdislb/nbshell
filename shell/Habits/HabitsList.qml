@@ -427,8 +427,11 @@ PanelWindow {
                     }
 
                     Row {
-                        anchors.fill: parent
-                        anchors.margins: 10
+                        anchors.left: parent.left
+                        anchors.leftMargin: 10
+                        anchors.right: actionRow.left
+                        anchors.rightMargin: 10
+                        anchors.verticalCenter: parent.verticalCenter
                         spacing: 10
 
                         // Icon
@@ -440,7 +443,7 @@ PanelWindow {
 
                         // Info Spalte
                         Column {
-                            width: row.width - 240
+                            width: parent.width - 40
                             anchors.verticalCenter: parent.verticalCenter
                             spacing: 3
 
@@ -491,13 +494,15 @@ PanelWindow {
                                 }
                             }
                         }
+                    }
 
-                        Item { width: 1; height: 1; Layout.fillWidth: true }
-
-                        // Interaktive Knoepfe
-                        Row {
-                            spacing: 6
-                            anchors.verticalCenter: parent.verticalCenter
+                    // Interaktive Knoepfe
+                    Row {
+                        id: actionRow
+                        anchors.right: parent.right
+                        anchors.rightMargin: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 6
 
                             // Stepper fuer Counter: [ - ] und [ +1 ]
                             Rectangle {
@@ -618,7 +623,6 @@ PanelWindow {
                         }
                     }
                 }
-            }
 
             // ── Eingabezeile fuer neue Gewohnheiten ─────────────────────────
             Rectangle {
