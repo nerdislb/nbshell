@@ -40,6 +40,17 @@ Singleton {
     // Gefilterte Gewohnheiten (aktiv, nicht geloescht)
     readonly property var habits: habitsRaw.filter(h => !h.deleted && !h.isArchived)
 
+    // Standardwerte einer Gewohnheit -- EINE Quelle, genutzt von add() und
+    // normalizeHabits() (waren vorher an mehreren Stellen dupliziert).
+    readonly property var habitDefaults: ({
+        "icon": "✨",
+        "mode": "CHECKBOX",
+        "routine": "all",
+        "targetValue": 1.0,
+        "unit": "times",
+        "shields": 2
+    })
+
     // Heutiges Datum als YYYY-MM-DD
     readonly property string todayString: {
         const d = new Date();
@@ -77,6 +88,18 @@ Singleton {
 
     readonly property int progressPercent: count > 0 ? Math.round((doneCount / count) * 100) : 0
 
+    // Erledigte Eintraege pro Datum -- EINMAL berechnet (O(N)), damit
+    // matrixCells nicht fuer jeden der 140 Tage alle Eintraege neu durchlaeuft.
+    readonly property var dailyDone: {
+        const m = ({});
+        for (var i = 0; i < root.entriesRaw.length; i++) {
+            const e = root.entriesRaw[i];
+            if (e.isCompleted)
+                m[e.date] = (m[e.date] || 0) + 1;
+        }
+        return m;
+    }
+
     // Heatmap Matrix (140 Tage / 20 Wochen)
     readonly property var matrixCells: {
         const cells = [];
@@ -90,14 +113,8 @@ Singleton {
             const day = String(d.getDate()).padStart(2, "0");
             const dateStr = y + "-" + m + "-" + day;
 
-            // Zaehle Erledigungen an diesem Tag
-            var done = 0;
-            for (var j = 0; j < root.entriesRaw.length; j++) {
-                const e = root.entriesRaw[j];
-                if (e.date === dateStr && e.isCompleted) {
-                    done += 1;
-                }
-            }
+            // Erledigungen an diesem Tag -- aus der vorberechneten Map, O(1)
+            var done = root.dailyDone[dateStr] || 0;
 
             const total = root.habits.length;
             const ratio = total > 0 ? (done / total) : 0;
@@ -140,27 +157,67 @@ Singleton {
     }
 
     // ── Streak-Berechnung ──────────────────────────────────────────────────
-    function calculateStreak(habitId) {
-        var current = 0;
-        var longest = 0;
-        const habitEntries = root.entriesRaw.filter(e => String(e.habitId) === String(habitId) && e.isCompleted);
-        const datesSet = ({});
-        for (var i = 0; i < habitEntries.length; i++)
-            datesSet[habitEntries[i].date] = true;
-
-        const d = new Date();
+    // Alle Streaks werden EINMAL pro Datenaenderung vorberechnet statt pro
+    // Listenzeile bei jedem Neuzeichnen. calculateStreak() ist danach nur
+    // noch ein O(1)-Nachschlagen.
+    readonly property var streaks: {
+        const doneDates = ({});           // habitId -> { date: true, ... }
+        for (var i = 0; i < root.entriesRaw.length; i++) {
+            const e = root.entriesRaw[i];
+            if (!e.isCompleted)
+                continue;
+            const k = String(e.habitId);
+            (doneDates[k] = doneDates[k] || ({}))[e.date] = true;
+        }
+        const out = ({});
         const todayStr = root.todayString;
+        for (var j = 0; j < root.habitsRaw.length; j++) {
+            const id = String(root.habitsRaw[j].id);
+            out[id] = root._streakFor(doneDates[id] || ({}), todayStr);
+        }
+        return out;
+    }
 
-        // Wenn heute erledigt, zaehle ab heute, sonst ab gestern
-        if (!datesSet[todayStr]) {
-            d.setDate(d.getDate() - 1);
+    function _fmtDate(d) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return y + "-" + m + "-" + day;
+    }
+
+    function _isNextDay(a, b) {
+        const da = new Date(a + "T00:00:00");
+        da.setDate(da.getDate() + 1);
+        return root._fmtDate(da) === b;
+    }
+
+    // { current, longest } aus einer Menge erledigter Datums-Strings.
+    function _streakFor(datesSet, todayStr) {
+        const keys = Object.keys(datesSet);
+        if (keys.length === 0)
+            return { "current": 0, "longest": 0 };
+        keys.sort();
+
+        // Laengster zusammenhaengender Lauf -- eine Luecke setzt zurueck.
+        var longest = 1;
+        var run = 1;
+        for (var i = 1; i < keys.length; i++) {
+            if (root._isNextDay(keys[i - 1], keys[i])) {
+                run += 1;
+                if (run > longest)
+                    longest = run;
+            } else {
+                run = 1;
+            }
         }
 
+        // Aktueller Lauf: endet heute -- oder gestern, falls heute noch offen.
+        var current = 0;
+        const d = new Date(todayStr + "T00:00:00");
+        if (!datesSet[todayStr])
+            d.setDate(d.getDate() - 1);
         while (true) {
-            const y = d.getFullYear();
-            const m = String(d.getMonth() + 1).padStart(2, "0");
-            const day = String(d.getDate()).padStart(2, "0");
-            const s = y + "-" + m + "-" + day;
+            const s = root._fmtDate(d);
             if (datesSet[s]) {
                 current += 1;
                 d.setDate(d.getDate() - 1);
@@ -169,8 +226,11 @@ Singleton {
             }
         }
 
-        longest = Math.max(current, habitEntries.length > 0 ? 1 : 0);
-        return { "current": current, "longest": longest };
+        return { "current": current, "longest": Math.max(longest, current) };
+    }
+
+    function calculateStreak(habitId) {
+        return root.streaks[String(habitId)] ?? { "current": 0, "longest": 0 };
     }
 
     // ── Aktionen ──────────────────────────────────────────────────────────
@@ -179,16 +239,17 @@ Singleton {
         const cleanName = String(name).trim();
         if (cleanName === "") return null;
 
+        const d = root.habitDefaults;
         const t = now();
         const newHabit = {
             "id": generateId(),
             "name": cleanName,
-            "icon": icon || "✨",
-            "mode": mode || "CHECKBOX",
-            "routine": routine || "all",
-            "targetValue": Number(targetValue) || 1.0,
-            "unit": unit || "times",
-            "shields": Number(shields) || 2,
+            "icon": icon || d.icon,
+            "mode": mode || d.mode,
+            "routine": routine || d.routine,
+            "targetValue": Number(targetValue) || d.targetValue,
+            "unit": unit || d.unit,
+            "shields": Number(shields) || d.shields,
             "createdAt": t,
             "updated": t,
             "isArchived": false,
@@ -284,15 +345,16 @@ Singleton {
 
     function normalizeHabits(raw) {
         if (!Array.isArray(raw)) return [];
+        const d = root.habitDefaults;
         return raw.filter(h => h && typeof h === "object" && h.id).map(h => ({
             "id": String(h.id),
             "name": String(h.name || "Habit"),
-            "icon": String(h.icon || "✨"),
-            "mode": String(h.mode || "CHECKBOX"),
-            "routine": String(h.routine || "all"),
-            "targetValue": Number(h.targetValue) || 1.0,
-            "unit": String(h.unit || "times"),
-            "shields": Number(h.shields) || 2,
+            "icon": String(h.icon || d.icon),
+            "mode": String(h.mode || d.mode),
+            "routine": String(h.routine || d.routine),
+            "targetValue": Number(h.targetValue) || d.targetValue,
+            "unit": String(h.unit || d.unit),
+            "shields": Number(h.shields) || d.shields,
             "createdAt": Number(h.createdAt || 0) || now(),
             "updated": Number(h.updated || h.createdAt || 0) || 0,
             "isArchived": !!h.isArchived,
