@@ -93,7 +93,10 @@ PopupWindow {
         }
         radius: Theme.radius
         border.width: Theme.borderWidth
-        border.color: Theme.muted
+        // Akzentfarbe wie beim Optionsmenue (Mod+,) und den Fensterraendern,
+        // damit alle aufklappenden Menues einheitlich gerahmt sind (vorher
+        // Theme.muted -> kaum sichtbar).
+        border.color: Theme.accent
 
         Loader {
             id: loader
