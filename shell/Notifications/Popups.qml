@@ -46,32 +46,55 @@ Variants {
         visible: Notify.popups.length > 0
         color: "transparent"
 
+        // Hat gerade eine Benachrichtigung Aktionsknoepfe? Nur dann muss die
+        // Flaeche Eingaben annehmen -- eine reine Overlay-Flaeche mit
+        // keyboardFocus None bekommt unter niri Hover, aber keine Klicks.
+        readonly property bool hasActions: {
+            for (var i = 0; i < Notify.popups.length; i++) {
+                const n = Notify.popups[i].notification;
+                if (n && n.actions && n.actions.length > 0)
+                    return true;
+            }
+            return false;
+        }
+
         WlrLayershell.namespace: "nbshell:notifications"
         WlrLayershell.layer: WlrLayershell.Overlay
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+        // OnDemand statt Exclusive: der Fokus wechselt erst, wenn man die Karte
+        // wirklich anklickt -- eine auftauchende Benachrichtigung reisst also
+        // nicht die Tastatur aus der gerade benutzten App. Ohne Aktionen bleibt
+        // es None (durchklickbar).
+        WlrLayershell.keyboardFocus: win.hasActions ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
         exclusionMode: ExclusionMode.Ignore
 
         anchors.right: true
         anchors.top: atTop
         anchors.bottom: !atTop
 
-        implicitWidth: Theme.cellW * 52
-        implicitHeight: Math.min(screen.height * 0.8, stack.implicitHeight + Theme.cellH * 4 + barSpace)
+        // Fenster genau so gross wie der Kartenstapel -- KEINE Maske: eine
+        // Region-Maske (egal ob `item:` oder explizite Koordinaten) liefert
+        // unter niri keinen Eingabebereich, also kein Hover und keine Klicks
+        // auf den Aktionsknoepfen. Stattdessen nimmt das ganze Fenster
+        // Eingaben an und wird per `margins.*` unter die Leiste und vom Rand
+        // weg geschoben, damit es nur dort blockiert, wo wirklich eine Karte
+        // liegt.
+        implicitWidth: stack.implicitWidth + Theme.cellW * 2
+        implicitHeight: Math.min(screen.height * 0.85, stack.implicitHeight + Theme.cellH * 2)
 
-        // Nur die Karten nehmen Klicks an, der Rest des Streifens nicht.
-        mask: Region {
-            item: stack
-        }
+        margins.top: win.atTop ? win.barSpace : 0
+        margins.bottom: win.atTop ? 0 : win.barSpace
+        margins.right: Theme.cellW
 
         Column {
             id: stack
 
+            // Der Abstand zur Leiste sitzt jetzt am Fenster (margins.*), nicht
+            // mehr hier -- die Karten fuellen das (schon bar-freie) Fenster mit
+            // gleichmaessigem Rand.
             anchors.right: parent.right
             anchors.top: win.atTop ? parent.top : undefined
             anchors.bottom: win.atTop ? undefined : parent.bottom
             anchors.margins: Theme.cellH
-            anchors.topMargin: Theme.cellH + (win.atTop ? win.barSpace : 0)
-            anchors.bottomMargin: Theme.cellH + (win.atTop ? 0 : win.barSpace)
 
             spacing: Theme.cellH * 0.5
 
