@@ -102,6 +102,12 @@ PanelWindow {
             "values": ["box", "bracket", "plain"]
         },
         {
+            "key": "meterStyle",
+            "def": "blocks",
+            "label": "Balken",
+            "values": ["blocks", "line"]
+        },
+        {
             "key": "widgetIcons",
             "def": true,
             "label": "Symbole",

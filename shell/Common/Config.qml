@@ -58,6 +58,10 @@ Singleton {
     readonly property real opacity: value("opacity", 1.0)
     readonly property string widgetStyle: value("widgetStyle", "box")
 
+    // Stil der Meter-Balken in den Popouts (CPU/RAM/Lautstaerke ...):
+    // "blocks" = TUI-Bloecke (Vorgabe), "line" = duenne Linie (Omarchy-Richtung).
+    readonly property string meterStyle: value("meterStyle", "blocks")
+
     // Symbole vor dem Text der Bausteine. Aus wird die Leiste zur reinen
     // Textzeile -- naeher am Terminal, aber schmaler zu lesen.
     readonly property bool widgetIcons: value("widgetIcons", true)
