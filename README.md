@@ -234,6 +234,7 @@ nbshell audio panel      # Regler und Geraeteliste
 
 nbshell launcher         # Starter: Anwendungen UND Befehle (Alias: run)
 nbshell palette          # derselbe Starter, nur die Befehle
+nbshell menu             # das verschachtelte Menue (Mod+Shift+Space)
 nbshell find ghost       # zeigt, was er finden wuerde
 nbshell befehle [text]   # alle Befehle der Palette
 nbshell befehl "Ton aus" # den besten Treffer ausfuehren
@@ -698,7 +699,7 @@ wissen, dass das Theme hinter `Mod+Comma` steckt und die Aufgaben hinter
 | Eingabe | sucht in |
 |---|---|
 | `firefox` | Anwendungen **und** Befehlen, nach Punkten gemischt |
-| `>theme` | nur Befehlen (`Mod+Shift+Space` oeffnet gleich so) |
+| `>theme` | nur Befehlen (Praefix `>` im Starter) |
 | `!term` | nur Anwendungen |
 
 Befehle erkennt man an drei Dingen: dem `>` im Kasten statt eines Symbols, der
@@ -778,6 +779,30 @@ Das Fenster nimmt sich die Tastatur exklusiv (`keyboardFocus: Exclusive`) --
 sonst liesse sich nicht tippen, waehrend darunter ein Fenster den Fokus haelt.
 Es gibt es genau einmal, nicht je Bildschirm: ein zweiter Starter waere ein
 zweites Eingabefeld mit eigenem Zustand.
+
+## Webapps
+
+Eine Webapp ist eine Website, die im App-Modus des Browsers laeuft (Brave,
+`--app=`) -- ein eigenes Fenster ohne Adressleiste, das sich wie ein Programm
+anfuehlt. Das Skript **`webapp`** legt dafuer einen `.desktop`-Starter in
+`~/.local/share/applications` an; weil der Launcher seine Liste von Quickshells
+`DesktopEntries` bezieht (alle `.desktop` der XDG-Ordner), **taucht jede so
+angelegte Webapp sofort im Starter auf** -- am Launcher war dafuer nichts zu
+aendern.
+
+```
+webapp add [Name] [URL] [Icon]   anlegen (fragt nach, was fehlt)
+webapp remove [Name ...]         entfernen (Auswahl, wenn ohne Name)
+webapp list                      alle Webapps zeigen
+```
+
+Das Favicon holt es automatisch (sonst nimmt es eine PNG-URL oder einen lokalen
+Pfad). Browser und Argumente lassen sich ueber `WEBAPP_BROWSER` /
+`WEBAPP_BROWSER_ARGS` ueberschreiben. Bequemer geht es ueber das Menue:
+**Webapps → anlegen / entfernen / auflisten** startet dieselben Befehle in
+einem Terminal.
+
+Vorbild ist Omarchy 4 (`omarchy-webapp-install`), an Brave und niri angepasst.
 
 ## Control Center
 
@@ -920,7 +945,7 @@ Die Takeover-Datei biegt inzwischen alles um, was nbshell kann:
 | Taste | vorher DMS | jetzt |
 |---|---|---|
 | `Mod+Space` | spotlight | Starter: Anwendungen **und** Befehle |
-| `Mod+Shift+Space` | — | dieselbe Flaeche, nur die Befehle |
+| `Mod+Shift+Space` | — | das Menue (Stil, Aufnahme, System, …) |
 | `Mod+N` | notification center | Benachrichtigungsarchiv |
 | `Mod+V` | clipboard | Zwischenablage |
 | `Super+X` | powermenu | Sitzungsmenue |
@@ -975,6 +1000,34 @@ passt besser zu einer Oberflaeche, die sonst nur Zeilen kennt. Fuer die
 Verschachtelung laedt die Datei sich selbst ueber ihren Pfad nach; sich direkt
 zu verwenden geht in QML nicht, der Typ waere waehrend seiner eigenen
 Definition noch nicht fertig.
+
+## Menue
+
+`Mod+Shift+Space` oder `nbshell menu`. Ein verschachtelter Sammelpunkt fuer
+alles, was die Shell kann -- der Gedanke stammt aus Omarchys Menue. Vollbild-
+Overlay wie das Power-Menue und der Starter: Pfeile und Enter waehlen, der
+Buchstabe vor der Zeile fuehrt sofort aus, `Esc`/`←` geht eine Ebene zurueck,
+auf der obersten schliesst `Esc`. Ein Akzent-Balken markiert die Auswahl, `▸`
+die Kategorien mit Untermenue.
+
+| Kategorie | dahinter |
+|---|---|
+| **Apps** | der Starter |
+| **Webapps** | anlegen, entfernen, auflisten (siehe oben) |
+| **Stil** | Theme waehlen, vor/zurueck, Wallpaper, Bar-Form, Einstellungen |
+| **Aufnahme** | Bereich, Bildschirm, Fenster, OCR, Bildschirmaufnahme |
+| **System** | Sperren, Abmelden, Bereitschaft, Ruhezustand, Neu starten, Ausschalten |
+| **Verbindungen** | Control Center, WLAN-QR-Code, Speedtest |
+| **Extras** | Zwischenablage, Prozesse, Musik, Todo, Habits, Tastenkuerzel |
+
+Der Baum ist **reine Daten** (`Menu/Menu.qml`): ein Blatt hat `run`, eine
+Kategorie `sub`. Jede Aktion setzt dieselben Runtime-Flags oder ruft dieselben
+Dienste wie die IPC-Handler -- das Menue ist also nur ein zweiter Weg zu
+Vorhandenem, kein eigener Unterbau. Wer eine Zeile ergaenzen will, schreibt
+einen Eintrag in `tree`, kein neues Fenster.
+
+`Mod+Shift+Space` war vorher die Befehlspalette; die lebt weiter im Starter,
+ueber den Praefix `>`.
 
 ## Power-Menue
 
