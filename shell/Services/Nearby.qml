@@ -45,6 +45,38 @@ Singleton {
         finder.running = true;
     }
 
+    // Scan-Runde: bei jedem Ergebnis +1. Ein gefundenes Geraet merkt sich seine
+    // Runde und bleibt sichtbar, bis es zwei Runden am Stueck fehlt. Ohne das
+    // flackert die Liste -- LocalSends Multicast-Suche antwortet nicht in jedem
+    // 3-Sekunden-Fenster, ein schon dagewesenes Handy fiele sonst je Runde kurz
+    // raus und wieder rein.
+    property int _round: 0
+
+    function _merge(found) {
+        root._round += 1;
+        const r = root._round;
+
+        var byIp = {};
+        for (var i = 0; i < root.devices.length; i++)
+            byIp[root.devices[i].ip] = root.devices[i];
+
+        for (var j = 0; j < found.length; j++) {
+            var dev = found[j];
+            dev._seen = r;
+            byIp[dev.ip] = dev;
+        }
+
+        var out = [];
+        for (var ip in byIp) {
+            var e = byIp[ip];
+            if (e._seen === undefined)
+                e._seen = 0;
+            if (r - e._seen <= 2)
+                out.push(e);
+        }
+        root.devices = out;
+    }
+
     function sendFiles(device, files) {
         if (!device || files.length === 0)
             return;
@@ -116,8 +148,10 @@ Singleton {
     }
 
     onWantedChanged: {
-        if (!root.wanted)
+        if (!root.wanted) {
             root.devices = [];
+            root._round = 0;
+        }
     }
 
     Process {
@@ -129,7 +163,7 @@ Singleton {
                 try {
                     const d = JSON.parse(text);
                     if (d.ok)
-                        root.devices = d.devices ?? [];
+                        root._merge(d.devices ?? []);
                     else
                         root.status = String(d.grund);
                 } catch (e) {

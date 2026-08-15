@@ -27,16 +27,17 @@ mitlesen will, muesste sich als Geraet ausgeben -- weshalb man nur an Geraete
 schickt, die man in der Liste wiedererkennt.
 """
 
+import hashlib
 import json
 import os
 import socket
 import ssl
 import struct
+import subprocess
 import sys
 import time
 import urllib.error
 import urllib.request
-import uuid
 
 GRUPPE = "224.0.0.167"
 PORT = 53317
@@ -47,10 +48,55 @@ STATE = os.path.join(
     "nbshell",
 )
 
-# Selbstsignierte Zertifikate sind hier der Normalfall, siehe Kopf.
+def _cert_paths():
+    return os.path.join(STATE, "cert.pem"), os.path.join(STATE, "key.pem")
+
+
+def _ensure_cert():
+    """Eigenes selbstsigniertes Zertifikat -- einmal erzeugt, dann behalten.
+
+    LocalSend spricht seit v2 gegenseitiges TLS (mTLS): die Gegenstelle verlangt
+    im Handshake ein CLIENT-Zertifikat und bricht sonst mit
+    `TLSV13_ALERT_CERTIFICATE_REQUIRED` ab. Wir zeigen also unser eigenes vor.
+    Wie beim Fingerabdruck (siehe eigene_kennung) darf es sich nicht aendern,
+    sonst sind wir fuer das Handy jedes Mal ein neues Geraet.
+    """
+    cert, key = _cert_paths()
+    if not (os.path.isfile(cert) and os.path.isfile(key)):
+        os.makedirs(STATE, exist_ok=True)
+        subprocess.run(
+            ["openssl", "req", "-x509", "-newkey", "rsa:2048",
+             "-keyout", key, "-out", cert, "-days", "3650", "-nodes",
+             "-subj", "/CN=nbshell"],
+            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+    return cert, key
+
+
+def _cert_fingerprint():
+    """SHA-256 des Zertifikats -- das ist im LocalSend-Protokoll die Identitaet."""
+    cert, _ = _ensure_cert()
+    with open(cert) as f:
+        der = ssl.PEM_cert_to_DER_cert(f.read())
+    return hashlib.sha256(der).hexdigest()
+
+
+# Selbstsignierte Zertifikate sind hier der Normalfall, siehe Kopf: geprueft
+# wird nicht (CERT_NONE), aber wir MUESSEN eins vorzeigen (mTLS, siehe
+# _ensure_cert). SECLEVEL 0 nimmt zusaetzlich betagte Gegenstellen-Zertifikate
+# an, die OpenSSL 3 sonst schon im Handshake verwerfen wuerde.
 KONTEXT = ssl.create_default_context()
 KONTEXT.check_hostname = False
 KONTEXT.verify_mode = ssl.CERT_NONE
+try:
+    KONTEXT.set_ciphers("DEFAULT@SECLEVEL=0")
+except ssl.SSLError:
+    pass
+try:
+    _cert, _key = _ensure_cert()
+    KONTEXT.load_cert_chain(_cert, _key)
+except Exception:
+    pass
 
 
 def eigene_kennung():
@@ -58,22 +104,22 @@ def eigene_kennung():
 
     Der Fingerabdruck ist im Protokoll die Identitaet: wechselt er, ist man
     fuer die Gegenstelle ein neues, unbekanntes Geraet und muss erneut
-    bestaetigt werden. Deshalb liegt er auf der Platte und wird nicht bei
-    jedem Aufruf gewuerfelt.
+    bestaetigt werden. Er ist der SHA-256 unseres Zertifikats -- so tragen die
+    Ankuendigung und das im Handshake gezeigte Zertifikat (mTLS) dieselbe
+    Identitaet; wuerden sie auseinanderlaufen, misstraut das Handy uns. Der
+    Alias liegt daneben auf der Platte, damit er stabil bleibt.
     """
     pfad = os.path.join(STATE, "nearby.json")
+    alias = None
     try:
         with open(pfad) as f:
-            d = json.load(f)
-        if d.get("fingerprint"):
-            return d
+            alias = json.load(f).get("alias")
     except Exception:
         pass
+    if not alias:
+        alias = os.environ.get("NBSHELL_NEARBY_ALIAS") or socket.gethostname()
 
-    d = {
-        "alias": os.environ.get("NBSHELL_NEARBY_ALIAS") or socket.gethostname(),
-        "fingerprint": uuid.uuid4().hex.upper(),
-    }
+    d = {"alias": alias, "fingerprint": _cert_fingerprint()}
     try:
         os.makedirs(STATE, exist_ok=True)
         with open(pfad, "w") as f:
