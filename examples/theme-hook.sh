@@ -126,6 +126,38 @@ if command -v bat >/dev/null 2>&1 && [ ! -e "$CONFIG/bat/config" ]; then
 	printf -- '--theme=ansi\n' >"$CONFIG/bat/config"
 fi
 
+# ── herdr ────────────────────────────────────────────────────────────────
+#
+# herdr (AI Terminal Session Manager) haelt Panes und Sessions persistent.
+# Die Trennlinien, Akzente und Statusfarben fuer Agenten werden hier
+# synchron mit dem nbshell-Theme aktualisiert und der Server angewiesen,
+# die Config direkt im laufenden Betrieb neuzuladen.
+if command -v herdr >/dev/null 2>&1 && [ -f "$CONFIG/herdr/config.toml" ]; then
+	python3 -c "
+import os, re
+cfg_path = os.path.expanduser('~/.config/herdr/config.toml')
+if os.path.exists(cfg_path):
+    with open(cfg_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    theme_custom = f'''[theme.custom]
+panel_bg = \"{os.environ.get('NB_BG', '#1e1e2e')}\"
+accent = \"{os.environ.get('NB_ACCENT', '#89b4fa')}\"
+overlay0 = \"{os.environ.get('NB_ACCENT', '#89b4fa')}\"
+surface1 = \"{os.environ.get('NB_ACCENT', '#89b4fa')}\"
+surface0 = \"{os.environ.get('NB_SELECTION', '#292b3b')}\"
+green = \"{os.environ.get('NB_GREEN', '#a6e3a1')}\"
+yellow = \"{os.environ.get('NB_YELLOW', '#f9e2af')}\"
+red = \"{os.environ.get('NB_RED', '#f38ba8')}\"
+mauve = \"{os.environ.get('NB_MAGENTA', '#cba6f7')}\"
+peach = \"{os.environ.get('NB_YELLOW', '#f9e2af')}\"'''
+    content = re.sub(r'\[theme\.custom\][\s\S]*?(?=\n\[)', theme_custom + '\n', content)
+    content = re.sub(r'(\[ui\][\s\S]*?accent\s*=\s*)\"[^\"]*\"', rf'\1\"{os.environ.get(\"NB_ACCENT\", \"#89b4fa\")}\"', content)
+    with open(cfg_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+" 2>/dev/null || true
+	herdr server reload-config >/dev/null 2>&1 || true
+fi
+
 # ── Was hier NICHT hingehoert ────────────────────────────────────────────
 #
 #   ghostty, niri   macht nbshell selbst (Services/ThemeExport.qml)
