@@ -128,7 +128,9 @@ PanelWindow {
                     const order = ["island", "pill", "bar"];
                     Config.set("mode", order[(order.indexOf(Config.mode) + 1) % order.length]);
                 } },
-                { "key": "e", "label": "Einstellungen", "icon": Icons.cp(0xF0493), "run": () => Runtime.settingsOpen = true }
+                { "key": "e", "label": "Einstellungen", "icon": Icons.cp(0xF0493), "run": () => Runtime.settingsOpen = true },
+                { "key": "a", "label": "Aether öffnen", "icon": Icons.palette, "run": () => Quickshell.execDetached(["aether"]) },
+                { "key": "i", "label": "Aether-Theme holen", "icon": Icons.download, "run": () => root.term("$HOME/.local/bin/nb-aether-import") }
             ]
         },
         {
