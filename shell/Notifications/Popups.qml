@@ -78,7 +78,11 @@ Variants {
         // Eingaben an und wird per `margins.*` unter die Leiste und vom Rand
         // weg geschoben, damit es nur dort blockiert, wo wirklich eine Karte
         // liegt.
-        implicitWidth: stack.implicitWidth + Theme.cellW * 2
+        // Breite = Karte + auf JEDER Seite so viel Rand, wie der Stapel selbst
+        // nimmt (Theme.cellH). Vorher stand hier cellW*2, was schmaler war als
+        // der rechte Stapelrand -- die linke Kartenkante rutschte dadurch knapp
+        // aus dem Fenster und der linke Rahmen wurde abgeschnitten.
+        implicitWidth: stack.implicitWidth + Theme.cellH * 2
         implicitHeight: Math.min(screen.height * 0.85, stack.implicitHeight + Theme.cellH * 2)
 
         margins.top: win.atTop ? win.barSpace : 0
