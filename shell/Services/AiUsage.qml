@@ -38,15 +38,33 @@ Singleton {
         fetch.running = true;
     }
 
-    // "in 2 h 15 min" ist beim Verbrauch die nuetzlichere Angabe als eine
+    // "in 2 h 15 min" ist beim normalen Verbrauch die nuetzlichere Angabe als eine
     // Uhrzeit -- man will wissen, wie lange man sich noch zurueckhalten muss.
+    // Bei 100% (Limit voll ausgeschoepft) wird stattdessen der konkrete Zeitpunkt
+    // angezeigt ("Reset um 14:20").
     function untilReset(entry) {
         if (!entry?.resetsAt)
             return "";
         const target = new Date(entry.resetsAt);
         if (isNaN(target.getTime()))
             return "";
-        const mins = Math.max(0, Math.round((target.getTime() - Date.now()) / 60000));
+        const now = new Date();
+
+        if ((entry?.percent ?? 0) >= 100) {
+            function pad2(n) { return n < 10 ? "0" + n : "" + n; }
+            const timeStr = pad2(target.getHours()) + ":" + pad2(target.getMinutes());
+            const isToday = target.getDate() === now.getDate() && target.getMonth() === now.getMonth() && target.getFullYear() === now.getFullYear();
+            const tomorrow = new Date(now.getTime() + 86400000);
+            const isTomorrow = target.getDate() === tomorrow.getDate() && target.getMonth() === tomorrow.getMonth() && target.getFullYear() === tomorrow.getFullYear();
+
+            if (isToday)
+                return "Reset um " + timeStr;
+            if (isTomorrow)
+                return "Reset morgen um " + timeStr;
+            return "Reset am " + pad2(target.getDate()) + "." + pad2(target.getMonth() + 1) + ". um " + timeStr;
+        }
+
+        const mins = Math.max(0, Math.round((target.getTime() - now.getTime()) / 60000));
         if (mins < 60)
             return "in " + mins + " min";
         const h = Math.floor(mins / 60);
