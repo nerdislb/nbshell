@@ -73,6 +73,14 @@ PanelWindow {
         }
     }
 
+    // Einen Befehl in einem Terminal starten -- fuer interaktive Skripte wie
+    // `webapp add`, die per read nachfragen. Terminal wie beim Starter (Apps),
+    // mit einer Pause am Ende, damit man das Ergebnis noch liest.
+    function term(cmd) {
+        Quickshell.execDetached([Apps.terminal, "-e", "sh", "-c",
+            cmd + "; printf '\\n[Enter] schliesst das Fenster … '; read -r _"]);
+    }
+
     onVisibleChanged: {
         if (visible) {
             root.trail = [];
@@ -100,6 +108,14 @@ PanelWindow {
                 Runtime.launcherPrefill = "";
                 Runtime.launcherOpen = true;
             }
+        },
+        {
+            "key": "w", "label": "Webapps", "icon": Icons.cp(0xF059F),
+            "sub": [
+                { "key": "a", "label": "Webapp anlegen", "icon": Icons.cp(0xF0704), "run": () => root.term("$HOME/.local/bin/webapp add") },
+                { "key": "e", "label": "Webapp entfernen", "icon": Icons.cp(0xF01B4), "run": () => root.term("$HOME/.local/bin/webapp remove") },
+                { "key": "l", "label": "Webapps auflisten", "icon": Icons.cp(0xF035C), "run": () => root.term("$HOME/.local/bin/webapp list") }
+            ]
         },
         {
             "key": "s", "label": "Stil", "icon": Icons.palette,
