@@ -40,6 +40,7 @@ Singleton {
     property bool speedOpen: false
     property bool musicOpen: false
     property bool keysOpen: false
+    property bool menuOpen: false
 
     // Wie viele Popouts gerade offen sind. Die Leiste braucht das: ein
     // Popup-Griff wird vom Kompositor nur erlaubt, wenn die Layer-Flaeche

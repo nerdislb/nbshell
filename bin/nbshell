@@ -434,6 +434,7 @@ nbshell -- eigene Shell auf Quickshell
   nbshell ai                KI-Verbrauch (auch: refresh)
   nbshell capture           Aufnahme-Menue (screen, window, region, ocr, record)
   nbshell procs             Prozessliste (auch: top)
+  nbshell menu              Menue (verschachtelt) — Mod+Shift+Space
   nbshell clip              Verlauf der Zwischenablage (toggle, list, clear)
   nbshell cal               Kalender (auch: next, sync, status)
 
@@ -765,6 +766,9 @@ ENDE
         ;;
     procs|top)
         ipc procs "${1:-toggle}"
+        ;;
+    menu)
+        ipc menu "${1:-toggle}"
         ;;
     cal|calendar)
         ipc calendar "${1:-toggle}"

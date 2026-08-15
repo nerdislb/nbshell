@@ -44,6 +44,26 @@ Scope {
         }
     }
 
+    // Das Menue (Mod+Shift+Space) -- der verschachtelte Sammelpunkt.
+    IpcHandler {
+        target: "menu"
+
+        function toggle(): string {
+            Runtime.menuOpen = !Runtime.menuOpen;
+            return Runtime.menuOpen ? "offen" : "zu";
+        }
+
+        function open(): string {
+            Runtime.menuOpen = true;
+            return "offen";
+        }
+
+        function close(): string {
+            Runtime.menuOpen = false;
+            return "zu";
+        }
+    }
+
     IpcHandler {
         target: "procs"
 
