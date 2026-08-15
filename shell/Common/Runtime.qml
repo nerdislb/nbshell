@@ -48,6 +48,12 @@ Singleton {
     // der Griff abgelehnt -- und dann erscheint das Popout gar nicht erst.
     property int popoutCount: 0
 
+    // Das gerade offene Bar-Popout -- es darf nur EINS gleichzeitig geben.
+    // Oeffnet man ein zweites, schliesst es hierueber das erste; sonst
+    // ueberlappen sie sich (niri beendet den Popup-Griff beim Klick daneben
+    // nicht selbst). Haelt die Popout-Instanz, nicht nur einen Zaehler.
+    property var activePopout: null
+
     // Wie viele Zellen MIT Popout gerade unter der Maus stehen. Das ist der
     // Vorlauf: die Leiste muss schon Tastatur annehmen DUERFEN, wenn der Klick
     // kommt -- wird das erst beim Oeffnen umgestellt, ist der Griff im selben

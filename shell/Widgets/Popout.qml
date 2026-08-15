@@ -71,10 +71,20 @@ PopupWindow {
     }
 
     onVisibleChanged: {
-        if (!visible)
+        if (visible) {
+            // Nur EIN Popout gleichzeitig: ein schon offenes zuerst schliessen,
+            // sonst ueberlappen sie sich.
+            const prev = Runtime.activePopout;
+            if (prev && prev !== root)
+                prev.close();
+            Runtime.activePopout = root;
+            if (!pointerInside)
+                leaveTimer.restart();
+        } else {
             leaveTimer.stop();
-        else if (!pointerInside)
-            leaveTimer.restart();
+            if (Runtime.activePopout === root)
+                Runtime.activePopout = null;
+        }
     }
 
     Timer {
