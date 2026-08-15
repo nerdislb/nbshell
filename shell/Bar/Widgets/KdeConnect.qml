@@ -5,6 +5,10 @@ import qs.Widgets
 
 // KDE Connect: Geraetestatus in der Leiste, volles Panel im Popout.
 // Optik nach Vorbild von OmaConnect, in nbshells Bausteinen nachgebaut.
+//
+// Das Popout beherbergt zusaetzlich LocalSend ("NEARBY"): beides ist "etwas
+// ans Handy geben", darum teilen sie sich einen Bar-Platz. Gesucht wird bei
+// LocalSend nur, solange das Popout offen ist.
 Cell {
     id: root
 
@@ -21,6 +25,9 @@ Cell {
     color: root.linked ? (root.dev.capabilities.battery && root.dev.charge >= 0 && root.dev.charge <= 15 ? Theme.red : Theme.accent) : Theme.textDim
 
     onClicked: Kdeconnect.refresh()
+
+    // LocalSend nur suchen, solange jemand hinsieht.
+    onPopoutVisibleChanged: Nearby.wanted = root.popoutVisible
 
     popout: Component {
         Column {
@@ -381,6 +388,113 @@ Cell {
                         onClicked: if (panel.dev) Kdeconnect.runCommand(panel.dev.id, modelData.key)
                     }
                 }
+            }
+
+            // ── NEARBY (LocalSend) ─────────────────────────────────────────
+            // Handy ohne gekoppelte App: LocalSend findet Geraete im gleichen
+            // Netz. Je Geraet die zwei Dinge, die man wirklich schnell
+            // hinueberschiebt -- Zwischenablage und letztes Bildschirmfoto.
+            Rule {
+                rowWidth: panel.rowWidth
+                label: "NEARBY · LOCALSEND"
+                visible: Nearby.enabled
+            }
+
+            Line {
+                visible: Nearby.enabled && Nearby.devices.length === 0
+                width: panel.rowWidth
+                text: Nearby.scanning ? "  sucht …" : "  niemand da — die Gegenstelle muss LocalSend offen haben"
+                color: Theme.muted
+                wrapMode: Text.WordWrap
+            }
+
+            Repeater {
+                model: Nearby.enabled ? Nearby.devices : []
+
+                Rectangle {
+                    id: nbRow
+                    required property var modelData
+
+                    width: panel.rowWidth
+                    height: nbBody.implicitHeight + Theme.cellH
+                    radius: Theme.radius
+                    color: Theme.alpha(Theme.fg, 0.05)
+                    border.width: Theme.borderWidth
+                    border.color: Theme.alpha(Theme.fg, 0.12)
+
+                    Column {
+                        id: nbBody
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.leftMargin: Theme.cellW
+                        anchors.rightMargin: Theme.cellW
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: Theme.cellH * 0.2
+
+                        Item {
+                            width: parent.width
+                            height: nbAlias.implicitHeight
+
+                            Line {
+                                id: nbAlias
+                                anchors.left: parent.left
+                                text: nbRow.modelData.alias
+                                color: Theme.fg
+                            }
+                            Line {
+                                anchors.right: parent.right
+                                text: nbRow.modelData.model + "  " + nbRow.modelData.ip
+                                color: Theme.muted
+                            }
+                        }
+
+                        Row {
+                            spacing: Theme.cellW * 2
+
+                            component Knopf: Line {
+                                id: knopf
+                                signal triggered
+
+                                color: kmaus.hovered ? Theme.readable(Theme.accent, Theme.bg) : Theme.fgDim
+
+                                HoverHandler {
+                                    id: kmaus
+                                    margin: Theme.cellW / 2
+                                    cursorShape: Qt.PointingHandCursor
+                                }
+                                TapHandler {
+                                    margin: Theme.cellW / 2
+                                    onTapped: knopf.triggered()
+                                }
+                            }
+
+                            Knopf {
+                                text: "[ Zwischenablage ]"
+                                onTriggered: Nearby.sendText(nbRow.modelData, Clipboard.entries.length > 0 ? Clipboard.entries[0] : "")
+                            }
+
+                            Knopf {
+                                text: "[ letztes Bild ]"
+                                onTriggered: Nearby.sendLastShot(nbRow.modelData)
+                            }
+                        }
+                    }
+                }
+            }
+
+            Line {
+                visible: Nearby.enabled && Nearby.status !== ""
+                width: panel.rowWidth
+                text: "  " + Nearby.status
+                color: Nearby.status.indexOf("ging nicht") === 0 ? Theme.red : Theme.green
+                wrapMode: Text.WordWrap
+            }
+
+            Line {
+                visible: Nearby.enabled
+                text: "  Dateien: nbshell nearby send <datei>"
+                color: Theme.muted
+                font.pixelSize: Theme.fontSize - 1
             }
 
             // ── Rueckmeldung ───────────────────────────────────────────────
