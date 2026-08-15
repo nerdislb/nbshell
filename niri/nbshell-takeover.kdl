@@ -65,6 +65,11 @@ binds {
     Mod+M hotkey-overlay-title="nbshell: Prozesse" { spawn "sh" "-c" "$HOME/.local/bin/nbshell procs"; }
     Ctrl+Alt+Delete hotkey-overlay-title="nbshell: Prozesse" { spawn "sh" "-c" "$HOME/.local/bin/nbshell procs"; }
 
+    // dms/binds: Print -> niris Auswahlwerkzeug direkt. Stattdessen nbshells
+    // Aufnahme-MENUE (Region/Bildschirm/Fenster/OCR/Aufnahme). Ctrl+Print und
+    // Alt+Print bleiben in dms/binds als Direkt-Kuerzel (Bildschirm/Fenster).
+    Print hotkey-overlay-title="nbshell: Aufnahme" { spawn "sh" "-c" "$HOME/.local/bin/nbshell capture"; }
+
     // DMS: lock -> der Sperrbildschirm aus lockCommand (Vorgabe hyprlock).
     Mod+Alt+L hotkey-overlay-title="nbshell: Sperren" { spawn "sh" "-c" "$HOME/.local/bin/nbshell power lock"; }
 
