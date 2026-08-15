@@ -105,7 +105,7 @@ PanelWindow {
             "key": "meterStyle",
             "def": "blocks",
             "label": "Balken",
-            "values": ["blocks", "line"]
+            "values": ["blocks", "line", "dots", "wave"]
         },
         {
             "key": "widgetIcons",
