@@ -130,7 +130,8 @@ PanelWindow {
                 } },
                 { "key": "e", "label": "Einstellungen", "icon": Icons.cp(0xF0493), "run": () => Runtime.settingsOpen = true },
                 { "key": "a", "label": "Aether öffnen", "icon": Icons.palette, "run": () => Quickshell.execDetached(["aether"]) },
-                { "key": "i", "label": "Aether-Theme holen", "icon": Icons.download, "run": () => root.term("$HOME/.local/bin/nb-aether-import") }
+                { "key": "i", "label": "Aether-Theme holen", "icon": Icons.download, "run": () => root.term("$HOME/.local/bin/nb-aether-import") },
+                { "key": "x", "label": "Theme entfernen", "icon": Icons.cp(0xF01B4), "run": () => root.term("$HOME/.local/bin/nbshell theme remove") }
             ]
         },
         {

@@ -224,12 +224,56 @@ cmd_install() {
 }
 
 cmd_remove() {
-	local name="${1:-}"
-	[ -n "$name" ] || die "Aufruf: theme-install.sh remove <name>"
-	local dest="$THEME_DIR/$name"
-	[ -d "$dest" ] || die "'$name' ist nicht installiert"
-	rm -rf "$dest"
-	note "'$name' entfernt"
+	# Aktives Theme ermitteln -- das darf nicht entfernt werden, sonst hat die
+	# Shell keine colors.toml mehr.
+	local cfg="${XDG_CONFIG_HOME:-$HOME/.config}/nbshell/config.json" active=""
+	active="$(jq -r '.theme // empty' "$cfg" 2>/dev/null || true)"
+	[ -n "$active" ] || active="$(sed -n 's/.*"theme"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$cfg" 2>/dev/null | head -1)"
+
+	# Leere Argumente RAUSWERFEN -- ein leerer Name wuerde sonst zu
+	# rm -rf "$THEME_DIR/" und damit den GANZEN Themes-Ordner loeschen
+	# (genau das ist am 2026-08-15 passiert). Erst danach zaehlt "${#names[@]}".
+	local names=() _a
+	for _a in "$@"; do [ -n "$_a" ] && names+=("$_a"); done
+
+	# Ohne Namen: nummerierte Auswahl aller installierten Themes.
+	if [ "${#names[@]}" -eq 0 ]; then
+		local all=() t
+		for t in "$THEME_DIR"/*/; do
+			[ -f "$t/colors.toml" ] && all+=("$(basename "$t")")
+		done
+		[ "${#all[@]}" -gt 0 ] || die "keine Themes installiert"
+		local i=1 mark
+		for t in "${all[@]}"; do
+			mark=""; [ "$t" = "$active" ] && mark="  (aktiv)"
+			printf '  %2d) %s%s\n' "$i" "$t" "$mark"
+			i=$((i + 1))
+		done
+		local pick n
+		read -r -p "Nummer(n) zum Entfernen> " pick
+		for n in $pick; do
+			[[ "$n" =~ ^[0-9]+$ ]] && [ "$n" -ge 1 ] && [ "$n" -le "${#all[@]}" ] && names+=("${all[$((n - 1))]}")
+		done
+		[ "${#names[@]}" -gt 0 ] || die "nichts ausgewaehlt"
+	fi
+
+	local name dest
+	for name in "${names[@]}"; do
+		# Doppelter Boden: leere oder pfad-artige Namen nie anfassen.
+		[ -n "$name" ] || continue
+		case "$name" in */* | . | ..) note "ungueltiger Themename: '$name'"; continue ;; esac
+		if [ "$name" = "$active" ]; then
+			note "'$name' ist das AKTIVE Theme -- erst wechseln (nbshell theme <anderes>), dann entfernen."
+			continue
+		fi
+		dest="$THEME_DIR/$name"
+		if [ -d "$dest" ]; then
+			rm -rf "$dest"
+			note "'$name' entfernt"
+		else
+			note "'$name' ist nicht installiert"
+		fi
+	done
 }
 
 # Nur Themes mit Git-Historie -- die mitgelieferten kommen aus dem Repo und
@@ -264,7 +308,7 @@ cmd_list() {
 
 case "${1:-}" in
 install) shift && cmd_install "$@" ;;
-remove) shift && cmd_remove "${1:-}" ;;
+remove) shift && cmd_remove "$@" ;;
 update) cmd_update ;;
 list) cmd_list ;;
 *)
