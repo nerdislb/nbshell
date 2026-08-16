@@ -197,6 +197,7 @@ PanelWindow {
             "sub": [
                 { "key": "p", "label": "Plugin-Verwaltung", "icon": Icons.cp(0xF12E), "sub": [
                     { "key": "a", "label": "Module anordnen", "icon": Icons.matrix, "run": () => Runtime.modulesOpen = true },
+                    { "key": "d", "label": "Plugin-Diagnose", "icon": Icons.cpu, "run": () => Runtime.pluginDeveloperOpen = true },
                     { "key": "l", "label": "Plugins auflisten", "icon": Icons.cp(0xF035C), "run": () => root.term("nbshell plugins") },
                     { "key": "u", "label": "Plugins aktualisieren", "icon": Icons.refresh, "run": () => root.term("nbshell plugin update") },
                     { "key": "o", "label": "Plugin-Ordner oeffnen", "icon": Icons.cp(0xF024B), "run": () => Quickshell.execDetached(["xdg-open", Quickshell.env("HOME") + "/.config/nbshell/plugins"]) }

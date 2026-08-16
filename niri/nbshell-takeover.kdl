@@ -34,6 +34,7 @@ binds {
     Mod+Ctrl+C hotkey-overlay-title="nbshell: Aufnahme" { spawn "sh" "-c" "$HOME/.local/bin/nbshell capture"; }
     Mod+Ctrl+H hotkey-overlay-title="nbshell: System & Plugins" { spawn "sh" "-c" "$HOME/.local/bin/nbshell hub"; }
     Mod+Ctrl+M hotkey-overlay-title="nbshell: Module anordnen" { spawn "sh" "-c" "$HOME/.local/bin/nbshell modules"; }
+    Mod+Ctrl+P hotkey-overlay-title="nbshell: Plugin-Diagnose" { spawn "sh" "-c" "$HOME/.local/bin/nbshell plugin-dev"; }
     Mod+Ctrl+A hotkey-overlay-title="nbshell: Audio" { spawn "sh" "-c" "$HOME/.local/bin/nbshell audio panel"; }
     Mod+Escape hotkey-overlay-title="nbshell: Sitzung" { spawn "sh" "-c" "$HOME/.local/bin/nbshell power menu"; }
 

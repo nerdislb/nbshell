@@ -950,6 +950,7 @@ Die Takeover-Datei biegt inzwischen alles um, was nbshell kann:
 | `Mod+Ctrl+C` | — | Aufnahme-Menue |
 | `Mod+Ctrl+H` | — | System-&-Plugins-Hub |
 | `Mod+Ctrl+M` | — | Bar-Module anordnen |
+| `Mod+Ctrl+P` | — | Plugin-Diagnose |
 | `Mod+Ctrl+A` | — | Audio-Popout |
 | `Mod+Escape` | — | Sitzungs-/Power-Menue |
 | `Mod+N` | notification center | Benachrichtigungsarchiv |
@@ -2921,6 +2922,15 @@ Nicht sichtbare Plugin-Teile werden erst durch `nbshell plugin enable <id>`
 geladen und mit `disable` wieder entladen. Ein Panel oder Overlay kann die
 Methoden `open(payload)`, `close(payload)` und `toggle(payload)` anbieten und
 ist dann ueber `nbshell extension toggle <id>` steuerbar.
+
+`nbshell plugin-dev` (oder `Mod+Ctrl+P`) oeffnet die Plugin-Diagnose. Sie zeigt
+Manifest-Schema, Version, Autor, Plugin-Kinds und Einstiegspunkte sowie den
+echten Laufzeitstatus jedes Loaders. Enter/Leertaste aktiviert oder
+deaktiviert die Runtime-Kinds, `O` oeffnet den Quellordner und `F5` liest die
+Manifeste neu ein. Bar-Widgets werden als „eingeplant" markiert, sobald sie in
+einer Bar-Gruppe liegen. Eine automatische Live-Vorschau gibt es absichtlich
+nicht: Sie wuerde fremdes QML ein zweites Mal ausfuehren und Services oder
+Overlays mit Nebenwirkungen duplizieren.
 
 Der eingebaute Zwischenablage-Verlauf kennt neben Text auch PNG-Bilder. Bilder
 liegen dedupliziert unter `~/.local/state/nbshell/clipboard-images`, werden auf

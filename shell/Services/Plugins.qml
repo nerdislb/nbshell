@@ -34,6 +34,10 @@ Singleton {
     // bleiben wie bisher durch ihre Position in einer Leistenliste aktiviert.
     readonly property var enabledIds: Config.value("enabledPlugins", [])
     property var instances: ({})
+    // Laufzeitdiagnose fuer die Entwickleransicht. Loader melden hier sowohl
+    // den erfolgreichen Aufbau als auch Fehler; dadurch muss die Vorschau ein
+    // Plugin nicht ein zweites Mal ausfuehren.
+    property var loadStates: ({})
 
     // Was fest eingebaut ist. Die Beschreibung steht hier und nicht im
     // Anordnen-Menue, damit beides -- eingebaut wie Plugin -- dieselbe Form
@@ -278,6 +282,23 @@ Singleton {
         const next = Object.assign({}, root.instances);
         delete next[key];
         root.instances = next;
+    }
+
+    function reportLoadState(id, kind, state, detail) {
+        const next = Object.assign({}, root.loadStates);
+        next[id + ":" + kind] = {"state": state, "detail": detail || ""};
+        root.loadStates = next;
+    }
+
+    function loadState(id, kind) {
+        return root.loadStates[id + ":" + kind] ?? {"state": "inaktiv", "detail": ""};
+    }
+
+    function setEnabled(id, enabled) {
+        const next = root.enabledIds.filter(value => value !== id);
+        if (enabled)
+            next.push(id);
+        Config.set("enabledPlugins", next);
     }
 
     function runtimeInstance(id) {

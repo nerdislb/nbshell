@@ -175,6 +175,11 @@ Scope {
     IpcHandler {
         target: "plugins"
 
+        function developer(): string {
+            Runtime.pluginDeveloperOpen = !Runtime.pluginDeveloperOpen;
+            return Runtime.pluginDeveloperOpen ? "offen" : "zu";
+        }
+
         function list(): string {
             const rows = Plugins.catalog.map(e => {
                 const kind = e.entry ? "plugin" : "eingebaut";

@@ -98,6 +98,8 @@ ShellRoot {
 
     ModulesMenu {}
 
+    PluginDeveloper {}
+
     WallpaperPicker {}
 
     TodoList {}

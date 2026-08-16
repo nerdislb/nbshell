@@ -23,12 +23,22 @@ Item {
             active: true
             source: modelData.source
 
-            onLoaded: Plugins.registerInstance(modelData.id, modelData.kind, item)
-            onStatusChanged: {
-                if (status === Loader.Error)
-                    console.warn("nbshell/plugins:", modelData.id, modelData.kind, "laedt nicht —", modelData.source);
+            onLoaded: {
+                Plugins.registerInstance(modelData.id, modelData.kind, item);
+                Plugins.reportLoadState(modelData.id, modelData.kind, "geladen", modelData.source);
             }
-            Component.onDestruction: Plugins.unregisterInstance(modelData.id, modelData.kind, item)
+            onStatusChanged: {
+                if (status === Loader.Loading)
+                    Plugins.reportLoadState(modelData.id, modelData.kind, "laedt", modelData.source);
+                if (status === Loader.Error) {
+                    Plugins.reportLoadState(modelData.id, modelData.kind, "fehler", modelData.source);
+                    console.warn("nbshell/plugins:", modelData.id, modelData.kind, "laedt nicht —", modelData.source);
+                }
+            }
+            Component.onDestruction: {
+                Plugins.unregisterInstance(modelData.id, modelData.kind, item);
+                Plugins.reportLoadState(modelData.id, modelData.kind, "inaktiv", "");
+            }
         }
     }
 }

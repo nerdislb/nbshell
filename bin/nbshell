@@ -766,6 +766,9 @@ ENDE
     modules)
         ipc settings modules
         ;;
+    plugin-dev|plugin-diagnose)
+        ipc plugins developer
+        ;;
     updates)
         ipc updates "${1:-status}"
         ;;
