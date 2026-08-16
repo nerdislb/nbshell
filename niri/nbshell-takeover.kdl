@@ -18,14 +18,24 @@
 // spawn-Befehle mit dem PATH des systemd-User-Managers, in dem ~/.local/bin
 // nicht steht. Ein blosses `spawn "nbshell"` laeuft still ins Leere.
 binds {
-    // DMS: spotlight -> nbshells Anwendungsstarter. Er sucht seit der
-    // Befehlspalette in beidem: Anwendungen und allem, was die Shell kann.
-    Mod+Space hotkey-overlay-title="nbshell: Anwendungsstarter" { spawn "sh" "-c" "$HOME/.local/bin/nbshell launcher"; }
+    // Wie Omarchy 4: Super+Space ist der zentrale Einstieg. Apps liegen eine
+    // Alt-Ebene daneben; Mod+Shift+Space bleibt als vertrauter Alias erhalten.
+    Mod+Space hotkey-overlay-title="nbshell: Menü" { spawn "sh" "-c" "$HOME/.local/bin/nbshell menu"; }
+    Mod+Alt+Space hotkey-overlay-title="nbshell: Anwendungsstarter" { spawn "sh" "-c" "$HOME/.local/bin/nbshell launcher"; }
 
     // Das Menue -- ein verschachtelter Sammelpunkt (Stil, Aufnahme, System,
     // Verbindungen, Extras), wie Omarchys Menue. Die Befehlspalette lebt weiter
     // im Starter (Mod+Space, dann ">"), sie brauchte kein eigenes Kuerzel mehr.
     Mod+Shift+Space hotkey-overlay-title="nbshell: Menü" { spawn "sh" "-c" "$HOME/.local/bin/nbshell menu"; }
+
+    // Omarchys Super+Ctrl-E/C/H/A-Schema: eigenstaendige Shell-Oberflaechen
+    // liegen gemeinsam auf der Ctrl-Ebene und sind dadurch leicht merkbar.
+    Mod+Ctrl+E hotkey-overlay-title="nbshell: Emoji" { spawn "sh" "-c" "$HOME/.local/bin/nbshell emoji"; }
+    Mod+Ctrl+C hotkey-overlay-title="nbshell: Aufnahme" { spawn "sh" "-c" "$HOME/.local/bin/nbshell capture"; }
+    Mod+Ctrl+H hotkey-overlay-title="nbshell: System & Plugins" { spawn "sh" "-c" "$HOME/.local/bin/nbshell hub"; }
+    Mod+Ctrl+M hotkey-overlay-title="nbshell: Module anordnen" { spawn "sh" "-c" "$HOME/.local/bin/nbshell modules"; }
+    Mod+Ctrl+A hotkey-overlay-title="nbshell: Audio" { spawn "sh" "-c" "$HOME/.local/bin/nbshell audio panel"; }
+    Mod+Escape hotkey-overlay-title="nbshell: Sitzung" { spawn "sh" "-c" "$HOME/.local/bin/nbshell power menu"; }
 
     // DMS: notification center -> nbshells Archiv.
     Mod+N hotkey-overlay-title="nbshell: Benachrichtigungen" { spawn "sh" "-c" "$HOME/.local/bin/nbshell notify toggle"; }

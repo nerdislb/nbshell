@@ -234,7 +234,7 @@ nbshell audio panel      # Regler und Geraeteliste
 
 nbshell launcher         # Starter: Anwendungen UND Befehle (Alias: run)
 nbshell palette          # derselbe Starter, nur die Befehle
-nbshell menu             # das verschachtelte Menue (Mod+Shift+Space)
+nbshell menu             # das verschachtelte Menue (Mod+Space)
 nbshell find ghost       # zeigt, was er finden wuerde
 nbshell befehle [text]   # alle Befehle der Palette
 nbshell befehl "Ton aus" # den besten Treffer ausfuehren
@@ -937,15 +937,21 @@ Er kuemmert sich um alles, was zusammengehoert:
    mit maskiertem DMS waere der Bildschirm leer.
 4. **Die Tastenkuerzel**, die bisher DMS gehoerten: `niri/nbshell-takeover.kdl`
    wird als letzter Include eingehaengt (mit Sicherung und `niri validate`
-   davor) und biegt `Mod+Space` auf den Starter und `Mod+N` auf das
+   davor) und biegt `Mod+Space` auf das Hauptmenue und `Mod+N` auf das
    Benachrichtigungsarchiv.
 
 Die Takeover-Datei biegt inzwischen alles um, was nbshell kann:
 
 | Taste | vorher DMS | jetzt |
 |---|---|---|
-| `Mod+Space` | spotlight | Starter: Anwendungen **und** Befehle |
-| `Mod+Shift+Space` | — | das Menue (Stil, Aufnahme, System, …) |
+| `Mod+Space`, `Mod+Shift+Space` | spotlight / — | Omarchy-artiges Hauptmenue |
+| `Mod+Alt+Space` | — | Starter: Anwendungen **und** Befehle |
+| `Mod+Ctrl+E` | — | Emoji-Suche |
+| `Mod+Ctrl+C` | — | Aufnahme-Menue |
+| `Mod+Ctrl+H` | — | System-&-Plugins-Hub |
+| `Mod+Ctrl+M` | — | Bar-Module anordnen |
+| `Mod+Ctrl+A` | — | Audio-Popout |
+| `Mod+Escape` | — | Sitzungs-/Power-Menue |
 | `Mod+N` | notification center | Benachrichtigungsarchiv |
 | `Mod+V` | clipboard | Zwischenablage |
 | `Super+X` | powermenu | Sitzungsmenue |

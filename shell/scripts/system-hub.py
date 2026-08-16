@@ -77,11 +77,17 @@ def collect():
     dev = []
     code, out, _ = run("ss", "-H", "-tlnp")
     dev.append(item("ports", "Portboard", f"{count_lines(out)} offene TCP-Listener", "ok" if code == 0 else "warn", "ss -tlnp"))
-    dev.append(item("equalizer", "Equalizer", "optional bereit" if shutil.which("easyeffects") else "EasyEffects nicht installiert", "ok" if shutil.which("easyeffects") else "off", "easyeffects" if shutil.which("easyeffects") else ""))
+    dev.append(item("equalizer", "Equalizer", "EasyEffects bereit" if shutil.which("easyeffects") else "EasyEffects nicht installiert", "ok" if shutil.which("easyeffects") else "off", "easyeffects" if shutil.which("easyeffects") else ""))
     groups.append({"title": "ENTWICKLUNG & AUDIO", "items": dev})
 
     hardware = []
-    hardware.append(item("ddc", "Externe Helligkeit", "ddcutil bereit" if shutil.which("ddcutil") else "ddcutil nicht installiert / nur eDP-1", "ok" if shutil.which("ddcutil") else "off", "ddcutil detect" if shutil.which("ddcutil") else ""))
+    if shutil.which("ddcutil"):
+        code, out, err = run("ddcutil", "detect", "--brief", timeout=8)
+        detected = code == 0 and "Display" in out
+        detail = "DDC-Monitor erkannt" if detected else ((err or out).splitlines()[0] if (err or out) else "kein DDC-Monitor")
+        hardware.append(item("ddc", "Externe Helligkeit", detail, "ok" if detected else "warn", "ddcutil detect"))
+    else:
+        hardware.append(item("ddc", "Externe Helligkeit", "ddcutil nicht installiert / nur eDP-1", "off"))
     decoder = shutil.which("zbarimg") or shutil.which("zxing")
     hardware.append(item("qr", "QR aus Screenshot", "Decoder bereit" if decoder else "zbarimg/ZXing nicht installiert", "ok" if decoder else "off"))
     groups.append({"title": "HARDWARE", "items": hardware})

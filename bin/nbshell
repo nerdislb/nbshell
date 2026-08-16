@@ -724,7 +724,13 @@ ENDE
         esac
         ;;
     ton|audio)
-        ipc audio zurueck
+        case "${1:-zurueck}" in
+            panel|toggle) ipc audio panel ;;
+            up|down|mute|micmute|status) ipc audio "$1" ;;
+            set) ipc audio set "${2:?Prozent fehlt}" ;;
+            ''|*[!0-9]*) ipc audio zurueck ;;
+            *) ipc audio set "$1" ;;
+        esac
         ;;
     qr)
         ipc net qr

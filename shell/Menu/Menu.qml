@@ -38,7 +38,13 @@ PanelWindow {
     // `sub` der obersten -- oder der Wurzelbaum, wenn der Stapel leer ist.
     property var trail: []
     property int selected: 0
-    readonly property var items: trail.length ? trail[trail.length - 1].sub : root.tree
+    property string filterText: ""
+    readonly property var levelItems: trail.length ? trail[trail.length - 1].sub : root.tree
+    readonly property var items: {
+        const needle = filterText.trim().toLowerCase();
+        if (needle === "") return levelItems;
+        return levelItems.filter(e => (e.label + " " + (e.description || "")).toLowerCase().indexOf(needle) >= 0);
+    }
 
     // Etwas groesser als die Leiste -- das Menue soll bequem lesbar sein.
     readonly property int fs: Theme.fontSize + 3
@@ -46,12 +52,18 @@ PanelWindow {
     function open() {
         root.trail = [];
         root.selected = 0;
+        root.filterText = "";
         Runtime.menuOpen = true;
     }
     function close() {
         Runtime.menuOpen = false;
     }
     function back() {
+        if (root.filterText !== "") {
+            root.filterText = "";
+            root.selected = 0;
+            return;
+        }
         if (root.trail.length) {
             root.trail = root.trail.slice(0, -1);
             root.selected = 0;
@@ -66,6 +78,7 @@ PanelWindow {
         if (it.sub) {
             root.trail = root.trail.concat([it]);
             root.selected = 0;
+            root.filterText = "";
         } else {
             root.close();
             if (it.run)
@@ -85,6 +98,7 @@ PanelWindow {
         if (visible) {
             root.trail = [];
             root.selected = 0;
+            root.filterText = "";
             keys.forceActiveFocus();
         }
     }
@@ -96,6 +110,7 @@ PanelWindow {
             if (Runtime.menuOpen) {
                 root.trail = [];
                 root.selected = 0;
+                root.filterText = "";
             }
         }
     }
@@ -110,6 +125,18 @@ PanelWindow {
             }
         },
         {
+            "key": "h", "label": "System & Plugins", "description": "Agenten, Sync, Updates, Druck, Ports und Hardware", "icon": Icons.matrix,
+            "run": () => Runtime.hubOpen = true
+        },
+        {
+            "key": "e", "label": "Emoji", "description": "lokal suchen und kopieren", "icon": "😀",
+            "run": () => Runtime.emojiOpen = true
+        },
+        {
+            "key": "m", "label": "Module", "description": "Bar-Bausteine anordnen", "icon": Icons.cp(0xF12E),
+            "run": () => Runtime.modulesOpen = true
+        },
+        {
             "key": "w", "label": "Webapps", "icon": Icons.cp(0xF059F),
             "sub": [
                 { "key": "a", "label": "Webapp anlegen", "icon": Icons.cp(0xF0704), "run": () => root.term("$HOME/.local/bin/webapp add") },
@@ -118,7 +145,7 @@ PanelWindow {
             ]
         },
         {
-            "key": "s", "label": "Stil", "icon": Icons.palette,
+            "key": "l", "label": "Look & Feel", "description": "Themes, Wallpaper, Bar und Einstellungen", "icon": Icons.palette,
             "sub": [
                 { "key": "t", "label": "Theme wählen", "icon": Icons.palette, "run": () => Runtime.themePickerOpen = true },
                 { "key": "n", "label": "Nächstes Theme", "icon": Icons.cp(0xF0142), "run": () => ThemeIndex.step(1) },
@@ -135,7 +162,7 @@ PanelWindow {
             ]
         },
         {
-            "key": "c", "label": "Aufnahme", "icon": Icons.camera,
+            "key": "c", "label": "Capture", "description": "Screenshot, OCR, QR und Recording", "icon": Icons.camera,
             "sub": [
                 { "key": "r", "label": "Bereich", "icon": Icons.camera, "run": () => CaptureService.shoot("region") },
                 { "key": "b", "label": "Bildschirm", "icon": Icons.cp(0xF0379), "run": () => CaptureService.shoot("screen") },
@@ -146,7 +173,7 @@ PanelWindow {
             ]
         },
         {
-            "key": "y", "label": "System", "icon": Icons.cp(0xF0425),
+            "key": "y", "label": "Sitzung", "description": "Sperren, schlafen, neu starten oder ausschalten", "icon": Icons.cp(0xF0425),
             "sub": [
                 { "key": "s", "label": "Sperren", "icon": Icons.cp(0xF033E), "run": () => Session.run("lock") },
                 { "key": "a", "label": "Abmelden", "icon": Icons.cp(0xF0343), "run": () => Session.run("logout") },
@@ -157,9 +184,10 @@ PanelWindow {
             ]
         },
         {
-            "key": "v", "label": "Verbindungen", "icon": Icons.wifi,
+            "key": "v", "label": "Verbindungen", "description": "Netz, Bluetooth, Tailscale und QR", "icon": Icons.wifi,
             "sub": [
                 { "key": "c", "label": "Control-Center", "icon": Icons.wifi, "run": () => Runtime.controlOpen = true },
+                { "key": "t", "label": "Tailscale", "icon": "󰖂", "run": () => root.term("tailscale status") },
                 { "key": "q", "label": "WLAN-QR-Code", "icon": Icons.cp(0xF0432), "run": () => Runtime.qrOpen = true },
                 { "key": "s", "label": "Speedtest", "icon": Icons.cpu, "run": () => Runtime.speedOpen = true }
             ]
@@ -167,14 +195,12 @@ PanelWindow {
         {
             "key": "e", "label": "Extras", "icon": Icons.cp(0xF035C),
             "sub": [
-                { "key": "s", "label": "System & Plugins", "icon": Icons.matrix, "run": () => Runtime.hubOpen = true },
                 { "key": "p", "label": "Plugin-Verwaltung", "icon": Icons.cp(0xF12E), "sub": [
                     { "key": "a", "label": "Module anordnen", "icon": Icons.matrix, "run": () => Runtime.modulesOpen = true },
                     { "key": "l", "label": "Plugins auflisten", "icon": Icons.cp(0xF035C), "run": () => root.term("nbshell plugins") },
                     { "key": "u", "label": "Plugins aktualisieren", "icon": Icons.refresh, "run": () => root.term("nbshell plugin update") },
                     { "key": "o", "label": "Plugin-Ordner oeffnen", "icon": Icons.cp(0xF024B), "run": () => Quickshell.execDetached(["xdg-open", Quickshell.env("HOME") + "/.config/nbshell/plugins"]) }
                 ] },
-                { "key": "e", "label": "Emoji", "icon": "😀", "run": () => Runtime.emojiOpen = true },
                 { "key": "z", "label": "Zwischenablage", "icon": Icons.clipboard, "run": () => Runtime.clipOpen = true },
                 { "key": "r", "label": "Prozesse", "icon": Icons.cpu, "run": () => Runtime.procsOpen = true },
                 { "key": "m", "label": "Musik", "icon": Icons.play, "run": () => Runtime.musicOpen = true },
@@ -192,6 +218,11 @@ PanelWindow {
     readonly property string crumb: trail.length
         ? trail.map(t => t.label).join("  ›  ").toUpperCase()
         : "MENÜ"
+
+    Rectangle {
+        anchors.fill: parent
+        color: Theme.alpha(Theme.bgDarker, 0.76)
+    }
 
     // Klick daneben schliesst.
     MouseArea {
@@ -214,21 +245,19 @@ PanelWindow {
         Keys.onDownPressed: root.selected = Math.min(root.items.length - 1, root.selected + 1)
         Keys.onPressed: event => {
             if (event.key === Qt.Key_Backspace) {
-                root.back();
+                if (root.filterText !== "") {
+                    root.filterText = root.filterText.slice(0, -1);
+                    root.selected = 0;
+                } else root.back();
                 event.accepted = true;
                 return;
             }
-            // Buchstabe waehlt die passende Zeile und aktiviert sie sofort.
-            const letter = event.text.toLowerCase();
-            if (!letter)
-                return;
-            for (var i = 0; i < root.items.length; i++) {
-                if (root.items[i].key === letter) {
-                    root.selected = i;
-                    root.activate(i);
-                    event.accepted = true;
-                    return;
-                }
+            // Wie Quattros Menue: Tippen filtert sofort. Die rechts gezeigten
+            // Buchstaben bleiben als Merkhilfe fuer die Baumstruktur.
+            if (event.text && event.text >= " ") {
+                root.filterText += event.text;
+                root.selected = 0;
+                event.accepted = true;
             }
         }
 
@@ -236,13 +265,13 @@ PanelWindow {
             id: box
 
             anchors.centerIn: parent
-            width: Theme.cellW * 46
+            width: Theme.cellW * 48
             height: column.implicitHeight + Theme.cellH * 2
 
             color: Theme.bg
             radius: Theme.radius
             border.width: Theme.borderWidth
-            border.color: Theme.accent
+            border.color: Theme.muted
 
             // Klick im Kasten NICHT durchreichen (sonst schliesst der Backdrop).
             MouseArea {
@@ -256,13 +285,26 @@ PanelWindow {
                 width: parent.width - Theme.cellW * 2
                 spacing: Theme.cellH * 0.2
 
-                // Kopf: Kategorie-Icon + Pfad.
-                Line {
-                    text: root.crumbIcon + "  " + root.crumb
-                    color: Theme.fgDim
-                    font.pixelSize: root.fs
-                    bottomPadding: Theme.cellH * 0.4
+                Rectangle {
+                    width: column.width
+                    height: Theme.cellH * 3
+                    radius: Theme.radius
+                    color: Theme.bgLight
+
+                    Line {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.leftMargin: Theme.cellW
+                        anchors.rightMargin: Theme.cellW
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.filterText !== "" ? root.filterText : (root.crumbIcon + "  " + root.crumb)
+                        color: root.filterText !== "" ? Theme.fg : Theme.fgDim
+                        font.pixelSize: root.fs
+                        elide: Text.ElideRight
+                    }
                 }
+
+                Line { visible: root.items.length === 0; text: "Keine Treffer"; color: Theme.muted; topPadding: Theme.cellH }
 
                 Repeater {
                     model: root.items
@@ -277,7 +319,7 @@ PanelWindow {
                         readonly property bool active: rowItem.index === root.selected
 
                         width: column.width
-                        height: root.fs * 2.1
+                        height: root.fs * (rowItem.modelData.description ? 3.15 : 2.65)
                         radius: Theme.radius
                         color: rowItem.active ? Theme.selection : "transparent"
 
@@ -302,16 +344,15 @@ PanelWindow {
                             font.pixelSize: root.fs + 1
                         }
 
-                        Line {
+                        Column {
                             anchors.left: rowIcon.right
                             anchors.leftMargin: Theme.cellW
                             anchors.right: rowTrail.left
                             anchors.rightMargin: Theme.cellW
                             anchors.verticalCenter: parent.verticalCenter
-                            text: rowItem.modelData.label
-                            color: rowItem.active ? Theme.on(Theme.selection) : Theme.fg
-                            font.pixelSize: root.fs
-                            elide: Text.ElideRight
+                            spacing: 0
+                            Line { width: parent.width; text: rowItem.modelData.label; color: rowItem.active ? Theme.on(Theme.selection) : Theme.fg; font.pixelSize: root.fs; elide: Text.ElideRight }
+                            Line { width: parent.width; visible: !!rowItem.modelData.description; text: rowItem.modelData.description || ""; color: rowItem.active ? Theme.on(Theme.selection) : Theme.muted; font.pixelSize: Theme.fontSize; elide: Text.ElideRight }
                         }
 
                         // Rechts: Pfeil bei Untermenue, sonst das Buchstabenkuerzel.
@@ -320,7 +361,7 @@ PanelWindow {
                             anchors.right: parent.right
                             anchors.rightMargin: Theme.cellW
                             anchors.verticalCenter: parent.verticalCenter
-                            text: rowItem.isSub ? "›" : rowItem.modelData.key
+                            text: rowItem.isSub ? "›" : "↵"
                             color: rowItem.active ? Theme.on(Theme.selection) : Theme.muted
                             font.pixelSize: root.fs
                         }
@@ -336,7 +377,7 @@ PanelWindow {
                 }
 
                 Line {
-                    text: root.trail.length ? "Esc/← zurück · Enter wählen" : "Esc schliesst · Enter wählen"
+                    text: root.filterText !== "" ? "Tippen sucht · Backspace loescht · Enter waehlt" : (root.trail.length ? "Esc/← zurueck · Tippen sucht" : "Esc schliesst · Tippen sucht")
                     color: Theme.muted
                     topPadding: Theme.cellH * 0.4
                 }

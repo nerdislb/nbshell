@@ -46,7 +46,11 @@ Singleton {
 
         // ── Fenster ──────────────────────────────────────────────────────
         out.push(entry("Einstellungen", "Optionen der Shell", "Fenster", () => Runtime.settingsOpen = true));
+        out.push(entry("Hauptmenü", "Omarchy-artiger Sammelpunkt (Mod+Space)", "Fenster", () => Runtime.menuOpen = true));
+        out.push(entry("System & Plugins", "Herdr, Sync, Updates, Druck, Ports und Hardware (Mod+Ctrl+H)", "Fenster", () => Runtime.hubOpen = true));
         out.push(entry("Bausteine", "welche Zellen in der Leiste stehen", "Fenster", () => Runtime.modulesOpen = true));
+        out.push(entry("Emoji", "suchen und kopieren (Mod+Ctrl+E)", "Fenster", () => Runtime.emojiOpen = true));
+        out.push(entry("Audio", "Geraete und Anwendungslautstaerken (Mod+Ctrl+A)", "Fenster", () => Runtime.audioPanelOpen = true));
         out.push(entry("Aufgaben", "die Liste (Mod+T)", "Fenster", () => Runtime.todoOpen = true));
         out.push(entry("Ton zurückholen", "Kopfhörer wieder auf den Laptop", "Ton", () => Audio.tonZurueck()));
         out.push(entry("Zwischenablage", "Verlauf (Mod+V)", "Fenster", () => Runtime.clipOpen = true));
