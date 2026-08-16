@@ -817,6 +817,40 @@ einem Terminal.
 
 Vorbild ist Omarchy 4 (`omarchy-webapp-install`), an Brave und niri angepasst.
 
+### WhatsApp in der Leiste
+
+Der eingebaute Baustein `whatsapp` zeigt ungelesene Nachrichten, die letzten
+Chats und einen kurzen Verlauf. Im Popout laesst sich direkt antworten; ein
+Rechtsklick auf die Zelle oeffnet die vorhandene Brave-Webapp fuer alles, was
+mehr Platz braucht. Standardmaessig steht er links vor dem Fenstertitel.
+
+Beim ersten Klick installiert `[ Bridge installieren und starten ]` eine auf
+einen festen Commit und eine feste SHA-256-Pruefsumme gepinnte Fassung von
+[`omarchy-whatsapp`](https://github.com/srineshr1/omarchy-whatsapp). Danach
+`[ Geraet verbinden ]` waehlen und den QR-Code am Telefon unter **WhatsApp →
+Verknuepfte Geraete → Geraet hinzufuegen** scannen. Die bestehende
+Brave-Anmeldung kann nicht von aussen gelesen werden; die Bridge ist deshalb
+ein eigenes verknuepftes Geraet.
+
+```bash
+shell/scripts/whatsapp.sh setup    # Bridge reproduzierbar installieren
+shell/scripts/whatsapp.sh status   # User-Dienst pruefen
+shell/scripts/whatsapp.sh restart  # Bridge neu starten
+shell/scripts/whatsapp.sh open     # Brave-Webapp oeffnen
+```
+
+Die Bridge lauscht nicht im Netz, sondern nur auf dem Socket
+`$XDG_RUNTIME_DIR/nbshell-whatsapp.sock` mit Modus 0600. Zugangsdaten liegen
+unter `~/.local/state/nbshell-whatsapp/` (0700), der lokale Chat-Cache dort als
+0600-Datei. Medien werden nur bei Bedarf in
+`~/.cache/nbshell-whatsapp/media/` abgelegt. Der User-Dienst hat ein
+Speicherlimit von 400 MB.
+
+Wichtig: Baileys benutzt WhatsApps inoffizielle Web-Schnittstelle. Das ist
+bequem, aber nicht von Meta freigegeben und damit weniger risikoarm als nur die
+Brave-Webapp. Die Kopplung geschieht deshalb nie automatisch, sondern erst mit
+deinem QR-Scan.
+
 ## Control Center
 
 Der Baustein `control` zeigt in der Leiste, an welchem Netz du haengst — ein
@@ -2759,7 +2793,7 @@ Vier Listen sagen, was wo steht:
 
 ```json
 "collapsedWidgets": ["clock"],
-"leftWidgets":  ["workspaces", "sep", "window"],
+"leftWidgets":  ["workspaces", "whatsapp", "sep", "window"],
 "centerWidgets": ["clock"],
 "rightWidgets": ["sys", "sep", "layout", "battery"]
 ```

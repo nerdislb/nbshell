@@ -66,6 +66,8 @@ missing_optional="$(
     optional_check qrencode      "WLAN als QR-Code"          "qrencode"
     optional_check speedtest-cli "Durchsatz messen"          "speedtest-cli"
     optional_check magick        "Kontrast transparenter Bar" "imagemagick"
+    optional_check node          "WhatsApp in der Leiste"     "nodejs (>= 20)"
+    optional_check npm           "WhatsApp-Bridge installieren" "npm"
     optional_check tte           "Bildschirmschoner: 39 Effekte statt 10" "python-terminaltexteffects (AUR)"
 )"
 if [ -n "$missing_optional" ]; then
@@ -152,7 +154,7 @@ if [ ! -f "$DATA_DIR/config.json" ]; then
   "opacity": 1.0,
   "widgetStyle": "box",
   "collapsedWidgets": ["clock"],
-  "leftWidgets": ["workspaces", "sep", "window"],
+  "leftWidgets": ["workspaces", "whatsapp", "sep", "window"],
   "centerWidgets": ["clock"],
   "rightWidgets": ["sys", "sep", "layout", "battery"]
 }

@@ -76,6 +76,7 @@ ShellRoot {
         void Cursor.themes;
         void Nearby.enabled;
         void Tailnet.available;
+        void WhatsApp.unread;
     }
 
     Bar {}

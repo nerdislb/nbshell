@@ -194,6 +194,12 @@ Singleton {
             "category": "Netz"
         },
         {
+            "id": "whatsapp",
+            "name": "WhatsApp",
+            "description": "Ungelesene Nachrichten, Chatverlauf und direktes Antworten",
+            "category": "Netz"
+        },
+        {
             "id": "sep",
             "name": "Trenner",
             "description": "senkrechter Strich",

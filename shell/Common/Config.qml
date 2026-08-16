@@ -130,7 +130,7 @@ Singleton {
     readonly property int collapseDelay: value("collapseDelay", 600)
 
     readonly property var collapsedWidgets: value("collapsedWidgets", ["clock"])
-    readonly property var leftWidgets: value("leftWidgets", ["workspaces", "sep", "window"])
+    readonly property var leftWidgets: value("leftWidgets", ["workspaces", "whatsapp", "sep", "window"])
     readonly property var centerWidgets: value("centerWidgets", ["clock"])
     readonly property var rightWidgets: value("rightWidgets", ["sys", "sep", "layout", "battery"])
 

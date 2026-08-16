@@ -123,6 +123,8 @@ Item {
             return kdeconnectComponent;
         case "tailscale":
             return tailscaleComponent;
+        case "whatsapp":
+            return whatsappComponent;
         }
         // Kein eingebauter -- dann muss es ein Plugin sein. Ist es das auch
         // nicht, steht ein Name in der Config, den niemand kennt.
@@ -274,5 +276,10 @@ Item {
     Component {
         id: tailscaleComponent
         Tailscale {}
+    }
+
+    Component {
+        id: whatsappComponent
+        WhatsApp {}
     }
 }
