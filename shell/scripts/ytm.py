@@ -240,8 +240,79 @@ def cmd_unlike(args):
     raus(entliked=args[0])
 
 
+def cmd_sync(_):
+    """Cookies aus Brave lesen und die Anmeldung erneuern -- kein manuelles
+    Kopieren noetig.
+
+    Braucht browser_cookie3 (paru -S python-browser-cookie3) und dass Brave bei
+    music.youtube.com angemeldet ist. ytmusicapi rechnet den Auth-Hash bei jeder
+    Anfrage neu aus dem SAPISID-Cookie aus -- das Cookie genuegt also, ein
+    frisch abgelaufener 'authorization'-Header ist egal.
+    """
+    try:
+        import browser_cookie3
+    except ImportError:
+        fehler("browser_cookie3 fehlt -- paru -S python-browser-cookie3")
+
+    try:
+        jar = browser_cookie3.brave(domain_name=".youtube.com")
+    except Exception as e:
+        fehler(f"Brave-Cookies nicht lesbar ({e}) -- Keyring entsperrt? Brave-Profil vorhanden?")
+
+    paare = [(c.name, c.value) for c in jar if c.value]
+    if not any(n in ("SAPISID", "__Secure-3PAPISID", "__Secure-1PAPISID") for n, _ in paare):
+        fehler("keine YouTube-Anmelde-Cookies in Brave -- dort bei music.youtube.com einloggen")
+
+    cookies = dict(paare)
+    cookie = "; ".join(f"{n}={v}" for n, v in paare)
+
+    # ytmusicapi erkennt Browser-Auth nur, wenn BEIDE Keys da sind: authorization
+    # UND cookie (sonst haelt es die Datei faelschlich fuer OAuth). Der
+    # SAPISIDHASH wird bei jeder Anfrage ohnehin neu gerechnet -- wir brauchen den
+    # Key nur praesent. Trotzdem gleich korrekt aus dem SAPISID-Cookie bilden.
+    import hashlib
+    import time
+
+    origin = "https://music.youtube.com"
+    sapisid = (cookies.get("SAPISID") or cookies.get("__Secure-3PAPISID")
+               or cookies.get("__Secure-1PAPISID") or "")
+    ts = int(time.time())
+    sha = hashlib.sha1(f"{ts} {sapisid} {origin}".encode()).hexdigest()
+    auth = f"SAPISIDHASH {ts}_{sha}"
+
+    kopf = "\n".join([
+        "accept: */*",
+        "accept-language: en-US,en;q=0.9",
+        "authorization: " + auth,
+        "content-type: application/json",
+        "cookie: " + cookie,
+        "origin: " + origin,
+        "user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "x-goog-authuser: 0",
+    ])
+
+    try:
+        from ytmusicapi import setup
+        os.makedirs(KONFIG, exist_ok=True)
+        setup(filepath=ANMELDUNG, headers_raw=kopf)
+        os.chmod(ANMELDUNG, 0o600)
+    except Exception as e:
+        fehler(f"Anmeldung schreiben ging nicht: {e}")
+
+    # Sofort testen -- eine unbrauchbare Datei faellt sonst erst spaeter auf.
+    try:
+        from ytmusicapi import YTMusic
+        n = len(YTMusic(ANMELDUNG).get_library_playlists(limit=5))
+    except Exception as e:
+        fehler(f"angelegt, aber unbrauchbar ({e}) -- in Brave neu einloggen?")
+
+    raus(quelle="brave", playlists=n)
+
+
 BEFEHLE = {
     "login": cmd_login,
+    "sync": cmd_sync,
     "status": cmd_status,
     "playlists": cmd_playlists,
     "playlist": cmd_playlist,

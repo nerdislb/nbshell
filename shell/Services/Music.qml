@@ -152,6 +152,34 @@ Singleton {
         listen.running = true;
     }
 
+    // Anmeldung von selbst aus Brave erneuern, wenn die Playlists leer kommen:
+    // ein abgelaufenes Cookie liefert eine LEERE Liste (keinen Fehler). Genau
+    // EINMAL je Runde -- sonst dreht es sich im Kreis, wenn wirklich 0 Playlists
+    // da sind oder Brave nicht angemeldet ist. Nach einer nicht-leeren Antwort
+    // wird der Versuch wieder freigegeben (siehe `listen`).
+    property bool syncVersucht: false
+
+    function syncCookie() {
+        root.syncVersucht = true;
+        syncProc.command = ["python3", root.script, "sync"];
+        syncProc.running = true;
+    }
+
+    Process {
+        id: syncProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text);
+                    if (d.ok && (d.playlists ?? 0) > 0)
+                        root.ladePlaylists();   // frische Anmeldung -> neu laden
+                } catch (e) {
+                    // still: dann bleibt es eben leer, kein Drama
+                }
+            }
+        }
+    }
+
     // Schon Geholtes wird gemerkt. Beim Blaettern durch die Playlists wird
     // sonst dieselbe Liste dreimal am Nachmittag geholt -- eine Playlist
     // aendert sich nicht, waehrend man an ihr vorbeiscrollt. F5 wirft den
@@ -203,7 +231,13 @@ Singleton {
         id: listen
 
         stdout: StdioCollector {
-            onStreamFinished: root.auswerten(text, d => root.playlists = d.playlists ?? [])
+            onStreamFinished: root.auswerten(text, d => {
+                root.playlists = d.playlists ?? [];
+                if (root.playlists.length > 0)
+                    root.syncVersucht = false;   // wieder frei fuer spaeter
+                else if (!root.syncVersucht)
+                    root.syncCookie();           // evtl. abgelaufen -> aus Brave erneuern
+            })
         }
     }
 
