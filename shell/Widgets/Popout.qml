@@ -45,7 +45,13 @@ PopupWindow {
 
     color: "transparent"
     visible: false
-    grabFocus: takesKeyboard && visible
+    // Muss schon VOR dem Mapping des PopupWindow wahr sein. Mit
+    // `takesKeyboard && visible` wechselten Sichtbarkeit und Grab im selben
+    // Frame; niri sah das Fenster beim Erzeugen noch ohne Keyboard-Grab und
+    // reichte danach trotz aktivem TextInput keine Tasten mehr hinein.
+    // Unsichtbare PopupWindows beanspruchen keinen Sitz, daher ist die
+    // zusaetzliche visible-Bedingung weder noetig noch hilfreich.
+    grabFocus: takesKeyboard
 
     implicitWidth: loader.item ? loader.item.implicitWidth + padding * 2 + Theme.borderWidth * 2 : 1
     implicitHeight: loader.item ? loader.item.implicitHeight + padding * 2 + Theme.borderWidth * 2 : 1
