@@ -3391,6 +3391,35 @@ vollstaendigen Editor oeffnen. nbshell baut bewusst keine zweite PipeWire-
 Filterkette parallel dazu auf. Die Bar selbst wechselt mit
 `Shift`+Linksklick-Ziehen um mindestens drei Textzeilen zwischen oben und unten.
 
+## Bongo Cat
+
+Der eingebaute Baustein `bongo` oeffnet links in der Bar seine Einstellungen;
+Rechtsklick schaltet die Katze ein oder aus, das Mausrad aendert ihre Groesse.
+Die klickdurchlaessige Katze sitzt standardmaessig unten rechts. Im Popout
+lassen sich Animation, Groesse und Abstand einstellen sowie alles zuruecksetzen.
+
+```bash
+nbshell bongo status
+nbshell bongo test
+nbshell bongo allow       # Polkit-Freigabe nur fuer diese Shell-Sitzung
+nbshell bongo revoke
+nbshell bongo resize 260
+```
+
+Wayland bietet keinen passiven globalen Tastaturzugriff. Deshalb fragt die
+Animation einmal per Polkit nach lesendem Zugriff auf die erkannten Tastaturen.
+Root oeffnet ausschliesslich diese Eingabegeraete und gibt die Deskriptoren an
+einen wieder unprivilegierten Helfer weiter. Dieser emittiert nur `L` oder `R`
+fuer die beiden Pfoten – niemals Tastencodes, Zeichen oder Text. Beim Entziehen,
+Abschalten oder Beenden der Shell werden die Deskriptoren geschlossen; es wird
+weder eine udev-Regel noch eine dauerhafte Gruppenberechtigung installiert.
+
+Umgesetzt nach dem MIT-lizenzierten
+[HANCORE Bongo-Cat-Plugin](https://github.com/HANCORE-linux/omarchy-bongocat),
+Quellstand `31dbeedc7cce8bff34e6e90c5928fa482e97fe12`. Frames und Pfotenzuordnung
+gehen auf `saatvik333/wayland-bongocat` zurueck; beide Lizenztexte liegen unter
+`shell/assets/bongocat/`.
+
 ## Lizenz
 
 MIT, siehe `LICENSE`.

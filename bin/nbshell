@@ -436,6 +436,7 @@ nbshell -- eigene Shell auf Quickshell
   nbshell procs             Prozessliste (auch: top)
   nbshell menu              Menue (verschachtelt) — Mod+Shift+Space
   nbshell dashboard         Heute, Medien und Werkzeuge
+  nbshell bongo             Bongo Cat: status, test, on, off, allow, revoke
   nbshell clip              Verlauf der Zwischenablage (toggle, list, clear)
   nbshell cal               Kalender (auch: next, sync, status)
 
@@ -791,6 +792,18 @@ ENDE
         else
             ipc dashboard "${1:-toggle}"
         fi
+        ;;
+    bongo|cat)
+        case "${1:-status}" in
+            on|enable|an) ipc bongo enable ;;
+            off|disable|aus) ipc bongo disable ;;
+            allow|erlauben) ipc bongo allowInput ;;
+            revoke|entziehen) ipc bongo revokeInput ;;
+            test) ipc bongo test ;;
+            toggle) ipc bongo toggle ;;
+            resize) ipc bongo resize "${2:?Breite in Pixel fehlt}" ;;
+            *) ipc bongo status ;;
+        esac
         ;;
     cal|calendar)
         ipc calendar "${1:-toggle}"

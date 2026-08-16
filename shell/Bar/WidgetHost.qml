@@ -105,6 +105,8 @@ Item {
             return musicControlsComponent;
         case "vis":
             return visualizerComponent;
+        case "bongo":
+            return bongoComponent;
         case "clipboard":
             return clipComponent;
         case "capture":
@@ -221,6 +223,12 @@ Item {
         id: musicControlsComponent
 
         MusicControls {}
+    }
+
+    Component {
+        id: bongoComponent
+
+        Bongo {}
     }
 
     Component {

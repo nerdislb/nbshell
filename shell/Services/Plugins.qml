@@ -80,6 +80,12 @@ Singleton {
             "category": "Ton"
         },
         {
+            "id": "bongo",
+            "name": "Bongo Cat",
+            "description": "tippende Katze mit Sitzungseingabe",
+            "category": "Spass"
+        },
+        {
             "id": "sys",
             "name": "Systemlast",
             "description": "CPU und Speicher",

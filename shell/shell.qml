@@ -58,6 +58,7 @@ ShellRoot {
         void Procs.list;
         void CaptureService.recording;
         void AiUsage.available;
+        void BongoCat.active;
         void Updates.enabled;
         void PowerService.available;
         void Calendar.enabled;

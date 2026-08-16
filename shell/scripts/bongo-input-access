@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+[[ ${1:-} == "watch" ]] || {
+  echo "Usage: $0 watch <helper> [helper arguments...]" >&2
+  exit 2
+}
+helper=${2:-}
+[[ -n $helper ]] || {
+  echo "Missing input helper path." >&2
+  exit 2
+}
+shift 2
+helper_arguments=("$@")
+
+uid=$(id -u)
+helper_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+expected_helper="$helper_dir/bongo-input"
+resolved_helper=$(readlink -f -- "$helper" 2>/dev/null || true)
+if [[ $resolved_helper != "$expected_helper" || ! -f $resolved_helper \
+    || ! -x $resolved_helper || $(stat -c '%u' -- "$resolved_helper") != "$uid" ]]; then
+  echo "Refusing an unexpected input helper path." >&2
+  exit 1
+fi
+
+selected_name=""
+for ((index = 0; index < ${#helper_arguments[@]}; ++index)); do
+  if [[ ${helper_arguments[index]} == "--name" && $((index + 1)) -lt ${#helper_arguments[@]} ]]; then
+    selected_name=${helper_arguments[index + 1]}
+    break
+  fi
+done
+
+if ! device_json=$("$resolved_helper" --list); then
+  echo "Could not discover keyboard devices." >&2
+  exit 1
+fi
+if ! keyboard_text=$(jq -er --arg selected "$selected_name" '
+  if type != "array" then error("unexpected device list") else
+    [.[] | select($selected == "" or .name == $selected) | .path]
+    | if all(.[]; type == "string") then join("\n")
+      else error("unexpected device path") end
+  end
+' <<<"$device_json"); then
+  echo "Could not parse keyboard devices." >&2
+  exit 1
+fi
+keyboard_paths=()
+if [[ -n $keyboard_text ]]; then
+  mapfile -t keyboard_paths <<<"$keyboard_text"
+fi
+(( ${#keyboard_paths[@]} <= 64 )) || {
+  echo "Too many keyboard devices." >&2
+  exit 1
+}
+
+expected_hash=$(sha256sum -- "$resolved_helper" | awk '{print $1}')
+[[ $expected_hash =~ ^[0-9a-f]{64}$ ]] || {
+  echo "Could not hash the input helper." >&2
+  exit 1
+}
+
+# Root opens only the selected keyboard nodes. /usr/bin/setpriv then discards
+# root UID/GID and every supplementary group before the snapshotted helper is
+# executed. The helper itself never runs with elevated privileges.
+root_program=$(cat <<'ROOT_PROGRAM'
+set -euo pipefail
+PATH=/usr/sbin:/usr/bin
+export PATH
+
+uid=${1:-}
+source_helper=${2:-}
+expected_hash=${3:-}
+path_count=${4:-}
+shift 4 || true
+
+if (( EUID != 0 )); then
+  echo "This command must run as root." >&2
+  exit 1
+fi
+if [[ ! $uid =~ ^[0-9]+$ ]] || (( uid < 1000 )) \
+    || ! getent passwd "$uid" >/dev/null; then
+  echo "Invalid desktop user id." >&2
+  exit 2
+fi
+if [[ ! $path_count =~ ^[0-9]+$ ]] || (( path_count > 64 || path_count > $# )); then
+  echo "Invalid keyboard device count." >&2
+  exit 2
+fi
+home=$(getent passwd "$uid" | cut -d: -f6)
+expected_source="$home/.config/quickshell/nbshell/shell/scripts/bongo-input"
+if [[ $source_helper != "$expected_source" || ! -f $source_helper \
+    || $(stat -c '%u' -- "$source_helper") != "$uid" \
+    || ! $expected_hash =~ ^[0-9a-f]{64}$ ]]; then
+  echo "Refusing an unexpected input helper." >&2
+  exit 1
+fi
+
+device_paths=()
+for ((index = 0; index < path_count; ++index)); do
+  device=${1:-}
+  shift
+  if [[ ! $device =~ ^/dev/input/event[0-9]+$ || ! -c $device ]]; then
+    echo "Refusing an unexpected input device." >&2
+    exit 1
+  fi
+  properties=$(udevadm info --query=property --name="$device" 2>/dev/null || true)
+  if ! grep -qx 'ID_INPUT_KEYBOARD=1' <<<"$properties"; then
+    echo "Refusing a non-keyboard input device." >&2
+    exit 1
+  fi
+  device_paths+=("$device")
+done
+helper_arguments=("$@")
+
+gid=$(getent passwd "$uid" | cut -d: -f4)
+[[ $gid =~ ^[0-9]+$ ]] || {
+  echo "Could not resolve the desktop user group." >&2
+  exit 1
+}
+
+staging_dir="/run/omarchy-bongocat-$uid"
+rm -rf -- "$staging_dir"
+install -d -m 0700 -o root -g root -- "$staging_dir"
+temporary="$staging_dir/bongo-input"
+trap 'rm -rf -- "$staging_dir"' EXIT
+cp --reflink=never -- "$source_helper" "$temporary"
+chown root:root "$temporary"
+chmod 0555 "$temporary"
+actual_hash=$(sha256sum -- "$temporary" | awk '{print $1}')
+if [[ $actual_hash != "$expected_hash" ]]; then
+  echo "The input helper changed during authorization." >&2
+  exit 1
+fi
+
+exec {helper_fd}<"$temporary"
+session_arguments=(--session-fds --close-fd "$helper_fd")
+for device in "${device_paths[@]}"; do
+  exec {input_fd}<"$device"
+  session_arguments+=(--fd "$input_fd")
+done
+rm -f -- "$temporary"
+rmdir -- "$staging_dir"
+trap - EXIT
+
+exec /usr/bin/setpriv --reuid "$uid" --regid "$gid" --clear-groups \
+  --no-new-privs "/proc/self/fd/$helper_fd" \
+  "${session_arguments[@]}" "${helper_arguments[@]}"
+ROOT_PROGRAM
+)
+
+exec pkexec /usr/bin/bash -c "$root_program" bongocat-session-input \
+  "$uid" "$resolved_helper" "$expected_hash" "${#keyboard_paths[@]}" \
+  "${keyboard_paths[@]}" "${helper_arguments[@]}"
