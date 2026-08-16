@@ -121,6 +121,8 @@ Item {
             return habitsComponent;
         case "kdeconnect":
             return kdeconnectComponent;
+        case "tailscale":
+            return tailscaleComponent;
         }
         // Kein eingebauter -- dann muss es ein Plugin sein. Ist es das auch
         // nicht, steht ein Name in der Config, den niemand kennt.
@@ -267,5 +269,10 @@ Item {
     Component {
         id: kdeconnectComponent
         KdeConnect {}
+    }
+
+    Component {
+        id: tailscaleComponent
+        Tailscale {}
     }
 }

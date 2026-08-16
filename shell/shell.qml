@@ -23,6 +23,7 @@ import qs.Music
 import qs.Keys
 import qs.Menu
 import qs.Ipc
+import qs.Extensions
 
 // nbshell -- Einstiegspunkt.
 //
@@ -74,6 +75,7 @@ ShellRoot {
         void Idle.enabled;
         void Cursor.themes;
         void Nearby.enabled;
+        void Tailnet.available;
     }
 
     Bar {}
@@ -111,6 +113,14 @@ ShellRoot {
     KeysWindow {}
 
     Menu {}
+
+    EmojiWindow {}
+
+    SystemHub {}
+
+    // Nachinstallierte Dienste, Panels und Overlays. Nur explizit aktivierte
+    // Plugin-IDs werden geladen; reine Bar-Widgets entstehen in WidgetHost.
+    PluginHost {}
 
     // ── Steuerung von aussen ──────────────────────────────────────────────
     // Alles, was `nbshell <ziel> <befehl>` erreichbar macht, liegt in qs/Ipc

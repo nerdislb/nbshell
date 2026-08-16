@@ -63,6 +63,14 @@ Singleton {
         return true;
     }
 
+    function qr() {
+        const path = "/tmp/nbshell-qr-" + Date.now() + ".png";
+        if (!niriShot("region", path))
+            return false;
+        run(["qr", path, notifyOn ? "1" : "0"]);
+        return true;
+    }
+
     function toggleRecording() {
         if (recording) {
             run(["rec-stop", notifyOn ? "1" : "0"]);

@@ -26,6 +26,12 @@ Singleton {
     // Nur echte Ausgaben, keine Anwendungsstroeme (`isStream`).
     readonly property var sinks: Pipewire.nodes.values.filter(n => n.audio && n.isSink && !n.isStream)
 
+    // Laufende Wiedergaben. PipeWire stellt sie als Sink-Streams bereit; so
+    // braucht nbshell weder pactl-Ausgaben zu parsen noch einen Polling-Takt.
+    readonly property var appStreams: Pipewire.nodes.values
+        .filter(n => n.audio && n.isSink && n.isStream)
+        .sort((a, b) => root.label(a).localeCompare(root.label(b)))
+
     readonly property int micVolume: source?.audio ? Math.round(source.audio.volume * 100) : 0
     readonly property bool micMuted: source?.audio ? source.audio.muted : false
 
@@ -216,9 +222,26 @@ Singleton {
             Pipewire.preferredDefaultAudioSink = node;
     }
 
+    function streamVolume(node) {
+        return node?.audio ? Math.round(node.audio.volume * 100) : 0;
+    }
+
+    function setStreamVolume(node, percent) {
+        if (!node?.audio)
+            return;
+        node.audio.volume = Math.max(0, Math.min(maxVolume, Math.round(percent))) / 100;
+    }
+
+    function toggleStreamMute(node) {
+        if (node?.audio)
+            node.audio.muted = !node.audio.muted;
+    }
+
     // Ohne Beobachter bleiben `audio.volume` und Freunde leer: Pipewire liefert
     // die Daten eines Knotens erst, wenn jemand ihn im Auge behaelt.
     PwObjectTracker {
-        objects: Pipewire.nodes.values.filter(n => n.audio && !n.isStream)
+        // Auch Anwendungsstroeme beobachten, sonst aktualisieren sich deren
+        // Regler und Stummschalter erst verspaetet oder gar nicht.
+        objects: Pipewire.nodes.values.filter(n => n.audio)
     }
 }

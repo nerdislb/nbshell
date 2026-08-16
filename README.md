@@ -1245,7 +1245,7 @@ nichts mehr.
 ## KI-Verbrauch
 
 ```bash
-nbshell set aiProviders "claude,antigravity"   # mehrere, kommagetrennt
+nbshell set aiProviders "codex,claude,antigravity"   # mehrere, kommagetrennt
 nbshell ai                                      # Stand auf der Befehlszeile
 ```
 
@@ -2864,11 +2864,16 @@ Ein Baustein muss nicht in der Shell stehen. Ein Verzeichnis unter
 
 ```json
 {
+  "schemaVersion": 2,
   "id": "wetter",
   "name": "Wetter",
   "description": "Temperatur am Ort",
   "category": "Plugin",
-  "entry": "BarWidget.qml"
+  "version": "1.0.0",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  }
 }
 ```
 
@@ -2892,13 +2897,55 @@ soll nicht als Baustein gelten, nur weil es im Ordner liegt. Ein vorhandenes
 Plugin wird nie ueberschrieben; `.git` bleibt liegen, sonst koennte `update`
 nichts nachziehen.
 
+Vor Installation und Update validiert nbshell Manifest und gesamten
+Plugin-Baum. Schema v2 verlangt `schemaVersion`, `kinds` und sichere relative
+`entryPoints`; absolute Pfade, `..`, unbekannte Typen und Symlinks werden
+abgelehnt. `nbshell plugin validate <verzeichnis>` fuehrt dieselbe Pruefung
+fuer Entwickler aus. Alte nbshell-Manifeste ohne `schemaVersion` bleiben als
+reine Bar-Widgets kompatibel. Omarchy-Manifeste mit Schema 1 werden bewusst
+nicht als kompatibel ausgegeben.
+
+Ein Update wird zuerst per `git fetch` geholt, als temporaere Pruefkopie
+entpackt und validiert. Erst danach wird der echte Checkout per Fast-forward
+bewegt. Ein kaputtes Release veraendert damit den installierten Stand nicht.
+
+Schema v2 kennt neben `bar-widget` auch `panel`, `overlay` und `service`; ihre
+Entry-Point-Schluessel heissen `barWidget`, `panel`, `overlay` und `service`.
+Nicht sichtbare Plugin-Teile werden erst durch `nbshell plugin enable <id>`
+geladen und mit `disable` wieder entladen. Ein Panel oder Overlay kann die
+Methoden `open(payload)`, `close(payload)` und `toggle(payload)` anbieten und
+ist dann ueber `nbshell extension toggle <id>` steuerbar.
+
+Der eingebaute Zwischenablage-Verlauf kennt neben Text auch PNG-Bilder. Bilder
+liegen dedupliziert unter `~/.local/state/nbshell/clipboard-images`, werden auf
+20 begrenzt und im Popout als Vorschau gezeigt. Linksklick kopiert, Rechtsklick
+entfernt. `clipboardImageKeep` passt die Grenze an.
+
+Das Audio-Popout zeigt laufende PipeWire-Wiedergabestroeme mit eigenem Regler
+und Stummschalter. Der optionale Baustein `tailscale` zeigt Tailnet-Zustand,
+lokale Adresse und erreichbare Peers; ein Klick kopiert die jeweilige Adresse.
+`nbshell emoji` oeffnet eine lokale deutsch/englisch filterbare Emoji-Auswahl;
+Pfeiltasten und Enter funktionieren ebenso wie die Maus.
+
+`nbshell hub` oeffnet den Omarchy-artigen Sammelpunkt fuer Herdr/Codex,
+Syncthing, GitHub Inbox, Pacman-Sentry, CUPS, lokale Ports und optionale
+Hardware-Werkzeuge. Die Abfragen laufen nur beim Oeffnen oder mit F5. Im
+Hauptmenue liegen Hub und Plugin-Verwaltung unter `Extras`.
+
+Codex-Benachrichtigungen werden ueber zwei eigene Lifecycle-Hooks
+(`PermissionRequest`, `Stop`) angebunden. `scripts/codex-hooks.py` fuegt nur
+mit `--owner=nbshell.codex-notifications` markierte Handler atomisch hinzu oder
+entfernt sie; bestehende Hook-Gruppen bleiben erhalten. Nach der Installation
+muss Codex einmal neu gestartet und `/hooks` zur Vertrauenspruefung aufgerufen
+werden.
+
 > **Ein Plugin ist QML, das IN der Shell laeuft.** Es kann alles, was die Shell
 > kann: Dateien lesen, Programme starten, die Zwischenablage sehen. Es gibt
 > keine Sandbox und es wird auch keine geben — `nbshell plugin add` sagt das
 > vor dem Klonen noch einmal. Nur hereinholen, was du gelesen hast oder wem du
 > traust.
 
-`add`, `update` und `remove` gehen direkt an `scripts/plugins.sh` und nicht
+`add`, `validate`, `enable`, `disable`, `update` und `remove` gehen direkt an `scripts/plugins.sh` und nicht
 ueber IPC: sie muessen auch dann gehen, wenn die Shell gerade nicht laeuft.
 
 Mitgeliefert werden drei: **`beispiel`** als Vorlage (zaehlt Klicks, sonst

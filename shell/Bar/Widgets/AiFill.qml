@@ -10,6 +10,7 @@ Cell {
     id: root
 
     readonly property var glyphs: ({
+            "codex": String.fromCodePoint(0xF0169),
             "claude": String.fromCodePoint(0xF167A),
             "antigravity": String.fromCodePoint(0xF0674),
             "agy": String.fromCodePoint(0xF0674)
@@ -174,8 +175,8 @@ Cell {
                         fillColor: entry.modelData.percent >= 90 ? Theme.red : Theme.accent
                     }
 
-                    // Die weiteren Toepfe desselben Anbieters. Claude hat
-                    // einen (die Woche), Antigravity zwei (Modellgruppen).
+                    // Die weiteren Toepfe desselben Anbieters. Codex und Claude
+                    // koennen weitere Zeitfenster haben, Antigravity Modellgruppen.
                     Repeater {
                         model: entry.modelData.more ?? []
 

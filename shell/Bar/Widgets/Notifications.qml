@@ -35,6 +35,13 @@ Cell {
             id: panel
 
             property var closePopout: null
+            property string query: ""
+
+            readonly property var shownNotifications: Notify.history.filter(e => {
+                const needle = panel.query.trim().toLowerCase();
+                if (needle === "") return true;
+                return ((e.appName || "") + " " + (e.summary || "") + " " + (e.body || "")).toLowerCase().indexOf(needle) >= 0;
+            }).slice(0, 20)
 
             readonly property real rowWidth: 46 * Theme.cellW
 
@@ -85,8 +92,47 @@ Cell {
                 color: Theme.muted
             }
 
+            Rectangle {
+                width: panel.rowWidth
+                height: Theme.cellH * 1.5
+                visible: Notify.count > 0
+                radius: Theme.radius
+                color: Theme.bgLight
+                border.width: Theme.borderWidth
+                border.color: search.activeFocus ? Theme.accent : Theme.muted
+
+                TextInput {
+                    id: search
+                    anchors.fill: parent
+                    anchors.leftMargin: Theme.cellW
+                    anchors.rightMargin: Theme.cellW
+                    verticalAlignment: TextInput.AlignVCenter
+                    color: Theme.fg
+                    selectionColor: Theme.accent
+                    selectedTextColor: Theme.bg
+                    font.family: Theme.font
+                    font.pixelSize: Theme.fontSize
+                    text: panel.query
+                    onTextChanged: panel.query = text
+
+                    Line {
+                        anchors.fill: parent
+                        visible: parent.text === "" && !parent.activeFocus
+                        verticalAlignment: Text.AlignVCenter
+                        text: "suchen …"
+                        color: Theme.muted
+                    }
+                }
+            }
+
+            Line {
+                visible: Notify.count > 0 && panel.shownNotifications.length === 0
+                text: "kein Treffer"
+                color: Theme.muted
+            }
+
             Repeater {
-                model: Notify.history.slice(0, 12)
+                model: panel.shownNotifications
 
                 Rectangle {
                     id: row
@@ -109,7 +155,9 @@ Cell {
 
                         Line {
                             width: parent.width
-                            text: (row.modelData.appName || "System") + "  ·  " + Notify.ago(row.modelData.time)
+                            text: (row.modelData.appName || "System")
+                                + ((row.modelData.repeat ?? 1) > 1 ? ("  ×" + row.modelData.repeat) : "")
+                                + "  ·  " + Notify.ago(row.modelData.time)
                             color: Theme.fgDim
                             elide: Text.ElideRight
                         }

@@ -27,13 +27,17 @@ Singleton {
 
     readonly property bool enabled: Config.value("clipboard", true)
     readonly property int keep: Config.value("clipboardKeep", 50)
+    readonly property int imageKeep: Config.value("clipboardImageKeep", 20)
 
     // Nur abschalten, wenn man weiss, was man tut.
     readonly property bool guardSecrets: Config.value("clipboardGuardSecrets", true)
 
     property var entries: []
+    property var images: []
 
     readonly property string statePath: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/nbshell/clipboard.json"
+    readonly property string imageDir: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/nbshell/clipboard-images"
+    readonly property string imageScript: Qt.resolvedUrl("../scripts/clipboard-images.py").toString().replace("file://", "")
 
     function decode(base64) {
         try {
@@ -64,8 +68,23 @@ Singleton {
 
     function clear() {
         entries = [];
+        images = [];
         store.setText("[]");
+        Quickshell.execDetached(["python3", imageScript, "clear", imageDir]);
         Quickshell.execDetached(["wl-copy", "--clear"]);
+    }
+
+    function imagePath(entry) {
+        return "file://" + imageDir + "/" + entry.file;
+    }
+
+    function copyImage(entry) {
+        Quickshell.execDetached(["python3", imageScript, "copy", imageDir, entry.file]);
+    }
+
+    function removeImage(entry) {
+        imageRemove.command = ["python3", imageScript, "remove", imageDir, entry.file];
+        imageRemove.running = true;
     }
 
     // Fuer die Anzeige: eine Zeile, sichtbare Zeilenumbrueche.
@@ -111,6 +130,40 @@ Singleton {
             onRead: line => {
                 if (line.trim() !== "")
                     root.add(root.decode(line.trim()));
+            }
+        }
+    }
+
+    Process {
+        id: imageLoader
+        running: root.enabled
+        command: ["python3", root.imageScript, "list", root.imageDir]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { root.images = JSON.parse(text || "[]"); }
+                catch (e) { root.images = []; }
+            }
+        }
+    }
+
+    Process {
+        id: imageWatcher
+        running: root.enabled
+        command: ["wl-paste", "--type", "image/png", "--watch", "python3", root.imageScript, "capture", root.imageDir, String(root.imageKeep)]
+        stdout: SplitParser {
+            onRead: line => {
+                try { root.images = JSON.parse(line); }
+                catch (e) { console.warn("nbshell/clipboard: Bildindex unlesbar", e); }
+            }
+        }
+    }
+
+    Process {
+        id: imageRemove
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { root.images = JSON.parse(text || "[]"); }
+                catch (e) {}
             }
         }
     }

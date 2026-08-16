@@ -60,6 +60,10 @@ Singleton {
     // Was gerade als Karte am Rand steht.
     property var popups: []
 
+    // Wiederholte identische Meldungen (Sync- und Build-Werkzeuge sind hier
+    // besonders laut) werden zu einer Karte zusammengefasst.
+    readonly property int dedupeWindow: Config.value("notifyDedupeMs", 120000)
+
     readonly property int count: history.length
 
     // Gesucht wird ueber den Schluessel, NICHT ueber das Objekt: was ein
@@ -128,6 +132,7 @@ Singleton {
                     "summary": e.summary,
                     "body": e.body,
                     "urgency": e.urgency,
+                    "repeat": e.repeat ?? 1,
                     "time": e.time.getTime(),
                     "pending": pending.some(p => p.key === e.key)
                 }));
@@ -159,6 +164,7 @@ Singleton {
                         "summary": e.summary,
                         "body": e.body,
                         "urgency": e.urgency,
+                        "repeat": e.repeat ?? 1,
                         "time": new Date(e.time),
                         "pending": e.pending === true,
                         "notification": null
@@ -201,6 +207,11 @@ Singleton {
                 notification.tracked = true;
 
                 const now = new Date();
+                const duplicate = root.history.find(e =>
+                    e.appName === notification.appName
+                    && e.summary === notification.summary
+                    && e.body === notification.body
+                    && now.getTime() - e.time.getTime() <= root.dedupeWindow);
                 const entry = {
                     // Zeitpunkt UND id: die id allein wiederholt sich nach
                     // einem Neustart des Servers.
@@ -210,17 +221,18 @@ Singleton {
                     "summary": notification.summary,
                     "body": notification.body,
                     "urgency": notification.urgency,
+                    "repeat": duplicate ? ((duplicate.repeat ?? 1) + 1) : 1,
                     "time": now,
                     "notification": notification
                 };
 
-                root.history = [entry].concat(root.history).slice(0, root.keep);
+                root.history = [entry].concat(root.history.filter(e => !duplicate || e.key !== duplicate.key)).slice(0, root.keep);
 
                 // Bei "Nicht stoeren" landet sie nur in der Liste. `transient`
                 // heisst: das Programm will sie zeigen, aber nicht aufbewahren --
                 // trotzdem in die Liste, sonst verschwindet sie spurlos.
                 if (!root.dnd)
-                    root.popups = [entry].concat(root.popups);
+                    root.popups = [entry].concat(root.popups.filter(e => !duplicate || e.key !== duplicate.key));
 
                 root.save();
 

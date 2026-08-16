@@ -124,6 +124,62 @@ Cell {
                 }
             }
 
+            // ── Anwendungen ──────────────────────────────────────────────
+
+            Line {
+                visible: Audio.appStreams.length > 0
+                text: "ANWENDUNGEN"
+                color: Theme.fgDim
+            }
+
+            Repeater {
+                model: Audio.appStreams
+
+                Column {
+                    id: appRow
+
+                    required property var modelData
+
+                    width: panel.rowWidth
+                    spacing: Theme.cellH * 0.12
+
+                    Line {
+                        width: panel.rowWidth
+                        text: Audio.label(appRow.modelData)
+                        color: appRow.modelData.audio.muted ? Theme.red : Theme.fg
+                        elide: Text.ElideRight
+
+                        TapHandler {
+                            acceptedButtons: Qt.RightButton
+                            onTapped: Audio.toggleStreamMute(appRow.modelData)
+                        }
+                    }
+
+                    Row {
+                        spacing: Theme.cellW
+
+                        LevelBar {
+                            cells: 24
+                            value: Audio.streamVolume(appRow.modelData)
+                            maximum: Audio.maxVolume
+                            fillColor: appRow.modelData.audio.muted ? Theme.muted : Theme.green
+                            onMoved: v => Audio.setStreamVolume(appRow.modelData, v)
+                        }
+
+                        Line {
+                            width: Theme.cellW * 9
+                            horizontalAlignment: Text.AlignRight
+                            text: appRow.modelData.audio.muted ? "stumm" : (Audio.streamVolume(appRow.modelData) + "%")
+                            color: appRow.modelData.audio.muted ? Theme.red : Theme.fgDim
+
+                            TapHandler {
+                                onTapped: Audio.toggleStreamMute(appRow.modelData)
+                            }
+                        }
+                    }
+                }
+            }
+
             // ── Bluetooth-Codec ───────────────────────────────────────────
             //
             // Nur da, wenn ein Hoerer verbunden ist. Der aktive Codec ist

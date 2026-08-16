@@ -16,6 +16,36 @@ import qs.Services
 // Schnitt schmerzlos.
 Scope {
     IpcHandler {
+        target: "hub"
+        function toggle(): string { Runtime.hubOpen = !Runtime.hubOpen; return Runtime.hubOpen ? "offen" : "zu"; }
+        function open(): string { Runtime.hubOpen = true; return "offen"; }
+        function close(): string { Runtime.hubOpen = false; return "zu"; }
+    }
+
+    IpcHandler {
+        target: "emoji"
+        function toggle(): string { Runtime.emojiOpen = !Runtime.emojiOpen; return Runtime.emojiOpen ? "offen" : "zu"; }
+        function open(): string { Runtime.emojiOpen = true; return "offen"; }
+        function close(): string { Runtime.emojiOpen = false; return "zu"; }
+    }
+
+    IpcHandler {
+        target: "plugin"
+
+        function open(id: string): string {
+            return Plugins.invoke(id, "open", "{}");
+        }
+
+        function close(id: string): string {
+            return Plugins.invoke(id, "close", "{}");
+        }
+
+        function toggle(id: string): string {
+            return Plugins.invoke(id, "toggle", "{}");
+        }
+    }
+
+    IpcHandler {
         target: "capture"
 
         function menu(): string {
@@ -37,6 +67,10 @@ Scope {
 
         function ocr(): string {
             return CaptureService.ocr() ? "Texterkennung" : "niri fehlt";
+        }
+
+        function qr(): string {
+            return CaptureService.qr() ? "QR-Erkennung" : "niri fehlt";
         }
 
         function record(): string {

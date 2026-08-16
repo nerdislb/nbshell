@@ -8,13 +8,13 @@ Cell {
     id: root
 
     shown: Clipboard.enabled
-    quiet: Clipboard.entries.length === 0
+    quiet: Clipboard.entries.length === 0 && Clipboard.images.length === 0
     slotChars: 3
     interactive: true
     label: "CLP"
     icon: Icons.clipboard
-    text: Clipboard.entries.length
-    color: Clipboard.entries.length > 0 ? Theme.text : Theme.textDim
+    text: Clipboard.entries.length + Clipboard.images.length
+    color: Clipboard.entries.length + Clipboard.images.length > 0 ? Theme.text : Theme.textDim
 
     // Zurueckmelden, wenn der Kompositor das Popout geschlossen hat.
     onPopoutVisibleChanged: Runtime.clipOpen = root.popoutVisible
@@ -44,14 +44,14 @@ Cell {
                 Line {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "ZWISCHENABLAGE  (" + Clipboard.entries.length + ")"
+                    text: "ZWISCHENABLAGE  (" + (Clipboard.entries.length + Clipboard.images.length) + ")"
                     color: Theme.fgDim
                 }
 
                 Line {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    visible: Clipboard.entries.length > 0
+                    visible: Clipboard.entries.length + Clipboard.images.length > 0
                     text: "[ leeren ]"
                     color: Theme.red
 
@@ -64,9 +64,53 @@ Cell {
             }
 
             Line {
-                visible: Clipboard.entries.length === 0
+                visible: Clipboard.entries.length === 0 && Clipboard.images.length === 0
                 text: "noch nichts kopiert"
                 color: Theme.muted
+            }
+
+            Flow {
+                width: panel.rowWidth
+                spacing: Theme.cellW
+                visible: Clipboard.images.length > 0
+
+                Repeater {
+                    model: Clipboard.images.slice(0, 8)
+
+                    Rectangle {
+                        id: imageRow
+                        required property var modelData
+                        width: Theme.cellW * 12
+                        height: Theme.cellH * 5
+                        radius: Theme.radius
+                        color: imageHover.hovered ? Theme.hover : Theme.bgLight
+                        border.width: Theme.borderWidth
+                        border.color: Theme.muted
+                        clip: true
+
+                        Image {
+                            anchors.fill: parent
+                            anchors.margins: Theme.borderWidth
+                            source: Clipboard.imagePath(imageRow.modelData)
+                            fillMode: Image.PreserveAspectFit
+                            asynchronous: true
+                            cache: false
+                        }
+
+                        HoverHandler { id: imageHover; cursorShape: Qt.PointingHandCursor }
+                        TapHandler {
+                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                            onTapped: (point, button) => {
+                                if (button === Qt.RightButton)
+                                    Clipboard.removeImage(imageRow.modelData);
+                                else {
+                                    Clipboard.copyImage(imageRow.modelData);
+                                    if (panel.closePopout) panel.closePopout();
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             Repeater {

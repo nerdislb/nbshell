@@ -24,7 +24,7 @@ Singleton {
 
     // Welche Anbieter gefragt werden -- das Skript nimmt sie als Kommaliste.
     // Es kennt ueber dreissig; welche man hat, weiss nur der Benutzer.
-    readonly property string providers: Config.value("aiProviders", "claude")
+    readonly property string providers: Config.value("aiProviders", "codex,claude")
 
     property var list: []
 

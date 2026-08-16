@@ -141,6 +141,7 @@ PanelWindow {
                 { "key": "b", "label": "Bildschirm", "icon": Icons.cp(0xF0379), "run": () => CaptureService.shoot("screen") },
                 { "key": "f", "label": "Fenster", "icon": Icons.cp(0xF04A1), "run": () => CaptureService.shoot("window") },
                 { "key": "o", "label": "Text erkennen (OCR)", "icon": Icons.cp(0xF0219), "run": () => CaptureService.ocr() },
+                { "key": "q", "label": "QR-Code erkennen", "icon": Icons.cp(0xF0432), "run": () => CaptureService.qr() },
                 { "key": "a", "label": "Aufnahme starten/stoppen", "icon": Icons.record, "run": () => CaptureService.toggleRecording() }
             ]
         },
@@ -166,8 +167,16 @@ PanelWindow {
         {
             "key": "e", "label": "Extras", "icon": Icons.cp(0xF035C),
             "sub": [
+                { "key": "s", "label": "System & Plugins", "icon": Icons.matrix, "run": () => Runtime.hubOpen = true },
+                { "key": "p", "label": "Plugin-Verwaltung", "icon": Icons.cp(0xF12E), "sub": [
+                    { "key": "a", "label": "Module anordnen", "icon": Icons.matrix, "run": () => Runtime.modulesOpen = true },
+                    { "key": "l", "label": "Plugins auflisten", "icon": Icons.cp(0xF035C), "run": () => root.term("nbshell plugins") },
+                    { "key": "u", "label": "Plugins aktualisieren", "icon": Icons.refresh, "run": () => root.term("nbshell plugin update") },
+                    { "key": "o", "label": "Plugin-Ordner oeffnen", "icon": Icons.cp(0xF024B), "run": () => Quickshell.execDetached(["xdg-open", Quickshell.env("HOME") + "/.config/nbshell/plugins"]) }
+                ] },
+                { "key": "e", "label": "Emoji", "icon": "😀", "run": () => Runtime.emojiOpen = true },
                 { "key": "z", "label": "Zwischenablage", "icon": Icons.clipboard, "run": () => Runtime.clipOpen = true },
-                { "key": "p", "label": "Prozesse", "icon": Icons.cpu, "run": () => Runtime.procsOpen = true },
+                { "key": "r", "label": "Prozesse", "icon": Icons.cpu, "run": () => Runtime.procsOpen = true },
                 { "key": "m", "label": "Musik", "icon": Icons.play, "run": () => Runtime.musicOpen = true },
                 { "key": "t", "label": "Todo", "icon": Icons.todo, "run": () => Runtime.todoOpen = true },
                 { "key": "h", "label": "Habits", "icon": Icons.habit, "run": () => Runtime.habitsOpen = true },

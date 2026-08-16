@@ -22,6 +22,7 @@ PanelWindow {
         { "id": "window", "label": "Fenster", "key": "f" },
         { "id": "region", "label": "Bereich", "key": "a" },
         { "id": "ocr", "label": "Text erkennen", "key": "t" },
+        { "id": "qr", "label": "QR-Code erkennen", "key": "q" },
         { "id": "record", "label": CaptureService.recording ? "Aufnahme beenden" : "Aufnahme starten", "key": "v" },
         { "id": "edit", "label": "Letztes bearbeiten", "key": "e" },
         { "id": "open", "label": "Ordner oeffnen", "key": "o" }
@@ -71,6 +72,9 @@ PanelWindow {
                 break;
             case "ocr":
                 CaptureService.ocr();
+                break;
+            case "qr":
+                CaptureService.qr();
                 break;
             case "record":
                 CaptureService.toggleRecording();

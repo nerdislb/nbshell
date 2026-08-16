@@ -13,6 +13,7 @@
 #
 #   capture.sh post      <pfad> <editor> <auto 0|1> <melden 0|1>
 #   capture.sh ocr       <pfad> <sprachen> <melden 0|1>
+#   capture.sh qr        <pfad> <melden 0|1>
 #   capture.sh edit-last <ordner> <editor>
 #   capture.sh open-dir  <ordner>
 #   capture.sh rec-start <ordner> <ton off|mic|desktop> <bereich 0|1> [args...]
@@ -132,6 +133,28 @@ cmd_ocr() {
 	printf '%s' "$text" | wl-copy
 	[[ $notify == 1 ]] && note "Text kopiert" "$(printf '%s' "$text" | head -c 140)" -t 5000
 	return 0
+}
+
+cmd_qr() {
+	local file="$1" notify="${2:-1}" value=""
+	wait_for_file "$file" || exit 0
+	sleep 0.4
+
+	if have zbarimg; then
+		value=$(zbarimg --quiet --raw "$file" 2>/dev/null | head -1)
+	elif have zxing; then
+		value=$(zxing "$file" 2>/dev/null | head -1)
+	else
+		rm -f "$file"
+		fail "QR-Decoder fehlt. Installieren: sudo pacman -S zbar"
+	fi
+	rm -f "$file"
+	if [[ -z ${value//[[:space:]]/} ]]; then
+		[[ $notify == 1 ]] && note "Kein QR-Code erkannt" "In der Auswahl wurde kein Code gefunden." -t 4000
+		return 1
+	fi
+	printf '%s' "$value" | wl-copy
+	[[ $notify == 1 ]] && note "QR-Inhalt kopiert" "$(printf '%s' "$value" | head -c 140)" -t 5000
 }
 
 cmd_edit_last() {
@@ -257,13 +280,14 @@ cmd_rec_stop() {
 case "${1:-}" in
 post) shift && cmd_post "$@" ;;
 ocr) shift && cmd_ocr "$@" ;;
+qr) shift && cmd_qr "$@" ;;
 edit-last) shift && cmd_edit_last "$@" ;;
 open-dir) shift && cmd_open_dir "$@" ;;
 rec-start) shift && cmd_rec_start "$@" ;;
 rec-stop) shift && cmd_rec_stop "$@" ;;
 rec-active) pgrep -x wf-recorder >/dev/null ;;
 *)
-	echo "Aufruf: $(basename "$0") post|ocr|edit-last|open-dir|rec-start|rec-stop|rec-active ..." >&2
+	echo "Aufruf: $(basename "$0") post|ocr|qr|edit-last|open-dir|rec-start|rec-stop|rec-active ..." >&2
 	exit 2
 	;;
 esac

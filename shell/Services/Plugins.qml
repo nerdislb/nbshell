@@ -30,6 +30,11 @@ Singleton {
     property var plugins: []
     property bool scanned: false
 
+    // Panels, Overlays und Dienste werden explizit eingeschaltet. Bar-Widgets
+    // bleiben wie bisher durch ihre Position in einer Leistenliste aktiviert.
+    readonly property var enabledIds: Config.value("enabledPlugins", [])
+    property var instances: ({})
+
     // Was fest eingebaut ist. Die Beschreibung steht hier und nicht im
     // Anordnen-Menue, damit beides -- eingebaut wie Plugin -- dieselbe Form
     // hat und die Liste dort nur noch anzeigen muss.
@@ -179,6 +184,12 @@ Singleton {
             "category": "System"
         },
         {
+            "id": "tailscale",
+            "name": "Tailscale",
+            "description": "Tailnet-Zustand, Online-Geraete und Adressen",
+            "category": "Netz"
+        },
+        {
             "id": "sep",
             "name": "Trenner",
             "description": "senkrechter Strich",
@@ -208,6 +219,26 @@ Singleton {
 
     readonly property var ids: catalog.map(e => e.id)
 
+    readonly property var runtimeEntries: {
+        const out = [];
+        for (var i = 0; i < root.plugins.length; i++) {
+            const plugin = root.plugins[i];
+            if (root.enabledIds.indexOf(plugin.id) < 0)
+                continue;
+            const kinds = plugin.kinds ?? [];
+            for (var j = 0; j < kinds.length; j++) {
+                const kind = kinds[j];
+                if (kind === "bar-widget")
+                    continue;
+                const key = kind === "panel" ? "panel" : (kind === "overlay" ? "overlay" : (kind === "service" ? "service" : ""));
+                const source = key !== "" && plugin.entryPoints ? (plugin.entryPoints[key] ?? "") : "";
+                if (source !== "")
+                    out.push({"id": plugin.id, "kind": kind, "source": "file://" + source});
+            }
+        }
+        return out;
+    }
+
     function entry(id) {
         for (var i = 0; i < root.catalog.length; i++)
             if (root.catalog[i].id === id)
@@ -230,6 +261,42 @@ Singleton {
     function source(id) {
         const e = entry(id);
         return e && e.entry ? "file://" + e.entry : "";
+    }
+
+    function registerInstance(id, kind, item) {
+        if (!item)
+            return;
+        const next = Object.assign({}, root.instances);
+        next[id + ":" + kind] = item;
+        root.instances = next;
+    }
+
+    function unregisterInstance(id, kind, item) {
+        const key = id + ":" + kind;
+        if (root.instances[key] !== item)
+            return;
+        const next = Object.assign({}, root.instances);
+        delete next[key];
+        root.instances = next;
+    }
+
+    function runtimeInstance(id) {
+        return root.instances[id + ":overlay"] ?? root.instances[id + ":panel"] ?? root.instances[id + ":service"] ?? null;
+    }
+
+    function invoke(id, verb, payload) {
+        const item = runtimeInstance(id);
+        if (!item)
+            return "Plugin nicht aktiv oder ohne Laufzeit-Einstiegspunkt: " + id;
+        if (typeof item[verb] !== "function")
+            return "Plugin " + id + " kennt " + verb + " nicht";
+        try {
+            const result = item[verb](payload ?? "{}");
+            return result === undefined ? id + ": " + verb : String(result);
+        } catch (e) {
+            console.warn("nbshell/plugins:", id, verb, "fehlgeschlagen —", e);
+            return id + ": Fehler bei " + verb;
+        }
     }
 
     function refresh() {
