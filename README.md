@@ -3261,13 +3261,26 @@ koennen gleichzeitig laufen — nbshell beansprucht bewusst keine D-Bus-Namen
 
 ## Was noch fehlt
 
-Der Reihe nach, wie es fuer den Alltag zaehlt:
+Die frueheren Alltagsluecken Bild-Zwischenablage und Anwendungslautstaerken
+sind seit dem Omarchy-4-Ausbau geschlossen. Sinnvolle naechste Ausbaustufen:
 
+- **Echtes Drag-and-drop im Module-Editor.** Maus geht bereits (Linksklick
+  schiebt nach rechts, Rechtsklick nach links), frei ziehen zwischen Positionen
+  und Gruppen fehlt noch.
+- **Tiefe System-Hub-Panels.** Der Hub zeigt Herdr, Syncthing, GitHub, Pacman,
+  CUPS und Ports heute als Status mit Detailaktion. Warteschlangen, einzelne
+  GitHub-Meldungen, Syncthing-Ordnerfehler und Port-Prozessdetails koennten
+  direkt in nbshell statt in Browser/Terminal erscheinen.
+- **Persistente Audio-Routen.** App-Lautstaerken sind da; die Ausgabe pro App
+  dauerhaft einem bestimmten Geraet zuzuordnen fehlt noch.
+- **Natives Equalizer-Panel.** EasyEffects ist aus dem Hub startbar; eine
+  eigene kleine PipeWire-Filteroberflaeche in nbshell gibt es nicht.
+- **Externe DDC-Helligkeit.** `ddcutil` ist installiert, aber ohne externen
+  Monitor und `/dev/i2c` derzeit nicht nutzbar. Das interne eDP-1 bleibt beim
+  robusten logind-Backlight-Pfad.
 - **Netz ohne NetworkManager** — nur dessen Backend ist angebunden.
-- **Bilder in der Zwischenablage** — der Verlauf kennt nur Text.
-- **Anwendungslautstaerken** — die Stroeme einzelner Programme.
-- **Sperrbildschirm** — hier wird bewusst nichts Eigenes gebaut; ein Fehler
-  darin sperrt dich aus. hyprlock tut es.
+- **Sperrbildschirm** — bewusst kein Eigenbau; ein Fehler darin sperrt aus.
+  hyprlock bleibt die sichere Zustaendigkeit.
 
 ## Lizenz
 
