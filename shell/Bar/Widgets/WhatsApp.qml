@@ -25,6 +25,14 @@ Cell {
             readonly property real rowWidth: 58 * Theme.cellW
             spacing: Theme.cellH * 0.25
 
+            function submit() {
+                if (WhatsApp.sendText(composer.text)) {
+                    composer.text = "";
+                    panel.draft = "";
+                    composer.forceActiveFocus();
+                }
+            }
+
             PanelHead {
                 rowWidth: panel.rowWidth
                 icon: root.icon
@@ -116,30 +124,57 @@ Cell {
                             elide: Text.ElideRight
                         }
                     }
-                    Rectangle {
+                    Row {
                         visible: WhatsApp.currentJid !== ""
-                        width: 35 * Theme.cellW; height: Theme.cellH * 1.8
-                        color: Theme.alpha(Theme.fg, 0.04)
-                        border.width: Theme.borderWidth; border.color: composer.activeFocus ? Theme.accent : Theme.fgDim
-                        radius: Theme.radius
-                        TextInput {
-                            id: composer
-                            anchors.fill: parent; anchors.margins: Theme.cellW * 0.6
-                            color: Theme.fg; selectionColor: Theme.selection
-                            font.family: Theme.fontFamily; font.pixelSize: Theme.fontSize
-                            verticalAlignment: TextInput.AlignVCenter
-                            clip: true
-                            text: panel.draft
-                            onTextChanged: panel.draft = text
-                            onAccepted: {
-                                if (WhatsApp.sendText(text)) {
-                                    text = "";
-                                    panel.draft = "";
-                                }
+                        width: 35 * Theme.cellW
+                        height: Theme.cellH * 1.8
+                        spacing: Theme.cellW
+
+                        Rectangle {
+                            width: 27 * Theme.cellW
+                            height: parent.height
+                            color: Theme.alpha(Theme.fg, 0.04)
+                            border.width: Theme.borderWidth
+                            border.color: composer.activeFocus ? Theme.accent : Theme.fgDim
+                            radius: Theme.radius
+
+                            TextInput {
+                                id: composer
+                                anchors.fill: parent; anchors.margins: Theme.cellW * 0.6
+                                color: Theme.fg; selectionColor: Theme.selection
+                                font.family: Theme.fontFamily; font.pixelSize: Theme.fontSize
+                                verticalAlignment: TextInput.AlignVCenter
+                                clip: true
+                                text: panel.draft
+                                onTextChanged: panel.draft = text
+                                onAccepted: panel.submit()
+                            }
+                        }
+
+                        Rectangle {
+                            width: 7 * Theme.cellW
+                            height: parent.height
+                            color: sendHover.hovered ? Theme.hover : "transparent"
+                            border.width: Theme.borderWidth
+                            border.color: panel.draft.trim() !== "" ? Theme.accent : Theme.fgDim
+                            radius: Theme.radius
+
+                            Line {
+                                anchors.centerIn: parent
+                                text: "senden"
+                                color: panel.draft.trim() !== "" ? Theme.accent : Theme.muted
+                            }
+                            HoverHandler {
+                                id: sendHover
+                                cursorShape: panel.draft.trim() !== "" ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            }
+                            TapHandler {
+                                enabled: panel.draft.trim() !== ""
+                                onTapped: panel.submit()
                             }
                         }
                     }
-                    Line { visible: WhatsApp.currentJid !== ""; text: "Enter sendet · Rechtsklick auf WA oeffnet Brave"; color: Theme.muted }
+                    Line { visible: WhatsApp.currentJid !== ""; text: "Enter oder senden · Rechtsklick auf WA oeffnet Brave"; color: Theme.muted }
                 }
             }
         }
