@@ -19,7 +19,9 @@ Cell {
     // Der Telefonzugang ist auch im getrennten Zustand wichtig: dauerhaft
     // sichtbar lassen, damit Verbinden und Fehlersuche immer erreichbar sind.
     quiet: false
-    slotChars: 4
+    // Keine pauschale Zeichenreserve: ohne Akkutext soll das Telefonsymbol
+    // exakt denselben Seitenabstand wie die benachbarten Symbolzellen haben.
+    slotChars: 0
     interactive: true
     label: "KDE"
     icon: String.fromCodePoint(0xF011C) // nf-md-cellphone
