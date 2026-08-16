@@ -7,7 +7,8 @@ import qs.Widgets
 
 // Der Gewohnheiten-Tracker (nbHabits) als Vollbild-Overlay-Fenster.
 //
-// Terminal-Aesthetik nach Vorbild von init.Habits:
+// nbshell-TUI statt App-Karten: dieselbe Zeichenraster-, Auswahl- und
+// Aktionssprache wie Aufgaben, Menues und System-Hub.
 // - GitHub-Style Heatmap Contribution Matrix (140 Tage / 20 Wochen)
 // - Routine-Filter (ALL, MORNING, WORKOUT, WORK, EVENING)
 // - Checkboxen, Counter-Stepper ([ - ], [ +1 ]), Streak-Anzeige (🔥 3d) und Schilde (🛡️)
@@ -122,13 +123,13 @@ PanelWindow {
 
         x: Math.round((parent.width - width) / 2)
         y: Math.round(parent.height * 0.10)
-        width: Math.min(parent.width - 40, 720)
-        height: Math.min(parent.height * 0.80, 800)
+        width: Math.min(parent.width - Theme.cellW * 8, Theme.cellW * 96)
+        height: Math.min(parent.height * 0.20 + Theme.cellH * 34, Theme.cellH * 44)
 
-        radius: Theme.radius + 2
+        radius: Theme.radius
         color: Theme.bg
-        border.width: 1
-        border.color: Theme.muted
+        border.width: Theme.borderWidth
+        border.color: Theme.accent
 
         DragHandler {
             acceptedModifiers: Qt.MetaModifier
@@ -143,31 +144,31 @@ PanelWindow {
 
         Column {
             anchors.fill: parent
-            anchors.margins: 18
-            spacing: 12
+            anchors.margins: Theme.cellW * 2
+            spacing: Theme.cellH * 0.55
 
             // ── Kopfbereich ────────────────────────────────────────────────
             Item {
                 width: parent.width
-                height: 24
+                height: Theme.cellH * 1.6
 
                 Row {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    spacing: 8
+                    spacing: Theme.cellW
 
                     Text {
-                        text: "[h]"
+                        text: Icons.habit
                         font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize + 1
+                        font.pixelSize: Theme.fontSize + 3
                         font.bold: true
                         color: Theme.accent
                     }
 
                     Text {
-                        text: "init.habits"
+                        text: "GEWOHNHEITEN"
                         font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize + 1
+                        font.pixelSize: Theme.fontSize + 3
                         font.bold: true
                         color: Theme.fg
                     }
@@ -176,15 +177,15 @@ PanelWindow {
                 Row {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    spacing: 10
+                    spacing: Theme.cellW
 
                     Rectangle {
-                        radius: 3
-                        color: Theme.alpha(Theme.accent, 0.15)
-                        border.width: 1
-                        border.color: Theme.accent
-                        width: themeLabel.width + 12
-                        height: 20
+                        radius: Theme.radius
+                        color: "transparent"
+                        border.width: Theme.borderWidth
+                        border.color: Theme.muted
+                        width: themeLabel.width + Theme.cellW * 1.5
+                        height: Theme.cellH * 1.4
                         anchors.verticalCenter: parent.verticalCenter
 
                         Text {
@@ -192,14 +193,13 @@ PanelWindow {
                             anchors.centerIn: parent
                             text: Config.theme.toUpperCase()
                             font.family: Theme.fontFamily
-                            font.pixelSize: 10
-                            font.bold: true
-                            color: Theme.accent
+                            font.pixelSize: Theme.fontSize - 1
+                            color: Theme.fgDim
                         }
                     }
 
                     Text {
-                        text: "[ × CLOSE ]"
+                        text: "[ ESC SCHLIESSEN ]"
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize - 1
                         font.bold: true
@@ -218,28 +218,24 @@ PanelWindow {
             // ── Status & Fortschrittsbalken ────────────────────────────────
             Rectangle {
                 width: parent.width
-                height: 54
-                radius: Theme.radius
-                color: Theme.bgDark
-                border.width: 1
-                border.color: Theme.alpha(Theme.fg, 0.12)
+                height: Theme.cellH * 3.4
+                color: "transparent"
 
                 Column {
                     anchors.fill: parent
-                    anchors.margins: 8
-                    spacing: 4
+                    spacing: Theme.cellH * 0.15
 
                     Item {
                         width: parent.width
-                        height: 16
+                        height: Theme.cellH
 
                         Text {
                             anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "$ status --today // " + Habits.todayString
+                            text: "STATUS  ·  " + Habits.todayString
                             font.family: Theme.fontFamily
-                            font.pixelSize: 11
-                            color: Theme.cyan
+                            font.pixelSize: Theme.fontSize
+                            color: Theme.fgDim
                         }
 
                         Text {
@@ -247,30 +243,27 @@ PanelWindow {
                             anchors.verticalCenter: parent.verticalCenter
                             text: root.shortPath !== "" ? root.shortPath : "Sync aktiv"
                             font.family: Theme.fontFamily
-                            font.pixelSize: 10
+                            font.pixelSize: Theme.fontSize - 1
                             color: Theme.fgDim
                         }
                     }
 
                     Text {
-                        text: Habits.doneCount + " of " + Habits.count + " COMPLETED (" + Habits.progressPercent + "%)"
+                        text: Habits.doneCount + " / " + Habits.count + " ERLEDIGT  ·  " + Habits.progressPercent + "%"
                         font.family: Theme.fontFamily
-                        font.pixelSize: 12
-                        font.bold: true
+                        font.pixelSize: Theme.fontSize
                         color: Habits.progressPercent >= 100 ? Theme.green : Theme.accent
                     }
 
                     // Progress Bar
                     Rectangle {
                         width: parent.width
-                        height: 4
-                        radius: 2
-                        color: Theme.alpha(Theme.fg, 0.15)
+                        height: Theme.borderWidth
+                        color: Theme.muted
 
                         Rectangle {
                             width: Math.round(parent.width * (Habits.progressPercent / 100.0))
                             height: parent.height
-                            radius: 2
                             color: Habits.progressPercent >= 100 ? Theme.green : Theme.accent
                         }
                     }
@@ -280,34 +273,30 @@ PanelWindow {
             // ── Contribution Matrix Heatmap ────────────────────────────────
             Rectangle {
                 width: parent.width
-                height: 110
-                radius: Theme.radius
-                color: Theme.bgDark
-                border.width: 1
-                border.color: Theme.alpha(Theme.fg, 0.12)
+                height: Theme.cellH * 6.2
+                color: "transparent"
 
                 Column {
                     anchors.fill: parent
-                    anchors.margins: 8
-                    spacing: 6
+                    spacing: Theme.cellH * 0.35
 
                     Item {
                         width: parent.width
-                        height: 16
+                        height: Theme.cellH
 
                         Text {
                             anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "$ matrix --heatmap // 20-WEEK CONTRIBUTION MATRIX"
+                            text: "VERLAUF  ·  20 WOCHEN"
                             font.family: Theme.fontFamily
                             font.pixelSize: 10
-                            color: Theme.cyan
+                            color: Theme.fgDim
                         }
 
                         Text {
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "less ░ ▒ ▓ █ more"
+                            text: "WENIG  ░ ▒ ▓ █  VIEL"
                             font.family: Theme.fontFamily
                             font.pixelSize: 9
                             color: Theme.fgDim
@@ -317,8 +306,8 @@ PanelWindow {
                     Grid {
                         columns: 20
                         rows: 7
-                        rowSpacing: 3
-                        columnSpacing: 3
+                        rowSpacing: Math.max(2, Math.round(Theme.cellH * 0.14))
+                        columnSpacing: Math.max(2, Math.round(Theme.cellW * 0.35))
                         flow: Grid.TopToBottom
 
                         Repeater {
@@ -327,9 +316,9 @@ PanelWindow {
                             Rectangle {
                                 required property var modelData
 
-                                width: 9
-                                height: 9
-                                radius: 1
+                                width: Math.max(7, Math.round(Theme.cellW * 0.75))
+                                height: Math.max(7, Math.round(Theme.cellH * 0.48))
+                                radius: 0
 
                                 color: {
                                     if (modelData.level === 4) return Theme.accent;
@@ -349,15 +338,15 @@ PanelWindow {
             // ── Routine Tabs ───────────────────────────────────────────────
             Row {
                 width: parent.width
-                spacing: 6
+                spacing: Theme.cellW * 0.5
 
                 readonly property var routines: [
-                    { id: "all", label: "📋 ALL" },
-                    { id: "morning", label: "🌅 MORNING" },
-                    { id: "workout", label: "💪 WORKOUT" },
-                    { id: "work", label: "💻 WORK" },
-                    { id: "evening", label: "🌙 EVENING" },
-                    { id: "general", label: "✨ GENERAL" }
+                    { id: "all", label: "ALLE" },
+                    { id: "morning", label: "MORGEN" },
+                    { id: "workout", label: "TRAINING" },
+                    { id: "work", label: "ARBEIT" },
+                    { id: "evening", label: "ABEND" },
+                    { id: "general", label: "ALLGEMEIN" }
                 ]
 
                 Repeater {
@@ -366,21 +355,19 @@ PanelWindow {
                     Rectangle {
                         required property var modelData
 
-                        width: tabText.width + 16
-                        height: 24
+                        width: tabText.width + Theme.cellW * 2
+                        height: Theme.cellH * 1.45
                         radius: Theme.radius
-                        color: root.selectedRoutine === modelData.id ? Theme.alpha(Theme.accent, 0.2) : "transparent"
-                        border.width: 1
-                        border.color: root.selectedRoutine === modelData.id ? Theme.accent : Theme.alpha(Theme.fg, 0.15)
+                        color: root.selectedRoutine === modelData.id ? Theme.selection : "transparent"
+                        border.width: 0
 
                         Text {
                             id: tabText
                             anchors.centerIn: parent
-                            text: modelData.label
+                            text: "[ " + modelData.label + " ]"
                             font.family: Theme.fontFamily
-                            font.pixelSize: 10
-                            font.bold: root.selectedRoutine === modelData.id
-                            color: root.selectedRoutine === modelData.id ? Theme.accent : Theme.fgDim
+                            font.pixelSize: Theme.fontSize - 1
+                            color: root.selectedRoutine === modelData.id ? Theme.on(Theme.selection) : Theme.fgDim
                         }
 
                         MouseArea {
@@ -399,10 +386,14 @@ PanelWindow {
             ListView {
                 id: habitList
                 width: parent.width
-                height: parent.height - 330
+                // Der Rest der Spalte belegt rund 17,7 Textzeilen. So bleibt
+                // die Eingabe auch auf kleineren Displays innerhalb des
+                // Rahmens, statt unter ihm zu verschwinden.
+                height: Math.max(Theme.cellH * 4, parent.height - Theme.cellH * 17.7)
                 clip: true
-                spacing: 6
+                spacing: 0
                 model: root.filteredHabits
+                boundsBehavior: Flickable.StopAtBounds
 
                 delegate: Rectangle {
                     id: row
@@ -415,11 +406,8 @@ PanelWindow {
                     readonly property var streakData: Habits.calculateStreak(modelData.id)
 
                     width: habitList.width
-                    height: 54
-                    radius: Theme.radius
-                    color: root.selected === index ? Theme.hover : Theme.bgDark
-                    border.width: 1
-                    border.color: isDone ? Theme.green : (root.selected === index ? Theme.accent : Theme.alpha(Theme.fg, 0.12))
+                    height: Theme.cellH * 2.5
+                    color: root.selected === index ? Theme.selection : "transparent"
 
                     MouseArea {
                         anchors.fill: parent
@@ -428,22 +416,32 @@ PanelWindow {
 
                     Row {
                         anchors.left: parent.left
-                        anchors.leftMargin: 10
+                        anchors.leftMargin: Theme.cellW * 0.5
                         anchors.right: actionRow.left
                         anchors.rightMargin: 10
                         anchors.verticalCenter: parent.verticalCenter
-                        spacing: 10
+                        spacing: Theme.cellW
+
+                        Text {
+                            text: root.selected === index ? "▸" : " "
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSize
+                            color: root.selected === index ? Theme.on(Theme.selection) : Theme.accent
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
 
                         // Icon
                         Text {
-                            text: modelData.icon || "✨"
-                            font.pixelSize: 16
+                            text: row.isDone ? "[x]" : "[ ]"
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSize
+                            color: row.isDone ? Theme.green : (root.selected === index ? Theme.on(Theme.selection) : Theme.fgDim)
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
                         // Info Spalte
                         Column {
-                            width: parent.width - 40
+                            width: parent.width - Theme.cellW * 7
                             anchors.verticalCenter: parent.verticalCenter
                             spacing: 3
 
@@ -452,33 +450,32 @@ PanelWindow {
                                 Text {
                                     text: modelData.name
                                     font.family: Theme.fontFamily
-                                    font.pixelSize: 12
-                                    font.bold: true
+                                    font.pixelSize: Theme.fontSize
                                     font.strikeout: row.isDone
-                                    color: row.isDone ? Theme.fgDim : Theme.fg
+                                    color: row.isDone ? Theme.muted : (root.selected === index ? Theme.on(Theme.selection) : Theme.fg)
                                     elide: Text.ElideRight
                                     width: Math.min(implicitWidth, 260)
                                 }
 
                                 Text {
-                                    text: "// " + (modelData.routine || "all")
+                                    text: "· " + String(modelData.routine || "all").toUpperCase()
                                     font.family: Theme.fontFamily
                                     font.pixelSize: 10
-                                    color: Theme.cyan
+                                    color: root.selected === index ? Theme.on(Theme.selection) : Theme.fgDim
                                 }
 
                                 Text {
-                                    text: "🔥 " + row.streakData.current + "d"
+                                    text: "SERIE " + row.streakData.current + "T"
                                     font.family: Theme.fontFamily
                                     font.pixelSize: 10
-                                    color: Theme.yellow
+                                    color: root.selected === index ? Theme.on(Theme.selection) : Theme.yellow
                                 }
 
                                 Text {
-                                    text: "🛡️ " + (modelData.shields || 2)
+                                    text: "SCHILD " + (modelData.shields || 2)
                                     font.family: Theme.fontFamily
                                     font.pixelSize: 10
-                                    color: Theme.fgDim
+                                    color: root.selected === index ? Theme.on(Theme.selection) : Theme.fgDim
                                 }
                             }
 
@@ -490,7 +487,7 @@ PanelWindow {
                                     text: row.curVal + " / " + modelData.targetValue + " " + (modelData.unit || "")
                                     font.family: Theme.fontFamily
                                     font.pixelSize: 10
-                                    color: Theme.fgDim
+                                    color: root.selected === index ? Theme.on(Theme.selection) : Theme.fgDim
                                 }
                             }
                         }
@@ -500,27 +497,24 @@ PanelWindow {
                     Row {
                         id: actionRow
                         anchors.right: parent.right
-                        anchors.rightMargin: 10
+                        anchors.rightMargin: Theme.cellW * 0.5
                         anchors.verticalCenter: parent.verticalCenter
-                        spacing: 6
+                        spacing: Theme.cellW * 0.5
 
                             // Stepper fuer Counter: [ - ] und [ +1 ]
                             Rectangle {
                                 visible: modelData.mode === "COUNTER"
-                                width: 28
-                                height: 26
-                                radius: 3
-                                color: Theme.bg
-                                border.width: 1
-                                border.color: Theme.muted
+                                width: Theme.cellW * 4
+                                height: Theme.cellH * 1.5
+                                color: "transparent"
 
                                 Text {
                                     anchors.centerIn: parent
-                                    text: "-"
+                                    text: "[ - ]"
                                     font.family: Theme.fontFamily
                                     font.bold: true
                                     font.pixelSize: 13
-                                    color: Theme.fg
+                                    color: root.selected === index ? Theme.on(Theme.selection) : Theme.fgDim
                                 }
 
                                 MouseArea {
@@ -532,20 +526,17 @@ PanelWindow {
 
                             Rectangle {
                                 visible: modelData.mode === "COUNTER"
-                                width: 36
-                                height: 26
-                                radius: 3
-                                color: Theme.alpha(Theme.accent, 0.2)
-                                border.width: 1
-                                border.color: Theme.accent
+                                width: Theme.cellW * 5
+                                height: Theme.cellH * 1.5
+                                color: "transparent"
 
                                 Text {
                                     anchors.centerIn: parent
-                                    text: "+1"
+                                    text: "[ +1 ]"
                                     font.family: Theme.fontFamily
                                     font.bold: true
                                     font.pixelSize: 11
-                                    color: Theme.accent
+                                    color: root.selected === index ? Theme.on(Theme.selection) : Theme.accent
                                 }
 
                                 MouseArea {
@@ -558,20 +549,17 @@ PanelWindow {
                             // Dauer-Schnellknoepfe
                             Rectangle {
                                 visible: modelData.mode === "DURATION"
-                                width: 44
-                                height: 26
-                                radius: 3
-                                color: Theme.alpha(Theme.accent, 0.2)
-                                border.width: 1
-                                border.color: Theme.accent
+                                width: Theme.cellW * 6
+                                height: Theme.cellH * 1.5
+                                color: "transparent"
 
                                 Text {
                                     anchors.centerIn: parent
-                                    text: "+15m"
+                                    text: "[ +15m ]"
                                     font.family: Theme.fontFamily
                                     font.bold: true
                                     font.pixelSize: 10
-                                    color: Theme.accent
+                                    color: root.selected === index ? Theme.on(Theme.selection) : Theme.accent
                                 }
 
                                 MouseArea {
@@ -586,20 +574,17 @@ PanelWindow {
                             // (ersetzt fuer diesen Modus die Checkbox).
                             Rectangle {
                                 visible: modelData.mode === "TIMER"
-                                width: 92
-                                height: 26
-                                radius: 3
-                                color: row.isDone ? Theme.alpha(Theme.magenta, 0.35) : Theme.alpha(Theme.magenta, 0.2)
-                                border.width: 1
-                                border.color: Theme.magenta
+                                width: Theme.cellW * 11
+                                height: Theme.cellH * 1.5
+                                color: "transparent"
 
                                 Text {
                                     anchors.centerIn: parent
-                                    text: row.isDone ? "[ ⏱ DONE ]" : "[ ▶ FOCUS ]"
+                                    text: row.isDone ? "[ FOKUS ✓ ]" : "[ FOKUS ]"
                                     font.family: Theme.fontFamily
                                     font.bold: true
                                     font.pixelSize: 10
-                                    color: Theme.magenta
+                                    color: root.selected === index ? Theme.on(Theme.selection) : Theme.magenta
                                 }
 
                                 MouseArea {
@@ -612,20 +597,17 @@ PanelWindow {
                             // Checkbox Button
                             Rectangle {
                                 visible: modelData.mode !== "TIMER"
-                                width: row.isDone ? 74 : 64
-                                height: 26
-                                radius: 3
-                                color: row.isDone ? Theme.alpha(Theme.green, 0.2) : Theme.bg
-                                border.width: 1
-                                border.color: row.isDone ? Theme.green : Theme.muted
+                                width: Theme.cellW * 9
+                                height: Theme.cellH * 1.5
+                                color: "transparent"
 
                                 Text {
                                     anchors.centerIn: parent
-                                    text: row.isDone ? "[ ✔ DONE ]" : "[ DONE ]"
+                                    text: row.isDone ? "[ ERLEDIGT ]" : "[ ERLEDIGEN ]"
                                     font.family: Theme.fontFamily
                                     font.bold: true
                                     font.pixelSize: 10
-                                    color: row.isDone ? Theme.green : Theme.fg
+                                    color: root.selected === index ? Theme.on(Theme.selection) : (row.isDone ? Theme.green : Theme.fgDim)
                                 }
 
                                 MouseArea {
@@ -637,10 +619,10 @@ PanelWindow {
 
                             // Delete Button
                             Text {
-                                text: "×"
+                                text: "[ × ]"
                                 font.family: Theme.fontFamily
                                 font.pixelSize: 14
-                                color: Theme.red
+                                color: root.selected === index ? Theme.on(Theme.selection) : Theme.red
                                 anchors.verticalCenter: parent.verticalCenter
 
                                 MouseArea {
@@ -656,18 +638,18 @@ PanelWindow {
             // ── Eingabezeile fuer neue Gewohnheiten ─────────────────────────
             Rectangle {
                 width: parent.width
-                height: 38
+                height: Theme.cellH * 2.2
                 radius: Theme.radius
-                color: Theme.bgDark
-                border.width: 1
-                border.color: input.activeFocus ? Theme.accent : Theme.alpha(Theme.fg, 0.15)
+                color: "transparent"
+                border.width: Theme.borderWidth
+                border.color: input.activeFocus ? Theme.accent : Theme.muted
 
                 Text {
                     id: prompt
                     anchors.left: parent.left
-                    anchors.leftMargin: 12
+                    anchors.leftMargin: Theme.cellW
                     anchors.verticalCenter: parent.verticalCenter
-                    text: ">"
+                    text: "> "
                     font.family: Theme.fontFamily
                     font.pixelSize: 13
                     font.bold: true
@@ -677,9 +659,9 @@ PanelWindow {
                 TextInput {
                     id: input
                     anchors.left: prompt.right
-                    anchors.leftMargin: 8
+                    anchors.leftMargin: Theme.cellW * 0.5
                     anchors.right: hintText.left
-                    anchors.rightMargin: 12
+                    anchors.rightMargin: Theme.cellW
                     anchors.verticalCenter: parent.verticalCenter
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize
@@ -709,7 +691,7 @@ PanelWindow {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
                         visible: input.text === ""
-                        text: "Neue Gewohnheit eintragen (z.B. joggen // workout)..."
+                        text: "neue Gewohnheit, optional // routine"
                         font.family: Theme.fontFamily
                         font.pixelSize: 11
                         color: Theme.fgDim
@@ -719,9 +701,9 @@ PanelWindow {
                 Text {
                     id: hintText
                     anchors.right: parent.right
-                    anchors.rightMargin: 12
+                    anchors.rightMargin: Theme.cellW
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "↵ Hinzufuegen"
+                    text: "[ ENTER ]"
                     font.family: Theme.fontFamily
                     font.pixelSize: 10
                     color: Theme.accent
