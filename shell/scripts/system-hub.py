@@ -2,6 +2,7 @@
 """On-demand status collection for nbshell's system hub."""
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -30,15 +31,25 @@ def count_lines(text):
     return len([line for line in text.splitlines() if line.strip()])
 
 
+def executable(name):
+    """Resolve user tools even when systemd's manager PATH omits ~/.local/bin."""
+    found = shutil.which(name)
+    if found:
+        return found
+    local = Path.home() / ".local" / "bin" / name
+    return str(local) if local.is_file() and os.access(local, os.X_OK) else ""
+
+
 def collect():
     groups = []
 
     agents = []
-    if shutil.which("herdr"):
-        code, out, err = run("herdr", "agent", "list", "--json")
+    herdr = executable("herdr")
+    if herdr:
+        code, out, err = run(herdr, "agent", "list", "--json")
         if code != 0:
-            code, out, err = run("herdr", "agent", "list")
-        agents.append(item("herdr", "Herdr", f"{count_lines(out)} Eintraege" if code == 0 else (err or "nicht erreichbar"), "ok" if code == 0 else "warn", "herdr agent list"))
+            code, out, err = run(herdr, "agent", "list")
+        agents.append(item("herdr", "Herdr", f"{count_lines(out)} Eintraege" if code == 0 else (err or "nicht erreichbar"), "ok" if code == 0 else "warn", f"{herdr} agent list"))
     else:
         agents.append(item("herdr", "Herdr", "nicht installiert", "off"))
     hook_tool = Path(__file__).with_name("codex-hooks.py")
