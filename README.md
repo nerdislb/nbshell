@@ -1032,9 +1032,9 @@ aber vor dem Umstieg gehoert `hyprlock` (oder etwas anderes) installiert.
 
 ## System-Tray
 
-Der Baustein `tray` ist **eingeklappt voreingestellt**: dort steht dann nur ein
-Pfeil mit der Anzahl (`▸3`). Fuenf bunte Programmsymbole dauerhaft in einer
-Textleiste sind das Lauteste, was sie zu bieten hat. Ein Klick auf den Pfeil
+Der Baustein `tray` ist **eingeklappt voreingestellt**: dort steht dann nur `>`;
+aufgeklappt wird daraus `<`. Auf einen App-Zaehler wird bewusst verzichtet, weil
+die Symbole im offenen Zustand selbst sichtbar sind. Ein Klick auf das Zeichen
 klappt sie aus, `nbshell tray toggle` tut dasselbe, und der Zustand steht in der
 Config -- er ueberlebt den Neustart.
 

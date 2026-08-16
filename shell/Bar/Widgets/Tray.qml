@@ -14,9 +14,9 @@ import qs.Widgets
 // Links startet, Mitte ist die zweite Aktion des Programms, rechts oeffnet
 // dessen Menue. Genau das erwartet ein SNI-Programm.
 //
-// Eingeklappt steht nur ein Pfeil mit der Anzahl da -- fuenf bunte Symbole
-// dauerhaft in einer Textleiste sind das Lauteste, was sie zu bieten hat. Der
-// Zustand steht in der Config und ueberlebt damit den Neustart.
+// Eingeklappt steht nur ein schlichtes `>` da. Aufgeklappt wird es zu `<` --
+// die Anzahl ist unwichtig, weil die Symbole selbst direkt daneben erscheinen.
+// Der Zustand steht in der Config und ueberlebt damit den Neustart.
 Cell {
     id: root
 
@@ -35,12 +35,12 @@ Cell {
     Row {
         spacing: Theme.cellW / 2
 
-        // Der Pfeil klappt auf und zu; eingeklappt steht die Anzahl daneben.
+        // Der Pfeil zeigt zugleich Aktion und Zustand, ohne einen Zaehler.
         Line {
             id: toggle
 
             anchors.verticalCenter: parent.verticalCenter
-            text: root.expanded ? "▾" : ("▸" + root.items.length)
+            text: root.expanded ? "<" : ">"
             color: Theme.textDim
 
             MouseArea {
