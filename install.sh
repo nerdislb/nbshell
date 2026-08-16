@@ -65,6 +65,7 @@ missing_optional="$(
     optional_check headsetcontrol "Headset-Akku"             "headsetcontrol"
     optional_check qrencode      "WLAN als QR-Code"          "qrencode"
     optional_check speedtest-cli "Durchsatz messen"          "speedtest-cli"
+    optional_check magick        "Kontrast transparenter Bar" "imagemagick"
     optional_check tte           "Bildschirmschoner: 39 Effekte statt 10" "python-terminaltexteffects (AUR)"
 )"
 if [ -n "$missing_optional" ]; then

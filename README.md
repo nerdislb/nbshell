@@ -417,6 +417,13 @@ Hintergrund transparent und wieder sichtbar. Der Zustand bleibt in
 verloren. `Shift` + Linksklick-Ziehen bleibt weiterhin fuer den Wechsel der
 Bildschirmkante reserviert.
 
+Im transparenten Zustand prueft nbshell wie Omarchy 4 nicht gegen eine
+angenommene dunkle oder helle Flaeche: ImageMagick schneidet aus dem skalierten
+Wallpaper genau den Streifen hinter der Bar aus und bildet dessen mittlere
+Farbe. Normaler Text wechselt danach zwischen Vorder- und Hintergrundfarbe des
+Themes; Akzentrollen werden per WCAG-Kontrast lesbar gezogen. Bei fehlendem
+Bild oder ImageMagick bleibt die normale Themefarbe als sichere Rueckfallebene.
+
 ## Themes — omarchy2dms, hier eingebaut
 
 Umrechnen muss nbshell nichts: es liest Omarchys `colors.toml` direkt, es gibt

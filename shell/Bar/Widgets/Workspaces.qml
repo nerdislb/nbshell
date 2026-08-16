@@ -49,7 +49,7 @@ Cell {
     function colorFor(w) {
         if (w.is_urgent)
             return Theme.red;
-        return w.is_active ? Theme.accent : Theme.fgDim;
+        return w.is_active ? Theme.barAccent : Theme.barFgDim;
     }
 
     custom: true

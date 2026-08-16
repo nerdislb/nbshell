@@ -11,7 +11,7 @@ Cell {
     icon: Icons.palette
     // Wie beim Netz: das Symbol reicht, der Name steht in der Liste.
     text: Config.widgetIcons ? "" : Config.theme
-    color: Theme.accent
+    color: Theme.barAccent
     interactive: true
 
     onWheel: delta => ThemeIndex.step(delta > 0 ? -1 : 1)

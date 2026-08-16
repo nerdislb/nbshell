@@ -22,7 +22,7 @@ Cell {
     label: "KDE"
     icon: String.fromCodePoint(0xF011C) // nf-md-cellphone
     text: (root.dev && root.dev.capabilities.battery && root.dev.charge >= 0) ? (root.dev.charge + "%") : ""
-    color: root.linked ? (root.dev.capabilities.battery && root.dev.charge >= 0 && root.dev.charge <= 15 ? Theme.red : Theme.accent) : Theme.textDim
+    color: root.linked ? (root.dev.capabilities.battery && root.dev.charge >= 0 && root.dev.charge <= 15 ? Theme.red : Theme.barAccent) : Theme.textDim
 
     onClicked: Kdeconnect.refresh()
 

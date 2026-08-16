@@ -40,6 +40,12 @@ Singleton {
     readonly property color muted: c.muted ?? "#414868"
     readonly property color selection: c.selection ?? bgLight
 
+    // Beim transparenten Balken ist nicht `bg`, sondern das Wallpaper die
+    // wirkliche Flaeche. Bar.qml aktualisiert diese Probe aus genau dem
+    // Bildstreifen hinter der Leiste (Omarchy-4-Verfahren).
+    property color transparentBarSurface: bg
+    readonly property color barSurface: Config.barTransparent ? transparentBarSurface : bg
+
     // Flaeche unter der Maus. NICHT `selection` nehmen: das ist die Farbe fuer
     // markierten Text und in manchen Themes fast weiss (dos-moos: #A5B5AB).
     // Als Hoverflaeche in der Leiste blendet sie, und jede Schrift darauf muss
@@ -108,6 +114,9 @@ Singleton {
     }
 
     readonly property color accent: roleColor(root.accentRole)
+    readonly property color barFg: Config.barTransparent ? on(barSurface) : fg
+    readonly property color barFgDim: Config.barTransparent ? readable(mix(barFg, barSurface, 0.45), barSurface, 3.0) : fgDim
+    readonly property color barAccent: Config.barTransparent ? readable(accent, barSurface, 4.5) : accent
 
     // Farbe der Bausteine in der Leiste: entweder der normale Vordergrund
     // oder der Akzent des Themes. Warnfarben (leerer Akku, hohe Last) bleiben
@@ -116,13 +125,13 @@ Singleton {
     // Durch `readable` gedreht: ein Akzent, der auf dem Hintergrund des Themes
     // kaum zu lesen waere, wird so weit aufgehellt oder abgedunkelt, bis er es
     // ist. Die Farbe bleibt die des Themes, nur eben lesbar.
-    readonly property color text: Config.value("widgetColor", "text") === "accent" ? readable(accent, bg, 4.5) : fg
+    readonly property color text: Config.value("widgetColor", "text") === "accent" ? readable(accent, barSurface, 4.5) : barFg
 
     // Die gedaempfte Fassung muss WIRKLICH gedaempft sein. `readable(accent)`
     // liefert auf dunklem Grund einfach wieder den Akzent -- damit sahen in der
     // Leiste Nebensaechliches und Wichtiges gleich aus, und die Abstufung war
     // weg. Also erst zum Hintergrund ziehen, dann auf Lesbarkeit pruefen.
-    readonly property color textDim: Config.value("widgetColor", "text") === "accent" ? readable(mix(accent, bg, 0.45), bg, 3.0) : fgDim
+    readonly property color textDim: Config.value("widgetColor", "text") === "accent" ? readable(mix(accent, barSurface, 0.45), barSurface, 3.0) : barFgDim
 
     function alpha(color, a) {
         return Qt.rgba(color.r, color.g, color.b, a);

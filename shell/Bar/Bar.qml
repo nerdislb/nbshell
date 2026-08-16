@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import qs.Common
 import qs.Services
@@ -45,6 +46,55 @@ Variants {
         readonly property bool expanded: barMode || pillMode || Runtime.islandOpen || hovering
         property bool hovering: false
         property real edgeDragY: 0
+        readonly property string wallpaperSource: Config.value("wallpaperOverride", "") || (ThemeIndex.current?.wallpaper ?? "")
+
+        function refreshTransparentContrast() {
+            if (!Config.barTransparent || !Config.wallpaperEnabled || !wallpaperSource) {
+                Theme.transparentBarSurface = Theme.bg;
+                return;
+            }
+            contrastTimer.restart();
+        }
+
+        onWallpaperSourceChanged: refreshTransparentContrast()
+        onWidthChanged: refreshTransparentContrast()
+        onHeightChanged: refreshTransparentContrast()
+        Component.onCompleted: refreshTransparentContrast()
+
+        Connections {
+            target: Config
+            function onBarTransparentChanged() { win.refreshTransparentContrast(); }
+            function onWallpaperEnabledChanged() { win.refreshTransparentContrast(); }
+            function onEdgeChanged() { win.refreshTransparentContrast(); }
+        }
+
+        Timer {
+            id: contrastTimer
+            interval: 120
+            onTriggered: {
+                if (contrastProc.running)
+                    return;
+                contrastProc.command = [
+                    Qt.resolvedUrl("../scripts/bar-wallpaper-sample.sh").toString().replace("file://", ""),
+                    Config.edge,
+                    String(Theme.barHeight),
+                    String(Math.round(win.modelData?.width ?? win.width)) + "x" + String(Math.round(win.modelData?.height ?? win.height)),
+                    win.wallpaperSource
+                ];
+                contrastProc.running = true;
+            }
+        }
+
+        Process {
+            id: contrastProc
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    const sample = text.trim();
+                    if (/^#[0-9A-Fa-f]{6}$/.test(sample))
+                        Theme.transparentBarSurface = sample;
+                }
+            }
+        }
 
         // Die Pille wird beim Regeln fuer zwei Sekunden selbst zur Einblendung.
         // Sie hat dafuer schon alles: zwei Reihen, die einander ueberblenden,

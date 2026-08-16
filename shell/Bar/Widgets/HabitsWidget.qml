@@ -16,7 +16,7 @@ Cell {
     label: "HABITS"
     icon: Icons.habit
     text: Habits.doneCount + "/" + Habits.count
-    color: Habits.progressPercent >= 100 ? Theme.green : (Habits.doneCount > 0 ? Theme.accent : Theme.textDim)
+    color: Habits.progressPercent >= 100 ? Theme.green : (Habits.doneCount > 0 ? Theme.barAccent : Theme.textDim)
 
     onRightClicked: Runtime.habitsOpen = true
 

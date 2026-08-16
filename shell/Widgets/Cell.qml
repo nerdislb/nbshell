@@ -46,7 +46,7 @@ Item {
     // Ein Baustein blendet sich hierueber aus, nicht ueber `visible` -- siehe
     // die Erklaerung in Bar/WidgetHost.qml.
     property bool shown: true
-    property color color: Theme.fg
+    property color color: Theme.barFg
     property bool interactive: false
 
     // Klappt beim Klick auf. Der Inhalt bekommt `closePopout` gesetzt.
@@ -176,7 +176,7 @@ Item {
         if (!dim && !Qt.colorEqual(root.color, Theme.text))
             return root.color;
         const tinted = Theme.roleColor(role);
-        return dim ? Theme.readable(Theme.mix(tinted, Theme.bg, 0.45), Theme.bg, 3.0) : Theme.readable(tinted, Theme.bg, 4.5);
+        return dim ? Theme.readable(Theme.mix(tinted, Theme.barSurface, 0.45), Theme.barSurface, 3.0) : Theme.readable(tinted, Theme.barSurface, 4.5);
     }
 
     readonly property real contentWidth: Math.max(custom ? contentItem.childrenRect.width : line.implicitWidth, root.slotChars * Theme.cellW)
