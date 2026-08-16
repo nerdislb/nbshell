@@ -1,15 +1,5 @@
-// Tastenkuerzel, die DMS gehoeren -- und die nbshell uebernimmt, sobald DMS
-// weicht. Wird von `nbshell switch on` als LETZTER Include in die
-// niri-Config eingehaengt und von `nbshell switch off` wieder entfernt.
-//
-// Warum ueberhaupt: dms/binds.kdl belegt Mod+Space, Mod+N und weitere mit
-// `spawn "dms" …`. Laeuft DMS nicht mehr, laufen diese Tasten ins Leere --
-// niri startet brav einen Befehl, der nichts tut.
-//
-// Was hier NICHT steht, weil nbshell es nicht kann und die DMS-Binds dafuer
-// tot bleiben:
-//
-//   Mod+Shift+N  Notizblock
+// Eigenstaendige nbshell-Tastenkuerzel. `nbshell switch on` bindet diese
+// Datei in niris config.kdl ein; `switch off` entfernt den Include wieder.
 //
 // Der Sperrbildschirm (Mod+Alt+L) zeigt auf `nbshell power lock` und damit auf
 // `lockCommand` aus der Config -- Vorgabe hyprlock. Ist keiner installiert,
@@ -39,10 +29,10 @@ binds {
     Mod+Alt+A hotkey-overlay-title="nbshell: Fokus & Equalizer" { spawn "sh" "-c" "$HOME/.local/bin/nbshell audio tools"; }
     Mod+Escape hotkey-overlay-title="nbshell: Sitzung" { spawn "sh" "-c" "$HOME/.local/bin/nbshell power menu"; }
 
-    // DMS: notification center -> nbshells Archiv.
+    // Benachrichtigungsarchiv.
     Mod+N hotkey-overlay-title="nbshell: Benachrichtigungen" { spawn "sh" "-c" "$HOME/.local/bin/nbshell notify center"; }
 
-    // DMS: Wallpaper-Browser -> nbshells Karussell.
+    // Hintergrund-Karussell.
     Mod+Y hotkey-overlay-title="nbshell: Hintergrund" { spawn "sh" "-c" "$HOME/.local/bin/nbshell wallpaper pick"; }
 
     // Kein DMS-Erbe, sondern neu: die Aufgabenliste. Mod+T war als einzige
@@ -64,37 +54,30 @@ binds {
     // oben kommt man weiterhin mit Mod+Pfeil-hoch.
     Mod+K hotkey-overlay-title="nbshell: Tastenkuerzel" { spawn "sh" "-c" "$HOME/.local/bin/nbshell keys"; }
 
-    // DMS: settings -> nbshells Optionsmenue.
+    // Optionsmenue.
     Mod+Comma hotkey-overlay-title="nbshell: Einstellungen" { spawn "sh" "-c" "$HOME/.local/bin/nbshell settings"; }
 
-    // DMS: clipboard -> nbshells Verlauf.
+    // Zwischenablageverlauf.
     Mod+V hotkey-overlay-title="nbshell: Zwischenablage" { spawn "sh" "-c" "$HOME/.local/bin/nbshell clip toggle"; }
 
-    // DMS: powermenu -> nbshells Sitzungsmenue.
+    // Sitzungsmenue.
     Super+X hotkey-overlay-title="nbshell: Sitzung" { spawn "sh" "-c" "$HOME/.local/bin/nbshell power menu"; }
 
-    // DMS: processlist -> nbshells Prozessliste.
+    // Prozessliste.
     Mod+M hotkey-overlay-title="nbshell: Prozesse" { spawn "sh" "-c" "$HOME/.local/bin/nbshell procs"; }
     Ctrl+Alt+Delete hotkey-overlay-title="nbshell: Prozesse" { spawn "sh" "-c" "$HOME/.local/bin/nbshell procs"; }
 
-    // dms/binds: Print -> niris Auswahlwerkzeug direkt. Stattdessen nbshells
-    // Aufnahme-MENUE (Region/Bildschirm/Fenster/OCR/Aufnahme). Ctrl+Print und
-    // Alt+Print bleiben in dms/binds als Direkt-Kuerzel (Bildschirm/Fenster).
+    // Aufnahme-Menue (Region/Bildschirm/Fenster/OCR/Aufnahme).
     Print hotkey-overlay-title="nbshell: Aufnahme" { spawn "sh" "-c" "$HOME/.local/bin/nbshell capture"; }
 
-    // DMS: lock -> der Sperrbildschirm aus lockCommand (Vorgabe hyprlock).
+    // Sperrbildschirm aus lockCommand (Vorgabe hyprlock).
     Mod+Alt+L hotkey-overlay-title="nbshell: Sperren" { spawn "sh" "-c" "$HOME/.local/bin/nbshell power lock"; }
 
-    // DMS: brightness -> nbshells Helligkeitsdienst.
-    //
-    // Diese beiden waren nach dem Umstieg TOT: dms/binds.kdl legt sie auf
-    // `dms ipc brightness`, und DMS ist maskiert. Aufgefallen ist es erst beim
-    // Durchzaehlen der Altlasten -- eine Taste, die nichts tut, meldet sich ja
-    // nicht.
+    // Helligkeitsdienst.
     XF86MonBrightnessUp   allow-when-locked=true { spawn "sh" "-c" "$HOME/.local/bin/nbshell brightness up"; }
     XF86MonBrightnessDown allow-when-locked=true { spawn "sh" "-c" "$HOME/.local/bin/nbshell brightness down"; }
 
-    // DMS: mpris -> nbshells MPRIS-Anbindung.
+    // MPRIS-Anbindung.
     XF86AudioPlay  allow-when-locked=true { spawn "sh" "-c" "$HOME/.local/bin/nbshell media playpause"; }
     XF86AudioPause allow-when-locked=true { spawn "sh" "-c" "$HOME/.local/bin/nbshell media playpause"; }
     XF86AudioNext  allow-when-locked=true { spawn "sh" "-c" "$HOME/.local/bin/nbshell media next"; }

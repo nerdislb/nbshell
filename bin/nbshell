@@ -22,13 +22,7 @@ ipc() {
 
 warn() { printf '\033[33m%s\033[0m\n' "$1"; }
 
-# ── Umschalten zwischen DMS und nbshell ──────────────────────────────────
-#
-# Drei Dinge gehoeren zusammen, sonst ist der Zustand halb:
-#   1. dms.service  -- die Unit ist Type=dbus auf org.freedesktop.Notifications
-#                      und wird nie "active", wenn nbshell den Namen hat.
-#   2. der Benachrichtigungsserver in nbshell.
-#   3. die Tastenkuerzel, die bisher DMS gehoerten.
+# ── Eigenstaendig ein- und ausschalten ───────────────────────────────────
 NIRI_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/niri"
 UNIT_DROPIN="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/niri.service.d/nbshell.conf"
 GHOSTTY="${XDG_CONFIG_HOME:-$HOME/.config}/ghostty/config"
@@ -40,13 +34,16 @@ COLORS_LINE="include \"$COLORS\""
 
 niri_include() {
     local cfg="$NIRI_DIR/config.kdl"
-    [ -f "$cfg" ] || { echo "niri-Config nicht gefunden: $cfg" >&2; return 1; }
+    mkdir -p "$NIRI_DIR"
+    if [ ! -f "$cfg" ]; then
+        printf '// Eigenstaendige niri-Konfiguration von nbshell\n' > "$cfg"
+    fi
     grep -qF "$INCLUDE_LINE" "$cfg" && return 0
     cp "$cfg" "$cfg.vor-nbshell"
     # Die Farbdatei zuerst schreiben lassen -- ein include auf eine fehlende
     # Datei macht die ganze Config ungueltig.
     ipc theme write >/dev/null 2>&1 || true
-    printf '\n// nbshell uebernimmt DMS-Tastenkuerzel und faerbt die Fensterrahmen\n// (nbshell switch off entfernt beides)\n%s\n' "$INCLUDE_LINE" >> "$cfg"
+    printf '\n// nbshell-Tastenkuerzel und Fensterrahmen\n%s\n' "$INCLUDE_LINE" >> "$cfg"
     [ -f "$NIRI_DIR/$COLORS" ] && printf '%s\n' "$COLORS_LINE" >> "$cfg"
     if ! niri validate >/dev/null 2>&1; then
         mv "$cfg.vor-nbshell" "$cfg"
@@ -60,7 +57,7 @@ niri_exclude() {
     local cfg="$NIRI_DIR/config.kdl"
     grep -qF "$INCLUDE_LINE" "$cfg" || return 0
     cp "$cfg" "$cfg.vor-nbshell"
-    grep -vF "$INCLUDE_LINE" "$cfg" | grep -vF "$COLORS_LINE" | grep -v "^// nbshell uebernimmt DMS-Tastenkuerzel" | grep -v "^// (nbshell switch off entfernt beides)" > "$cfg.neu"
+    grep -vF "$INCLUDE_LINE" "$cfg" | grep -vF "$COLORS_LINE" | grep -v "^// nbshell-Tastenkuerzel und Fensterrahmen" | grep -v "^// nbshell uebernimmt DMS-Tastenkuerzel" | grep -v "^// (nbshell switch off entfernt beides)" > "$cfg.neu"
     mv "$cfg.neu" "$cfg"
     niri validate >/dev/null 2>&1 || { mv "$cfg.vor-nbshell" "$cfg"; echo "zurueckgenommen." >&2; return 1; }
     echo "  niri:   $INCLUDE_LINE entfernt"
@@ -310,61 +307,43 @@ polkit_status() {
 }
 
 switch_on() {
-    echo "nbshell uebernimmt:"
+    echo "nbshell wird eingerichtet:"
     if [ ! -f "$NIRI_DIR/$TAKEOVER" ]; then
         echo "  $TAKEOVER fehlt -- erst ./install.sh laufen lassen." >&2
         return 1
     fi
-    systemctl --user stop dms.service 2>/dev/null && echo "  dms:    gestoppt"
-    # `dms run` beendet sich mit 143 (SIGTERM). Die Unit hat dafuer kein
-    # SuccessExitStatus, systemd merkt sie sich also als "failed" -- und sie
-    # taucht auf ewig in `systemctl --user --failed` auf. Einmal quittieren.
-    systemctl --user reset-failed dms.service 2>/dev/null || true
-    # `disable` hilft hier NICHT: DMS haengt ueber ein Drop-in an niri.service
-    # (~/.config/systemd/user/niri.service.d/dms.conf, "Wants=dms.service"),
-    # kommt also bei jeder Anmeldung wieder. Nur `mask` haelt es dauerhaft weg
-    # -- und das nur auf ausdrueckliche Ansage.
-    if [ "${1:-}" = "dauerhaft" ]; then
-        systemctl --user mask dms.service >/dev/null 2>&1 && echo "  dms:    maskiert, bleibt auch nach dem Anmelden weg"
-    else
-        echo "  dms:    kommt bei der naechsten Anmeldung wieder"
-        echo "          (dauerhaft weg: nbshell switch on dauerhaft)"
+    # Reine Migrationshilfe: auf neuen Installationen existiert diese Unit
+    # nicht. Ein Altbestand darf dem Notification-Bus nicht im Weg stehen.
+    if systemctl --user cat dms.service >/dev/null 2>&1; then
+        systemctl --user stop dms.service 2>/dev/null && echo "  Alt-DMS: gestoppt"
+        systemctl --user reset-failed dms.service 2>/dev/null || true
+        systemctl --user mask dms.service >/dev/null 2>&1 && echo "  Alt-DMS: dauerhaft maskiert"
     fi
     niri_include || true
     ipc notify server on >/dev/null && echo "  nbshell: Benachrichtigungsserver an"
-    # Ohne DMS malt niemand mehr den Hintergrund -- sonst steht man vor einer
-    # schwarzen Flaeche und sucht den Fehler bei sich.
     ipc wallpaper on >/dev/null && echo "  nbshell: Hintergrundbild an"
     ghostty_theme nbcolors
     alacritty_theme nb-theme.toml
-    # Bleibt auch nach `switch off` an: der Agent gehoert nicht DMS, und DMS
-    # bringt selbst keinen mit -- ihn wieder abzuschalten hiesse, das Loch
-    # zurueckzugeben.
     polkit_on
     autostart_on
-    echo
-    echo "Mit DMS gehen auch dessen Plugins -- nbshell hat fuer jedes einen"
-    echo "Ersatz: Insel, Arbeitsflaechen, Themewahl, Aufnahme, KI-Verbrauch."
-    echo "Tot bleiben Mod+Comma, Mod+Y und Mod+Shift+N -- siehe $TAKEOVER."
 }
 
 switch_off() {
-    echo "DMS uebernimmt wieder:"
+    echo "nbshell wird deaktiviert:"
     ipc notify server off >/dev/null && echo "  nbshell: Benachrichtigungsserver aus"
-    ipc wallpaper off >/dev/null && echo "  nbshell: Hintergrundbild aus (DMS malt wieder)"
-    ghostty_theme dankcolors
-    alacritty_theme dank-theme.toml
+    ipc wallpaper off >/dev/null && echo "  nbshell: Hintergrundbild aus"
     autostart_off
     niri_exclude || true
-    systemctl --user unmask dms.service >/dev/null 2>&1
-    systemctl --user start dms.service 2>/dev/null && echo "  dms:    gestartet"
+    systemctl --user stop nbshell.service 2>/dev/null || true
 }
 
 switch_status() {
-    printf 'dms.service      %s\n' "$(systemctl --user is-active dms.service 2>/dev/null; systemctl --user is-enabled dms.service 2>/dev/null | tr '\n' ' ')"
+    if systemctl --user cat dms.service >/dev/null 2>&1; then
+        printf 'Alt-DMS          %s\n' "$(systemctl --user is-active dms.service 2>/dev/null; systemctl --user is-enabled dms.service 2>/dev/null | tr '\n' ' ')"
+    fi
     printf 'Benachrichtigung %s\n' "$(busctl --user list 2>/dev/null | awk '/^org.freedesktop.Notifications/ {print $2" ("$3")"}')"
-    printf 'niri-Binds       %s\n' "$(grep -qF "$INCLUDE_LINE" "$NIRI_DIR/config.kdl" && echo "nbshell" || echo "DMS")"
-    printf 'Fensterrahmen    %s\n' "$(grep -qF "$COLORS_LINE" "$NIRI_DIR/config.kdl" && echo "nbshell" || echo "DMS")"
+    printf 'niri-Binds       %s\n' "$([ -f "$NIRI_DIR/config.kdl" ] && grep -qF "$INCLUDE_LINE" "$NIRI_DIR/config.kdl" && echo "nbshell" || echo "nicht eingebunden")"
+    printf 'Fensterrahmen    %s\n' "$([ -f "$NIRI_DIR/config.kdl" ] && grep -qF "$COLORS_LINE" "$NIRI_DIR/config.kdl" && echo "nbshell" || echo "nicht eingebunden")"
     printf 'nbshell-Autostart %s\n' "$([ -f "$UNIT_DROPIN" ] && echo "an ($(systemctl --user is-active nbshell.service))" || echo "aus")"
     polkit_status
 }
@@ -479,7 +458,7 @@ nbshell -- eigene Shell auf Quickshell
   nbshell control           Control Center (Helligkeit, WLAN, Bluetooth)
   nbshell brightness up|down|<prozent>
 
-  nbshell wallpaper on|off  Hintergrundbild des Themes (aus, solange DMS laeuft)
+  nbshell wallpaper on|off  Hintergrundbild des Themes
   nbshell wallpaper pick    Karussell: Bilder des Themes durchblaettern
   nbshell wallpaper list
   nbshell wallpaper <pfad>  festes Bild statt des Themebildes
@@ -490,10 +469,9 @@ nbshell -- eigene Shell auf Quickshell
   nbshell state             was gerade offen ist
   nbshell status
 
-  nbshell switch on [dauerhaft]
-                            DMS weicht: Unit aus, Benachrichtigungen und
-                            Tastenkuerzel zu nbshell
-  nbshell switch off        alles zurueck zu DMS
+  nbshell switch on         Autostart, Benachrichtigungen, Hintergrund und
+                            Tastenkuerzel dauerhaft aktivieren
+  nbshell switch off        nbshell-Autostart und Integration deaktivieren
   nbshell switch status
 
   nbshell launcher          Starter: Anwendungen UND Befehle

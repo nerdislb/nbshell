@@ -188,7 +188,7 @@ Scope {
             const next = value === "toggle" ? !Notify.enabled : (value === "on");
             Config.set("notifications", next);
             if (next)
-                return "an — dms.service muss gestoppt sein, sonst haengt dessen Unit";
+                return "an — nbshell stellt den Benachrichtigungsdienst bereit";
             return "aus — die Benachrichtigungen gehen wieder an DMS";
         }
 

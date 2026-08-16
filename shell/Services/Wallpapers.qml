@@ -7,9 +7,7 @@ import qs.Common
 
 // Die Bilder des aktuellen Themes.
 //
-// Gesucht wird an denselben drei Stellen wie in scripts/themes.sh: beim Theme
-// selbst, im Zwischenspeicher von omarchy2dms (den teilen sich beide) und
-// unter ~/.local/share/nbshell/wallpapers.
+// Gesucht wird beim Theme selbst und im eigenen nbshell-Datenbereich.
 //
 // Bewusst OHNE Zwischenspeicher: die Liste wird bei jedem Oeffnen frisch
 // gelesen. Ein Cache hat in der Vorlage (themeWallpaper) genau das kaputt
@@ -32,7 +30,7 @@ Singleton {
     function findCommand(theme) {
         const home = Quickshell.env("HOME");
         const data = Quickshell.env("XDG_DATA_HOME") || (home + "/.local/share");
-        const dirs = [Config.themeDir + "/" + theme + "/backgrounds", data + "/omarchy2dms/wallpapers/" + theme, data + "/nbshell/wallpapers/" + theme];
+        const dirs = [Config.themeDir + "/" + theme + "/backgrounds", data + "/nbshell/wallpapers/" + theme];
         // `find` statt `ls`: es kennt mehrere Endungen in einem Aufruf und
         // stolpert nicht ueber Leerzeichen in Namen.
         return "find " + dirs.map(d => JSON.stringify(d)).join(" ") + " -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \\) 2>/dev/null | sort";

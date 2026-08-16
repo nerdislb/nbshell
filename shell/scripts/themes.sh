@@ -2,9 +2,8 @@
 # Listet alle Themes als JSON: Name, Modus, ein paar Farben fuers Vorschau-
 # kaestchen und das erste Wallpaper.
 #
-# Das ist der Teil von omarchy2dms, den nbshell noch braucht. Umrechnen muss
-# hier nichts mehr -- die Shell liest `colors.toml` selbst. Uebrig bleibt das
-# Suchen: Themes koennen aus drei Quellen kommen, Wallpaper aus zwei.
+# Die Shell liest `colors.toml` selbst. Dieses Skript sammelt Palette und
+# Vorschaubild aus den eigenstaendigen nbshell-Verzeichnissen.
 #
 #   nbshell-themes <themes-verzeichnis>
 set -euo pipefail
@@ -12,10 +11,9 @@ set -euo pipefail
 THEME_DIR="${1:-${XDG_CONFIG_HOME:-$HOME/.config}/nbshell/themes}"
 DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 
-# Wallpaper liegen entweder beim Theme oder im Zwischenspeicher von
-# omarchy2dms -- der laedt sie einmal von Omarchy und teilt sie sich mit uns.
+# Wallpaper liegen entweder direkt beim Theme oder im nbshell-Datenbereich.
 wallpaper_dirs() {
-    printf '%s\n' "$1/backgrounds" "$DATA_HOME/omarchy2dms/wallpapers/$2" "$DATA_HOME/nbshell/wallpapers/$2"
+    printf '%s\n' "$1/backgrounds" "$DATA_HOME/nbshell/wallpapers/$2"
 }
 
 first_wallpaper() {

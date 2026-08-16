@@ -9,7 +9,8 @@ Das Aussehen orientiert sich an [Omarchy](https://omarchy.org) und an einer
 Terminaloberflaeche: Monospace, gerade Kanten, 1 px Rahmen, Farben aus derselben
 Palette wie das Terminal. Kein Material Design.
 
-Stand: **1.10.0** — alles, was vorher als DMS-Plugin lief, ist jetzt hier. Es laeuft: Insel, Pille und Balken, Popouts, Themewahl mit
+Stand: **1.10.0** — nbshell ist eigenstaendig und braucht keine
+DankMaterialShell-Installation. Es laeuft: Insel, Pille und Balken, Popouts, Themewahl mit
 Farbproben, Hintergrundbild am Theme, Audio, Control Center, Anwendungsstarter, Einblendung, System-Tray, Benachrichtigungen, Power-Menue, Zwischenablage, Medien, Prozessliste, Aufnahme, Terminalfarben, KI-Verbrauch, Optionsmenue, Arbeitsflaechen, Fenstertitel, Uhr, Systemlast, Tastaturbelegung,
 Akku, Kalender. Alles Weitere steht unter „Was noch fehlt".
 
@@ -17,8 +18,8 @@ Akku, Kalender. Alles Weitere steht unter „Was noch fehlt".
 
 Der ganze Weg, in fuenf Schritten. Wer es eilig hat: Schritt 2 und 4 genuegen.
 
-Das Ziel ist, dass beide Rechner dasselbe Setup haben -- nicht nur dieselbe
-Leiste. Deshalb holt `setup.sh` auch das Dotfiles-Repo mit.
+`setup.sh` installiert nbshell standardmaessig ohne DMS und ohne fremdes
+Dotfiles-Repo. Fuer Altbestaende gibt es einen ausdruecklichen Migrationsschalter.
 
 **1. Voraussetzungen.** Arch (oder ein Derivat mit `pacman`) und **niri** als
 Kompositor. Ein anderer Wayland-Kompositor geht nicht: die Arbeitsflaechen, der
@@ -40,14 +41,13 @@ cd ~/projects/nbshell && ./setup.sh
 
 1. **Pakete** -- die 36, die nbshell braucht
 2. **Dienste** -- NetworkManager, bluetooth, tuned (fragt, siehe unten)
-3. **Dotfiles** -- holt `dotfiles-dms`, zieht dessen Paketlisten nach
-   (110 Repo- und 10 AUR-Pakete) und spielt mit `restore.sh` niri, ghostty,
-   nvim, zsh, DMS und den Kalender ein
+3. **Niri-Integration** -- legt bei Bedarf eine minimale gueltige
+   `config.kdl` an und installiert die eigenen Tastenkuerzel
 4. **Dateien** -- Shell, Themes, Plugins, Unit, Tastenkuerzel, der Befehl
 5. **Gegenprobe** -- stehen die Befehle wirklich im `PATH`?
 
-nbshell allein macht zwei Rechner naemlich noch nicht gleich; der Rest liegt im
-Dotfiles-Repo. Zwei Dinge dabei sind wichtig genug, um sie zu kennen:
+Die alten Dotfiles werden nur mit `--with-legacy-dotfiles` eingelesen. Das ist
+eine Migrationshilfe, keine Voraussetzung fuer nbshell.
 
 - **`restore.sh` ersetzt `~/.local/bin` vollstaendig.** Was dort liegt und
   nicht im Dotfiles-Repo steht, ist danach weg -- das `agy`-Binary etwa, das
@@ -79,9 +79,9 @@ nbshell switch on
 
 Das bindet die Tastenkuerzel in die niri-Config ein, schaltet den
 Benachrichtigungsserver und das Hintergrundbild an, faerbt ghostty mit und legt
-den Autostart an. Laeuft DankMaterialShell auf dem Rechner, weicht sie dabei
-zur Seite (`nbshell switch off` holt sie zurueck); ohne DMS sind diese Schritte
-einfach wirkungslos. `nbshell switch status` zeigt, was gerade gilt.
+den Autostart an. Eine gefundene alte DankMaterialShell wird dauerhaft
+maskiert, damit sie den Benachrichtigungsdienst nicht belegt. `switch off`
+deaktiviert nbshell wieder, startet DMS aber nicht.
 
 **5. Was kein Skript mitbringen kann.** Drei Dinge musst du von Hand nachholen,
 und zwar aus gutem Grund:
@@ -102,7 +102,7 @@ holt.
 
 | | |
 |---|---|
-| `setup.sh` | Pakete, Dotfiles, Dateien, Dienste -- der ganze Rechner |
+| `setup.sh` | Pakete, Dateien und Dienste -- eigenstaendig ohne DMS |
 | `install.sh` | nur die Dateien von nbshell; sagt, was fehlt, holt aber **nichts** |
 
 `install.sh` ist der richtige Weg, wenn man nicht weiss, wem der Rechner
@@ -112,7 +112,7 @@ greift. Es ruft `install.sh` am Ende selbst auf.
 
 ```bash
 ./setup.sh --no-packages    # nur die Dateien (dasselbe wie install.sh)
-./setup.sh --no-dotfiles    # ohne das Dotfiles-Repo, nur nbshell
+./setup.sh --with-legacy-dotfiles  # optional: alte DMS-Dotfiles migrieren
 ./setup.sh --no-aur         # den AUR-Helfer nicht bauen
 ./setup.sh --with-hardware  # auch nvidia, ucode, mesa … aus der Paketliste
 ./setup.sh --yes            # nichts fragen

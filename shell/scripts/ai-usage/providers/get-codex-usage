@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+fail_json() {
+  local code="$1"
+  local message="$2"
+  jq -cn --arg message "$message" --argjson code "$code" '
+    {provider:"codex",source:"codex-app-server",error:{code:$code,kind:"runtime",message:$message}}
+  '
+}
+
+if ! command -v codex >/dev/null 2>&1; then
+  fail_json 127 "Codex CLI is not installed or is not available in PATH."
+  exit 0
+fi
+
+tmp_out="$(mktemp)"
+trap 'rm -f "$tmp_out"' EXIT
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLUGIN_VERSION="$(jq -r '.version // "unknown"' "$SCRIPT_DIR/../plugin.json" 2>/dev/null || printf 'unknown')"
+
+{
+  printf '%s\n' \
+    "{\"method\":\"initialize\",\"id\":0,\"params\":{\"clientInfo\":{\"name\":\"ai_overview_control\",\"title\":\"AiOverviewControl\",\"version\":\"${PLUGIN_VERSION}\"}}}" \
+    '{"method":"account/read","id":1,"params":{"refreshToken":false}}' \
+    '{"method":"account/rateLimits/read","id":2,"params":{}}'
+  sleep 4
+} | timeout --kill-after=2s 8s codex app-server >"$tmp_out" 2>/dev/null || true
+
+account="$(jq -cs '[.[] | select(.id == 1)][0].result.account // null' "$tmp_out" 2>/dev/null || printf 'null')"
+limits="$(jq -cs '[.[] | select(.id == 2)][0].result // null' "$tmp_out" 2>/dev/null || printf 'null')"
+
+if [ "$limits" = "null" ] || ! printf '%s' "$limits" | jq -e '.rateLimits' >/dev/null 2>&1; then
+  if [ "$account" = "null" ]; then
+    fail_json 2 "Codex CLI is not authenticated. Run: codex login"
+  else
+    fail_json 3 "Codex app-server did not return account rate limits. Update Codex CLI and try again."
+  fi
+  exit 0
+fi
+
+jq -cn --argjson account "$account" --argjson response "$limits" '
+  def iso($seconds):
+    if $seconds == null then null else ($seconds | todateiso8601) end;
+  def counted($value; $unit):
+    ($value | floor) as $count
+    | (($count | tostring) + " " + $unit + (if $count == 1 then "" else "s" end));
+  def window_label($minutes):
+    if $minutes == null then "Quota"
+    elif $minutes == 300 then "Session"
+    elif $minutes == 10080 then "Weekly"
+    elif ($minutes >= 10080 and ($minutes % 10080) == 0) then
+      counted($minutes / 10080; "week")
+    elif ($minutes >= 1440 and ($minutes % 1440) == 0) then
+      counted($minutes / 1440; "day")
+    elif ($minutes >= 60 and ($minutes % 60) == 0) then
+      counted($minutes / 60; "hour")
+    else counted($minutes; "minute")
+    end;
+  def window($value):
+    if $value == null then null else {
+      usedPercent: ($value.usedPercent // 0),
+      windowMinutes: ($value.windowDurationMins // null),
+      resetsAt: iso($value.resetsAt),
+      resetDescription: window_label($value.windowDurationMins // null)
+    } end;
+  $response.rateLimits as $limits
+  | ($response.rateLimitResetCredits // {}) as $reset_credits
+  | {
+      provider:"codex",
+      source:"codex-app-server",
+      usage:{
+        identity:{
+          providerID:"codex",
+          accountEmail:($account.email // "Codex account"),
+          loginMethod:($account.planType // $limits.planType // $account.type // "unknown")
+        },
+        accountEmail:($account.email // "Codex account"),
+        loginMethod:($account.planType // $limits.planType // $account.type // "unknown"),
+        primary:window($limits.primary),
+        secondary:window($limits.secondary),
+        tertiary:null,
+        updatedAt:(now | todateiso8601)
+      },
+      credits:{
+        remaining:(
+          if ($reset_credits.availableCount // null) != null then
+            ($reset_credits.availableCount | tostring)
+          elif ($limits.individualLimit // null) != null then
+            ($limits.individualLimit | tostring)
+          else "not available"
+          end
+        )
+      }
+    }
+'

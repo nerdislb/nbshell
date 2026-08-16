@@ -69,6 +69,8 @@ missing_optional="$(
     optional_check node          "WhatsApp in der Leiste"     "nodejs (>= 20)"
     optional_check npm           "WhatsApp-Bridge installieren" "npm"
     optional_check tte           "Bildschirmschoner: 39 Effekte statt 10" "python-terminaltexteffects (AUR)"
+    optional_check sqlite3       "Antigravity-Konten finden" "sqlite"
+    optional_check secret-tool   "Antigravity-Keyring lesen" "libsecret"
 )"
 if [ -n "$missing_optional" ]; then
     printf '%s\n' "$missing_optional"
@@ -132,11 +134,22 @@ cp -a "$SRC/shell/." "$SHELL_DIR/"
 green "Shell   -> $SHELL_DIR"
 
 # ── Themes ───────────────────────────────────────────────────────────────
-# Die Farbdateien sind dieselben wie in omarchy2dms. Vorhandene werden
-# ueberschrieben, eigene daneben bleiben stehen.
+# Mitgelieferte Farbdateien installieren. Vorhandene werden ueberschrieben,
+# eigene daneben bleiben stehen.
 mkdir -p "$DATA_DIR/themes"
 cp -a "$SRC/themes/." "$DATA_DIR/themes/"
 green "Themes  -> $DATA_DIR/themes ($(find "$DATA_DIR/themes" -name colors.toml | wc -l) Stueck)"
+
+# Einmalige Migration der bisher gemeinsam benutzten Bilder. Ab jetzt liest
+# nbshell nur noch seinen eigenen Datenbereich; das alte Verzeichnis kann
+# danach samt DMS geloescht werden.
+OLD_WALLPAPERS="${XDG_DATA_HOME:-$HOME/.local/share}/omarchy2dms/wallpapers"
+NEW_WALLPAPERS="${XDG_DATA_HOME:-$HOME/.local/share}/nbshell/wallpapers"
+if [ -d "$OLD_WALLPAPERS" ]; then
+    mkdir -p "$NEW_WALLPAPERS"
+    cp -an "$OLD_WALLPAPERS/." "$NEW_WALLPAPERS/"
+    green "Bilder  -> $NEW_WALLPAPERS (aus Altbestand uebernommen)"
+fi
 
 # ── Config ───────────────────────────────────────────────────────────────
 # Nur anlegen, nie ueberschreiben: sie gehoert dem Benutzer.
@@ -183,20 +196,21 @@ else
 fi
 
 # ── systemd-Unit ─────────────────────────────────────────────────────────
-# Nur ablegen, nicht einschalten -- das macht `nbshell switch on`. Vorher
-# startet man von Hand (`nbshell start -d`), damit DMS ungestoert bleibt.
+# Nur ablegen, nicht einschalten -- das macht `nbshell switch on`.
 UNIT_DIR="$CONFIG_HOME/systemd/user"
 mkdir -p "$UNIT_DIR"
 install -m 644 "$SRC/systemd/nbshell.service" "$UNIT_DIR/nbshell.service"
 systemctl --user daemon-reload 2>/dev/null || true
 green "Unit    -> $UNIT_DIR/nbshell.service (noch nicht eingeschaltet)"
 
-# ── niri-Tastenkuerzel fuer den Umstieg ──────────────────────────────────
-# Nur ablegen, nicht einbinden -- das macht `nbshell switch on`.
-if [ -d "$CONFIG_HOME/niri" ]; then
-    install -m 644 "$SRC/niri/nbshell-takeover.kdl" "$CONFIG_HOME/niri/nbshell-takeover.kdl"
-    green "Binds   -> $CONFIG_HOME/niri/nbshell-takeover.kdl (noch nicht eingebunden)"
+# ── niri-Tastenkuerzel ───────────────────────────────────────────────────
+mkdir -p "$CONFIG_HOME/niri"
+install -m 644 "$SRC/niri/nbshell-takeover.kdl" "$CONFIG_HOME/niri/nbshell-takeover.kdl"
+if [ ! -f "$CONFIG_HOME/niri/config.kdl" ]; then
+    printf '// Eigenstaendige niri-Konfiguration von nbshell\ninclude "nbshell-takeover.kdl"\n' > "$CONFIG_HOME/niri/config.kdl"
+    green "Niri    -> $CONFIG_HOME/niri/config.kdl (neu angelegt)"
 fi
+green "Binds   -> $CONFIG_HOME/niri/nbshell-takeover.kdl"
 
 # ── Befehl ───────────────────────────────────────────────────────────────
 mkdir -p "$BIN_DIR"
@@ -241,7 +255,6 @@ Fensterrahmen, Terminalfarben):
   nbshell switch on
   nbshell switch status
 
-Laeuft DankMaterialShell auf diesem Rechner, weicht sie damit zur Seite --
-`nbshell switch off` holt sie zurueck. Ohne DMS sind die entsprechenden
-Schritte einfach wirkungslos.
+Eine gefundene alte DankMaterialShell wird beim Einschalten nur noch als
+Migrationshilfe gestoppt; nbshell selbst benoetigt sie nicht.
 EOF

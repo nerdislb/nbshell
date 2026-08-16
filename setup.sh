@@ -9,7 +9,7 @@
 #
 #   setup.sh                  der ganze Weg
 #   setup.sh --no-packages    nur die Dateien (dasselbe wie install.sh)
-#   setup.sh --no-dotfiles    ohne das Dotfiles-Repo
+#   setup.sh --with-legacy-dotfiles  alte DMS-Dotfiles zusaetzlich uebernehmen
 #   setup.sh --no-aur         den AUR-Helfer nicht bauen
 #   setup.sh --with-hardware  auch die Hardware-Pakete der Paketliste
 #   setup.sh --yes            nichts fragen, alles ja
@@ -22,19 +22,21 @@ set -euo pipefail
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 WITH_PACKAGES=1
-WITH_DOTFILES=1
+WITH_DOTFILES=0
 WITH_AUR=1
 WITH_HARDWARE=0
 ASSUME_YES=0
 
-# Der zweite Teil des Setups: alles, was nicht nbshell ist -- niri, ghostty,
-# nvim, zsh, DMS, Kalender. Zwei Rechner sind erst gleich, wenn beides da ist.
+# Optionaler Migrationspfad fuer den bisherigen Rechner. Eine normale
+# Neuinstallation braucht dieses Repo nicht und installiert insbesondere DMS
+# nicht mehr.
 DOTFILES_REPO="git@github.com:nerdislb/dotfiles-dms.git"
 DOTFILES_DIR="$HOME/dotfiles"
 
 while [ $# -gt 0 ]; do
 	case "$1" in
 	--no-packages) WITH_PACKAGES=0 && shift ;;
+	--with-legacy-dotfiles | --with-dotfiles) WITH_DOTFILES=1 && shift ;;
 	--no-dotfiles) WITH_DOTFILES=0 && shift ;;
 	--no-aur) WITH_AUR=0 && shift ;;
 	--with-hardware) WITH_HARDWARE=1 && shift ;;
@@ -43,9 +45,10 @@ while [ $# -gt 0 ]; do
 		cat <<'USAGE'
 setup.sh -- den Rechner einrichten: Pakete, Dotfiles, nbshell, Dienste.
 
-  setup.sh                  der ganze Weg
+  setup.sh                  nbshell eigenstaendig einrichten (ohne DMS)
   setup.sh --no-packages    nur die Dateien (dasselbe wie install.sh)
-  setup.sh --no-dotfiles    ohne das Dotfiles-Repo
+  setup.sh --with-legacy-dotfiles
+                            optional: bisherige DMS-Dotfiles migrieren
   setup.sh --no-aur         den AUR-Helfer nicht bauen
   setup.sh --with-hardware  auch die Hardware-Pakete der Paketliste
                             (nvidia, ucode, mesa ...) -- nur auf gleicher
@@ -114,7 +117,7 @@ PKG_SYSTEM=(networkmanager bluez bluez-utils pipewire pipewire-pulse wireplumber
 #   qrencode       WLAN als QR-Code im Control Center
 #   speedtest-cli  Durchsatz messen, ebenda
 #   imagemagick    Wallpaper-Streifen fuer transparenten Bar-Kontrast abtasten
-PKG_BAUSTEINE=(wl-clipboard hyprlock tuned libnotify xdg-utils pacman-contrib fakeroot headsetcontrol hyprpolkitagent qrencode speedtest-cli imagemagick)
+PKG_BAUSTEINE=(wl-clipboard hyprlock tuned libnotify xdg-utils pacman-contrib fakeroot headsetcontrol hyprpolkitagent qrencode speedtest-cli imagemagick sqlite libsecret)
 
 # Kalender: khal rechnet die Wiederholungen, vdirsyncer holt sie.
 PKG_KALENDER=(khal vdirsyncer)
@@ -263,9 +266,8 @@ fi
 
 # ── Dotfiles ─────────────────────────────────────────────────────────────
 #
-# nbshell allein macht zwei Rechner noch nicht gleich: niri, ghostty, nvim,
-# zsh, DMS und der Kalender liegen im Dotfiles-Repo. Das holt dieser Block --
-# und danach erst die Dateien, siehe die Reihenfolge unten.
+# Nur fuer die bewusste Migration einer vorhandenen alten Installation. Der
+# Standardweg bleibt vollstaendig unabhaengig von diesem DMS-Dotfiles-Repo.
 if [ $WITH_DOTFILES -eq 1 ]; then
 	head2 "Dotfiles"
 

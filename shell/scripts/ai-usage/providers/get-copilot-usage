@@ -1,0 +1,205 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+fail_json() {
+  local code="$1"
+  local message="$2"
+  case "$code" in
+    ""|*[!0-9]*) code=1 ;;
+  esac
+  code="$((10#$code))"
+  [ "$code" -gt 0 ] 2>/dev/null || code=1
+  jq -cn --arg message "$message" --argjson code "$code" '
+    {provider:"copilot",source:"github-copilot-api",error:{code:$code,kind:"runtime",message:$message}}
+  '
+}
+
+token=""
+if command -v gh >/dev/null 2>&1; then
+  token="$(gh auth token 2>/dev/null || true)"
+fi
+[ -n "$token" ] || token="${COPILOT_GITHUB_TOKEN:-${GH_TOKEN:-${GITHUB_TOKEN:-}}}"
+
+if [ -z "$token" ]; then
+  fail_json 2 "GitHub token not found. Run: gh auth login"
+  exit 0
+fi
+
+api_url="https://api.github.com/copilot_internal/user"
+tmp_body="$(mktemp)"
+tmp_error="$(mktemp)"
+cache_dir="${XDG_CACHE_HOME:-${HOME}/.cache}/AiOverviewControl"
+cache_file="${cache_dir}/copilot-usage.json"
+cache_ttl=3600
+source_name="github-copilot-api"
+updated_at="$(date +%s)"
+trap 'rm -f "$tmp_body" "$tmp_error"' EXIT
+
+request_copilot() {
+  local resolve_ip="${1:-}"
+  local -a resolve_args=()
+  [ -z "$resolve_ip" ] || resolve_args=(--resolve "api.github.com:443:${resolve_ip}")
+  curl -4 -sS --connect-timeout 5 --max-time 12 \
+    "${resolve_args[@]}" \
+    -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: token ${token}" \
+    -H "Accept: application/json" \
+    -H "Editor-Version: vscode/1.105.0" \
+    -H "User-Agent: GitHubCopilotChat/0.32.0" \
+    -H "X-Github-Api-Version: 2026-04-01" \
+    "$api_url" 2>"$tmp_error" || true
+}
+
+http_status="$(request_copilot)"
+
+# Some regional api.github.com routes occasionally fail before HTTP. Resolve
+# an alternate GitHub edge through DNS-over-HTTPS, while keeping TLS hostname
+# verification enabled through curl --resolve.
+if [ "$http_status" = "000" ] || [ -z "$http_status" ]; then
+  alternate_ip="$(curl -sS --connect-timeout 4 --max-time 8 \
+    'https://dns.google/resolve?name=api.github.com&type=A&edns_client_subnet=1.1.1.0/24' 2>/dev/null \
+    | jq -r '[.Answer[]? | select(.type == 1) | .data] | first // empty' 2>/dev/null || true)"
+  if [[ "$alternate_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    : > "$tmp_error"
+    http_status="$(request_copilot "$alternate_ip")"
+  fi
+fi
+
+if [ "$http_status" = "200" ] && jq -e . "$tmp_body" >/dev/null 2>&1; then
+  mkdir -p "$cache_dir"
+  jq -n --argjson data "$(cat "$tmp_body")" '{cached_at:(now | floor),data:$data}' > "$cache_file"
+elif [ -f "$cache_file" ] && jq -e '.cached_at and (.data | type == "object")' "$cache_file" >/dev/null 2>&1; then
+  cached_at="$(jq -r '.cached_at' "$cache_file")"
+  cache_age=$(( $(date +%s) - cached_at ))
+  if [ "$cache_age" -ge 0 ] && [ "$cache_age" -le "$cache_ttl" ]; then
+    jq -c '.data' "$cache_file" > "$tmp_body"
+    http_status="200"
+    source_name="github-copilot-cache"
+    updated_at="$cached_at"
+  fi
+fi
+
+if [ "$http_status" != "200" ]; then
+  message="$(jq -r '.message // .error_details.message // empty' "$tmp_body" 2>/dev/null || true)"
+  transport_error="$(tr '\n' ' ' < "$tmp_error" | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//')"
+  [ -n "$message" ] || message="GitHub Copilot usage request failed with HTTP ${http_status:-unknown}${transport_error:+: ${transport_error}}."
+  fail_json "${http_status:-1}" "$message"
+  exit 0
+fi
+
+if ! jq -e . "$tmp_body" >/dev/null 2>&1; then
+  fail_json 3 "GitHub Copilot returned invalid JSON."
+  exit 0
+fi
+
+jq -c --arg source "$source_name" --argjson updated_at "$updated_at" '
+  def num($v): ($v // 0 | tonumber? // 0);
+  def nonnegative($v): (num($v) | if . < 0 then 0 else . end);
+  def quota($name): .quota_snapshots[$name] // {};
+
+  # When unlimited==true the API returns remaining:0 entitlement:0 — that is
+  # not exhausted, it means there is no cap. Treat separately.
+  def is_unlimited($q): ($q.unlimited? // false) == true;
+
+  def used_percent($q):
+    if is_unlimited($q) then 0
+    elif ($q.has_quota? // true) == false then 100
+    elif ($q.percent_remaining? != null) then (100 - num($q.percent_remaining))
+    elif ($q.entitlement? != null and num($q.entitlement) > 0) then
+      ((num($q.entitlement) - num($q.remaining)) / num($q.entitlement) * 100)
+    else 0 end;
+
+  def display($q):
+    if is_unlimited($q) then "Unlimited"
+    elif ($q.remaining? != null and $q.entitlement? != null and num($q.entitlement) > 0) then
+      ( (nonnegative($q.remaining) | tostring)
+        + " / " + (num($q.entitlement) | tostring) + " remaining"
+        + (if num($q.overage_count) > 0 then " (+" + (num($q.overage_count) | tostring) + " overage)" else "" end)
+      )
+    elif ($q.percent_remaining? != null) then
+      ((num($q.percent_remaining) | tostring) + "% remaining")
+    else "Usage available" end;
+
+  # Plan label from the SKU + plan fields. access_type_sku distinguishes the
+  # Education/Student grant ("free_educational_quota") and the free tier from
+  # paid Pro — copilot_plan alone reports "individual" for all of them.
+  def plan_label:
+    (.access_type_sku // "" | tostring) as $sku |
+    (.copilot_plan // "" | tostring) as $plan |
+    if ($sku | test("educational|student")) then "Education"
+    elif ($sku | test("pro_plus")) or ($plan | test("pro_plus|individual_pro")) then "Pro+"
+    elif ($sku | test("^free")) or $plan == "free" then "Free"
+    elif $plan == "business" then "Business"
+    elif $plan == "enterprise" then "Enterprise"
+    elif $plan == "individual" then "Pro"
+    else ($plan | gsub("_"; " ")) end;
+
+  # Since 2026-06-01 Copilot bills token-based GitHub AI Credits instead of
+  # premium request units; the API keeps the premium_interactions snapshot but
+  # flags the new metering with token_based_billing.
+  def premium_label:
+    if (.token_based_billing? // false) == true
+    then "Premium requests · AI credits"
+    else "Premium requests" end;
+
+  # reset_date lives at the top level (quota_reset_date_utc), not per-snapshot.
+  (.quota_reset_date_utc // .quota_reset_date // null) as $reset_at |
+  (plan_label) as $plan_name |
+  ((.login // "GitHub Copilot") + (if $plan_name != "" then " · " + $plan_name else "" end)) as $account |
+  (premium_label) as $premium_desc |
+
+  (quota("premium_interactions")) as $premium
+  | (quota("chat")) as $chat
+  | (quota("completions")) as $completions
+
+  # Only include chat/completions windows when they carry real quota info
+  # (not unlimited with no entitlement — those add no signal to the UI).
+  | (if (is_unlimited($chat) and num($chat.entitlement) == 0) then null
+     else {
+       usedPercent: used_percent($chat),
+       windowMinutes: 43200,
+       resetsAt: $reset_at,
+       resetDescription: "Chat",
+       displayValue: display($chat)
+     } end) as $chat_window
+  | (if (is_unlimited($completions) and num($completions.entitlement) == 0) then null
+     else {
+       usedPercent: used_percent($completions),
+       windowMinutes: 43200,
+       resetsAt: $reset_at,
+       resetDescription: "Completions",
+       displayValue: display($completions)
+     } end) as $completions_window
+
+  | {
+      provider:"copilot",
+      source:$source,
+      usage:{
+        identity:{
+          providerID:"copilot",
+          accountEmail:$account,
+          loginMethod:"github-token"
+        },
+        accountEmail:$account,
+        loginMethod:"github-token",
+        primary:{
+          usedPercent:(used_percent($premium) | if . < 0 then 0 elif . > 100 then 100 else . end),
+          windowMinutes:43200,
+          resetsAt:$reset_at,
+          resetDescription:$premium_desc,
+          displayValue:display($premium)
+        },
+        secondary:$chat_window,
+        tertiary:$completions_window,
+        updatedAt:($updated_at | todateiso8601)
+      },
+      credits:{
+        remaining:(
+          if is_unlimited($premium) then "Unlimited"
+          elif ($premium.remaining? != null) then (nonnegative($premium.remaining) | tostring)
+          elif ($premium.percent_remaining? != null) then ((num($premium.percent_remaining) | tostring) + "%")
+          else "Active" end
+        )
+      }
+    }
+' "$tmp_body"

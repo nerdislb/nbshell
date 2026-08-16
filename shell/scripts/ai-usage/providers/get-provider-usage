@@ -1,0 +1,2105 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+PROVIDERS_CSV="${1:-codex,claude,copilot}"
+COPILOT_SCRIPT="${2:-}"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+[ -n "$COPILOT_SCRIPT" ] || COPILOT_SCRIPT="$SCRIPT_DIR/get-copilot-usage"
+CLAUDE_SCRIPT="$SCRIPT_DIR/get-claude-usage"
+CODEX_SCRIPT="$SCRIPT_DIR/get-codex-usage"
+
+# Per-run scratch dir so every mktemp below is cleaned up on exit, even when
+# a fetch dies mid-flight (timeout, signal, jq error) before its manual rm.
+_RUN_TMPDIR="$(mktemp -d)"
+trap 'rm -rf "$_RUN_TMPDIR"' EXIT
+export TMPDIR="$_RUN_TMPDIR"
+
+json_error() {
+  local provider="$1"
+  local source="$2"
+  local code="$3"
+  local kind="$4"
+  local message="$5"
+  case "$code" in
+    ""|*[!0-9]*) code=1 ;;
+  esac
+  code="$((10#$code))"
+  [ "$code" -gt 0 ] 2>/dev/null || code=1
+  jq -cn \
+    --arg provider "$provider" \
+    --arg source "$source" \
+    --arg kind "$kind" \
+    --arg message "$message" \
+    --argjson code "${code:-1}" \
+    '{provider:$provider,source:$source,error:{code:$code,kind:$kind,message:$message}}'
+}
+
+json_note_usage() {
+  local provider="$1"
+  local source="$2"
+  local account="$3"
+  local login="$4"
+  local label="$5"
+  local credits="${6:-unknown}"
+  jq -cn \
+    --arg provider "$provider" \
+    --arg source "$source" \
+    --arg account "$account" \
+    --arg login "$login" \
+    --arg label "$label" \
+    --arg credits "$credits" \
+    '{
+      provider:$provider,
+      source:$source,
+      usage:{
+        identity:{providerID:$provider,accountEmail:$account,loginMethod:$login},
+        accountEmail:$account,
+        loginMethod:$login,
+        primary:{usedPercent:0,windowMinutes:null,resetsAt:null,resetDescription:$label},
+        secondary:null,
+        tertiary:null,
+        updatedAt:(now|todateiso8601)
+      },
+      credits:{remaining:$credits}
+    }'
+}
+
+fetch_copilot() {
+  if [ -x "$COPILOT_SCRIPT" ]; then
+    local tmp_out tmp_err status message
+    tmp_out="$(mktemp)"
+    tmp_err="$(mktemp)"
+    "$COPILOT_SCRIPT" >"$tmp_out" 2>"$tmp_err"
+    status=$?
+
+    if [ -s "$tmp_out" ] && jq -e . "$tmp_out" >/dev/null 2>&1; then
+      cat "$tmp_out"
+      rm -f "$tmp_out" "$tmp_err"
+      return 0
+    fi
+
+    message="$(cat "$tmp_err" 2>/dev/null || true)"
+    [ -n "$message" ] || message="GitHub Copilot usage helper returned invalid output."
+    rm -f "$tmp_out" "$tmp_err"
+
+    json_error copilot github-copilot-api "${status:-1}" runtime "$message"
+    return 0
+  fi
+  json_error copilot github-copilot-api 127 runtime "Copilot helper script is missing or not executable."
+}
+
+fetch_codex_native() {
+  if [ ! -x "$CODEX_SCRIPT" ]; then
+    json_error codex codex-app-server 127 runtime "Codex usage helper is missing or not executable."
+    return 0
+  fi
+  "$CODEX_SCRIPT"
+}
+
+fetch_claude_native() {
+  if [ ! -f "$CLAUDE_SCRIPT" ]; then
+    json_error claude claude-local 127 runtime "Local Claude usage helper is missing."
+    return 0
+  fi
+
+  local tmp_out tmp_err status
+  tmp_out="$(mktemp)"
+  tmp_err="$(mktemp)"
+  bash "$CLAUDE_SCRIPT" >"$tmp_out" 2>"$tmp_err"
+  status=$?
+
+  if [ "$status" -ne 0 ]; then
+    local message
+    message="$(cat "$tmp_err" 2>/dev/null || true)"
+    [ -n "$message" ] || message="Claude local usage helper exited with status $status."
+    rm -f "$tmp_out" "$tmp_err"
+    json_error claude claude-local "$status" runtime "$message"
+    return 0
+  fi
+
+  local usage_error_kind usage_error_message
+  usage_error_kind="$(sed -n 's/^USAGE_ERROR_KIND=//p' "$tmp_out" | head -1)"
+  usage_error_message="$(sed -n 's/^USAGE_ERROR_MESSAGE=//p' "$tmp_out" | head -1)"
+  if [ -n "$usage_error_message" ]; then
+    rm -f "$tmp_out" "$tmp_err"
+    json_error claude claude-oauth 1 "${usage_error_kind:-provider}" "$usage_error_message"
+    return 0
+  fi
+
+  jq -Rn '
+    def num($k): ((.[$k] // 0) | tonumber? // 0);
+    def text($k): (.[$k] // "");
+    def nullable($v): if ($v == null or $v == "") then null else $v end;
+    def clamp($n): if $n < 0 then 0 elif $n > 100 then 100 else $n end;
+    reduce inputs as $line ({};
+      ($line | capture("^(?<key>[^=]+)=(?<value>.*)$")?) as $kv
+      | if $kv then .[$kv.key] = $kv.value else . end
+    )
+    | . as $d
+    | {
+      provider:"claude",
+      source:"claude-local",
+      usage:{
+        identity:{
+          providerID:"claude",
+          accountEmail:"Claude Code",
+          loginMethod:($d.SUBSCRIPTION_TYPE // "unknown")
+        },
+        accountEmail:"Claude Code",
+        loginMethod:($d.SUBSCRIPTION_TYPE // "unknown"),
+        primary:{
+          usedPercent:clamp(($d.FIVE_HOUR_UTIL // 0 | tonumber? // 0)),
+          windowMinutes:300,
+          resetsAt:nullable($d.FIVE_HOUR_RESET),
+          resetDescription:"5 hour"
+        },
+        secondary:{
+          usedPercent:clamp(($d.SEVEN_DAY_UTIL // 0 | tonumber? // 0)),
+          windowMinutes:10080,
+          resetsAt:nullable($d.SEVEN_DAY_RESET),
+          resetDescription:"7 day"
+        },
+        tertiary:(
+          if (($d.SCOPED_LIMIT_MODEL // "") != "") then {
+            usedPercent:clamp(($d.SCOPED_LIMIT_UTIL // 0 | tonumber? // 0)),
+            windowMinutes:10080,
+            resetsAt:nullable($d.SCOPED_LIMIT_RESET),
+            resetDescription:("7 day · " + $d.SCOPED_LIMIT_MODEL)
+          } else null end
+        ),
+        updatedAt:(now|todateiso8601)
+      },
+      credits:{remaining:($d.RATE_LIMIT_TIER // "unknown")}
+      ,analytics:{
+        weekMessages:num("WEEK_MESSAGES"),
+        weekSessions:num("WEEK_SESSIONS"),
+        weekTokens:num("WEEK_TOKENS"),
+        monthTokens:num("MONTH_TOKENS"),
+        alltimeSessions:num("ALLTIME_SESSIONS"),
+        alltimeMessages:num("ALLTIME_MESSAGES"),
+        firstSession:nullable($d.FIRST_SESSION),
+        todayCost:num("TODAY_COST"),
+        weekCost:num("WEEK_COST"),
+        monthCost:num("MONTH_COST"),
+        dailyTokens:(text("DAILY") | split(",") | map(tonumber? // 0)),
+        dailyCosts:(text("DAILY_COSTS") | split(",") | map(tonumber? // 0)),
+        weekModels:text("WEEK_MODELS"),
+        weekModelCosts:text("WEEK_MODEL_COSTS"),
+        weekProjects:text("WEEK_PROJECTS"),
+        extraUsage:{
+          enabled:(text("EXTRA_USAGE_ENABLED") == "true"),
+          used:num("EXTRA_USAGE_USED"), limit:num("EXTRA_USAGE_LIMIT"),
+          utilization:num("EXTRA_USAGE_UTIL"), currency:text("EXTRA_USAGE_CURRENCY")
+        }
+      }
+    }
+  ' < "$tmp_out"
+  rm -f "$tmp_out" "$tmp_err"
+}
+
+fetch_gemini_native() {
+  local key="${GEMINI_API_KEY:-${GOOGLE_API_KEY:-${GOOGLE_GENERATIVE_AI_API_KEY:-}}}"
+  if [ -n "$key" ]; then
+    local tmp_body http_status
+    tmp_body="$(mktemp)"
+    # Key goes in a header, not the query string — URLs leak through process
+    # listings and proxy logs.
+    http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+      -H "x-goog-api-key: ${key}" \
+      "https://generativelanguage.googleapis.com/v1beta/models" 2>/dev/null || true)"
+    if [ "$http_status" = "200" ]; then
+      rm -f "$tmp_body"
+      json_note_usage gemini gemini-api-key "Gemini API key" "api-key" "Quota visible in AI Studio" "AI Studio"
+      return 0
+    fi
+
+    local message
+    message="$(jq -r '.error.message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="Gemini API key check returned HTTP ${http_status:-0}."
+    rm -f "$tmp_body"
+    json_error gemini gemini-api-key "${http_status:-1}" provider "$message"
+    return 0
+  fi
+
+  local creds="$HOME/.gemini/oauth_creds.json"
+  if [ -f "$creds" ] && jq -e '.access_token or .refresh_token' "$creds" >/dev/null 2>&1; then
+    local account
+    account="$(jq -r '.active // "Gemini CLI"' "$HOME/.gemini/google_accounts.json" 2>/dev/null || printf 'Gemini CLI')"
+    [ -n "$account" ] && [ "$account" != "null" ] || account="Gemini CLI"
+    json_note_usage gemini gemini-cli "$account" "oauth" "Gemini CLI authenticated" "AI Studio"
+    return 0
+  fi
+
+  json_error gemini gemini-local 2 provider "Gemini is not authenticated locally. Run gemini once, or set GEMINI_API_KEY/GOOGLE_API_KEY."
+}
+
+extract_antigravity_keyring_token() {
+  jq -r '
+    def token_string:
+      if type == "object" then
+        .access_token // .accessToken // .token // .Token // empty
+      elif type == "string" and test("^ya29\\.") then
+        .
+      else
+        empty
+      end;
+    if type == "object" then
+      (.token | token_string)
+      // token_string
+      // empty
+    else
+      token_string
+    end
+  ' 2>/dev/null || true
+}
+
+extract_antigravity_keyring_account() {
+  jq -r '
+    if type == "object" then
+      .email // .account_email // (.token.email // .token.account_email // empty) // "Antigravity CLI"
+    else
+      "Antigravity CLI"
+    end
+  ' 2>/dev/null || printf 'Antigravity CLI'
+}
+
+# A Google refresh token in a keyring oauth2.Token JSON payload (stdin).
+extract_antigravity_keyring_refresh() {
+  jq -r '
+    if type == "object" then
+      (.refresh_token // .refreshToken // .token.refresh_token // .token.refreshToken // empty)
+    else empty end
+  ' 2>/dev/null || true
+}
+
+# A signed-in Antigravity IDE stores its OAuth profile in state.vscdb. The exact
+# key and encoding differ across builds: the current build uses
+# antigravityUnifiedStateSync.oauthToken (base64 protobuf whose nested string
+# field is itself base64), older builds use jetskiStateSync.agentManagerInitState
+# (single base64 layer). Access tokens in those blobs are short-lived and usually
+# stale by the time a background widget reads them, so we recover the long-lived
+# Google refresh token (1//...) — peeling up to two base64 layers across the
+# auth-bearing keys — and mint a fresh access token instead. Never emits the
+# secret. Prints the first refresh token found, or nothing.
+extract_antigravity_idedb_refresh() {
+  local db="$1"
+  [ -r "$db" ] || return 0
+  command -v sqlite3 >/dev/null 2>&1 || return 0
+  sqlite3 "$db" "select value from ItemTable where key like '%oauth%' or key like '%Auth%' or key like '%ync%' or key like '%jetski%';" 2>/dev/null \
+    | while IFS= read -r value; do
+        # direct, then single base64 layer, then a nested base64 blob.
+        printf '%s' "$value" | grep -aoE '1//[A-Za-z0-9_-]{30,}'
+        printf '%s' "$value" | base64 -d 2>/dev/null | strings | grep -aoE '1//[A-Za-z0-9_-]{30,}'
+        printf '%s' "$value" | base64 -d 2>/dev/null | strings | grep -oE 'Co[A-Za-z0-9+/=]{40,}' \
+          | while IFS= read -r blob; do printf '%s' "$blob" | base64 -d 2>/dev/null | grep -aoE '1//[A-Za-z0-9_-]{30,}'; done
+      done | grep -aoE '1//[A-Za-z0-9_-]{30,}' | head -1
+}
+
+# Exchange a refresh token for a fresh access token (+ id_token) via Google's
+# public OAuth token endpoint, using the Cloud Code client credentials that
+# ship embedded in the Antigravity IDE / gemini-cli bundle (not secrets — any
+# install exposes them; overridable for testing or credential rotation).
+# Writes "access_token<TAB>id_token" to stdout on success, nothing on failure.
+antigravity_refresh_access_token() {
+  local refresh="$1"
+  [ -n "$refresh" ] || return 0
+  local client_id client_secret token_url tmp_body http_status message
+  client_id="${ANTIGRAVITY_OAUTH_CLIENT_ID:-1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com}"
+  client_secret="${ANTIGRAVITY_OAUTH_CLIENT_SECRET:-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}"
+  token_url="${ANTIGRAVITY_TOKEN_URL:-https://oauth2.googleapis.com/token}"
+  tmp_body="$(mktemp)"
+  # Feed the refresh token over stdin. refresh_token@- keeps the secret out
+  # of argv/process listings while curl still form-encodes it in the TLS body.
+  if ! http_status="$(printf '%s' "$refresh" | curl -sS --max-time 10 -X POST "$token_url" \
+      -o "$tmp_body" -w '%{http_code}' \
+      --data-urlencode "client_id=${client_id}" \
+      --data-urlencode "client_secret=${client_secret}" \
+      --data-urlencode "refresh_token@-" \
+      --data-urlencode "grant_type=refresh_token" 2>/dev/null)"; then
+    rm -f "$tmp_body"
+    printf '1\tAntigravity OAuth token refresh could not reach Google.\n' >&2
+    return 1
+  fi
+  if [ "$http_status" != "200" ]; then
+    message="$(jq -r '.error_description // .error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="Antigravity OAuth token refresh returned HTTP ${http_status:-0}."
+    rm -f "$tmp_body"
+    printf '%s\t%s\n' "${http_status:-1}" "$message" >&2
+    return 1
+  fi
+  if ! jq -e '.access_token | type == "string" and length > 0' "$tmp_body" >/dev/null 2>&1; then
+    rm -f "$tmp_body"
+    printf '1\tAntigravity OAuth token response schema changed: access_token is missing.\n' >&2
+    return 1
+  fi
+  jq -r '"\(.access_token)\t\(.id_token // "")"' "$tmp_body"
+  rm -f "$tmp_body"
+}
+
+# Decode the email claim from an OAuth id_token JWT (no signature check — used
+# only as a display label). Prints the email or nothing.
+antigravity_email_from_idtoken() {
+  local idt="$1" payload pad
+  [ -n "$idt" ] || return 0
+  payload="$(printf '%s' "$idt" | cut -d. -f2)"
+  [ -n "$payload" ] || return 0
+  pad=$(( (4 - ${#payload} % 4) % 4 ))
+  payload="${payload}$(printf '=%.0s' $(seq 1 "$pad" 2>/dev/null))"
+  printf '%s' "$payload" | tr '_-' '/+' | base64 -d 2>/dev/null | jq -r '.email // empty' 2>/dev/null || true
+}
+
+# Map one retrieveUserQuotaSummary payload (stdin) to a single account object.
+# Args: install label, account email, login method. retrieveUserQuotaSummary is
+# the endpoint the IDE itself renders — it returns the model quota pools (each
+# with a per-week and per-5-hour cap, surfacing the one closest to its limit),
+# their reset times and human "Quota resets in …" strings.
+antigravity_account_json() {
+  jq -c --arg install "$1" --arg email "$2" --arg login "$3" '
+    def clamp: if type != "number" then 0 elif . < 0 then 0 elif . > 1 then 1 else . end;
+    def fam: (.displayName // .bucketId // "Model") | gsub("\\s*\\([^)]*\\)\\s*$"; "");
+    # Flatten buckets across groups; keep API order as a tie-break rank so the
+    # models Antigravity lists first (Gemini for a Google plan) lead on ties.
+    ([.groups[]?.buckets[]?] | to_entries
+      | map(.key as $i | {
+          name:(.value | fam),
+          rem:(.value.remainingFraction | clamp),
+          reset:(.value.resetTime // null),
+          desc:(.value.description // null),
+          idx:$i
+        })) as $rows
+    | ($rows
+        | group_by(.name)
+        | map({
+            name: .[0].name,
+            rem:  (map(.rem) | min),
+            reset:(map(.reset | select(. != null)) | sort | first // null),
+            desc: (map(.desc | select(. != null)) | first // null),
+            idx:  (map(.idx) | min)
+          })
+        | sort_by([.rem, .idx])) as $fams
+    | {
+        install: $install,
+        email: $email,
+        loginMethod: $login,
+        groupDescription: (.groups[0].description // .description // null),
+        windows: ($fams | map({
+          name: .name,
+          usedPercent: (((1 - .rem) * 10000 | round) / 100),
+          windowMinutes: null,
+          resetsAt: .reset,
+          resetDescription: .name,
+          description: .desc,
+          displayValue: (((1 - .rem) * 100 | round | tostring) + "% used")
+        })),
+        updatedAt: (now | todateiso8601)
+      }'
+}
+
+# Map fetchAvailableModels (the endpoint used by the desktop client) to an
+# account. QuotaInfo lives on each ClientModelConfig rather than in the legacy
+# retrieveUserQuotaSummary groups/buckets structure.
+antigravity_models_account_json() {
+  jq -c --arg install "$1" --arg email "$2" --arg login "$3" '
+    def clamp: if type != "number" then 0 elif . < 0 then 0 elif . > 1 then 1 else . end;
+    def family($id; $name):
+      ($id + " " + $name | ascii_downcase) as $value
+      | if ($value | test("gemini")) then {name:"Gemini Models", rank:0}
+        elif ($value | test("claude|openai|chatgpt|codex|gpt|(^|[^a-z])o[134]([^a-z]|$)|oss")) then
+          {name:"Claude & OpenAI Models", rank:1}
+        else {name:"Other Models", rank:2}
+        end;
+    def window:
+      {
+        name:.name,
+        usedPercent:(((1 - .rem) * 10000 | round) / 100),
+        windowMinutes:null,
+        resetsAt:.reset,
+        resetDescription:.name,
+        description:.desc,
+        displayValue:(((1 - .rem) * 100 | round | tostring) + "% used")
+      };
+    # fetchAvailableModels is model-granular. The Antigravity UI, however,
+    # exposes shared Gemini and Claude/OpenAI pools. Keep modelWindows for an
+    # optional advanced view, while windows provides the concise family view.
+    ([.models | to_entries[]? | .key as $id | .value
+      | select(.quotaInfo != null)
+      | (.displayName // .model // $id) as $name
+      | select((($id + " " + $name) | ascii_downcase | test("placeholder")) | not)
+      | (family($id; $name)) as $family
+      | {
+          name:$name,
+          family:$family.name,
+          familyRank:$family.rank,
+          rem:(.quotaInfo.remainingFraction | clamp),
+          reset:(.quotaInfo.resetTime // null),
+          desc:(.tagDescription // .description // null)
+        }]
+      | sort_by([.familyRank, .name])) as $models
+    | ($models
+      | group_by(.family)
+      | map(
+          . as $members
+          | ($members | sort_by([.rem, .name]) | .[0]) as $tightest
+          | {
+              name:$tightest.family,
+              rank:$tightest.familyRank,
+              rem:$tightest.rem,
+              reset:$tightest.reset,
+              desc:null
+            }
+        )
+      | sort_by([.rem, .rank])) as $families
+    | {
+        install:$install,
+        email:$email,
+        loginMethod:$login,
+        groupDescription:"Antigravity quota families",
+        windows:($families | map(window)),
+        modelWindows:($models | map(window)),
+        updatedAt:(now | todateiso8601)
+      }'
+}
+
+# AiOverviewControl follows the same sequence used by Antigravity: load the account's
+# Cloud Code Assist project first, then pass it to fetchAvailableModels.  An
+# empty request body is accepted by the service, but can select its generic
+# entitlement view instead of the subscription associated with the IDE.
+# Print a compact JSON request body on success. On failure, print
+# "code<TAB>message" to stderr and return non-zero.
+antigravity_quota_request_body() {
+  local access_token="$1" endpoint="$2" user_agent="$3" platform="$4"
+  local tmp_body project http_status message
+  tmp_body="$(mktemp)"
+  : > "$tmp_body"
+
+  if ! http_status="$(curl -sS --max-time 10 \
+      --config <(printf 'header = "Authorization: Bearer %s"\n' "$access_token") \
+      -o "$tmp_body" -w '%{http_code}' \
+      -X POST \
+      -H "Content-Type: application/json" \
+      -H "User-Agent: ${user_agent}" \
+      -H "X-Goog-Api-Client: google-cloud-sdk vscode_cloudshelleditor/0.1" \
+      -d "{\"metadata\":{\"ideType\":9,\"platform\":${platform},\"pluginType\":2},\"mode\":1}" \
+      "${endpoint}/v1internal:loadCodeAssist" 2>/dev/null)"; then
+    rm -f "$tmp_body"
+    printf '1\tAntigravity loadCodeAssist request could not reach Google.\n' >&2
+    return 1
+  fi
+  if [ "$http_status" != "200" ]; then
+    message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    case "$http_status" in
+      401|403) message="Antigravity session expired during loadCodeAssist. Open Antigravity and sign in again." ;;
+      429) message="Antigravity loadCodeAssist endpoint is rate-limited. Retry later." ;;
+      *) [ -n "$message" ] || message="Antigravity loadCodeAssist returned HTTP ${http_status:-0}." ;;
+    esac
+    rm -f "$tmp_body"
+    printf '%s\t%s\n' "${http_status:-1}" "$message" >&2
+    return 1
+  fi
+  project="$(jq -c '.cloudaicompanionProject // empty' "$tmp_body" 2>/dev/null || true)"
+  rm -f "$tmp_body"
+
+  if [ -n "${project:-}" ] && [ "$project" != "null" ]; then
+    jq -cn --argjson project "$project" '{project:$project}'
+  else
+    printf '1\tAntigravity loadCodeAssist response schema changed: cloudaicompanionProject is missing; quota fetch was skipped to avoid a false 0%% result.\n' >&2
+    return 1
+  fi
+}
+
+antigravity_append_account_error() {
+  local file="$1" install="$2" email="$3" stage="$4" code="$5" message="$6"
+  case "$code" in ''|*[!0-9]*) code=1 ;; esac
+  [ "$code" -gt 0 ] 2>/dev/null || code=1
+  jq -cn \
+    --arg install "$install" --arg email "$email" --arg stage "$stage" \
+    --arg message "$message" --argjson code "$((10#$code))" \
+    '{install:$install,email:$email,stage:$stage,code:$code,kind:"provider",message:$message}' >> "$file"
+}
+
+antigravity_http_error_message() {
+  local stage="$1" status="$2" body="$3" message
+  message="$(jq -r '.error.message // .message // empty' "$body" 2>/dev/null || true)"
+  case "$status" in
+    401|403) printf 'Antigravity session expired during %s. Open Antigravity and sign in again.' "$stage" ;;
+    429) printf 'Antigravity %s endpoint is rate-limited. Retry later.' "$stage" ;;
+    *) [ -n "$message" ] && printf '%s' "$message" || printf 'Antigravity %s returned HTTP %s.' "$stage" "${status:-0}" ;;
+  esac
+}
+
+fetch_antigravity_native() {
+  local cfg="${XDG_CONFIG_HOME:-$HOME/.config}"
+  # Match the quota path used by 9Router and the Cloud Code Assist client.
+  # The `daily` host accepts the request too, but may return a generic quota
+  # view. Keep the base URL override for future Antigravity builds.
+  local endpoint="${ANTIGRAVITY_API_BASE_URL:-https://cloudcode-pa.googleapis.com}"
+  local quota_method="${ANTIGRAVITY_QUOTA_METHOD:-v1internal:fetchAvailableModels}"
+  local response_file="${ANTIGRAVITY_RESPONSE_FILE:-}"
+  local user_agent="${ANTIGRAVITY_USER_AGENT:-antigravity/ide/2.1.1 darwin/arm64}"
+  local platform="${ANTIGRAVITY_PLATFORM:-3}"
+  local accounts_file account_errors_file request_error_file tmp_body quota_body rt refreshed at id_token email install db
+  local http_status curl_status keyring_http_status keyring_curl_status
+  local -a dbs=()
+
+  accounts_file="$(mktemp)"
+  account_errors_file="$(mktemp)"
+  request_error_file="$(mktemp)"
+  tmp_body="$(mktemp)"
+
+  # --- Fixture path: deterministic parsing tests, no live session. The fixture
+  # is a retrieveUserQuotaSummary payload; it becomes a single synthetic account.
+  if [ -n "$response_file" ]; then
+    if [ ! -r "$response_file" ]; then
+      rm -f "$tmp_body" "$accounts_file" "$account_errors_file" "$request_error_file"
+      json_error antigravity antigravity-internal 2 runtime "Antigravity response fixture is not readable."
+      return 0
+    fi
+    # ANTIGRAVITY_HTTP_STATUS lets tests exercise the transport error mapping
+    # without a live session; the live path applies the same codes per account.
+    local fixture_status="${ANTIGRAVITY_HTTP_STATUS:-200}"
+    if [ "$fixture_status" != "200" ]; then
+      rm -f "$tmp_body" "$accounts_file" "$account_errors_file" "$request_error_file"
+      case "$fixture_status" in
+        401|403) json_error antigravity antigravity-internal "$fixture_status" provider "Antigravity session expired. Open Antigravity and sign in again." ;;
+        429) json_error antigravity antigravity-internal 429 provider "Antigravity quota endpoint is rate-limited. Retry after its reset time." ;;
+        *) json_error antigravity antigravity-internal "$fixture_status" provider "Antigravity quota request returned HTTP ${fixture_status}." ;;
+      esac
+      return 0
+    fi
+    if jq -e '.groups | type == "array"' "$response_file" >/dev/null 2>&1; then
+      # Legacy fixture support for retrieveUserQuotaSummary captures.
+      antigravity_account_json \
+        "${ANTIGRAVITY_INSTALL_LABEL:-Antigravity}" \
+        "${ANTIGRAVITY_ACCOUNT_EMAIL:-Antigravity}" \
+        "fixture" < "$response_file" >> "$accounts_file"
+    elif jq -e '(.models | type) == "object"' "$response_file" >/dev/null 2>&1; then
+      antigravity_models_account_json \
+        "${ANTIGRAVITY_INSTALL_LABEL:-Antigravity}" \
+        "${ANTIGRAVITY_ACCOUNT_EMAIL:-Antigravity}" \
+        "fixture" < "$response_file" >> "$accounts_file"
+    else
+      rm -f "$tmp_body" "$accounts_file" "$account_errors_file" "$request_error_file"
+      json_error antigravity antigravity-internal 1 provider "Antigravity quota response schema changed: groups or models object is missing."
+      return 0
+    fi
+  else
+    # --- Discover install sessions. Each Antigravity install keeps its own
+    # state.vscdb under a distinct config dir, so two IDEs / two Google accounts
+    # appear as two databases. An explicit override pins a single DB for tests.
+    if [ -n "${ANTIGRAVITY_STATE_DB:-}" ]; then
+      [ -r "$ANTIGRAVITY_STATE_DB" ] && dbs+=("$ANTIGRAVITY_STATE_DB")
+    else
+      for dir in "$cfg/Antigravity IDE" "$cfg/Antigravity" "$cfg"/*ntigravity*; do
+        db="$dir/User/globalStorage/state.vscdb"
+        [ -r "$db" ] || continue
+        case " ${dbs[*]:-} " in *" $db "*) continue ;; esac
+        dbs+=("$db")
+      done
+    fi
+
+    local seen_emails=" "
+    if [ "${#dbs[@]}" -gt 0 ]; then
+      for db in "${dbs[@]}"; do
+        install="$(printf '%s' "$db" | sed -E 's#.*/\.config/([^/]+)/User/.*#\1#')"
+        [ -n "$install" ] && [ "$install" != "$db" ] || install="Antigravity"
+        rt="$(extract_antigravity_idedb_refresh "$db")"
+        [ -n "$rt" ] || continue
+        : > "$request_error_file"
+        if ! refreshed="$(antigravity_refresh_access_token "$rt" 2>"$request_error_file")"; then
+          antigravity_append_account_error "$account_errors_file" "$install" "Account unavailable" "oauth-refresh" \
+            "$(cut -f1 "$request_error_file")" "$(cut -f2- "$request_error_file")"
+          continue
+        fi
+        at="$(printf '%s' "$refreshed" | cut -f1)"
+        id_token="$(printf '%s' "$refreshed" | cut -f2)"
+        email="$(antigravity_email_from_idtoken "$id_token")"
+        [ -n "$email" ] || email="Antigravity account"
+        # Skip a duplicate account already collected from another install dir.
+        case "$seen_emails" in *" $email "*) continue ;; esac
+        seen_emails="$seen_emails$email "
+        : > "$tmp_body"
+        : > "$request_error_file"
+        if ! quota_body="$(antigravity_quota_request_body "$at" "$endpoint" "$user_agent" "$platform" 2>"$request_error_file")"; then
+          antigravity_append_account_error "$account_errors_file" "$install" "$email" "loadCodeAssist" \
+            "$(cut -f1 "$request_error_file")" "$(cut -f2- "$request_error_file")"
+          continue
+        fi
+        curl_status=0
+        http_status="$(curl -sS --max-time 12 \
+            --config <(printf 'header = "Authorization: Bearer %s"\n' "$at") \
+            -o "$tmp_body" -w '%{http_code}' \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "User-Agent: ${user_agent}" \
+            -H "X-Client-Name: antigravity" \
+            -H "X-Client-Version: 2.1.1" \
+            -H "X-Goog-Api-Client: google-cloud-sdk vscode_cloudshelleditor/0.1" \
+            -d "$quota_body" \
+            "$endpoint/$quota_method" 2>/dev/null)" || curl_status=$?
+        if [ "$curl_status" -ne 0 ]; then
+          antigravity_append_account_error "$account_errors_file" "$install" "$email" "fetchAvailableModels" 1 \
+            "Antigravity fetchAvailableModels request could not reach Google."
+        elif [ "$http_status" != "200" ]; then
+          antigravity_append_account_error "$account_errors_file" "$install" "$email" "fetchAvailableModels" "$http_status" \
+            "$(antigravity_http_error_message fetchAvailableModels "$http_status" "$tmp_body")"
+        elif ! jq -e '(.models | type) == "object"' "$tmp_body" >/dev/null 2>&1; then
+          antigravity_append_account_error "$account_errors_file" "$install" "$email" "fetchAvailableModels" 1 \
+            "Antigravity fetchAvailableModels response schema changed: models object is missing."
+        else
+          antigravity_models_account_json "$install" "$email" "IDE session OAuth (refreshed)" < "$tmp_body" >> "$accounts_file"
+        fi
+      done
+    fi
+
+    # Desktop keyring (agy CLI) as an extra source, if it carries a fresh session.
+    # When ANTIGRAVITY_STATE_DB is explicitly set, it pins discovery to that DB
+    # for deterministic tests and targeted debugging, so do not fall through to
+    # unrelated local keyring credentials.
+    if [ -z "${ANTIGRAVITY_STATE_DB:-}" ] && command -v secret-tool >/dev/null 2>&1; then
+      local keyring_payload service
+      for service in "gemini" "${ANTIGRAVITY_KEYRING_SERVICE:-Antigravity CLI}" "antigravity-cli" "Antigravity"; do
+        if [ "$service" = "gemini" ]; then
+          keyring_payload="$(timeout 3 secret-tool lookup service gemini username antigravity 2>/dev/null || true)"
+        else
+          keyring_payload="$(timeout 3 secret-tool lookup service "$service" 2>/dev/null || true)"
+        fi
+        [ -n "$keyring_payload" ] || continue
+        rt="$(printf '%s' "$keyring_payload" | extract_antigravity_keyring_refresh)"
+        [ -n "$rt" ] || continue
+        : > "$request_error_file"
+        if ! refreshed="$(antigravity_refresh_access_token "$rt" 2>"$request_error_file")"; then
+          antigravity_append_account_error "$account_errors_file" "CLI keyring" "Account unavailable" "oauth-refresh" \
+            "$(cut -f1 "$request_error_file")" "$(cut -f2- "$request_error_file")"
+          continue
+        fi
+        at="$(printf '%s' "$refreshed" | cut -f1)"
+        email="$(antigravity_email_from_idtoken "$(printf '%s' "$refreshed" | cut -f2)")"
+        [ -n "$email" ] || email="Antigravity CLI"
+        case "$seen_emails" in *" $email "*) continue ;; esac
+        seen_emails="$seen_emails$email "
+        : > "$tmp_body"
+        : > "$request_error_file"
+        if ! quota_body="$(antigravity_quota_request_body "$at" "$endpoint" "$user_agent" "$platform" 2>"$request_error_file")"; then
+          antigravity_append_account_error "$account_errors_file" "CLI keyring" "$email" "loadCodeAssist" \
+            "$(cut -f1 "$request_error_file")" "$(cut -f2- "$request_error_file")"
+          continue
+        fi
+        keyring_curl_status=0
+        keyring_http_status="$(curl -sS --max-time 12 \
+            --config <(printf 'header = "Authorization: Bearer %s"\n' "$at") \
+            -o "$tmp_body" -w '%{http_code}' -X POST \
+            -H "Content-Type: application/json" \
+            -H "User-Agent: ${user_agent}" \
+            -H "X-Client-Name: antigravity" \
+            -H "X-Client-Version: 2.1.1" \
+            -H "X-Goog-Api-Client: google-cloud-sdk vscode_cloudshelleditor/0.1" \
+            -d "$quota_body" \
+            "$endpoint/$quota_method" 2>/dev/null)" || keyring_curl_status=$?
+        if [ "$keyring_curl_status" -ne 0 ]; then
+          antigravity_append_account_error "$account_errors_file" "CLI keyring" "$email" "fetchAvailableModels" 1 \
+            "Antigravity fetchAvailableModels request could not reach Google."
+        elif [ "$keyring_http_status" != "200" ]; then
+          antigravity_append_account_error "$account_errors_file" "CLI keyring" "$email" "fetchAvailableModels" "$keyring_http_status" \
+            "$(antigravity_http_error_message fetchAvailableModels "$keyring_http_status" "$tmp_body")"
+        elif ! jq -e '(.models | type) == "object"' "$tmp_body" >/dev/null 2>&1; then
+          antigravity_append_account_error "$account_errors_file" "CLI keyring" "$email" "fetchAvailableModels" 1 \
+            "Antigravity fetchAvailableModels response schema changed: models object is missing."
+        else
+          antigravity_models_account_json "CLI keyring" "$email" "CLI keyring OAuth (refreshed)" < "$tmp_body" >> "$accounts_file"
+        fi
+        break
+      done
+    fi
+  fi
+
+  # --- No account collected: emit an isolated, honest error. ---
+  if [ ! -s "$accounts_file" ]; then
+    if [ -s "$account_errors_file" ]; then
+      jq -cs '
+        . as $errors | $errors[0] as $first
+        | {provider:"antigravity",source:"antigravity-internal",
+           error:{code:($first.code // 1),kind:($first.kind // "provider"),message:$first.message},
+           accountErrors:$errors}
+      ' "$account_errors_file"
+      rm -f "$tmp_body" "$accounts_file" "$account_errors_file" "$request_error_file"
+      return 0
+    fi
+    rm -f "$tmp_body" "$accounts_file" "$account_errors_file" "$request_error_file"
+    json_error antigravity antigravity-local 2 provider "No usable Antigravity session was found. Open Antigravity and sign in, or install the agy CLI."
+    return 0
+  fi
+
+  # --- Assemble. The compact card mirrors the most-constrained account so the
+  # single-line render still works; the accounts[] array drives the expanded,
+  # per-account panel. ---
+  jq -cs --slurpfile errors "$account_errors_file" '
+    map(select(. != null and (.windows | length) > 0)) as $accts
+    | if ($accts | length) == 0 then
+        {provider:"antigravity", source:"antigravity-internal",
+         error:{code:1, kind:"provider", message:"Antigravity returned no quota pools for any account."}}
+      else
+        ($accts
+          | sort_by( - ( [.windows[].usedPercent] | max // 0 ) )
+          | .[0]) as $lead
+        | ($accts | length) as $n
+        | {
+            provider:"antigravity",
+            source:"antigravity-internal",
+            usage:{
+              identity:{providerID:"antigravity", accountEmail:$lead.email, loginMethod:$lead.loginMethod},
+              accountEmail:$lead.email,
+              loginMethod:$lead.loginMethod,
+              primary:($lead.windows[0] // null),
+              secondary:($lead.windows[1] // null),
+              tertiary:($lead.windows[2] // null),
+              updatedAt:(now | todateiso8601)
+            },
+            accounts:$accts,
+            accountErrors:$errors,
+            credits:{remaining: (($n | tostring) + " account" + (if $n == 1 then "" else "s" end))}
+          }
+      end
+  ' "$accounts_file"
+
+  rm -f "$tmp_body" "$accounts_file" "$account_errors_file" "$request_error_file"
+}
+fetch_openrouter_native() {
+  local key="${OPENROUTER_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error openrouter openrouter-api 2 provider "OPENROUTER_API_KEY is not set and no local 9Router usage was found."
+    return 0
+  fi
+
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  # /api/v1/key returns the full credit picture (limit_remaining, usage_daily,
+  # usage_weekly, usage_monthly); /api/v1/auth/key is a minimal subset and was
+  # missing every field this bridge reads.
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://openrouter.ai/api/v1/key" 2>/dev/null || true)"
+
+  if [ "$http_status" != "200" ]; then
+    local message
+    message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="OpenRouter key check returned HTTP ${http_status:-0}."
+    rm -f "$tmp_body"
+    json_error openrouter openrouter-api "${http_status:-1}" provider "$message"
+    return 0
+  fi
+
+  # Optional documented per-model rollup; failures leave an empty list and the
+  # tertiary window falls back to the monthly spend figure.
+  local tmp_activity
+  tmp_activity="$(mktemp)"
+  curl -sS --max-time 8 \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://openrouter.ai/api/v1/activity" 2>/dev/null \
+    | jq -c '{data: (.data // [])}' >"$tmp_activity" 2>/dev/null \
+    || printf '{"data":[]}' >"$tmp_activity"
+
+  jq -c --slurpfile activity "$tmp_activity" '
+    def num($v): ($v // 0 | tonumber? // 0);
+    def pct($used; $limit):
+      if num($limit) > 0 then
+        ((num($used) / num($limit)) * 100)
+        | if . < 0 then 0 elif . > 100 then 100 else . end
+      else 0 end;
+    def money($v):
+      (num($v) * 100 | round) as $cc
+      | "$" + (($cc / 100) | floor | tostring) + "."
+        + ((100 + ($cc % 100) | tostring) | .[1:]);
+    def short_model($m):
+      ($m // "" | split("/") | last // "") | .[0:24];
+    (
+      [($activity[0].data // [])[]]
+      | group_by(.model)
+      | map({model: .[0].model, usage: (map(num(.usage)) | add)})
+      | sort_by(-.usage)
+      | .[0:2]
+    ) as $top_models
+    | .data as $d
+    | ($d.label // $d.name // "OpenRouter API key") as $label
+    | ($d.limit // null) as $limit
+    | (if ($d.include_byok_in_limit // false) then num($d.byok_usage) else 0 end) as $byok_usage
+    | (if ($d.include_byok_in_limit // false) then num($d.byok_usage_daily) else 0 end) as $byok_daily
+    | (if ($d.include_byok_in_limit // false) then num($d.byok_usage_weekly) else 0 end) as $byok_weekly
+    | (if $d.limit_remaining != null then num($d.limit_remaining)
+       elif $limit != null then (num($limit) - num($d.usage) - $byok_usage)
+       else null end) as $remaining
+    | {
+      provider:"openrouter",
+      source:"openrouter-api",
+      usage:{
+        identity:{
+          providerID:"openrouter",
+          accountEmail:$label,
+          loginMethod:(if ($d.is_free_tier // false) then "free-tier" else "api-key" end)
+        },
+        accountEmail:$label,
+        loginMethod:(if ($d.is_free_tier // false) then "free-tier" else "api-key" end),
+        primary:{
+          usedPercent:pct((num($d.usage) + $byok_usage); $limit),
+          windowMinutes:null,
+          resetsAt:($d.limit_reset // null),
+          resetDescription:"Key limit",
+          displayValue:(
+            if $limit == null then (money(num($d.usage) + $byok_usage) + " used")
+            else (money(num($d.usage) + $byok_usage) + " / " + money($limit))
+            end
+          )
+        },
+        secondary:{
+          usedPercent:0,
+          windowMinutes:1440,
+          resetsAt:null,
+          resetDescription:"Spent today",
+          displayValue:(money(num($d.usage_daily) + $byok_daily))
+        },
+        tertiary:(
+          ("Week " + money(num($d.usage_weekly) + $byok_weekly) + " · ") as $week_prefix
+          | if ($top_models | length) > 0 then {
+              usedPercent:0,
+              windowMinutes:10080,
+              resetsAt:null,
+              resetDescription:"Week and top models",
+              displayValue:($week_prefix + ($top_models | map(short_model(.model) + " " + money(.usage)) | join(" · ")))
+            } else {
+              usedPercent:0,
+              windowMinutes:10080,
+              resetsAt:null,
+              resetDescription:"Week and month spend",
+              displayValue:($week_prefix + "Month " + money($d.usage_monthly))
+            } end
+        ),
+        updatedAt:(now|todateiso8601)
+      },
+      credits:{
+        remaining:(
+          if $remaining != null then (money($remaining))
+          elif $limit == null then "unlimited"
+          else "unknown"
+          end
+        )
+      }
+    }
+  ' "$tmp_body"
+  rm -f "$tmp_body" "$tmp_activity"
+}
+
+fetch_9router_native() {
+  local output_provider="${1:-9router}"
+  local target_provider="${2:-$output_provider}"
+  local soft_fail="${3:-false}"
+  local source_label="9router-local"
+  local db_path="$HOME/.9router/db/data.sqlite"
+  local usage_json="$HOME/.9router/usage.json"
+  local tmp_rows
+  tmp_rows="$(mktemp)"
+
+  if command -v sqlite3 >/dev/null 2>&1 && [ -f "$db_path" ]; then
+    sqlite3 -json "$db_path" 'select dateKey as date, data from usageDaily order by dateKey' >"$tmp_rows" 2>/dev/null || true
+  fi
+
+  if [ ! -s "$tmp_rows" ] && [ -f "$usage_json" ]; then
+    jq -c '[.dailySummary // {} | to_entries[] | {date:.key,data:(.value|tojson)}]' "$usage_json" >"$tmp_rows" 2>/dev/null || true
+  fi
+
+  if [ ! -s "$tmp_rows" ]; then
+    rm -f "$tmp_rows"
+    if [ "$soft_fail" = "soft" ]; then
+      return 1
+    fi
+    json_error "$output_provider" "$source_label" 2 provider "9router usage database not found. Start 9router once so ~/.9router/db/data.sqlite or ~/.9router/usage.json exists."
+    return 0
+  fi
+
+  local item
+  item="$(jq -c \
+    --arg output "$output_provider" \
+    --arg target "$target_provider" \
+    --arg source "$source_label" '
+    def num($v): ($v // 0 | tonumber? // 0);
+    # Always render two decimal places ("$0.00", "$0.50"). jq tostring on a float
+    # drops trailing zeros, giving inconsistent "$0"/"$0.5". This jq program is
+    # interpolated inside a double-quoted command substitution, so the formatter
+    # must avoid bash-significant tokens (no (( )), no < or > comparisons): pad
+    # the cents by formatting (100 + cents) and slicing off the leading "1".
+    def money($v):
+      (num($v) * 100 | round) as $cc
+      | "$" + (($cc / 100) | floor | tostring) + "."
+        + ((100 + ($cc % 100) | tostring) | .[1:]);
+    def compact($v):
+      (num($v)) as $n
+      | if $n >= 1000000000 then (((($n / 100000000) | round) / 10) | tostring) + "B"
+        elif $n >= 1000000 then (((($n / 100000) | round) / 10) | tostring) + "M"
+        elif $n >= 1000 then (((($n / 100) | round) / 10) | tostring) + "K"
+        else (($n | round) | tostring)
+        end;
+    def request_text($v): (num($v) | floor | tostring) + " req";
+    def provider_data($day; $provider):
+      if $provider == "9router" then $day
+      else ($day.byProvider[$provider] // null)
+      end;
+    [ .[] | {date, day:(.data | if type == "string" then fromjson else . end)} ] as $days
+    | [ $days[] | {date, data:provider_data(.day; $target)} | select(.data != null) ] as $matches
+    | if ($matches | length) == 0 then empty
+      else
+        ($matches | sort_by(.date) | last) as $latest
+        | (reduce $matches[] as $entry ({requests:0,promptTokens:0,cachedTokens:0,completionTokens:0,cost:0};
+            .requests += num($entry.data.requests)
+            | .promptTokens += num($entry.data.promptTokens)
+            | .cachedTokens += num($entry.data.cachedTokens)
+            | .completionTokens += num($entry.data.completionTokens)
+            | .cost += num($entry.data.cost)
+          )) as $total
+        | (if $output == "9router" then "9router · all routed models" else ($output + " via 9router (local)") end) as $account
+        | (if $output == "9router" then "" else " · local-routed, not " + $output + " quota" end) as $routed_note
+        | {
+            provider:$output,
+            source:$source,
+            usage:{
+              identity:{providerID:$output,accountEmail:$account,loginMethod:"local-db"},
+              accountEmail:$account,
+              loginMethod:"local-db",
+              primary:{
+                # 9router is a local proxy with no quota of its own, so a
+                # usage percentage would be meaningless. Keep the bar empty
+                # and let displayValue carry the cost/request figures. When
+                # this stands in for another provider (no API key set), the
+                # label says so explicitly so the card is never mistaken for
+                # that provider real quota.
+                usedPercent:0,
+                windowMinutes:null,
+                resetsAt:null,
+                resetDescription:("Latest day " + $latest.date + $routed_note),
+                displayValue:(money($latest.data.cost) + " · " + request_text($latest.data.requests))
+              },
+              secondary:{
+                usedPercent:0,
+                windowMinutes:null,
+                resetsAt:null,
+                resetDescription:"Tracked total",
+                displayValue:(money($total.cost) + " · " + request_text($total.requests))
+              },
+              tertiary:{
+                usedPercent:0,
+                windowMinutes:null,
+                resetsAt:null,
+                resetDescription:"Tokens",
+                displayValue:(compact($total.promptTokens) + " in · " + compact($total.cachedTokens) + " cached · " + compact($total.completionTokens) + " out")
+              },
+              updatedAt:(now|todateiso8601)
+            },
+            credits:{remaining:(money($total.cost) + " total")}
+          }
+      end
+  ' "$tmp_rows" 2>/dev/null || true)"
+
+  rm -f "$tmp_rows"
+
+  if [ -z "$item" ]; then
+    if [ "$soft_fail" = "soft" ]; then
+      return 1
+    fi
+    json_error "$output_provider" "$source_label" 2 provider "9router has no recorded usage for ${target_provider}."
+    return 0
+  fi
+
+  printf '%s\n' "$item"
+}
+
+fetch_deepseek_native() {
+  local key="${DEEPSEEK_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error deepseek deepseek-api 2 provider "DEEPSEEK_API_KEY is not set."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    "https://api.deepseek.com/user/balance" 2>/dev/null || true)"
+  if [ "$http_status" != "200" ]; then
+    local message
+    message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="DeepSeek balance API returned HTTP ${http_status:-0}."
+    rm -f "$tmp_body"
+    json_error deepseek deepseek-api "${http_status:-1}" provider "$message"
+    return 0
+  fi
+  jq -c '
+    def num($v): ($v // 0 | tonumber? // 0);
+    (.balance_infos // []) as $infos
+    | ($infos[0] // {}) as $b
+    | num($b.total_balance) as $total
+    | num($b.granted_balance) as $granted
+    | num($b.topped_up_balance) as $topped_up
+    # The balance API reports remaining funds, not consumption — there is no
+    # original total to derive a usage percent from. Mirror the Kimi pattern:
+    # full bar only when the balance is depleted.
+    | (if ($b.is_available // ($total > 0)) then 0 else 100 end) as $used_pct
+    | {
+        provider: "deepseek",
+        source: "deepseek-api",
+        usage: {
+          identity: { providerID: "deepseek", accountEmail: "DeepSeek account", loginMethod: "api-key" },
+          accountEmail: "DeepSeek account",
+          loginMethod: "api-key",
+          primary: {
+            usedPercent: $used_pct,
+            windowMinutes: null,
+            resetsAt: null,
+            resetDescription: "Balance",
+            displayValue: (($b.currency // "CNY") + " " + ($total | tostring))
+          },
+          secondary: {
+            usedPercent: 0,
+            windowMinutes: null,
+            resetsAt: null,
+            resetDescription: "Granted credits",
+            displayValue: (($b.currency // "CNY") + " " + ($granted | tostring))
+          },
+          tertiary: {
+            usedPercent: 0,
+            windowMinutes: null,
+            resetsAt: null,
+            resetDescription: "Paid balance",
+            displayValue: (($b.currency // "CNY") + " " + ($topped_up | tostring))
+          },
+          updatedAt: (now | todateiso8601)
+        },
+        credits: {
+          remaining: (($b.currency // "CNY") + " " + ($total | tostring))
+        }
+      }
+  ' "$tmp_body"
+  rm -f "$tmp_body"
+}
+
+fetch_kimi_native() {
+  local key="${MOONSHOT_API_KEY:-${KIMI_API_KEY:-}}"
+  if [ -z "$key" ]; then
+    json_error kimi kimi-api 2 provider "MOONSHOT_API_KEY or KIMI_API_KEY is not set."
+    return 0
+  fi
+  local tmp_body http_status host base currency symbol
+  tmp_body="$(mktemp)"
+  # Moonshot platform rebranded to kimi.ai (global) / kimi.com (China); the API
+  # hosts are unchanged. Global platform (api.moonshot.ai, USD) and China
+  # platform (api.moonshot.cn, CNY). An explicit override is exclusive — no
+  # silent fallback to another host; otherwise try global first, then .cn.
+  local -a hosts
+  if [ -n "${MOONSHOT_API_BASE:-}" ]; then
+    hosts=("${MOONSHOT_API_BASE}")
+  else
+    hosts=("https://api.moonshot.ai" "https://api.moonshot.cn")
+  fi
+  http_status=""
+  for host in "${hosts[@]}"; do
+    base="$host"
+    http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+      -H "Authorization: Bearer ${key}" \
+      "${host}/v1/users/me/balance" 2>/dev/null || true)"
+    [ "$http_status" = "200" ] && break
+    # Stop probing further hosts on an auth error — the key is simply invalid.
+    case "$http_status" in 401|403) break ;; esac
+  done
+  if [ "$http_status" != "200" ]; then
+    local message
+    message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="Kimi/Moonshot balance API returned HTTP ${http_status:-0}."
+    rm -f "$tmp_body"
+    json_error kimi kimi-api "${http_status:-1}" provider "$message"
+    return 0
+  fi
+  case "$base" in
+    *moonshot.cn*) currency="CNY"; symbol="¥" ;;
+    *)             currency="USD"; symbol="\$" ;;
+  esac
+  jq -c --arg currency "$currency" --arg symbol "$symbol" '
+    def num($v): ($v // 0 | tonumber? // 0);
+    .data as $d
+    | num($d.available_balance) as $avail
+    | num($d.voucher_balance) as $voucher
+    | num($d.cash_balance) as $cash
+    | (if $avail <= 0 then 100 else 0 end) as $used_pct
+    | {
+        provider: "kimi",
+        source: "kimi-api",
+        usage: {
+          identity: { providerID: "kimi", accountEmail: "Kimi account", loginMethod: "api-key" },
+          accountEmail: "Kimi account",
+          loginMethod: "api-key",
+          primary: {
+            usedPercent: $used_pct,
+            windowMinutes: null,
+            resetsAt: null,
+            resetDescription: ("Available balance (" + $currency + ")"),
+            displayValue: ($symbol + ($d.available_balance | tostring))
+          },
+          secondary: {
+            usedPercent: 0,
+            windowMinutes: null,
+            resetsAt: null,
+            resetDescription: "Voucher / Cash",
+            displayValue: ($symbol + ($voucher | tostring) + " / " + $symbol + ($cash | tostring))
+          },
+          tertiary: null,
+          updatedAt: (now | todateiso8601)
+        },
+        credits: {
+          remaining: ($symbol + ($d.available_balance | tostring))
+        }
+      }
+  ' "$tmp_body"
+  rm -f "$tmp_body"
+}
+
+fetch_minimax_native() {
+  local key="${MINIMAX_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error minimax minimax-api 2 provider "MINIMAX_API_KEY is not set."
+    return 0
+  fi
+  # OpenAI-compatible models list — read-only, consumes no tokens. Mirrors the
+  # MiniMax M3/M2.x catalog and doubles as a key-validity check.
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://api.minimax.io/v1/models" 2>/dev/null || true)"
+  if [ "$http_status" = "200" ]; then
+    rm -f "$tmp_body"
+    json_note_usage minimax minimax-api "MiniMax account" "api-key" "Authenticated — balance at platform.minimax.io/user-center/payment/balance" "platform.minimax.io"
+    return 0
+  fi
+  json_error minimax minimax-api "${http_status:-1}" provider "MiniMax API key invalid (HTTP ${http_status:-0}). Balance visible at platform.minimax.io only."
+}
+
+fetch_glm_native() {
+  # GLM and Z.ai share one credential family. Honor ZAI_API_KEY here too so a
+  # single key drives both cards (matches docs/providers.md credential matrix).
+  local key="${GLM_API_KEY:-${ZHIPU_API_KEY:-${ZAI_API_KEY:-}}}"
+  if [ -z "$key" ]; then
+    json_error glm glm-api 2 provider "GLM_API_KEY, ZHIPU_API_KEY, or ZAI_API_KEY is not set."
+    return 0
+  fi
+  local base="${GLM_API_BASE:-https://open.bigmodel.cn/api/paas/v4}"
+  local console="open.bigmodel.cn"
+  case "$base" in *bigmodel.cn*) console="bigmodel.cn" ;; esac
+  # Derive quota host from the configured API base — supports custom endpoints.
+  local quota_host
+  quota_host="$(printf '%s' "$base" | sed 's|/api/paas.*||')"
+  [ -n "$quota_host" ] || quota_host="https://open.bigmodel.cn"
+
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  # /api/monitor/usage/quota/limit — zero token cost, returns per-window
+  # percentages and reset timestamps identical to the Z.ai endpoint.
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "${quota_host}/api/monitor/usage/quota/limit" 2>/dev/null || true)"
+
+  if [ "$http_status" = "200" ] && jq -e '.success == true and (.data.limits | type) == "array"' "$tmp_body" >/dev/null 2>&1; then
+    jq -c --arg console "$console" '
+      def clamp($n): if $n < 0 then 0 elif $n > 100 then 100 else $n end;
+      def ms_to_iso($ms): if $ms then (($ms / 1000) | todate) else null end;
+      # Z.ai/Zhipu period units (confirmed against the live quota API cross-
+      # referenced with the official Usage page):
+      #   unit 4 -> 5-hour session window   (n * 300 min)
+      #   unit 6 -> weekly window           (n * 10080 min)   [reset matched 07-02]
+      #   unit 5 -> monthly window          (n * 43200 min)   [reset matched 07-18]
+      #   unit 3 -> total token allotment   (no reset window)
+      # The previous table had 5/6 swapped, which mislabeled the weekly 20%
+      # window as "diário" and the monthly window as 5h.
+      def win_min($unit; $n):
+        if $unit == 4 then ($n * 300)
+        elif $unit == 6 then ($n * 10080)
+        elif $unit == 5 then ($n * 43200)
+        else null end;
+      def win_label($type; $unit; $n):
+        ( if $type == "TIME_LIMIT" then
+            if $unit == 4 then "5h" elif $unit == 6 then "weekly" elif $unit == 5 then "monthly" else "window" end
+          else
+            if $unit == 4 then "tokens/5h" elif $unit == 6 then "tokens/week" elif $unit == 5 then "tokens/month" elif $unit == 3 then "total tokens" else "tokens" end
+          end
+        ) + (if $n > 1 then " ×\($n)" else "" end);
+      def make_window($lim):
+        { usedPercent: clamp(($lim.percentage // 0) | tonumber),
+          windowMinutes: win_min($lim.unit; $lim.number),
+          resetsAt: ms_to_iso($lim.nextResetTime),
+          resetDescription: win_label($lim.type; $lim.unit; $lim.number),
+          displayValue: (if ($lim.usage? != null and $lim.currentValue? != null) then "\($lim.currentValue) / \($lim.usage)" else null end) };
+
+      .data as $d |
+      ($d.limits // []) as $limits |
+      ( ($limits | map(select(.nextResetTime != null))
+                 | sort_by([-((.percentage // 0) | tonumber), .nextResetTime]))
+        + ($limits | map(select(.nextResetTime == null)))
+      ) as $sorted |
+
+      {
+        provider: "glm",
+        source: "glm-api",
+        usage: {
+          identity: {providerID: "glm", accountEmail: "GLM account", loginMethod: "api-key"},
+          accountEmail: "GLM account",
+          loginMethod: "api-key",
+          primary:   (if $sorted[0] then make_window($sorted[0]) else null end),
+          secondary: (if $sorted[1] then make_window($sorted[1]) else null end),
+          tertiary:  (if $sorted[2] then make_window($sorted[2]) else null end),
+          updatedAt: (now | todate)
+        },
+        credits: {remaining: ($d.level // "unknown")}
+      }
+    ' "$tmp_body"
+    rm -f "$tmp_body"
+    return 0
+  fi
+
+  if [ "$http_status" = "401" ] || [ "$http_status" = "403" ]; then
+    local message
+    message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="GLM API key invalid (HTTP ${http_status})."
+    rm -f "$tmp_body"
+    json_error glm glm-api "${http_status}" provider "$message"
+    return 0
+  fi
+
+  # Quota endpoint unavailable: fall back to auth-only /models check.
+  rm -f "$tmp_body"
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "${base}/models" 2>/dev/null || true)"
+  rm -f "$tmp_body"
+
+  if [ "$http_status" = "200" ]; then
+    json_note_usage glm glm-api "GLM account" "api-key" "Authenticated — billing at ${console}" "$console"
+    return 0
+  fi
+  json_error glm glm-api "${http_status:-1}" provider "GLM API key invalid (HTTP ${http_status:-0}). Billing visible at ${console} only."
+}
+
+fetch_zai_native() {
+  local key="${ZAI_API_KEY:-${GLM_API_KEY:-${ZHIPU_API_KEY:-}}}"
+  if [ -z "$key" ]; then
+    json_error zai zai-api 2 provider "ZAI_API_KEY is not set. Get your key at z.ai/manage-apikey/apikey-list"
+    return 0
+  fi
+
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  # /api/monitor/usage/quota/limit returns the real GLM Coding Plan quota:
+  # per-window percentages, reset timestamps and the plan level — zero token
+  # cost, no inference call.
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://api.z.ai/api/monitor/usage/quota/limit" 2>/dev/null || true)"
+
+  if [ "$http_status" = "200" ] && jq -e '.success == true and (.data.limits | type) == "array"' "$tmp_body" >/dev/null 2>&1; then
+    jq -c '
+      def clamp($n): if $n < 0 then 0 elif $n > 100 then 100 else $n end;
+      def ms_to_iso($ms): if $ms then (($ms / 1000) | todate) else null end;
+      # Z.ai/Zhipu period units (confirmed against the live quota API cross-
+      # referenced with docs.z.ai/devpack/overview and the official Usage page):
+      #   unit 4 -> 5-hour window   (n * 300 min)   "resets 5 hours after consumption"
+      #   unit 6 -> weekly window   (n * 10080 min) "resets every 7 days from subscription"
+      #   unit 5 -> monthly window  (n * 43200 min) e.g. shared MCP tool-call pool
+      #   unit 3 -> total token allotment (no reset window)
+      def win_min($unit; $n):
+        if $unit == 4 then ($n * 300)
+        elif $unit == 6 then ($n * 10080)
+        elif $unit == 5 then ($n * 43200)
+        else null end;
+      def win_label($lim):
+        ($lim.unit) as $unit | ($lim.number // 1) as $n |
+        # Limits carrying usageDetails meter the shared MCP tool pool
+        # (Search / Reader / Zread), not model prompts.
+        (if ($lim.usageDetails? != null) then "MCP " else "" end) as $mcp |
+        ( if $lim.type == "TIME_LIMIT" then
+            $mcp + (if $unit == 4 then "5h" elif $unit == 6 then "weekly" elif $unit == 5 then "monthly" else "window" end)
+          else
+            $mcp + (if $unit == 4 then "tokens/5h" elif $unit == 6 then "tokens/week" elif $unit == 5 then "tokens/month" elif $unit == 3 then "total tokens" else "tokens" end)
+          end
+        ) + (if $n > 1 then " ×\($n)" else "" end);
+      def display($lim):
+        if ($lim.usage? != null and $lim.currentValue? != null) then
+          "\($lim.currentValue) / \($lim.usage)"
+        else null end;
+      def make_window($lim):
+        { usedPercent: clamp(($lim.percentage // 0) | tonumber),
+          windowMinutes: win_min($lim.unit; ($lim.number // 1)),
+          resetsAt: ms_to_iso($lim.nextResetTime),
+          resetDescription: win_label($lim),
+          displayValue: display($lim) };
+      def plan_name($level):
+        if $level == "lite" then "GLM Coding Lite"
+        elif $level == "pro" then "GLM Coding Pro"
+        elif $level == "max" then "GLM Coding Max"
+        else ($level // "Z.ai account") end;
+
+      .data as $d |
+      ($d.limits // []) as $limits |
+      # timed limits first (most critical by % desc, then soonest reset), then untimed
+      ( ($limits | map(select(.nextResetTime != null))
+                 | sort_by([-((.percentage // 0) | tonumber), .nextResetTime]))
+        + ($limits | map(select(.nextResetTime == null)))
+      ) as $sorted |
+
+      {
+        provider: "zai",
+        source: "zai-api",
+        usage: {
+          identity: {providerID: "zai", accountEmail: plan_name($d.level), loginMethod: "api-key"},
+          accountEmail: plan_name($d.level),
+          loginMethod: "api-key",
+          primary:   (if $sorted[0] then make_window($sorted[0]) else null end),
+          secondary: (if $sorted[1] then make_window($sorted[1]) else null end),
+          tertiary:  (if $sorted[2] then make_window($sorted[2]) else null end),
+          updatedAt: (now | todate)
+        },
+        credits: {remaining: plan_name($d.level)}
+      }
+    ' "$tmp_body"
+    rm -f "$tmp_body"
+    return 0
+  fi
+
+  if [ "$http_status" = "401" ] || [ "$http_status" = "403" ]; then
+    local message
+    message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="Z.ai API key invalid (HTTP ${http_status})."
+    rm -f "$tmp_body"
+    json_error zai zai-api "${http_status}" provider "$message"
+    return 0
+  fi
+
+  # Quota endpoint unavailable: fall back to auth-only /models check.
+  rm -f "$tmp_body"
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://api.z.ai/api/paas/v4/models" 2>/dev/null || true)"
+  rm -f "$tmp_body"
+
+  if [ "$http_status" = "200" ]; then
+    json_note_usage zai zai-api "Z.ai account" "api-key" \
+      "Authenticated — billing at z.ai/manage-apikey/billing" \
+      "z.ai/manage-apikey/billing"
+    return 0
+  fi
+
+  json_note_usage zai zai-api "Z.ai account" "api-key" \
+    "API key set; quota endpoint unavailable" \
+    "z.ai/manage-apikey/billing"
+}
+
+fetch_mistral_native() {
+  local key="${MISTRAL_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error mistral mistral-api 2 provider "MISTRAL_API_KEY is not set. Mistral has no programmatic usage endpoint — set key to confirm authentication only."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://api.mistral.ai/v1/models" 2>/dev/null || true)"
+  if [ "$http_status" = "200" ]; then
+    rm -f "$tmp_body"
+    json_note_usage mistral mistral-api "Mistral account" "api-key" "Authenticated — usage at console.mistral.ai" "console.mistral.ai"
+    return 0
+  fi
+  json_error mistral mistral-api "${http_status:-1}" provider "Mistral API key invalid (HTTP ${http_status:-0}). Mistral has no programmatic quota endpoint."
+}
+
+fetch_ollama_native() {
+  local base="${OLLAMA_HOST:-http://localhost:11434}"
+  base="${base%/}"
+  local tmp_body tmp_ps http_status
+  tmp_body="$(mktemp)"
+  tmp_ps="$(mktemp)"
+  http_status="$(curl -sS --max-time 5 -o "$tmp_body" -w '%{http_code}' \
+    "${base}/api/tags" 2>/dev/null || true)"
+  if [ "$http_status" != "200" ]; then
+    rm -f "$tmp_body" "$tmp_ps"
+    json_error ollama ollama-local 2 provider "Ollama not running at ${base}. Start with: ollama serve"
+    return 0
+  fi
+  curl -sS --max-time 5 -o "$tmp_ps" "${base}/api/ps" 2>/dev/null || printf '{"models":[]}' >"$tmp_ps"
+  jq -cs --arg base "$base" '
+    def num($v): ($v // 0 | tonumber? // 0);
+    (.[0].models // []) as $models
+    | (.[1].models // []) as $running
+    | ($models | length) as $count
+    | ($models | map(.name // "") | join(", ") | if . == "" then "No models loaded" else . end) as $model_list
+    | ($running | map(.name // .model // "") | join(", ") | if . == "" then "No models running" else . end) as $running_list
+    | {
+        provider: "ollama",
+        source: "ollama-local",
+        usage: {
+          identity: { providerID: "ollama", accountEmail: ($base), loginMethod: "local" },
+          accountEmail: $base,
+          loginMethod: "local",
+          primary: {
+            usedPercent: 0,
+            windowMinutes: null,
+            resetsAt: null,
+            resetDescription: ("Local — " + ($count | tostring) + " model(s)"),
+            displayValue: $model_list
+          },
+          secondary: {
+            usedPercent: 0,
+            windowMinutes: null,
+            resetsAt: null,
+            resetDescription: "Running now",
+            displayValue: $running_list
+          },
+          tertiary: null,
+          updatedAt: (now | todateiso8601)
+        },
+        credits: { remaining: "local" }
+      }
+  ' "$tmp_body" "$tmp_ps"
+  rm -f "$tmp_body" "$tmp_ps"
+}
+
+fetch_nvidia_native() {
+  local key="${NVIDIA_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error nvidia nvidia-nim 2 provider "NVIDIA_API_KEY is not set (prefix: nvapi-). NVIDIA NIM has no programmatic balance endpoint — set key to confirm auth."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://integrate.api.nvidia.com/v1/models" 2>/dev/null || true)"
+  rm -f "$tmp_body"
+  if [ "$http_status" = "200" ]; then
+    json_note_usage nvidia nvidia-nim "NVIDIA NIM account" "api-key" "API key set (the public models endpoint cannot validate it); credits at build.nvidia.com" "build.nvidia.com"
+    return 0
+  fi
+  json_error nvidia nvidia-nim "${http_status:-1}" provider "NVIDIA NIM API key invalid (HTTP ${http_status:-0}). Credits visible at build.nvidia.com only."
+}
+
+fetch_cloudflare_native() {
+  local token="${CLOUDFLARE_AI_TOKEN:-${CLOUDFLARE_API_TOKEN:-}}"
+  local account="${CLOUDFLARE_ACCOUNT_ID:-}"
+  if [ -z "$token" ]; then
+    json_error cloudflare cloudflare-ai 2 provider "CLOUDFLARE_AI_TOKEN or CLOUDFLARE_API_TOKEN is not set."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${token}" \
+    "https://api.cloudflare.com/client/v4/user/tokens/verify" 2>/dev/null || true)"
+  if [ "$http_status" != "200" ]; then
+    local message
+    message="$(jq -r '.errors[0].message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="Cloudflare API token verification returned HTTP ${http_status:-0}."
+    rm -f "$tmp_body"
+    json_error cloudflare cloudflare-ai "${http_status:-1}" provider "$message"
+    return 0
+  fi
+  rm -f "$tmp_body"
+
+  # With an account id we can read documented Workers AI analytics via the
+  # GraphQL aiInferenceAdaptiveGroups dataset. Schema drift or missing
+  # permissions degrade gracefully to the token-verified note card.
+  if [ -n "$account" ]; then
+    local tmp_graph graph_status start_date end_date
+    tmp_graph="$(mktemp)"
+    end_date="$(date +%Y-%m-%d)"
+    start_date="$(date -d '6 days ago' +%Y-%m-%d)"
+    graph_status="$(jq -cn --arg tag "$account" --arg start "$start_date" --arg end "$end_date" '
+      {
+        query: "query($tag: String!, $start: Date!, $end: Date!) { viewer { accounts(filter: {accountTag: $tag}) { aiInferenceAdaptiveGroups(limit: 1000, orderBy: [date_ASC], filter: {date_geq: $start, date_leq: $end}) { sum { requests neurons } dimensions { date } } } } }",
+        variables: {tag: $tag, start: $start, end: $end}
+      }' | curl -sS --max-time 8 -o "$tmp_graph" -w '%{http_code}' \
+        -H "Authorization: Bearer ${token}" \
+        -H "Content-Type: application/json" \
+        --data @- \
+        "https://api.cloudflare.com/client/v4/graphql" 2>/dev/null || true)"
+
+    if [ "$graph_status" = "200" ] \
+      && jq -e '(.errors // []) == [] and (.data.viewer.accounts[0].aiInferenceAdaptiveGroups | type == "array")' "$tmp_graph" >/dev/null 2>&1; then
+      jq -c --arg account "$account" '
+        def num($v): ($v // 0 | tonumber? // 0);
+        (.data.viewer.accounts[0].aiInferenceAdaptiveGroups) as $groups
+        | (reduce $groups[] as $g ({requests: 0, neurons: 0};
+            .requests += num($g.sum.requests) | .neurons += num($g.sum.neurons))) as $total
+        | ($groups | sort_by(.dimensions.date) | last) as $latest
+        | {
+            provider: "cloudflare",
+            source: "cloudflare-graphql",
+            usage: {
+              identity: {providerID: "cloudflare", accountEmail: ("Account " + $account), loginMethod: "api-token"},
+              accountEmail: ("Account " + $account),
+              loginMethod: "api-token",
+              primary: {
+                usedPercent: 0,
+                windowMinutes: 10080,
+                resetsAt: null,
+                resetDescription: "Workers AI · 7 days",
+                displayValue: (($total.requests | tostring) + " req · " + ($total.neurons | tostring) + " neurons")
+              },
+              secondary: (if $latest != null then {
+                usedPercent: 0,
+                windowMinutes: 1440,
+                resetsAt: null,
+                resetDescription: ("Latest day " + ($latest.dimensions.date // "")),
+                displayValue: ((num($latest.sum.requests) | tostring) + " req · " + (num($latest.sum.neurons) | tostring) + " neurons")
+              } else null end),
+              tertiary: null,
+              updatedAt: (now | todateiso8601)
+            },
+            credits: {remaining: "dash.cloudflare.com"}
+          }
+      ' "$tmp_graph"
+      rm -f "$tmp_graph"
+      return 0
+    fi
+    rm -f "$tmp_graph"
+  fi
+
+  [ -n "$account" ] || account="unknown"
+  json_note_usage cloudflare cloudflare-api "Cloudflare account ${account}" "api-token" "Token verified; Workers AI usage is available in dashboard analytics" "dash.cloudflare.com"
+}
+
+fetch_vertexai_native() {
+  local project="${GOOGLE_CLOUD_PROJECT:-${GCLOUD_PROJECT:-${VERTEXAI_PROJECT:-}}}"
+  if command -v gcloud >/dev/null 2>&1 && gcloud auth print-access-token >/dev/null 2>&1; then
+    local account
+    account="$(gcloud config get-value account 2>/dev/null || echo "GCP account")"
+    [ -n "$account" ] && [ "$account" != "(unset)" ] || account="GCP account"
+    local label="Authenticated"
+    [ -n "$project" ] && label="Project: ${project}"
+    json_note_usage vertexai vertexai-gcloud "$account" "gcloud-oauth" "$label" "console.cloud.google.com/vertex-ai"
+    return 0
+  fi
+  json_error vertexai vertexai-gcloud 2 provider "gcloud not authenticated. Run: gcloud auth login && gcloud auth application-default login"
+}
+
+fetch_byteplus_native() {
+  local key="${BYTEPLUS_API_KEY:-${ARK_API_KEY:-}}"
+  if [ -z "$key" ]; then
+    json_error byteplus byteplus-ark 2 provider "BYTEPLUS_API_KEY or ARK_API_KEY is not set. BytePlus usage requires separate IAM AccessKey/SecretKey credentials."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://ark.ap-southeast.bytepluses.com/api/v3/models" 2>/dev/null || true)"
+  if [ "$http_status" = "200" ]; then
+    rm -f "$tmp_body"
+    json_note_usage byteplus byteplus-ark "BytePlus ModelArk account" "api-key" "Authenticated — IAM-signed usage API is available separately; billing at console.byteplus.com" "console.byteplus.com"
+    return 0
+  fi
+  local message
+  message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+  [ -n "$message" ] || message="BytePlus ModelArk API key invalid (HTTP ${http_status:-0}). Usage requires IAM Signature V4 credentials; check console.byteplus.com."
+  rm -f "$tmp_body"
+  json_error byteplus byteplus-ark "${http_status:-1}" provider "$message"
+}
+
+fetch_together_native() {
+  local key="${TOGETHER_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error together together-api 2 provider "TOGETHER_API_KEY is not set."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    "https://api.together.xyz/v1/models" 2>/dev/null || true)"
+  if [ "$http_status" != "200" ]; then
+    local message
+    message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="Together AI models API returned HTTP ${http_status:-0}."
+    rm -f "$tmp_body"
+    json_error together together-api "${http_status:-1}" provider "$message"
+    return 0
+  fi
+  rm -f "$tmp_body"
+  json_note_usage together together-api "Together AI account" "api-key" "Authenticated — Together AI does not document a read-only credits endpoint; billing is available in the console" "api.together.ai/settings/billing"
+}
+
+fetch_groq_native() {
+  local key="${GROQ_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error groq groq-api 2 provider "GROQ_API_KEY is not set. Groq has no public quota endpoint — set key to confirm auth."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://api.groq.com/openai/v1/models" 2>/dev/null || true)"
+  if [ "$http_status" = "200" ]; then
+    rm -f "$tmp_body"
+    json_note_usage groq groq-api "Groq account" "api-key" "Authenticated — usage at console.groq.com/usage" "console.groq.com/usage"
+    return 0
+  fi
+  local message
+  message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+  [ -n "$message" ] || message="Groq API key invalid (HTTP ${http_status:-0}). No public quota endpoint — check console.groq.com/usage."
+  rm -f "$tmp_body"
+  json_error groq groq-api "${http_status:-1}" provider "$message"
+}
+
+fetch_cohere_native() {
+  local key="${COHERE_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error cohere cohere-api 2 provider "COHERE_API_KEY is not set."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://api.cohere.ai/v1/models?page_size=1" 2>/dev/null || true)"
+  if [ "$http_status" != "200" ]; then
+    local message
+    message="$(jq -r '.message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="Cohere models API returned HTTP ${http_status:-0}."
+    rm -f "$tmp_body"
+    json_error cohere cohere-api "${http_status:-1}" provider "$message"
+    return 0
+  fi
+  rm -f "$tmp_body"
+  json_note_usage cohere cohere-api "Cohere account" "api-key" "Authenticated; billing limits are managed in the Cohere dashboard" "dashboard.cohere.com/billing"
+}
+
+fetch_replicate_native() {
+  local token="${REPLICATE_API_TOKEN:-}"
+  if [ -z "$token" ]; then
+    json_error replicate replicate-api 2 provider "REPLICATE_API_TOKEN is not set."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${token}" \
+    "https://api.replicate.com/v1/account" 2>/dev/null || true)"
+  if [ "$http_status" != "200" ]; then
+    local message
+    message="$(jq -r '.detail // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="Replicate account API returned HTTP ${http_status:-0}."
+    rm -f "$tmp_body"
+    json_error replicate replicate-api "${http_status:-1}" provider "$message"
+    return 0
+  fi
+  jq -c '
+    . as $r
+    | {
+        provider: "replicate",
+        source: "replicate-api",
+        usage: {
+          identity: { providerID: "replicate", accountEmail: ($r.username // $r.github_url // "Replicate account"), loginMethod: "api-token" },
+          accountEmail: ($r.username // "Replicate account"),
+          loginMethod: "api-token",
+          primary: {
+            usedPercent: 0,
+            windowMinutes: null,
+            resetsAt: null,
+            resetDescription: "Account",
+            displayValue: ("Authenticated as " + ($r.username // "account"))
+          },
+          secondary: null,
+          tertiary: null,
+          updatedAt: (now | todateiso8601)
+        },
+        credits: { remaining: "replicate.com/account/billing" }
+      }
+  ' "$tmp_body"
+  rm -f "$tmp_body"
+}
+
+fetch_fireworks_native() {
+  local key="${FIREWORKS_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error fireworks fireworks-api 2 provider "FIREWORKS_API_KEY is not set."
+    return 0
+  fi
+  local tmp_body http_status account_id
+  account_id="${FIREWORKS_ACCOUNT_ID:-}"
+  if [ -n "$account_id" ]; then
+    tmp_body="$(mktemp)"
+    http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+      -H "Authorization: Bearer ${key}" \
+      -H "Accept: application/json" \
+      "https://api.fireworks.ai/v1/accounts/${account_id}/quotas?pageSize=200" 2>/dev/null || true)"
+    if [ "$http_status" = "200" ] && jq -e '(.quotas // []) | type == "array"' "$tmp_body" >/dev/null 2>&1; then
+      jq -c --arg account "$account_id" '
+        def num($v): ($v // 0 | tonumber? // 0);
+        def pct($used; $limit): if num($limit) > 0 then ((num($used) / num($limit)) * 100 | if . > 100 then 100 elif . < 0 then 0 else . end) else 0 end;
+        def window($quota): if $quota == null then null else {usedPercent:pct($quota.usage; $quota.value), windowMinutes:null, resetsAt:null, resetDescription:$quota.name, displayValue:(($quota.usage | tostring) + " / " + ($quota.value | tostring) + " (max " + ($quota.max | tostring) + ")")} end;
+        [(.quotas // [])[] | {name:(.name // "quota" | split("/") | last), usage:num(.usage), value:num(.value), max:num(.maxValue), update:(.updateTime // null)}]
+        | sort_by(-pct(.usage; .value)) as $quotas
+        | {
+            provider:"fireworks", source:"fireworks-quotas",
+            usage:{identity:{providerID:"fireworks", accountEmail:("Fireworks account " + $account), loginMethod:"api-key"}, accountEmail:("Fireworks account " + $account), loginMethod:"api-key", primary:window($quotas[0]), secondary:window($quotas[1]), tertiary:window($quotas[2]), updatedAt:(now | todateiso8601)},
+            credits:{remaining:(if ($quotas | length) == 0 then "No quotas returned" else (($quotas[0].usage | tostring) + " / " + ($quotas[0].value | tostring)) end)}
+          }
+      ' "$tmp_body"
+      rm -f "$tmp_body"
+      return 0
+    fi
+    if [ "$http_status" = "401" ] || [ "$http_status" = "403" ]; then
+      local quota_message
+      quota_message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+      [ -n "$quota_message" ] || quota_message="Fireworks quota API authorization failed (HTTP ${http_status})."
+      rm -f "$tmp_body"
+      json_error fireworks fireworks-quotas "$http_status" provider "$quota_message"
+      return 0
+    fi
+    rm -f "$tmp_body"
+  fi
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Content-Type: application/json" \
+    "https://api.fireworks.ai/inference/v1/models" 2>/dev/null || true)"
+  if [ "$http_status" != "200" ]; then
+    local message
+    message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="Fireworks AI models API returned HTTP ${http_status:-0}."
+    rm -f "$tmp_body"
+    json_error fireworks fireworks-api "${http_status:-1}" provider "$message"
+    return 0
+  fi
+  rm -f "$tmp_body"
+  if [ -n "$account_id" ]; then
+    json_note_usage fireworks fireworks-api "Fireworks AI account ${account_id}" "api-key" "Authenticated; quota API is temporarily unavailable, billing is available in the Fireworks console" "app.fireworks.ai"
+  else
+    json_note_usage fireworks fireworks-api "Fireworks AI account" "api-key" "Authenticated — set FIREWORKS_ACCOUNT_ID to display documented account quotas" "app.fireworks.ai"
+  fi
+}
+
+fetch_ai21_native() {
+  local key="${AI21_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error ai21 ai21-api 2 provider "AI21_API_KEY is not set."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://api.ai21.com/studio/v1/models" 2>/dev/null || true)"
+  if [ "$http_status" = "200" ]; then
+    rm -f "$tmp_body"
+    json_note_usage ai21 ai21-api "AI21 account" "api-key" "Authenticated — no documented read-only usage endpoint" "studio.ai21.com"
+    return 0
+  fi
+  local message
+  message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+  [ -n "$message" ] || message="AI21 API key validation returned HTTP ${http_status:-0}."
+  rm -f "$tmp_body"
+  json_error ai21 ai21-api "${http_status:-1}" provider "$message"
+}
+
+fetch_qwen_native() {
+  local key="${DASHSCOPE_API_KEY:-${QWEN_API_KEY:-}}"
+  if [ -z "$key" ]; then
+    json_error qwen dashscope-api 2 provider "DASHSCOPE_API_KEY or QWEN_API_KEY is not set. Alibaba DashScope has no programmatic quota endpoint."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  local -a headers=(-H "Authorization: Bearer ${key}" -H "Accept: application/json")
+  if [ -n "${DASHSCOPE_WORKSPACE_ID:-}" ]; then
+    headers+=(-H "X-DashScope-WorkSpace: ${DASHSCOPE_WORKSPACE_ID}")
+  fi
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    "${headers[@]}" \
+    "https://dashscope.aliyuncs.com/compatible-mode/v1/models" 2>/dev/null || true)"
+  if [ "$http_status" = "200" ]; then
+    rm -f "$tmp_body"
+    json_note_usage qwen dashscope-api "DashScope account" "api-key" "Authenticated — quota at dashscope.console.aliyun.com" "dashscope.console.aliyun.com"
+    return 0
+  fi
+  json_error qwen dashscope-api "${http_status:-1}" provider "DashScope API key invalid (HTTP ${http_status:-0}). Quota visible at dashscope.console.aliyun.com only."
+}
+
+fetch_xai_native() {
+  local key="${XAI_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error xai xai-api 2 provider "XAI_API_KEY is not set. Get your key at console.x.ai/team/default/api-keys"
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  # GET /v1/api-key is the documented zero-cost key introspection endpoint. It
+  # returns key metadata (name, acls, blocked/disabled flags) — no token spend,
+  # unlike a chat/responses call. Falls back to /v1/models if the management
+  # surface is unavailable for this key.
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://api.x.ai/v1/api-key" 2>/dev/null || true)"
+  if [ "$http_status" = "200" ]; then
+    local name blocked note
+    name="$(jq -r '.name // "xAI key"' "$tmp_body" 2>/dev/null || printf 'xAI key')"
+    blocked="$(jq -r '.api_key_blocked // .team_blocked // .api_key_disabled // false' "$tmp_body" 2>/dev/null || printf 'false')"
+    rm -f "$tmp_body"
+    if [ "$blocked" = "true" ]; then
+      json_error xai xai-api 3 provider "xAI API key \"${name}\" is blocked or disabled. Manage at console.x.ai/team/default/api-keys"
+      return 0
+    fi
+    note="Authenticated as \"${name}\" — billing at console.x.ai/billing"
+    json_note_usage xai xai-api "$name" "api-key" "$note" "console.x.ai/billing"
+    return 0
+  fi
+  # xAI signals an invalid key as HTTP 400 with code "invalid-argument"
+  # (not 401), plus 401/403 for auth/permission issues. All are key problems.
+  case "$http_status" in 400|401|403)
+    local message
+    message="$(jq -r '.error // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="xAI API key invalid (HTTP ${http_status})."
+    rm -f "$tmp_body"
+    json_error xai xai-api "${http_status}" provider "$message"
+    return 0
+  esac
+  rm -f "$tmp_body"
+  json_note_usage xai xai-api "xAI account" "api-key" "API key set; billing at console.x.ai/billing" "console.x.ai/billing"
+}
+
+fetch_kilo_native() {
+  local key="${KILO_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error kilo kilo-gateway 2 provider "KILO_API_KEY is not set."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  # GET /api/gateway/models is OpenAI-compatible. The Kilo docs note it works
+  # without auth, so a 200 is inconclusive — but a 401 reliably rejects a bad
+  # key, which is the only zero-cost signal available without spending credits.
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://api.kilo.ai/api/gateway/models" 2>/dev/null || true)"
+  if [ "$http_status" = "200" ]; then
+    rm -f "$tmp_body"
+    json_note_usage kilo kilo-gateway "Kilo account" "api-key" "Key accepted — balance at app.kilo.ai/credits" "app.kilo.ai/credits"
+    return 0
+  fi
+  if [ "$http_status" = "401" ] || [ "$http_status" = "403" ]; then
+    local message
+    message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="Kilo API key invalid (HTTP ${http_status})."
+    rm -f "$tmp_body"
+    json_error kilo kilo-gateway "${http_status}" provider "$message"
+    return 0
+  fi
+  rm -f "$tmp_body"
+  json_note_usage kilo kilo-gateway "Kilo account" "api-key" "Key set; usage at app.kilo.ai/credits" "app.kilo.ai/credits"
+}
+
+fetch_provider() {
+  local provider="$1"
+  case "$provider" in
+    copilot)
+      fetch_copilot
+      ;;
+    claude)
+      fetch_claude_native
+      ;;
+    gemini)
+      fetch_gemini_native
+      ;;
+    antigravity|agy)
+      fetch_antigravity_native
+      ;;
+    9router)
+      fetch_9router_native 9router 9router
+      ;;
+    openrouter)
+      if [ -n "${OPENROUTER_API_KEY:-}" ]; then
+        fetch_openrouter_native
+      else
+        fetch_9router_native openrouter openrouter soft \
+          || fetch_openrouter_native
+      fi
+      ;;
+    codex)
+      fetch_codex_native
+      ;;
+    deepseek)
+      fetch_deepseek_native
+      ;;
+    kimi|moonshot)
+      fetch_kimi_native
+      ;;
+    minimax)
+      fetch_minimax_native
+      ;;
+    glm|zhipu)
+      fetch_glm_native
+      ;;
+    zai|z.ai)
+      fetch_zai_native
+      ;;
+    mistral)
+      fetch_mistral_native
+      ;;
+    ollama)
+      fetch_ollama_native
+      ;;
+    nvidia|nim)
+      fetch_nvidia_native
+      ;;
+    cloudflare)
+      fetch_cloudflare_native
+      ;;
+    vertexai|vertex)
+      fetch_vertexai_native
+      ;;
+    byteplus|ark|modelark)
+      fetch_byteplus_native
+      ;;
+    qwen|dashscope|alibaba)
+      fetch_qwen_native
+      ;;
+    xai|grok)
+      fetch_xai_native
+      ;;
+    perplexity)
+      json_note_usage perplexity perplexity-web "Perplexity account" "subscription" "No public quota API; usage is available in Perplexity settings" "perplexity.ai/settings/billing"
+      ;;
+    cursor)
+      json_note_usage cursor cursor-local "Cursor account" "subscription" "No public quota API; usage is available in Cursor settings" "cursor.com/settings"
+      ;;
+    kilo)
+      fetch_kilo_native
+      ;;
+    kiro)
+      json_note_usage kiro kiro-local "Kiro account" "subscription" "No public quota API; usage is available in Kiro settings" "kiro.dev"
+      ;;
+    warp)
+      json_note_usage warp warp-local "Warp account" "subscription" "No public quota API; usage is available in Warp settings" "app.warp.dev"
+      ;;
+    amp)
+      json_note_usage amp amp-local "Amp account" "payg" "No public quota API; usage is available in Amp settings" "ampcode.com"
+      ;;
+    cline)
+      json_note_usage cline cline-local "Cline account" "subscription" "No public quota API; usage is available in the Cline client" "app.cline.bot"
+      ;;
+    opencode)
+      json_note_usage opencode opencode-local "OpenCode" "proxy" "OpenCode routes to underlying providers directly — check each provider's card" "opencode.ai"
+      ;;
+    together)
+      fetch_together_native
+      ;;
+    groq)
+      fetch_groq_native
+      ;;
+    cohere)
+      fetch_cohere_native
+      ;;
+    replicate)
+      fetch_replicate_native
+      ;;
+    fireworks)
+      fetch_fireworks_native
+      ;;
+    ai21)
+      fetch_ai21_native
+      ;;
+    *)
+      json_error "$provider" provider-backend 1 provider "No local provider adapter is registered for $provider."
+      ;;
+  esac
+}
+
+IFS=',' read -r -a providers <<< "$PROVIDERS_CSV"
+normalized_providers=()
+result_files=()
+pids=()
+
+for raw_provider in "${providers[@]}"; do
+  provider="$(printf '%s' "$raw_provider" | xargs | tr '[:upper:]' '[:lower:]')"
+  [ -n "$provider" ] || continue
+  normalized_providers+=("$provider")
+  result_file="$(mktemp)"
+  result_files+=("$result_file")
+  (
+    item="$(fetch_provider "$provider")"
+    if ! printf '%s' "$item" | jq -e . >/dev/null 2>&1; then
+      item="$(json_error "$provider" provider-backend 1 runtime "Provider backend returned invalid JSON.")"
+    fi
+    printf '%s' "$item" > "$result_file"
+  ) &
+  pids+=("$!")
+done
+
+for pid in "${pids[@]}"; do
+  wait "$pid" || true
+done
+
+# Append one usage snapshot per healthy provider so the widget can render
+# trend arrows and history sparklines. Best-effort: never block the response.
+record_history() {
+  local history_dir="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl"
+  local history_file="$history_dir/usage-history.jsonl"
+  mkdir -p "$history_dir" 2>/dev/null || return 0
+  # Retention: AIOC_HISTORY_MAX snapshots kept after trim (default 2000); the
+  # trim itself only kicks in past 2x that to avoid rewriting on every run.
+  local max_lines="${AIOC_HISTORY_MAX:-2000}"
+  case "$max_lines" in ''|*[!0-9]*) max_lines=2000 ;; esac
+  [ "$max_lines" -ge 50 ] || max_lines=50
+
+  local now idx file line
+  now="$(date +%s)"
+  for idx in "${!normalized_providers[@]}"; do
+    file="${result_files[$idx]}"
+    [ -s "$file" ] || continue
+    # Only snapshot providers that report a real, non-zero quota/spend
+    # percentage. Balance, analytics (e.g. Cloudflare neurons), and
+    # informational cards all carry usedPercent:0 — recording those produced
+    # flat-zero sparklines that polluted history and meant nothing. A genuine
+    # 0% quota reading adds no trend signal either, so the line simply starts
+    # at the first measurable datapoint.
+    line="$(jq -c --argjson ts "$now" \
+      'select((.usage.primary.usedPercent // 0) > 0) | {ts:$ts, provider:.provider, pct:(.usage.primary.usedPercent)}' \
+      "$file" 2>/dev/null || true)"
+    [ -n "$line" ] && printf '%s\n' "$line" >> "$history_file"
+  done
+  if [ -f "$history_file" ] && [ "$(wc -l < "$history_file")" -gt "$((max_lines * 2))" ]; then
+    tail -n "$max_lines" "$history_file" > "$history_file.tmp" && mv -f "$history_file.tmp" "$history_file"
+  fi
+  return 0
+}
+record_history
+
+printf '['
+for index in "${!normalized_providers[@]}"; do
+  [ "$index" -eq 0 ] || printf ','
+  if [ -s "${result_files[$index]}" ]; then
+    cat "${result_files[$index]}"
+  else
+    json_error "${normalized_providers[$index]}" provider-backend 1 runtime "Provider backend produced no output."
+  fi
+done
+printf ']'

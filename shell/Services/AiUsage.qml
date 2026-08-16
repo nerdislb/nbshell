@@ -7,17 +7,15 @@ import qs.Common
 
 // Verbrauch der KI-Zugaenge (Claude & Co.).
 //
-// Die Zahlen holt ein fremdes Helferskript: `get-provider-usage` aus dem
-// DMS-Plugin `aiOverviewControl`. Es ist ein reines Bash-Skript -- es
-// funktioniert also weiter, auch wenn DMS gar nicht mehr laeuft; die Dateien
-// liegen ja noch da. Nachgebaut wird es hier nicht: es kennt die Anmeldung an
-// mehrere Anbieter, und das ist fremde Arbeit, die man nicht abschreibt.
-//
-// Fehlt das Skript, bleibt der Baustein still -- kein Fehler, nur kein Wert.
+// Die normalisierten Provider-Helfer aus AiOverviewControl liegen
+// MIT-lizenziert direkt unter scripts/ai-usage. Damit funktioniert die Anzeige
+// auf einer frischen Installation ohne DMS-Verzeichnis. `aiHelper` darf den
+// eingebauten Helfer weiterhin bewusst ersetzen, etwa fuer Entwicklung.
 Singleton {
     id: root
 
-    readonly property var candidates: [Config.value("aiHelper", ""), (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/DankMaterialShell/plugins/aiOverviewControl/providers/get-provider-usage", (Quickshell.env("HOME") + "/.local/share/nbshell/get-provider-usage")]
+    readonly property string bundledHelper: Qt.resolvedUrl("../scripts/ai-usage/providers/get-provider-usage").toString().replace("file://", "")
+    readonly property var candidates: [Config.value("aiHelper", ""), bundledHelper]
 
     property string helper: ""
     property bool available: helper !== ""
