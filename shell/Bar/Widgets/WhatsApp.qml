@@ -130,6 +130,14 @@ Cell {
                         height: Theme.cellH * 1.8
                         spacing: Theme.cellW
 
+                        // Das Popup besitzt bereits den Wayland-Keyboard-Grab,
+                        // aber niri reicht einen normalen TextInput-Klick nicht
+                        // in jedem Fall als aktiven Item-Fokus weiter. Sobald
+                        // nach der Chatwahl der Composer sichtbar wird, holen
+                        // wir ihn deshalb explizit nach dem Layout-Durchlauf.
+                        onVisibleChanged: if (visible)
+                            Qt.callLater(() => composer.forceActiveFocus())
+
                         Rectangle {
                             width: 27 * Theme.cellW
                             height: parent.height
@@ -145,9 +153,15 @@ Cell {
                                 font.family: Theme.fontFamily; font.pixelSize: Theme.fontSize
                                 verticalAlignment: TextInput.AlignVCenter
                                 clip: true
+                                activeFocusOnPress: true
                                 text: panel.draft
                                 onTextChanged: panel.draft = text
                                 onAccepted: panel.submit()
+
+                                TapHandler {
+                                    acceptedButtons: Qt.LeftButton
+                                    onTapped: composer.forceActiveFocus()
+                                }
                             }
                         }
 
