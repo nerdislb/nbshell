@@ -134,6 +134,7 @@ PanelWindow {
         property string glyph: ""
         property color tone: Theme.accent
         property var run: null
+        property var rightRun: null
         width: Theme.cellW * 21
         height: Theme.cellH * 3.2
         radius: Theme.radius
@@ -142,9 +143,18 @@ PanelWindow {
         border.color: actionHover.hovered ? action.tone : Theme.alpha(action.tone, 0.55)
 
         Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.top: parent.top; anchors.topMargin: Theme.cellH * 0.55; text: action.glyph + (action.glyph !== "" ? "  " : "") + action.label; color: action.tone }
-        Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.bottom: parent.bottom; anchors.bottomMargin: Theme.cellH * 0.45; text: action.detail; color: Theme.fgDim; elide: Text.ElideRight }
+        Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.right: rightHint.left; anchors.rightMargin: Theme.cellW * 0.5; anchors.bottom: parent.bottom; anchors.bottomMargin: Theme.cellH * 0.45; text: action.detail; color: Theme.fgDim; elide: Text.ElideRight }
+        Line { id: rightHint; visible: action.rightRun !== null; anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.bottom: parent.bottom; anchors.bottomMargin: Theme.cellH * 0.45; text: "R"; color: Theme.muted }
         HoverHandler { id: actionHover; cursorShape: Qt.PointingHandCursor }
-        TapHandler { onTapped: if (action.run) action.run() }
+        TapHandler {
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            onTapped: (point, button) => {
+                if (button === Qt.RightButton && action.rightRun)
+                    action.rightRun();
+                else if (button === Qt.LeftButton && action.run)
+                    action.run();
+            }
+        }
     }
 
     Item {
@@ -207,19 +217,23 @@ PanelWindow {
                 }
 
                 // ── HEUTE ───────────────────────────────────────────────
-                Row {
+                Item {
                     visible: root.page === 0
                     width: parent.width
                     height: parent.height - Theme.cellH * 7
-                    spacing: root.cardGap
 
-                    Column {
-                        width: (parent.width - root.cardGap) * 0.58
-                        height: parent.height
+                    Row {
+                        anchors.fill: parent
+                        anchors.margins: root.cardGap
                         spacing: root.cardGap
 
-                        Card {
-                            width: parent.width; height: parent.height * 0.46
+                        Column {
+                            width: (parent.width - root.cardGap) * 0.58
+                            height: parent.height
+                            spacing: root.cardGap
+
+                            Card {
+                            width: parent.width; height: (parent.height - root.cardGap) / 2
                             title: "Naechste Termine"
                             badge: Calendar.loading ? "…" : String(root.nextEvents.length)
                             Line { visible: root.nextEvents.length === 0; text: Calendar.available ? "nichts in den naechsten Tagen" : Calendar.problem; color: Theme.muted }
@@ -235,8 +249,8 @@ PanelWindow {
                             }
                         }
 
-                        Card {
-                            width: parent.width; height: parent.height * 0.5
+                            Card {
+                            width: parent.width; height: (parent.height - root.cardGap) / 2
                             title: "Wetter"
                             badge: root.weather.ok ? String(root.weather.ort || Config.value("weatherPlace", "")) : ""
                             Row {
@@ -263,16 +277,16 @@ PanelWindow {
                                     }
                                 }
                             }
+                            }
                         }
-                    }
 
-                    Column {
-                        width: (parent.width - root.cardGap) * 0.42
-                        height: parent.height
-                        spacing: root.cardGap
+                        Column {
+                            width: (parent.width - root.cardGap) * 0.42
+                            height: parent.height
+                            spacing: root.cardGap
 
-                        Card {
-                            width: parent.width; height: parent.height * 0.34
+                            Card {
+                            width: parent.width; height: (parent.height - root.cardGap * 2) / 3
                             title: "System"
                             badge: SysInfo.uptimeText(SysInfo.detail?.laufzeit ?? 0)
                             Line { text: "CPU  " + String(SysInfo.cpuPercent).padStart(3, " ") + " %"; color: SysInfo.cpuPercent >= 90 ? Theme.red : Theme.fg }
@@ -281,8 +295,8 @@ PanelWindow {
                             LevelBar { width: parent.width; cells: 26; value: SysInfo.memPercent; fillColor: Theme.cyan }
                         }
 
-                        Card {
-                            width: parent.width; height: parent.height * 0.27
+                            Card {
+                            width: parent.width; height: (parent.height - root.cardGap * 2) / 3
                             title: "Heute"
                             badge: Todo.count + " offen"
                             Line { text: Icons.todo + "  Aufgaben     " + Todo.count; color: Todo.count > 0 ? Theme.fg : Theme.fgDim }
@@ -290,8 +304,8 @@ PanelWindow {
                             Line { text: Icons.download + "  Updates      " + (Updates.checking ? "prueft …" : Updates.count); color: Updates.count > 0 ? Theme.yellow : Theme.fgDim }
                         }
 
-                        Card {
-                            width: parent.width; height: parent.height * 0.31
+                            Card {
+                            width: parent.width; height: (parent.height - root.cardGap * 2) / 3
                             title: MediaService.active ? "Laeuft gerade" : "Medien"
                             badge: MediaService.playing ? "PLAY" : (MediaService.active ? "PAUSE" : "")
                             Line { width: parent.width; text: MediaService.active ? (MediaService.title || "unbekannt") : "kein Player aktiv"; color: Theme.fgBright; elide: Text.ElideRight }
@@ -315,64 +329,85 @@ PanelWindow {
                                     TapHandler { onTapped: MediaService.next() }
                                 }
                             }
+                            }
                         }
                     }
                 }
 
                 // ── MEDIEN ──────────────────────────────────────────────
-                Row {
+                Item {
                     visible: root.page === 1
                     width: parent.width
                     height: parent.height - Theme.cellH * 7
-                    spacing: root.cardGap * 2
 
-                    Rectangle {
-                        width: parent.width * 0.42; height: width
-                        color: Theme.bgLight; border.width: Theme.borderWidth; border.color: Theme.accent; radius: Theme.radius
-                        Image { anchors.fill: parent; anchors.margins: Theme.borderWidth; source: MediaService.player?.trackArtUrl ?? ""; fillMode: Image.PreserveAspectCrop; asynchronous: true }
-                        Line { anchors.centerIn: parent; visible: (MediaService.player?.trackArtUrl ?? "") === ""; text: Icons.play; color: Theme.muted; font.pixelSize: Theme.fontSize + 40 }
-                    }
                     Column {
-                        width: parent.width * 0.58 - root.cardGap * 2
-                        spacing: Theme.cellH
-                        Line { width: parent.width; text: MediaService.active ? (MediaService.title || "Unbekannter Titel") : "Kein Player aktiv"; color: Theme.fgBright; font.pixelSize: Theme.fontSize + 8; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight }
-                        Line { width: parent.width; text: MediaService.artist; color: Theme.fgDim; font.pixelSize: Theme.fontSize + 3; elide: Text.ElideRight }
-                        Line { text: MediaService.zeit(MediaService.position) + "  /  " + MediaService.zeit(MediaService.length); color: Theme.fgDim }
-                        LevelBar { width: parent.width; cells: 40; value: MediaService.length > 0 ? 100 * MediaService.position / MediaService.length : 0; fillColor: Theme.accent }
-                        Row {
-                            width: parent.width
-                            spacing: Theme.cellW * 4
-                            Action { width: (parent.width - Theme.cellW * 8) / 3; label: "Zurueck"; glyph: Icons.cp(0xF04AE); detail: "voriger Titel"; run: () => MediaService.previous() }
-                            Action { width: (parent.width - Theme.cellW * 8) / 3; label: MediaService.playing ? "Pause" : "Play"; glyph: MediaService.playing ? Icons.pause : Icons.play; detail: MediaService.playing ? "anhalten" : "fortsetzen"; run: () => MediaService.playPause() }
-                            Action { width: (parent.width - Theme.cellW * 8) / 3; label: "Weiter"; glyph: Icons.cp(0xF04AD); detail: "naechster Titel"; run: () => MediaService.next() }
+                        anchors.centerIn: parent
+                        width: Math.min(parent.width - root.cardGap * 2, Theme.cellW * 76)
+                        spacing: root.cardGap
+
+                        Item {
+                            width: parent.width; height: Theme.cellH * 17
+                            Rectangle {
+                                width: parent.height; height: parent.height; anchors.centerIn: parent
+                                color: Theme.bgLight; border.width: Theme.borderWidth; border.color: Theme.accent; radius: Theme.radius
+                                Image { anchors.fill: parent; anchors.margins: Theme.borderWidth; source: MediaService.player?.trackArtUrl ?? ""; fillMode: Image.PreserveAspectCrop; asynchronous: true }
+                                Line { anchors.centerIn: parent; visible: (MediaService.player?.trackArtUrl ?? "") === ""; text: Icons.play; color: Theme.muted; font.pixelSize: Theme.fontSize + 40 }
+                            }
                         }
-                        Line { visible: MediaService.volumeSupported; text: "PLAYER-LAUTSTAERKE  " + Math.round(MediaService.volume * 100) + " %"; color: Theme.fgDim }
-                        LevelBar { visible: MediaService.volumeSupported; width: parent.width; cells: 40; value: MediaService.volume * 100; fillColor: Theme.cyan; interactive: true; onMoved: value => MediaService.setVolume(value / 100) }
+
+                        Rectangle {
+                            width: parent.width; height: Theme.cellH * 11.5
+                            color: Theme.alpha(Theme.bgLight, 0.72); radius: Theme.radius
+                            border.width: Theme.borderWidth; border.color: Theme.alpha(Theme.accent, 0.55)
+                            Column {
+                                anchors.fill: parent; anchors.margins: Theme.cellW * 1.5
+                                spacing: Theme.cellH * 0.35
+                                Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: MediaService.active ? (MediaService.title || "Unbekannter Titel") : "Kein Player aktiv"; color: Theme.fgBright; font.pixelSize: Theme.fontSize + 4; elide: Text.ElideRight }
+                                Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: MediaService.artist; color: Theme.fgDim; elide: Text.ElideRight }
+                                Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: MediaService.zeit(MediaService.position) + "  /  " + MediaService.zeit(MediaService.length); color: Theme.fgDim }
+                                LevelBar { width: parent.width; cells: 56; value: MediaService.length > 0 ? 100 * MediaService.position / MediaService.length : 0; fillColor: Theme.accent }
+                                Row {
+                                    width: parent.width
+                                    spacing: Theme.cellW * 2
+                                    Action { width: (parent.width - Theme.cellW * 4) / 3; height: Theme.cellH * 2.8; label: "Zurueck"; glyph: Icons.cp(0xF04AE); detail: "voriger Titel"; run: () => MediaService.previous() }
+                                    Action { width: (parent.width - Theme.cellW * 4) / 3; height: Theme.cellH * 2.8; label: MediaService.playing ? "Pause" : "Play"; glyph: MediaService.playing ? Icons.pause : Icons.play; detail: MediaService.playing ? "anhalten" : "fortsetzen"; run: () => MediaService.playPause() }
+                                    Action { width: (parent.width - Theme.cellW * 4) / 3; height: Theme.cellH * 2.8; label: "Weiter"; glyph: Icons.cp(0xF04AD); detail: "naechster Titel"; run: () => MediaService.next() }
+                                }
+                                Line { visible: MediaService.volumeSupported; width: parent.width; horizontalAlignment: Text.AlignHCenter; text: "PLAYER-LAUTSTAERKE  " + Math.round(MediaService.volume * 100) + " %"; color: Theme.fgDim }
+                                LevelBar { visible: MediaService.volumeSupported; width: parent.width; cells: 56; value: MediaService.volume * 100; fillColor: Theme.cyan; interactive: true; onMoved: value => MediaService.setVolume(value / 100) }
+                            }
+                        }
                     }
                 }
 
                 // ── WERKZEUGE ───────────────────────────────────────────
-                Flow {
+                Item {
                     visible: root.page === 2
                     width: parent.width
                     height: parent.height - Theme.cellH * 7
-                    spacing: root.cardGap
 
-                    Action { label: "Aufgaben"; detail: Todo.count + " offen"; glyph: Icons.todo; run: () => root.openSurface(() => Runtime.todoOpen = true) }
-                    Action { label: "Gewohnheiten"; detail: Habits.doneCount + "/" + Habits.count + " heute"; glyph: Icons.habit; run: () => root.openSurface(() => Runtime.habitsOpen = true) }
-                    Action { label: "Updates"; detail: Updates.checking ? "prueft …" : Updates.count + " verfuegbar"; glyph: Icons.download; tone: Updates.count > 0 ? Theme.yellow : Theme.green; run: () => Updates.refresh() }
-                    Action { label: "Aufnahme"; detail: CaptureService.recording ? "laeuft" : "Screenshot, OCR, QR"; glyph: CaptureService.recording ? Icons.record : Icons.camera; tone: CaptureService.recording ? Theme.red : Theme.accent; run: () => root.openSurface(() => Runtime.captureOpen = true) }
-                    Action { label: "Theme"; detail: Config.theme; glyph: Icons.palette; run: () => root.openSurface(() => Runtime.themePickerOpen = true) }
-                    Action { label: "Wachhalten"; detail: Idle.caffeine ? "aktiv" : "Automatik aktiv"; glyph: Icons.coffee; tone: Idle.caffeine ? Theme.yellow : Theme.fgDim; run: () => Idle.toggleCaffeine() }
-                    Action { label: "KI-Limits"; detail: AiUsage.list.length ? AiUsage.list.map(e => e.id + " " + e.percent + "%").join(" · ") : "keine Daten"; glyph: Icons.cp(0xF1218); run: () => AiUsage.refresh() }
-                    Action { label: "System-Hub"; detail: "Dienste, Sync, Ports"; glyph: Icons.matrix; run: () => root.openSurface(() => Runtime.hubOpen = true) }
-                    Action { label: "Module"; detail: "Bar anordnen"; glyph: Icons.cp(0xF12E); run: () => root.openSurface(() => Runtime.modulesOpen = true) }
-                    Action { label: "Zwischenablage"; detail: Clipboard.entries.length + " Eintraege"; glyph: Icons.clipboard; run: () => root.openSurface(() => Runtime.clipOpen = true) }
-                    Action { label: "Audio"; detail: "Mixer und Equalizer"; glyph: Icons.volumeHigh; run: () => root.openSurface(() => Runtime.audioToolsOpen = true) }
-                    Action { label: "Einstellungen"; detail: "Aussehen und Verhalten"; glyph: Icons.cp(0xF0493); run: () => root.openSurface(() => Runtime.settingsOpen = true) }
+                    Flow {
+                        anchors.centerIn: parent
+                        width: Theme.cellW * 84 + root.cardGap * 3
+                        height: childrenRect.height
+                        spacing: root.cardGap
+
+                        Action { label: "Aufgaben"; detail: Todo.count + " offen"; glyph: Icons.todo; run: () => root.openSurface(() => Runtime.todoOpen = true) }
+                        Action { label: "Gewohnheiten"; detail: Habits.doneCount + "/" + Habits.count + " heute"; glyph: Icons.habit; run: () => root.openSurface(() => Runtime.habitsOpen = true) }
+                        Action { label: "Updates"; detail: Updates.checking ? "prueft …" : Updates.count + " verfuegbar"; glyph: Icons.download; tone: Updates.count > 0 ? Theme.yellow : Theme.green; run: () => Updates.refresh(); rightRun: () => root.openSurface(() => Updates.update()) }
+                        Action { label: "Aufnahme"; detail: CaptureService.recording ? "laeuft" : "Screenshot, OCR, QR"; glyph: CaptureService.recording ? Icons.record : Icons.camera; tone: CaptureService.recording ? Theme.red : Theme.accent; run: () => root.openSurface(() => Runtime.captureOpen = true); rightRun: () => CaptureService.toggleRecording() }
+                        Action { label: "Theme"; detail: Config.theme; glyph: Icons.palette; run: () => root.openSurface(() => Runtime.themePickerOpen = true); rightRun: () => ThemeIndex.step(1) }
+                        Action { label: "Wachhalten"; detail: Idle.caffeine ? "aktiv" : "Automatik aktiv"; glyph: Icons.coffee; tone: Idle.caffeine ? Theme.yellow : Theme.fgDim; run: () => Idle.toggleCaffeine() }
+                        Action { label: "KI-Limits"; detail: AiUsage.list.length ? AiUsage.list.map(e => e.id + " " + e.percent + "%").join(" · ") : "keine Daten"; glyph: Icons.cp(0xF1218); run: () => AiUsage.refresh() }
+                        Action { label: "System-Hub"; detail: "Dienste, Sync, Ports"; glyph: Icons.matrix; run: () => root.openSurface(() => Runtime.hubOpen = true) }
+                        Action { label: "Module"; detail: "Bar anordnen"; glyph: Icons.cp(0xF12E); run: () => root.openSurface(() => Runtime.modulesOpen = true) }
+                        Action { label: "Zwischenablage"; detail: Clipboard.entries.length + " Eintraege"; glyph: Icons.clipboard; run: () => root.openSurface(() => Runtime.clipOpen = true) }
+                        Action { label: "Audio"; detail: "Mixer und Equalizer"; glyph: Icons.volumeHigh; run: () => root.openSurface(() => Runtime.audioToolsOpen = true) }
+                        Action { label: "Einstellungen"; detail: "Aussehen und Verhalten"; glyph: Icons.cp(0xF0493); run: () => root.openSurface(() => Runtime.settingsOpen = true) }
+                    }
                 }
 
-                Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: "1–3 wechselt Ansicht  ·  Esc schliesst  ·  Klick auf die Uhr oeffnet"; color: Theme.muted }
+                Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: "1–3 wechselt Ansicht  ·  Esc schliesst  ·  R markiert eine Rechtsklick-Aktion"; color: Theme.muted }
             }
         }
     }

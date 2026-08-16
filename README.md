@@ -1834,6 +1834,10 @@ stehen muss:
 
 Die Tabs reagieren auf Klick oder `1` bis `3`, `Esc` schliesst. Auch im
 Omarchy-artigen Hauptmenue steht das Dashboard direkt auf der ersten Ebene.
+Die Werkzeugkarten oeffnen mit Linksklick ihre jeweilige Oberflaeche. Ein
+kleines `R` markiert eine zusaetzliche Rechtsklick-Aktion: **Updates** startet
+die Aktualisierung im Terminal, **Aufnahme** startet oder stoppt direkt die
+Bildschirmaufnahme und **Theme** schaltet ohne Umweg zum naechsten Theme.
 
 ```bash
 nbshell dashboard                       # auf/zu
