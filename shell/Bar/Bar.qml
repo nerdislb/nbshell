@@ -129,9 +129,23 @@ Variants {
             }
 
             radius: win.barMode ? 0 : Theme.radius
-            color: Theme.alpha(Theme.bg, Config.opacity)
+            color: Theme.alpha(Theme.bg, Config.barOpacity)
             border.width: Config.barBorder ? Theme.borderWidth : 0
             border.color: Theme.muted
+
+            Behavior on color {
+                ColorAnimation { duration: 140 }
+            }
+
+            // Doppelklick auf die Leiste: Hintergrund transparent bzw. wieder
+            // auf die konfigurierte Deckkraft stellen. NoModifier laesst den
+            // bestehenden Shift+Drag zum Verschieben der Kante unberuehrt.
+            TapHandler {
+                acceptedButtons: Qt.LeftButton
+                acceptedModifiers: Qt.NoModifier
+                gesturePolicy: TapHandler.ReleaseWithinBounds
+                onDoubleTapped: Config.toggleBarTransparency()
+            }
 
             // Shift+Linksklick ziehen verschiebt die Leiste an die andere
             // Bildschirmkante. Der Modifier verhindert, dass normale Klicks

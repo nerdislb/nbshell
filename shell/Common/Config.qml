@@ -56,6 +56,10 @@ Singleton {
     // ihren eigenen. Gilt fuer Insel wie Balken.
     readonly property bool barBorder: value("barBorder", true)
     readonly property real opacity: value("opacity", 1.0)
+    // Separater Schnellschalter: die konfigurierte Deckkraft bleibt erhalten,
+    // waehrend ein Doppelklick den Bar-Hintergrund komplett ausblendet.
+    readonly property bool barTransparent: value("barTransparent", false)
+    readonly property real barOpacity: barTransparent ? 0.0 : opacity
     readonly property string widgetStyle: value("widgetStyle", "box")
 
     // Stil der Meter-Balken in den Popouts (AI-Usage/CPU/RAM/Lautstaerke ...):
@@ -140,6 +144,10 @@ Singleton {
         next[key] = val;
         data = next;
         file.setText(JSON.stringify(next, null, 2) + "\n");
+    }
+
+    function toggleBarTransparency() {
+        set("barTransparent", !barTransparent);
     }
 
     function reload() {

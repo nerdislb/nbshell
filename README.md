@@ -396,7 +396,7 @@ aendert, aendert die ganze Leiste mit — `nbshell set fontSize 15` genuegt.
 
 Einstellbar in `config.json`: `theme`, `font`, `fontSize`,
 `mode` (`island` | `pill` | `bar`), `edge`,
-`gap`, `lines`, `padX`, `padY`, `radius`, `borderWidth`, `opacity`,
+`gap`, `lines`, `padX`, `padY`, `radius`, `borderWidth`, `opacity`, `barTransparent`,
 `widgetStyle` (`box` | `bracket` | `plain`), `widgetColor` (`text` | `accent`),
 `widgetIcons`, `quietWidgets`, `widgetGap`, `islandCenter`, `osdInPill`,
 `workspaceStyle` (`numbers` | `dots` | `pacman` | `invader`), `workspaceClassic`,
@@ -410,6 +410,12 @@ Einstellbar in `config.json`: `theme`, `font`, `fontSize`,
 `cursorTheme`, `cursorSize`, `nearby`,
 `titleLength`, `locale`, `wallpaper`, `wallpaperOverride`, `maxVolume` und die
 vier Bausteinlisten.
+
+Ein **Doppelklick mit der linken Maustaste auf die Leiste** schaltet ihren
+Hintergrund transparent und wieder sichtbar. Der Zustand bleibt in
+`config.json` erhalten; die zuvor eingestellte `opacity` geht dabei nicht
+verloren. `Shift` + Linksklick-Ziehen bleibt weiterhin fuer den Wechsel der
+Bildschirmkante reserviert.
 
 ## Themes — omarchy2dms, hier eingebaut
 
