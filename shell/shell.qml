@@ -88,6 +88,8 @@ ShellRoot {
 
     Popups {}
 
+    NotificationCenter {}
+
     PowerMenu {}
 
     ProcessList {}
@@ -111,6 +113,8 @@ ShellRoot {
     SpeedWindow {}
 
     MusicWindow {}
+
+    AudioTools {}
 
     KeysWindow {}
 

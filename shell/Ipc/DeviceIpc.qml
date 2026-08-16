@@ -219,6 +219,11 @@ Scope {
             return Runtime.audioPanelOpen ? "offen" : "zu";
         }
 
+        function tools(): string {
+            Runtime.audioToolsOpen = !Runtime.audioToolsOpen;
+            return Runtime.audioToolsOpen ? "offen" : "zu";
+        }
+
         function status(): string {
             return JSON.stringify({
                 "volume": Audio.volume,

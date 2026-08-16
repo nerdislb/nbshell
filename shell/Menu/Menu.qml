@@ -129,6 +129,10 @@ PanelWindow {
             "run": () => Runtime.hubOpen = true
         },
         {
+            "key": "n", "label": "Benachrichtigungen", "description": "durchsuchen, DND und Archiv", "icon": Icons.bell,
+            "run": () => Runtime.notificationCenterOpen = true
+        },
+        {
             "key": "e", "label": "Emoji", "description": "lokal suchen und kopieren", "icon": "😀",
             "run": () => Runtime.emojiOpen = true
         },
@@ -205,6 +209,7 @@ PanelWindow {
                 { "key": "z", "label": "Zwischenablage", "icon": Icons.clipboard, "run": () => Runtime.clipOpen = true },
                 { "key": "r", "label": "Prozesse", "icon": Icons.cpu, "run": () => Runtime.procsOpen = true },
                 { "key": "m", "label": "Musik", "icon": Icons.play, "run": () => Runtime.musicOpen = true },
+                { "key": "a", "label": "Fokus & Equalizer", "icon": Icons.volumeHigh, "run": () => Runtime.audioToolsOpen = true },
                 { "key": "t", "label": "Todo", "icon": Icons.todo, "run": () => Runtime.todoOpen = true },
                 { "key": "h", "label": "Habits", "icon": Icons.habit, "run": () => Runtime.habitsOpen = true },
                 { "key": "k", "label": "Tastenkürzel", "icon": Icons.keyboard, "run": () => Runtime.keysOpen = true }

@@ -155,6 +155,11 @@ Scope {
     IpcHandler {
         target: "notify"
 
+        function center(): string {
+            Runtime.notificationCenterOpen = !Runtime.notificationCenterOpen;
+            return Runtime.notificationCenterOpen ? "offen" : "zu";
+        }
+
         function toggle(): string {
             Runtime.islandOpen = true;
             Runtime.notifyOpen = !Runtime.notifyOpen;

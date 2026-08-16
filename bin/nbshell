@@ -612,7 +612,7 @@ case "$cmd" in
         ;;
     audio)
         case "${1:-status}" in
-            up|down|mute|micmute|status|panel) ipc audio "${1:-status}" ;;
+            up|down|mute|micmute|status|panel|tools) ipc audio "${1:-status}" ;;
             *) ipc audio set "$1" ;;
         esac
         ;;
@@ -901,7 +901,7 @@ ENDE
         ;;
     notify)
         case "${1:-status}" in
-            toggle|dnd|clear|status|list) ipc notify "${1:-status}" ;;
+            toggle|center|dnd|clear|status|list) ipc notify "${1:-status}" ;;
             server) ipc notify server "${2:-toggle}" ;;
             *) ipc notify status ;;
         esac

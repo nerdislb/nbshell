@@ -44,6 +44,7 @@ Variants {
         readonly property bool atBottom: Config.edge === "bottom"
         readonly property bool expanded: barMode || pillMode || Runtime.islandOpen || hovering
         property bool hovering: false
+        property real edgeDragY: 0
 
         // Die Pille wird beim Regeln fuer zwei Sekunden selbst zur Einblendung.
         // Sie hat dafuer schon alles: zwei Reihen, die einander ueberblenden,
@@ -131,6 +132,25 @@ Variants {
             color: Theme.alpha(Theme.bg, Config.opacity)
             border.width: Config.barBorder ? Theme.borderWidth : 0
             border.color: Theme.muted
+
+            // Shift+Linksklick ziehen verschiebt die Leiste an die andere
+            // Bildschirmkante. Der Modifier verhindert, dass normale Klicks
+            // auf Widgets oder Regler vom Flaechen-Drag verschluckt werden.
+            DragHandler {
+                id: edgeDrag
+                target: null
+                acceptedButtons: Qt.LeftButton
+                acceptedModifiers: Qt.ShiftModifier
+                grabPermissions: PointerHandler.CanTakeOverFromAnything
+                onActiveChanged: {
+                    if (active) {
+                        win.edgeDragY = 0;
+                    } else if (Math.abs(win.edgeDragY) >= Theme.cellH * 3) {
+                        Config.set("edge", win.edgeDragY > 0 ? "bottom" : "top");
+                    }
+                }
+                onTranslationChanged: win.edgeDragY = translation.y
+            }
 
             Behavior on width {
                 NumberAnimation {

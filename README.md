@@ -869,6 +869,10 @@ der Pille samt Abstand zum Rand.
 
 Der Baustein `notifications` zeigt die Anzahl, sein Popout das Archiv mit
 „nicht stoeren" und „leeren". Rechtsklick auf die Zelle schaltet direkt stumm.
+`Mod+N` beziehungsweise `nbshell notify center` oeffnet zusaetzlich das grosse
+Archiv. Dort filtert jedes getippte Zeichen sofort; Pfeile waehlen, `x`/Entf
+loescht, `d` schaltet DND und `Ctrl+C` leert die Liste. Das kleine Popout bleibt
+fuer den schnellen Blick erhalten.
 
 ### Das Archiv ueberlebt den Neustart
 
@@ -952,8 +956,9 @@ Die Takeover-Datei biegt inzwischen alles um, was nbshell kann:
 | `Mod+Ctrl+M` | — | Bar-Module anordnen |
 | `Mod+Ctrl+P` | — | Plugin-Diagnose |
 | `Mod+Ctrl+A` | — | Audio-Popout |
+| `Mod+Alt+A` | — | Fokusgeraeusche und Equalizer |
 | `Mod+Escape` | — | Sitzungs-/Power-Menue |
-| `Mod+N` | notification center | Benachrichtigungsarchiv |
+| `Mod+N` | notification center | grosses, suchbares Benachrichtigungsarchiv |
 | `Mod+V` | clipboard | Zwischenablage |
 | `Super+X` | powermenu | Sitzungsmenue |
 | `Mod+M`, `Ctrl+Alt+Entf` | processlist | Prozessliste |
@@ -3276,21 +3281,30 @@ koennen gleichzeitig laufen — nbshell beansprucht bewusst keine D-Bus-Namen
 
 ## Was noch fehlt
 
-Die frueheren Alltagsluecken Bild-Zwischenablage und Anwendungslautstaerken
-sind seit dem Omarchy-4-Ausbau geschlossen. Sinnvolle naechste Ausbaustufen:
-
-- **Plugin-Entwickleransicht.** Manifest, Laufzeit-Kinds und Ladefehler an einem
-  Ort mit Komponenten-Vorschau statt nur CLI und Journal.
-- **Arch-News im Pacman-Sentry.** Updates und Konfigurationsreste stehen im Hub;
-  die offiziellen News vor riskanten Aktualisierungen fehlen noch.
-- **Natives Equalizer-Panel.** EasyEffects ist aus dem Hub startbar; eine
-  eigene kleine PipeWire-Filteroberflaeche in nbshell gibt es nicht.
+Die frueheren Alltagsluecken Bild-Zwischenablage, Anwendungslautstaerken,
+Plugin-Diagnose, grosses Notification-Center, Fokusgeraeusche und
+Equalizer-Steuerung sind seit dem Omarchy-4-Ausbau geschlossen. Offen bleiben:
 - **Externe DDC-Helligkeit.** `ddcutil` ist installiert, aber ohne externen
   Monitor und `/dev/i2c` derzeit nicht nutzbar. Das interne eDP-1 bleibt beim
   robusten logind-Backlight-Pfad.
 - **Netz ohne NetworkManager** — nur dessen Backend ist angebunden.
+- **Multi-Monitor-Wallpaper** — wird erst mit einem zweiten angeschlossenen
+  Bildschirm sinnvoll entwickelt und getestet.
 - **Sperrbildschirm** — bewusst kein Eigenbau; ein Fehler darin sperrt aus.
   hyprlock bleibt die sichere Zustaendigkeit.
+
+### Fokus und Equalizer
+
+`Mod+Alt+A` oder `nbshell audio tools` oeffnet die gemeinsame Audioansicht.
+Pinkes, braunes, weisses und regenartig gefiltertes Rauschen entstehen lokal
+mit ffmpeg und erscheinen als eigener Stream im normalen Audio-Popout; dort
+laesst sich ihre Lautstaerke wie bei jeder Anwendung regeln.
+
+EasyEffects wird beim ersten Gebrauch im Service-Modus gestartet. nbshell kann
+die Effektkette global umgehen, gespeicherte Ausgangspresets laden und den
+vollstaendigen Editor oeffnen. nbshell baut bewusst keine zweite PipeWire-
+Filterkette parallel dazu auf. Die Bar selbst wechselt mit
+`Shift`+Linksklick-Ziehen um mindestens drei Textzeilen zwischen oben und unten.
 
 ## Lizenz
 

@@ -17,6 +17,7 @@ Singleton {
     // durch einen Klick auf die Zelle.
     property bool themePickerOpen: false
     property bool audioPanelOpen: false
+    property bool audioToolsOpen: false
     property bool controlOpen: false
     property bool launcherOpen: false
 
@@ -26,6 +27,7 @@ Singleton {
     // Praefix nicht jedes Mal tippt.
     property string launcherPrefill: ""
     property bool notifyOpen: false
+    property bool notificationCenterOpen: false
     property bool powerOpen: false
     property bool clipOpen: false
     property bool procsOpen: false

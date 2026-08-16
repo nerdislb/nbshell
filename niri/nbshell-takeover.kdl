@@ -36,10 +36,11 @@ binds {
     Mod+Ctrl+M hotkey-overlay-title="nbshell: Module anordnen" { spawn "sh" "-c" "$HOME/.local/bin/nbshell modules"; }
     Mod+Ctrl+P hotkey-overlay-title="nbshell: Plugin-Diagnose" { spawn "sh" "-c" "$HOME/.local/bin/nbshell plugin-dev"; }
     Mod+Ctrl+A hotkey-overlay-title="nbshell: Audio" { spawn "sh" "-c" "$HOME/.local/bin/nbshell audio panel"; }
+    Mod+Alt+A hotkey-overlay-title="nbshell: Fokus & Equalizer" { spawn "sh" "-c" "$HOME/.local/bin/nbshell audio tools"; }
     Mod+Escape hotkey-overlay-title="nbshell: Sitzung" { spawn "sh" "-c" "$HOME/.local/bin/nbshell power menu"; }
 
     // DMS: notification center -> nbshells Archiv.
-    Mod+N hotkey-overlay-title="nbshell: Benachrichtigungen" { spawn "sh" "-c" "$HOME/.local/bin/nbshell notify toggle"; }
+    Mod+N hotkey-overlay-title="nbshell: Benachrichtigungen" { spawn "sh" "-c" "$HOME/.local/bin/nbshell notify center"; }
 
     // DMS: Wallpaper-Browser -> nbshells Karussell.
     Mod+Y hotkey-overlay-title="nbshell: Hintergrund" { spawn "sh" "-c" "$HOME/.local/bin/nbshell wallpaper pick"; }
