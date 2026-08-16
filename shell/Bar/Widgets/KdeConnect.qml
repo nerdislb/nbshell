@@ -16,7 +16,9 @@ Cell {
     readonly property bool linked: dev && dev.paired && dev.reachable
 
     shown: Kdeconnect.enabled
-    quiet: !root.linked
+    // Der Telefonzugang ist auch im getrennten Zustand wichtig: dauerhaft
+    // sichtbar lassen, damit Verbinden und Fehlersuche immer erreichbar sind.
+    quiet: false
     slotChars: 4
     interactive: true
     label: "KDE"

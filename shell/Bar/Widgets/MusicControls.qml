@@ -19,9 +19,10 @@ import qs.Widgets
 Cell {
     id: root
 
-    // Ohne Abspieler waeren es drei tote Knoepfe.
+    // Ohne Abspieler waeren es tote Knoepfe; sobald einer vorhanden ist,
+    // bleibt die Steuerung aber auch in Pause dauerhaft sichtbar.
     shown: Music.da
-    quiet: !Music.spielt
+    quiet: false
 
     // Breite VORGEBEN, nicht messen lassen. Cells `contentItem` misst sich zwar
     // an seinen Kindern, aber bei Glyphen, deren Schriftgroesse erst aus einer

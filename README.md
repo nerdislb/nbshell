@@ -2397,6 +2397,9 @@ Der Baustein `musik` (neben den Arbeitsflächen): zurück, Pause, weiter, Zufall
 Gesteuert über MPRIS, also gelten sie auch für Browser oder Spotify. Nur der
 Zufallsknopf erscheint bloß bei unserer eigenen Warteschlange — MPRIS kann das
 nicht, und ein wirkungsloser Knopf wäre eine Lüge.
+Sobald ein Player vorhanden ist, bleibt die Zelle auch während einer Pause
+sichtbar. KDE Connect ist ebenfalls von der Ruhelogik ausgenommen, damit der
+Telefonzugang und sein Verbindungszustand jederzeit erreichbar bleiben.
 
 Vier Knöpfe in **einer** Zelle: vier Rahmen für eine zusammengehörige Sache
 wären dreimal zu viel.
