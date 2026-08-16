@@ -15,6 +15,7 @@ PanelWindow {
     property int page: 0
     property var weather: ({})
     property bool weatherLoading: false
+    property bool updatesOpen: false
     readonly property date now: clock.date
     readonly property real cardGap: Theme.cellW * 1.5
     readonly property real panelWidth: Math.min(width - Theme.cellW * 8, Theme.cellW * 104)
@@ -30,7 +31,10 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    function close() { Runtime.dashboardOpen = false; }
+    function close() {
+        updatesOpen = false;
+        Runtime.dashboardOpen = false;
+    }
     function openSurface(fn) {
         root.close();
         Qt.callLater(fn);
@@ -45,6 +49,11 @@ PanelWindow {
         const loc = Qt.locale(Config.value("locale", "de_DE"));
         const day = e.start.toLocaleString(loc, "ddd dd.MM");
         return e.allDay ? day : day + "  " + e.start.toLocaleTimeString(loc, "HH:mm");
+    }
+    function updateText(entry) {
+        return entry.from === entry.to
+            ? entry.name + "   " + entry.to + "  (neuer Build)"
+            : entry.name + "   " + entry.from + " → " + entry.to;
     }
     function weatherGlyph(code, day) {
         if (code === 0) return String.fromCodePoint(day ? 0xE30D : 0xE32B);
@@ -161,7 +170,12 @@ PanelWindow {
         id: keys
         anchors.fill: parent
         focus: root.visible
-        Keys.onEscapePressed: root.close()
+        Keys.onEscapePressed: {
+            if (root.updatesOpen)
+                root.updatesOpen = false;
+            else
+                root.close();
+        }
         Keys.onPressed: event => {
             if (event.key >= Qt.Key_1 && event.key <= Qt.Key_3) {
                 root.page = event.key - Qt.Key_1;
@@ -394,7 +408,18 @@ PanelWindow {
 
                         Action { label: "Aufgaben"; detail: Todo.count + " offen"; glyph: Icons.todo; run: () => root.openSurface(() => Runtime.todoOpen = true) }
                         Action { label: "Gewohnheiten"; detail: Habits.doneCount + "/" + Habits.count + " heute"; glyph: Icons.habit; run: () => root.openSurface(() => Runtime.habitsOpen = true) }
-                        Action { label: "Updates"; detail: Updates.checking ? "prueft …" : Updates.count + " verfuegbar"; glyph: Icons.download; tone: Updates.count > 0 ? Theme.yellow : Theme.green; run: () => Updates.refresh(); rightRun: () => root.openSurface(() => Updates.update()) }
+                        Action {
+                            label: "Updates"
+                            detail: Updates.checking ? "prueft …" : Updates.count + " verfuegbar"
+                            glyph: Icons.download
+                            tone: Updates.count > 0 ? Theme.yellow : Theme.green
+                            run: () => {
+                                root.updatesOpen = true;
+                                if (!Updates.ready)
+                                    Updates.refresh();
+                            }
+                            rightRun: () => root.openSurface(() => Updates.update())
+                        }
                         Action { label: "Aufnahme"; detail: CaptureService.recording ? "laeuft" : "Screenshot, OCR, QR"; glyph: CaptureService.recording ? Icons.record : Icons.camera; tone: CaptureService.recording ? Theme.red : Theme.accent; run: () => root.openSurface(() => Runtime.captureOpen = true); rightRun: () => CaptureService.toggleRecording() }
                         Action { label: "Theme"; detail: Config.theme; glyph: Icons.palette; run: () => root.openSurface(() => Runtime.themePickerOpen = true); rightRun: () => ThemeIndex.step(1) }
                         Action { label: "Wachhalten"; detail: Idle.caffeine ? "aktiv" : "Automatik aktiv"; glyph: Icons.coffee; tone: Idle.caffeine ? Theme.yellow : Theme.fgDim; run: () => Idle.toggleCaffeine() }
@@ -408,6 +433,110 @@ PanelWindow {
                 }
 
                 Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: "1–3 wechselt Ansicht  ·  Esc schliesst  ·  R markiert eine Rechtsklick-Aktion"; color: Theme.muted }
+            }
+
+            // Update-Liste wie im frueheren Bar-Popout, aber als Ebene im
+            // Dashboard: dieselben Daten, derselbe Check, kein zweiter Poller.
+            Rectangle {
+                anchors.fill: parent
+                visible: root.updatesOpen
+                z: 20
+                color: Theme.alpha(Theme.bg, 0.82)
+                radius: parent.radius
+
+                MouseArea { anchors.fill: parent; onClicked: root.updatesOpen = false }
+
+                Rectangle {
+                    width: Math.min(parent.width - root.cardGap * 4, Theme.cellW * 78)
+                    height: Math.min(parent.height - root.cardGap * 4, Theme.cellH * 34)
+                    anchors.centerIn: parent
+                    color: Theme.bg
+                    radius: Theme.radius
+                    border.width: Math.max(Theme.borderWidth, 2)
+                    border.color: Theme.accent
+                    MouseArea { anchors.fill: parent; onClicked: {} }
+
+                    Column {
+                        anchors.fill: parent
+                        anchors.margins: Theme.cellW * 2
+                        spacing: Theme.cellH * 0.55
+
+                        Item {
+                            width: parent.width; height: Theme.cellH * 2
+                            Line {
+                                anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                                text: "UPDATES  (" + Updates.count + ")"; color: Theme.fgBright; font.pixelSize: Theme.fontSize + 4
+                            }
+                            Row {
+                                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                                spacing: Theme.cellW * 2
+                                Line {
+                                    text: Updates.checking ? "[ prueft … ]" : "[ neu pruefen ]"
+                                    color: checkHover.hovered ? Theme.accent : Theme.fgDim
+                                    HoverHandler { id: checkHover; cursorShape: Qt.PointingHandCursor }
+                                    TapHandler { onTapped: Updates.refresh() }
+                                }
+                                Line {
+                                    visible: Updates.count > 0
+                                    text: "[ aktualisieren ]"
+                                    color: runHover.hovered ? Theme.green : Theme.fgDim
+                                    HoverHandler { id: runHover; cursorShape: Qt.PointingHandCursor }
+                                    TapHandler { onTapped: root.openSurface(() => Updates.update()) }
+                                }
+                                Line {
+                                    text: "[ schliessen ]"; color: closeHover.hovered ? Theme.accent : Theme.fgDim
+                                    HoverHandler { id: closeHover; cursorShape: Qt.PointingHandCursor }
+                                    TapHandler { onTapped: root.updatesOpen = false }
+                                }
+                            }
+                        }
+
+                        Rule { rowWidth: parent.width; label: "PAKETE" }
+
+                        Item {
+                            width: parent.width
+                            height: parent.height - Theme.cellH * 6.6
+
+                            Line {
+                                anchors.centerIn: parent
+                                visible: Updates.count === 0
+                                text: Updates.checking ? "Paketquellen werden geprueft …" : (Updates.ready ? "alles aktuell" : "noch nicht geprueft")
+                                color: Theme.muted
+                            }
+
+                            Flickable {
+                                anchors.fill: parent
+                                visible: Updates.count > 0
+                                clip: true
+                                contentHeight: updateRows.height
+                                boundsBehavior: Flickable.StopAtBounds
+
+                                Column {
+                                    id: updateRows
+                                    width: parent.width
+                                    spacing: Theme.cellH * 0.25
+                                    Repeater {
+                                        model: Updates.repo.concat(Updates.aur).concat(Updates.flatpak)
+                                        Line {
+                                            required property var modelData
+                                            width: updateRows.width
+                                            text: "  " + root.updateText(modelData)
+                                            color: Theme.fg
+                                            elide: Text.ElideRight
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Line {
+                            width: parent.width
+                            text: Updates.repo.length + " Repo  ·  " + Updates.aur.length + " AUR  ·  " + Updates.flatpak.length + " Flatpak"
+                            horizontalAlignment: Text.AlignHCenter
+                            color: Theme.muted
+                        }
+                    }
+                }
             }
         }
     }

@@ -1842,6 +1842,9 @@ Die Werkzeugkarten oeffnen mit Linksklick ihre jeweilige Oberflaeche. Ein
 kleines `R` markiert eine zusaetzliche Rechtsklick-Aktion: **Updates** startet
 die Aktualisierung im Terminal, **Aufnahme** startet oder stoppt direkt die
 Bildschirmaufnahme und **Theme** schaltet ohne Umweg zum naechsten Theme.
+Ein normaler Klick auf **Updates** oeffnet dagegen die Paketvorschau im
+Dashboard. Dort stehen alle Repo-, AUR- und Flatpak-Aktualisierungen; neu
+pruefen und den Aktualisierungslauf starten geht direkt aus dieser Ansicht.
 
 ```bash
 nbshell dashboard                       # auf/zu
