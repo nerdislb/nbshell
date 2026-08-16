@@ -55,7 +55,8 @@ Singleton {
     function statusText() {
         if (!active) return "ausgeschaltet";
         if (inputState === "ready") return keyboards + (keyboards === 1 ? " Tastatur aktiv" : " Tastaturen aktiv");
-        if (inputState === "permission") return "Eingabezugriff erforderlich";
+        if (inputState === "permission")
+            return error !== "" ? error : "Eingabezugriff erforderlich";
         if (inputState === "authorizing") return "warte auf Freigabe …";
         if (inputState === "no-device") return "keine Tastatur gefunden";
         return error !== "" ? error : inputState;

@@ -88,7 +88,7 @@ if [[ ! $path_count =~ ^[0-9]+$ ]] || (( path_count > 64 || path_count > $# )); 
   exit 2
 fi
 home=$(getent passwd "$uid" | cut -d: -f6)
-expected_source="$home/.config/quickshell/nbshell/shell/scripts/bongo-input"
+expected_source="$home/.config/quickshell/nbshell/scripts/bongo-input"
 if [[ $source_helper != "$expected_source" || ! -f $source_helper \
     || $(stat -c '%u' -- "$source_helper") != "$uid" \
     || ! $expected_hash =~ ^[0-9a-f]{64}$ ]]; then
