@@ -30,7 +30,7 @@ ASSUME_YES=0
 # Optionaler Migrationspfad fuer den bisherigen Rechner. Eine normale
 # Neuinstallation braucht dieses Repo nicht und installiert insbesondere DMS
 # nicht mehr.
-DOTFILES_REPO="git@github.com:nerdislb/dotfiles-dms.git"
+DOTFILES_REPO="${NBSHELL_LEGACY_DOTFILES_REPO:-}"
 DOTFILES_DIR="$HOME/dotfiles"
 
 while [ $# -gt 0 ]; do
@@ -43,7 +43,7 @@ while [ $# -gt 0 ]; do
 	-y | --yes) ASSUME_YES=1 && shift ;;
 	-h | --help)
 		cat <<'USAGE'
-setup.sh -- den Rechner einrichten: Pakete, Dotfiles, nbshell, Dienste.
+setup.sh -- nbshell einrichten: Pakete, Dateien und Dienste.
 
   setup.sh                  nbshell eigenstaendig einrichten (ohne DMS)
   setup.sh --no-packages    nur die Dateien (dasselbe wie install.sh)
@@ -270,6 +270,7 @@ fi
 # Standardweg bleibt vollstaendig unabhaengig von diesem DMS-Dotfiles-Repo.
 if [ $WITH_DOTFILES -eq 1 ]; then
 	head2 "Dotfiles"
+	[ -n "$DOTFILES_REPO" ] || die "Fuer die Alt-Migration zuerst NBSHELL_LEGACY_DOTFILES_REPO setzen."
 
 	if [ -d "$DOTFILES_DIR/.git" ]; then
 		printf '  %s ist da -- hole den neuesten Stand.\n' "${DOTFILES_DIR/#$HOME/\~}"
