@@ -164,7 +164,7 @@ sondern ob die Befehle wirklich im PATH stehen. Das ist nicht dasselbe.
 | `xdg-utils` | `xdg-open` nach einer Aufnahme |
 | `jq` | die Skripte |
 | `git` | Themes nachinstallieren |
-| `khal`, `vdirsyncer` | Kalender hinter der Uhr |
+| `khal`, `vdirsyncer` | Termine im Dashboard hinter der Uhr |
 | `curl` | Wetter-Plugin |
 | `wf-recorder`, `slurp` | Bildschirmaufnahme, Bereichswahl |
 | `satty`, `swappy` | Screenshots nachbearbeiten |
@@ -1703,7 +1703,8 @@ Zwei Dinge, die dabei zaehlen:
 
 ### Der Kaffee-Knopf
 
-Der Baustein `caffeine` sitzt neben der Uhr. Klick haelt den Rechner wach,
+Der Baustein `caffeine` kann in der Bar sitzen; dieselbe Aktion steht dauerhaft
+im Dashboard unter **Werkzeuge**. Klick haelt den Rechner wach,
 noch ein Klick laesst die Automatik wieder zu; Rechtsklick schaltet die
 Automatik ganz ab. Das Popout nennt die drei Fristen, damit man nachsehen
 kann, wann was passiert waere.
@@ -1816,12 +1817,35 @@ Gelesen wird mit `ps` -- es steht auf jedem System und kennt die Prozentwerte
 schon. Abgefragt wird **nur, solange die Liste offen ist**; ein Zaehler, der im
 Hintergrund alle zwei Sekunden ein `ps` startet, waere reine Verschwendung.
 
-## Kalender
+## Dashboard und Kalender
 
-Ein Klick auf die Uhr klappt ihn auf: Monatsgitter mit Kalenderwochen, ein
-Punkt unter jedem Tag, an dem etwas ansteht, darunter die Termine des
-gewaehlten Tages. Mausrad blaettert durch die Monate, `[ heute ]` kommt
-zurueck. Ohne Popout: `nbshell cal next`.
+Ein Klick auf die symbolfreie Uhr oeffnet das Dashboard. Die Idee stammt vom
+MIT-lizenzierten [Asked Dashboard](https://github.com/cucu0628/omarchy-dashboard),
+die Umsetzung verwendet aber ausschliesslich nbshells vorhandene Dienste und
+TUI-Bausteine. Drei Ansichten halten zusammen, was nicht dauerhaft in der Bar
+stehen muss:
+
+- **Heute:** die naechsten sieben Termine, aktuelles Wetter mit fuenf Tagen,
+  CPU/RAM, Aufgaben, Gewohnheiten, Updates und laufende Medien.
+- **Medien:** Cover, Titel, Position, Player-Lautstaerke sowie Zurueck,
+  Play/Pause und Weiter.
+- **Werkzeuge:** Aufgaben, Habits, Updates, Capture, Theme, Caffeine,
+  KI-Limits, System-Hub, Module, Zwischenablage, Audio und Einstellungen.
+
+Die Tabs reagieren auf Klick oder `1` bis `3`, `Esc` schliesst. Auch im
+Omarchy-artigen Hauptmenue steht das Dashboard direkt auf der ersten Ebene.
+
+```bash
+nbshell dashboard                       # auf/zu
+nbshell dashboard open                  # oeffnen
+nbshell dashboard view werkzeuge        # heute | medien | werkzeuge
+nbshell cal next                         # Termine weiter im Terminal
+```
+
+Das Wetter wird ueber das vorhandene `wetter`-Plugin geladen, auch wenn dessen
+eigene Bar-Zelle nicht angeordnet ist. Auf diesem Rechner sind `updates`,
+`caffeine`, `ai`, `todo`, `habits`, `wetter` und `themes` deshalb aus den
+Bar-Gruppen entfernt; ihre Information oder Aktion bleibt im Dashboard.
 
 **Ein Rechtsklick auf die Uhr wechselt ihr Format** und geht dabei reihum durch
 `clockFormats`: lang, kurz, Kalenderwoche, mit Mondsichel, 12 Stunden mit

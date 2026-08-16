@@ -16,6 +16,22 @@ import qs.Services
 // Schnitt schmerzlos.
 Scope {
     IpcHandler {
+        target: "dashboard"
+        function toggle(): string { Runtime.dashboardOpen = !Runtime.dashboardOpen; return Runtime.dashboardOpen ? "offen" : "zu"; }
+        function open(): string { Runtime.dashboardOpen = true; return "offen"; }
+        function close(): string { Runtime.dashboardOpen = false; return "zu"; }
+        function view(page: string): string {
+            const names = ["heute", "medien", "werkzeuge"];
+            const index = names.indexOf(String(page).toLowerCase());
+            if (index < 0)
+                return "heute | medien | werkzeuge";
+            Runtime.dashboardPage = index;
+            Runtime.dashboardOpen = true;
+            return names[index];
+        }
+    }
+
+    IpcHandler {
         target: "hub"
         function toggle(): string { Runtime.hubOpen = !Runtime.hubOpen; return Runtime.hubOpen ? "offen" : "zu"; }
         function open(): string { Runtime.hubOpen = true; return "offen"; }

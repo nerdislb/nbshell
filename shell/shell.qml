@@ -125,6 +125,8 @@ ShellRoot {
 
     SystemHub {}
 
+    Dashboard {}
+
     // Nachinstallierte Dienste, Panels und Overlays. Nur explizit aktivierte
     // Plugin-IDs werden geladen; reine Bar-Widgets entstehen in WidgetHost.
     PluginHost {}

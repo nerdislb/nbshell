@@ -7,7 +7,7 @@ import qs.Widgets
 // Uhr. Das Format steht in der Config (`clockFormat`), damit man es ohne
 // Codeaenderung kuerzen kann.
 //
-// Ein Klick klappt den Kalender auf -- die Stelle, an der man ihn sucht.
+// Ein Klick oeffnet das Dashboard mit Kalender, Wetter, Medien und Werkzeugen.
 // Ein Rechtsklick geht reihum durch `clockFormats`: die lange Form, die kurze,
 // die Kalenderwoche, das amerikanische 12-Stunden-Format. Wer ein eigenes
 // Format setzt, das nicht in der Liste steht, faengt beim naechsten
@@ -32,12 +32,16 @@ Cell {
             out = out.replace("%M", Icons.moon(Calendar.moonIndex(clock.date, Icons.moonSteps)));
         return out;
     }
-    icon: Icons.clock
+    // Die Uhr erklaert sich selbst; ein Uhrsymbol daneben wiederholt nur ihre
+    // Bedeutung und verschiebt die echte Mitte um ein Zeichen.
+    icon: ""
     color: Theme.text
     // Auch ohne Kalender anklickbar: der Rechtsklick schaltet das Format, und
     // `clickable` haengt an `interactive` -- stuende hier die Kalenderoption,
     // waere die Uhr ohne khal ein totes Feld.
     interactive: true
+
+    onClicked: Runtime.dashboardOpen = true
 
     onRightClicked: {
         const list = root.formats;
@@ -45,25 +49,6 @@ Cell {
             return;
         const at = list.indexOf(root.format);
         Config.set("clockFormat", list[(at + 1) % list.length]);
-    }
-
-    // Zurueckmelden, wenn der Kompositor das Popout geschlossen hat.
-    onPopoutVisibleChanged: Runtime.calendarOpen = root.popoutVisible
-
-    Connections {
-        target: Runtime
-
-        function onCalendarOpenChanged() {
-            root.setPopout(Runtime.calendarOpen);
-        }
-    }
-
-    popout: Config.value("calendar", true) ? calendarPopout : null
-
-    Component {
-        id: calendarPopout
-
-        CalendarPanel {}
     }
 
     SystemClock {

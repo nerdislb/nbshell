@@ -435,6 +435,7 @@ nbshell -- eigene Shell auf Quickshell
   nbshell capture           Aufnahme-Menue (screen, window, region, ocr, record)
   nbshell procs             Prozessliste (auch: top)
   nbshell menu              Menue (verschachtelt) — Mod+Shift+Space
+  nbshell dashboard         Heute, Medien und Werkzeuge
   nbshell clip              Verlauf der Zwischenablage (toggle, list, clear)
   nbshell cal               Kalender (auch: next, sync, status)
 
@@ -783,6 +784,13 @@ ENDE
         ;;
     menu)
         ipc menu "${1:-toggle}"
+        ;;
+    dashboard|dash)
+        if [ "${1:-}" = "view" ]; then
+            ipc dashboard view "${2:-heute}"
+        else
+            ipc dashboard "${1:-toggle}"
+        fi
         ;;
     cal|calendar)
         ipc calendar "${1:-toggle}"

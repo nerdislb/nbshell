@@ -125,6 +125,10 @@ PanelWindow {
             }
         },
         {
+            "key": "d", "label": "Dashboard", "description": "Heute, Medien und oft gebrauchte Werkzeuge", "icon": Icons.cp(0xF0F9),
+            "run": () => Runtime.dashboardOpen = true
+        },
+        {
             "key": "h", "label": "System & Plugins", "description": "Agenten, Sync, Updates, Druck, Ports und Hardware", "icon": Icons.matrix,
             "run": () => Runtime.hubOpen = true
         },

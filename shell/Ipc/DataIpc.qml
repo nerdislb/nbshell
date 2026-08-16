@@ -92,9 +92,8 @@ Scope {
         target: "calendar"
 
         function toggle(): string {
-            Runtime.islandOpen = true;
-            Runtime.calendarOpen = !Runtime.calendarOpen;
-            return Runtime.calendarOpen ? "offen" : "zu";
+            Runtime.dashboardOpen = !Runtime.dashboardOpen;
+            return Runtime.dashboardOpen ? "offen" : "zu";
         }
 
         // Was als Naechstes ansteht -- fuers Terminal, ohne Popout.

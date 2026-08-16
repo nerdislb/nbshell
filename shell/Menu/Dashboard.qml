@@ -1,0 +1,379 @@
+import QtQuick
+import Quickshell
+import Quickshell.Io
+import Quickshell.Wayland
+import qs.Common
+import qs.Services
+import qs.Widgets
+
+// Die Uhr als Eingang in den Alltag: Termine, Wetter, Medien und die Dinge,
+// die nicht dauerhaft Platz in der Bar brauchen. Angeregt vom Asked Dashboard
+// fuer Omarchy, aber vollstaendig auf nbshells vorhandenen Diensten aufgebaut.
+PanelWindow {
+    id: root
+
+    property int page: 0
+    property var weather: ({})
+    property bool weatherLoading: false
+    readonly property date now: clock.date
+    readonly property real cardGap: Theme.cellW * 1.5
+    readonly property real panelWidth: Math.min(width - Theme.cellW * 8, Theme.cellW * 104)
+    readonly property real panelHeight: Math.min(height - Theme.cellH * 6, Theme.cellH * 43)
+    readonly property var nextEvents: Calendar.events.filter(e => e.end >= new Date()).slice(0, 7)
+
+    visible: Runtime.dashboardOpen
+    screen: Quickshell.screens[0] ?? null
+    color: "transparent"
+    anchors { left: true; right: true; top: true; bottom: true }
+    exclusionMode: ExclusionMode.Ignore
+    WlrLayershell.namespace: "nbshell:dashboard"
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+
+    function close() { Runtime.dashboardOpen = false; }
+    function openSurface(fn) {
+        root.close();
+        Qt.callLater(fn);
+    }
+    function refreshWeather() {
+        if (weatherLoading)
+            return;
+        weatherLoading = true;
+        weatherProc.running = true;
+    }
+    function eventWhen(e) {
+        const loc = Qt.locale(Config.value("locale", "de_DE"));
+        const day = e.start.toLocaleString(loc, "ddd dd.MM");
+        return e.allDay ? day : day + "  " + e.start.toLocaleTimeString(loc, "HH:mm");
+    }
+    function weatherGlyph(code, day) {
+        if (code === 0) return String.fromCodePoint(day ? 0xE30D : 0xE32B);
+        if (code <= 2) return String.fromCodePoint(0xE302);
+        if (code === 3) return String.fromCodePoint(0xE312);
+        if (code === 45 || code === 48) return String.fromCodePoint(0xE313);
+        if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return String.fromCodePoint(0xE319);
+        if (code >= 71 && code <= 86) return String.fromCodePoint(0xE31A);
+        if (code >= 95) return String.fromCodePoint(0xE31D);
+        return String.fromCodePoint(0xE374);
+    }
+
+    onVisibleChanged: if (visible) {
+        page = Runtime.dashboardPage;
+        Calendar.ensure(new Date());
+        AiUsage.refresh();
+        refreshWeather();
+        keys.forceActiveFocus();
+    }
+    onPageChanged: Runtime.dashboardPage = page
+
+    Connections {
+        target: Runtime
+        function onDashboardPageChanged() {
+            if (root.page !== Runtime.dashboardPage)
+                root.page = Runtime.dashboardPage;
+        }
+    }
+
+    SystemClock { id: clock; precision: SystemClock.Seconds }
+
+    Process {
+        id: weatherProc
+        command: ["bash", "-c",
+            "p=\"${XDG_CONFIG_HOME:-$HOME/.config}/nbshell/plugins/wetter/weather.sh\"; "
+            + "[ -r \"$p\" ] || exit 44; exec bash \"$p\" current \"$1\" 300", "nbshell-weather", Config.value("weatherPlace", "Wien")]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { root.weather = JSON.parse(text); }
+                catch (e) { root.weather = ({ "ok": false, "grund": "Wetterdaten nicht lesbar" }); }
+                root.weatherLoading = false;
+            }
+        }
+        onExited: (code) => {
+            if (code !== 0 && code !== 44)
+                root.weather = ({ "ok": false, "grund": "Wetterabruf fehlgeschlagen" });
+            if (code === 44)
+                root.weather = ({ "ok": false, "grund": "Wetter-Plugin nicht installiert" });
+            root.weatherLoading = false;
+        }
+    }
+
+    // Kleine, wiederverwendbare TUI-Karte.
+    component Card: Rectangle {
+        property string title: ""
+        property string badge: ""
+        default property alias content: body.data
+        color: Theme.alpha(Theme.bgLight, 0.72)
+        radius: Theme.radius
+        border.width: Theme.borderWidth
+        border.color: Theme.alpha(Theme.accent, 0.55)
+
+        Line {
+            anchors.left: parent.left; anchors.leftMargin: Theme.cellW * 1.2
+            anchors.top: parent.top; anchors.topMargin: Theme.cellH * 0.65
+            text: parent.title.toUpperCase(); color: Theme.fgDim
+        }
+        Line {
+            anchors.right: parent.right; anchors.rightMargin: Theme.cellW * 1.2
+            anchors.top: parent.top; anchors.topMargin: Theme.cellH * 0.65
+            text: parent.badge; color: Theme.readable(Theme.accent, Theme.bg)
+        }
+        Column {
+            id: body
+            anchors.left: parent.left; anchors.right: parent.right
+            anchors.top: parent.top; anchors.topMargin: Theme.cellH * 2
+            anchors.bottom: parent.bottom
+            anchors.margins: Theme.cellW * 1.2
+            spacing: Theme.cellH * 0.25
+        }
+    }
+
+    component Action: Rectangle {
+        id: action
+        property string label: ""
+        property string detail: ""
+        property string glyph: ""
+        property color tone: Theme.accent
+        property var run: null
+        width: Theme.cellW * 21
+        height: Theme.cellH * 3.2
+        radius: Theme.radius
+        color: actionHover.hovered ? Theme.hover : Theme.alpha(Theme.bgLight, 0.72)
+        border.width: Theme.borderWidth
+        border.color: actionHover.hovered ? action.tone : Theme.alpha(action.tone, 0.55)
+
+        Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.top: parent.top; anchors.topMargin: Theme.cellH * 0.55; text: action.glyph + (action.glyph !== "" ? "  " : "") + action.label; color: action.tone }
+        Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.bottom: parent.bottom; anchors.bottomMargin: Theme.cellH * 0.45; text: action.detail; color: Theme.fgDim; elide: Text.ElideRight }
+        HoverHandler { id: actionHover; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: if (action.run) action.run() }
+    }
+
+    Item {
+        id: keys
+        anchors.fill: parent
+        focus: root.visible
+        Keys.onEscapePressed: root.close()
+        Keys.onPressed: event => {
+            if (event.key >= Qt.Key_1 && event.key <= Qt.Key_3) {
+                root.page = event.key - Qt.Key_1;
+                event.accepted = true;
+            }
+        }
+        MouseArea { anchors.fill: parent; onClicked: root.close() }
+
+        Rectangle {
+            width: root.panelWidth
+            height: root.panelHeight
+            anchors.centerIn: parent
+            color: Theme.bg
+            radius: Theme.radius
+            border.width: Math.max(Theme.borderWidth, 2)
+            border.color: Theme.accent
+            MouseArea { anchors.fill: parent; onClicked: {} }
+
+            Column {
+                anchors.fill: parent
+                anchors.margins: Theme.cellW * 2
+                spacing: Theme.cellH * 0.55
+
+                Item {
+                    width: parent.width
+                    height: Theme.cellH * 3.5
+                    Column {
+                        anchors.left: parent.left
+                        Line { text: root.now.toLocaleString(Qt.locale(Config.value("locale", "de_DE")), "dddd, dd. MMMM"); color: Theme.fgBright; font.pixelSize: Theme.fontSize + 5 }
+                        Line { text: "KW " + Calendar.isoWeek(root.now) + "  ·  " + Calendar.moonName(root.now); color: Theme.fgDim }
+                    }
+                    Line { anchors.right: parent.right; anchors.top: parent.top; text: root.now.toLocaleTimeString(Qt.locale(), "HH:mm"); color: Theme.readable(Theme.accent, Theme.bg); font.pixelSize: Theme.fontSize + 12 }
+                }
+
+                Row {
+                    width: parent.width
+                    spacing: Theme.cellW
+                    Repeater {
+                        model: ["1  HEUTE", "2  MEDIEN", "3  WERKZEUGE"]
+                        Rectangle {
+                            required property var modelData
+                            required property int index
+                            width: (parent.width - Theme.cellW * 2) / 3
+                            height: Theme.cellH * 1.7
+                            color: root.page === index ? Theme.selection : (tabHover.hovered ? Theme.hover : "transparent")
+                            border.width: Theme.borderWidth
+                            border.color: root.page === index ? Theme.accent : Theme.muted
+                            Line { anchors.centerIn: parent; text: parent.modelData; color: root.page === parent.index ? Theme.on(Theme.selection) : Theme.fgDim }
+                            HoverHandler { id: tabHover; cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: root.page = parent.index }
+                        }
+                    }
+                }
+
+                // ── HEUTE ───────────────────────────────────────────────
+                Row {
+                    visible: root.page === 0
+                    width: parent.width
+                    height: parent.height - Theme.cellH * 7
+                    spacing: root.cardGap
+
+                    Column {
+                        width: (parent.width - root.cardGap) * 0.58
+                        height: parent.height
+                        spacing: root.cardGap
+
+                        Card {
+                            width: parent.width; height: parent.height * 0.46
+                            title: "Naechste Termine"
+                            badge: Calendar.loading ? "…" : String(root.nextEvents.length)
+                            Line { visible: root.nextEvents.length === 0; text: Calendar.available ? "nichts in den naechsten Tagen" : Calendar.problem; color: Theme.muted }
+                            Repeater {
+                                model: root.nextEvents.slice(0, 5)
+                                Item {
+                                    required property var modelData
+                                    width: parent.width; height: Theme.cellH * 1.65
+                                    Rectangle { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; width: Theme.borderWidth * 2; height: parent.height * 0.55; color: Theme.accent }
+                                    Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.33; text: root.eventWhen(parent.modelData); color: Theme.fgDim; elide: Text.ElideRight }
+                                    Line { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.64; text: parent.modelData.title; color: Theme.fg; elide: Text.ElideRight }
+                                }
+                            }
+                        }
+
+                        Card {
+                            width: parent.width; height: parent.height * 0.5
+                            title: "Wetter"
+                            badge: root.weather.ok ? String(root.weather.ort || Config.value("weatherPlace", "")) : ""
+                            Row {
+                                visible: root.weather.ok === true
+                                spacing: Theme.cellW * 2
+                                Line { text: root.weatherGlyph(root.weather.code || 0, root.weather.tag !== false); color: Theme.accent; font.pixelSize: Theme.fontSize + 24 }
+                                Column {
+                                    Line { text: Math.round(root.weather.temp) + " °C"; color: Theme.fgBright; font.pixelSize: Theme.fontSize + 8 }
+                                    Line { text: "gefuehlt " + root.weather.gefuehlt + " °C"; color: Theme.fgDim }
+                                    Line { text: "Wind " + root.weather.wind + " km/h  ·  Feuchte " + root.weather.feuchte + " %"; color: Theme.fgDim }
+                                }
+                            }
+                            Line { visible: root.weather.ok !== true; text: root.weatherLoading ? "Wetter wird geholt …" : (root.weather.grund || "noch keine Wetterdaten"); color: Theme.muted }
+                            Row {
+                                visible: root.weather.ok === true
+                                spacing: Theme.cellW * 2
+                                Repeater {
+                                    model: (root.weather.tage || []).slice(0, 5)
+                                    Column {
+                                        required property var modelData
+                                        Line { text: new Date(modelData.datum + "T12:00:00").toLocaleString(Qt.locale(Config.value("locale", "de_DE")), "ddd").slice(0, 2); color: Theme.fgDim }
+                                        Line { text: root.weatherGlyph(modelData.code || 0, true); color: Theme.accent }
+                                        Line { text: Math.round(modelData.max) + "°/" + Math.round(modelData.min) + "°"; color: Theme.fg }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Column {
+                        width: (parent.width - root.cardGap) * 0.42
+                        height: parent.height
+                        spacing: root.cardGap
+
+                        Card {
+                            width: parent.width; height: parent.height * 0.34
+                            title: "System"
+                            badge: SysInfo.uptimeText(SysInfo.detail?.laufzeit ?? 0)
+                            Line { text: "CPU  " + String(SysInfo.cpuPercent).padStart(3, " ") + " %"; color: SysInfo.cpuPercent >= 90 ? Theme.red : Theme.fg }
+                            LevelBar { width: parent.width; cells: 26; value: SysInfo.cpuPercent; fillColor: SysInfo.cpuPercent >= 90 ? Theme.red : Theme.accent }
+                            Line { text: "RAM  " + String(SysInfo.memPercent).padStart(3, " ") + " %   " + SysInfo.memUsedGb.toFixed(1) + "/" + SysInfo.memTotalGb.toFixed(1) + " GB"; color: Theme.fg }
+                            LevelBar { width: parent.width; cells: 26; value: SysInfo.memPercent; fillColor: Theme.cyan }
+                        }
+
+                        Card {
+                            width: parent.width; height: parent.height * 0.27
+                            title: "Heute"
+                            badge: Todo.count + " offen"
+                            Line { text: Icons.todo + "  Aufgaben     " + Todo.count; color: Todo.count > 0 ? Theme.fg : Theme.fgDim }
+                            Line { text: Icons.habit + "  Gewohnheiten " + Habits.doneCount + "/" + Habits.count; color: Habits.doneCount >= Habits.count && Habits.count > 0 ? Theme.green : Theme.fg }
+                            Line { text: Icons.download + "  Updates      " + (Updates.checking ? "prueft …" : Updates.count); color: Updates.count > 0 ? Theme.yellow : Theme.fgDim }
+                        }
+
+                        Card {
+                            width: parent.width; height: parent.height * 0.31
+                            title: MediaService.active ? "Laeuft gerade" : "Medien"
+                            badge: MediaService.playing ? "PLAY" : (MediaService.active ? "PAUSE" : "")
+                            Line { width: parent.width; text: MediaService.active ? (MediaService.title || "unbekannt") : "kein Player aktiv"; color: Theme.fgBright; elide: Text.ElideRight }
+                            Line { width: parent.width; text: MediaService.artist; color: Theme.fgDim; elide: Text.ElideRight }
+                            Row {
+                                visible: MediaService.active
+                                spacing: Theme.cellW * 3
+                                Line {
+                                    text: "[ zurueck ]"; color: prevHover.hovered ? Theme.accent : Theme.fgDim
+                                    HoverHandler { id: prevHover; cursorShape: Qt.PointingHandCursor }
+                                    TapHandler { onTapped: MediaService.previous() }
+                                }
+                                Line {
+                                    text: MediaService.playing ? "[ pause ]" : "[ play ]"; color: playHover.hovered ? Theme.accent : Theme.fg
+                                    HoverHandler { id: playHover; cursorShape: Qt.PointingHandCursor }
+                                    TapHandler { onTapped: MediaService.playPause() }
+                                }
+                                Line {
+                                    text: "[ weiter ]"; color: nextHover.hovered ? Theme.accent : Theme.fgDim
+                                    HoverHandler { id: nextHover; cursorShape: Qt.PointingHandCursor }
+                                    TapHandler { onTapped: MediaService.next() }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── MEDIEN ──────────────────────────────────────────────
+                Row {
+                    visible: root.page === 1
+                    width: parent.width
+                    height: parent.height - Theme.cellH * 7
+                    spacing: root.cardGap * 2
+
+                    Rectangle {
+                        width: parent.width * 0.42; height: width
+                        color: Theme.bgLight; border.width: Theme.borderWidth; border.color: Theme.accent; radius: Theme.radius
+                        Image { anchors.fill: parent; anchors.margins: Theme.borderWidth; source: MediaService.player?.trackArtUrl ?? ""; fillMode: Image.PreserveAspectCrop; asynchronous: true }
+                        Line { anchors.centerIn: parent; visible: (MediaService.player?.trackArtUrl ?? "") === ""; text: Icons.play; color: Theme.muted; font.pixelSize: Theme.fontSize + 40 }
+                    }
+                    Column {
+                        width: parent.width * 0.58 - root.cardGap * 2
+                        spacing: Theme.cellH
+                        Line { width: parent.width; text: MediaService.active ? (MediaService.title || "Unbekannter Titel") : "Kein Player aktiv"; color: Theme.fgBright; font.pixelSize: Theme.fontSize + 8; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight }
+                        Line { width: parent.width; text: MediaService.artist; color: Theme.fgDim; font.pixelSize: Theme.fontSize + 3; elide: Text.ElideRight }
+                        Line { text: MediaService.zeit(MediaService.position) + "  /  " + MediaService.zeit(MediaService.length); color: Theme.fgDim }
+                        LevelBar { width: parent.width; cells: 40; value: MediaService.length > 0 ? 100 * MediaService.position / MediaService.length : 0; fillColor: Theme.accent }
+                        Row {
+                            width: parent.width
+                            spacing: Theme.cellW * 4
+                            Action { width: (parent.width - Theme.cellW * 8) / 3; label: "Zurueck"; glyph: Icons.cp(0xF04AE); detail: "voriger Titel"; run: () => MediaService.previous() }
+                            Action { width: (parent.width - Theme.cellW * 8) / 3; label: MediaService.playing ? "Pause" : "Play"; glyph: MediaService.playing ? Icons.pause : Icons.play; detail: MediaService.playing ? "anhalten" : "fortsetzen"; run: () => MediaService.playPause() }
+                            Action { width: (parent.width - Theme.cellW * 8) / 3; label: "Weiter"; glyph: Icons.cp(0xF04AD); detail: "naechster Titel"; run: () => MediaService.next() }
+                        }
+                        Line { visible: MediaService.volumeSupported; text: "PLAYER-LAUTSTAERKE  " + Math.round(MediaService.volume * 100) + " %"; color: Theme.fgDim }
+                        LevelBar { visible: MediaService.volumeSupported; width: parent.width; cells: 40; value: MediaService.volume * 100; fillColor: Theme.cyan; interactive: true; onMoved: value => MediaService.setVolume(value / 100) }
+                    }
+                }
+
+                // ── WERKZEUGE ───────────────────────────────────────────
+                Flow {
+                    visible: root.page === 2
+                    width: parent.width
+                    height: parent.height - Theme.cellH * 7
+                    spacing: root.cardGap
+
+                    Action { label: "Aufgaben"; detail: Todo.count + " offen"; glyph: Icons.todo; run: () => root.openSurface(() => Runtime.todoOpen = true) }
+                    Action { label: "Gewohnheiten"; detail: Habits.doneCount + "/" + Habits.count + " heute"; glyph: Icons.habit; run: () => root.openSurface(() => Runtime.habitsOpen = true) }
+                    Action { label: "Updates"; detail: Updates.checking ? "prueft …" : Updates.count + " verfuegbar"; glyph: Icons.download; tone: Updates.count > 0 ? Theme.yellow : Theme.green; run: () => Updates.refresh() }
+                    Action { label: "Aufnahme"; detail: CaptureService.recording ? "laeuft" : "Screenshot, OCR, QR"; glyph: CaptureService.recording ? Icons.record : Icons.camera; tone: CaptureService.recording ? Theme.red : Theme.accent; run: () => root.openSurface(() => Runtime.captureOpen = true) }
+                    Action { label: "Theme"; detail: Config.theme; glyph: Icons.palette; run: () => root.openSurface(() => Runtime.themePickerOpen = true) }
+                    Action { label: "Wachhalten"; detail: Idle.caffeine ? "aktiv" : "Automatik aktiv"; glyph: Icons.coffee; tone: Idle.caffeine ? Theme.yellow : Theme.fgDim; run: () => Idle.toggleCaffeine() }
+                    Action { label: "KI-Limits"; detail: AiUsage.list.length ? AiUsage.list.map(e => e.id + " " + e.percent + "%").join(" · ") : "keine Daten"; glyph: Icons.cp(0xF1218); run: () => AiUsage.refresh() }
+                    Action { label: "System-Hub"; detail: "Dienste, Sync, Ports"; glyph: Icons.matrix; run: () => root.openSurface(() => Runtime.hubOpen = true) }
+                    Action { label: "Module"; detail: "Bar anordnen"; glyph: Icons.cp(0xF12E); run: () => root.openSurface(() => Runtime.modulesOpen = true) }
+                    Action { label: "Zwischenablage"; detail: Clipboard.entries.length + " Eintraege"; glyph: Icons.clipboard; run: () => root.openSurface(() => Runtime.clipOpen = true) }
+                    Action { label: "Audio"; detail: "Mixer und Equalizer"; glyph: Icons.volumeHigh; run: () => root.openSurface(() => Runtime.audioToolsOpen = true) }
+                    Action { label: "Einstellungen"; detail: "Aussehen und Verhalten"; glyph: Icons.cp(0xF0493); run: () => root.openSurface(() => Runtime.settingsOpen = true) }
+                }
+
+                Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: "1–3 wechselt Ansicht  ·  Esc schliesst  ·  Klick auf die Uhr oeffnet"; color: Theme.muted }
+            }
+        }
+    }
+}

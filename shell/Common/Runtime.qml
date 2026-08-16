@@ -45,6 +45,8 @@ Singleton {
     property bool menuOpen: false
     property bool emojiOpen: false
     property bool hubOpen: false
+    property bool dashboardOpen: false
+    property int dashboardPage: 0
     property bool pluginDeveloperOpen: false
 
     // Wie viele Popouts gerade offen sind. Die Leiste braucht das: ein
