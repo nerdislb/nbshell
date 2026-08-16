@@ -104,7 +104,13 @@ PanelWindow {
         {
             "key": "meterStyle",
             "def": "blocks",
-            "label": "Balken",
+            "label": "Meter",
+            "values": ["blocks", "line"]
+        },
+        {
+            "key": "visualizerStyle",
+            "def": "blocks",
+            "label": "Visualizer",
             "values": ["blocks", "line", "dots", "wave"]
         },
         {

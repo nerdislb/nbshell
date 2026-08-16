@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Shapes
 import qs.Common
 import qs.Services
 import qs.Widgets
@@ -31,10 +32,19 @@ Cell {
         NowPlaying {}
     }
 
+    // Eigener Stil (Einstellung "Visualizer", getrennt von den Metern):
+    // "blocks" = Text-Zeile (Vorgabe, am leichtesten), sonst DEKLARATIVE
+    // Elemente (line/dots = Rechtecke, wave = Shape) -- bewusst KEIN per-Frame-
+    // Canvas: der fraß bei laufender Musik ueber Minuten den Speicher voll (2 GB+).
+    readonly property string vizStyle: Config.visualizerStyle
+    readonly property color ink: Theme.readable(Theme.accent, Theme.bg)
+
     Line {
         // Die Blockschrift hat acht Stufen, cava liefert 0 bis 7 -- deshalb
         // wird hier nicht gerechnet, sondern nachgeschlagen.
         readonly property string stufen: "▁▂▃▄▅▆▇█"
+
+        visible: root.vizStyle === "blocks"
 
         text: {
             let s = "";
@@ -53,5 +63,88 @@ Cell {
         clip: true
 
         color: Theme.readable(Theme.accent, Theme.bg)
+    }
+
+    // line = senkrechte Balken, dots = Punkte an den Spitzen -- deklarative
+    // Rechtecke (GPU-komponiert, kein Neuzeichnen pro Frame). Stabiles Modell
+    // (Cava.bars): nur die Hoehen-/y-Bindungen aendern sich je Bild.
+    Row {
+        visible: root.vizStyle === "line" || root.vizStyle === "dots"
+        width: root.slotChars * Theme.cellW
+        height: Theme.cellH
+        spacing: 0
+
+        Repeater {
+            model: Cava.bars
+
+            Item {
+                required property int index
+                width: (root.slotChars * Theme.cellW) / Math.max(1, Cava.bars)
+                height: Theme.cellH
+
+                readonly property real t: {
+                    const v = Cava.levels[index];
+                    return v === undefined ? 0 : Math.max(0, Math.min(7, v)) / 7;
+                }
+
+                // line: Balken vom Boden bis zur Hoehe des Werts
+                Rectangle {
+                    visible: root.vizStyle === "line"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: parent.height * 0.08
+                    width: Math.max(1.5, parent.width * 0.5)
+                    height: Math.max(1.5, parent.height * 0.84 * parent.t)
+                    radius: width / 2
+                    color: root.ink
+                }
+
+                // dots: Punkt auf Hoehe des Werts
+                Rectangle {
+                    visible: root.vizStyle === "dots"
+                    width: Math.max(2, parent.width * 0.42)
+                    height: width
+                    radius: width / 2
+                    color: root.ink
+                    x: (parent.width - width) / 2
+                    y: parent.height * 0.92 - parent.t * (parent.height * 0.84) - height / 2
+                }
+            }
+        }
+    }
+
+    // wave: Linie durch die Spitzen -- ein GPU-Shape (PathPolyline), ebenfalls
+    // ohne per-Frame-Canvas.
+    Shape {
+        visible: root.vizStyle === "wave"
+        width: root.slotChars * Theme.cellW
+        height: Theme.cellH
+
+        ShapePath {
+            strokeColor: root.ink
+            strokeWidth: Math.max(1.5, Theme.borderWidth * 1.5)
+            fillColor: "transparent"
+            capStyle: ShapePath.RoundCap
+            joinStyle: ShapePath.RoundJoin
+
+            PathPolyline {
+                path: {
+                    const lv = Cava.levels;
+                    const n = lv.length;
+                    if (n === 0)
+                        return [];
+                    const w = root.slotChars * Theme.cellW;
+                    const h = Theme.cellH;
+                    const step = w / n;
+                    const pts = [];
+                    for (var i = 0; i < n; i++) {
+                        const x = step * i + step / 2;
+                        const tt = Math.max(0, Math.min(7, lv[i])) / 7;
+                        pts.push(Qt.point(x, h * 0.92 - tt * (h * 0.84)));
+                    }
+                    return pts;
+                }
+            }
+        }
     }
 }

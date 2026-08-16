@@ -58,9 +58,13 @@ Singleton {
     readonly property real opacity: value("opacity", 1.0)
     readonly property string widgetStyle: value("widgetStyle", "box")
 
-    // Stil der Meter-Balken in den Popouts (CPU/RAM/Lautstaerke ...):
-    // "blocks" = TUI-Bloecke (Vorgabe), "line" = duenne Linie (Omarchy-Richtung).
+    // Stil der Meter-Balken in den Popouts (AI-Usage/CPU/RAM/Lautstaerke ...):
+    // nur "blocks" = TUI-Bloecke (Vorgabe) oder "line" = duenne Linie.
     readonly property string meterStyle: value("meterStyle", "blocks")
+
+    // Stil des Musik-Visualizers (Cava) -- getrennt von den Metern:
+    // "blocks" (Textzeile) | "line" (Balken) | "dots" | "wave".
+    readonly property string visualizerStyle: value("visualizerStyle", "blocks")
 
     // Symbole vor dem Text der Bausteine. Aus wird die Leiste zur reinen
     // Textzeile -- naeher am Terminal, aber schmaler zu lesen.
