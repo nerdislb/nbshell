@@ -31,25 +31,96 @@ Cell {
             property var closePopout: null
 
             readonly property real rowWidth: 38 * Theme.cellW
+            readonly property var batteries: {
+                var out = [{
+                    "label": "Notebook",
+                    "percent": PowerService.percent,
+                    "charging": PowerService.charging,
+                    "source": "intern"
+                }];
+                for (var i = 0; i < Bt.withBattery.length; i++) {
+                    const bt = Bt.withBattery[i];
+                    out.push({
+                        "label": bt.label,
+                        "percent": bt.percent,
+                        "charging": false,
+                        "source": "Bluetooth"
+                    });
+                }
+                const phones = Kdeconnect.devices.filter(d => d.paired && d.reachable && d.capabilities.battery && d.charge >= 0);
+                for (var k = 0; k < phones.length; k++) {
+                    const phone = phones[k];
+                    out.push({
+                        "label": phone.name,
+                        "percent": phone.charge,
+                        "charging": phone.charging,
+                        "source": "KDE Connect"
+                    });
+                }
+                return out;
+            }
+            readonly property int missingReports: Math.max(0, Bt.connected.length - Bt.withBattery.length)
 
             spacing: Theme.cellH * 0.2
 
-            // Der Ladestand als Marke rechts oben: die eine Zahl, die man
-            // ohne Lesen erkennen will.
             PanelHead {
                 rowWidth: panel.rowWidth
                 icon: PowerService.charging ? Icons.batteryCharging : Icons.battery(PowerService.percent)
-                title: PowerService.stateText
-                subtitle: "Energie"
-                badge: PowerService.percent + " %"
+                title: "Akkustaende"
+                subtitle: panel.batteries.length + (panel.batteries.length === 1 ? " Geraet" : " Geraete")
+                badge: PowerService.percent + " % intern"
                 badgeColor: PowerService.percent <= 20 && !PowerService.charging ? Theme.red : (PowerService.charging ? Theme.green : Theme.fgDim)
             }
 
-            LevelBar {
-                cells: 30
-                value: PowerService.percent
-                interactive: false
-                fillColor: PowerService.percent <= 20 && !PowerService.charging ? Theme.red : (PowerService.charging ? Theme.green : Theme.accent)
+            Rule {
+                rowWidth: panel.rowWidth
+                label: "ALLE GERAETE"
+            }
+
+            Repeater {
+                model: panel.batteries
+
+                Item {
+                    required property var modelData
+                    width: panel.rowWidth
+                    height: Theme.cellH * 2.55
+
+                    Line {
+                        anchors.left: parent.left
+                        anchors.top: parent.top
+                        width: parent.width * 0.72
+                        text: parent.modelData.label + "  ·  " + parent.modelData.source
+                        color: Theme.fg
+                        elide: Text.ElideRight
+                    }
+                    Line {
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        text: parent.modelData.percent + " %" + (parent.modelData.charging ? "  ↑" : "")
+                        color: parent.modelData.percent <= 15 && !parent.modelData.charging ? Theme.red : (parent.modelData.charging ? Theme.green : Theme.fgBright)
+                    }
+                    LevelBar {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        cells: 30
+                        value: parent.modelData.percent
+                        interactive: false
+                        fillColor: parent.modelData.percent <= 15 && !parent.modelData.charging ? Theme.red : (parent.modelData.charging ? Theme.green : Theme.accent)
+                    }
+                }
+            }
+
+            Line {
+                width: panel.rowWidth
+                visible: panel.missingReports > 0
+                text: panel.missingReports + (panel.missingReports === 1 ? " Bluetooth-Geraet verbunden, aber ohne Akkumeldung" : " Bluetooth-Geraete verbunden, aber ohne Akkumeldung")
+                color: Theme.muted
+            }
+
+            Rule {
+                rowWidth: panel.rowWidth
+                label: "NOTEBOOK"
             }
 
             Facts {

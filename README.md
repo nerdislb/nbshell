@@ -1722,9 +1722,12 @@ Rechner wachhaelt, weil ein langer Lauf durchgeht, will nicht, dass ein
 ## Akku und Energieprofil
 
 Der Baustein `battery` zeigt in Ruhe den Ladestand, **unter der Maus die
-Restzeit** -- die will man selten, aber dann sofort. Ein Klick oeffnet die
-Energieeinstellungen: Ladestand als Balken, Zustand, Restzeit, Gesundheit und
-Leistung, darunter die Energieprofile zum Umschalten.
+Restzeit** -- die will man selten, aber dann sofort. Ein Klick oeffnet eine
+gemeinsame Akkuansicht: Notebook, erreichbare KDE-Connect-Telefone und alle
+verbundenen Bluetooth-Geraete mit Akkumeldung (etwa Pixel Buds) stehen mit
+Name, Prozentwert und Balken untereinander. Danach folgen Notebook-Details und
+die Energieprofile zum Umschalten. Verbundene Bluetooth-Geraete ohne
+Akkumeldung werden als solche ausgewiesen, statt wortlos zu fehlen.
 
 Die Profile kommen von **`tuned`**, nicht von `power-profiles-daemon`. Die
 beiden schliessen sich aus, und auf diesem Rechner laeuft tuned -- wer das
@@ -1750,7 +1753,8 @@ drei -- gemeldet wird nur die niedrigste erreichte Schwelle.
 ### Akkus der Geraete
 
 Der Baustein `devices` zeigt das **schwaechste** angeschlossene Bluetooth-Geraet
--- Maus, Kopfhoerer, Tastatur --, sein Popout alle. Die Zahlen lagen laengst
+-- Maus, Kopfhoerer, Tastatur -- als Warnmodul; die gemeinsame Liste aller
+Akkustaende liegt zusaetzlich im `battery`-Popout. Die Zahlen lagen laengst
 vor (BlueZ meldet sie, wie die WLAN-Staerke als Anteil zwischen 0 und 1), sie
 standen nur ganz unten in der Geraeteliste des Control Centers, wo sie niemand
 sieht.
