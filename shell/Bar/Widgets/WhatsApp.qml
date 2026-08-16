@@ -77,16 +77,21 @@ Cell {
                     spacing: 1
                     Rule { rowWidth: parent.width; label: "CHATS" }
                     Repeater {
-                        model: WhatsApp.chats.slice(0, 10)
+                        // Acht Zeilen passen auch mit Kopf und Composer sicher
+                        // unter eine obere Bar. PopupWindow begrenzt zwar sein
+                        // Fenster am Bildschirmrand, Kinder wuerden ohne diese
+                        // Grenze aber einfach ueber den Rahmen weitermalen.
+                        model: WhatsApp.chats.slice(0, 8)
                         Rectangle {
                             id: chatRow
                             required property var modelData
                             width: 22 * Theme.cellW; height: Theme.cellH * 2.3
+                            clip: true
                             color: WhatsApp.currentJid === modelData.jid ? Theme.selection : (chatHover.hovered ? Theme.hover : "transparent")
                             Column {
                                 anchors.left: parent.left; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                                Line { width: parent.width; text: (chatRow.modelData.unread > 0 ? "[" + chatRow.modelData.unread + "] " : "") + chatRow.modelData.name; color: chatRow.modelData.unread > 0 ? Theme.fgBright : Theme.fg; elide: Text.ElideRight }
-                                Line { width: parent.width; text: chatRow.modelData.lastText || ""; color: Theme.fgDim; elide: Text.ElideRight }
+                                Line { width: parent.width; text: (chatRow.modelData.unread > 0 ? "[" + chatRow.modelData.unread + "] " : "") + chatRow.modelData.name; color: chatRow.modelData.unread > 0 ? Theme.fgBright : Theme.fg; elide: Text.ElideRight; maximumLineCount: 1 }
+                                Line { width: parent.width; text: chatRow.modelData.lastText || ""; color: Theme.fgDim; elide: Text.ElideRight; maximumLineCount: 1 }
                             }
                             HoverHandler { id: chatHover; cursorShape: Qt.PointingHandCursor }
                             TapHandler { onTapped: WhatsApp.selectChat(chatRow.modelData.jid) }
@@ -100,13 +105,15 @@ Cell {
                     Rule { rowWidth: parent.width; label: WhatsApp.currentChat ? "VERLAUF" : "NACHRICHTEN" }
                     Line { visible: WhatsApp.currentJid === ""; text: "Links einen Chat waehlen"; color: Theme.muted }
                     Repeater {
-                        model: WhatsApp.messages.slice(-9)
+                        model: WhatsApp.messages.slice(-6)
                         Line {
                             required property var modelData
                             width: 35 * Theme.cellW
                             text: (modelData.fromMe ? "> " : "< ") + (modelData.text || "[Medien]")
                             color: modelData.fromMe ? Theme.accent : Theme.fg
                             wrapMode: Text.Wrap
+                            maximumLineCount: 2
+                            elide: Text.ElideRight
                         }
                     }
                     Rectangle {
