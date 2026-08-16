@@ -111,6 +111,7 @@ Singleton {
     // Sekunden fuer eine Angabe, die sich zwischen zwei Verbindungen nie
     // aendert.
     readonly property string codecSkript: Qt.resolvedUrl("../scripts/codec.py").toString().replace("file://", "")
+    readonly property string routeSkript: Qt.resolvedUrl("../scripts/audio-routes.py").toString().replace("file://", "")
 
     property string btKarte: ""
     property string btGeraet: ""
@@ -131,10 +132,26 @@ Singleton {
     readonly property bool btSchlechter: root.btDa && !root.btTelefonie && root.btBeste !== "" && root.btBeste !== root.btAktiv
 
     property string btAktiv: ""
+    property var routes: []
+    property var routeSinks: []
 
     function codecsLesen() {
         if (!codecProc.running)
             codecProc.running = true;
+    }
+
+    function routenLesen() {
+        if (!routeProc.running)
+            routeProc.running = true;
+    }
+
+    function cycleRoute(stream) {
+        if (!stream || root.routeSinks.length < 2 || routeSet.running)
+            return;
+        var current = root.routeSinks.findIndex(s => s.name === stream.sink);
+        const next = root.routeSinks[(current + 1) % root.routeSinks.length];
+        routeSet.command = ["python3", root.routeSkript, "set", String(stream.index), next.name];
+        routeSet.running = true;
     }
 
     function setzeCodec(profil) {
@@ -182,6 +199,34 @@ Singleton {
                 root.btCodecs = d.codecs ?? [];
             }
         }
+    }
+
+    Process {
+        id: routeProc
+        command: ["python3", root.routeSkript, "list"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const data = JSON.parse(text);
+                    root.routes = data.streams ?? [];
+                    root.routeSinks = data.sinks ?? [];
+                } catch (e) {
+                    root.routes = [];
+                    root.routeSinks = [];
+                }
+            }
+        }
+    }
+
+    Process {
+        id: routeSet
+        onExited: routeAfter.restart()
+    }
+
+    Timer {
+        id: routeAfter
+        interval: 350
+        onTriggered: root.routenLesen()
     }
 
     function label(node) {

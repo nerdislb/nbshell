@@ -12,6 +12,7 @@ PanelWindow {
     property var groups: []
     property bool loading: false
     property string error: ""
+    property string expandedId: ""
     readonly property string script: Qt.resolvedUrl("../scripts/system-hub.py").toString().replace("file://", "")
 
     visible: Runtime.hubOpen
@@ -33,7 +34,9 @@ PanelWindow {
     function run(command) {
         if (!command) return;
         Runtime.hubOpen = false;
-        if (command.indexOf("xdg-open ") === 0)
+        if (command.indexOf("detached:") === 0)
+            Quickshell.execDetached(["sh", "-c", command.slice(9)]);
+        else if (command.indexOf("xdg-open ") === 0)
             Quickshell.execDetached(["sh", "-c", command]);
         else
             Quickshell.execDetached([Apps.terminal, "-e", "sh", "-c", command + "; printf '\n[Enter] schliesst … '; read -r _"]);
@@ -114,27 +117,65 @@ PanelWindow {
 
                                 Repeater {
                                     model: group.modelData.items
-                                    Rectangle {
-                                        id: row
+                                    Column {
+                                        id: itemBlock
                                         required property var modelData
                                         width: group.width
-                                        height: Theme.cellH * 2
-                                        radius: Theme.radius
-                                        color: hover.hovered ? Theme.hover : Theme.bgLight
-                                        border.width: Theme.borderWidth
-                                        border.color: Theme.muted
+                                        spacing: Theme.cellH * 0.12
+                                        readonly property bool expanded: root.expandedId === modelData.id
+                                        readonly property bool hasDetails: modelData.details && modelData.details.length > 0
 
                                         Rectangle {
-                                            width: Theme.borderWidth * 2
-                                            height: parent.height * 0.55
-                                            anchors.left: parent.left
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            color: row.modelData.state === "ok" ? Theme.green : (row.modelData.state === "warn" ? Theme.yellow : Theme.muted)
+                                            id: row
+                                            width: itemBlock.width
+                                            height: Theme.cellH * 2
+                                            radius: Theme.radius
+                                            color: hover.hovered ? Theme.hover : Theme.bgLight
+                                            border.width: Theme.borderWidth
+                                            border.color: itemBlock.expanded ? Theme.accent : Theme.muted
+
+                                            Rectangle {
+                                                width: Theme.borderWidth * 2
+                                                height: parent.height * 0.55
+                                                anchors.left: parent.left
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                color: itemBlock.modelData.state === "ok" ? Theme.green : (itemBlock.modelData.state === "warn" ? Theme.yellow : Theme.muted)
+                                            }
+                                            Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW * 1.5; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.34; text: itemBlock.modelData.label; color: Theme.fg; elide: Text.ElideRight }
+                                            Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.58; horizontalAlignment: Text.AlignRight; text: itemBlock.modelData.detail + (itemBlock.hasDetails ? (itemBlock.expanded ? "  ⌃" : "  ⌄") : (itemBlock.modelData.command ? "  ›" : "")); color: itemBlock.modelData.state === "off" ? Theme.muted : Theme.fgDim; elide: Text.ElideRight }
+                                            HoverHandler { id: hover; cursorShape: itemBlock.hasDetails || itemBlock.modelData.command ? Qt.PointingHandCursor : Qt.ArrowCursor }
+                                            TapHandler {
+                                                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                                onTapped: (point, button) => {
+                                                    if (button === Qt.RightButton && itemBlock.modelData.command) root.run(itemBlock.modelData.command);
+                                                    else if (itemBlock.hasDetails) root.expandedId = itemBlock.expanded ? "" : itemBlock.modelData.id;
+                                                    else if (itemBlock.modelData.command) root.run(itemBlock.modelData.command);
+                                                }
+                                            }
                                         }
-                                        Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW * 1.5; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.34; text: row.modelData.label; color: Theme.fg; elide: Text.ElideRight }
-                                        Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.58; horizontalAlignment: Text.AlignRight; text: row.modelData.detail + (row.modelData.command ? "  ›" : ""); color: row.modelData.state === "off" ? Theme.muted : Theme.fgDim; elide: Text.ElideRight }
-                                        HoverHandler { id: hover; cursorShape: row.modelData.command ? Qt.PointingHandCursor : Qt.ArrowCursor }
-                                        TapHandler { enabled: !!row.modelData.command; onTapped: root.run(row.modelData.command) }
+
+                                        Repeater {
+                                            model: itemBlock.expanded ? itemBlock.modelData.details : []
+                                            Rectangle {
+                                                id: detailRow
+                                                required property var modelData
+                                                width: itemBlock.width
+                                                height: Theme.cellH * 1.65
+                                                radius: Theme.radius
+                                                color: Theme.alpha(Theme.bgLight, 0.65)
+                                                Rectangle { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: Theme.borderWidth * 2; height: parent.height * 0.45; color: detailRow.modelData.state === "warn" ? Theme.yellow : Theme.green }
+                                                Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW * 2; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.35; text: detailRow.modelData.label; color: Theme.fg; elide: Text.ElideRight }
+                                                Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.56; horizontalAlignment: Text.AlignRight; text: detailRow.modelData.detail; color: Theme.fgDim; elide: Text.ElideRight }
+                                                HoverHandler { cursorShape: detailRow.modelData.command ? Qt.PointingHandCursor : Qt.ArrowCursor }
+                                                TapHandler { enabled: !!detailRow.modelData.command; onTapped: root.run(detailRow.modelData.command) }
+                                            }
+                                        }
+
+                                        Line {
+                                            visible: itemBlock.expanded && !!itemBlock.modelData.command
+                                            text: "  [ extern oeffnen · Rechtsklick auf Kopf ]"
+                                            color: Theme.muted
+                                        }
                                     }
                                 }
                             }

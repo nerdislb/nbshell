@@ -2722,8 +2722,8 @@ Was hier fehlt (Bausteinlisten, Schrift, Themepfade), bleibt in der
 `nbshell modules` — links die vier Gruppen mit ihrem Inhalt, rechts der
 Vorrat. `↑↓` waehlt, `←→` verschiebt innerhalb der Gruppe, `Shift+←→` in die
 Nachbargruppe, `x` wirft raus, `Tab` wechselt in den Vorrat, `Enter` haengt
-von dort an. Das ist, was in der DankBar das Ziehen und Ablegen macht, nur mit
-Tasten.
+von dort an. Mit der Maus lassen sich vorhandene Bausteine an eine konkrete
+Position ziehen — auch zwischen Eingeklappt, Links, Mitte und Rechts.
 
 Damit loest sich auch die Frage „warum ist die Uhr nicht mittig": mittig steht
 die **Mittelgruppe als Ganzes**. Liegt noch etwas anderes darin (die Medien
@@ -2937,6 +2937,11 @@ Pfeiltasten und Enter funktionieren ebenso wie die Maus.
 Syncthing, GitHub Inbox, Pacman-Sentry, CUPS, lokale Ports und optionale
 Hardware-Werkzeuge. Die Abfragen laufen nur beim Oeffnen oder mit F5. Im
 Hauptmenue liegen Hub und Plugin-Verwaltung unter `Extras`.
+
+Zeilen mit `⌄` klappen Details direkt auf: Herdr zeigt die Agenten und
+fokussiert per Klick Pane plus niri-Fenster, Syncthing nennt jeden Ordner,
+Pacman die konkreten `.pacnew`, CUPS Drucker/Auftraege und Portboard Endpoint,
+Prozess und PID. Ein Rechtsklick auf den Kopf oeffnet die externe Ansicht.
 
 Codex-Benachrichtigungen werden ueber zwei eigene Lifecycle-Hooks
 (`PermissionRequest`, `Stop`) angebunden. `scripts/codex-hooks.py` fuegt nur
@@ -3264,15 +3269,10 @@ koennen gleichzeitig laufen — nbshell beansprucht bewusst keine D-Bus-Namen
 Die frueheren Alltagsluecken Bild-Zwischenablage und Anwendungslautstaerken
 sind seit dem Omarchy-4-Ausbau geschlossen. Sinnvolle naechste Ausbaustufen:
 
-- **Echtes Drag-and-drop im Module-Editor.** Maus geht bereits (Linksklick
-  schiebt nach rechts, Rechtsklick nach links), frei ziehen zwischen Positionen
-  und Gruppen fehlt noch.
-- **Tiefe System-Hub-Panels.** Der Hub zeigt Herdr, Syncthing, GitHub, Pacman,
-  CUPS und Ports heute als Status mit Detailaktion. Warteschlangen, einzelne
-  GitHub-Meldungen, Syncthing-Ordnerfehler und Port-Prozessdetails koennten
-  direkt in nbshell statt in Browser/Terminal erscheinen.
-- **Persistente Audio-Routen.** App-Lautstaerken sind da; die Ausgabe pro App
-  dauerhaft einem bestimmten Geraet zuzuordnen fehlt noch.
+- **Plugin-Entwickleransicht.** Manifest, Laufzeit-Kinds und Ladefehler an einem
+  Ort mit Komponenten-Vorschau statt nur CLI und Journal.
+- **Arch-News im Pacman-Sentry.** Updates und Konfigurationsreste stehen im Hub;
+  die offiziellen News vor riskanten Aktualisierungen fehlen noch.
 - **Natives Equalizer-Panel.** EasyEffects ist aus dem Hub startbar; eine
   eigene kleine PipeWire-Filteroberflaeche in nbshell gibt es nicht.
 - **Externe DDC-Helligkeit.** `ddcutil` ist installiert, aber ohne externen

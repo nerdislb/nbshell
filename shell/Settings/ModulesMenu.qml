@@ -52,6 +52,8 @@ PanelWindow {
     property int itemIndex: 0
     property bool inCatalog: false
     property int catalogIndex: 0
+    property int dragGroup: -1
+    property int dragIndex: -1
 
     readonly property var currentList: Config.value(groups[groupIndex].key, [])
 
@@ -118,6 +120,37 @@ PanelWindow {
         list.splice(itemIndex, 1);
         save(groupIndex, list);
         itemIndex = Math.max(0, Math.min(itemIndex, list.length - 1));
+    }
+
+    function moveDragged(toGroup, toIndex) {
+        if (dragGroup < 0 || dragIndex < 0 || toGroup < 0 || toGroup >= groups.length)
+            return;
+        const fromGroup = dragGroup;
+        const fromIndex = dragIndex;
+        const from = listOf(fromGroup);
+        if (fromIndex >= from.length)
+            return;
+        const item = from.splice(fromIndex, 1)[0];
+        if (fromGroup === toGroup) {
+            var adjusted = Math.max(0, Math.min(toIndex, from.length));
+            if (fromIndex < toIndex)
+                adjusted = Math.max(0, adjusted - 1);
+            from.splice(adjusted, 0, item);
+            save(fromGroup, from);
+            groupIndex = fromGroup;
+            itemIndex = adjusted;
+        } else {
+            save(fromGroup, from);
+            const to = listOf(toGroup);
+            const target = Math.max(0, Math.min(toIndex, to.length));
+            to.splice(target, 0, item);
+            save(toGroup, to);
+            groupIndex = toGroup;
+            itemIndex = target;
+        }
+        inCatalog = false;
+        dragGroup = -1;
+        dragIndex = -1;
     }
 
     function addFromCatalog() {
@@ -237,10 +270,24 @@ PanelWindow {
                         width: root.leftWidth
                         spacing: 0
 
-                        Line {
-                            text: group.modelData.label
-                            color: Theme.fgDim
-                            topPadding: Theme.cellH * 0.3
+                        Item {
+                            width: group.width
+                            height: Theme.cellH * 1.3
+
+                            Line {
+                                anchors.left: parent.left
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: group.modelData.label
+                                color: Theme.fgDim
+                            }
+
+                            // Leere Gruppe oder Ablage auf den Gruppenkopf:
+                            // der Baustein kommt ans Ende dieser Gruppe.
+                            DropArea {
+                                anchors.fill: parent
+                                enabled: root.dragGroup >= 0
+                                onDropped: root.moveDragged(group.index, root.listOf(group.index).length)
+                            }
                         }
 
                         Line {
@@ -268,6 +315,14 @@ PanelWindow {
                                 radius: Theme.radius
                                 color: row.current ? Theme.selection : "transparent"
 
+                                opacity: rowDrag.active ? 0.45 : 1
+                                z: rowDrag.active ? 20 : 0
+
+                                Drag.active: rowDrag.active
+                                Drag.source: row
+                                Drag.hotSpot.x: width / 2
+                                Drag.hotSpot.y: height / 2
+
                                 Line {
                                     anchors.left: parent.left
                                     anchors.leftMargin: Theme.cellW * 2
@@ -287,6 +342,39 @@ PanelWindow {
                                     }
                                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                                     onClicked: mouseEvent => root.moveWithin(mouseEvent.button === Qt.RightButton ? -1 : 1)
+                                }
+
+                                DragHandler {
+                                    id: rowDrag
+                                    acceptedButtons: Qt.LeftButton
+                                    target: null
+                                    grabPermissions: PointerHandler.CanTakeOverFromAnything
+                                    onActiveChanged: {
+                                        if (active) {
+                                            root.inCatalog = false;
+                                            root.dragGroup = group.index;
+                                            root.dragIndex = row.index;
+                                        } else if (root.dragGroup === group.index && root.dragIndex === row.index) {
+                                            root.dragGroup = -1;
+                                            root.dragIndex = -1;
+                                        }
+                                    }
+                                }
+
+                                // Obere Haelfte = davor, untere = dahinter.
+                                DropArea {
+                                    anchors.fill: parent
+                                    enabled: root.dragGroup >= 0 && !(root.dragGroup === group.index && root.dragIndex === row.index)
+                                    onDropped: drop => root.moveDragged(group.index, row.index + (drop.y > height / 2 ? 1 : 0))
+
+                                    Rectangle {
+                                        anchors.left: parent.left
+                                        anchors.right: parent.right
+                                        anchors.top: parent.top
+                                        height: Math.max(2, Theme.borderWidth * 2)
+                                        color: Theme.accent
+                                        visible: parent.containsDrag
+                                    }
                                 }
                             }
                         }

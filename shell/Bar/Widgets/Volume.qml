@@ -37,7 +37,10 @@ Cell {
         Runtime.audioPanelOpen = root.popoutVisible;
         // Den Codec erst jetzt lesen -- er interessiert nur den, der hinsieht.
         if (root.popoutVisible)
-            Audio.codecsLesen();
+            {
+                Audio.codecsLesen();
+                Audio.routenLesen();
+            }
     }
 
     Connections {
@@ -177,6 +180,28 @@ Cell {
                             }
                         }
                     }
+                }
+            }
+
+            Line {
+                visible: Audio.routes.length > 0 && Audio.routeSinks.length > 1
+                text: "AUSGABEROUTEN  —  Klick wechselt Geraet"
+                color: Theme.fgDim
+            }
+
+            Repeater {
+                model: Audio.routeSinks.length > 1 ? Audio.routes : []
+                Rectangle {
+                    id: routeRow
+                    required property var modelData
+                    width: panel.rowWidth
+                    height: Theme.cellH * 1.5
+                    radius: Theme.radius
+                    color: routeHover.hovered ? Theme.hover : "transparent"
+                    Line { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.42; text: routeRow.modelData.name; color: Theme.fg; elide: Text.ElideRight }
+                    Line { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.55; horizontalAlignment: Text.AlignRight; text: routeRow.modelData.sinkLabel + "  ›"; color: Theme.accent; elide: Text.ElideRight }
+                    HoverHandler { id: routeHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: Audio.cycleRoute(routeRow.modelData) }
                 }
             }
 
