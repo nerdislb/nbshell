@@ -56,9 +56,13 @@ Cell {
             // lag. Beim Zugehen geht beides wieder aus: der Scanner kostet
             // Strom, und eine laufende Bluetooth-Suche laesst obendrein
             // Kopfhoerer stottern.
-            Component.onCompleted: Net.setScanner(true)
+            Component.onCompleted: {
+                Net.setScanner(true);
+                Net.setTrafficMonitoring(true);
+            }
             Component.onDestruction: {
                 Net.setScanner(false);
+                Net.setTrafficMonitoring(false);
                 Bt.scan(false);
             }
 
@@ -135,6 +139,62 @@ Cell {
                         "color": Net.activeWifi.security !== WifiSecurityType.Open ? Theme.fg : Theme.yellow
                     }
                 ] : []
+            }
+
+            Rule {
+                rowWidth: panel.rowWidth
+                label: "DATENRATE" + (Net.trafficInterface !== "" ? (" · " + Net.trafficInterface) : "")
+                visible: Net.online
+            }
+
+            Row {
+                spacing: Theme.cellW
+                visible: Net.online
+
+                Line {
+                    width: 10 * Theme.cellW
+                    text: "↓ DOWNLOAD"
+                    color: Theme.cyan
+                }
+
+                LevelBar {
+                    cells: 21
+                    value: Net.rateLevel(Net.downloadBps)
+                    fillColor: Theme.cyan
+                    interactive: false
+                }
+
+                Line {
+                    width: 11 * Theme.cellW
+                    horizontalAlignment: Text.AlignRight
+                    text: Net.formatRate(Net.downloadBps)
+                    color: Theme.fg
+                }
+            }
+
+            Row {
+                spacing: Theme.cellW
+                visible: Net.online
+
+                Line {
+                    width: 10 * Theme.cellW
+                    text: "↑ UPLOAD"
+                    color: Theme.green
+                }
+
+                LevelBar {
+                    cells: 21
+                    value: Net.rateLevel(Net.uploadBps)
+                    fillColor: Theme.green
+                    interactive: false
+                }
+
+                Line {
+                    width: 11 * Theme.cellW
+                    horizontalAlignment: Text.AlignRight
+                    text: Net.formatRate(Net.uploadBps)
+                    color: Theme.fg
+                }
             }
 
             // ── Helligkeit ────────────────────────────────────────────────

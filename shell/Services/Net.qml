@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Networking
 
 // Netzwerk. Quickshell spricht selbst mit dem NetworkManager; hier steht nur,
@@ -47,6 +48,83 @@ Singleton {
     }
 
     readonly property bool online: activeWifi !== null || wiredConnected
+
+    // ── Aktuelle Datenrate ───────────────────────────────────────────────
+    //
+    // NetworkManager kennt Verbindung und Signal, liefert aber keine Live-
+    // Bytezaehler. Der Kernel tut das unter /sys/class/net. Abgetastet wird
+    // nur, solange das Control-Popout sichtbar ist.
+    property bool trafficMonitoring: false
+    property string trafficInterface: ""
+    property real downloadBps: 0
+    property real uploadBps: 0
+    property real previousRx: -1
+    property real previousTx: -1
+    property double previousSampleMs: 0
+
+    function setTrafficMonitoring(value) {
+        trafficMonitoring = value;
+        previousRx = -1;
+        previousTx = -1;
+        previousSampleMs = 0;
+        if (!value) {
+            downloadBps = 0;
+            uploadBps = 0;
+            trafficInterface = "";
+        }
+    }
+
+    function formatRate(bytesPerSecond) {
+        const rate = Math.max(0, Number(bytesPerSecond) || 0);
+        if (rate < 1024)
+            return Math.round(rate) + " B/s";
+        if (rate < 1024 * 1024)
+            return (rate / 1024).toFixed(rate < 10 * 1024 ? 1 : 0) + " KiB/s";
+        return (rate / 1024 / 1024).toFixed(rate < 10 * 1024 * 1024 ? 1 : 0) + " MiB/s";
+    }
+
+    // Logarithmisch von 0 bis 100 MiB/s: Aktivitaet bleibt bei kleinen
+    // Transfers sichtbar, grosse Downloads schlagen trotzdem klar aus.
+    function rateLevel(bytesPerSecond) {
+        const capped = Math.min(100 * 1024 * 1024, Math.max(0, Number(bytesPerSecond) || 0));
+        return Math.round(100 * Math.log(1 + capped) / Math.log(1 + 100 * 1024 * 1024));
+    }
+
+    Process {
+        id: trafficSample
+        command: ["sh", "-c", "d=$(ip -o route show default | awk 'NR==1 {print $5}'); test -n \"$d\" && printf '%s %s %s\\n' \"$d\" \"$(cat /sys/class/net/$d/statistics/rx_bytes)\" \"$(cat /sys/class/net/$d/statistics/tx_bytes)\""]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const parts = text.trim().split(/\s+/);
+                if (parts.length !== 3)
+                    return;
+                const iface = parts[0];
+                const rx = Number(parts[1]);
+                const tx = Number(parts[2]);
+                const now = Date.now();
+                if (iface === root.trafficInterface && root.previousRx >= 0 && root.previousTx >= 0) {
+                    const seconds = Math.max(0.001, (now - root.previousSampleMs) / 1000);
+                    root.downloadBps = Math.max(0, (rx - root.previousRx) / seconds);
+                    root.uploadBps = Math.max(0, (tx - root.previousTx) / seconds);
+                } else {
+                    root.downloadBps = 0;
+                    root.uploadBps = 0;
+                }
+                root.trafficInterface = iface;
+                root.previousRx = rx;
+                root.previousTx = tx;
+                root.previousSampleMs = now;
+            }
+        }
+    }
+
+    Timer {
+        interval: 1000
+        repeat: true
+        running: root.trafficMonitoring
+        triggeredOnStart: true
+        onTriggered: if (!trafficSample.running) trafficSample.running = true
+    }
 
     // Die Signalstaerke kommt als Anteil zwischen 0 und 1 herein, nicht als
     // Prozent -- wie `battery` bei Bluetooth-Geraeten. Das ist lange nicht
