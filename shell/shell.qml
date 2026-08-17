@@ -78,6 +78,7 @@ ShellRoot {
         void Nearby.enabled;
         void Tailnet.available;
         void WhatsApp.unread;
+        void ZenPip.active;
     }
 
     Bar {}

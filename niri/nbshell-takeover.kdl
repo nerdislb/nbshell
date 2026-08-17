@@ -44,6 +44,11 @@ binds {
     // Von den sechs freien Buchstaben passt P wie Player am besten.
     Mod+P hotkey-overlay-title="nbshell: Musik" { spawn "sh" "-c" "$HOME/.local/bin/nbshell music fenster"; }
 
+    // Zen erzeugt das echte Videofenster mit Ctrl+Shift+]. Danach steuert
+    // nbshell dessen Geometrie, ohne Browser- oder DRM-Inhalt anzufassen.
+    Mod+Alt+P hotkey-overlay-title="nbshell: PiP-Groesse" { spawn "sh" "-c" "$HOME/.local/bin/nbshell pip size"; }
+    Mod+Alt+Shift+P hotkey-overlay-title="nbshell: PiP-Ecke" { spawn "sh" "-c" "$HOME/.local/bin/nbshell pip corner"; }
+
     // Ton zurueck auf die Bluetooth-Hoerer, wenn sie beim Telefon geblieben
     // sind. Z war frei und liegt neben der linken Hand.
     Mod+Z hotkey-overlay-title="nbshell: Ton zurueckholen" { spawn "sh" "-c" "$HOME/.local/bin/nbshell ton"; }
@@ -95,6 +100,14 @@ window-rule {
     open-focused true
     border { off; }
     shadow { off; }
+}
+
+// Zens natives Videofenster soll sofort ueber dem Tiling schweben. Die
+// Feingeometrie uebernimmt zen-pip.py, sobald das Fenster erscheint.
+window-rule {
+    match app-id="zen" title="^(Picture-in-Picture|Bild-im-Bild)$"
+    open-floating true
+    default-floating-position x=16 y=16 relative-to="bottom-right"
 }
 
 // Die weichgezeichnete Kopie des Hintergrunds gehoert in niris Backdrop --

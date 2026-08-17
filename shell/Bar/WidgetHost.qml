@@ -127,6 +127,8 @@ Item {
             return tailscaleComponent;
         case "whatsapp":
             return whatsappComponent;
+        case "pip":
+            return zenPipComponent;
         }
         // Kein eingebauter -- dann muss es ein Plugin sein. Ist es das auch
         // nicht, steht ein Name in der Config, den niemand kennt.
@@ -289,5 +291,10 @@ Item {
     Component {
         id: whatsappComponent
         WhatsApp {}
+    }
+
+    Component {
+        id: zenPipComponent
+        Pip {}
     }
 }

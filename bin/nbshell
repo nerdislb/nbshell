@@ -98,6 +98,7 @@ alacritty_theme() {
 CURSOR_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/cursors.sh"
 MUSIC_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/ytm.py"
 KEYS_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/keys.py"
+PIP_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/zen-pip.py"
 
 cursor_status() {
     local jetzt
@@ -451,6 +452,8 @@ nbshell -- eigene Shell auf Quickshell
   nbshell battery           Akku und Energieprofil (bat <profil> wechselt)
   nbshell power             Power-Menue (auch: lock, logout, suspend)
   nbshell media playpause|next|previous|status
+  nbshell pip status|apply|size|corner|focus|close
+                          Zens natives Picture-in-Picture steuern
 
   nbshell tray              zeigt, was im Tray steckt
   nbshell tray toggle       Symbole ein- und ausklappen
@@ -897,6 +900,9 @@ ENDE
         ;;
     media)
         ipc media "${1:-status}"
+        ;;
+    pip)
+        "$PIP_TOOL" "${1:-status}"
         ;;
     notify)
         case "${1:-status}" in

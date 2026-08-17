@@ -18,6 +18,7 @@ des Projekts bleiben dabei menschlich gesteuert.
 - Omarchy-inspirierte Menues, Dashboard, Themes und Wallpaper
 - Launcher, Zwischenablage, Benachrichtigungen und System-Tray
 - Audio, Medien, Bluetooth, WLAN, Akkus und Energieprofile
+- Zen-Picture-in-Picture als frei schwebendes Videofenster mit Groessen- und Eckwahl
 - Kalender, Aufgaben, Gewohnheiten und KDE Connect
 - Screenshots, Bildschirmaufnahme, OCR und Bildschirmschoner
 - AI-Usage fuer Codex, Claude, Antigravity und weitere Anbieter
@@ -55,8 +56,14 @@ nbshell menu             # Hauptmenue oeffnen
 nbshell settings         # Darstellung konfigurieren
 nbshell modules          # Module anordnen
 nbshell keys             # Tastenkuerzel anzeigen
+nbshell pip status       # Zens laufendes Picture-in-Picture pruefen
 nbshell --help           # alle Befehle
 ```
+
+Zens natives Picture-in-Picture wird im Video mit `Ctrl+Shift+]` geoeffnet.
+nbshell setzt das Fenster automatisch schwebend in die gespeicherte Ecke. Das
+eingeblendete `PIP`-Modul sowie `Mod+Alt+P` wechseln die Groesse;
+`Mod+Alt+Shift+P` wechselt die Ecke.
 
 ## Hilfe
 
