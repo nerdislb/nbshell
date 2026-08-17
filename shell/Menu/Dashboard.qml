@@ -214,7 +214,7 @@ PanelWindow {
                     width: parent.width
                     spacing: Theme.cellW
                     Repeater {
-                        model: ["1  HEUTE", "2  MEDIEN", "3  WERKZEUGE"]
+                        model: ["HEUTE", "MEDIEN", "WERKZEUGE"]
                         Rectangle {
                             required property var modelData
                             required property int index
@@ -432,7 +432,7 @@ PanelWindow {
                     }
                 }
 
-                Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: "1–3 wechselt Ansicht  ·  Esc schliesst  ·  R markiert eine Rechtsklick-Aktion"; color: Theme.muted }
+                Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: "Esc schliesst  ·  R markiert eine Rechtsklick-Aktion"; color: Theme.muted }
             }
 
             // Update-Liste wie im frueheren Bar-Popout, aber als Ebene im
