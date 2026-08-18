@@ -274,7 +274,7 @@ Cell {
                     if (!Phone.connected)
                         return "Kein ADB-Geraet — USB-Debugging oder nbphone connect";
                     const name = Phone.model !== "" ? Phone.model : Phone.serial;
-                    return name + "  •  " + (Phone.mirroring ? "Spiegelung laeuft" : "bereit");
+                    return name + "  •  " + (Phone.wireless ? "WLAN" : "USB") + "  •  " + (Phone.mirroring ? "Spiegelung laeuft" : "bereit");
                 }
                 color: Phone.connected && Phone.scrcpyAvailable ? Theme.fg : Theme.yellow
                 wrapMode: Text.WordWrap
@@ -302,6 +302,13 @@ Cell {
                     text: "Refresh"
                     enabled: !Phone.busy
                     onTriggered: Phone.refresh()
+                }
+
+                ActionButton {
+                    text: Phone.wireless ? "WLAN ✓" : "WLAN"
+                    busy: Phone.busy
+                    enabled: !Phone.busy && !Phone.mirroring
+                    onTriggered: Phone.connectWireless()
                 }
             }
 

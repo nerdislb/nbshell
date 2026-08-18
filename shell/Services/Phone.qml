@@ -16,6 +16,7 @@ Singleton {
     property bool adbAvailable: false
     property bool scrcpyAvailable: false
     property bool connected: false
+    property bool wireless: false
     property bool mirroring: false
     property string serial: ""
     property string model: ""
@@ -46,6 +47,10 @@ Singleton {
         root.run("stop", []);
     }
 
+    function connectWireless() {
+        root.run("wireless", []);
+    }
+
     Component.onCompleted: refresh()
 
     Timer {
@@ -65,6 +70,7 @@ Singleton {
                     root.adbAvailable = Boolean(data.available && data.available.adb);
                     root.scrcpyAvailable = Boolean(data.available && data.available.scrcpy);
                     root.connected = Boolean(data.connected);
+                    root.wireless = Boolean(data.wireless);
                     root.mirroring = Boolean(data.mirroring);
                     const selected = data.selected || null;
                     root.serial = selected ? String(selected.serial || "") : "";
@@ -72,6 +78,7 @@ Singleton {
                 } catch (error) {
                     root.available = false;
                     root.connected = false;
+                    root.wireless = false;
                     root.mirroring = false;
                 }
             }
