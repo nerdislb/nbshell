@@ -110,6 +110,15 @@ window-rule {
     default-floating-position x=16 y=16 relative-to="bottom-right"
 }
 
+// Das schmale Pixel-Hochformat darf keine breite Tiling-Spalte erben.
+// Floating respektiert scrcpys eigenes Seitenverhaeltnis und legt den
+// Niri-Rahmen damit direkt um den sichtbaren Smartphone-Ausschnitt.
+window-rule {
+    match app-id="scrcpy" title="^Pixel 9 Pro · nbphone$"
+    open-floating true
+    default-floating-position x=16 y=16 relative-to="bottom-right"
+}
+
 // Die weichgezeichnete Kopie des Hintergrunds gehoert in niris Backdrop --
 // dann zeigt die Uebersicht (Mod+Tab) sie statt einer leeren Flaeche.
 // Weichzeichnen kann niri nicht selbst; nbshell haelt die Kopie bereit.
