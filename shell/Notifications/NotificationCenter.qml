@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import Quickshell
 import Quickshell.Wayland
 import qs.Common
@@ -53,8 +54,10 @@ PanelWindow {
         Rectangle {
             id: box
             anchors.centerIn: parent
-            width: Math.min(parent.width - Theme.cellW * 8, Theme.cellW * 100)
-            height: Math.min(parent.height - Theme.cellH * 6, Theme.cellH * 43)
+            // Breiter fuer klare Kartenzeilen, aber bewusst nur rund ein
+            // halber Bildschirm hoch. Der Verlauf scrollt innerhalb der Box.
+            width: Math.min(parent.width - Theme.cellW * 6, Theme.cellW * 116)
+            height: Math.min(parent.height - Theme.cellH * 12, Theme.cellH * 31)
             color: Theme.bg
             radius: Theme.radius
             border.width: Theme.borderWidth
@@ -88,6 +91,12 @@ PanelWindow {
                     contentHeight: cards.implicitHeight
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
+                    ScrollBar.vertical: ScrollBar {
+                        width: Math.max(Theme.borderWidth * 3, 4)
+                        policy: flick.contentHeight > flick.height ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
+                        contentItem: Rectangle { color: Theme.accent; radius: Theme.radius }
+                        background: Rectangle { color: Theme.muted; radius: Theme.radius }
+                    }
                     Column {
                         id: cards
                         width: flick.width

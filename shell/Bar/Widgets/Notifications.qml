@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import qs.Common
 import qs.Notifications
 import qs.Services
@@ -42,9 +43,9 @@ Cell {
                 const needle = panel.query.trim().toLowerCase();
                 if (needle === "") return true;
                 return ((e.appName || "") + " " + (e.summary || "") + " " + (e.body || "")).toLowerCase().indexOf(needle) >= 0;
-            }).slice(0, 20)
+            })
 
-            readonly property real rowWidth: 46 * Theme.cellW
+            readonly property real rowWidth: 54 * Theme.cellW
 
             spacing: Theme.cellH * 0.3
 
@@ -125,19 +126,40 @@ Cell {
                 color: Theme.muted
             }
 
-            Repeater {
-                model: panel.shownNotifications
+            Flickable {
+                id: historyView
+                width: panel.rowWidth
+                height: Notify.count > 0 ? Theme.cellH * 20 : 0
+                visible: Notify.count > 0
+                contentHeight: historyCards.implicitHeight
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
 
-                NotificationCard {
-                    id: row
+                ScrollBar.vertical: ScrollBar {
+                    width: Math.max(Theme.borderWidth * 3, 4)
+                    policy: historyView.contentHeight > historyView.height ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
+                    contentItem: Rectangle { color: Theme.accent; radius: Theme.radius }
+                    background: Rectangle { color: Theme.muted; radius: Theme.radius }
+                }
 
-                    required property var modelData
+                Column {
+                    id: historyCards
+                    width: historyView.width - (historyView.contentHeight > historyView.height ? Theme.cellW : 0)
+                    spacing: Theme.cellH * 0.3
 
-                    width: panel.rowWidth
-                    entry: modelData
-                    detailed: false
-                    onOpened: { Notify.open(modelData); panel.closePopout?.(); }
-                    onRemoved: Notify.drop(modelData.key)
+                    Repeater {
+                        model: panel.shownNotifications
+
+                        NotificationCard {
+                            required property var modelData
+
+                            width: historyCards.width
+                            entry: modelData
+                            detailed: false
+                            onOpened: { Notify.open(modelData); panel.closePopout?.(); }
+                            onRemoved: Notify.drop(modelData.key)
+                        }
+                    }
                 }
             }
         }

@@ -21,7 +21,7 @@ Rectangle {
     readonly property string iconPath: iconName !== "" ? Quickshell.iconPath(iconName, true) : ""
     readonly property var liveActions: entry.notification?.actions ?? []
 
-    implicitHeight: content.implicitHeight + Theme.cellH
+    implicitHeight: content.implicitHeight + Theme.cellH * 0.7
     radius: Theme.radius
     color: selected || hover.hovered ? Theme.hover : Theme.bgLight
     border.width: Theme.borderWidth
@@ -32,7 +32,7 @@ Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        anchors.margins: Theme.cellW
+        anchors.margins: Math.round(Theme.cellW * 0.75)
         spacing: Theme.cellW
 
         Item {
@@ -98,7 +98,7 @@ Rectangle {
                 color: Theme.fgBright
                 font.pixelSize: Theme.fontSize + 1
                 wrapMode: Text.WordWrap
-                maximumLineCount: 2
+                maximumLineCount: 1
                 elide: Text.ElideRight
             }
 
@@ -108,7 +108,7 @@ Rectangle {
                 text: Notify.plain(root.entry.body)
                 color: Theme.fgDim
                 wrapMode: Text.WordWrap
-                maximumLineCount: 3
+                maximumLineCount: 2
                 elide: Text.ElideRight
             }
 

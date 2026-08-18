@@ -21,6 +21,11 @@ Rectangle {
     readonly property color activeSurface: tone === "primary"
         ? Theme.alpha(accentColor, 0.34)
         : (tone === "danger" ? Theme.alpha(Theme.red, 0.24) : Theme.hover)
+    // Die Flaeche ist teilweise transparent. Kontrast gegen `root.color`
+    // allein waere deshalb falsch: QML mischt sie erst spaeter mit bgLight.
+    readonly property color labelColor: tone === "danger"
+        ? Theme.readable(Theme.red, Theme.bgLight, 4.5)
+        : Theme.readable(Theme.fgBright, Theme.bgLight, 4.5)
 
     implicitWidth: label.implicitWidth + Theme.cellW * (compact ? 1.5 : 2.5)
     implicitHeight: Theme.cellH * (compact ? 1.35 : 1.65)
@@ -35,7 +40,7 @@ Rectangle {
         anchors.centerIn: parent
         text: root.busy ? "…" : root.text
         color: !root.enabled ? Theme.fgDim
-            : (root.tone === "secondary" ? Theme.fg : Theme.readable(root.accentColor, root.color, 3.0))
+            : root.labelColor
         font.bold: root.tone === "primary"
     }
 
