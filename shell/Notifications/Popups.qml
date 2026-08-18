@@ -46,25 +46,14 @@ Variants {
         visible: Notify.popups.length > 0
         color: "transparent"
 
-        // Hat gerade eine Benachrichtigung Aktionsknoepfe? Nur dann muss die
-        // Flaeche Eingaben annehmen -- eine reine Overlay-Flaeche mit
-        // keyboardFocus None bekommt unter niri Hover, aber keine Klicks.
-        readonly property bool hasActions: {
-            for (var i = 0; i < Notify.popups.length; i++) {
-                const n = Notify.popups[i].notification;
-                if (n && n.actions && n.actions.length > 0)
-                    return true;
-            }
-            return false;
-        }
-
         WlrLayershell.namespace: "nbshell:notifications"
         WlrLayershell.layer: WlrLayershell.Overlay
         // OnDemand statt Exclusive: der Fokus wechselt erst, wenn man die Karte
         // wirklich anklickt -- eine auftauchende Benachrichtigung reisst also
-        // nicht die Tastatur aus der gerade benutzten App. Ohne Aktionen bleibt
-        // es None (durchklickbar).
-        WlrLayershell.keyboardFocus: win.hasActions ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+        // nicht die Tastatur aus der gerade benutzten App. Auch Karten ohne
+        // App-Aktionen brauchen OnDemand: mit None lieferte niri zwar Hover,
+        // aber keinen Rechtsklick zum Wegwischen.
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
         exclusionMode: ExclusionMode.Ignore
 
         anchors.right: true
@@ -216,17 +205,13 @@ Variants {
                         }
                     }
 
-                    MouseArea {
-                        anchors.fill: parent
-                        // Unter den Knoepfen: die sollen zuerst drankommen.
-                        z: -1
+                    TapHandler {
                         acceptedButtons: Qt.LeftButton | Qt.RightButton
-                        onClicked: mouseEvent => {
-                            if (mouseEvent.button === Qt.RightButton)
-                                Notify.drop(card.modelData.key);
-                            else
-                                Notify.dismissPopup(card.modelData.key);
-                        }
+                        // Rechtsklick entfernt nur die sichtbare Karte. Im
+                        // Verlauf bleibt die Meldung zum spaeteren Nachlesen.
+                        // Die inneren Aktionsknoepfe gewinnen ihren eigenen
+                        // Pointer-Grab und funktionieren weiterhin separat.
+                        onTapped: Notify.dismissPopup(card.modelData.key)
                     }
                 }
             }
