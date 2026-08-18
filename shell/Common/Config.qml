@@ -87,6 +87,11 @@ Singleton {
     // Aussengruppen. Aus heisst: gleich grosse Luecken, die Uhr wandert.
     readonly property bool islandCenter: value("islandCenter", true)
 
+    // Let the compact island grow into a full-width bar while it is open.
+    // The setting only changes its expanded geometry; the collapsed state
+    // remains a small pill.
+    readonly property bool islandExpandFullWidth: value("islandExpandFullWidth", false)
+
     // Wie die Arbeitsflaechen aussehen: `numbers` die Nummern, `dots` ein
     // dicker Punkt fuer die aktive und kleine fuer die uebrigen, `pacman` und
     // `invader` dieselben Punkte mit einer Figur auf der aktiven. Rechtsklick
@@ -130,7 +135,7 @@ Singleton {
     // Wie lange die Insel nach dem Verlassen noch offen bleibt. 250 ms waren
     // zu knapp: wer die Maus aus der Leiste zieht, um etwas anderes zu tun,
     // und es sich unterwegs anders ueberlegt, findet sie schon zu.
-    readonly property int collapseDelay: value("collapseDelay", 600)
+    readonly property int collapseDelay: value("collapseDelay", 1400)
 
     readonly property var collapsedWidgets: value("collapsedWidgets", ["clock"])
     readonly property var leftWidgets: value("leftWidgets", ["workspaces", "whatsapp", "sep", "window"])

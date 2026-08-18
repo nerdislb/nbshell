@@ -44,6 +44,10 @@ Variants {
 
         readonly property bool atBottom: Config.edge === "bottom"
         readonly property bool expanded: barMode || pillMode || Runtime.islandOpen || hovering
+        property real openProgress: expanded ? 1 : 0
+        readonly property real centerHandoff: Math.max(0, Math.min(1, (openProgress - 0.72) / 0.28))
+        readonly property bool reuseCollapsedCenter: !barMode && !pillMode
+            && JSON.stringify(Config.collapsedWidgets) === JSON.stringify(Config.centerWidgets)
         property bool hovering: false
         property real edgeDragY: 0
         readonly property string wallpaperSource: Config.value("wallpaperOverride", "") || (ThemeIndex.current?.wallpaper ?? "")
@@ -60,6 +64,13 @@ Variants {
         onWidthChanged: refreshTransparentContrast()
         onHeightChanged: refreshTransparentContrast()
         Component.onCompleted: refreshTransparentContrast()
+
+        Behavior on openProgress {
+            NumberAnimation {
+                duration: 700
+                easing.type: Easing.InOutCubic
+            }
+        }
 
         Connections {
             target: Config
@@ -174,8 +185,12 @@ Variants {
             width: {
                 if (win.barMode)
                     return win.width;
-                const inner = win.osdInPill ? osdRow.implicitWidth : (win.expanded ? content.implicitWidth : collapsed.implicitWidth);
-                return Math.min(win.width, inner + Theme.padX * 2);
+                if (win.osdInPill)
+                    return Math.min(win.width, osdRow.implicitWidth + Theme.padX * 2);
+                const closedWidth = Math.min(win.width, collapsed.implicitWidth + Theme.padX * 2);
+                const compactOpenWidth = Math.min(win.width, content.compactWidth + Theme.padX * 2);
+                const openWidth = Config.islandExpandFullWidth && !win.pillMode ? win.width : compactOpenWidth;
+                return closedWidth + (openWidth - closedWidth) * win.openProgress;
             }
 
             radius: win.barMode ? 0 : Theme.radius
@@ -216,13 +231,6 @@ Variants {
                 onTranslationChanged: win.edgeDragY = translation.y
             }
 
-            Behavior on width {
-                NumberAnimation {
-                    duration: 200
-                    easing.type: Easing.OutCubic
-                }
-            }
-
             HoverHandler {
                 onHoveredChanged: {
                     if (hovered) {
@@ -247,14 +255,12 @@ Variants {
 
                 anchors.centerIn: parent
                 spacing: Theme.gap
-                opacity: win.expanded || win.osdInPill ? 0 : 1
-                enabled: !win.expanded && !win.osdInPill
-
-                Behavior on opacity {
-                    NumberAnimation {
-                        duration: 120
-                    }
-                }
+                // Keep the compact clock fixed while the shell grows. The
+                // second clock in the center group takes over only near the
+                // end, avoiding a double-rendered sideways wobble.
+                opacity: win.osdInPill || win.barMode || win.pillMode ? 0
+                    : (win.reuseCollapsedCenter ? 1 : 1 - win.centerHandoff)
+                enabled: (win.reuseCollapsedCenter || win.openProgress < 0.5) && !win.osdInPill
 
                 Repeater {
                     model: Config.collapsedWidgets
@@ -273,19 +279,13 @@ Variants {
                 anchors.verticalCenter: parent.verticalCenter
                 x: win.barMode ? Theme.padX : (parent.width - width) / 2
                 spacing: 0
-                opacity: win.expanded && !win.osdInPill ? 1 : 0
-                enabled: win.expanded && !win.osdInPill
-
-                Behavior on opacity {
-                    NumberAnimation {
-                        duration: 120
-                    }
-                }
+                opacity: win.osdInPill ? 0 : win.openProgress
+                enabled: win.openProgress >= 0.5 && !win.osdInPill
 
                 // Im Balken muessen die Zwischenraeume so breit sein, dass die
                 // Mittelgruppe wirklich in der Bildschirmmitte steht -- und
                 // nicht dort, wo sie nach zwei gleich grossen Luecken landet.
-                readonly property real free: frame.width - Theme.padX * 2 - leftGroup.implicitWidth - centerGroup.implicitWidth - rightGroup.implicitWidth
+                readonly property real free: win.width - Theme.padX * 2 - leftGroup.implicitWidth - centerGroup.implicitWidth - rightGroup.implicitWidth
                 readonly property real barLeftGap: Math.max(Theme.gap, free / 2 - (leftGroup.implicitWidth - rightGroup.implicitWidth) / 2)
                 readonly property real barRightGap: Math.max(Theme.gap, free - barLeftGap)
 
@@ -302,6 +302,8 @@ Variants {
                 readonly property real islandDiff: Config.islandCenter ? Math.abs(leftGroup.implicitWidth - rightGroup.implicitWidth) : 0
                 readonly property real islandLeftGap: Theme.gap + (leftGroup.implicitWidth < rightGroup.implicitWidth ? content.islandDiff : 0)
                 readonly property real islandRightGap: Theme.gap + (rightGroup.implicitWidth < leftGroup.implicitWidth ? content.islandDiff : 0)
+                readonly property real layoutProgress: win.barMode ? 1 : (Config.islandExpandFullWidth && !win.pillMode ? win.openProgress : 0)
+                readonly property real compactWidth: leftGroup.implicitWidth + islandLeftGap + centerGroup.implicitWidth + islandRightGap + rightGroup.implicitWidth
 
                 Row {
                     id: leftGroup
@@ -319,13 +321,25 @@ Variants {
                 }
 
                 Item {
-                    width: win.barMode ? content.barLeftGap : content.islandLeftGap
+                    id: leftSpacer
+                    width: content.islandLeftGap + (content.barLeftGap - content.islandLeftGap) * content.layoutProgress
                     height: 1
                 }
 
                 Row {
                     id: centerGroup
                     spacing: Theme.gap
+                    opacity: win.barMode || win.pillMode ? 1
+                        : (win.reuseCollapsedCenter ? 0 : win.centerHandoff)
+
+                    // The side groups can change width while quiet widgets
+                    // appear. Counter that layout movement so the clock stays
+                    // exactly at the frame center throughout the transition.
+                    transform: Translate {
+                        x: frame.width / 2 - content.x
+                           - leftGroup.implicitWidth - leftSpacer.width
+                           - centerGroup.implicitWidth / 2
+                    }
 
                     Repeater {
                         model: Config.centerWidgets
@@ -339,7 +353,8 @@ Variants {
                 }
 
                 Item {
-                    width: win.barMode ? content.barRightGap : content.islandRightGap
+                    id: rightSpacer
+                    width: content.islandRightGap + (content.barRightGap - content.islandRightGap) * content.layoutProgress
                     height: 1
                 }
 

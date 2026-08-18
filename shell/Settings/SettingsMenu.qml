@@ -76,6 +76,12 @@ PanelWindow {
             "values": [true, false]
         },
         {
+            "key": "islandExpandFullWidth",
+            "def": false,
+            "label": "Full width when open",
+            "values": [true, false]
+        },
+        {
             "key": "osdInPill",
             "def": true,
             "label": "Overlay inside pill",
@@ -233,11 +239,11 @@ PanelWindow {
         },
         {
             "key": "collapseDelay",
-            "def": 250,
+            "def": 1400,
             "label": "Collapse delay",
-            "step": 50,
+            "step": 100,
             "min": 0,
-            "max": 1000
+            "max": 3000
         },
         {
             "key": "popoutLeaveDelay",
