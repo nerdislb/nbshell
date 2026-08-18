@@ -36,7 +36,7 @@ install_bridge() {
         archive="$stage/source.tar.gz"
         curl -fL "https://github.com/srineshr1/omarchy-whatsapp/archive/$commit.tar.gz" -o "$archive"
         printf '%s  %s\n' "$archive_sha" "$archive" | sha256sum --check --status \
-            || die "Pruefsumme des WhatsApp-Bridge-Archivs stimmt nicht"
+            || die "WhatsApp bridge archive checksum mismatch"
         tar -xzf "$archive" -C "$stage"
         unpacked="$stage/omarchy-whatsapp-$commit"
         [[ -d $unpacked/daemon ]] || die "Bridge-Archiv ist unvollstaendig"
@@ -82,7 +82,7 @@ WantedBy=graphical-session.target
 EOF
     systemctl --user daemon-reload
     systemctl --user enable --now nbshell-whatsapp.service
-    printf 'WhatsApp-Bridge installiert. Oeffne das WA-Widget und waehle "Geraet verbinden".\n'
+    printf 'WhatsApp bridge installed. Open the WA module and choose "Connect device".\n'
 }
 
 open_webapp() {

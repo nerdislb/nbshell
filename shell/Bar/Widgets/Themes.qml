@@ -59,7 +59,7 @@ Cell {
                 rowWidth: picker.rowWidth
                 icon: Icons.palette
                 title: picker.previewName
-                subtitle: picker.previewName === Config.theme ? "Theme · aktiv" : "Theme · Vorschau"
+                subtitle: picker.previewName === Config.theme ? "Theme · active" : "Theme · preview"
                 badge: String(ThemeIndex.list.length)
             }
 
@@ -84,7 +84,7 @@ Cell {
                 Line {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "AKZENT"
+                    text: "ACCENT"
                     color: Theme.fgDim
                 }
 

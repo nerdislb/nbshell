@@ -327,7 +327,7 @@ Singleton {
                 console.warn("nbshell: Theme", Config.theme, "nur teilweise gelesen —", Object.keys(root.c).length, "Werte");
         }
         onLoadFailed: {
-            console.warn("nbshell: Theme nicht gefunden:", root.themePath);
+            console.warn("nbshell: theme not found:", root.themePath);
             root.c = ({});
         }
     }

@@ -31,8 +31,8 @@ Item {
                 if (status === Loader.Loading)
                     Plugins.reportLoadState(modelData.id, modelData.kind, "laedt", modelData.source);
                 if (status === Loader.Error) {
-                    Plugins.reportLoadState(modelData.id, modelData.kind, "fehler", modelData.source);
-                    console.warn("nbshell/plugins:", modelData.id, modelData.kind, "laedt nicht —", modelData.source);
+                    Plugins.reportLoadState(modelData.id, modelData.kind, "error", modelData.source);
+                    console.warn("nbshell/plugins:", modelData.id, modelData.kind, "failed to load —", modelData.source);
                 }
             }
             Component.onDestruction: {

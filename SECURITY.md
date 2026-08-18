@@ -1,10 +1,9 @@
-# Sicherheit
+# Security
 
-Bitte melde Sicherheitsprobleme nicht in einem oeffentlichen Issue. Nutze nach
-der Veroeffentlichung stattdessen GitHubs private Security-Advisory-Funktion im
-Repository unter **Security → Report a vulnerability**.
+Do not report security problems in a public issue. Use GitHub's private
+**Security → Report a vulnerability** feature in this repository.
 
-nbshell fuehrt lokale Skripte aus und kann optionale Plugins aus Git-Repositories
-installieren. Installiere Plugins nur aus Quellen, denen du vertraust. API-Keys,
-Tokens, Kalenderadressen und andere Zugangsdaten duerfen nie in Issues, Logs
-oder Pull Requests eingefuegt werden.
+nbshell runs local helper scripts and can install optional plugins from Git
+repositories. Only install plugins from sources you trust. Never include API
+keys, tokens, calendar URLs, or other credentials in issues, logs, or pull
+requests.

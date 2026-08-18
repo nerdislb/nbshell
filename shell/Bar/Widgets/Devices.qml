@@ -3,10 +3,10 @@ import qs.Common
 import qs.Services
 import qs.Widgets
 
-// Akkus der angeschlossenen Geraete -- Maus, Kopfhoerer, Tastatur.
+// Akkus der angeschlossenen Devices -- Maus, Kopfhoerer, Tastatur.
 //
 // Die Zahlen lagen schon vor: BlueZ meldet sie, und das Control-Popout zeigte
-// sie ganz unten in der Geraeteliste. Nur sieht man sie dort nie, und eine
+// sie ganz unten in der Devicesliste. Nur sieht man sie dort nie, und eine
 // Maus, die morgen leer ist, faellt einem erst auf, wenn sie es ist.
 //
 // Die Zelle meldet sich deshalb selbst -- aber nur, wenn es etwas zu melden
@@ -51,7 +51,7 @@ Cell {
             PanelHead {
                 rowWidth: panel.rowWidth
                 icon: Icons.battery(Bt.lowest ? Bt.lowest.percent : 100)
-                title: "Geraete"
+                title: "Devices"
                 subtitle: "Bluetooth"
                 badge: Bt.withBattery.length > 0 ? String(Bt.withBattery.length) : ""
             }
@@ -66,12 +66,12 @@ Cell {
                         }))
             }
 
-            // Verbundene Geraete OHNE Akkumeldung: sie fehlen sonst wortlos,
+            // Verbundene Devices OHNE Akkumeldung: sie fehlen sonst wortlos,
             // und man sucht den Fehler bei der Zelle statt beim Geraet.
             Line {
                 width: panel.rowWidth
                 visible: Bt.connected.length > Bt.withBattery.length
-                text: "  " + (Bt.connected.length - Bt.withBattery.length) + " verbunden, ohne Akkumeldung"
+                text: "  " + (Bt.connected.length - Bt.withBattery.length) + " connected without a battery report"
                 color: Theme.muted
                 topPadding: Theme.cellH * 0.3
             }
@@ -79,7 +79,7 @@ Cell {
             Line {
                 width: panel.rowWidth
                 visible: Bt.withBattery.length === 0
-                text: "  kein Geraet meldet seinen Akku"
+                text: "  no device reports its battery"
                 color: Theme.muted
             }
         }

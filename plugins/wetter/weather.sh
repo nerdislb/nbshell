@@ -104,7 +104,7 @@ cmd_current() {
 		# Kein Netz beim Nachschlagen: lieber der alte Stand als nichts. Wie
 		# alt er ist, steht im JSON.
 		[ -s "$file" ] && { cat "$file"; return 0; }
-		fail "Ort '$place' nicht gefunden"
+		fail "Location '$place' not found"
 	fi
 
 	local lat lon label raw
@@ -121,7 +121,7 @@ cmd_current() {
 		--data-urlencode "forecast_days=5" \
 		"$FORECAST_API" 2>/dev/null)"; then
 		[ -s "$file" ] && { cat "$file"; return 0; }
-		fail "kein Netz"
+		fail "no network"
 	fi
 
 	# `if !` und KEIN `|| { … }`: ein Block, der ein Here-Document umschliesst,

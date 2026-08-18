@@ -104,7 +104,7 @@ PanelWindow {
                 spacing: Theme.cellH * 0.2
 
                 Line {
-                    text: "SITZUNG"
+                    text: "SESSION"
                     color: Theme.fgDim
                     bottomPadding: Theme.cellH * 0.4
                 }
@@ -142,7 +142,7 @@ PanelWindow {
                 }
 
                 Line {
-                    text: "Esc schliesst"
+                    text: "Esc closes"
                     color: Theme.muted
                     topPadding: Theme.cellH * 0.4
                 }

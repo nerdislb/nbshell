@@ -37,14 +37,14 @@ Cell {
                 Line {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "GEWOHNHEITEN (" + Habits.doneCount + "/" + Habits.count + " — " + Habits.progressPercent + "%)"
+                    text: "HABITS (" + Habits.doneCount + "/" + Habits.count + " — " + Habits.progressPercent + "%)"
                     color: Theme.accent
                 }
 
                 ActionButton {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Matrix oeffnen"
+                    text: "Open matrix"
                     tone: "primary"
                     accentColor: Theme.cyan
                     compact: true
@@ -72,7 +72,7 @@ Cell {
 
             Line {
                 visible: Habits.habits.length === 0
-                text: "Keine Gewohnheiten eingerichtet"
+                text: "No habits configured"
                 color: Theme.muted
             }
 
@@ -229,7 +229,7 @@ Cell {
             }
 
             Line {
-                text: "Rechtsklick: Vollbild-Heatmap & Verwaltung"
+                text: "Right-click: full-screen heatmap and management"
                 color: Theme.fgDim
                 font.pixelSize: 10
             }

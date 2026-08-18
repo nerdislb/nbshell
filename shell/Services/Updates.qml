@@ -62,7 +62,7 @@ Singleton {
     // Das Skript macht beides in einem Durchlauf (Pakete, dann Flatpaks) und
     // meldet danach die Zahlen neu.
     function update() {
-        const line = root.env + "bash '" + root.script + "' run; echo; read -n1 -r -p 'fertig — Taste schliesst das Fenster'";
+        const line = root.env + "bash '" + root.script + "' run; echo; read -n1 -r -p 'done — press any key to close the window'";
         Quickshell.execDetached([root.terminal, "-e", "sh", "-c", line]);
         // Nach einem Update stimmt die Zahl in der Leiste nicht mehr. Wann das
         // Terminal fertig ist, weiss die Shell nicht -- also einmal nach einer

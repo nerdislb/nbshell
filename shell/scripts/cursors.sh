@@ -59,7 +59,7 @@ cmd_apply() {
 	}
 	case "$groesse" in
 	'' | *[!0-9]*)
-		echo "Groesse muss eine Zahl sein: $groesse" >&2
+		echo "Size must be a number: $groesse" >&2
 		return 1
 		;;
 	esac

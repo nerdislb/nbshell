@@ -228,7 +228,7 @@ PanelWindow {
 
                 Line {
                     visible: Binds.problem === "" && root.zeilen.length === 0
-                    text: Binds.loading ? "  liest die Konfiguration …" : "  nichts gefunden"
+                    text: Binds.loading ? "  reading configuration …" : "  nothing found"
                     color: Theme.muted
                 }
 
@@ -326,7 +326,7 @@ PanelWindow {
                         // er aus dem Kasten laeuft -- genau das ist der
                         // Fusszeile der Mediathek einmal passiert.
                         width: parent.width - Theme.cellW * 14
-                        text: "tippen sucht · ↑↓ blaettern · ←→ seitenweise · F5 neu lesen · Esc zu"
+                        text: "type to search · ↑↓ browse · ←→ page · F5 reload · Esc close"
                         color: Theme.muted
                         elide: Text.ElideRight
                     }

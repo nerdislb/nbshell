@@ -284,13 +284,13 @@ def _senden(geraet, dateien):
     # 204 heisst: angenommen, aber nichts zu holen. Kommt vor, wenn die
     # Gegenstelle die Dateien schon hat.
     if status == 204 or not antwort:
-        return {"ok": True, "hinweis": "nichts zu uebertragen"}
+        return {"ok": True, "hinweis": "nothing to send"}
 
     sitzung = json.loads(antwort)
     sid = sitzung.get("sessionId")
     tokens = sitzung.get("files") or {}
     if not sid or not tokens:
-        return {"ok": False, "grund": "Gegenstelle hat keine Sitzung eroeffnet"}
+        return {"ok": False, "grund": "The other device did not open a session"}
 
     fertig = []
     for fid, token in tokens.items():
@@ -307,7 +307,7 @@ def cmd_send(ip, port, protocol, dateien):
     geraet = {"ip": ip, "port": int(port), "protocol": protocol}
     fehlend = [p for p in dateien if not os.path.isfile(p)]
     if fehlend:
-        print(json.dumps({"ok": False, "grund": "nicht gefunden: " + ", ".join(fehlend)}))
+        print(json.dumps({"ok": False, "grund": "not found: " + ", ".join(fehlend)}))
         return
     try:
         print(json.dumps(_senden(geraet, dateien), ensure_ascii=False))
@@ -352,7 +352,7 @@ def main():
     elif befehl == "text":
         cmd_text(rest[0], rest[1], rest[2], rest[3])
     else:
-        print(json.dumps({"ok": False, "grund": f"unbekannt: {befehl}"}))
+        print(json.dumps({"ok": False, "grund": f"unknown: {befehl}"}))
         return 2
     return 0
 

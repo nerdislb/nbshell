@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "id": "headset",
   "name": "Headset",
-  "description": "Akkustand des USB-Headsets in der Leiste (headsetcontrol)",
+  "description": "USB headset battery level in the bar (headsetcontrol)",
   "category": "Plugin",
   "version": "1.0.0",
   "author": "nerdi",

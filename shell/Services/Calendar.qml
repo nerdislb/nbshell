@@ -80,7 +80,7 @@ Singleton {
         return Math.floor(root.moonPhase(date) * stufen + 0.5) % stufen;
     }
 
-    readonly property var moonNames: ["Neumond", "zunehmende Sichel", "erstes Viertel", "zunehmender Mond", "Vollmond", "abnehmender Mond", "letztes Viertel", "abnehmende Sichel"]
+    readonly property var moonNames: ["new moon", "waxing crescent", "first quarter", "waxing gibbous", "full moon", "waning gibbous", "last quarter", "waning crescent"]
 
     function moonName(date) {
         return root.moonNames[root.moonIndex(date, 8)];
@@ -213,7 +213,7 @@ Singleton {
 
     function timeLabel(event) {
         if (event.allDay)
-            return "ganztags";
+            return "all day";
         return Qt.formatDateTime(event.start, "HH:mm") + "–" + Qt.formatDateTime(event.end, "HH:mm");
     }
 

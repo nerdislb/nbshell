@@ -5,8 +5,8 @@ import qs.Widgets
 
 // Etwas ans Telefon geben, ohne eine App zu starten.
 //
-// Klick oeffnet die Liste; gesucht wird erst dann. Je Geraet zwei Knoepfe:
-// die Zwischenablage und das letzte Bildschirmfoto -- das sind die beiden
+// Klick oeffnet die Liste; gescanning wird erst dann. Je Geraet zwei Knoepfe:
+// die Clipboard und das letzte Bildschirmfoto -- das sind die beiden
 // Dinge, die man tatsaechlich schnell hinueberschieben will. Alles andere geht
 // ueber `nbshell nearby send <datei>`, weil ein Dateiwaehler in einer Leiste
 // zwei Bedienungen zu viel waere.
@@ -41,13 +41,13 @@ Cell {
                 icon: Icons.share
                 title: "In der Naehe"
                 subtitle: "LocalSend"
-                badge: Nearby.scanning ? "sucht" : String(Nearby.devices.length)
+                badge: Nearby.scanning ? "scanning" : String(Nearby.devices.length)
             }
 
             Line {
                 width: panel.rowWidth
                 visible: Nearby.devices.length === 0
-                text: Nearby.scanning ? "  sucht …" : "  niemand da — die Gegenstelle muss LocalSend offen haben"
+                text: Nearby.scanning ? "  scanning …" : "  no devices — LocalSend must be open on the other device"
                 color: Theme.muted
                 wrapMode: Text.WordWrap
             }
@@ -89,7 +89,7 @@ Cell {
                         }
 
                         Knopf {
-                            text: "Zwischenablage"
+                            text: "Clipboard"
                             onTriggered: Nearby.sendText(eintrag.modelData, Clipboard.entries.length > 0 ? Clipboard.entries[0] : "")
                         }
 
@@ -110,13 +110,13 @@ Cell {
                 width: panel.rowWidth
                 visible: Nearby.status !== ""
                 text: "  " + Nearby.status
-                color: Nearby.status.indexOf("ging nicht") === 0 ? Theme.red : Theme.green
+                color: Nearby.status.indexOf("failed") === 0 ? Theme.red : Theme.green
                 wrapMode: Text.WordWrap
             }
 
             Line {
                 width: panel.rowWidth
-                text: "  Dateien: nbshell nearby send <datei>"
+                text: "  Files: nbshell nearby send <file>"
                 color: Theme.muted
                 topPadding: Theme.cellH * 0.3
             }

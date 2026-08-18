@@ -94,7 +94,7 @@ cmd_post() {
 	wait_for_file "$file" || exit 0
 
 	if [[ $auto == 1 ]]; then
-		[[ $notify == 1 ]] && note "Screenshot gespeichert" "$(basename "$file")" -i "$file" -t 4000
+		[[ $notify == 1 ]] && note "Screenshot saved" "$(basename "$file")" -i "$file" -t 4000
 		open_editor "$file" "$editor"
 		exit 0
 	fi
@@ -105,7 +105,7 @@ cmd_post() {
 	# timeout ist die Reissleine, falls der Melder keine Aktionen kann.
 	local action
 	action=$(timeout 20 notify-send -a "$APP" \
-		"Screenshot gespeichert" "In der Zwischenablage · klicken zum Bearbeiten" \
+		"Screenshot saved" "Copied to clipboard · click to edit" \
 		-i "$file" -t 10000 -A "edit=Bearbeiten" 2>/dev/null)
 	[[ $action == edit ]] && open_editor "$file" "$editor"
 	return 0
@@ -126,7 +126,7 @@ cmd_ocr() {
 	rm -f "$file"
 
 	if [[ -z ${text//[[:space:]]/} ]]; then
-		[[ $notify == 1 ]] && note "Kein Text erkannt" "Nichts in der Auswahl gefunden." -t 4000
+		[[ $notify == 1 ]] && note "No text recognized" "Nothing found in the selection." -t 4000
 		exit 1
 	fi
 
@@ -150,7 +150,7 @@ cmd_qr() {
 	fi
 	rm -f "$file"
 	if [[ -z ${value//[[:space:]]/} ]]; then
-		[[ $notify == 1 ]] && note "Kein QR-Code erkannt" "In der Auswahl wurde kein Code gefunden." -t 4000
+		[[ $notify == 1 ]] && note "No QR code recognized" "No code was found in the selection." -t 4000
 		return 1
 	fi
 	printf '%s' "$value" | wl-copy
@@ -160,7 +160,7 @@ cmd_qr() {
 cmd_edit_last() {
 	local dir="$1" editor="${2:-satty}" file
 	file=$(ls -1t "$dir"/*.png "$dir"/*.jpg "$dir"/*.jpeg 2>/dev/null | head -1)
-	[[ -n $file ]] || fail "Keine Aufnahme in $dir gefunden."
+	[[ -n $file ]] || fail "No recording found in $dir."
 	open_editor "$file" "$editor"
 }
 
@@ -235,10 +235,10 @@ cmd_rec_start() {
 
 	sleep 0.6
 	if pgrep -x wf-recorder >/dev/null; then
-		note "Aufnahme laeuft" "$(basename "$file")" -t 3000
+		note "Recording started" "$(basename "$file")" -t 3000
 	else
 		rm -f "$STATE_FILE"
-		fail "Aufnahme konnte nicht gestartet werden."
+		fail "Could not start recording."
 	fi
 	return 0
 }
@@ -255,7 +255,7 @@ cmd_rec_stop() {
 	done
 	if pgrep -x wf-recorder >/dev/null; then
 		pkill -9 -x wf-recorder
-		note "Aufnahme abgebrochen" "Der Rekorder musste hart beendet werden, die Datei kann beschaedigt sein." -u critical -t 6000
+		note "Recording aborted" "The recorder was force-stopped; the file may be damaged." -u critical -t 6000
 		rm -f "$STATE_FILE"
 		exit 1
 	fi
@@ -265,14 +265,14 @@ cmd_rec_stop() {
 	rm -f "$STATE_FILE"
 	[[ $notify == 1 ]] || exit 0
 	[[ -s $file ]] || {
-		note "Aufnahme leer" "Es wurde nichts geschrieben." -u critical -t 5000
+		note "Empty recording" "No data was written." -u critical -t 5000
 		exit 1
 	}
 
 	local action
 	action=$(timeout 20 notify-send -a "$APP" \
-		"Aufnahme gespeichert" "$(basename "$file") · klicken zum Abspielen" \
-		-t 10000 -A "open=Öffnen" 2>/dev/null)
+		"Recording saved" "$(basename "$file") · click to play" \
+		-t 10000 -A "open=Open" 2>/dev/null)
 	[[ $action == open ]] && xdg-open "$file" >/dev/null 2>&1 &
 	return 0
 }

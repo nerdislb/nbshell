@@ -22,32 +22,32 @@ Singleton {
     readonly property var actions: [
         {
             "id": "lock",
-            "label": "Sperren",
+            "label": "Lock",
             "key": "s"
         },
         {
             "id": "logout",
-            "label": "Abmelden",
+            "label": "Log out",
             "key": "a"
         },
         {
             "id": "suspend",
-            "label": "Bereitschaft",
+            "label": "Suspend",
             "key": "b"
         },
         {
             "id": "hibernate",
-            "label": "Ruhezustand",
+            "label": "Hibernate",
             "key": "r"
         },
         {
             "id": "reboot",
-            "label": "Neu starten",
+            "label": "Restart",
             "key": "n"
         },
         {
             "id": "poweroff",
-            "label": "Ausschalten",
+            "label": "Power off",
             "key": "x"
         }
     ]
@@ -56,8 +56,8 @@ Singleton {
         switch (id) {
         case "lock":
             // Ist keiner installiert, sagt es das -- sonst drueckt man
-            // "Sperren" und es passiert schlicht nichts.
-            Quickshell.execDetached(["sh", "-c", "command -v " + root.lockCommand.split(" ")[0] + " >/dev/null && exec " + root.lockCommand + " || notify-send 'nbshell' 'Kein Sperrbildschirm installiert: " + root.lockCommand + "'"]);
+            // "Lock" und es passiert schlicht nichts.
+            Quickshell.execDetached(["sh", "-c", "command -v " + root.lockCommand.split(" ")[0] + " >/dev/null && exec " + root.lockCommand + " || notify-send 'nbshell' 'No lock screen installed: " + root.lockCommand + "'"]);
             return true;
         case "logout":
             Quickshell.execDetached(["niri", "msg", "action", "quit", "--skip-confirmation"]);

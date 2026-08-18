@@ -134,8 +134,8 @@ PanelWindow {
             PanelHead {
                 rowWidth: Math.max(qrCard.width, Theme.cellW * 30)
                 icon: Icons.wifi
-                title: (root.qr && root.qr.ok) ? String(root.qr.ssid) : "WLAN"
-                subtitle: "zum Abscannen"
+                title: (root.qr && root.qr.ok) ? String(root.qr.ssid) : "WI-FI"
+                subtitle: "scan to connect"
                 badge: root.loading ? "…" : ""
             }
 
@@ -201,7 +201,7 @@ PanelWindow {
 
             Line {
                 width: qrCard.width
-                text: "Esc schliesst"
+                text: "Esc closes"
                 color: Theme.muted
                 horizontalAlignment: Text.AlignHCenter
             }

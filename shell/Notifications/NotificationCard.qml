@@ -118,7 +118,7 @@ Rectangle {
                 visible: root.showActions
 
                 ActionButton {
-                    text: "Oeffnen"
+                    text: "Open"
                     tone: "primary"
                     compact: true
                     onTriggered: root.opened()
@@ -136,7 +136,7 @@ Rectangle {
                 }
 
                 ActionButton {
-                    text: "Entfernen"
+                    text: "Dismiss"
                     tone: "danger"
                     compact: true
                     onTriggered: root.removed()

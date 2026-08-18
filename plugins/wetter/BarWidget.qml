@@ -105,9 +105,9 @@ Cell {
             return "Gewitter";
         case 96:
         case 99:
-            return "Gewitter mit Hagel";
+            return "Thunderstorm with hail";
         }
-        return "unbekannt";
+        return "unknown";
     }
 
     // Die Wettersymbole der Nerd-Font-Schrift (nf-weather-*). Ausgesucht nach
@@ -169,7 +169,7 @@ Cell {
                 try {
                     root.data = JSON.parse(text);
                 } catch (e) {
-                    console.warn("nbshell/wetter: Antwort unlesbar —", e);
+                    console.warn("nbshell/wetter: Unreadable response —", e);
                 }
                 root.loading = false;
             }
@@ -208,7 +208,7 @@ Cell {
                 Line {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: root.ready ? String(panel.d.ort).toUpperCase() : "WETTER"
+                    text: root.ready ? String(panel.d.ort).toUpperCase() : "WEATHER"
                     color: Theme.readable(Theme.accent, Theme.bg)
                     elide: Text.ElideRight
                 }
@@ -238,7 +238,7 @@ Cell {
             Line {
                 visible: !root.ready
                 width: panel.rowWidth
-                text: panel.d.grund ? ("  " + panel.d.grund) : "  noch nichts geholt"
+                text: panel.d.grund ? ("  " + panel.d.grund) : "  not loaded yet"
                 color: Theme.yellow
                 wrapMode: Text.WordWrap
             }
@@ -272,12 +272,12 @@ Cell {
                     }
 
                     Line {
-                        text: root.ready ? ("gefuehlt " + panel.d.gefuehlt + " °C") : ""
+                        text: root.ready ? ("feels like " + panel.d.gefuehlt + " °C") : ""
                         color: Theme.fgDim
                     }
 
                     Line {
-                        text: root.ready ? ("Wind " + panel.d.wind + " km/h   Feuchte " + panel.d.feuchte + " %") : ""
+                        text: root.ready ? ("Wind " + panel.d.wind + " km/h   Humidity " + panel.d.feuchte + " %") : ""
                         color: Theme.fgDim
                     }
                 }
@@ -317,7 +317,7 @@ Cell {
                         anchors.leftMargin: Theme.cellW
                         anchors.verticalCenter: parent.verticalCenter
                         width: Theme.cellW * 6
-                        text: dayRow.index === 0 ? "heute" : new Date(dayRow.modelData.datum).toLocaleString(Qt.locale(Config.value("locale", "de_DE")), "ddd")
+                        text: dayRow.index === 0 ? "today" : new Date(dayRow.modelData.datum).toLocaleString(Qt.locale(Config.value("locale", "en_US")), "ddd")
                         color: dayRow.index === 0 ? Theme.fg : Theme.fgDim
                     }
 

@@ -6,9 +6,9 @@ import Quickshell.Io
 import Quickshell.Services.UPower
 import qs.Common
 
-// Akku und Energieprofil.
+// Battery und Energieprofil.
 //
-// Der Akku kommt von UPower (steckt in Quickshell), das Profil von `tuned` --
+// Der Battery kommt von UPower (steckt in Quickshell), das Profil von `tuned` --
 // nicht von power-profiles-daemon. Auf diesem Rechner laeuft tuned, und die
 // beiden schliessen sich aus; wer das falsche fragt, bekommt gar keine
 // Antwort. Quickshells eigenes `PowerProfiles` spricht nur mit ppd.
@@ -40,16 +40,16 @@ Singleton {
     // "2 h 15 min", "45 min" -- und ehrlich, wenn nichts bekannt ist.
     readonly property string timeText: {
         if (full)
-            return "voll";
+            return "full";
         if (secondsLeft <= 0)
-            return "rechnet …";
+            return "calculating …";
         const mins = Math.round(secondsLeft / 60);
         if (mins < 60)
             return mins + " min";
         return Math.floor(mins / 60) + " h " + String(mins % 60).padStart(2, "0") + " min";
     }
 
-    readonly property string stateText: full ? "voll" : (charging ? "laedt" : "entlaedt")
+    readonly property string stateText: full ? "full" : (charging ? "charging" : "discharging")
 
     // ── Warnen, bevor es zu spaet ist ────────────────────────────────────
     //
@@ -67,7 +67,7 @@ Singleton {
 
     function warn(level) {
         const kritisch = level <= 5;
-        Quickshell.execDetached(["notify-send", "--app-name=nbshell", "--icon=battery-caution", kritisch ? "--urgency=critical" : "--urgency=normal", "Akku " + root.percent + " %", kritisch ? "Gleich ist Schluss — jetzt anstecken." : ("Noch " + root.timeText + ".")]);
+        Quickshell.execDetached(["notify-send", "--app-name=nbshell", "--icon=battery-caution", kritisch ? "--urgency=critical" : "--urgency=normal", "Battery " + root.percent + " %", kritisch ? "Battery critical — connect the charger now." : ("Remaining: " + root.timeText + ".")]);
     }
 
     onPercentChanged: {

@@ -39,7 +39,7 @@ Singleton {
         const names = ["BLACK", "RED", "GREEN", "YELLOW", "BLUE", "MAGENTA", "CYAN", "WHITE", "BRIGHT_BLACK", "BRIGHT_RED", "BRIGHT_GREEN", "BRIGHT_YELLOW", "BRIGHT_BLUE", "BRIGHT_MAGENTA", "BRIGHT_CYAN", "BRIGHT_WHITE"];
 
         var out = "# Von nbshell geschrieben -- Theme: " + Config.theme + "\n";
-        out += "# Nicht von Hand aendern, jeder Themewechsel ueberschreibt die Datei.\n";
+        out += "# Do not edit manually; every theme change overwrites this file.\n";
         out += "# Gedacht zum Einlesen: . ~/.config/nbshell/palette.sh\n\n";
         out += "NB_THEME='" + Config.theme + "'\n";
         out += "NB_MODE='" + (Theme.isLight ? "light" : "dark") + "'\n\n";
@@ -69,7 +69,7 @@ Singleton {
         const p = palette16();
 
         var out = "# Von nbshell geschrieben -- Theme: " + Config.theme + "\n";
-        out += "# Nicht von Hand aendern, jeder Themewechsel ueberschreibt die Datei.\n";
+        out += "# Do not edit manually; every theme change overwrites this file.\n";
         for (var i = 0; i < p.length; i++)
             out += "palette = " + i + "=" + p[i] + "\n";
         out += "background = " + (c.background ?? "#000000") + "\n";
@@ -90,7 +90,7 @@ Singleton {
         const urgent = c.red ?? "#ff0000";
 
         var out = "// Von nbshell geschrieben -- Theme: " + Config.theme + "\n";
-        out += "// Nicht von Hand aendern, jeder Themewechsel ueberschreibt die Datei.\n\n";
+        out += "// Do not edit manually; every theme change overwrites this file.\n\n";
         out += "layout {\n";
         out += "    focus-ring {\n        active-color \"" + active + "\"\n        inactive-color \"" + inactive + "\"\n        urgent-color \"" + urgent + "\"\n    }\n\n";
         out += "    border {\n        active-color \"" + active + "\"\n        inactive-color \"" + inactive + "\"\n        urgent-color \"" + urgent + "\"\n    }\n\n";

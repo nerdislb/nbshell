@@ -35,7 +35,7 @@ fail() {
 }
 
 have qrencode || fail "qrencode fehlt — sudo pacman -S qrencode"
-have nmcli || fail "nmcli fehlt — ohne NetworkManager kein Netzname"
+have nmcli || fail "nmcli is missing — NetworkManager is required for the network name"
 
 ssid="${1:-}"
 if [ -z "$ssid" ]; then
@@ -45,7 +45,7 @@ if [ -z "$ssid" ]; then
 	ssid="$(nmcli -t -f NAME,TYPE connection show --active 2>/dev/null | awk -F: '$2 == "802-11-wireless" { print $1; exit }')"
 fi
 
-[ -n "$ssid" ] || fail "kein WLAN verbunden"
+[ -n "$ssid" ] || fail "not connected to Wi-Fi"
 
 psk="$(nmcli -s -g 802-11-wireless-security.psk connection show "$ssid" 2>/dev/null || true)"
 keymgmt="$(nmcli -g 802-11-wireless-security.key-mgmt connection show "$ssid" 2>/dev/null || true)"
@@ -67,7 +67,7 @@ fi
 
 note=""
 if [ -z "$psk" ] && [ "$typ" = "WPA" ]; then
-	note="ohne Passwort — nmcli gibt es nicht heraus"
+	note="no password — nmcli did not provide it"
 fi
 
 # `-t ASCII` malt jedes Modul mit ZWEI Zeichen (damit es im Terminal quadratisch
@@ -80,7 +80,7 @@ matrix="$(printf 'WIFI:T:%s;S:%s;P:%s;;' "$typ" "$(escape "$ssid")" "$(escape "$
 	qrencode -t ASCII -m 4 2>/dev/null |
 	awk '{ out = ""; for (i = 1; i <= length($0); i += 2) out = out substr($0, i, 1); print out }')"
 
-[ -n "$matrix" ] || fail "qrencode hat nichts geliefert"
+[ -n "$matrix" ] || fail "qrencode returned no image"
 
 QR_MATRIX="$matrix" QR_SSID="$ssid" QR_NOTE="$note" python3 - <<'PY'
 import json, os

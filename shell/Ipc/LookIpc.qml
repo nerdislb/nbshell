@@ -25,7 +25,7 @@ Scope {
             const order = ["island", "pill", "bar"];
             const next = value === "toggle" ? order[(order.indexOf(Config.mode) + 1) % order.length] : value;
             if (order.indexOf(next) < 0)
-                return "unbekannt: " + value + " (island|pill|bar|toggle)";
+                return "unknown: " + value + " (island|pill|bar|toggle)";
             Config.set("mode", next);
             return next;
         }
@@ -33,24 +33,24 @@ Scope {
         function edge(value: string): string {
             const next = value === "toggle" ? (Config.edge === "top" ? "bottom" : "top") : value;
             if (next !== "top" && next !== "bottom")
-                return "unbekannt: " + value + " (top|bottom|toggle)";
+                return "unknown: " + value + " (top|bottom|toggle)";
             Config.set("edge", next);
             return next;
         }
 
         function open(): string {
             Runtime.islandOpen = true;
-            return "offen";
+            return "open";
         }
 
         function close(): string {
             Runtime.islandOpen = false;
-            return "zu";
+            return "closed";
         }
 
         function toggle(): string {
             Runtime.islandOpen = !Runtime.islandOpen;
-            return Runtime.islandOpen ? "offen" : "zu";
+            return Runtime.islandOpen ? "open" : "closed";
         }
 
         function status(): string {
@@ -72,7 +72,7 @@ Scope {
             // Shell faellt dann auf ihre Vorgaben zurueck und man sucht den
             // Fehler woanders.
             if (!ThemeIndex.byName(name))
-                return "unbekanntes Theme: " + name;
+                return "unknown theme: " + name;
             Config.set("theme", name);
             return name;
         }
@@ -97,7 +97,7 @@ Scope {
             }
             const wish = String(role).toLowerCase();
             if (Theme.accentRoles.indexOf(wish) < 0)
-                return "unbekannte Rolle: " + role + "  (" + Theme.accentRoles.join(" ") + ")";
+                return "unknown role: " + role + "  (" + Theme.accentRoles.join(" ") + ")";
             Config.set("accent", wish);
             return wish + "  " + String(Theme.roleColor(wish));
         }
@@ -128,17 +128,17 @@ Scope {
             const all = Config.value("widgets", ({})) ?? ({});
             const names = Object.keys(all);
             if (names.length === 0)
-                return "keine Ueberschreibungen — alle Bausteine folgen den allgemeinen Einstellungen\n\nnbshell widget <baustein> display|style|color <wert>";
+                return "no overrides — all modules use the global settings\n\nnbshell widget <module> display|style|color <value>";
             return names.map(n => (n + "            ").substring(0, 12) + widgetOptions.keys.filter(k => all[n][k]).map(k => k + "=" + all[n][k]).join("  ")).join("\n");
         }
 
         function set(name: string, key: string, value: string): string {
             if (!name)
-                return "Baustein fehlt";
+                return "module is missing";
             if (widgetOptions.keys.indexOf(key) < 0)
-                return "unbekannt: " + key + "  (" + widgetOptions.keys.join(" ") + ")";
+                return "unknown: " + key + "  (" + widgetOptions.keys.join(" ") + ")";
             if (widgetOptions.choices[key].indexOf(value) < 0)
-                return "unbekannt: " + value + "  (" + widgetOptions.choices[key].join(" ") + ")";
+                return "unknown: " + value + "  (" + widgetOptions.choices[key].join(" ") + ")";
 
             // Kopieren statt aendern: `Config.set` vergleicht das Objekt, und
             // eine Aenderung IN der vorhandenen Struktur bliebe unbemerkt.
@@ -170,7 +170,7 @@ Scope {
                 return name + " hatte keine";
             delete all[name];
             Config.set("widgets", all);
-            return name + " folgt wieder den allgemeinen Einstellungen";
+            return name + " now follows the global settings";
         }
     }
 
@@ -201,7 +201,7 @@ Scope {
         // Das Karussell: die Bilder des aktuellen Themes durchblaettern.
         function pick(): string {
             Runtime.wallpaperOpen = !Runtime.wallpaperOpen;
-            return Runtime.wallpaperOpen ? "offen" : "zu";
+            return Runtime.wallpaperOpen ? "open" : "closed";
         }
 
         function list(): string {
@@ -209,7 +209,7 @@ Scope {
             // beim ersten Aufruf hier waere sie leer.
             Wallpapers.refresh();
             if (Wallpapers.list.length === 0)
-                return "noch nicht gelesen — Befehl gleich noch einmal aufrufen";
+                return "not loaded yet — run the command again";
             return Wallpapers.list.map(w => Wallpapers.nameOf(w)).join("\n");
         }
 
@@ -230,12 +230,12 @@ Scope {
         function open(): string {
             Runtime.islandOpen = true;
             Runtime.themePickerOpen = true;
-            return "offen";
+            return "open";
         }
 
         function close(): string {
             Runtime.themePickerOpen = false;
-            return "zu";
+            return "closed";
         }
 
         function toggle(): string {
@@ -256,7 +256,7 @@ Scope {
 
         function reload(): string {
             ThemeIndex.refresh();
-            return "neu gelesen";
+            return "reloaded";
         }
     }
 }

@@ -78,7 +78,7 @@ colors_from_alacritty() {
 
 	{
 		echo "# Aus alacritty.toml abgeleitet von nbshell."
-		echo "# Das Theme brachte keine colors.toml mit."
+		echo "# This theme did not include colors.toml."
 		echo
 		echo "mode = \"$mode\""
 		echo
@@ -153,7 +153,7 @@ cmd_install() {
 	path="$src"
 	[[ $path != *"://"* && $path == *:*/* ]] && path="${path#*:}"
 	name="$(basename "$path" .git | sed -E 's/^omarchy-//; s/-theme$//' | tr '[:upper:]' '[:lower:]')"
-	[ -n "$name" ] || die "aus '$src' laesst sich kein Themename ableiten"
+	[ -n "$name" ] || die "could not derive a theme name from '$src'"
 
 	dest="$THEME_DIR/$name"
 	mkdir -p "$THEME_DIR"
@@ -166,10 +166,10 @@ cmd_install() {
 		twin="$(installed_twin "$name")"
 		if [ -n "$twin" ]; then
 			if [ "$twin" = "$name" ]; then
-				note "'$name' ist schon installiert -- es wurde nichts geaendert."
+				note "'$name' is already installed -- nothing changed."
 			else
 				note "'$twin' ist schon installiert; '$name' ist nur eine andere Schreibweise davon."
-				note "es wurde nichts geaendert."
+				note "nothing changed."
 			fi
 			note "trotzdem holen: nbshell theme install --force $src"
 			return 0
@@ -179,17 +179,17 @@ cmd_install() {
 	# ERST holen, DANN ersetzen. Andersherum ist ein vorhandenes Theme weg,
 	# sobald das Klonen scheitert -- und das passiert schon bei einem Tippfehler
 	# in der URL.
-	TMP="$(mktemp -d "${TMPDIR:-/tmp}/nbshell-theme.XXXXXX")" || die "kein temporaeres Verzeichnis"
+	TMP="$(mktemp -d "${TMPDIR:-/tmp}/nbshell-theme.XXXXXX")" || die "could not create a temporary directory"
 	local tmp="$TMP"
 
 	if [ -d "$src" ]; then
-		cp -a "$src/." "$tmp/" || die "Kopieren von '$src' fehlgeschlagen"
+		cp -a "$src/." "$tmp/" || die "failed to copy '$src'"
 	else
-		command -v git >/dev/null || die "git wird zum Installieren gebraucht"
+		command -v git >/dev/null || die "git is required to install themes"
 		# GIT_TERMINAL_PROMPT=0: sonst bleibt git bei einer falschen URL mit
 		# einer Passwortfrage stehen, die niemand sieht.
 		GIT_TERMINAL_PROMPT=0 git clone --depth 1 --quiet "$src" "$tmp/clone" 2>/dev/null \
-			|| die "Klonen von '$src' fehlgeschlagen -- URL pruefen"
+			|| die "failed to clone '$src' -- check the URL"
 		mv "$tmp/clone"/* "$tmp/clone"/.[!.]* "$tmp/" 2>/dev/null
 		rmdir "$tmp/clone" 2>/dev/null
 	fi
@@ -207,15 +207,15 @@ cmd_install() {
 
 	if [ ! -f "$work/colors.toml" ]; then
 		if colors_from_alacritty "$work"; then
-			note "keine colors.toml -- Palette aus alacritty.toml abgeleitet"
+			note "no colors.toml -- generated palette from alacritty.toml"
 		else
-			die "'$name' enthaelt weder colors.toml noch eine lesbare alacritty.toml"
+			die "'$name' contains neither colors.toml nor a readable alacritty.toml"
 		fi
 	fi
 
 	# Jetzt erst das alte ersetzen.
 	[ -d "$dest" ] && { note "'$name' war schon da -- wird ersetzt"; rm -rf "$dest"; }
-	cp -a "$work" "$dest" || die "Installieren nach '$dest' fehlgeschlagen"
+	cp -a "$work" "$dest" || die "failed to install to '$dest'"
 
 	local shots
 	shots="$(find "$dest/backgrounds" -maxdepth 1 -type f 2>/dev/null | wc -l)"
@@ -242,7 +242,7 @@ cmd_remove() {
 		for t in "$THEME_DIR"/*/; do
 			[ -f "$t/colors.toml" ] && all+=("$(basename "$t")")
 		done
-		[ "${#all[@]}" -gt 0 ] || die "keine Themes installiert"
+		[ "${#all[@]}" -gt 0 ] || die "no themes installed"
 		local i=1 mark
 		for t in "${all[@]}"; do
 			mark=""; [ "$t" = "$active" ] && mark="  (aktiv)"
@@ -250,11 +250,11 @@ cmd_remove() {
 			i=$((i + 1))
 		done
 		local pick n
-		read -r -p "Nummer(n) zum Entfernen> " pick
+		read -r -p "Number(s) to remove> " pick
 		for n in $pick; do
 			[[ "$n" =~ ^[0-9]+$ ]] && [ "$n" -ge 1 ] && [ "$n" -le "${#all[@]}" ] && names+=("${all[$((n - 1))]}")
 		done
-		[ "${#names[@]}" -gt 0 ] || die "nichts ausgewaehlt"
+		[ "${#names[@]}" -gt 0 ] || die "nothing selected"
 	fi
 
 	local name dest
@@ -263,7 +263,7 @@ cmd_remove() {
 		[ -n "$name" ] || continue
 		case "$name" in */* | . | ..) note "ungueltiger Themename: '$name'"; continue ;; esac
 		if [ "$name" = "$active" ]; then
-			note "'$name' ist das AKTIVE Theme -- erst wechseln (nbshell theme <anderes>), dann entfernen."
+			note "'$name' is the ACTIVE theme -- switch first, then remove it."
 			continue
 		fi
 		dest="$THEME_DIR/$name"
@@ -271,7 +271,7 @@ cmd_remove() {
 			rm -rf "$dest"
 			note "'$name' entfernt"
 		else
-			note "'$name' ist nicht installiert"
+			note "'$name' is not installed"
 		fi
 	done
 }
@@ -287,10 +287,10 @@ cmd_update() {
 		if git -C "$t" pull --quiet --ff-only 2>/dev/null; then
 			note "$name aktualisiert"
 		else
-			note "$name uebersprungen (kein schneller Vorlauf moeglich)"
+			note "$name skipped (fast-forward not possible)"
 		fi
 	done
-	[ $found -eq 1 ] || note "keine selbst installierten Themes mit Git-Historie"
+	[ $found -eq 1 ] || note "no user-installed themes with Git history"
 }
 
 cmd_list() {

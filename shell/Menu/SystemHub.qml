@@ -51,7 +51,7 @@ PanelWindow {
             onStreamFinished: {
                 root.loading = false;
                 try { root.groups = JSON.parse(text).groups ?? []; }
-                catch (e) { root.error = "Status konnte nicht gelesen werden"; root.groups = []; }
+                catch (e) { root.error = "Could not read status"; root.groups = []; }
             }
         }
         stderr: StdioCollector { onStreamFinished: if (String(text).trim()) root.error = String(text).trim() }
@@ -87,7 +87,7 @@ PanelWindow {
                     Line { width: parent.width - reload.width; text: Icons.matrix + "  SYSTEM & PLUGINS"; color: Theme.fg; font.pixelSize: Theme.fontSize + 3 }
                     Line {
                         id: reload
-                        text: root.loading ? "…" : "[ F5 aktualisieren ]"
+                        text: root.loading ? "…" : "[ F5 REFRESH ]"
                         color: Theme.accent
                         TapHandler { onTapped: root.refresh() }
                     }
@@ -173,7 +173,7 @@ PanelWindow {
 
                                         Line {
                                             visible: itemBlock.expanded && !!itemBlock.modelData.command
-                                            text: "  Extern oeffnen: Rechtsklick auf den Kopf"
+                                            text: "  Open externally: right-click the header"
                                             color: Theme.muted
                                         }
                                     }
@@ -182,7 +182,7 @@ PanelWindow {
                         }
                     }
                 }
-                Line { text: "Esc schliesst · F5 aktualisiert · Klick oeffnet Details"; color: Theme.muted }
+                Line { text: "Esc closes · F5 refreshes · click opens details"; color: Theme.muted }
             }
         }
     }

@@ -43,7 +43,7 @@ Cell {
             readonly property real rowWidth: 56 * Theme.cellW
 
             // Welcher Composer offen ist: "text" (Text/Link teilen) oder
-            // "ping" (Ping mit Text). Leer = keiner.
+            // "ping" (Ping mit Text). Leer = noneer.
             property string composer: ""
             property string draft: ""
             property bool cmdsOpen: false
@@ -72,10 +72,10 @@ Cell {
                     Line {
                         text: {
                             if (!panel.dev)
-                                return "Kein Geraet gefunden";
+                                return "No device found";
                             if (!panel.dev.paired)
-                                return "Nicht gekoppelt";
-                            return panel.dev.reachable ? "Gekoppelt & erreichbar" : "Gekoppelt, nicht erreichbar";
+                                return "Not paired";
+                            return panel.dev.reachable ? "Gekoppelt & erreichbar" : "Paired, not reachable";
                         }
                         color: Theme.fgDim
                     }
@@ -88,7 +88,7 @@ Cell {
                             if (panel.dev.capabilities.battery && panel.dev.charge >= 0)
                                 parts.push(String.fromCodePoint(0xF0079) + " " + panel.dev.charge + "%");
                             if (panel.dev.capabilities.battery)
-                                parts.push(panel.dev.charging ? "Laden" : "Entladen");
+                                parts.push(panel.dev.charging ? "Charging" : "Discharging");
                             const cell = Kdeconnect.cellLabel(panel.dev);
                             if (cell !== "")
                                 parts.push(cell);
@@ -114,7 +114,7 @@ Cell {
 
             Line {
                 visible: Kdeconnect.devices.length === 0
-                text: "Keine Geraete — ist KDE Connect am Handy verbunden?"
+                text: "No devices — is KDE Connect running on the phone?"
                 color: Theme.muted
             }
 
@@ -268,13 +268,13 @@ Cell {
                 width: panel.rowWidth
                 text: {
                     if (!Phone.available)
-                        return "nbphone nicht installiert — siehe github.com/nerdislb/nbphone";
+                        return "nbphone is not installed — see github.com/nerdislb/nbphone";
                     if (!Phone.scrcpyAvailable)
-                        return "scrcpy fehlt — sudo pacman -S scrcpy";
+                        return "scrcpy is missing — sudo pacman -S scrcpy";
                     if (!Phone.connected)
-                        return "Kein ADB-Geraet — USB-Debugging oder nbphone connect";
+                        return "No ADB device — enable USB debugging or run nbphone connect";
                     const name = Phone.model !== "" ? Phone.model : Phone.serial;
-                    return name + "  •  " + (Phone.wireless ? "WLAN" : "USB") + "  •  " + (Phone.mirroring ? "Spiegelung laeuft" : "bereit");
+                    return name + "  •  " + (Phone.wireless ? "WLAN" : "USB") + "  •  " + (Phone.mirroring ? "mirror running" : "ready");
                 }
                 color: Phone.connected && Phone.scrcpyAvailable ? Theme.fg : Theme.yellow
                 wrapMode: Text.WordWrap
@@ -305,7 +305,7 @@ Cell {
                 }
 
                 ActionButton {
-                    text: Phone.wireless ? "WLAN ✓" : "WLAN"
+                    text: Phone.wireless ? "WI-FI ✓" : "WI-FI"
                     busy: Phone.busy
                     enabled: !Phone.busy && !Phone.mirroring
                     onTriggered: Phone.connectWireless()
@@ -316,7 +316,7 @@ Cell {
                 visible: Phone.status !== ""
                 width: panel.rowWidth
                 text: Phone.status
-                color: Phone.status.indexOf("fehlt") !== -1 || Phone.status.indexOf("kein") !== -1 ? Theme.yellow : Theme.green
+                color: Phone.status.indexOf("fehlt") !== -1 || Phone.status.indexOf("none") !== -1 ? Theme.yellow : Theme.green
                 wrapMode: Text.WordWrap
                 font.pixelSize: Theme.fontSize - 1
             }
@@ -324,7 +324,7 @@ Cell {
             // Composer (Text/Link teilen bzw. Ping mit Text)
             Line {
                 visible: panel.composer !== "" && panel.dev
-                text: (panel.composer === "ping" ? "Ping-Text an " : "Text oder Link teilen mit ") + (panel.dev ? panel.dev.name : "")
+                text: (panel.composer === "ping" ? "Ping text to " : "Share text or a link with ") + (panel.dev ? panel.dev.name : "")
                 color: Theme.fg
                 font.bold: true
             }
@@ -364,7 +364,7 @@ Cell {
                         Line {
                             anchors.verticalCenter: parent.verticalCenter
                             visible: composerInput.text === ""
-                            text: panel.composer === "ping" ? "Nachricht (optional)…" : "z.B. https://…"
+                            text: panel.composer === "ping" ? "Message (optional)…" : "e.g. https://…"
                             color: Theme.fgDim
                         }
                     }
@@ -424,7 +424,7 @@ Cell {
 
             Line {
                 visible: panel.cmdsOpen && Kdeconnect.commands.length === 0
-                text: "Keine Befehle — am Handy unter KDE Connect → Befehle ausfuehren anlegen."
+                text: "No commands — add commands in KDE Connect on the phone."
                 color: Theme.muted
                 font.pixelSize: Theme.fontSize - 1
             }
@@ -462,7 +462,7 @@ Cell {
             // ── NEARBY (LocalSend) ─────────────────────────────────────────
             // Handy ohne gekoppelte App: LocalSend findet Geraete im gleichen
             // Netz. Je Geraet die zwei Dinge, die man wirklich schnell
-            // hinueberschiebt -- Zwischenablage und letztes Bildschirmfoto.
+            // hinueberschiebt -- Clipboard und letztes Bildschirmfoto.
             Rule {
                 rowWidth: panel.rowWidth
                 label: "NEARBY · LOCALSEND"
@@ -472,7 +472,7 @@ Cell {
             Line {
                 visible: Nearby.enabled && Nearby.devices.length === 0
                 width: panel.rowWidth
-                text: Nearby.scanning ? "  sucht …" : "  niemand da — die Gegenstelle muss LocalSend offen haben"
+                text: Nearby.scanning ? "  scanning …" : "  no devices — LocalSend must be open on the other device"
                 color: Theme.muted
                 wrapMode: Text.WordWrap
             }
@@ -525,7 +525,7 @@ Cell {
                             }
 
                             Knopf {
-                                text: "Zwischenablage"
+                                text: "Clipboard"
                                 onTriggered: Nearby.sendText(nbRow.modelData, Clipboard.entries.length > 0 ? Clipboard.entries[0] : "")
                             }
 
@@ -542,13 +542,13 @@ Cell {
                 visible: Nearby.enabled && Nearby.status !== ""
                 width: panel.rowWidth
                 text: "  " + Nearby.status
-                color: Nearby.status.indexOf("ging nicht") === 0 ? Theme.red : Theme.green
+                color: Nearby.status.indexOf("failed") === 0 ? Theme.red : Theme.green
                 wrapMode: Text.WordWrap
             }
 
             Line {
                 visible: Nearby.enabled
-                text: "  Dateien: nbshell nearby send <datei>"
+                text: "  Files: nbshell nearby send <file>"
                 color: Theme.muted
                 font.pixelSize: Theme.fontSize - 1
             }

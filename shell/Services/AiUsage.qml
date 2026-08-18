@@ -56,10 +56,10 @@ Singleton {
             const isTomorrow = target.getDate() === tomorrow.getDate() && target.getMonth() === tomorrow.getMonth() && target.getFullYear() === tomorrow.getFullYear();
 
             if (isToday)
-                return "Reset um " + timeStr;
+                return "Resets at " + timeStr;
             if (isTomorrow)
-                return "Reset morgen um " + timeStr;
-            return "Reset am " + pad2(target.getDate()) + "." + pad2(target.getMonth() + 1) + ". um " + timeStr;
+                return "Resets tomorrow at " + timeStr;
+            return "Resets on " + pad2(target.getDate()) + "." + pad2(target.getMonth() + 1) + ". at " + timeStr;
         }
 
         const mins = Math.max(0, Math.round((target.getTime() - now.getTime()) / 60000));
@@ -135,7 +135,7 @@ Singleton {
                         };
                     });
                 } catch (e) {
-                    console.warn("nbshell/ai: Antwort unlesbar —", e);
+                    console.warn("nbshell/ai: unreadable response —", e);
                 }
             }
         }

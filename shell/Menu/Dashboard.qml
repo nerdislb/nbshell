@@ -6,7 +6,7 @@ import qs.Common
 import qs.Services
 import qs.Widgets
 
-// Die Uhr als Eingang in den Alltag: Termine, Wetter, Medien und die Dinge,
+// Die Uhr als Eingang in den Alltag: Termine, Wetter, Media und die Dinge,
 // die nicht dauerhaft Platz in der Bar brauchen. Angeregt vom Asked Dashboard
 // fuer Omarchy, aber vollstaendig auf nbshells vorhandenen Diensten aufgebaut.
 PanelWindow {
@@ -46,13 +46,13 @@ PanelWindow {
         weatherProc.running = true;
     }
     function eventWhen(e) {
-        const loc = Qt.locale(Config.value("locale", "de_DE"));
+        const loc = Qt.locale(Config.value("locale", "en_US"));
         const day = e.start.toLocaleString(loc, "ddd dd.MM");
         return e.allDay ? day : day + "  " + e.start.toLocaleTimeString(loc, "HH:mm");
     }
     function updateText(entry) {
         return entry.from === entry.to
-            ? entry.name + "   " + entry.to + "  (neuer Build)"
+            ? entry.name + "   " + entry.to + "  (new build)"
             : entry.name + "   " + entry.from + " → " + entry.to;
     }
     function weatherGlyph(code, day) {
@@ -93,15 +93,15 @@ PanelWindow {
         stdout: StdioCollector {
             onStreamFinished: {
                 try { root.weather = JSON.parse(text); }
-                catch (e) { root.weather = ({ "ok": false, "grund": "Wetterdaten nicht lesbar" }); }
+                catch (e) { root.weather = ({ "ok": false, "grund": "Weather data is unreadable" }); }
                 root.weatherLoading = false;
             }
         }
         onExited: (code) => {
             if (code !== 0 && code !== 44)
-                root.weather = ({ "ok": false, "grund": "Wetterabruf fehlgeschlagen" });
+                root.weather = ({ "ok": false, "grund": "Weather request failed" });
             if (code === 44)
-                root.weather = ({ "ok": false, "grund": "Wetter-Plugin nicht installiert" });
+                root.weather = ({ "ok": false, "grund": "Weather plugin is not installed" });
             root.weatherLoading = false;
         }
     }
@@ -204,8 +204,8 @@ PanelWindow {
                     height: Theme.cellH * 3.5
                     Column {
                         anchors.left: parent.left
-                        Line { text: root.now.toLocaleString(Qt.locale(Config.value("locale", "de_DE")), "dddd, dd. MMMM"); color: Theme.fgBright; font.pixelSize: Theme.fontSize + 5 }
-                        Line { text: "KW " + Calendar.isoWeek(root.now) + "  ·  " + Calendar.moonName(root.now); color: Theme.fgDim }
+                        Line { text: root.now.toLocaleString(Qt.locale(Config.value("locale", "en_US")), "dddd, dd. MMMM"); color: Theme.fgBright; font.pixelSize: Theme.fontSize + 5 }
+                        Line { text: "WEEK " + Calendar.isoWeek(root.now) + "  ·  " + Calendar.moonName(root.now); color: Theme.fgDim }
                     }
                     Line { anchors.right: parent.right; anchors.top: parent.top; text: root.now.toLocaleTimeString(Qt.locale(), "HH:mm"); color: Theme.readable(Theme.accent, Theme.bg); font.pixelSize: Theme.fontSize + 12 }
                 }
@@ -214,7 +214,7 @@ PanelWindow {
                     width: parent.width
                     spacing: Theme.cellW
                     Repeater {
-                        model: ["HEUTE", "MEDIEN", "WERKZEUGE"]
+                        model: ["TODAY", "MEDIA", "TOOLS"]
                         Rectangle {
                             required property var modelData
                             required property int index
@@ -230,7 +230,7 @@ PanelWindow {
                     }
                 }
 
-                // ── HEUTE ───────────────────────────────────────────────
+                // ── TODAY ───────────────────────────────────────────────
                 Item {
                     visible: root.page === 0
                     width: parent.width
@@ -248,9 +248,9 @@ PanelWindow {
 
                             Card {
                             width: parent.width; height: (parent.height - root.cardGap) / 2
-                            title: "Naechste Termine"
+                            title: "Upcoming events"
                             badge: Calendar.loading ? "…" : String(root.nextEvents.length)
-                            Line { visible: root.nextEvents.length === 0; text: Calendar.available ? "nichts in den naechsten Tagen" : Calendar.problem; color: Theme.muted }
+                            Line { visible: root.nextEvents.length === 0; text: Calendar.available ? "nothing in the next few days" : Calendar.problem; color: Theme.muted }
                             Repeater {
                                 model: root.nextEvents.slice(0, 5)
                                 Item {
@@ -265,7 +265,7 @@ PanelWindow {
 
                             Card {
                             width: parent.width; height: (parent.height - root.cardGap) / 2
-                            title: "Wetter"
+                            title: "Weather"
                             badge: root.weather.ok ? String(root.weather.ort || Config.value("weatherPlace", "")) : ""
                             Row {
                                 visible: root.weather.ok === true
@@ -273,11 +273,11 @@ PanelWindow {
                                 Line { text: root.weatherGlyph(root.weather.code || 0, root.weather.tag !== false); color: Theme.accent; font.pixelSize: Theme.fontSize + 24 }
                                 Column {
                                     Line { text: Math.round(root.weather.temp) + " °C"; color: Theme.fgBright; font.pixelSize: Theme.fontSize + 8 }
-                                    Line { text: "gefuehlt " + root.weather.gefuehlt + " °C"; color: Theme.fgDim }
-                                    Line { text: "Wind " + root.weather.wind + " km/h  ·  Feuchte " + root.weather.feuchte + " %"; color: Theme.fgDim }
+                                    Line { text: "feels like " + root.weather.gefuehlt + " °C"; color: Theme.fgDim }
+                                    Line { text: "Wind " + root.weather.wind + " km/h  ·  Humidity " + root.weather.feuchte + " %"; color: Theme.fgDim }
                                 }
                             }
-                            Line { visible: root.weather.ok !== true; text: root.weatherLoading ? "Wetter wird geholt …" : (root.weather.grund || "noch keine Wetterdaten"); color: Theme.muted }
+                            Line { visible: root.weather.ok !== true; text: root.weatherLoading ? "loading weather …" : (root.weather.grund || "no weather data yet"); color: Theme.muted }
                             Row {
                                 visible: root.weather.ok === true
                                 spacing: Theme.cellW * 2
@@ -285,7 +285,7 @@ PanelWindow {
                                     model: (root.weather.tage || []).slice(0, 5)
                                     Column {
                                         required property var modelData
-                                        Line { text: new Date(modelData.datum + "T12:00:00").toLocaleString(Qt.locale(Config.value("locale", "de_DE")), "ddd").slice(0, 2); color: Theme.fgDim }
+                                        Line { text: new Date(modelData.datum + "T12:00:00").toLocaleString(Qt.locale(Config.value("locale", "en_US")), "ddd").slice(0, 2); color: Theme.fgDim }
                                         Line { text: root.weatherGlyph(modelData.code || 0, true); color: Theme.accent }
                                         Line { text: Math.round(modelData.max) + "°/" + Math.round(modelData.min) + "°"; color: Theme.fg }
                                     }
@@ -311,32 +311,32 @@ PanelWindow {
 
                             Card {
                             width: parent.width; height: (parent.height - root.cardGap * 2) / 3
-                            title: "Heute"
-                            badge: Todo.count + " offen"
-                            Line { text: Icons.todo + "  Aufgaben     " + Todo.count; color: Todo.count > 0 ? Theme.fg : Theme.fgDim }
-                            Line { text: Icons.habit + "  Gewohnheiten " + Habits.doneCount + "/" + Habits.count; color: Habits.doneCount >= Habits.count && Habits.count > 0 ? Theme.green : Theme.fg }
-                            Line { text: Icons.download + "  Updates      " + (Updates.checking ? "prueft …" : Updates.count); color: Updates.count > 0 ? Theme.yellow : Theme.fgDim }
+                            title: "Today"
+                            badge: Todo.count + " open"
+                            Line { text: Icons.todo + "  Tasks     " + Todo.count; color: Todo.count > 0 ? Theme.fg : Theme.fgDim }
+                            Line { text: Icons.habit + "  Habits " + Habits.doneCount + "/" + Habits.count; color: Habits.doneCount >= Habits.count && Habits.count > 0 ? Theme.green : Theme.fg }
+                            Line { text: Icons.download + "  Updates      " + (Updates.checking ? "checking …" : Updates.count); color: Updates.count > 0 ? Theme.yellow : Theme.fgDim }
                         }
 
                             Card {
                             width: parent.width; height: (parent.height - root.cardGap * 2) / 3
-                            title: MediaService.active ? "Laeuft gerade" : "Medien"
+                            title: MediaService.active ? "Now playing" : "Media"
                             badge: MediaService.playing ? "PLAY" : (MediaService.active ? "PAUSE" : "")
-                            Line { width: parent.width; text: MediaService.active ? (MediaService.title || "unbekannt") : "kein Player aktiv"; color: Theme.fgBright; elide: Text.ElideRight }
+                            Line { width: parent.width; text: MediaService.active ? (MediaService.title || "unknown") : "no active player"; color: Theme.fgBright; elide: Text.ElideRight }
                             Line { width: parent.width; text: MediaService.artist; color: Theme.fgDim; elide: Text.ElideRight }
                             Row {
                                 visible: MediaService.active
                                 spacing: Theme.cellW * 3
-                                ActionButton { text: "Zurueck"; compact: true; onTriggered: MediaService.previous() }
+                                ActionButton { text: "Previous"; compact: true; onTriggered: MediaService.previous() }
                                 ActionButton { text: MediaService.playing ? "Pause" : "Play"; tone: "primary"; compact: true; onTriggered: MediaService.playPause() }
-                                ActionButton { text: "Weiter"; compact: true; onTriggered: MediaService.next() }
+                                ActionButton { text: "Next"; compact: true; onTriggered: MediaService.next() }
                             }
                             }
                         }
                     }
                 }
 
-                // ── MEDIEN ──────────────────────────────────────────────
+                // ── MEDIA ──────────────────────────────────────────────
                 Item {
                     visible: root.page === 1
                     width: parent.width
@@ -364,25 +364,25 @@ PanelWindow {
                             Column {
                                 anchors.fill: parent; anchors.margins: Theme.cellW * 1.5
                                 spacing: Theme.cellH * 0.35
-                                Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: MediaService.active ? (MediaService.title || "Unbekannter Titel") : "Kein Player aktiv"; color: Theme.fgBright; font.pixelSize: Theme.fontSize + 4; elide: Text.ElideRight }
+                                Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: MediaService.active ? (MediaService.title || "Unknown title") : "No active player"; color: Theme.fgBright; font.pixelSize: Theme.fontSize + 4; elide: Text.ElideRight }
                                 Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: MediaService.artist; color: Theme.fgDim; elide: Text.ElideRight }
                                 Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: MediaService.zeit(MediaService.position) + "  /  " + MediaService.zeit(MediaService.length); color: Theme.fgDim }
                                 LevelBar { width: parent.width; cells: 56; value: MediaService.length > 0 ? 100 * MediaService.position / MediaService.length : 0; fillColor: Theme.accent }
                                 Row {
                                     width: parent.width
                                     spacing: Theme.cellW * 2
-                                    Action { width: (parent.width - Theme.cellW * 4) / 3; height: Theme.cellH * 2.8; label: "Zurueck"; glyph: Icons.cp(0xF04AE); detail: "voriger Titel"; run: () => MediaService.previous() }
-                                    Action { width: (parent.width - Theme.cellW * 4) / 3; height: Theme.cellH * 2.8; label: MediaService.playing ? "Pause" : "Play"; glyph: MediaService.playing ? Icons.pause : Icons.play; detail: MediaService.playing ? "anhalten" : "fortsetzen"; run: () => MediaService.playPause() }
-                                    Action { width: (parent.width - Theme.cellW * 4) / 3; height: Theme.cellH * 2.8; label: "Weiter"; glyph: Icons.cp(0xF04AD); detail: "naechster Titel"; run: () => MediaService.next() }
+                                    Action { width: (parent.width - Theme.cellW * 4) / 3; height: Theme.cellH * 2.8; label: "Previous"; glyph: Icons.cp(0xF04AE); detail: "previous track"; run: () => MediaService.previous() }
+                                    Action { width: (parent.width - Theme.cellW * 4) / 3; height: Theme.cellH * 2.8; label: MediaService.playing ? "Pause" : "Play"; glyph: MediaService.playing ? Icons.pause : Icons.play; detail: MediaService.playing ? "pause playback" : "resume playback"; run: () => MediaService.playPause() }
+                                    Action { width: (parent.width - Theme.cellW * 4) / 3; height: Theme.cellH * 2.8; label: "Next"; glyph: Icons.cp(0xF04AD); detail: "next track"; run: () => MediaService.next() }
                                 }
-                                Line { visible: MediaService.volumeSupported; width: parent.width; horizontalAlignment: Text.AlignHCenter; text: "PLAYER-LAUTSTAERKE  " + Math.round(MediaService.volume * 100) + " %"; color: Theme.fgDim }
+                                Line { visible: MediaService.volumeSupported; width: parent.width; horizontalAlignment: Text.AlignHCenter; text: "PLAYER VOLUME  " + Math.round(MediaService.volume * 100) + " %"; color: Theme.fgDim }
                                 LevelBar { visible: MediaService.volumeSupported; width: parent.width; cells: 56; value: MediaService.volume * 100; fillColor: Theme.cyan; interactive: true; onMoved: value => MediaService.setVolume(value / 100) }
                             }
                         }
                     }
                 }
 
-                // ── WERKZEUGE ───────────────────────────────────────────
+                // ── TOOLS ───────────────────────────────────────────
                 Item {
                     visible: root.page === 2
                     width: parent.width
@@ -394,11 +394,11 @@ PanelWindow {
                         height: childrenRect.height
                         spacing: root.cardGap
 
-                        Action { label: "Aufgaben"; detail: Todo.count + " offen"; glyph: Icons.todo; run: () => root.openSurface(() => Runtime.todoOpen = true) }
-                        Action { label: "Gewohnheiten"; detail: Habits.doneCount + "/" + Habits.count + " heute"; glyph: Icons.habit; run: () => root.openSurface(() => Runtime.habitsOpen = true) }
+                        Action { label: "Tasks"; detail: Todo.count + " open"; glyph: Icons.todo; run: () => root.openSurface(() => Runtime.todoOpen = true) }
+                        Action { label: "Habits"; detail: Habits.doneCount + "/" + Habits.count + " today"; glyph: Icons.habit; run: () => root.openSurface(() => Runtime.habitsOpen = true) }
                         Action {
                             label: "Updates"
-                            detail: Updates.checking ? "prueft …" : Updates.count + " verfuegbar"
+                            detail: Updates.checking ? "checking …" : Updates.count + " available"
                             glyph: Icons.download
                             tone: Updates.count > 0 ? Theme.yellow : Theme.green
                             run: () => {
@@ -408,19 +408,19 @@ PanelWindow {
                             }
                             rightRun: () => root.openSurface(() => Updates.update())
                         }
-                        Action { label: "Aufnahme"; detail: CaptureService.recording ? "laeuft" : "Screenshot, OCR, QR"; glyph: CaptureService.recording ? Icons.record : Icons.camera; tone: CaptureService.recording ? Theme.red : Theme.accent; run: () => root.openSurface(() => Runtime.captureOpen = true); rightRun: () => CaptureService.toggleRecording() }
+                        Action { label: "Capture"; detail: CaptureService.recording ? "running" : "Screenshot, OCR, QR"; glyph: CaptureService.recording ? Icons.record : Icons.camera; tone: CaptureService.recording ? Theme.red : Theme.accent; run: () => root.openSurface(() => Runtime.captureOpen = true); rightRun: () => CaptureService.toggleRecording() }
                         Action { label: "Theme"; detail: Config.theme; glyph: Icons.palette; run: () => root.openSurface(() => Runtime.themePickerOpen = true); rightRun: () => ThemeIndex.step(1) }
-                        Action { label: "Wachhalten"; detail: Idle.caffeine ? "aktiv" : "Automatik aktiv"; glyph: Icons.coffee; tone: Idle.caffeine ? Theme.yellow : Theme.fgDim; run: () => Idle.toggleCaffeine() }
-                        Action { label: "KI-Limits"; detail: AiUsage.list.length ? AiUsage.list.map(e => e.id + " " + e.percent + "%").join(" · ") : "keine Daten"; glyph: Icons.cp(0xF1218); run: () => AiUsage.refresh() }
-                        Action { label: "System-Hub"; detail: "Dienste, Sync, Ports"; glyph: Icons.matrix; run: () => root.openSurface(() => Runtime.hubOpen = true) }
-                        Action { label: "Module"; detail: "Bar anordnen"; glyph: Icons.cp(0xF12E); run: () => root.openSurface(() => Runtime.modulesOpen = true) }
-                        Action { label: "Zwischenablage"; detail: Clipboard.entries.length + " Eintraege"; glyph: Icons.clipboard; run: () => root.openSurface(() => Runtime.clipOpen = true) }
-                        Action { label: "Audio"; detail: "Mixer und Equalizer"; glyph: Icons.volumeHigh; run: () => root.openSurface(() => Runtime.audioToolsOpen = true) }
-                        Action { label: "Einstellungen"; detail: "Aussehen und Verhalten"; glyph: Icons.cp(0xF0493); run: () => root.openSurface(() => Runtime.settingsOpen = true) }
+                        Action { label: "Keep awake"; detail: Idle.caffeine ? "active" : "idle automation active"; glyph: Icons.coffee; tone: Idle.caffeine ? Theme.yellow : Theme.fgDim; run: () => Idle.toggleCaffeine() }
+                        Action { label: "AI usage"; detail: AiUsage.list.length ? AiUsage.list.map(e => e.id + " " + e.percent + "%").join(" · ") : "no data"; glyph: Icons.cp(0xF1218); run: () => AiUsage.refresh() }
+                        Action { label: "System-Hub"; detail: "Services, sync, ports"; glyph: Icons.matrix; run: () => root.openSurface(() => Runtime.hubOpen = true) }
+                        Action { label: "Modules"; detail: "Arrange the bar"; glyph: Icons.cp(0xF12E); run: () => root.openSurface(() => Runtime.modulesOpen = true) }
+                        Action { label: "Clipboard"; detail: Clipboard.entries.length + " entries"; glyph: Icons.clipboard; run: () => root.openSurface(() => Runtime.clipOpen = true) }
+                        Action { label: "Audio"; detail: "Mixer and equalizer"; glyph: Icons.volumeHigh; run: () => root.openSurface(() => Runtime.audioToolsOpen = true) }
+                        Action { label: "Settings"; detail: "Appearance and behavior"; glyph: Icons.cp(0xF0493); run: () => root.openSurface(() => Runtime.settingsOpen = true) }
                     }
                 }
 
-                Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: "Esc schliesst  ·  R markiert eine Rechtsklick-Aktion"; color: Theme.muted }
+                Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: "Esc closes  ·  R marks a right-click action"; color: Theme.muted }
             }
 
             // Update-Liste wie im frueheren Bar-Popout, aber als Ebene im
@@ -459,16 +459,16 @@ PanelWindow {
                                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                                 spacing: Theme.cellW * 2
                                 ActionButton {
-                                    text: Updates.checking ? "Prueft …" : "Neu pruefen"
+                                    text: Updates.checking ? "Prueft …" : "Check again"
                                     busy: Updates.checking; compact: true
                                     onTriggered: Updates.refresh()
                                 }
                                 ActionButton {
                                     visible: Updates.count > 0
-                                    text: "Aktualisieren"; tone: "primary"; accentColor: Theme.green; compact: true
+                                    text: "Update"; tone: "primary"; accentColor: Theme.green; compact: true
                                     onTriggered: root.openSurface(() => Updates.update())
                                 }
-                                ActionButton { text: "Schliessen"; compact: true; onTriggered: root.updatesOpen = false }
+                                ActionButton { text: "Close"; compact: true; onTriggered: root.updatesOpen = false }
                             }
                         }
 
@@ -481,7 +481,7 @@ PanelWindow {
                             Line {
                                 anchors.centerIn: parent
                                 visible: Updates.count === 0
-                                text: Updates.checking ? "Paketquellen werden geprueft …" : (Updates.ready ? "alles aktuell" : "noch nicht geprueft")
+                                text: Updates.checking ? "Checking package sources …" : (Updates.ready ? "everything is up to date" : "not checked yet")
                                 color: Theme.muted
                             }
 

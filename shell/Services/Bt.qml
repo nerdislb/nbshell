@@ -78,7 +78,7 @@ Singleton {
         if (merk.length !== root.warnedDevices.length)
             root.warnedDevices = merk;
         for (var k = 0; k < neu.length; k++)
-            Quickshell.execDetached(["notify-send", "--app-name=nbshell", "--icon=battery-caution", neu[k].label, "Akku bei " + neu[k].percent + " %"]);
+            Quickshell.execDetached(["notify-send", "--app-name=nbshell", "--icon=battery-caution", neu[k].label, "Battery at " + neu[k].percent + " %"]);
     }
 
     function label(device) {

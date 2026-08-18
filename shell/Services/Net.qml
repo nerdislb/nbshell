@@ -43,8 +43,8 @@ Singleton {
         if (wiredConnected)
             return "LAN";
         if (!wifiEnabled)
-            return "WLAN aus";
-        return "kein Netz";
+            return "Wi-Fi off";
+        return "no network";
     }
 
     readonly property bool online: activeWifi !== null || wiredConnected

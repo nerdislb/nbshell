@@ -39,12 +39,12 @@ Cell {
                 }
             }
 
-            Rule { rowWidth: panel.rowWidth; label: "KATZE" }
+            Rule { rowWidth: panel.rowWidth; label: "CAT" }
 
             Segments {
                 rowWidth: panel.rowWidth
                 options: [
-                    { "label": BongoCat.active ? "aktiv" : "aus", "value": "toggle" },
+                    { "label": BongoCat.active ? "active" : "off", "value": "toggle" },
                     { "label": "Pfoten testen", "value": "test" },
                     { "label": "Reset", "value": "reset" }
                 ]
@@ -66,7 +66,7 @@ Cell {
                 ]
             }
 
-            Rule { rowWidth: panel.rowWidth; label: "GROESSE UND POSITION" }
+            Rule { rowWidth: panel.rowWidth; label: "SIZE AND POSITION" }
             Segments {
                 rowWidth: panel.rowWidth
                 options: [
@@ -88,10 +88,10 @@ Cell {
                 }
             }
 
-            Rule { rowWidth: panel.rowWidth; label: "TASTATUREINGABE  (SITZUNG)" }
+            Rule { rowWidth: panel.rowWidth; label: "KEYBOARD INPUT  (SESSION)" }
             Line {
                 width: panel.rowWidth; wrapMode: Text.Wrap
-                text: "Der Helfer liefert nur linke/rechte Pfote. Keine Zeichen und kein Text verlassen /dev/input."
+                text: "The helper only reports left/right paw. No keys or text leave /dev/input."
                 color: Theme.muted
             }
             Segments {

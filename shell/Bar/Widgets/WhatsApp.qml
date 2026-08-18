@@ -37,7 +37,7 @@ Cell {
                 rowWidth: panel.rowWidth
                 icon: root.icon
                 title: WhatsApp.currentChat ? WhatsApp.currentChat.name : "WhatsApp"
-                subtitle: WhatsApp.ready ? "Nachrichten · Rechtsklick oeffnet Web" : (WhatsApp.online ? "Bridge bereit" : "Bridge nicht installiert")
+                subtitle: WhatsApp.ready ? "Messages · right-click opens the web app" : (WhatsApp.online ? "Bridge ready" : "Bridge not installed")
                 badge: WhatsApp.unread > 0 ? String(WhatsApp.unread) : (WhatsApp.ready ? "online" : "offline")
                 badgeColor: WhatsApp.ready ? Theme.green : Theme.fgDim
             }
@@ -45,7 +45,7 @@ Cell {
             ActionButton {
                 visible: !WhatsApp.online
                 width: panel.rowWidth
-                text: "Bridge installieren und starten"
+                text: "Install and start bridge"
                 tone: "primary"
                 onTriggered: WhatsApp.setup()
             }
@@ -54,10 +54,10 @@ Cell {
                 visible: WhatsApp.online && !WhatsApp.linked
                 width: panel.rowWidth
                 spacing: Theme.cellH * 0.25
-                Line { text: "Dieses nbshell als verknuepftes Geraet anmelden."; color: Theme.fg }
+                Line { text: "Connect this nbshell as a linked device."; color: Theme.fg }
                 ActionButton {
                     width: panel.rowWidth
-                    text: WhatsApp.hasQr ? "QR-Code erneuern" : "Geraet verbinden"
+                    text: WhatsApp.hasQr ? "Refresh QR code" : "Connect device"
                     tone: "primary"
                     onTriggered: WhatsApp.beginLogin()
                 }
@@ -69,7 +69,7 @@ Cell {
                     fillMode: Image.PreserveAspectFit
                     cache: false
                 }
-                Line { visible: WhatsApp.hasQr; text: "Telefon: WhatsApp → Verknuepfte Geraete → Geraet hinzufuegen"; color: Theme.fgDim }
+                Line { visible: WhatsApp.hasQr; text: "Phone: WhatsApp → Linked devices → Link a device"; color: Theme.fgDim }
             }
 
             Row {
@@ -107,13 +107,13 @@ Cell {
                     width: 35 * Theme.cellW
                     spacing: Theme.cellH * 0.15
                     Rule { rowWidth: parent.width; label: WhatsApp.currentChat ? "VERLAUF" : "NACHRICHTEN" }
-                    Line { visible: WhatsApp.currentJid === ""; text: "Links einen Chat waehlen"; color: Theme.muted }
+                    Line { visible: WhatsApp.currentJid === ""; text: "Select a chat on the left"; color: Theme.muted }
                     Repeater {
                         model: WhatsApp.messages.slice(-6)
                         Line {
                             required property var modelData
                             width: 35 * Theme.cellW
-                            text: (modelData.fromMe ? "> " : "< ") + (modelData.text || "[Medien]")
+                            text: (modelData.fromMe ? "> " : "< ") + (modelData.text || "[Media]")
                             color: modelData.fromMe ? Theme.accent : Theme.fg
                             wrapMode: Text.Wrap
                             maximumLineCount: 2
@@ -171,7 +171,7 @@ Cell {
 
                             Line {
                                 anchors.centerIn: parent
-                                text: "senden"
+                                text: "send"
                                 color: panel.draft.trim() !== "" ? Theme.accent : Theme.muted
                             }
                             HoverHandler {
@@ -184,7 +184,7 @@ Cell {
                             }
                         }
                     }
-                    Line { visible: WhatsApp.currentJid !== ""; text: "Enter oder senden · Rechtsklick auf WA oeffnet Brave"; color: Theme.muted }
+                    Line { visible: WhatsApp.currentJid !== ""; text: "Enter or send · right-click WA to open Brave"; color: Theme.muted }
                 }
             }
         }

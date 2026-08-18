@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Steuert Zens natives Picture-in-Picture-Fenster ueber niri."""
+"""Controls Zen's native Picture-in-Picture window through niri."""
 
 import json
 import os
@@ -66,7 +66,7 @@ def geometry(win, state):
     outputs = data("outputs")
     output = outputs.get(workspace.get("output")) if workspace else None
     if not output or not output.get("logical"):
-        raise RuntimeError("Ausgabe des PiP-Fensters nicht gefunden")
+        raise RuntimeError("Could not find the output containing the PiP window")
     area = output["logical"]
     width = round(area["width"] * SIZES[state["size"]])
     height = round(width * 9 / 16)
@@ -88,7 +88,7 @@ def geometry(win, state):
 def require_window():
     win = pip_window()
     if not win:
-        raise RuntimeError("Kein Zen-PiP offen — im Video Ctrl+Shift+] druecken")
+        raise RuntimeError("No Zen PiP is open — press Ctrl+Shift+] in the video")
     return win
 
 

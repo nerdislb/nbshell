@@ -12,7 +12,7 @@ import qs.Widgets
 // links/rechts blaettert durch die Moeglichkeiten. Geschrieben wird sofort;
 // die Leiste aendert sich beim Zusehen, weil die Config beobachtet wird.
 //
-// Bewusst kein Formular mit Eingabefeldern: jede Zeile ist eine Liste von
+// Bewusst kein Shapeular mit Eingabefeldern: jede Zeile ist eine Liste von
 // Werten, durch die man blaettert. Das laesst sich blind bedienen und braucht
 // keine Pruefung von Eingaben.
 //
@@ -33,24 +33,24 @@ PanelWindow {
     // "head" beginnt eine neue Gruppe.
     readonly property var entries: [
         {
-            "head": "LEISTE"
+            "head": "BAR"
         },
         {
             "key": "edge",
             "def": "top",
-            "label": "Rand",
+            "label": "Edge",
             "values": ["top", "bottom"]
         },
         {
             "key": "mode",
             "def": "island",
-            "label": "Form",
+            "label": "Shape",
             "values": ["island", "pill", "bar"]
         },
         {
             "key": "gap",
             "def": 6,
-            "label": "Abstand zum Rand",
+            "label": "Distance from edge",
             "step": 1,
             "min": 0,
             "max": 40
@@ -58,7 +58,7 @@ PanelWindow {
         {
             "key": "lines",
             "def": 1,
-            "label": "Hoehe in Zeilen",
+            "label": "Height in rows",
             "step": 1,
             "min": 1,
             "max": 3
@@ -66,39 +66,39 @@ PanelWindow {
         {
             "key": "barBorder",
             "def": true,
-            "label": "Rahmen um die Leiste",
+            "label": "Bar border",
             "values": [true, false]
         },
         {
             "key": "islandCenter",
             "def": true,
-            "label": "Mitte erzwingen (Insel)",
+            "label": "Force center (island)",
             "values": [true, false]
         },
         {
             "key": "osdInPill",
             "def": true,
-            "label": "Einblendung in der Pille",
+            "label": "Overlay inside pill",
             "values": [true, false]
         },
         {
-            "head": "BAUSTEINE"
+            "head": "MODULES"
         },
         {
             "action": "modules",
-            "label": "Anordnen …",
+            "label": "Arrange …",
             "hint": "Enter"
         },
         {
             "key": "widgetColor",
             "def": "text",
-            "label": "Farbe",
+            "label": "Color",
             "values": ["text", "accent"]
         },
         {
             "key": "widgetStyle",
             "def": "box",
-            "label": "Form",
+            "label": "Shape",
             "values": ["box", "bracket", "plain"]
         },
         {
@@ -116,43 +116,43 @@ PanelWindow {
         {
             "key": "widgetIcons",
             "def": true,
-            "label": "Symbole",
+            "label": "Icons",
             "values": [true, false]
         },
         {
             "key": "quietWidgets",
             "def": true,
-            "label": "Stille verstecken",
+            "label": "Hide silent modules",
             "values": [true, false]
         },
         {
             "key": "workspaceStyle",
             "def": "numbers",
-            "label": "Arbeitsflaechen",
+            "label": "Workspaces",
             "values": ["numbers", "dots", "pacman", "invader"]
         },
         {
             "key": "workspaceClassic",
             "def": true,
-            "label": "Figur klassisch",
+            "label": "Classic character",
             "values": [true, false]
         },
         {
             "key": "trayExpanded",
             "def": false,
-            "label": "Tray aufgeklappt",
+            "label": "Tray expanded",
             "values": [true, false]
         },
         {
-            "head": "AUSSEHEN"
+            "head": "APPEARANCE"
         },
         {
-            // Eine Rolle, keine Farbe: `theme` ist der Vorschlag des Themes,
-            // alles andere eine Farbe AUS dessen Palette. Nach einem
+            // Eine Rolle, keine Color: `theme` ist der Vorschlag des Themes,
+            // alles andere eine Color AUS dessen Palette. Nach einem
             // Themewechsel gilt dieselbe Rolle im neuen Theme.
             "key": "accent",
             "def": "theme",
-            "label": "Akzentfarbe",
+            "label": "Accent color",
             "values": ["theme", "red", "green", "yellow", "blue", "magenta", "cyan", "orange", "foreground"]
         },
         {
@@ -161,13 +161,13 @@ PanelWindow {
             // leerer erster Eintrag heisst "nbshell laesst die Finger davon".
             "key": "cursorTheme",
             "def": "",
-            "label": "Mauszeiger",
+            "label": "Cursor theme",
             "values": [""].concat(Cursor.themes)
         },
         {
             "key": "cursorSize",
             "def": 24,
-            "label": "Zeigergroesse",
+            "label": "Cursor size",
             "step": 4,
             "min": 12,
             "max": 64
@@ -175,7 +175,7 @@ PanelWindow {
         {
             "key": "fontSize",
             "def": 13,
-            "label": "Schriftgroesse",
+            "label": "Text size",
             "step": 1,
             "min": 8,
             "max": 24
@@ -183,7 +183,7 @@ PanelWindow {
         {
             "key": "widgetGap",
             "def": 1,
-            "label": "Abstand der Bausteine",
+            "label": "Module spacing",
             "step": 0.5,
             "min": 0,
             "max": 4
@@ -191,7 +191,7 @@ PanelWindow {
         {
             "key": "padX",
             "def": 1,
-            "label": "Innenabstand seitlich",
+            "label": "Horizontal padding",
             "step": 0.5,
             "min": 0,
             "max": 3
@@ -199,7 +199,7 @@ PanelWindow {
         {
             "key": "padY",
             "def": 4,
-            "label": "Innenabstand",
+            "label": "Padding",
             "step": 1,
             "min": 0,
             "max": 20
@@ -207,7 +207,7 @@ PanelWindow {
         {
             "key": "radius",
             "def": 0,
-            "label": "Ecken",
+            "label": "Corners",
             "step": 1,
             "min": 0,
             "max": 20
@@ -215,7 +215,7 @@ PanelWindow {
         {
             "key": "borderWidth",
             "def": 1,
-            "label": "Rahmenstaerke",
+            "label": "Border width",
             "step": 1,
             "min": 0,
             "max": 4
@@ -223,18 +223,18 @@ PanelWindow {
         {
             "key": "opacity",
             "def": 1.0,
-            "label": "Deckkraft",
+            "label": "Opacity",
             "step": 0.05,
             "min": 0.2,
             "max": 1
         },
         {
-            "head": "VERHALTEN"
+            "head": "BEHAVIOR"
         },
         {
             "key": "collapseDelay",
             "def": 250,
-            "label": "Nachlauf beim Zuklappen",
+            "label": "Collapse delay",
             "step": 50,
             "min": 0,
             "max": 1000
@@ -242,7 +242,7 @@ PanelWindow {
         {
             "key": "popoutLeaveDelay",
             "def": 2500,
-            "label": "Popout schliesst nach",
+            "label": "Popout close delay",
             "step": 250,
             "min": 500,
             "max": 6000
@@ -250,37 +250,37 @@ PanelWindow {
         {
             "key": "notifyCorner",
             "def": "auto",
-            "label": "Benachrichtigungen",
+            "label": "Notifications",
             "values": ["auto", "top", "bottom"]
         },
         {
             "key": "notifyTimeout",
             "def": 6000,
-            "label": "Karte bleibt",
+            "label": "Popup duration",
             "step": 1000,
             "min": 2000,
             "max": 20000
         },
         {
-            "head": "LEERLAUF"
+            "head": "IDLE"
         },
         {
             "key": "idle",
             "def": true,
-            "label": "Automatik",
+            "label": "Automation",
             "values": [true, false]
         },
         {
             "key": "caffeine",
             "def": false,
-            "label": "Wachhalten",
+            "label": "Keep awake",
             "values": [true, false]
         },
         {
             // 0 heisst: diese Stufe faellt aus.
             "key": "idleDim",
             "def": 240,
-            "label": "dimmen nach (s)",
+            "label": "Dim after (s)",
             "step": 30,
             "min": 0,
             "max": 3600
@@ -288,7 +288,7 @@ PanelWindow {
         {
             "key": "idleScreenOff",
             "def": 600,
-            "label": "Bildschirm aus nach (s)",
+            "label": "Turn screen off after (s)",
             "step": 60,
             "min": 0,
             "max": 7200
@@ -296,91 +296,91 @@ PanelWindow {
         {
             "key": "idleLock",
             "def": 900,
-            "label": "sperren nach (s)",
+            "label": "Lock after (s)",
             "step": 60,
             "min": 0,
             "max": 7200
         },
         {
-            "head": "DIENSTE"
+            "head": "SERVICES"
         },
         {
             "key": "wallpaper",
             "def": false,
-            "label": "Hintergrundbild",
+            "label": "Wallpaper",
             "values": [true, false]
         },
         {
             "key": "wallpaperBlur",
             "def": true,
-            "label": "Uebersicht weichzeichnen",
+            "label": "Blur overview",
             "values": [true, false]
         },
         {
             "key": "osd",
             "def": true,
-            "label": "Einblendung",
+            "label": "OSD",
             "values": [true, false]
         },
         {
             "key": "notifications",
             "def": false,
-            "label": "Benachrichtigungsserver",
+            "label": "Notification server",
             "values": [true, false]
         },
         {
             "key": "updates",
             "def": true,
-            "label": "Updates pruefen",
+            "label": "Check for updates",
             "values": [true, false]
         },
         {
             // Aus heisst: pacman/paru fragen wieder bei jedem Schritt nach.
             "key": "updateNoconfirm",
             "def": true,
-            "label": "Update ohne Rueckfrage",
+            "label": "Update without confirmation",
             "values": [true, false]
         },
         {
             "key": "sysGpu",
             "def": true,
-            "label": "Grafikkarte abfragen",
+            "label": "Query graphics card",
             "values": [true, false]
         },
         {
             "key": "calendar",
             "def": true,
-            "label": "Kalender (khal)",
+            "label": "Calendar (khal)",
             "values": [true, false]
         },
         {
             "key": "clipboard",
             "def": true,
-            "label": "Zwischenablage",
+            "label": "Clipboard",
             "values": [true, false]
         },
         {
             "key": "clipboardGuardSecrets",
             "def": true,
-            "label": "Passwoerter aussperren",
+            "label": "Exclude passwords",
             "values": [true, false]
         },
         {
             "key": "todo",
             "def": true,
-            "label": "Aufgaben",
+            "label": "Tasks",
             "values": [true, false]
         },
         {
             "key": "todoShowDone",
             "def": true,
-            "label": "Erledigte anzeigen",
+            "label": "Show completed tasks",
             "values": [true, false]
         },
         {
             "key": "themeExport",
             "def": true,
-            "label": "Terminalfarben schreiben",
+            "label": "Write terminal colors",
             "values": [true, false]
         }
     ]
@@ -448,7 +448,7 @@ PanelWindow {
             return entry.hint;
         const v = valueOf(entry);
         if (typeof v === "boolean")
-            return v ? "an" : "aus";
+            return v ? "on" : "off";
         if (typeof v === "number" && entry.step && entry.step < 1)
             return v.toFixed(2);
         return String(v);
@@ -572,7 +572,7 @@ PanelWindow {
                 anchors.top: parent.top
                 anchors.margins: Theme.cellH * 0.6
                 anchors.leftMargin: Theme.cellW
-                text: "EINSTELLUNGEN"
+                text: "SETTINGS"
                 color: Theme.fgDim
             }
 
@@ -719,7 +719,7 @@ PanelWindow {
                 // Muss in EINE Zeile passen: die Hoehe des Kastens rechnet mit
                 // `footer.implicitHeight`, ein Umbruch schoebe den Fusstext in
                 // die letzte Zeile der Liste.
-                text: "Tab: Seite · ↑↓ waehlen · ←→ aendern · Esc schliesst"
+                text: "Tab: page · ↑↓ select · ←→ change · Esc closes"
                 color: Theme.muted
                 elide: Text.ElideRight
             }

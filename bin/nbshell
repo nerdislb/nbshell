@@ -36,31 +36,31 @@ niri_include() {
     local cfg="$NIRI_DIR/config.kdl"
     mkdir -p "$NIRI_DIR"
     if [ ! -f "$cfg" ]; then
-        printf '// Eigenstaendige niri-Konfiguration von nbshell\n' > "$cfg"
+        printf '// Standalone niri configuration created by nbshell\n' > "$cfg"
     fi
     grep -qF "$INCLUDE_LINE" "$cfg" && return 0
     cp "$cfg" "$cfg.vor-nbshell"
     # Die Farbdatei zuerst schreiben lassen -- ein include auf eine fehlende
     # Datei macht die ganze Config ungueltig.
     ipc theme write >/dev/null 2>&1 || true
-    printf '\n// nbshell-Tastenkuerzel und Fensterrahmen\n%s\n' "$INCLUDE_LINE" >> "$cfg"
+    printf '\n// nbshell key bindings and window borders\n%s\n' "$INCLUDE_LINE" >> "$cfg"
     [ -f "$NIRI_DIR/$COLORS" ] && printf '%s\n' "$COLORS_LINE" >> "$cfg"
     if ! niri validate >/dev/null 2>&1; then
         mv "$cfg.vor-nbshell" "$cfg"
-        echo "niri-Config waere ungueltig geworden -- zurueckgenommen." >&2
+        echo "niri configuration became invalid -- reverted." >&2
         return 1
     fi
-    echo "  niri:   $INCLUDE_LINE eingetragen (Sicherung: config.kdl.vor-nbshell)"
+    echo "  niri:   $INCLUDE_LINE added (backup: config.kdl.vor-nbshell)"
 }
 
 niri_exclude() {
     local cfg="$NIRI_DIR/config.kdl"
     grep -qF "$INCLUDE_LINE" "$cfg" || return 0
     cp "$cfg" "$cfg.vor-nbshell"
-    grep -vF "$INCLUDE_LINE" "$cfg" | grep -vF "$COLORS_LINE" | grep -v "^// nbshell-Tastenkuerzel und Fensterrahmen" | grep -v "^// nbshell uebernimmt DMS-Tastenkuerzel" | grep -v "^// (nbshell switch off entfernt beides)" > "$cfg.neu"
+    grep -vF "$INCLUDE_LINE" "$cfg" | grep -vF "$COLORS_LINE" | grep -v "^// nbshell key bindings and window borders" | grep -v "^// nbshell uebernimmt DMS-Tastenkuerzel" | grep -v "^// (nbshell switch off removed beides)" > "$cfg.neu"
     mv "$cfg.neu" "$cfg"
-    niri validate >/dev/null 2>&1 || { mv "$cfg.vor-nbshell" "$cfg"; echo "zurueckgenommen." >&2; return 1; }
-    echo "  niri:   $INCLUDE_LINE entfernt"
+    niri validate >/dev/null 2>&1 || { mv "$cfg.vor-nbshell" "$cfg"; echo "reverted." >&2; return 1; }
+    echo "  niri:   $INCLUDE_LINE removed"
 }
 
 # ghostty liest genau EINE Themedatei. Solange DMS laeuft, schreibt matugen
@@ -72,7 +72,7 @@ ghostty_theme() {
     grep -q "^theme = $want\$" "$GHOSTTY" && return 0
     cp "$GHOSTTY" "$GHOSTTY.vor-nbshell"
     sed -i "s/^theme = .*/theme = $want/" "$GHOSTTY"
-    echo "  ghostty: theme = $want (Sicherung: config.vor-nbshell)"
+    echo "  ghostty: theme = $want (backup: config.vor-nbshell)"
 }
 
 # Dasselbe fuer alacritty -- dort ist es kein `theme =`, sondern eine
@@ -86,7 +86,7 @@ alacritty_theme() {
     grep -q "alacritty/\(nb\|dank\)-theme.toml" "$ALACRITTY" || return 0
     cp "$ALACRITTY" "$ALACRITTY.vor-nbshell"
     sed -i "s#alacritty/\(nb\|dank\)-theme.toml#alacritty/$want#" "$ALACRITTY"
-    echo "  alacritty: import = $want (Sicherung: alacritty.toml.vor-nbshell)"
+    echo "  alacritty: import = $want (backup: alacritty.toml.vor-nbshell)"
 }
 
 # ── Mauszeiger ───────────────────────────────────────────────────────────
@@ -103,40 +103,40 @@ cursor_status() {
     local jetzt
     jetzt="$(bash "$CURSOR_TOOL" current 2>/dev/null)"
     printf 'Thema     %s\n' "$(printf '%s' "$jetzt" | python3 -c 'import json,sys; print(json.load(sys.stdin)["theme"] or "(keins gesetzt)")' 2>/dev/null)"
-    printf 'Groesse   %s px\n' "$(printf '%s' "$jetzt" | python3 -c 'import json,sys; print(json.load(sys.stdin)["size"])' 2>/dev/null)"
+    printf 'Size      %s px\n' "$(printf '%s' "$jetzt" | python3 -c 'import json,sys; print(json.load(sys.stdin)["size"])' 2>/dev/null)"
     if command -v gsettings >/dev/null 2>&1; then
         printf 'GTK       %s, %s px\n' "$(gsettings get org.gnome.desktop.interface cursor-theme 2>/dev/null | tr -d "'")" "$(gsettings get org.gnome.desktop.interface cursor-size 2>/dev/null)"
     fi
     echo
-    echo "Installiert:"
+    echo "Installed:"
     bash "$CURSOR_TOOL" list | python3 -c 'import json,sys; [print("  "+t) for t in json.load(sys.stdin)]'
     echo
-    echo "Weitere dazulegen: siehe README, \"Ein Theme dazuholen\""
+    echo "Install more cursor themes through your package manager."
     if [ -f "$NIRI_DIR/dms/cursor.kdl" ] && [ ! -s "$NIRI_DIR/dms/cursor.kdl" ]; then
         echo
-        warn "niri bindet ausserdem dms/cursor.kdl ein -- die Datei ist LEER."
-        warn "Ein Erbstueck von DMS. Es tut nichts; wer aufraeumen will, nimmt"
-        warn "die include-Zeile aus der config.kdl."
+        warn "niri also includes dms/cursor.kdl, but the file is EMPTY."
+        warn "This is a harmless DMS remnant. To clean it up, remove"
+        warn "its include line from config.kdl."
     fi
 }
 
 cursor_set() {
     local thema="$1" groesse="${2:-}"
     bash "$CURSOR_TOOL" list | grep -q "\"$thema\"" || {
-        echo "Unbekanntes Zeigerthema: $thema" >&2
-        echo "Da waeren:" >&2
+        echo "Unknown cursor theme: $thema" >&2
+        echo "Available themes:" >&2
         bash "$CURSOR_TOOL" list | python3 -c 'import json,sys; [print("  "+t) for t in json.load(sys.stdin)]' >&2
         return 1
     }
     "$0" set cursorTheme "$thema" >/dev/null
     if [ -n "$groesse" ]; then
         case "$groesse" in
-            ''|*[!0-9]*) echo "Groesse muss eine Zahl sein: $groesse" >&2; return 1 ;;
+            ''|*[!0-9]*) echo "Size must be a number: $groesse" >&2; return 1 ;;
         esac
         "$0" set cursorSize "$groesse" >/dev/null
     fi
-    echo "Zeiger: $thema${groesse:+, $groesse px}"
-    echo "Gilt sofort fuer neue Fenster; laufende Programme behalten ihren."
+    echo "Cursor: $thema${groesse:+, $groesse px}"
+    echo "Applies to new windows immediately; running applications keep their current cursor."
 }
 
 # ── Schriftgroesse in einem Zug ──────────────────────────────────────────
@@ -178,18 +178,18 @@ text_size() {
             printf 'ghostty    %s pt\n' "$(awk -F'= *' '/^font-size/ {print $2}' "$GHOSTTY")"
         fi
         if command -v gsettings >/dev/null 2>&1; then
-            printf 'GTK        Faktor %s\n' "$(gsettings get org.gnome.desktop.interface text-scaling-factor 2>/dev/null)"
+            printf 'GTK        scale %s\n' "$(gsettings get org.gnome.desktop.interface text-scaling-factor 2>/dev/null)"
         fi
         echo
-        echo "Aendern: nbshell text <$TEXT_MIN..$TEXT_MAX>"
+        echo "Change: nbshell text <$TEXT_MIN..$TEXT_MAX>"
         return 0
     fi
 
     case "$want" in
-        ''|*[!0-9]*) echo "Zahl erwartet: nbshell text <$TEXT_MIN..$TEXT_MAX>" >&2; return 1 ;;
+        ''|*[!0-9]*) echo "Expected a number: nbshell text <$TEXT_MIN..$TEXT_MAX>" >&2; return 1 ;;
     esac
     if [ "$want" -lt "$TEXT_MIN" ] || [ "$want" -gt "$TEXT_MAX" ]; then
-        echo "Ausserhalb von $TEXT_MIN..$TEXT_MAX: $want" >&2
+        echo "Outside the supported range $TEXT_MIN..$TEXT_MAX: $want" >&2
         return 1
     fi
 
@@ -212,7 +212,7 @@ text_size() {
         term_new="$(python3 -c "print(max(6, round($want * float('$ratio'))))")"
         cp "$GHOSTTY" "$GHOSTTY.vor-nbshell"
         sed -i "s/^font-size *=.*/font-size = $term_new/" "$GHOSTTY"
-        echo "ghostty    $term_new pt (Sicherung: config.vor-nbshell)"
+        echo "ghostty    $term_new pt (backup: config.vor-nbshell)"
         # ghostty liest von selbst nicht neu -- dasselbe Signal wie beim Theme.
         pkill -USR2 -x ghostty 2>/dev/null || true
     fi
@@ -227,7 +227,7 @@ want, ref = float('$want'), 13.0
 print(round(max(1.0, round(base * want / ref) / base), 3))
 ")"
         if gsettings set org.gnome.desktop.interface text-scaling-factor "$factor" 2>/dev/null; then
-            echo "GTK        Faktor $factor (${base:-11} pt -> $(python3 -c "print(round(float('${base:-11}')*float('$factor')))") pt)"
+            echo "GTK        scale $factor (${base:-11} pt -> $(python3 -c "print(round(float('${base:-11}')*float('$factor')))") pt)"
         fi
     fi
     return 0
@@ -245,14 +245,14 @@ autostart_on() {
     # nicht -- also einmal sauber neu.
     "$QS" -c nbshell kill >/dev/null 2>&1 || true
     sleep 0.3
-    systemctl --user restart nbshell.service 2>/dev/null && echo "  nbshell: startet ab jetzt beim Anmelden mit"
+    systemctl --user restart nbshell.service 2>/dev/null && echo "  nbshell: now starts at login"
 }
 
 autostart_off() {
     rm -f "$UNIT_DROPIN"
     systemctl --user disable nbshell.service >/dev/null 2>&1
     systemctl --user daemon-reload 2>/dev/null
-    echo "  nbshell: startet nicht mehr automatisch (laeuft weiter)"
+    echo "  nbshell: will no longer start automatically (still running now)"
 }
 
 # ── Rechteabfragen ───────────────────────────────────────────────────────
@@ -287,11 +287,11 @@ polkit_on() {
     local unit
     if unit="$(polkit_unit)"; then
         systemctl --user enable --now "$unit" >/dev/null 2>&1 \
-            && echo "  polkit: $unit laeuft und startet mit" \
-            || echo "  polkit: $unit liess sich nicht starten"
+            && echo "  polkit: $unit is running and starts at login" \
+            || echo "  polkit: $unit could not be started"
     else
-        echo "  polkit: kein Agent installiert -- ohne ihn scheitert jede"
-        echo "          Rechteabfrage still. sudo pacman -S hyprpolkitagent"
+        echo "  polkit: no agent installed -- privileged prompts will fail"
+        echo "          silently. Install with: sudo pacman -S hyprpolkitagent"
     fi
 }
 
@@ -307,21 +307,21 @@ polkit_status() {
 }
 
 switch_on() {
-    echo "nbshell wird eingerichtet:"
+    echo "Enabling nbshell:"
     if [ ! -f "$NIRI_DIR/$TAKEOVER" ]; then
-        echo "  $TAKEOVER fehlt -- erst ./install.sh laufen lassen." >&2
+        echo "  $TAKEOVER is missing -- run ./install.sh first." >&2
         return 1
     fi
     # Reine Migrationshilfe: auf neuen Installationen existiert diese Unit
     # nicht. Ein Altbestand darf dem Notification-Bus nicht im Weg stehen.
     if systemctl --user cat dms.service >/dev/null 2>&1; then
-        systemctl --user stop dms.service 2>/dev/null && echo "  Alt-DMS: gestoppt"
+        systemctl --user stop dms.service 2>/dev/null && echo "  Old DMS: stopped"
         systemctl --user reset-failed dms.service 2>/dev/null || true
-        systemctl --user mask dms.service >/dev/null 2>&1 && echo "  Alt-DMS: dauerhaft maskiert"
+        systemctl --user mask dms.service >/dev/null 2>&1 && echo "  Old DMS: masked"
     fi
     niri_include || true
-    ipc notify server on >/dev/null && echo "  nbshell: Benachrichtigungsserver an"
-    ipc wallpaper on >/dev/null && echo "  nbshell: Hintergrundbild an"
+    ipc notify server on >/dev/null && echo "  nbshell: notification server enabled"
+    ipc wallpaper on >/dev/null && echo "  nbshell: wallpaper enabled"
     ghostty_theme nbcolors
     alacritty_theme nb-theme.toml
     polkit_on
@@ -329,9 +329,9 @@ switch_on() {
 }
 
 switch_off() {
-    echo "nbshell wird deaktiviert:"
-    ipc notify server off >/dev/null && echo "  nbshell: Benachrichtigungsserver aus"
-    ipc wallpaper off >/dev/null && echo "  nbshell: Hintergrundbild aus"
+    echo "Disabling nbshell:"
+    ipc notify server off >/dev/null && echo "  nbshell: notification server disabled"
+    ipc wallpaper off >/dev/null && echo "  nbshell: wallpaper disabled"
     autostart_off
     niri_exclude || true
     systemctl --user stop nbshell.service 2>/dev/null || true
@@ -342,176 +342,155 @@ switch_status() {
         printf 'Alt-DMS          %s\n' "$(systemctl --user is-active dms.service 2>/dev/null; systemctl --user is-enabled dms.service 2>/dev/null | tr '\n' ' ')"
     fi
     printf 'Benachrichtigung %s\n' "$(busctl --user list 2>/dev/null | awk '/^org.freedesktop.Notifications/ {print $2" ("$3")"}')"
-    printf 'niri-Binds       %s\n' "$([ -f "$NIRI_DIR/config.kdl" ] && grep -qF "$INCLUDE_LINE" "$NIRI_DIR/config.kdl" && echo "nbshell" || echo "nicht eingebunden")"
-    printf 'Fensterrahmen    %s\n' "$([ -f "$NIRI_DIR/config.kdl" ] && grep -qF "$COLORS_LINE" "$NIRI_DIR/config.kdl" && echo "nbshell" || echo "nicht eingebunden")"
-    printf 'nbshell-Autostart %s\n' "$([ -f "$UNIT_DROPIN" ] && echo "an ($(systemctl --user is-active nbshell.service))" || echo "aus")"
+    printf 'niri bindings       %s\n' "$([ -f "$NIRI_DIR/config.kdl" ] && grep -qF "$INCLUDE_LINE" "$NIRI_DIR/config.kdl" && echo "nbshell" || echo "not included")"
+    printf 'Window borders    %s\n' "$([ -f "$NIRI_DIR/config.kdl" ] && grep -qF "$COLORS_LINE" "$NIRI_DIR/config.kdl" && echo "nbshell" || echo "not included")"
+    printf 'nbshell autostart %s\n' "$([ -f "$UNIT_DROPIN" ] && echo "an ($(systemctl --user is-active nbshell.service))" || echo "aus")"
     polkit_status
 }
 
 usage() {
     cat <<'USAGE'
-nbshell -- eigene Shell auf Quickshell
+nbshell -- an independent Quickshell desktop shell for niri
 
-  nbshell start [-d]        startet die Shell (-d loest sie vom Terminal)
-  nbshell stop              beendet sie
+  nbshell start [-d]        start the shell (-d runs in the background)
+  nbshell stop              stop the shell
   nbshell restart
 
-  nbshell bar               durchgehender Balken
-  nbshell island            freistehende Insel, klappt zur Uhr zusammen
-  nbshell pill              dieselbe Insel, bleibt aber offen
-  nbshell mode toggle       reihum durch die drei Formen
+  nbshell bar               full-width bar
+  nbshell island            floating island that collapses to the clock
+  nbshell pill              floating island that stays expanded
+  nbshell mode toggle       cycle through all three modes
   nbshell edge top|bottom|toggle
-  nbshell open|close|toggle Insel festhalten (unabhaengig von der Maus)
+  nbshell open|close|toggle hold the island open
 
-  nbshell theme             zeigt das aktuelle Theme
-  nbshell theme <name>      wechselt es
-  nbshell themes            listet die vorhandenen
-  nbshell theme install [--force] <url|verzeichnis>
-                            Omarchy-Theme dazuholen (auch ohne colors.toml:
-                            die Palette wird aus alacritty.toml abgeleitet).
-                            Ist es schon da, passiert nichts -- --force
-                            ersetzt es.
+  nbshell theme             show the active theme
+  nbshell theme <name>      switch theme
+  nbshell themes            list installed themes
+  nbshell theme install [--force] <url|directory>
+                            install an Omarchy theme; --force replaces it
   nbshell theme remove <name>
-  nbshell theme update      selbst installierte Themes aktualisieren
-  nbshell picker            Themewahl aufklappen
-  nbshell next | prev       ein Theme weiter/zurueck
+  nbshell theme update      update themes installed from Git
+  nbshell picker            open the theme picker
+  nbshell next | prev       select the next or previous theme
 
-  nbshell accent            welche Akzentrolle gilt (und die Auswahl)
-  nbshell accent green      Akzent auf eine Farbe DES THEMES legen
-  nbshell accent theme      zurueck zum Vorschlag des Themes
+  nbshell accent            show the active accent role and choices
+  nbshell accent green      use a color from the active theme
+  nbshell accent theme      use the theme's default accent
 
-  nbshell widget                    wer ein eigenes Aussehen hat
+  nbshell widget                    list per-module appearance overrides
   nbshell widget battery display icon
                             full | icon | text | auto
   nbshell widget clock style plain
                             box | bracket | plain | auto
   nbshell widget updates color red
-                            eine Farbe des Themes, auto = wie alle
+                            a theme color; auto follows the global setting
   nbshell widget updates reset
   nbshell widget reset all
 
-  nbshell audio up|down     Lautstaerke (fuer die Multimediatasten)
-  nbshell audio mute        stumm schalten
-  nbshell audio <prozent>   fest einstellen
+  nbshell audio up|down     change volume
+  nbshell audio mute        toggle mute
+  nbshell audio <percent>   set volume
   nbshell audio status
-  nbshell audio panel       Regler und Geraeteliste aufklappen
+  nbshell audio panel       open mixer and device list
 
-  nbshell launcher          Anwendungsstarter (Alias: run)
-  nbshell find <text>       zeigt, was der Starter finden wuerde
+  nbshell launcher          open the application launcher (alias: run)
+  nbshell palette           open the command-only launcher
+  nbshell find <text>       show matching launcher entries
+  nbshell commands [text]   list command-palette entries
+  nbshell command <text>    run the best command match
 
-  nbshell notify            Stand der Benachrichtigungen
-  nbshell notify toggle     Archiv aufklappen
-  nbshell notify dnd        "nicht stoeren" umschalten
+  nbshell notify            show notification status
+  nbshell notify toggle     open the notification center
+  nbshell notify dnd        toggle do not disturb
   nbshell notify clear
   nbshell notify server on|off
-                            uebernimmt org.freedesktop.Notifications von DMS
-                            (dessen Unit muss dann gestoppt sein)
+                            manage org.freedesktop.Notifications ownership
 
-  nbshell modules           Bausteine der Leiste anordnen
-  nbshell settings          Optionsmenue (Rand, Form, Optik, Schalter)
+  nbshell modules           arrange bar modules
+  nbshell settings          open appearance and behavior settings
   nbshell updates           Updates: status, check, list, run
-  nbshell ai                KI-Verbrauch (auch: refresh)
-  nbshell capture           Aufnahme-Menue (screen, window, region, ocr, record)
-  nbshell procs             Prozessliste (auch: top)
-  nbshell menu              Menue (verschachtelt) — Mod+Shift+Space
-  nbshell dashboard         Heute, Medien und Werkzeuge
+  nbshell ai                AI usage (also: refresh)
+  nbshell capture           capture menu (screen, window, region, ocr, record)
+  nbshell procs             process list (also: top)
+  nbshell menu              searchable main menu
+  nbshell dashboard         Today, Media, and Tools
   nbshell bongo             Bongo Cat: status, test, on, off, allow, revoke
-  nbshell clip              Verlauf der Zwischenablage (toggle, list, clear)
-  nbshell cal               Kalender (auch: next, sync, status)
+  nbshell clip              clipboard history (toggle, list, clear)
+  nbshell cal               calendar (also: next, sync, status)
 
-  nbshell todo              Aufgaben auflisten
-  nbshell todo <text>       eintragen (auch: todo add <text>)
-  nbshell todo toggle       die Liste als Fenster (Mod+T)
-  nbshell todo done <nr>    abhaken -- die Nummer aus `nbshell todo`
-  nbshell todo drop <nr>    wegwerfen
-  nbshell todo clear        alle erledigten aufraeumen
-  nbshell todo sync         Konfliktkopien einsammeln und neu lesen
-  nbshell todo status       Zahlen und Ablageort
+  nbshell todo              list tasks
+  nbshell todo <text>       add a task (also: todo add <text>)
+  nbshell todo toggle       open the task window
+  nbshell todo done <n>     mark a task as done
+  nbshell todo drop <n>     delete a task
+  nbshell todo clear        remove completed tasks
+  nbshell todo sync         merge conflict copies and reload
 
-  nbshell habits            Gewohnheiten (nbHabits) auflisten (auch: habits list)
-  nbshell habits toggle <nr> abhaken / toggle
-  nbshell habits done <nr>  als erledigt markieren
-  nbshell habits inc <nr> [x] Zaehler erhoehen (z.B. habits inc 1 1)
-  nbshell habits <text>     neue Gewohnheit eintragen (z.B. habits joggen // workout)
-  nbshell habits open       Vollbildfenster mit 20-Wochen-Heatmap oeffnen
-  nbshell habits sync       Konfliktkopien einsammeln und neu lesen
-  nbshell habits status     Zahlen, Quote und Ablageort
+  nbshell habits            list habits
+  nbshell habits toggle <n> toggle completion
+  nbshell habits done <n>   mark as completed
+  nbshell habits inc <n> [x] increase a counter
+  nbshell habits <text>     add a habit
+  nbshell habits open       open the 20-week heatmap
+  nbshell habits sync       merge conflict copies and reload
 
-  nbshell plugins           Bausteine auflisten (auch: reload)
-  nbshell plugin add <url>  fremdes Bar-Widget aus git holen (laeuft IN der
-                            Shell -- nur, wem du traust)
-  nbshell plugin validate <verzeichnis>
+  nbshell plugins           list modules (also: reload)
+  nbshell plugin add <url>  install a third-party plugin; only use trusted code
+  nbshell plugin validate <directory>
   nbshell plugin enable|disable <id>
   nbshell plugin update [name]
   nbshell plugin remove <name>
-  nbshell popout <name>     Popout eines Bausteins aufklappen
-  nbshell extension toggle <id>  Panel/Overlay eines Plugins schalten
-  nbshell emoji             Emoji-Suche, Auswahl kopiert in die Zwischenablage
-  nbshell hub               System-, Plugin- und Integrationsstatus
-  nbshell battery           Akku und Energieprofil (bat <profil> wechselt)
-  nbshell power             Power-Menue (auch: lock, logout, suspend)
+  nbshell popout <name>     open a module popout
+  nbshell extension toggle <id>  toggle a plugin panel or overlay
+  nbshell emoji             search emoji and copy the selection
+  nbshell hub               system, plugin, and integration status
+  nbshell battery           battery and power profile
+  nbshell power             power menu (also: lock, logout, suspend)
   nbshell media playpause|next|previous|status
   nbshell pip status|apply|size|corner|focus|close
-                          Zens natives Picture-in-Picture steuern
+                            control Zen's native Picture-in-Picture
 
-  nbshell tray              zeigt, was im Tray steckt
-  nbshell tray toggle       Symbole ein- und ausklappen
-  nbshell osd test|on|off   Einblendung beim Regeln
-  nbshell control           Control Center (Helligkeit, WLAN, Bluetooth)
-  nbshell brightness up|down|<prozent>
+  nbshell tray              list system-tray entries
+  nbshell tray toggle       expand or collapse tray icons
+  nbshell osd test|on|off   volume and brightness overlay
+  nbshell control           control center (brightness, Wi-Fi, Bluetooth)
+  nbshell brightness up|down|<percent>
 
-  nbshell wallpaper on|off  Hintergrundbild des Themes
-  nbshell wallpaper pick    Karussell: Bilder des Themes durchblaettern
+  nbshell wallpaper on|off  toggle the theme wallpaper
+  nbshell wallpaper pick    browse theme wallpapers
   nbshell wallpaper list
-  nbshell wallpaper <pfad>  festes Bild statt des Themebildes
+  nbshell wallpaper <path>  use a fixed image
 
-  nbshell get <key>         Wert aus der Config
-  nbshell set <key> <wert>  Wert setzen (JSON erlaubt: 12, true, ["a","b"])
-  nbshell config            zeigt die ganze Config
-  nbshell state             was gerade offen ist
+  nbshell get <key>         read a configuration value
+  nbshell set <key> <value> set a value; JSON is supported
+  nbshell config            show the full configuration
+  nbshell state             show open surfaces
   nbshell status
 
-  nbshell switch on         Autostart, Benachrichtigungen, Hintergrund und
-                            Tastenkuerzel dauerhaft aktivieren
-  nbshell switch off        nbshell-Autostart und Integration deaktivieren
+  nbshell switch on         enable autostart and niri integration
+  nbshell switch off        disable autostart and niri integration
   nbshell switch status
 
-  nbshell launcher          Starter: Anwendungen UND Befehle
-  nbshell palette           derselbe Starter, nur die Befehle
-  nbshell find <text>       was der Starter zu <text> anbietet
-  nbshell befehle [text]    alle Befehle der Palette (Mod+Space, ">")
-  nbshell befehl <text>     den besten Treffer ausfuehren
+  nbshell nearby scan       find nearby LocalSend devices
+  nbshell nearby            list discovered devices
+  nbshell nearby send <file> [alias]
 
-  nbshell nearby scan       Geraete in der Naehe suchen (LocalSend)
-  nbshell nearby            gefundene Geraete auflisten
-  nbshell nearby send <datei> [alias]
+  nbshell keys              show all key bindings
+  nbshell keys list         print key bindings in the terminal
+  nbshell audio-restore     move audio back to Bluetooth headphones
+  nbshell codec             show the active Bluetooth codec
+  nbshell codec best        switch to the best available codec
+  nbshell qr                show Wi-Fi as a QR code
+  nbshell speed             run a network speed test
+  nbshell awake             toggle keep-awake mode
+  nbshell idle on|off       manage idle automation
+  nbshell saver             start the screen saver
+  nbshell cursor [theme] [size]
+  nbshell text [8..28]      show or change UI text size
+  nbshell polkit [on]       check or start a Polkit agent
 
-  nbshell media             aktiven Browser-/App-Player steuern
-
-  nbshell keys              alle Tastenkuerzel (Fenster, Mod+K)
-  nbshell keys liste        dieselben Kuerzel im Terminal
-
-  nbshell ton               Ton zurueck auf die Bluetooth-Hoerer
-  nbshell codec             welcher Bluetooth-Codec laeuft
-  nbshell codec beste       auf den besten verfuegbaren wechseln
-  nbshell qr                WLAN als QR-Code (Fenster, Esc schliesst)
-  nbshell speed             Durchsatz messen (Fenster, Leertaste wiederholt)
-
-  nbshell wach              Rechner wachhalten (aus/an, ohne Argument: um)
-  nbshell idle              Stand der Leerlauf-Automatik
-  nbshell idle on|off       Automatik ein- oder ausschalten
-  nbshell saver             Bildschirmschoner jetzt starten
-
-  nbshell cursor            Zeigerthema und -groesse, und was installiert ist
-  nbshell cursor Adwaita 28 beides setzen (Groesse ist freiwillig)
-
-  nbshell text              welche Schriftgroessen gerade gelten
-  nbshell text <8..28>      Shell, GTK und Terminal zusammen umstellen
-
-  nbshell polkit            laeuft ein Agent fuer Rechteabfragen?
-  nbshell polkit on         einen vorhandenen einschalten
-
-Alles andere geht unveraendert an Quickshell:
+Legacy German aliases remain available for existing configurations.
+All other arguments are passed directly to Quickshell:
   nbshell log, nbshell ipc show, ...
 USAGE
 }
@@ -586,7 +565,7 @@ case "$cmd" in
         case "${1:-list}" in
             ""|list)  ipc widget list ;;
             reset)    shift; ipc widget reset "${1:-all}" ;;
-            *)        ipc widget set "${1:?Baustein fehlt}" "${2:?Merkmal fehlt (display|style|color)}" "${3:?Wert fehlt}" ;;
+            *)        ipc widget set "${1:?module is required}" "${2:?property is required (display|style|color)}" "${3:?value is required}" ;;
         esac
         ;;
     audio)
@@ -602,13 +581,13 @@ case "$cmd" in
         ipc launcher palette
         ;;
     find)
-        ipc launcher find "${1:?Suchbegriff fehlt}"
+        ipc launcher find "${1:?search text is required}"
         ;;
     befehle|commands)
         ipc launcher commands "${1:-}"
         ;;
-    befehl)
-        ipc launcher exec "${1:?Name fehlt}"
+    befehl|command)
+        ipc launcher exec "${1:?Command name is required}"
         ;;
     switch)
         case "${1:-status}" in
@@ -632,7 +611,7 @@ case "$cmd" in
             scan)   ipc nearby scan ;;
             list|"") ipc nearby list ;;
             send)   shift
-                    datei="$(realpath -e "${1:?Datei fehlt}")" || exit 1
+                    datei="$(realpath -e "${1:?file is required}")" || exit 1
                     if [ -n "${2:-}" ]; then ipc nearby sendTo "$datei" "$2"; else ipc nearby send "$datei"; fi ;;
             *)      ipc nearby status ;;
         esac
@@ -657,8 +636,8 @@ if not d.get("ok"):
     sys.exit(d.get("grund", "unbekannt"))
 # Nach Gruppen sortiert wie im Fenster, nicht in der Reihenfolge der
 # Konfiguration -- sonst steht dieselbe Ueberschrift viermal da.
-ordnung = ["Programme", "Fenster", "Arbeitsflaechen", "Bildschirme",
-           "Ton und Licht", "Aufnahme", "Sitzung", "Sonstiges"]
+ordnung = ["Applications", "Windows", "Workspaces", "Displays",
+           "Audio and display", "Capture", "Session", "Other"]
 d["binds"].sort(key=lambda b: ordnung.index(b["gruppe"]) if b["gruppe"] in ordnung else len(ordnung))
 gruppe = None
 for b in d["binds"]:
@@ -679,11 +658,11 @@ for b in d["binds"]:
             *) ipc music open ;;
         esac
         ;;
-    ton|audio)
+    ton|audio-restore)
         case "${1:-zurueck}" in
             panel|toggle) ipc audio panel ;;
             up|down|mute|micmute|status) ipc audio "$1" ;;
-            set) ipc audio set "${2:?Prozent fehlt}" ;;
+            set) ipc audio set "${2:?percent is required}" ;;
             ''|*[!0-9]*) ipc audio zurueck ;;
             *) ipc audio set "$1" ;;
         esac
@@ -694,7 +673,7 @@ for b in d["binds"]:
     speed|speedtest)
         ipc net speed
         ;;
-    wach|caffeine|koffein)
+    wach|awake|caffeine|koffein)
         ipc idle caffeine "${1:-toggle}"
         ;;
     idle|leerlauf)
@@ -755,7 +734,7 @@ for b in d["binds"]:
             revoke|entziehen) ipc bongo revokeInput ;;
             test) ipc bongo test ;;
             toggle) ipc bongo toggle ;;
-            resize) ipc bongo resize "${2:?Breite in Pixel fehlt}" ;;
+            resize) ipc bongo resize "${2:?width in pixels is required}" ;;
             *) ipc bongo status ;;
         esac
         ;;
@@ -777,10 +756,10 @@ for b in d["binds"]:
         esac
         ;;
     popout)
-        ipc popout toggle "${1:?Name fehlt}"
+        ipc popout toggle "${1:?name is required}"
         ;;
     extension)
-        ipc plugin "${1:-toggle}" "${2:?Plugin-ID fehlt}"
+        ipc plugin "${1:-toggle}" "${2:?plugin ID is required}"
         ;;
     emoji|emojis)
         ipc emoji "${1:-toggle}"
@@ -798,11 +777,11 @@ for b in d["binds"]:
             sync)        ipc todo sync ;;
             clear)       ipc todo clear ;;
             status)      ipc todo status ;;
-            done)        ipc todo done "${2:?Nummer fehlt}" ;;
-            drop|rm)     ipc todo drop "${2:?Nummer fehlt}" ;;
+            done)        ipc todo done "${2:?number is required}" ;;
+            drop|rm)     ipc todo drop "${2:?number is required}" ;;
             add)
                 shift
-                [ $# -gt 0 ] || { echo "Text fehlt" >&2; exit 2; }
+                [ $# -gt 0 ] || { echo "text is required" >&2; exit 2; }
                 # Alle Wörter als EIN Eintrag: `nbshell todo add Milch kaufen`
                 # soll nicht zwei Aufgaben anlegen.
                 text="$*"
@@ -834,12 +813,12 @@ for b in d["binds"]:
             list|"")     ipc habits list ;;
             sync)        ipc habits sync ;;
             status)      ipc habits status ;;
-            done)        ipc habits done "${2:?Nummer fehlt}" ;;
-            inc)         ipc habits inc "${2:?Nummer fehlt}" "${3:-1}" ;;
-            drop|rm)     ipc habits drop "${2:?Nummer fehlt}" ;;
+            done)        ipc habits done "${2:?number is required}" ;;
+            inc)         ipc habits inc "${2:?number is required}" "${3:-1}" ;;
+            drop|rm)     ipc habits drop "${2:?number is required}" ;;
             add)
                 shift
-                [ $# -gt 0 ] || { echo "Text fehlt (z.B. joggen // workout)" >&2; exit 2; }
+                [ $# -gt 0 ] || { echo "text is required (z.B. joggen // workout)" >&2; exit 2; }
                 text="$*"
                 text="${text//%/%25}"
                 text="${text//,/%2C}"
@@ -899,7 +878,7 @@ for b in d["binds"]:
     brightness)
         case "${1:-}" in
             up|down) ipc brightness "$1" ;;
-            *) ipc brightness set "${1:?Prozent fehlt}" ;;
+            *) ipc brightness set "${1:?percent is required}" ;;
         esac
         ;;
     wallpaper)
@@ -912,7 +891,7 @@ for b in d["binds"]:
         ipc themes "$cmd"
         ;;
     get)
-        ipc config get "${1:?Schluessel fehlt}"
+        ipc config get "${1:?key is required}"
         ;;
     set)
         # Quickshells IPC-Aufrufer liest eckige Klammern als ARGUMENTLISTE und
@@ -921,8 +900,8 @@ for b in d["binds"]:
         # provided". Steuerzeichen helfen nicht -- 0x1F ist sein eigenes
         # Trennzeichen. Also gehen die vier Zeichen prozentkodiert ueber die
         # Leitung; shell.qml dreht das zurueck.
-        key="${1:?Schluessel fehlt}"
-        value="${2:?Wert fehlt}"
+        key="${1:?key is required}"
+        value="${2:?value is required}"
         value="${value//%/%25}"
         value="${value//,/%2C}"
         value="${value//;/%3B}"

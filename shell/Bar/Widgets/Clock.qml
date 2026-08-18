@@ -25,7 +25,7 @@ Cell {
     // Ueber die Locale formatiert, nicht ueber Qt.formatDateTime: das nimmt
     // die C-Locale und schreibt "Sat" statt "Sa".
     text: {
-        let out = clock.date.toLocaleString(Qt.locale(Config.value("locale", "de_DE")), root.format);
+        let out = clock.date.toLocaleString(Qt.locale(Config.value("locale", "en_US")), root.format);
         if (out.indexOf("%W") >= 0)
             out = out.replace("%W", Calendar.isoWeek(clock.date));
         if (out.indexOf("%M") >= 0)

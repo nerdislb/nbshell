@@ -79,7 +79,7 @@ Singleton {
             if (String(f.jid || "") === currentJid && f.message)
                 messages = messages.concat([f.message]);
             break;
-        case "error": error = f.message || "Unbekannter Fehler"; break;
+        case "error": error = f.message || "Unknown error"; break;
         }
     }
 

@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # Habit Tracker (nbHabits / init.Habits) -- Dateisystem- und Terminal-Werkzeug.
 #
-#   habits.sh merge  <datei>   Syncthing-Konfliktkopien zusammenfuehren
-#   habits.sh show   <datei>   Heutige Gewohnheiten im Terminal anzeigen
-#   habits.sh matrix <datei>   20-Wochen GitHub-Style Heatmap im Terminal
-#   habits.sh status <datei>   Statuszusammenfassung (JSON)
+#   habits.sh merge  <file>   Syncthing-Konfliktkopien zusammenfuehren
+#   habits.sh show   <file>   Heutige Gewohnheiten im Terminal anzeigen
+#   habits.sh matrix <file>   20-Wochen GitHub-Style Heatmap im Terminal
+#   habits.sh status <file>   Statuszusammenfassung (JSON)
 #
 set -uo pipefail
 
 cmd="${1:-}"
 file="${2:-}"
 
-[ -n "$file" ] || { echo "Datei fehlt" >&2; exit 2; }
+[ -n "$file" ] || { echo "file is required" >&2; exit 2; }
 
 dir="$(dirname "$file")"
 base="$(basename "$file")"
@@ -69,7 +69,7 @@ case "$cmd" in
         ;;
 
     show)
-        [ -f "$file" ] || { echo "Keine Gewohnheiten-Datei unter $file"; exit 0; }
+        [ -f "$file" ] || { echo "No habits file at $file"; exit 0; }
         command -v jq >/dev/null 2>&1 || { cat "$file"; exit 0; }
 
         jq -r --arg today "$today" '
@@ -142,7 +142,7 @@ case "$cmd" in
         ;;
 
     status)
-        [ -f "$file" ] || { echo '{"error":"Datei fehlt"}'; exit 0; }
+        [ -f "$file" ] || { echo '{"error":"file is required"}'; exit 0; }
         command -v jq >/dev/null 2>&1 || { cat "$file"; exit 0; }
         jq -r --arg today "$today" '
             .habits as $all |
@@ -166,7 +166,7 @@ case "$cmd" in
         ;;
 
     *)
-        echo "habits.sh merge|show|matrix|status <datei>" >&2
+        echo "habits.sh merge|show|matrix|status <file>" >&2
         exit 2
         ;;
 esac

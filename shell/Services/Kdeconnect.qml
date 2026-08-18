@@ -158,7 +158,7 @@ Singleton {
         root._run(["kdeconnect-cli", "-d", String(id), "--ring"], "Klingeln gesendet");
     }
     function sendClipboard(id) {
-        root._run(["kdeconnect-cli", "-d", String(id), "--send-clipboard"], "Zwischenablage gesendet");
+        root._run(["kdeconnect-cli", "-d", String(id), "--send-clipboard"], "Clipboard sent");
     }
     function ping(id, text) {
         const t = String(text || "").trim();
@@ -197,7 +197,7 @@ Singleton {
                 const path = String(text || "").trim();
                 if (path === "" || path.indexOf("ERR:") === 0 || root._shareTargetId === "")
                     return;
-                root._run(["kdeconnect-cli", "-d", root._shareTargetId, "--share", path], "Datei gesendet");
+                root._run(["kdeconnect-cli", "-d", root._shareTargetId, "--share", path], "File sent");
             }
         }
     }

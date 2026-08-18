@@ -142,8 +142,8 @@ PanelWindow {
                     if (Wallpapers.loading)
                         return "HINTERGRUND  ·  suche …";
                     if (root.list.length === 0)
-                        return "HINTERGRUND  ·  keine Bilder fuer " + Config.theme;
-                    return "HINTERGRUND  ·  " + Config.theme + "  ·  " + (root.selected + 1) + "/" + root.list.length + "  ·  " + Wallpapers.nameOf(root.list[root.selected] ?? "");
+                        return "WALLPAPER  ·  no images for " + Config.theme;
+                    return "WALLPAPER  ·  " + Config.theme + "  ·  " + (root.selected + 1) + "/" + root.list.length + "  ·  " + Wallpapers.nameOf(root.list[root.selected] ?? "");
                 }
                 color: Theme.fgDim
             }
@@ -246,7 +246,7 @@ PanelWindow {
                 anchors.bottom: parent.bottom
                 anchors.right: parent.right
                 anchors.margins: Theme.cellW
-                text: "←→ blaettern · Enter uebernehmen · r Themebild · Esc zurueck"
+                text: "←→ browse · Enter apply · r theme image · Esc back"
                 color: Theme.muted
             }
         }

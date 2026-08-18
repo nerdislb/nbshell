@@ -20,7 +20,7 @@ make_fixture() {
 must_reject() {
     local name="$1"
     if bash "$TOOL" validate "$WORK/$name" >/dev/null 2>&1; then
-        echo "FEHLER: unsicheres Manifest akzeptiert: $name" >&2
+        echo "ERROR: unsafe manifest accepted: $name" >&2
         exit 1
     fi
 }
@@ -35,4 +35,4 @@ must_reject absolute
 must_reject wrong_schema
 must_reject missing_kind
 
-echo "Plugin-Validierung: OK"
+echo "Plugin validation: OK"

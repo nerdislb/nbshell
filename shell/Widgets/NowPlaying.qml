@@ -23,7 +23,7 @@ Column {
     PanelHead {
         rowWidth: panel.rowWidth
         icon: MediaService.playing ? Icons.play : Icons.pause
-        title: MediaService.title || "nichts"
+        title: MediaService.title || "nothing"
         subtitle: MediaService.artist
         badge: MediaService.zeit(MediaService.position)
     }
@@ -87,7 +87,7 @@ Column {
             anchors.verticalCenter: parent.verticalCenter
 
             width: Theme.cellW * 6
-            text: "Ton"
+            text: "Volume"
             color: Theme.muted
         }
 

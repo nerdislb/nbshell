@@ -8,7 +8,7 @@ import qs.Common
 
 // Was passiert, wenn niemand mehr etwas tut.
 //
-// Bis hierher passierte: nichts. Der Bildschirm blieb an, gesperrt wurde nie --
+// Bis hierher passierte: nichts. Der Bildschirm blieb an, locked wurde nie --
 // auf einem Geraet, das in eine Tasche wandert, ist das die groesste Luecke,
 // die der Blick in Omarchys Plugin-Katalog zutage gefoerdert hat.
 //
@@ -82,18 +82,18 @@ Singleton {
 
     readonly property string state: {
         if (!root.enabled)
-            return "aus";
+            return "off";
         if (root.caffeine)
             return "wach";
         if (saver.running)
-            return "Schoner";
+            return "screen saver";
         if (lockMonitor.isIdle)
-            return "gesperrt";
+            return "locked";
         if (offMonitor.isIdle)
-            return "Bildschirm aus";
+            return "Screen off";
         if (dimMonitor.isIdle)
-            return "gedimmt";
-        return "wartet";
+            return "dimmed";
+        return "waiting";
     }
 
     // ── Dimmen ───────────────────────────────────────────────────────────

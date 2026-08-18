@@ -44,7 +44,7 @@ Cell {
                 Line {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "ZWISCHENABLAGE  (" + (Clipboard.entries.length + Clipboard.images.length) + ")"
+                    text: "CLIPBOARD  (" + (Clipboard.entries.length + Clipboard.images.length) + ")"
                     color: Theme.fgDim
                 }
 
@@ -52,7 +52,7 @@ Cell {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     visible: Clipboard.entries.length + Clipboard.images.length > 0
-                    text: "Leeren"
+                    text: "Clear"
                     tone: "danger"
                     compact: true
                     onTriggered: Clipboard.clear()
@@ -61,7 +61,7 @@ Cell {
 
             Line {
                 visible: Clipboard.entries.length === 0 && Clipboard.images.length === 0
-                text: "noch nichts kopiert"
+                text: "nothing copied yet"
                 color: Theme.muted
             }
 

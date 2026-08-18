@@ -33,86 +33,86 @@ KONFIG = os.path.expanduser(
 # Was die Aktionen bedeuten. Nur die, die niri wirklich hat -- ein Eintrag, den
 # niemand benutzt, kostet nichts, ein falscher kostet Vertrauen.
 AKTIONEN = {
-    "close-window": "Fenster schliessen",
-    "fullscreen-window": "Vollbild",
-    "toggle-windowed-fullscreen": "Vollbild im Fenster",
-    "maximize-column": "Spalte gross/klein",
-    "center-column": "Spalte mittig",
-    "center-visible-columns": "sichtbare Spalten mittig",
-    "consume-or-expel-window-left": "Fenster in die Spalte links",
-    "consume-or-expel-window-right": "Fenster in die Spalte rechts",
-    "consume-window-into-column": "Fenster in die Spalte holen",
-    "expel-window-from-column": "Fenster aus der Spalte loesen",
-    "switch-preset-column-width": "Spaltenbreite durchschalten",
-    "switch-preset-window-height": "Fensterhoehe durchschalten",
-    "reset-window-height": "Fensterhoehe zuruecksetzen",
-    "toggle-window-floating": "schwebend/verankert",
-    "switch-focus-between-floating-and-tiling": "zwischen schwebend und verankert",
-    "toggle-column-tabbed-display": "Spalte als Reiter",
-    "toggle-overview": "Uebersicht",
-    "focus-column-left": "eine Spalte nach links",
-    "focus-column-right": "eine Spalte nach rechts",
-    "focus-column-first": "zur ersten Spalte",
-    "focus-column-last": "zur letzten Spalte",
-    "focus-window-up": "ein Fenster nach oben",
-    "focus-window-down": "ein Fenster nach unten",
-    "focus-window-or-workspace-up": "Fenster oder Flaeche nach oben",
-    "focus-window-or-workspace-down": "Fenster oder Flaeche nach unten",
-    "move-column-left": "Spalte nach links schieben",
-    "move-column-right": "Spalte nach rechts schieben",
-    "move-column-to-first": "Spalte ganz nach vorn",
-    "move-column-to-last": "Spalte ganz nach hinten",
-    "move-window-up": "Fenster nach oben schieben",
-    "move-window-down": "Fenster nach unten schieben",
-    "move-window-up-or-to-workspace-up": "Fenster nach oben oder eine Flaeche hoch",
-    "move-window-down-or-to-workspace-down": "Fenster nach unten oder eine Flaeche runter",
-    "focus-workspace-up": "eine Arbeitsflaeche hoch",
-    "focus-workspace-down": "eine Arbeitsflaeche runter",
-    "focus-workspace-previous": "zurueck zur letzten Flaeche",
-    "move-column-to-workspace-up": "Spalte eine Flaeche hoch",
-    "move-column-to-workspace-down": "Spalte eine Flaeche runter",
-    "move-workspace-up": "Arbeitsflaeche hoch",
-    "move-workspace-down": "Arbeitsflaeche runter",
-    "focus-monitor-left": "Bildschirm links",
-    "focus-monitor-right": "Bildschirm rechts",
-    "focus-monitor-up": "Bildschirm oben",
-    "focus-monitor-down": "Bildschirm unten",
-    "move-column-to-monitor-left": "Spalte auf den Bildschirm links",
-    "move-column-to-monitor-right": "Spalte auf den Bildschirm rechts",
-    "move-column-to-monitor-up": "Spalte auf den Bildschirm oben",
-    "move-column-to-monitor-down": "Spalte auf den Bildschirm unten",
-    "expand-column-to-available-width": "Spalte auf die freie Breite ziehen",
-    "screenshot": "Ausschnitt aufnehmen",
-    "screenshot-screen": "Bildschirm aufnehmen",
-    "screenshot-window": "Fenster aufnehmen",
-    "quit": "niri beenden",
-    "power-off-monitors": "Bildschirme aus",
-    "suspend": "Bereitschaft",
-    "toggle-keyboard-shortcuts-inhibit": "Tastenkuerzel an das Fenster abgeben",
-    "show-hotkey-overlay": "niris eigene Tastenuebersicht",
-    "next-window": "naechstes Fenster",
-    "previous-window": "vorheriges Fenster",
-    "set-dynamic-cast-window": "Fenster fuer die Uebertragung",
-    "set-dynamic-cast-monitor": "Bildschirm fuer die Uebertragung",
-    "clear-dynamic-cast-target": "Uebertragung loesen",
+    "close-window": "close window",
+    "fullscreen-window": "fullscreen",
+    "toggle-windowed-fullscreen": "windowed fullscreen",
+    "maximize-column": "maximize/restore column",
+    "center-column": "center column",
+    "center-visible-columns": "center visible columns",
+    "consume-or-expel-window-left": "move window into/out of left column",
+    "consume-or-expel-window-right": "move window into/out of right column",
+    "consume-window-into-column": "move window into column",
+    "expel-window-from-column": "move window out of column",
+    "switch-preset-column-width": "cycle column width",
+    "switch-preset-window-height": "cycle window height",
+    "reset-window-height": "reset window height",
+    "toggle-window-floating": "toggle floating",
+    "switch-focus-between-floating-and-tiling": "switch floating/tiling focus",
+    "toggle-column-tabbed-display": "toggle tabbed column",
+    "toggle-overview": "overview",
+    "focus-column-left": "focus column left",
+    "focus-column-right": "focus column right",
+    "focus-column-first": "focus first column",
+    "focus-column-last": "focus last column",
+    "focus-window-up": "focus window above",
+    "focus-window-down": "focus window below",
+    "focus-window-or-workspace-up": "focus window or workspace above",
+    "focus-window-or-workspace-down": "focus window or workspace below",
+    "move-column-left": "move column left",
+    "move-column-right": "move column right",
+    "move-column-to-first": "move column to start",
+    "move-column-to-last": "move column to end",
+    "move-window-up": "move window up",
+    "move-window-down": "move window down",
+    "move-window-up-or-to-workspace-up": "move window or workspace up",
+    "move-window-down-or-to-workspace-down": "move window or workspace down",
+    "focus-workspace-up": "workspace up",
+    "focus-workspace-down": "workspace down",
+    "focus-workspace-previous": "previous workspace",
+    "move-column-to-workspace-up": "move column one workspace up",
+    "move-column-to-workspace-down": "move column one workspace down",
+    "move-workspace-up": "move workspace up",
+    "move-workspace-down": "move workspace down",
+    "focus-monitor-left": "focus display left",
+    "focus-monitor-right": "focus display right",
+    "focus-monitor-up": "focus display above",
+    "focus-monitor-down": "focus display below",
+    "move-column-to-monitor-left": "move column to display left",
+    "move-column-to-monitor-right": "move column to display right",
+    "move-column-to-monitor-up": "move column to display above",
+    "move-column-to-monitor-down": "move column to display below",
+    "expand-column-to-available-width": "expand column to available width",
+    "screenshot": "capture region",
+    "screenshot-screen": "capture screen",
+    "screenshot-window": "capture window",
+    "quit": "quit niri",
+    "power-off-monitors": "turn displays off",
+    "suspend": "suspend",
+    "toggle-keyboard-shortcuts-inhibit": "pass shortcuts to the window",
+    "show-hotkey-overlay": "show niri key bindings",
+    "next-window": "next window",
+    "previous-window": "previous window",
+    "set-dynamic-cast-window": "select window for casting",
+    "set-dynamic-cast-monitor": "select display for casting",
+    "clear-dynamic-cast-target": "clear casting target",
 }
 
 # Womit die Zeile anfaengt, sagt die Gruppe. Die Reihenfolge ist die der
 # Pruefung: die erste passende gewinnt.
 GRUPPEN = [
-    ("spawn", "Programme"),
-    ("screenshot", "Aufnahme"),
-    ("workspace", "Arbeitsflaechen"),
-    ("focus-workspace", "Arbeitsflaechen"),
-    ("move-workspace", "Arbeitsflaechen"),
-    ("move-column-to-workspace", "Arbeitsflaechen"),
-    ("monitor", "Bildschirme"),
-    ("column", "Fenster"),
-    ("window", "Fenster"),
-    ("overview", "Fenster"),
-    ("quit", "Sitzung"),
-    ("suspend", "Sitzung"),
-    ("power-off", "Sitzung"),
+    ("spawn", "Applications"),
+    ("screenshot", "Capture"),
+    ("workspace", "Workspaces"),
+    ("focus-workspace", "Workspaces"),
+    ("move-workspace", "Workspaces"),
+    ("move-column-to-workspace", "Workspaces"),
+    ("monitor", "Displays"),
+    ("column", "Windows"),
+    ("window", "Windows"),
+    ("overview", "Windows"),
+    ("quit", "Session"),
+    ("suspend", "Session"),
+    ("power-off", "Session"),
 ]
 
 
@@ -241,8 +241,8 @@ def beschreibung(props, aktion):
     mass = re.match(r'^(set-column-width|set-window-height)\s+"?([+-]?\d+%?)"?$', aktion)
     if mass:
         richtung = mass.group(2).startswith("-")
-        was = "Spalte" if mass.group(1) == "set-column-width" else "Fenster"
-        return was + (" schmaler " if richtung and was == "Spalte" else " niedriger " if richtung else " breiter " if was == "Spalte" else " hoeher ") + mass.group(2).lstrip("+-")
+        was = "column" if mass.group(1) == "set-column-width" else "window"
+        return was + (" narrower " if richtung and was == "column" else " lower " if richtung else " wider " if was == "column" else " higher ") + mass.group(2).lstrip("+-")
 
     if kopf in AKTIONEN:
         rest = aktion[len(kopf):].strip()
@@ -253,10 +253,10 @@ def beschreibung(props, aktion):
         return AKTIONEN[kopf]
     if kopf.startswith("focus-workspace"):
         rest = aktion[len(kopf):].strip().strip('"')
-        return "zur Arbeitsflaeche " + rest if rest else "Arbeitsflaeche wechseln"
+        return "focus workspace " + rest if rest else "switch workspace"
     if kopf.startswith("move-column-to-workspace"):
         rest = aktion[len(kopf):].strip().strip('"')
-        return "Spalte auf Arbeitsflaeche " + rest if rest else "Spalte verschieben"
+        return "move column to workspace " + rest if rest else "move column"
     return aktion or "?"
 
 
@@ -266,12 +266,12 @@ def gruppe(taste, aktion):
     # "Programme" und standen zwischen Browser und Terminal -- gesucht werden
     # sie aber beim Ton.
     if "XF86Audio" in taste or "XF86MonBrightness" in taste or "XF86Kbd" in taste:
-        return "Ton und Licht"
+        return "Audio and display"
     a = aktion.strip()
     for stueck, name in GRUPPEN:
         if stueck in a:
             return name
-    return "Sonstiges"
+    return "Other"
 
 
 def taste_lesbar(taste):

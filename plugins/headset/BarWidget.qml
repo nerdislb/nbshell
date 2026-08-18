@@ -21,7 +21,7 @@ Cell {
 
     readonly property bool ready: data.ok === true
     readonly property int level: ready ? (data.level ?? 0) : 0
-    readonly property bool charging: ready && data.laedt === true
+    readonly property bool charging: ready && data.charging === true
 
     shown: root.ready
     label: "HEADSET"
@@ -88,7 +88,7 @@ Cell {
 
             Text {
                 width: panel.rowWidth
-                text: root.ready ? (root.level + " %" + (root.charging ? "   laedt" : "")) : "kein Geraet"
+                text: root.ready ? (root.level + " %" + (root.charging ? "   charging" : "")) : "no device"
                 color: Theme.fg
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize

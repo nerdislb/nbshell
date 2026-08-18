@@ -232,7 +232,7 @@ PanelWindow {
                 Line {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: input.text === ""
-                    text: "Anwendung oder Befehl suchen  (> nur Befehle, ! nur Anwendungen)"
+                    text: "Search applications or commands  (> commands only, ! applications only)"
                     color: Theme.muted
                 }
             }
@@ -363,7 +363,7 @@ PanelWindow {
                     anchors.right: parent.right
                     anchors.rightMargin: Theme.cellW / 2
                     anchors.verticalCenter: parent.verticalCenter
-                    text: row.modelData.kind === "cmd" ? (row.modelData.category || "BEFEHL").toUpperCase() : (row.modelData.runInTerminal ? "TUI" : "APP")
+                    text: row.modelData.kind === "cmd" ? (row.modelData.category || "COMMAND").toUpperCase() : (row.modelData.runInTerminal ? "TUI" : "APP")
                     color: row.modelData.kind === "cmd" ? Theme.fgDim : Theme.muted
                 }
 
@@ -387,12 +387,12 @@ PanelWindow {
             verticalAlignment: Text.AlignVCenter
             text: {
                 if (root.pending)
-                    return "\"" + root.pending.name + "\" -- nochmal Enter bestaetigt, Esc bricht ab";
+                    return "\"" + root.pending.name + "\" -- press Enter again to confirm, Esc cancels";
                 if (root.results.length > 0)
-                    return "↑↓ waehlen · Enter starten · Esc schliessen";
+                    return "↑↓ select · Enter launch · Esc close";
                 if (input.text === "")
-                    return "nichts gefunden";
-                return "Enter fuehrt \"" + root.query + "\" als Befehl aus";
+                    return "nothing found";
+                return "Enter runs \"" + root.query + "\" as a command";
             }
             color: root.pending ? Theme.red : Theme.muted
         }

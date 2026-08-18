@@ -102,10 +102,10 @@ cmd_sync() {
 			echo "abgeglichen"
 			return 0
 		}
-		echo "vdirsyncer meldet einen Fehler" >&2
+		echo "vdirsyncer reported an error" >&2
 		return 1
 	fi
-	echo "vdirsyncer nicht installiert" >&2
+	echo "vdirsyncer is not installed" >&2
 	return 1
 }
 
@@ -115,7 +115,7 @@ cmd_status() {
 	have vdirsyncer && vdir_ok=true
 	timer="$(systemctl --user is-active vdirsyncer.timer 2>/dev/null)"
 	printf '{"khal":%s,"vdirsyncer":%s,"timer":"%s","kalender":%s}\n' \
-		"$khal_ok" "$vdir_ok" "${timer:-unbekannt}" \
+		"$khal_ok" "$vdir_ok" "${timer:-unknown}" \
 		"$(cmd_calendars | wc -l)"
 }
 

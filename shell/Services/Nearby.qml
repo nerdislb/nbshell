@@ -119,7 +119,7 @@ Singleton {
             onStreamFinished: {
                 const pfad = String(text).trim();
                 if (pfad === "") {
-                    root.status = "kein Bild in " + root.shotDir;
+                    root.status = "no image in " + root.shotDir;
                     quittung.restart();
                     return;
                 }
@@ -181,7 +181,7 @@ Singleton {
                 root.sending = false;
                 try {
                     const d = JSON.parse(text);
-                    root.status = d.ok ? ("gesendet: " + (d.gesendet ?? []).join(", ")) : ("ging nicht: " + d.grund);
+                    root.status = d.ok ? ("gesendet: " + (d.gesendet ?? []).join(", ")) : ("failed: " + d.grund);
                 } catch (e) {
                     root.status = "Antwort unlesbar";
                 }

@@ -3,7 +3,7 @@ import qs.Common
 import qs.Services
 import qs.Widgets
 
-// Lautstaerke. Mausrad regelt, Rechtsklick schaltet stumm, Klick klappt die
+// Lautstaerke. Mausrad regelt, Rechtsklick schaltet muted, Klick klappt die
 // Regler und die Geraeteliste auf.
 Cell {
     id: root
@@ -95,7 +95,7 @@ Cell {
                     // klebte am vollen Balken.
                     width: Theme.cellW * 9
                     horizontalAlignment: Text.AlignRight
-                    text: Audio.muted ? "stumm" : (Audio.volume + "%")
+                    text: Audio.muted ? "muted" : (Audio.volume + "%")
                     color: Audio.muted ? Theme.red : Theme.text
                 }
             }
@@ -116,7 +116,7 @@ Cell {
                 Line {
                     width: Theme.cellW * 9
                     horizontalAlignment: Text.AlignRight
-                    text: Audio.micMuted ? "stumm" : ("MIC " + Audio.micVolume + "%")
+                    text: Audio.micMuted ? "muted" : ("MIC " + Audio.micVolume + "%")
                     color: Audio.micMuted ? Theme.red : Theme.fgDim
 
                     MouseArea {
@@ -131,7 +131,7 @@ Cell {
 
             Line {
                 visible: Audio.appStreams.length > 0
-                text: "ANWENDUNGEN"
+                text: "APPLICATIONS"
                 color: Theme.fgDim
             }
 
@@ -172,7 +172,7 @@ Cell {
                         Line {
                             width: Theme.cellW * 9
                             horizontalAlignment: Text.AlignRight
-                            text: appRow.modelData.audio.muted ? "stumm" : (Audio.streamVolume(appRow.modelData) + "%")
+                            text: appRow.modelData.audio.muted ? "muted" : (Audio.streamVolume(appRow.modelData) + "%")
                             color: appRow.modelData.audio.muted ? Theme.red : Theme.fgDim
 
                             TapHandler {
@@ -185,7 +185,7 @@ Cell {
 
             Line {
                 visible: Audio.routes.length > 0 && Audio.routeSinks.length > 1
-                text: "AUSGABEROUTEN  —  Klick wechselt Geraet"
+                text: "OUTPUT ROUTES  —  click to switch device"
                 color: Theme.fgDim
             }
 
@@ -224,7 +224,7 @@ Cell {
             // Folge -- also hier auch keine Knoepfe, sondern eine Auskunft.
             Line {
                 visible: Audio.btDa && Audio.btTelefonie
-                text: "  Telefonie (" + Audio.btCodec + ") — schmalbandig, mit Mikrofon"
+                text: "  Telephony (" + Audio.btCodec + ") — narrowband, with microphone"
                 color: Theme.yellow
             }
 
@@ -290,7 +290,7 @@ Cell {
             // ── Geraete ───────────────────────────────────────────────────
 
             Line {
-                text: "AUSGABE"
+                text: "OUTPUT"
                 color: Theme.fgDim
             }
 

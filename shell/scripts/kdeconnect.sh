@@ -83,11 +83,11 @@ discover() {
 pick_file() {
     # Portabler Dateidialog: zenity, sonst kdialog. Gibt genau den Pfad aus.
     if command -v zenity >/dev/null 2>&1; then
-        zenity --file-selection --title="Datei an das Handy senden" 2>/dev/null
+        zenity --file-selection --title="Send a file to the phone" 2>/dev/null
     elif command -v kdialog >/dev/null 2>&1; then
         kdialog --getopenfilename "$HOME" 2>/dev/null
     else
-        echo "ERR: kein Dateidialog (zenity oder kdialog installieren)" >&2
+        echo "ERR: no file dialog (install zenity or kdialog)" >&2
         exit 127
     fi
 }

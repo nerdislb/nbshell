@@ -141,7 +141,7 @@ PanelWindow {
                 Line {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: filterInput.text === ""
-                    text: "filtern nach Name oder PID"
+                    text: "filter by name or PID"
                     color: Theme.muted
                 }
             }
@@ -231,7 +231,7 @@ PanelWindow {
             anchors.margins: Theme.cellW
             height: Theme.cellH * 1.4
             verticalAlignment: Text.AlignVCenter
-            text: "↑↓ waehlen · Ctrl-K beenden · Ctrl-Shift-K erzwingen · Ctrl-S sortieren · Esc schliessen"
+            text: "↑↓ select · Ctrl-K stop · Ctrl-Shift-K force · Ctrl-S sort · Esc close"
             color: Theme.muted
         }
     }

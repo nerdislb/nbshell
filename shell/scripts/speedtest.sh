@@ -25,8 +25,8 @@ fail() {
 }
 
 if have speedtest-cli; then
-	roh="$(timeout 120 speedtest-cli --json 2>/dev/null)" || fail "Messung fehlgeschlagen"
-	[ -n "$roh" ] || fail "Messung fehlgeschlagen"
+	roh="$(timeout 120 speedtest-cli --json 2>/dev/null)" || fail "Test failed"
+	[ -n "$roh" ] || fail "Test failed"
 	SPEED_JSON="$roh" python3 - <<'PY'
 import json, os
 
@@ -46,8 +46,8 @@ PY
 fi
 
 if have speedtest; then
-	roh="$(timeout 120 speedtest --format=json --accept-license --accept-gdpr 2>/dev/null)" || fail "Messung fehlgeschlagen"
-	[ -n "$roh" ] || fail "Messung fehlgeschlagen"
+	roh="$(timeout 120 speedtest --format=json --accept-license --accept-gdpr 2>/dev/null)" || fail "Test failed"
+	[ -n "$roh" ] || fail "Test failed"
 	SPEED_JSON="$roh" python3 - <<'PY'
 import json, os
 

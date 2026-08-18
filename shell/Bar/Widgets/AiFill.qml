@@ -138,7 +138,7 @@ Cell {
             spacing: Theme.cellH * 0.3
 
             Line {
-                text: "VERBRAUCH"
+                text: "AI USAGE"
                 color: Theme.fgDim
             }
 
@@ -201,7 +201,7 @@ Cell {
             }
 
             Line {
-                text: "Klick auf das Symbol aktualisiert"
+                text: "Click the icon to refresh"
                 color: Theme.muted
             }
         }

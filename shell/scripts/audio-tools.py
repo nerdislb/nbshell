@@ -31,7 +31,7 @@ def stop():
     STATE.unlink(missing_ok=True)
 
 def start(kind):
-    if kind not in COLORS: raise SystemExit("unbekanntes Geraeusch")
+    if kind not in COLORS: raise SystemExit("unknownes Geraeusch")
     stop()
     amplitude = "0.035" if kind == "white" else "0.065"
     source = f"anoisesrc=color={COLORS[kind]}:amplitude={amplitude}:sample_rate=48000"
@@ -57,7 +57,7 @@ def ensure_ee():
 def status():
     state = read_state()
     ambience = state.get("kind", "") if alive(state) else ""
-    bypass = "unbekannt"
+    bypass = "unknown"
     presets = []
     try:
         ensure_ee()

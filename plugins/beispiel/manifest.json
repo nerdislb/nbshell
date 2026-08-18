@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "id": "beispiel",
-  "name": "Beispiel",
-  "description": "Vorlage: zaehlt Klicks, sonst nichts",
+  "name": "Example",
+  "description": "Template module that counts clicks",
   "category": "Plugin",
   "version": "1.0.0",
   "author": "nbshell",

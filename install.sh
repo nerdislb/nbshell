@@ -23,7 +23,7 @@ command -v quickshell >/dev/null 2>&1 || command -v qs >/dev/null 2>&1 || missin
 command -v niri >/dev/null 2>&1 || missing+=("niri")
 
 if [ ${#missing[@]} -gt 0 ]; then
-    warn "Fehlt: ${missing[*]}"
+    warn "Missing: ${missing[*]}"
     echo "  sudo pacman -S ${missing[*]}"
     echo
 fi
@@ -32,7 +32,7 @@ fi
 # fc-list ein SIGPIPE -- und unter `set -o pipefail` gilt die ganze Kette dann
 # als gescheitert, obwohl die Schrift da ist.
 fc-list 2>/dev/null | grep -ci "Inconsolata.*Nerd Font" >/dev/null || \
-    warn "Hinweis: 'Inconsolata Nerd Font Mono' nicht gefunden — Vorgabeschrift der Config. Paket: ttf-inconsolata-nerd"
+    warn "Note: 'Inconsolata Nerd Font Mono' was not found. Install: ttf-inconsolata-nerd"
 
 # Was ohne ein Programm still bleibt. Dieses Skript installiert bewusst nichts
 # -- Pakete gehoeren in die Hand des Benutzers. Wer sie in einem Rutsch will,
@@ -42,43 +42,43 @@ optional_check() {
 }
 
 echo
-echo "Was ohne diese Programme still bleibt (setup.sh holt sie alle):"
+echo "Optional features disabled by missing programs (setup.sh installs them):"
 missing_optional="$(
-    optional_check wl-paste      "Zwischenablage"            "wl-clipboard"
-    optional_check hyprlock      "Sperren"                   "hyprlock"
-    optional_check fakeroot      "Updatepruefung"            "fakeroot"
-    optional_check paru          "AUR-Updates, Aktualisieren" "paru oder yay"
-    optional_check tuned-adm     "Energieprofile"            "tuned"
-    optional_check notify-send   "Meldungen der Skripte"     "libnotify"
-    optional_check git           "Themes nachinstallieren"   "git"
-    optional_check khal          "Kalender"                  "khal"
-    optional_check curl          "Wetter-Plugin"             "curl"
-    optional_check vdirsyncer    "Kalender abgleichen"       "vdirsyncer"
-    optional_check wf-recorder   "Bildschirmaufnahme"        "wf-recorder"
-    optional_check slurp         "Bereich waehlen"           "slurp"
-    optional_check satty         "Screenshot bearbeiten"     "satty"
-    optional_check tesseract     "Texterkennung"             "tesseract tesseract-data-deu"
-    optional_check swappy        "Screenshot bearbeiten"     "swappy"
-    optional_check checkupdates  "Updater, schneller Weg"    "pacman-contrib"
-    optional_check jq            "Skripte"                   "jq"
-    optional_check syncthing     "Aufgaben abgleichen"       "syncthing"
-    optional_check headsetcontrol "Headset-Akku"             "headsetcontrol"
-    optional_check qrencode      "WLAN als QR-Code"          "qrencode"
-    optional_check speedtest-cli "Durchsatz messen"          "speedtest-cli"
-    optional_check magick        "Kontrast transparenter Bar" "imagemagick"
-    optional_check node          "WhatsApp in der Leiste"     "nodejs (>= 20)"
-    optional_check npm           "WhatsApp-Bridge installieren" "npm"
-    optional_check tte           "Bildschirmschoner: 39 Effekte statt 10" "python-terminaltexteffects (AUR)"
-    optional_check sqlite3       "Antigravity-Konten finden" "sqlite"
-    optional_check secret-tool   "Antigravity-Keyring lesen" "libsecret"
-    optional_check adb           "Android-Verbindung"        "android-tools"
-    optional_check scrcpy        "Android-Spiegelung"        "scrcpy"
-    optional_check nbphone       "Telefonspiegelung steuern" "github.com/nerdislb/nbphone"
+    optional_check wl-paste      "clipboard history"          "wl-clipboard"
+    optional_check hyprlock      "screen locking"             "hyprlock"
+    optional_check fakeroot      "update checks"              "fakeroot"
+    optional_check paru          "AUR updates"                "paru or yay"
+    optional_check tuned-adm     "power profiles"             "tuned"
+    optional_check notify-send   "script notifications"       "libnotify"
+    optional_check git           "installing themes"          "git"
+    optional_check khal          "calendar"                   "khal"
+    optional_check curl          "weather plugin"             "curl"
+    optional_check vdirsyncer    "calendar sync"              "vdirsyncer"
+    optional_check wf-recorder   "screen recording"           "wf-recorder"
+    optional_check slurp         "region selection"           "slurp"
+    optional_check satty         "screenshot editing"         "satty"
+    optional_check tesseract     "OCR"                        "tesseract tesseract-data-eng"
+    optional_check swappy        "screenshot editing"         "swappy"
+    optional_check checkupdates  "fast update checks"         "pacman-contrib"
+    optional_check jq            "helper scripts"             "jq"
+    optional_check syncthing     "task sync"                  "syncthing"
+    optional_check headsetcontrol "headset battery"           "headsetcontrol"
+    optional_check qrencode      "Wi-Fi QR codes"             "qrencode"
+    optional_check speedtest-cli "network speed tests"        "speedtest-cli"
+    optional_check magick        "transparent-bar contrast"   "imagemagick"
+    optional_check node          "WhatsApp bar module"        "nodejs (>= 20)"
+    optional_check npm           "WhatsApp bridge setup"      "npm"
+    optional_check tte           "additional screen-saver effects" "python-terminaltexteffects (AUR)"
+    optional_check sqlite3       "finding Antigravity accounts" "sqlite"
+    optional_check secret-tool   "reading the Antigravity keyring" "libsecret"
+    optional_check adb           "Android connection"         "android-tools"
+    optional_check scrcpy        "Android mirroring"          "scrcpy"
+    optional_check nbphone       "phone mirror control"       "github.com/nerdislb/nbphone"
 )"
 if [ -n "$missing_optional" ]; then
     printf '%s\n' "$missing_optional"
 else
-    echo "  nichts — alles da."
+    echo "  none — everything is available."
 fi
 echo
 
@@ -92,9 +92,9 @@ for unit in hyprpolkitagent polkit-gnome-authentication-agent-1 lxqt-policykit-a
     systemctl --user cat "$unit.service" >/dev/null 2>&1 && { polkit_found="$unit"; break; }
 done
 if [ -z "$polkit_found" ]; then
-    warn "Kein Polkit-Agent installiert — Programme, die nach Rechten fragen,"
-    echo "  scheitern dann still (kein Passwortfenster). Vorschlag:"
-    echo "  sudo pacman -S hyprpolkitagent   und danach: nbshell polkit on"
+    warn "No Polkit agent is installed. Privileged actions may fail silently."
+    echo "  Install one with: sudo pacman -S hyprpolkitagent"
+    echo "  Then run: nbshell polkit on"
     echo
 fi
 
@@ -141,7 +141,7 @@ green "Shell   -> $SHELL_DIR"
 # eigene daneben bleiben stehen.
 mkdir -p "$DATA_DIR/themes"
 cp -a "$SRC/themes/." "$DATA_DIR/themes/"
-green "Themes  -> $DATA_DIR/themes ($(find "$DATA_DIR/themes" -name colors.toml | wc -l) Stueck)"
+green "Themes  -> $DATA_DIR/themes ($(find "$DATA_DIR/themes" -name colors.toml | wc -l) installed)"
 
 # Einmalige Migration der bisher gemeinsam benutzten Bilder. Ab jetzt liest
 # nbshell nur noch seinen eigenen Datenbereich; das alte Verzeichnis kann
@@ -151,7 +151,7 @@ NEW_WALLPAPERS="${XDG_DATA_HOME:-$HOME/.local/share}/nbshell/wallpapers"
 if [ -d "$OLD_WALLPAPERS" ]; then
     mkdir -p "$NEW_WALLPAPERS"
     cp -an "$OLD_WALLPAPERS/." "$NEW_WALLPAPERS/"
-    green "Bilder  -> $NEW_WALLPAPERS (aus Altbestand uebernommen)"
+    green "Images  -> $NEW_WALLPAPERS (migrated from the old location)"
 fi
 
 # ── Config ───────────────────────────────────────────────────────────────
@@ -175,9 +175,9 @@ if [ ! -f "$DATA_DIR/config.json" ]; then
   "rightWidgets": ["sys", "sep", "layout", "battery"]
 }
 JSON
-    green "Config  -> $DATA_DIR/config.json (neu angelegt)"
+    green "Config  -> $DATA_DIR/config.json (created)"
 else
-    echo "Config  -> $DATA_DIR/config.json (vorhanden, unangetastet)"
+    echo "Config  -> $DATA_DIR/config.json (existing file kept)"
 fi
 
 # ── Plugins ──────────────────────────────────────────────────────────────
@@ -193,9 +193,9 @@ for plugin in "$SRC"/plugins/*/; do
     added+=("$name")
 done
 if [ ${#added[@]} -gt 0 ]; then
-    green "Plugins -> $DATA_DIR/plugins (neu: ${added[*]})"
+    green "Plugins -> $DATA_DIR/plugins (added: ${added[*]})"
 else
-    echo "Plugins -> $DATA_DIR/plugins ($(find "$DATA_DIR/plugins" -maxdepth 2 -name manifest.json 2>/dev/null | wc -l) Stueck, unangetastet)"
+    echo "Plugins -> $DATA_DIR/plugins ($(find "$DATA_DIR/plugins" -maxdepth 2 -name manifest.json 2>/dev/null | wc -l) installed, existing files kept)"
 fi
 
 # ── systemd-Unit ─────────────────────────────────────────────────────────
@@ -204,25 +204,25 @@ UNIT_DIR="$CONFIG_HOME/systemd/user"
 mkdir -p "$UNIT_DIR"
 install -m 644 "$SRC/systemd/nbshell.service" "$UNIT_DIR/nbshell.service"
 systemctl --user daemon-reload 2>/dev/null || true
-green "Unit    -> $UNIT_DIR/nbshell.service (noch nicht eingeschaltet)"
+green "Unit    -> $UNIT_DIR/nbshell.service (not enabled yet)"
 
 # ── niri-Tastenkuerzel ───────────────────────────────────────────────────
 mkdir -p "$CONFIG_HOME/niri"
 install -m 644 "$SRC/niri/nbshell-takeover.kdl" "$CONFIG_HOME/niri/nbshell-takeover.kdl"
 if [ ! -f "$CONFIG_HOME/niri/config.kdl" ]; then
-    printf '// Eigenstaendige niri-Konfiguration von nbshell\ninclude "nbshell-takeover.kdl"\n' > "$CONFIG_HOME/niri/config.kdl"
-    green "Niri    -> $CONFIG_HOME/niri/config.kdl (neu angelegt)"
+    printf '// Standalone niri configuration created by nbshell\ninclude "nbshell-takeover.kdl"\n' > "$CONFIG_HOME/niri/config.kdl"
+    green "Niri    -> $CONFIG_HOME/niri/config.kdl (created)"
 fi
 green "Binds   -> $CONFIG_HOME/niri/nbshell-takeover.kdl"
 
 # ── Befehl ───────────────────────────────────────────────────────────────
 mkdir -p "$BIN_DIR"
 install -m 755 "$SRC/bin/nbshell" "$BIN_DIR/nbshell"
-green "Befehl  -> $BIN_DIR/nbshell"
+green "Command -> $BIN_DIR/nbshell"
 
 case ":$PATH:" in
     *":$BIN_DIR:"*) ;;
-    *) warn "$BIN_DIR liegt nicht im PATH." ;;
+    *) warn "$BIN_DIR is not in PATH." ;;
 esac
 
 # Laeuft nbshell als Dienst, gehoert der Neustart dem Dienst -- sonst steht
@@ -230,10 +230,10 @@ esac
 # doppelt da.
 if [ $unit_active -eq 1 ]; then
     systemctl --user start nbshell.service
-    green "Dienst nbshell.service wieder gestartet."
+    green "Restarted nbshell.service."
 elif [ "$was_running" = "1" ]; then
     "$BIN_DIR/nbshell" start -d >/dev/null 2>&1 &
-    green "Shell wieder gestartet."
+    green "Restarted the shell."
 fi
 
 # Ruft setup.sh dieses Skript auf, folgt sein eigener Abspann gleich danach --
@@ -244,20 +244,19 @@ fi
 
 cat <<'EOF'
 
-Starten:
-  nbshell start          im Vordergrund, Meldungen im Terminal
-  nbshell start -d       im Hintergrund
+Start:
+  nbshell start          foreground, logs in the terminal
+  nbshell start -d       background
 
-Umschalten:
-  nbshell bar            durchgehender Balken
-  nbshell island         freistehende Insel
+Change the layout:
+  nbshell bar            full-width bar
+  nbshell island         floating island
   nbshell theme gruvbox
 
-Dauerhaft einrichten (Autostart, Tastenkuerzel, Benachrichtigungen,
-Fensterrahmen, Terminalfarben):
+Enable autostart and niri integration:
   nbshell switch on
   nbshell switch status
 
-Eine gefundene alte DankMaterialShell wird beim Einschalten nur noch als
-Migrationshilfe gestoppt; nbshell selbst benoetigt sie nicht.
+An old DankMaterialShell installation is only stopped as a migration aid.
+nbshell does not require DMS.
 EOF

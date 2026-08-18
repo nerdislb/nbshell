@@ -21,12 +21,12 @@ Scope {
 
         function qr(): string {
             Runtime.qrOpen = !Runtime.qrOpen;
-            return Runtime.qrOpen ? "offen" : "zu";
+            return Runtime.qrOpen ? "open" : "closed";
         }
 
         function speed(): string {
             Runtime.speedOpen = !Runtime.speedOpen;
-            return Runtime.speedOpen ? "offen" : "zu";
+            return Runtime.speedOpen ? "open" : "closed";
         }
     }
 
@@ -36,13 +36,13 @@ Scope {
 
         function list(): string {
             if (Nearby.devices.length === 0)
-                return Nearby.scanning ? "sucht …" : "niemand gefunden (erst `nbshell nearby scan`)";
+                return Nearby.scanning ? "scanning …" : "no devices found (run `nbshell nearby scan` first)";
             return Nearby.devices.map(d => (d.alias + "                    ").substring(0, 20) + d.ip + ":" + d.port + "  " + d.model).join("\n");
         }
 
         function scan(): string {
             Nearby.scan();
-            return "sucht …";
+            return "scanning …";
         }
 
         // Ohne Zielangabe an das EINE gefundene Geraet -- gibt es mehrere,
@@ -50,25 +50,25 @@ Scope {
         // Sorte Hilfsbereitschaft, die Dateien an Fremde schickt.
         function send(file: string): string {
             if (Nearby.devices.length === 0)
-                return "niemand gefunden -- erst `nbshell nearby scan`";
+                return "no devices found -- run `nbshell nearby scan` first";
             if (Nearby.devices.length > 1)
-                return "mehrere Geraete da:\n" + Nearby.devices.map(d => "  " + d.alias + "  (" + d.ip + ")").join("\n") + "\nZiel angeben: nbshell nearby send <datei> <alias>";
+                return "multiple devices found:\n" + Nearby.devices.map(d => "  " + d.alias + "  (" + d.ip + ")").join("\n") + "\nChoose a target: nbshell nearby send <file> <alias>";
             Nearby.sendFiles(Nearby.devices[0], [file]);
-            return "sendet an " + Nearby.devices[0].alias;
+            return "sending to " + Nearby.devices[0].alias;
         }
 
         function sendTo(file: string, alias: string): string {
             const ziel = Nearby.devices.find(d => d.alias === alias || d.ip === alias);
             if (!ziel)
-                return "nicht gefunden: " + alias;
+                return "not found: " + alias;
             Nearby.sendFiles(ziel, [file]);
-            return "sendet an " + ziel.alias;
+            return "sending to " + ziel.alias;
         }
 
         function status(): string {
             return JSON.stringify({
                 "geraete": Nearby.devices.length,
-                "sucht": Nearby.scanning,
+                "scanning": Nearby.scanning,
                 "sendet": Nearby.sending,
                 "meldung": Nearby.status
             });
@@ -106,12 +106,12 @@ Scope {
 
         function toggle(): string {
             Runtime.settingsOpen = !Runtime.settingsOpen;
-            return Runtime.settingsOpen ? "offen" : "zu";
+            return Runtime.settingsOpen ? "open" : "closed";
         }
 
         function modules(): string {
             Runtime.modulesOpen = !Runtime.modulesOpen;
-            return Runtime.modulesOpen ? "offen" : "zu";
+            return Runtime.modulesOpen ? "open" : "closed";
         }
     }
 
@@ -120,18 +120,18 @@ Scope {
 
         function check(): string {
             Updates.refresh();
-            return "wird geprueft";
+            return "checking";
         }
 
         function list(): string {
             if (Updates.count === 0)
-                return Updates.ready ? "alles aktuell" : "noch nicht geprueft";
-            return Updates.repo.concat(Updates.aur).concat(Updates.flatpak).map(u => u.name + "  " + (u.from === u.to ? u.to + " (neuer Build)" : u.from + " -> " + u.to)).join("\n");
+                return Updates.ready ? "everything is up to date" : "not checked yet";
+            return Updates.repo.concat(Updates.aur).concat(Updates.flatpak).map(u => u.name + "  " + (u.from === u.to ? u.to + " (new build)" : u.from + " -> " + u.to)).join("\n");
         }
 
         function run(): string {
             Updates.update();
-            return "Terminal geoeffnet";
+            return "terminal opened";
         }
 
         function status(): string {
@@ -152,9 +152,9 @@ Scope {
 
         function status(): string {
             if (!AiUsage.available)
-                return "kein Helferskript gefunden";
+                return "helper script not found";
             if (AiUsage.list.length === 0)
-                return "noch keine Zahlen";
+                return "no data yet";
             return AiUsage.list.map(e => {
                 const time = AiUsage.untilReset(e);
                 var s = e.id + "  " + e.percent + "%";
@@ -177,7 +177,7 @@ Scope {
 
         function developer(): string {
             Runtime.pluginDeveloperOpen = !Runtime.pluginDeveloperOpen;
-            return Runtime.pluginDeveloperOpen ? "offen" : "zu";
+            return Runtime.pluginDeveloperOpen ? "open" : "closed";
         }
 
         function list(): string {
@@ -190,7 +190,7 @@ Scope {
 
         function reload(): string {
             Plugins.refresh();
-            return "wird neu eingelesen";
+            return "reloading";
         }
     }
 

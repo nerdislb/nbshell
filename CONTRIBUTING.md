@@ -1,22 +1,20 @@
-# Zu nbshell beitragen
+# Contributing to nbshell
 
-Danke fuer dein Interesse. nbshell ist noch in aktiver Entwicklung; kleine,
-klar abgegrenzte Pull Requests lassen sich am besten pruefen.
+Thank you for your interest. nbshell is still under active development. Small,
+focused pull requests are the easiest to review.
 
-## Vor einem Pull Request
+## Before opening a pull request
 
-1. Beschreibe bei groesseren Aenderungen zuerst das Problem in einem Issue.
-2. Veraendere keine persoenliche `config.json` und committe keine Zugangsdaten.
-3. Pruefe Shell-Skripte mit `bash -n` und die niri-Datei mit `niri validate`.
-4. Fuehre die vorhandenen Tests aus:
+1. For larger changes, describe the problem in an issue first.
+2. Do not change a personal `config.json` or commit credentials.
+3. Check shell scripts with `bash -n` and the niri file with `niri validate`.
+4. Run the included tests:
 
    ```bash
    ./tests/plugin-validation.sh
    ```
 
-5. Erklaere im Pull Request knapp, was sich fuer Benutzer aendert und wie du
-   die Aenderung getestet hast.
+5. Briefly explain what changes for users and how you tested it.
 
-KI-unterstuetzte Beitraege sind willkommen. Bitte pruefe generierten Code
-selbst und gib im Pull Request an, wenn wesentliche Teile mit KI entstanden
-sind.
+AI-assisted contributions are welcome. Please review generated code yourself
+and mention substantial AI assistance in the pull request.

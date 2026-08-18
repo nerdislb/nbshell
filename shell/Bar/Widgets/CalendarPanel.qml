@@ -46,7 +46,7 @@ Column {
     // Monat zurueck: ein Tagesdatum, das gar nicht im Gitter steht, waere eine
     // falsche Auskunft.
     readonly property string title: {
-        const loc = Qt.locale(Config.value("locale", "de_DE"));
+        const loc = Qt.locale(Config.value("locale", "en_US"));
         if (panel.selected.getFullYear() === panel.viewDate.getFullYear() && panel.selected.getMonth() === panel.viewDate.getMonth())
             return panel.selected.toLocaleString(loc, "d. MMMM").toUpperCase() + "  W" + Calendar.isoWeek(panel.selected) + "  " + panel.selected.getFullYear();
         return panel.viewDate.toLocaleString(loc, "MMMM yyyy").toUpperCase();
@@ -131,7 +131,7 @@ Column {
             }
 
             Action {
-                text: "Heute"
+                text: "Today"
                 onTriggered: panel.heute()
             }
 
@@ -307,13 +307,13 @@ Column {
         Heading {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            text: panel.selected.toLocaleString(Qt.locale(Config.value("locale", "de_DE")), "dddd, d. MMMM").toUpperCase()
+            text: panel.selected.toLocaleString(Qt.locale(Config.value("locale", "en_US")), "dddd, d. MMMM").toUpperCase()
         }
 
         Action {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            text: Calendar.loading ? "Liest …" : "Abgleichen"
+            text: Calendar.loading ? "Reading …" : "Sync"
             busy: Calendar.loading
             onTriggered: Calendar.sync()
         }
@@ -322,14 +322,14 @@ Column {
     Line {
         visible: !Calendar.available
         width: panel.rowWidth
-        text: "  " + (Calendar.problem === "khal fehlt" ? "khal ist nicht installiert — pacman -S khal vdirsyncer" : Calendar.problem)
+        text: "  " + (Calendar.problem === "khal fehlt" ? "khal is not installed — pacman -S khal vdirsyncer" : Calendar.problem)
         color: Theme.yellow
         wrapMode: Text.WordWrap
     }
 
     Line {
         visible: Calendar.available && Calendar.eventsOn(panel.selected).length === 0
-        text: "  nichts eingetragen"
+        text: "  no events"
         color: Theme.muted
     }
 
@@ -379,7 +379,7 @@ Column {
 
     Line {
         visible: Calendar.eventsOn(panel.selected).length > 12
-        text: "  … und " + (Calendar.eventsOn(panel.selected).length - 12) + " weitere"
+        text: "  … and " + (Calendar.eventsOn(panel.selected).length - 12) + " more"
         color: Theme.muted
     }
 

@@ -12,7 +12,7 @@ payload=$(dd bs=4096 count=256 2>/dev/null)
 cwd=$(jq -r '(.cwd? // .workspace? // "") | select(type == "string")' <<<"$payload" 2>/dev/null)
 case "$event" in
 PermissionRequest) title="Codex braucht eine Entscheidung" ;;
-Stop) title="Codex ist fertig" ;;
+Stop) title="Codex finished" ;;
 *) title="Codex: $event" ;;
 esac
 detail="${cwd:-Agent-Sitzung}"

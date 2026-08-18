@@ -1,23 +1,23 @@
-# Drittanbieter und Inspirationen
+# Third-party components and inspiration
 
-nbshell ist eine eigene Implementierung. Einige mitgelieferte Bestandteile
-stammen aus anderen MIT-lizenzierten Projekten oder wurden davon abgeleitet:
+nbshell is an independent implementation. Some included components originate
+from or were adapted from other MIT-licensed projects:
 
-- Die Farbdefinitionen unter `themes/` stammen aus
-  [Omarchy](https://github.com/basecamp/omarchy). Details stehen in
+- Color definitions under `themes/` come from
+  [Omarchy](https://github.com/basecamp/omarchy). See
   [themes/ATTRIBUTION.md](themes/ATTRIBUTION.md).
-- Die Bongo-Cat-Bilder und zugehoerige Logik basieren auf wayland-bongocat und
-  HANCOREs Omarchy-Plugin. Beide Lizenztexte liegen unter
+- Bongo Cat images and related behavior are based on wayland-bongocat and
+  HANCORE's Omarchy plugin. Their licenses are included under
   `shell/assets/bongocat/`.
-- Teile der KDE-Connect-Erkennung wurden von
-  [OmaConnect](https://github.com/jitendradara12/omaconnect) abgeleitet.
-- Der AI-Usage-Provider wurde aus dem MIT-lizenzierten `aiOverviewControl`
-  integriert. Sein Lizenztext liegt unter `shell/scripts/ai-usage/LICENSE`.
-- App-/Web-Herkunft, Fokusaktion und Kartenaufbau der Benachrichtigungszentrale
-  sind von Jesse Burlamaques MIT-lizenziertem
-  [Herald Notification Center](https://github.com/jesseburlamaque/herald-notification)
-  inspiriert. nbshell verwendet dabei weiterhin seinen eigenen persistenten
-  Benachrichtigungsdienst und eine eigenstaendige TUI-Implementierung.
+- Parts of KDE Connect discovery were adapted from
+  [OmaConnect](https://github.com/jitendradara12/omaconnect).
+- The AI usage provider was integrated from the MIT-licensed
+  `aiOverviewControl`. Its license is stored in
+  `shell/scripts/ai-usage/LICENSE`.
+- Notification source detection, focus actions, and card structure were
+  inspired by Jesse Burlamaque's MIT-licensed
+  [Herald Notification Center](https://github.com/jesseburlamaque/herald-notification).
+  nbshell keeps its own persistent notification service and TUI implementation.
 
-Omarchy, niri, Quickshell und die genannten Projekte sind eigenstaendige
-Projekte. Ihre Nennung bedeutet keine offizielle Verbindung oder Unterstuetzung.
+Omarchy, niri, Quickshell, and the other named projects are independent. Their
+mention does not imply endorsement or an official relationship.

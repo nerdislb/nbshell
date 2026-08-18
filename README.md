@@ -1,108 +1,149 @@
 # nbshell
 
-nbshell ist eine von [Omarchy](https://omarchy.org) inspirierte Desktop-Shell
-fuer [niri](https://github.com/YaLTeR/niri). Sie basiert auf
-[Quickshell](https://quickshell.org), ist eigenstaendig und benoetigt keine
-vollstaendige Desktop-Umgebung.
+nbshell is an independent desktop shell for the
+[niri](https://github.com/YaLTeR/niri) Wayland compositor. It is built with
+[Quickshell](https://quickshell.org) and takes visual inspiration from
+[Omarchy](https://omarchy.org). It does not require a full desktop environment.
 
-Das Projekt ist mit Unterstuetzung von KI entstanden und wird weiterhin aktiv
-gemeinsam mit KI-Werkzeugen entwickelt. Entscheidungen, Tests und die Richtung
-des Projekts bleiben dabei menschlich gesteuert.
+The project was created with AI-assisted development. Product decisions,
+testing, and the direction of the project remain human-led.
 
-> nbshell ist ein junges, persoenliches Projekt. Es funktioniert im Alltag,
-> APIs und Konfiguration koennen sich aber noch aendern.
+> nbshell is still under active development. It already works as a daily
+> desktop, but commands, configuration, and features may still change.
 
-## Was ist enthalten?
+## What does it include?
 
-- Insel, Pille oder durchgehende Bar mit frei anordenbaren Modulen
-- Omarchy-inspirierte Menues, Dashboard, Themes und Wallpaper
-- Launcher, Zwischenablage, persistente Herald-inspirierte Benachrichtigungen
-  mit App-Fokus und System-Tray
-- Audio, Medien, Bluetooth, WLAN, Akkus und Energieprofile
-- Zen-Picture-in-Picture als frei schwebendes Videofenster mit Groessen- und Eckwahl
-- Kalender, Aufgaben, Gewohnheiten und KDE Connect
-- Screenshots, Bildschirmaufnahme, OCR und Bildschirmschoner
-- AI-Usage fuer Codex, Claude, Antigravity und weitere Anbieter
-- niri-Tastenkuerzel, Terminalfarben und eigener Autostart
+- Island, pill, or full-width bar with freely arranged modules
+- Searchable menu, application launcher, dashboard, themes, and wallpapers
+- Clipboard history, notification center, and system tray
+- Audio mixer, media controls, Bluetooth, Wi-Fi, batteries, and power profiles
+- Floating Picture-in-Picture controls for Zen Browser
+- Calendar, tasks, habits, KDE Connect, and Android screen mirroring
+- Screenshots, screen recording, OCR, QR scanning, and a screen saver
+- AI usage for Codex, Claude, Antigravity, and other providers
+- niri key bindings, terminal colors, and systemd autostart
+- Optional herdr status inside the System & Plugins dashboard
 
-## Installation
+## Requirements
 
-Vorausgesetzt werden Arch Linux (oder ein Arch-Derivat), niri und eine laufende
-Wayland-Sitzung.
+You need:
+
+- Arch Linux or an Arch-based distribution
+- A working niri Wayland session
+- Git and an internet connection
+- A normal user account with `sudo` access for package installation
+
+The setup script installs Quickshell, the Nerd Font, and the other packages
+used by the included modules. Optional hardware features only work when their
+matching services or devices are available.
+
+## Simple installation on Arch Linux
+
+Open a terminal inside your running niri session. Do not run the script as
+root.
 
 ```bash
 git clone https://github.com/nerdislb/nbshell.git
 cd nbshell
 ./setup.sh
+```
+
+The script shows the missing packages before installing them. It may ask for
+your `sudo` password and whether services such as Bluetooth or Syncthing should
+be enabled.
+
+When setup has finished, enable nbshell:
+
+```bash
 nbshell switch on
 ```
 
-Fuer Nerdis vollstaendiges Mehrrechner-Setup (Dotfiles, zusaetzliche
-Themes, Plugins und Hardwarefilter) ist stattdessen der Bootstrap im privaten
-Dotfiles-Repo vorgesehen:
+Then log out and back in. You can also start it immediately without logging
+out:
 
 ```bash
-git clone git@github.com:nerdislb/dotfiles-dms.git ~/dotfiles
-~/dotfiles/bin/bootstrap-nbshell.sh
+nbshell start -d
 ```
 
-Mit Syncthing synchronisierte Wallpaper unter `~/Sync/nbshell/wallpapers`
-werden direkt gelesen; sie muessen nicht in das Git-Repo kopiert werden.
+Check the installation with:
 
-`setup.sh` zeigt vor jeder Paketinstallation, was fehlt. Wer Pakete lieber
-selbst verwaltet, installiert nur die Dateien:
+```bash
+nbshell switch status
+```
+
+## Install files only
+
+If you manage packages yourself, use:
 
 ```bash
 ./install.sh
 nbshell start
 ```
 
-Die vorhandene niri-Konfiguration bleibt erhalten. Gibt es noch keine, erzeugt
-der Installer eine minimale gueltige `~/.config/niri/config.kdl`. Persönliche
-nbshell-Einstellungen werden bei spaeteren Installationen nicht ueberschrieben.
+`install.sh` copies the shell and reports missing programs, but does not
+install packages.
 
-Nach der Installation sind diese Befehle hilfreich:
+The installer keeps an existing niri configuration. If none exists, it creates
+a small valid `~/.config/niri/config.kdl`. Existing personal nbshell settings
+are not overwritten during later installations.
+
+## First commands
 
 ```bash
-nbshell switch status    # Integration und Dienste pruefen
-nbshell menu             # Hauptmenue oeffnen
-nbshell settings         # Darstellung konfigurieren
-nbshell modules          # Module anordnen
-nbshell keys             # Tastenkuerzel anzeigen
-nbshell pip status       # Zens laufendes Picture-in-Picture pruefen
-nbshell --help           # alle Befehle
+nbshell menu             # Open the main menu
+nbshell settings         # Change appearance and behavior
+nbshell modules          # Arrange bar modules
+nbshell keys             # Show key bindings
+nbshell dashboard        # Open the dashboard
+nbshell pip status       # Check Zen Picture-in-Picture
+nbshell --help           # Show every command
 ```
 
-Zens natives Picture-in-Picture wird im Video mit `Ctrl+Shift+]` geoeffnet.
-nbshell setzt das Fenster automatisch schwebend in die gespeicherte Ecke. Das
-eingeblendete `PIP`-Modul sowie `Mod+Alt+P` wechseln die Groesse;
-`Mod+Alt+Shift+P` wechselt die Ecke.
+Zen Browser opens its native Picture-in-Picture window with `Ctrl+Shift+]`.
+nbshell makes that window floating and remembers its size and corner. Use the
+`PIP` module or `Mod+Alt+P` to change its size. Use `Mod+Alt+Shift+P` to move it
+to another corner.
 
-Klickbare Aktionen erscheinen nbshell-weit als flache, farblich markierte
-Flaechen statt als Texte in eckigen Klammern. Akzent, Warnfarbe sowie Hover-
-und Disabled-Zustand zeigen ihre Funktion; Klammern bleiben Tastaturhinweisen
-und echten textuellen Notationen vorbehalten.
+## Optional features
 
-## Hilfe
+- Calendar data requires `khal`. Online calendar synchronization can be added
+  with `vdirsyncer`.
+- Task and wallpaper files can be synchronized with Syncthing.
+- Phone features require KDE Connect. Android mirroring also requires ADB,
+  `scrcpy`, and the separate `nbphone` tool.
+- The herdr panel requires a separately configured read-only bridge. The shell
+  works normally without it.
+- AUR update counts require `paru` or `yay`.
 
-`nbshell --help` listet alle Befehle. Weitere Dokumentation entsteht parallel
-zur Stabilisierung der oeffentlichen Schnittstellen. Bis dahin sind Issues fuer
-Fragen und nachvollziehbare Fehlerberichte willkommen.
+## Updating
 
-## Mitmachen
+```bash
+cd nbshell
+git pull --ff-only
+./setup.sh --no-packages
+nbshell restart
+```
 
-Fehlerberichte und Pull Requests sind willkommen. Bitte beachte vor einem
-Beitrag [CONTRIBUTING.md](CONTRIBUTING.md). Sicherheitsprobleme bitte nicht als
-oeffentliches Issue melden; Hinweise stehen in [SECURITY.md](SECURITY.md).
+## Removing the integration
 
-## Herkunft und Lizenz
+```bash
+nbshell switch off
+```
 
-nbshell orientiert sich gestalterisch und in einzelnen Workflows an Omarchy,
-ist aber eine eigene Implementierung fuer niri und Quickshell. Die Herkunft
-mitgelieferter Farbthemen ist in
-[themes/ATTRIBUTION.md](themes/ATTRIBUTION.md) dokumentiert. Der integrierte
-AI-Usage-Helfer fuehrt seine eigene MIT-Lizenz im Quellverzeichnis mit.
-Weitere uebernommene oder abgeleitete Bestandteile sind in
-[THIRD_PARTY.md](THIRD_PARTY.md) aufgefuehrt.
+This disables nbshell autostart and removes its niri integration. It does not
+delete your personal configuration or themes.
 
-Der uebrige Code steht unter der [MIT-Lizenz](LICENSE).
+## Getting help
+
+Run `nbshell --help` for command help. Bug reports and pull requests are
+welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before contributing.
+Report security problems privately as described in [SECURITY.md](SECURITY.md).
+
+## Credits and license
+
+nbshell takes visual and workflow inspiration from Omarchy, but it is an
+independent implementation for niri and Quickshell. Theme sources are listed in
+[themes/ATTRIBUTION.md](themes/ATTRIBUTION.md). Reused or adapted components
+are documented in [THIRD_PARTY.md](THIRD_PARTY.md).
+
+The remaining project is licensed under the [MIT License](LICENSE).

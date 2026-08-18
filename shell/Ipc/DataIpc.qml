@@ -23,7 +23,7 @@ Scope {
         function open(): string {
             Runtime.dashboardPage = 1;
             Runtime.dashboardOpen = true;
-            return "offen";
+            return "open";
         }
 
         function toggle(): string {
@@ -33,7 +33,7 @@ Scope {
                 Runtime.dashboardPage = 1;
                 Runtime.dashboardOpen = true;
             }
-            return Runtime.dashboardOpen ? "offen" : "zu";
+            return Runtime.dashboardOpen ? "open" : "closed";
         }
 
         function status(): string {
@@ -53,8 +53,8 @@ Scope {
             return lief ? "pausiert" : "spielt";
         }
 
-        function next(): string { MediaService.next(); return "weiter"; }
-        function previous(): string { MediaService.previous(); return "zurueck"; }
+        function next(): string { MediaService.next(); return "next"; }
+        function previous(): string { MediaService.previous(); return "previous"; }
     }
 
     IpcHandler {
@@ -62,25 +62,25 @@ Scope {
 
         function toggle(): string {
             Runtime.dashboardOpen = !Runtime.dashboardOpen;
-            return Runtime.dashboardOpen ? "offen" : "zu";
+            return Runtime.dashboardOpen ? "open" : "closed";
         }
 
         // Was als Naechstes ansteht -- fuers Terminal, ohne Popout.
         function next(): string {
             const list = Calendar.upcoming(8);
             if (list.length === 0)
-                return Calendar.available ? "nichts eingetragen" : ("Kalender nicht verfuegbar: " + Calendar.problem);
+                return Calendar.available ? "nothing entered" : ("Calendar unavailable: " + Calendar.problem);
             return list.map(e => Qt.formatDateTime(e.start, "dd.MM") + "  " + (e.allDay ? "ganztags    " : Qt.formatDateTime(e.start, "HH:mm") + "       ") + e.title).join("\n");
         }
 
         function sync(): string {
             Calendar.sync();
-            return "vdirsyncer angestossen";
+            return "vdirsyncer started";
         }
 
         function status(): string {
             return JSON.stringify({
-                "verfuegbar": Calendar.available,
+                "available": Calendar.available,
                 "problem": Calendar.problem,
                 "kalender": Calendar.calendars,
                 "termine": Calendar.events.length,
@@ -94,7 +94,7 @@ Scope {
 
         function toggle(): string {
             Runtime.todoOpen = !Runtime.todoOpen;
-            return Runtime.todoOpen ? "offen" : "zu";
+            return Runtime.todoOpen ? "open" : "closed";
         }
 
         // Der Text kommt prozentkodiert herein -- Quickshells IPC-Aufrufer
@@ -104,12 +104,12 @@ Scope {
         function add(text: string): string {
             const clean = String(text).replace(/%5B/g, "[").replace(/%5D/g, "]").replace(/%2C/g, ",").replace(/%3B/g, ";").replace(/%25/g, "%");
             const entry = Todo.add(clean);
-            return entry ? "eingetragen: " + entry.text : "leer -- nichts eingetragen";
+            return entry ? "added: " + entry.text : "empty -- nothing entered";
         }
 
         function list(): string {
             if (Todo.list.length === 0)
-                return "nichts vorgemerkt";
+                return "no tasks";
             return Todo.list.map((e, i) => String(i + 1).padStart(3, " ") + "  " + (e.done ? "[x]" : "[ ]") + "  " + e.text).join("\n");
         }
 
@@ -119,7 +119,7 @@ Scope {
             if (!e)
                 return "keine Nummer " + which;
             Todo.toggle(e.id);
-            return (e.done ? "wieder offen: " : "erledigt: ") + e.text;
+            return (e.done ? "open again: " : "done: ") + e.text;
         }
 
         function drop(which: string): string {
@@ -132,7 +132,7 @@ Scope {
 
         function clear(): string {
             const n = Todo.clearDone();
-            return n > 0 ? "aufgeraeumt: " + n : "nichts zu erledigen";
+            return n > 0 ? "cleaned up: " + n : "nothing to clean up";
         }
 
         // Konfliktkopien einsammeln und die Datei neu lesen -- fuer den Fall,
@@ -146,10 +146,10 @@ Scope {
         function status(): string {
             return JSON.stringify({
                 "an": Todo.enabled,
-                "offen": Todo.count,
-                "erledigt": Todo.doneCount,
+                "open": Todo.count,
+                "done": Todo.doneCount,
                 "gesamt": Todo.items.length,
-                "datei": Todo.file,
+                "file": Todo.file,
                 "grabsteine": Todo.keepDays
             });
         }
@@ -160,17 +160,17 @@ Scope {
 
         function toggle(): string {
             Runtime.habitsOpen = !Runtime.habitsOpen;
-            return Runtime.habitsOpen ? "offen" : "zu";
+            return Runtime.habitsOpen ? "open" : "closed";
         }
 
         function open(): string {
             Runtime.habitsOpen = true;
-            return "offen";
+            return "open";
         }
 
         function list(): string {
             if (Habits.habits.length === 0)
-                return "keine Gewohnheiten eingerichtet";
+                return "no habits configured";
             return Habits.habits.map((h, i) => {
                 const e = Habits.todayMap[String(h.id)];
                 const done = e ? e.isCompleted : false;
@@ -193,7 +193,7 @@ Scope {
                 return "keine Nummer " + which;
             Habits.toggle(h.id);
             const e = Habits.todayMap[String(h.id)];
-            return (e && e.isCompleted ? "erledigt: " : "wieder offen: ") + h.name;
+            return (e && e.isCompleted ? "done: " : "open again: ") + h.name;
         }
 
         function inc(which: string, delta: string): string {
@@ -231,7 +231,7 @@ Scope {
             else if (routine === "evening") icon = "🌙";
 
             const h = Habits.add(name, icon, routine, mode, target, unit, 2);
-            return h ? "eingetragen: " + h.name + " // " + h.routine : "nichts eingetragen";
+            return h ? "eingetragen: " + h.name + " // " + h.routine : "nothing entered";
         }
 
         function drop(which: string): string {
@@ -251,11 +251,11 @@ Scope {
         function status(): string {
             return JSON.stringify({
                 "an": Habits.enabled,
-                "offen": Habits.count - Habits.doneCount,
-                "erledigt": Habits.doneCount,
+                "open": Habits.count - Habits.doneCount,
+                "done": Habits.doneCount,
                 "gesamt": Habits.count,
                 "prozent": Habits.progressPercent,
-                "datei": Habits.file
+                "file": Habits.file
             });
         }
     }
@@ -266,12 +266,12 @@ Scope {
         function toggle(): string {
             Runtime.islandOpen = true;
             Runtime.clipOpen = !Runtime.clipOpen;
-            return Runtime.clipOpen ? "offen" : "zu";
+            return Runtime.clipOpen ? "open" : "closed";
         }
 
         function list(): string {
             if (Clipboard.entries.length === 0)
-                return "noch nichts kopiert";
+                return "nothing copied yet";
             return Clipboard.entries.map((e, i) => (i + 1) + "  " + Clipboard.preview(e, 60)).join("\n");
         }
 

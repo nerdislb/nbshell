@@ -1,16 +1,17 @@
-# Herkunft der Themes
+# Theme attribution
 
-Die `colors.toml`-Dateien in diesem Verzeichnis stammen aus
-<https://github.com/basecamp/omarchy>, MIT-lizenziert,
+The `colors.toml` files in this directory come from
+<https://github.com/basecamp/omarchy>. They are MIT-licensed,
 Copyright (c) David Heinemeier Hansson.
 
-Uebernommen wurden ausschliesslich die Farbdefinitionen. Vorschaubilder,
-Hintergruende und die uebrigen Theme-Dateien des Originals (zusammen ueber
-100 MB) sind bewusst nicht enthalten.
+Only the color definitions are included. Preview images, wallpapers, and the
+remaining upstream theme files are intentionally excluded.
 
-Aktualisieren:
+To refresh the color files from an Omarchy checkout:
 
-    for t in <omarchy-repo>/themes/*/; do
-      mkdir -p "themes/$(basename "$t")"
-      cp "$t/colors.toml" "themes/$(basename "$t")/"
-    done
+```bash
+for t in <omarchy-repo>/themes/*/; do
+  mkdir -p "themes/$(basename "$t")"
+  cp "$t/colors.toml" "themes/$(basename "$t")/"
+done
+```

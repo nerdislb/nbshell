@@ -26,7 +26,7 @@ Scope {
                 "zustand": Idle.state,
                 "dimmen": Idle.dimAfter,
                 "bildschirmAus": Idle.offAfter,
-                "sperren": Idle.lockAfter
+                "lock": Idle.lockAfter
             });
         }
 
@@ -39,23 +39,23 @@ Scope {
                 Idle.setCaffeine(false);
             else
                 Idle.toggleCaffeine();
-            return Idle.caffeine ? "bleibt wach" : "Automatik laeuft";
+            return Idle.caffeine ? "bleibt wach" : "automation active";
         }
 
         function on(): string {
             Config.set("idle", true);
-            return "Automatik an";
+            return "automation on";
         }
 
         function off(): string {
             Config.set("idle", false);
-            return "Automatik aus";
+            return "automation off";
         }
 
         // Von Hand starten -- zum Ansehen, und fuer eine Taste in niri.
         function saver(): string {
             Idle.startSaver();
-            return "Bildschirmschoner laeuft";
+            return "screen saver running";
         }
     }
 
@@ -64,7 +64,7 @@ Scope {
 
         function status(): string {
             if (!PowerService.available)
-                return "kein Akku";
+                return "no battery";
             return JSON.stringify({
                 "prozent": PowerService.percent,
                 "zustand": PowerService.stateText,
@@ -87,7 +87,7 @@ Scope {
 
         function menu(): string {
             Runtime.powerOpen = !Runtime.powerOpen;
-            return Runtime.powerOpen ? "offen" : "zu";
+            return Runtime.powerOpen ? "open" : "closed";
         }
 
         // Einzeln aufrufbar, damit ein Tastenkuerzel direkt sperren kann.
@@ -103,7 +103,7 @@ Scope {
 
         function suspend(): string {
             Session.run("suspend");
-            return "Bereitschaft";
+            return "suspend";
         }
     }
 
@@ -130,7 +130,7 @@ Scope {
                 "spielt": MediaService.playing,
                 "position": MediaService.zeit(MediaService.position),
                 "laenge": MediaService.zeit(MediaService.length),
-                "lautstaerke": Math.round(MediaService.volume * 100),
+                "volume": Math.round(MediaService.volume * 100),
                 "titel": MediaService.title,
                 "interpret": MediaService.artist,
                 "player": MediaService.players.map(p => p.identity)
@@ -165,7 +165,7 @@ Scope {
         }
 
         function tonstatus(): string {
-            return Audio.tonStatus === "" ? "nichts zu melden" : Audio.tonStatus;
+            return Audio.tonStatus === "" ? "nothing to report" : Audio.tonStatus;
         }
 
         // Welcher Bluetooth-Codec laeuft -- und umschalten. Ohne Argument nur
@@ -173,11 +173,11 @@ Scope {
         function codec(wunsch: string): string {
             Audio.codecsLesen();
             if (!Audio.btGelesen)
-                return "sehe nach — gleich nochmal";
+                return "checking — run the command again";
             if (wunsch === "")
-                return Audio.btDa ? (Audio.btCodec + (Audio.btSchlechter ? "  (es ginge " + (Audio.btCodecs.length > 0 ? Audio.btCodecs[0].codec : "?") + ")" : "")) : "kein Bluetooth-Tongeraet";
+                return Audio.btDa ? (Audio.btCodec + (Audio.btSchlechter ? "  (es ginge " + (Audio.btCodecs.length > 0 ? Audio.btCodecs[0].codec : "?") + ")" : "")) : "no Bluetooth audio device";
             if (!Audio.btDa)
-                return "kein Bluetooth-Tongeraet";
+                return "no Bluetooth audio device";
 
             if (wunsch === "beste" || wunsch === "best") {
                 Audio.setzeCodec(Audio.btBeste);
@@ -216,12 +216,12 @@ Scope {
         function panel(): string {
             Runtime.islandOpen = true;
             Runtime.audioPanelOpen = !Runtime.audioPanelOpen;
-            return Runtime.audioPanelOpen ? "offen" : "zu";
+            return Runtime.audioPanelOpen ? "open" : "closed";
         }
 
         function tools(): string {
             Runtime.audioToolsOpen = !Runtime.audioToolsOpen;
-            return Runtime.audioToolsOpen ? "offen" : "zu";
+            return Runtime.audioToolsOpen ? "open" : "closed";
         }
 
         function status(): string {

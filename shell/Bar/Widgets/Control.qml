@@ -44,14 +44,14 @@ Cell {
             property var closePopout: null
 
             // Welches Netz gerade nach einem Passwort fragt. Leer heisst: kein
-            // Eingabefeld offen.
+            // Eingabefeld open.
             property var pendingNetwork: null
 
             readonly property real rowWidth: 44 * Theme.cellW
 
             spacing: Theme.cellH * 0.4
 
-            // Solange die Liste offen ist, darf sich das WLAN auffrischen --
+            // Solange die Liste open ist, darf sich das WLAN auffrischen --
             // sonst steht dort, was beim letzten Blick zufaellig in der Luft
             // lag. Beim Zugehen geht beides wieder aus: der Scanner kostet
             // Strom, und eine laufende Bluetooth-Suche laesst obendrein
@@ -98,7 +98,7 @@ Cell {
                 rowWidth: panel.rowWidth
                 icon: Net.online ? (Net.activeWifi ? Icons.wifi : Icons.lan) : Icons.wifiOff
                 title: Net.summary
-                subtitle: Net.activeWifi ? "WLAN" : (Net.wiredConnected ? "Kabel" : "nicht verbunden")
+                subtitle: Net.activeWifi ? "Wi-Fi" : (Net.wiredConnected ? "Wired" : "not connected")
                 badge: Net.activeWifi ? (Net.percentOf(Net.activeWifi.signalStrength) + " %") : (Net.wiredConnected ? "LAN" : "")
                 badgeColor: Net.online ? Theme.green : Theme.fgDim
             }
@@ -113,7 +113,7 @@ Cell {
                     },
                     {
                         "label": "Sicherheit",
-                        "value": Net.activeWifi.security !== WifiSecurityType.Open ? "gesichert" : "offen",
+                        "value": Net.activeWifi.security !== WifiSecurityType.Open ? "secured" : "open",
                         "color": Net.activeWifi.security !== WifiSecurityType.Open ? Theme.fg : Theme.yellow
                     }
                 ] : []
@@ -179,7 +179,7 @@ Cell {
 
             Rule {
                 rowWidth: panel.rowWidth
-                label: "HELLIGKEIT"
+                label: "BRIGHTNESS"
                 visible: Brightness.available
             }
 
@@ -213,7 +213,7 @@ Cell {
 
                 Heading {
                     anchors.left: parent.left
-                    text: "WLAN"
+                    text: "WI-FI"
                 }
 
                 Row {
@@ -237,7 +237,7 @@ Cell {
 
                     Action {
                         visible: Net.activeWifi !== null
-                        text: "WLAN-QR"
+                        text: "WI-FI QR"
                         onTriggered: {
                             Runtime.qrOpen = true;
                             if (panel.closePopout)
@@ -247,14 +247,14 @@ Cell {
 
                     Action {
                         visible: Net.wifiEnabled
-                        text: Net.scanning ? (panel.spin + " sucht") : "Suchen"
+                        text: Net.scanning ? (panel.spin + " scanning") : "Scan"
                         busy: Net.scanning
                         onTriggered: Net.rescan()
                     }
 
                     Action {
                         on: Net.wifiEnabled
-                        text: Net.wifiEnabled ? "WLAN an" : "WLAN aus"
+                        text: Net.wifiEnabled ? "Wi-Fi on" : "Wi-Fi off"
                         onTriggered: Net.setWifiEnabled(!Net.wifiEnabled)
                     }
                 }
@@ -264,7 +264,7 @@ Cell {
             // noch niemand gesucht hat.
             Line {
                 visible: Net.wifiEnabled && Net.wifiNetworks.length === 0
-                text: Net.scanning ? "  sucht …" : "  nichts gefunden"
+                text: Net.scanning ? "  scanning …" : "  nothing found"
                 color: Theme.fgDim
             }
 
@@ -292,7 +292,7 @@ Cell {
                             anchors.leftMargin: Theme.cellW / 2
                             anchors.right: strength.left
                             anchors.verticalCenter: parent.verticalCenter
-                            text: (entry.isCurrent ? "▸ " : "  ") + entry.modelData.name + (entry.modelData.known && !entry.isCurrent ? "  ·gespeichert" : "")
+                            text: (entry.isCurrent ? "▸ " : "  ") + entry.modelData.name + (entry.modelData.known && !entry.isCurrent ? "  ·saved" : "")
                             color: entry.isCurrent ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg
                             elide: Text.ElideRight
                         }
@@ -396,14 +396,14 @@ Cell {
                     Action {
                         visible: Bt.enabled
                         on: Bt.requested
-                        text: Bt.discovering ? (panel.spin + " sucht") : "Suchen"
+                        text: Bt.discovering ? (panel.spin + " scanning") : "Scan"
                         busy: Bt.discovering
                         onTriggered: Bt.toggleScan()
                     }
 
                     Action {
                         on: Bt.enabled
-                        text: Bt.enabled ? "Bluetooth an" : "Bluetooth aus"
+                        text: Bt.enabled ? "Bluetooth on" : "Bluetooth off"
                         onTriggered: Bt.setEnabled(!Bt.enabled)
                     }
                 }
@@ -411,7 +411,7 @@ Cell {
 
             Line {
                 visible: Bt.available && Bt.enabled && Bt.sorted.length === 0
-                text: Bt.discovering ? "  sucht …" : "  nichts gekoppelt"
+                text: Bt.discovering ? "  scanning …" : "  no paired devices"
                 color: Theme.fgDim
             }
 
@@ -433,7 +433,7 @@ Cell {
                         anchors.leftMargin: Theme.cellW / 2
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        text: (btRow.modelData.connected ? "▸ " : "  ") + Bt.label(btRow.modelData) + (btRow.modelData.batteryAvailable ? ("  " + Math.round(btRow.modelData.battery * 100) + "%") : "") + (btRow.modelData.pairing ? "  ·koppelt" : (btRow.modelData.paired || btRow.modelData.connected ? "" : "  ·neu"))
+                        text: (btRow.modelData.connected ? "▸ " : "  ") + Bt.label(btRow.modelData) + (btRow.modelData.batteryAvailable ? ("  " + Math.round(btRow.modelData.battery * 100) + "%") : "") + (btRow.modelData.pairing ? "  ·pairing" : (btRow.modelData.paired || btRow.modelData.connected ? "" : "  ·new"))
                         color: btRow.modelData.connected ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg
                         elide: Text.ElideRight
                     }

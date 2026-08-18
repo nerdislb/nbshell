@@ -48,7 +48,7 @@ Cell {
                     anchors.verticalCenter: parent.verticalCenter
                     elide: Text.ElideRight
                     // Keine Marke rechts wie in den anderen Popouts: dort
-                    // stehen hier schon die Knoepfe (Pruefen, Aktualisieren),
+                    // stehen hier schon die Knoepfe (Pruefen, Update),
                     // und zwei Dinge am selben Rand sind eines zu viel.
                     text: "UPDATES  (" + Updates.count + ")"
                     color: Theme.fgDim
@@ -62,7 +62,7 @@ Cell {
                     spacing: Theme.cellW * 2
 
                     ActionButton {
-                        text: Updates.checking ? "Prueft …" : "Neu pruefen"
+                        text: Updates.checking ? "Prueft …" : "Check again"
                         busy: Updates.checking
                         compact: true
                         onTriggered: Updates.refresh()
@@ -70,7 +70,7 @@ Cell {
 
                     ActionButton {
                         visible: Updates.count > 0
-                        text: "Aktualisieren"
+                        text: "Update"
                         tone: "primary"
                         accentColor: Theme.green
                         compact: true
@@ -85,7 +85,7 @@ Cell {
 
             Line {
                 visible: Updates.count === 0
-                text: Updates.ready ? "alles aktuell" : "noch nicht geprueft"
+                text: Updates.ready ? "everything is up to date" : "not checked yet"
                 color: Theme.muted
             }
 
@@ -100,7 +100,7 @@ Cell {
                     // neue Fassung muss die Versionsnummer nicht aendern, das
                     // Paket ist trotzdem ein anderes. "v1.6.0 → v1.6.0" saehe
                     // aus wie ein Fehler.
-                    text: modelData.from === modelData.to ? ("  " + modelData.name + "   " + modelData.to + "  (neuer Build)") : ("  " + modelData.name + "   " + modelData.from + " → " + modelData.to)
+                    text: modelData.from === modelData.to ? ("  " + modelData.name + "   " + modelData.to + "  (new build)") : ("  " + modelData.name + "   " + modelData.from + " → " + modelData.to)
                     color: Theme.fg
                     elide: Text.ElideRight
                 }
@@ -127,7 +127,7 @@ Cell {
 
             Line {
                 visible: Updates.count > 18
-                text: "  … und " + (Updates.count - 18) + " weitere"
+                text: "  … and " + (Updates.count - 18) + " more"
                 color: Theme.muted
             }
         }

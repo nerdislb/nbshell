@@ -204,14 +204,14 @@ PanelWindow {
             }
 
             Messwert {
-                label: "HERUNTERLADEN"
+                label: "DOWNLOAD"
                 laeuft: root.running
                 wert: (root.result && root.result.ok) ? root.result.down : 0
                 fill: Theme.green
             }
 
             Messwert {
-                label: "HOCHLADEN"
+                label: "UPLOAD"
                 laeuft: root.running
                 wert: (root.result && root.result.ok) ? root.result.up : 0
                 fill: Theme.accent
@@ -251,7 +251,7 @@ PanelWindow {
 
             Line {
                 width: inhalt.rowWidth
-                text: "Leertaste misst erneut · Esc schliesst"
+                text: "Space runs again · Esc closes"
                 color: Theme.muted
             }
         }

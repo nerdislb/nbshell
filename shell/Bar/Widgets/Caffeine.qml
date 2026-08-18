@@ -51,7 +51,7 @@ Cell {
 
             function minuten(sekunden) {
                 if (sekunden <= 0)
-                    return "aus";
+                    return "off";
                 if (sekunden < 60)
                     return sekunden + " s";
                 const m = Math.round(sekunden / 60);
@@ -61,8 +61,8 @@ Cell {
             PanelHead {
                 rowWidth: panel.rowWidth
                 icon: Idle.caffeine ? Icons.coffee : Icons.sleep
-                title: Idle.caffeine ? "bleibt wach" : (Idle.enabled ? "Automatik laeuft" : "Automatik aus")
-                subtitle: "Leerlauf"
+                title: Idle.caffeine ? "Keep awake active" : (Idle.enabled ? "Automation active" : "Automation disabled")
+                subtitle: "Idle behavior"
                 badge: Idle.state
                 badgeColor: Idle.caffeine ? Theme.yellow : Theme.fgDim
             }
@@ -72,17 +72,17 @@ Cell {
                 columns: 1
                 pairs: [
                     {
-                        "label": "dimmen nach",
+                        "label": "dim after",
                         "value": panel.minuten(Idle.dimAfter),
                         "color": Idle.armed ? Theme.fg : Theme.muted
                     },
                     {
-                        "label": "Bildschirm aus nach",
+                        "label": "Screen off after",
                         "value": panel.minuten(Idle.offAfter),
                         "color": Idle.armed ? Theme.fg : Theme.muted
                     },
                     {
-                        "label": "sperren nach",
+                        "label": "lock after",
                         "value": panel.minuten(Idle.lockAfter),
                         "color": Idle.armed ? Theme.fg : Theme.muted
                     }
@@ -95,14 +95,14 @@ Cell {
 
             Line {
                 width: panel.rowWidth
-                text: Idle.caffeine ? "Klick laesst die Automatik wieder zu." : "Klick haelt den Rechner wach."
+                text: Idle.caffeine ? "Click to enable automation again." : "Click to keep the computer awake."
                 color: Theme.fgDim
                 wrapMode: Text.WordWrap
             }
 
             Line {
                 width: panel.rowWidth
-                text: "Rechtsklick schaltet die Automatik " + (Idle.enabled ? "ganz ab." : "wieder ein.")
+                text: "Right-click turns automation " + (Idle.enabled ? "off completely." : "back on.")
                 color: Theme.muted
                 wrapMode: Text.WordWrap
             }
@@ -110,7 +110,7 @@ Cell {
             Line {
                 width: panel.rowWidth
                 visible: !Brightness.available
-                text: "Kein Helligkeitsregler gefunden -- gedimmt wird dann nicht."
+                text: "No brightness control found -- dimming is disabled."
                 color: Theme.muted
                 wrapMode: Text.WordWrap
                 topPadding: Theme.cellH * 0.3

@@ -34,11 +34,11 @@ Singleton {
     readonly property string label: {
         switch (kind) {
         case "volume":
-            return "LAUTSTAERKE";
+            return "VOLUME";
         case "mic":
             return "MIKROFON";
         case "brightness":
-            return "HELLIGKEIT";
+            return "BRIGHTNESS";
         }
         return "";
     }

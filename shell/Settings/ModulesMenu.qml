@@ -21,19 +21,19 @@ PanelWindow {
     readonly property var groups: [
         {
             "key": "collapsedWidgets",
-            "label": "Eingeklappt (Insel)"
+            "label": "Collapsed (island)"
         },
         {
             "key": "leftWidgets",
-            "label": "Links"
+            "label": "Left"
         },
         {
             "key": "centerWidgets",
-            "label": "Mitte"
+            "label": "Center"
         },
         {
             "key": "rightWidgets",
-            "label": "Rechts"
+            "label": "Right"
         }
     ]
 
@@ -253,7 +253,7 @@ PanelWindow {
                 spacing: 0
 
                 Line {
-                    text: "BAUSTEINE"
+                    text: "MODULES"
                     color: root.inCatalog ? Theme.muted : Theme.fgDim
                     bottomPadding: Theme.cellH * 0.4
                 }
@@ -392,7 +392,7 @@ PanelWindow {
                 spacing: 0
 
                 Line {
-                    text: "VORRAT"
+                    text: "AVAILABLE"
                     color: root.inCatalog ? Theme.fgDim : Theme.muted
                     bottomPadding: Theme.cellH * 0.4
                 }
@@ -453,7 +453,7 @@ PanelWindow {
                 anchors.bottom: parent.bottom
                 anchors.left: parent.left
                 anchors.margins: Theme.cellW
-                text: "↑↓ waehlen · ←→ verschieben · Shift+←→ in andere Gruppe · x entfernen · Tab Vorrat · Enter anhaengen · Esc"
+                text: "↑↓ select · ←→ move · Shift+←→ change group · x remove · Tab available · Enter add · Esc"
                 color: Theme.muted
             }
         }

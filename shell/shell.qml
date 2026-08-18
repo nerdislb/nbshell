@@ -38,7 +38,7 @@ ShellRoot {
         // QML-Dateien werden im Betrieb neu geladen. Beim Entwickeln reicht
         // damit Speichern statt Neustarten.
         Quickshell.watchFiles = true;
-        console.info("nbshell laeuft — Theme:", Config.theme, "| Modus:", Config.mode);
+        console.info("nbshell running — theme:", Config.theme, "| mode:", Config.mode);
 
         // Singletons entstehen in QML erst, wenn sie jemand anfasst. Die
         // Dienste, die von aussen beobachten (Helligkeit, Netz, Bluetooth,

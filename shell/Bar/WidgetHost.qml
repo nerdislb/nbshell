@@ -44,7 +44,7 @@ Item {
         source: root.pluginSource
 
         onStatusChanged: if (status === Loader.Error)
-            console.warn("nbshell: Baustein", root.widgetName, "laedt nicht —", sourceComponent ? "eingebaut" : root.pluginSource);
+            console.warn("nbshell: Baustein", root.widgetName, "failed to load —", sourceComponent ? "eingebaut" : root.pluginSource);
     }
 
     // Jeder Baustein bekommt seinen Namen angehaengt, damit ein Popout von

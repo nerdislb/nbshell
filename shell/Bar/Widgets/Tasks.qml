@@ -47,7 +47,7 @@ Cell {
                 Line {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "AUFGABEN  (" + Todo.count + (Todo.doneCount > 0 ? " offen, " + Todo.doneCount + " erledigt" : "") + ")"
+                    text: "TASKS  (" + Todo.count + (Todo.doneCount > 0 ? " open, " + Todo.doneCount + " done" : "") + ")"
                     color: Theme.fgDim
                 }
 
@@ -64,7 +64,7 @@ Cell {
 
             Line {
                 visible: Todo.list.length === 0
-                text: "nichts vorgemerkt"
+                text: "no tasks"
                 color: Theme.muted
             }
 
@@ -113,7 +113,7 @@ Cell {
 
             Line {
                 width: panel.rowWidth
-                text: (Todo.list.length > 12 ? "… und " + (Todo.list.length - 12) + " weitere  ·  " : "") + "Klick hakt ab · Rechtsklick loescht · Mod+T eintragen"
+                text: (Todo.list.length > 12 ? "… and " + (Todo.list.length - 12) + " more  ·  " : "") + "Click toggles · right-click deletes · Mod+T adds"
                 color: Theme.muted
                 elide: Text.ElideRight
             }

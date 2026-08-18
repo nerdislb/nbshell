@@ -66,15 +66,15 @@ Cell {
             PanelHead {
                 rowWidth: panel.rowWidth
                 icon: PowerService.charging ? Icons.batteryCharging : Icons.battery(PowerService.percent)
-                title: "Akkustaende"
-                subtitle: panel.batteries.length + (panel.batteries.length === 1 ? " Geraet" : " Geraete")
-                badge: PowerService.percent + " % intern"
+                title: "Battery levels"
+                subtitle: panel.batteries.length + (panel.batteries.length === 1 ? " device" : " devices")
+                badge: PowerService.percent + " % internal"
                 badgeColor: PowerService.percent <= 20 && !PowerService.charging ? Theme.red : (PowerService.charging ? Theme.green : Theme.fgDim)
             }
 
             Rule {
                 rowWidth: panel.rowWidth
-                label: "ALLE GERAETE"
+                label: "ALL DEVICES"
             }
 
             Repeater {
@@ -114,7 +114,7 @@ Cell {
             Line {
                 width: panel.rowWidth
                 visible: panel.missingReports > 0
-                text: panel.missingReports + (panel.missingReports === 1 ? " Bluetooth-Geraet verbunden, aber ohne Akkumeldung" : " Bluetooth-Geraete verbunden, aber ohne Akkumeldung")
+                text: panel.missingReports + (panel.missingReports === 1 ? " Bluetooth device connected without a battery report" : " Bluetooth devices connected without battery reports")
                 color: Theme.muted
             }
 
@@ -127,15 +127,15 @@ Cell {
                 rowWidth: panel.rowWidth
                 pairs: [
                     {
-                        "label": PowerService.charging ? "Voll in" : "Rest",
-                        "value": PowerService.full ? "voll" : PowerService.timeText
+                        "label": PowerService.charging ? "Full in" : "Remaining",
+                        "value": PowerService.full ? "full" : PowerService.timeText
                     },
                     {
-                        "label": PowerService.rate > 0 ? "Leistung" : "",
+                        "label": PowerService.rate > 0 ? "Power" : "",
                         "value": PowerService.rate > 0 ? PowerService.rate.toFixed(1) + " W" : ""
                     },
                     {
-                        "label": PowerService.health > 0 ? "Zustand" : "",
+                        "label": PowerService.health > 0 ? "Health" : "",
                         "value": PowerService.health > 0 ? PowerService.health + " %" : "",
                         "color": PowerService.health > 0 && PowerService.health < 70 ? Theme.yellow : Theme.fg
                     }
@@ -144,7 +144,7 @@ Cell {
 
             Rule {
                 rowWidth: panel.rowWidth
-                label: "PROFIL  (tuned)"
+                label: "PROFILE  (tuned)"
             }
 
             // Untereinander stand hier vorher eine Liste, in der nur das
@@ -159,7 +159,7 @@ Cell {
 
             Line {
                 width: panel.rowWidth
-                text: "weitere Profile: tuned-adm list"
+                text: "more profiles: tuned-adm list"
                 color: Theme.muted
                 topPadding: Theme.cellH * 0.3
             }

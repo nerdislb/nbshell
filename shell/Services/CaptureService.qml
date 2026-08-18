@@ -78,7 +78,7 @@ Singleton {
         }
         Quickshell.execDetached(["sh", "-c", "mkdir -p " + JSON.stringify(videoDir)]);
         run(["rec-start", videoDir, recAudio, recRegion ? "1" : "0"]);
-        return "laeuft";
+        return "running";
     }
 
     function editLast() {
@@ -114,7 +114,7 @@ Singleton {
     //
     // Der Test oben hat bestaetigt, dass eine FileView auch das ANLEGEN eines
     // bis dahin fehlenden Pfades meldet, nicht nur Aenderungen an einer
-    // bestehenden Datei. Damit gilt: Datei da = Aufnahme laeuft. Ohne Timer,
+    // bestehenden Datei. Damit gilt: Datei da = Aufnahme running. Ohne Timer,
     // ohne Verzoegerung, und auch dann richtig, wenn capture.sh im Terminal
     // gestartet wurde oder die Shell zwischendurch neu geladen hat -- beim
     // Start wird der Pfad einmal gelesen.
@@ -134,7 +134,7 @@ Singleton {
 
     // Ein Rekorder kann auch abstuerzen -- dann bleibt die Datei liegen und die
     // Leiste zeigte ewig einen roten Punkt. Dagegen wird nachgesehen, aber NUR
-    // waehrend einer Aufnahme: im Ruhezustand laeuft hier nichts.
+    // waehrend einer Aufnahme: im Ruhezustand running hier nichts.
     Process {
         id: probe
 

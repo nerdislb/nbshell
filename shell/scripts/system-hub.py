@@ -63,7 +63,7 @@ def syncthing_details():
                 state = json.load(response)
             errors = int(state.get("errors", 0) or 0)
             need = int(state.get("needTotalItems", 0) or 0)
-            out.append({"label": label, "detail": f"{need} offen · {errors} Fehler",
+            out.append({"label": label, "detail": f"{need} open · {errors} errors",
                         "state": "warn" if errors or need else "ok"})
         return out
     except Exception as exc:
@@ -107,18 +107,18 @@ def collect():
             "state": "warn" if a.get("agent_status") in ("waiting", "permission") else "ok",
             "command": "detached:python3 " + str(Path(__file__).resolve()) + " herdr-focus " + str(a.get("pane_id", ""))
         } for a in agent_data]
-        agents.append(item("herdr", "Herdr", f"{len(agent_data)} Agenten" if code == 0 else (err or "nicht erreichbar"), "ok" if code == 0 else "warn", f"{herdr} agent list", agent_rows))
+        agents.append(item("herdr", "Herdr", f"{len(agent_data)} Agenten" if code == 0 else (err or "unreachable"), "ok" if code == 0 else "warn", f"{herdr} agent list", agent_rows))
     else:
-        agents.append(item("herdr", "Herdr", "nicht installiert", "off"))
+        agents.append(item("herdr", "Herdr", "not installed", "off"))
     hook_tool = Path(__file__).with_name("codex-hooks.py")
     hook_script = Path(__file__).with_name("codex-notify.sh")
     code, out, _ = run("python3", str(hook_tool), "status")
-    agents.append(item("codex", "Codex Notifications", "Hooks aktiv" if out == "installed" else "Hooks nicht aktiv", "ok" if out == "installed" else "warn", f"python3 {hook_tool} install {hook_script}" if out != "installed" else ""))
+    agents.append(item("codex", "Codex Notifications", "Hooks aktiv" if out == "installed" else "Hooks inactive", "ok" if out == "installed" else "warn", f"python3 {hook_tool} install {hook_script}" if out != "installed" else ""))
     groups.append({"title": "AGENTEN", "items": agents})
 
     sync = []
     syncthing = unit("syncthing.service")
-    sync.append(item("syncthing", "Syncthing", "Dienst aktiv" if syncthing else "Dienst nicht aktiv", "ok" if syncthing else "warn", "xdg-open http://127.0.0.1:8384", syncthing_details() if syncthing else []))
+    sync.append(item("syncthing", "Syncthing", "Dienst aktiv" if syncthing else "Service inactive", "ok" if syncthing else "warn", "xdg-open http://127.0.0.1:8384", syncthing_details() if syncthing else []))
     if shutil.which("gh"):
         code, out, err = run("gh", "api", "notifications", timeout=10)
         try:
@@ -128,9 +128,9 @@ def collect():
         rows = [{"label": str(n.get("repository", {}).get("full_name", "GitHub")),
                  "detail": str(n.get("subject", {}).get("title", "")), "state": "warn"}
                 for n in notices[:15]]
-        sync.append(item("github", "GitHub Inbox", f"{len(notices)} ungelesen" if code == 0 else (err or "Anmeldung pruefen"), "ok" if code == 0 and not notices else "warn", "xdg-open https://github.com/notifications", rows))
+        sync.append(item("github", "GitHub Inbox", f"{len(notices)} ungelesen" if code == 0 else (err or "Check login"), "ok" if code == 0 and not notices else "warn", "xdg-open https://github.com/notifications", rows))
     else:
-        sync.append(item("github", "GitHub Inbox", "gh nicht installiert", "off"))
+        sync.append(item("github", "GitHub Inbox", "gh not installed", "off"))
     groups.append({"title": "SYNC & INBOX", "items": sync})
 
     system = []
@@ -141,7 +141,7 @@ def collect():
         updates = count_lines(out)
         rows = [{"label": line.split()[0], "detail": " ".join(line.split()[1:]), "state": "warn"}
                 for line in out.splitlines() if line.strip()][:20]
-        system.append(item("updates", "Arch Updates", f"{updates} Pakete" if code in (0, 2) else "Pruefung fehlgeschlagen", "warn" if updates else "ok", "nbshell update list", rows))
+        system.append(item("updates", "Arch Updates", f"{updates} Pakete" if code in (0, 2) else "Check failed", "warn" if updates else "ok", "nbshell update list", rows))
     pacnew = []
     for base in (Path("/etc"),):
         try:
@@ -158,7 +158,7 @@ def collect():
                   for line in printers.splitlines() if line.strip()]
     print_rows += [{"label": line.split()[0], "detail": "Druckauftrag", "state": "warn"}
                    for line in out.splitlines() if line.strip()]
-    system.append(item("cups", "Drucker", (f"{count_lines(out)} Auftraege" if cups else "CUPS nicht aktiv"), "ok" if cups and not out else "warn", "xdg-open http://localhost:631", print_rows))
+    system.append(item("cups", "Drucker", (f"{count_lines(out)} Auftraege" if cups else "CUPS inactive"), "ok" if cups and not out else "warn", "xdg-open http://localhost:631", print_rows))
     groups.append({"title": "SYSTEM", "items": system})
 
     dev = []
@@ -171,19 +171,19 @@ def collect():
         detail = (process.group(1) + " · PID " + process.group(2)) if process else "System/anderer Benutzer"
         port_rows.append({"label": endpoint, "detail": detail, "state": "ok"})
     dev.append(item("ports", "Portboard", f"{count_lines(out)} offene TCP-Listener", "ok" if code == 0 else "warn", "ss -tlnp", port_rows))
-    dev.append(item("equalizer", "Equalizer", "EasyEffects bereit" if shutil.which("easyeffects") else "EasyEffects nicht installiert", "ok" if shutil.which("easyeffects") else "off", "easyeffects" if shutil.which("easyeffects") else ""))
+    dev.append(item("equalizer", "Equalizer", "EasyEffects ready" if shutil.which("easyeffects") else "EasyEffects not installed", "ok" if shutil.which("easyeffects") else "off", "easyeffects" if shutil.which("easyeffects") else ""))
     groups.append({"title": "ENTWICKLUNG & AUDIO", "items": dev})
 
     hardware = []
     if shutil.which("ddcutil"):
         code, out, err = run("ddcutil", "detect", "--brief", timeout=8)
         detected = code == 0 and "Display" in out
-        detail = "DDC-Monitor erkannt" if detected else ((err or out).splitlines()[0] if (err or out) else "kein DDC-Monitor")
-        hardware.append(item("ddc", "Externe Helligkeit", detail, "ok" if detected else "warn", "ddcutil detect"))
+        detail = "DDC-Monitor erkannt" if detected else ((err or out).splitlines()[0] if (err or out) else "no DDC monitor")
+        hardware.append(item("ddc", "External brightness", detail, "ok" if detected else "warn", "ddcutil detect"))
     else:
-        hardware.append(item("ddc", "Externe Helligkeit", "ddcutil nicht installiert / nur eDP-1", "off"))
+        hardware.append(item("ddc", "External brightness", "ddcutil not installed / nur eDP-1", "off"))
     decoder = shutil.which("zbarimg") or shutil.which("zxing")
-    hardware.append(item("qr", "QR aus Screenshot", "Decoder bereit" if decoder else "zbarimg/ZXing nicht installiert", "ok" if decoder else "off"))
+    hardware.append(item("qr", "QR aus Screenshot", "Decoder ready" if decoder else "zbarimg/ZXing not installed", "ok" if decoder else "off"))
     groups.append({"title": "HARDWARE", "items": hardware})
 
     return {"groups": groups}

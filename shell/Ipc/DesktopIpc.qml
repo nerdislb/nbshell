@@ -17,14 +17,18 @@ import qs.Services
 Scope {
     IpcHandler {
         target: "dashboard"
-        function toggle(): string { Runtime.dashboardOpen = !Runtime.dashboardOpen; return Runtime.dashboardOpen ? "offen" : "zu"; }
-        function open(): string { Runtime.dashboardOpen = true; return "offen"; }
-        function close(): string { Runtime.dashboardOpen = false; return "zu"; }
+        function toggle(): string { Runtime.dashboardOpen = !Runtime.dashboardOpen; return Runtime.dashboardOpen ? "open" : "closed"; }
+        function open(): string { Runtime.dashboardOpen = true; return "open"; }
+        function close(): string { Runtime.dashboardOpen = false; return "closed"; }
         function view(page: string): string {
-            const names = ["heute", "medien", "werkzeuge"];
-            const index = names.indexOf(String(page).toLowerCase());
+            const names = ["today", "media", "tools"];
+            const aliases = ({ "heute": 0, "medien": 1, "werkzeuge": 2 });
+            const requested = String(page).toLowerCase();
+            let index = names.indexOf(requested);
+            if (index < 0 && aliases[requested] !== undefined)
+                index = aliases[requested];
             if (index < 0)
-                return "heute | medien | werkzeuge";
+                return "today | media | tools";
             Runtime.dashboardPage = index;
             Runtime.dashboardOpen = true;
             return names[index];
@@ -33,16 +37,16 @@ Scope {
 
     IpcHandler {
         target: "hub"
-        function toggle(): string { Runtime.hubOpen = !Runtime.hubOpen; return Runtime.hubOpen ? "offen" : "zu"; }
-        function open(): string { Runtime.hubOpen = true; return "offen"; }
-        function close(): string { Runtime.hubOpen = false; return "zu"; }
+        function toggle(): string { Runtime.hubOpen = !Runtime.hubOpen; return Runtime.hubOpen ? "open" : "closed"; }
+        function open(): string { Runtime.hubOpen = true; return "open"; }
+        function close(): string { Runtime.hubOpen = false; return "closed"; }
     }
 
     IpcHandler {
         target: "emoji"
-        function toggle(): string { Runtime.emojiOpen = !Runtime.emojiOpen; return Runtime.emojiOpen ? "offen" : "zu"; }
-        function open(): string { Runtime.emojiOpen = true; return "offen"; }
-        function close(): string { Runtime.emojiOpen = false; return "zu"; }
+        function toggle(): string { Runtime.emojiOpen = !Runtime.emojiOpen; return Runtime.emojiOpen ? "open" : "closed"; }
+        function open(): string { Runtime.emojiOpen = true; return "open"; }
+        function close(): string { Runtime.emojiOpen = false; return "closed"; }
     }
 
     IpcHandler {
@@ -66,27 +70,27 @@ Scope {
 
         function menu(): string {
             Runtime.captureOpen = !Runtime.captureOpen;
-            return Runtime.captureOpen ? "offen" : "zu";
+            return Runtime.captureOpen ? "open" : "closed";
         }
 
         function screen(): string {
-            return CaptureService.shoot("screen") ? "Bildschirm" : "niri fehlt";
+            return CaptureService.shoot("screen") ? "Screen" : "niri missing";
         }
 
         function window(): string {
-            return CaptureService.shoot("window") ? "Fenster" : "niri fehlt";
+            return CaptureService.shoot("window") ? "Window" : "niri missing";
         }
 
         function region(): string {
-            return CaptureService.shoot("region") ? "Bereich" : "niri fehlt";
+            return CaptureService.shoot("region") ? "Bereich" : "niri missing";
         }
 
         function ocr(): string {
-            return CaptureService.ocr() ? "Texterkennung" : "niri fehlt";
+            return CaptureService.ocr() ? "Texterkennung" : "niri missing";
         }
 
         function qr(): string {
-            return CaptureService.qr() ? "QR-Erkennung" : "niri fehlt";
+            return CaptureService.qr() ? "QR-Erkennung" : "niri missing";
         }
 
         function record(): string {
@@ -100,17 +104,17 @@ Scope {
 
         function toggle(): string {
             Runtime.menuOpen = !Runtime.menuOpen;
-            return Runtime.menuOpen ? "offen" : "zu";
+            return Runtime.menuOpen ? "open" : "closed";
         }
 
         function open(): string {
             Runtime.menuOpen = true;
-            return "offen";
+            return "open";
         }
 
         function close(): string {
             Runtime.menuOpen = false;
-            return "zu";
+            return "closed";
         }
     }
 
@@ -119,7 +123,7 @@ Scope {
 
         function toggle(): string {
             Runtime.procsOpen = !Runtime.procsOpen;
-            return Runtime.procsOpen ? "offen" : "zu";
+            return Runtime.procsOpen ? "open" : "closed";
         }
 
         function top(): string {
@@ -139,17 +143,17 @@ Scope {
 
         function toggle(): string {
             Runtime.keysOpen = !Runtime.keysOpen;
-            return Runtime.keysOpen ? "offen" : "zu";
+            return Runtime.keysOpen ? "open" : "closed";
         }
 
         function open(): string {
             Runtime.keysOpen = true;
-            return "offen";
+            return "open";
         }
 
         function reload(): string {
             Binds.load();
-            return "liest neu";
+            return "reloading";
         }
     }
 
@@ -161,7 +165,7 @@ Scope {
         // Baustein auf eine Taste legen.
         function toggle(name: string): string {
             if (!Plugins.entry(name))
-                return "unbekannter Baustein: " + name;
+                return "unknown module: " + name;
             Runtime.islandOpen = true;
             Runtime.requestPopout(name);
             return name;
@@ -173,13 +177,13 @@ Scope {
 
         function center(): string {
             Runtime.notificationCenterOpen = !Runtime.notificationCenterOpen;
-            return Runtime.notificationCenterOpen ? "offen" : "zu";
+            return Runtime.notificationCenterOpen ? "open" : "closed";
         }
 
         function toggle(): string {
             Runtime.islandOpen = true;
             Runtime.notifyOpen = !Runtime.notifyOpen;
-            return Runtime.notifyOpen ? "offen" : "zu";
+            return Runtime.notifyOpen ? "open" : "closed";
         }
 
         // Der Server ist der Umschalter zwischen den beiden Shells -- deshalb
@@ -188,13 +192,13 @@ Scope {
             const next = value === "toggle" ? !Notify.enabled : (value === "on");
             Config.set("notifications", next);
             if (next)
-                return "an — nbshell stellt den Benachrichtigungsdienst bereit";
-            return "aus — die Benachrichtigungen gehen wieder an DMS";
+                return "on — nbshell provides the notification service";
+            return "off — notifications are handled by DMS again";
         }
 
         function dnd(): string {
             Notify.setDnd(!Notify.dnd);
-            return Notify.dnd ? "nicht stoeren" : "wieder laut";
+            return Notify.dnd ? "do not disturb" : "wieder laut";
         }
 
         function clear(): string {
@@ -214,7 +218,7 @@ Scope {
 
         function list(): string {
             if (Notify.count === 0)
-                return "nichts da";
+                return "nothing here";
             return Notify.history.map(e => (e.appName || "System") + ": " + (e.summary ?? "")).join("\n");
         }
     }
@@ -271,18 +275,18 @@ Scope {
 
         function open(): string {
             Runtime.launcherOpen = true;
-            return "offen";
+            return "open";
         }
 
         function close(): string {
             Runtime.launcherOpen = false;
-            return "zu";
+            return "closed";
         }
 
         function toggle(): string {
             Runtime.launcherPrefill = "";
             Runtime.launcherOpen = !Runtime.launcherOpen;
-            return Runtime.launcherOpen ? "offen" : "zu";
+            return Runtime.launcherOpen ? "open" : "closed";
         }
 
         // Dieselbe Flaeche, nur mit gesetztem Praefix: ">" nur Befehle,
@@ -290,13 +294,13 @@ Scope {
         function palette(): string {
             Runtime.launcherPrefill = ">";
             Runtime.launcherOpen = true;
-            return "offen";
+            return "open";
         }
 
         function apps(): string {
             Runtime.launcherPrefill = "!";
             Runtime.launcherOpen = true;
-            return "offen";
+            return "open";
         }
 
         // Zum Pruefen ohne Tastatur -- und praktisch fuer Skripte. Zeigt
@@ -321,7 +325,7 @@ Scope {
             if (!hit)
                 return "kein Befehl passt zu: " + query;
             if (hit.confirm)
-                return hit.name + " fragt nach und geht nur im Fenster (Mod+Space)";
+                return hit.name + " requires confirmation and only runs in the window (Mod+Space)";
             Commands.invoke(hit);
             return hit.name;
         }
@@ -341,7 +345,7 @@ Scope {
         function toggle(): string {
             Runtime.islandOpen = true;
             Runtime.controlOpen = !Runtime.controlOpen;
-            return Runtime.controlOpen ? "offen" : "zu";
+            return Runtime.controlOpen ? "open" : "closed";
         }
 
         function status(): string {
@@ -351,8 +355,8 @@ Scope {
                 "wlan": Net.wifiEnabled,
                 "netze": Net.wifiNetworks.length,
                 "bluetooth": Bt.enabled,
-                "verbunden": Bt.connected.map(d => Bt.label(d)),
-                "helligkeit": Brightness.available ? Brightness.percent : -1
+                "connected": Bt.connected.map(d => Bt.label(d)),
+                "brightness": Brightness.available ? Brightness.percent : -1
             });
         }
     }

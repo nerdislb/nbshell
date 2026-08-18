@@ -398,7 +398,7 @@ Variants {
                 Line {
                     // Feste Breite in Zeichen, damit die Pille beim Regeln
                     // nicht atmet.
-                    text: (Osd.muted ? "stumm" : (Osd.value + "%")).padStart(6, " ")
+                    text: (Osd.muted ? "muted" : (Osd.value + "%")).padStart(6, " ")
                     color: Osd.muted ? Theme.red : Theme.fg
                 }
             }

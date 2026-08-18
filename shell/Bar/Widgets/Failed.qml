@@ -52,14 +52,14 @@ Cell {
                 Line {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "FEHLGESCHLAGEN  (" + Units.count + ")"
+                    text: "FAILED  (" + Units.count + ")"
                     color: Theme.fgDim
                 }
 
                 Action {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    text: Units.checking ? "Prueft …" : "Neu pruefen"
+                    text: Units.checking ? "Prueft …" : "Check again"
                     busy: Units.checking
                     onTriggered: Units.refresh()
                 }
@@ -78,10 +78,10 @@ Cell {
                     Line {
                         width: panel.rowWidth
                         // Der Bereich gehoert an den Namen: `nbshell.service`
-                        // gibt es als eigenen Dienst und als Systemdienst, und
+                        // gibt es als useren Dienst und als Systemdienst, und
                         // welcher gemeint ist, entscheidet, was die Knoepfe
                         // darunter tun.
-                        text: "  " + eintrag.modelData.name + (eintrag.modelData.bereich === "user" ? "   (eigen)" : "   (System)")
+                        text: "  " + eintrag.modelData.name + (eintrag.modelData.bereich === "user" ? "   (user)" : "   (System)")
                         color: Theme.fg
                         elide: Text.ElideRight
                     }
@@ -100,7 +100,7 @@ Cell {
                         bottomPadding: Theme.cellH * 0.3
 
                         Action {
-                            text: "Neu starten"
+                            text: "Restart"
                             ton: Theme.green
                             onTriggered: {
                                 Units.restart(eintrag.modelData);
@@ -133,7 +133,7 @@ Cell {
 
             Line {
                 visible: Units.count > 8
-                text: "  … und " + (Units.count - 8) + " weitere"
+                text: "  … and " + (Units.count - 8) + " more"
                 color: Theme.muted
             }
 
@@ -142,7 +142,7 @@ Cell {
             // Terminal aufgeht.
             Line {
                 visible: Units.systemUnits.length > 0
-                text: "  Systemdienste fragen im Terminal nach dem Passwort."
+                text: "  System services ask for your password in the terminal."
                 color: Theme.muted
                 topPadding: Theme.cellH * 0.3
             }

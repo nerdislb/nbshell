@@ -55,7 +55,7 @@ Cell {
 
                 Line {
                     anchors.left: parent.left
-                    text: "BENACHRICHTIGUNGEN  (" + Notify.count + ")"
+                    text: "NOTIFICATIONS  (" + Notify.count + ")"
                     color: Theme.fgDim
                 }
 
@@ -64,7 +64,7 @@ Cell {
                     spacing: Theme.cellW
 
                     ActionButton {
-                        text: Notify.dnd ? "DND an" : "Stumm"
+                        text: Notify.dnd ? "DND on" : "Muted"
                         tone: Notify.dnd ? "primary" : "secondary"
                         accentColor: Theme.yellow
                         compact: true
@@ -73,7 +73,7 @@ Cell {
 
                     ActionButton {
                         visible: Notify.count > 0
-                        text: "Leeren"
+                        text: "Clear"
                         tone: "danger"
                         compact: true
                         onTriggered: Notify.clear()
@@ -83,7 +83,7 @@ Cell {
 
             Line {
                 visible: Notify.count === 0
-                text: "nichts da"
+                text: "nothing here"
                 color: Theme.muted
             }
 
@@ -114,7 +114,7 @@ Cell {
                         anchors.fill: parent
                         visible: parent.text === "" && !parent.activeFocus
                         verticalAlignment: Text.AlignVCenter
-                        text: "suchen …"
+                        text: "search …"
                         color: Theme.muted
                     }
                 }
@@ -122,7 +122,7 @@ Cell {
 
             Line {
                 visible: Notify.count > 0 && panel.shownNotifications.length === 0
-                text: "kein Treffer"
+                text: "no results"
                 color: Theme.muted
             }
 

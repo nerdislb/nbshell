@@ -36,9 +36,9 @@ def main():
     try:
         data = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     except (OSError, ValueError) as exc:
-        raise SystemExit(f"{path} ist unlesbar und wurde nicht verändert: {exc}")
+        raise SystemExit(f"{path} is unreadable and was not changed: {exc}")
     if not isinstance(data, dict) or not isinstance(data.get("hooks", {}), dict):
-        raise SystemExit(f"{path} hat kein unterstütztes Hook-Format")
+        raise SystemExit(f"{path} does not contain a supported hook format")
     hooks = data.setdefault("hooks", {})
     present = any(owned(h) for groups in hooks.values() if isinstance(groups, list)
                   for group in groups if isinstance(group, dict)

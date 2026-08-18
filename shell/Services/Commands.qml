@@ -10,13 +10,13 @@ import qs.Common
 // Der Gedanke stammt aus Omarchy 4: dort sind Anwendungsstarter und Menue zu
 // EINER Flaeche verschmolzen, weil zwei Paletten mit zwei Tastenkuerzeln
 // nichts trennen, was zusammengehoert. Vorher musste man wissen, dass das Theme
-// hinter Mod+Comma steckt und die Aufgaben hinter Mod+T. Jetzt tippt man
+// hinter Mod+Comma steckt und die Tasks hinter Mod+T. Jetzt tippt man
 // "theme" und drueckt Enter.
 //
 // Ausgefuehrt wird DIREKT, nicht ueber `nbshell …`: die Shell riefe sonst ein
 // Programm auf, das ihr per IPC zurueckruft, um eine Property zu setzen, die
 // sie selbst haelt -- dreimal um den Block fuer ein `= true`. Nur was nicht in
-// der Shell liegt (Sitzung, Sperren), geht als Prozess hinaus.
+// der Shell liegt (Session, Lock), geht als Prozess hinaus.
 //
 // Was der Benutzer selbst dazuschreibt, steht in
 // ~/.config/nbshell/commands.json und kann nur eine Befehlszeile mitbringen:
@@ -44,39 +44,39 @@ Singleton {
     readonly property var builtin: {
         const out = [];
 
-        // ── Fenster ──────────────────────────────────────────────────────
-        out.push(entry("Einstellungen", "Optionen der Shell", "Fenster", () => Runtime.settingsOpen = true));
-        out.push(entry("Hauptmenü", "Omarchy-artiger Sammelpunkt (Mod+Space)", "Fenster", () => Runtime.menuOpen = true));
-        out.push(entry("System & Plugins", "Herdr, Sync, Updates, Druck, Ports und Hardware (Mod+Ctrl+H)", "Fenster", () => Runtime.hubOpen = true));
-        out.push(entry("Bausteine", "welche Zellen in der Leiste stehen", "Fenster", () => Runtime.modulesOpen = true));
-        out.push(entry("Emoji", "suchen und kopieren (Mod+Ctrl+E)", "Fenster", () => Runtime.emojiOpen = true));
-        out.push(entry("Audio", "Geraete und Anwendungslautstaerken (Mod+Ctrl+A)", "Fenster", () => Runtime.audioPanelOpen = true));
-        out.push(entry("Aufgaben", "die Liste (Mod+T)", "Fenster", () => Runtime.todoOpen = true));
-        out.push(entry("Ton zurückholen", "Kopfhörer wieder auf den Laptop", "Ton", () => Audio.tonZurueck()));
-        out.push(entry("Zwischenablage", "Verlauf (Mod+V)", "Fenster", () => Runtime.clipOpen = true));
-        out.push(entry("Benachrichtigungen", "Archiv (Mod+N)", "Fenster", () => Runtime.notifyOpen = true));
-        out.push(entry("Prozesse", "was laeuft und was frisst", "Fenster", () => Runtime.procsOpen = true));
-        out.push(entry("Aufnahme", "Bildschirmfoto und Video", "Fenster", () => Runtime.captureOpen = true));
-        out.push(entry("Hintergrundbild", "Karussell der Bilder (Mod+Y)", "Fenster", () => Runtime.wallpaperOpen = true));
-        out.push(entry("Themewahl", "Farben durchblaettern", "Fenster", () => Runtime.themePickerOpen = true));
-        out.push(entry("Sitzung", "Sperren, Abmelden, Ausschalten", "Fenster", () => Runtime.powerOpen = true));
+        // ── Windows ──────────────────────────────────────────────────────
+        out.push(entry("Settings", "Shell options", "Windows", () => Runtime.settingsOpen = true));
+        out.push(entry("Main menu", "Omarchy-style command center (Mod+Space)", "Windows", () => Runtime.menuOpen = true));
+        out.push(entry("System & Plugins", "Herdr, sync, updates, printing, ports, and hardware (Mod+Ctrl+H)", "Windows", () => Runtime.hubOpen = true));
+        out.push(entry("Modules", "choose the modules shown in the bar", "Windows", () => Runtime.modulesOpen = true));
+        out.push(entry("Emoji", "search and copy (Mod+Ctrl+E)", "Windows", () => Runtime.emojiOpen = true));
+        out.push(entry("Audio", "devices and application volumes (Mod+Ctrl+A)", "Windows", () => Runtime.audioPanelOpen = true));
+        out.push(entry("Tasks", "task list (Mod+T)", "Windows", () => Runtime.todoOpen = true));
+        out.push(entry("Restore audio", "move headphones back to the laptop", "Audio", () => Audio.tonZurueck()));
+        out.push(entry("Clipboard", "history (Mod+V)", "Windows", () => Runtime.clipOpen = true));
+        out.push(entry("Notifications", "archive (Mod+N)", "Windows", () => Runtime.notifyOpen = true));
+        out.push(entry("Processes", "running processes and resource usage", "Windows", () => Runtime.procsOpen = true));
+        out.push(entry("Capture", "screenshots and video", "Windows", () => Runtime.captureOpen = true));
+        out.push(entry("Wallpaper", "browse wallpapers (Mod+Y)", "Windows", () => Runtime.wallpaperOpen = true));
+        out.push(entry("Theme picker", "browse colors", "Windows", () => Runtime.themePickerOpen = true));
+        out.push(entry("Session", "lock, log out, power off", "Windows", () => Runtime.powerOpen = true));
 
         // ── Form der Leiste ──────────────────────────────────────────────
-        out.push(entry("Leiste: Balken", "durchgehend ueber die Breite", "Form", () => Config.set("mode", "bar")));
-        out.push(entry("Leiste: Insel", "freistehend, klappt zusammen", "Form", () => Config.set("mode", "island")));
-        out.push(entry("Leiste: Pille", "freistehend, bleibt offen", "Form", () => Config.set("mode", "pill")));
-        out.push(entry("Leiste nach oben", "Kante wechseln", "Form", () => Config.set("edge", "top")));
-        out.push(entry("Leiste nach unten", "Kante wechseln", "Form", () => Config.set("edge", "bottom")));
+        out.push(entry("Bar: full width", "spans the entire screen width", "Shape", () => Config.set("mode", "bar")));
+        out.push(entry("Bar: island", "floating and collapsible", "Shape", () => Config.set("mode", "island")));
+        out.push(entry("Bar: pill", "floating and always expanded", "Shape", () => Config.set("mode", "pill")));
+        out.push(entry("Move bar to top", "change screen edge", "Shape", () => Config.set("edge", "top")));
+        out.push(entry("Move bar to bottom", "change screen edge", "Shape", () => Config.set("edge", "bottom")));
 
         // ── Themes ───────────────────────────────────────────────────────
         // Jedes installierte Theme ist ein eigener Befehl: "gruv" und Enter
         // ist kuerzer als jede Liste, durch die man blaettert.
-        out.push(entry("Theme: naechstes", "eins weiter", "Theme", () => ThemeIndex.step(1)));
-        out.push(entry("Theme: voriges", "eins zurueck", "Theme", () => ThemeIndex.step(-1)));
+        out.push(entry("Theme: next", "next", "Theme", () => ThemeIndex.step(1)));
+        out.push(entry("Theme: previous", "previous", "Theme", () => ThemeIndex.step(-1)));
         const themes = ThemeIndex.list;
         for (var i = 0; i < themes.length; i++) {
             const name = themes[i].name;
-            out.push(entry("Theme: " + name, name === Config.theme ? "gerade aktiv" : "Farben wechseln", "Theme", () => ThemeIndex.apply(name)));
+            out.push(entry("Theme: " + name, name === Config.theme ? "currently active" : "change colors", "Theme", () => ThemeIndex.apply(name)));
         }
 
         // Der Akzent als Rolle -- dieselbe Liste wie im Themewaehler, nur
@@ -84,27 +84,27 @@ Singleton {
         const roles = Theme.accentRoles;
         for (var r = 0; r < roles.length; r++) {
             const role = roles[r];
-            out.push(entry("Akzent: " + role, role === Theme.accentRole ? "gerade aktiv" : "Farbe aus der Palette des Themes", "Theme", () => Config.set("accent", role)));
+            out.push(entry("Accent: " + role, role === Theme.accentRole ? "currently active" : "color from the theme palette", "Theme", () => Config.set("accent", role)));
         }
 
-        // ── Dienste ──────────────────────────────────────────────────────
-        out.push(entry(Notify.dnd ? "Nicht stoeren aus" : "Nicht stoeren an", "Karten unterdruecken", "Dienste", () => Notify.setDnd(!Notify.dnd)));
-        out.push(entry(Audio.muted ? "Ton an" : "Ton aus", "Lautsprecher stumm schalten", "Dienste", () => Audio.toggleMute()));
-        out.push(entry(Audio.micMuted ? "Mikrofon an" : "Mikrofon aus", "Aufnahme stumm schalten", "Dienste", () => Audio.setMicMuted(!Audio.micMuted)));
-        out.push(entry("Updates pruefen", "Paketliste neu holen", "Dienste", () => Updates.refresh()));
-        out.push(entry(Idle.caffeine ? "Wachhalten aus" : "Wachhalten an", "Dimmen, Bildschirm-aus und Sperren anhalten", "Dienste", () => Idle.toggleCaffeine()));
-        out.push(entry(Idle.enabled ? "Leerlauf-Automatik aus" : "Leerlauf-Automatik an", "dimmen, abschalten, sperren", "Dienste", () => Config.set("idle", !Idle.enabled)));
-        out.push(entry("Themeliste neu lesen", "nach neuen Themes suchen", "Dienste", () => ThemeIndex.refresh()));
+        // ── Services ──────────────────────────────────────────────────────
+        out.push(entry(Notify.dnd ? "Disable do not disturb" : "Enable do not disturb", "suppress notification cards", "Services", () => Notify.setDnd(!Notify.dnd)));
+        out.push(entry(Audio.muted ? "Unmute audio" : "Mute audio", "mute the speakers", "Services", () => Audio.toggleMute()));
+        out.push(entry(Audio.micMuted ? "Unmute microphone" : "Mute microphone", "mute audio capture", "Services", () => Audio.setMicMuted(!Audio.micMuted)));
+        out.push(entry("Check for updates", "refresh package list", "Services", () => Updates.refresh()));
+        out.push(entry(Idle.caffeine ? "Disable keep awake" : "Enable keep awake", "prevent dimming, screen-off, and locking", "Services", () => Idle.toggleCaffeine()));
+        out.push(entry(Idle.enabled ? "Disable idle automation" : "Enable idle automation", "dim, turn off, and lock", "Services", () => Config.set("idle", !Idle.enabled)));
+        out.push(entry("Reload theme list", "look for new themes", "Services", () => ThemeIndex.refresh()));
 
-        // ── Sitzung ──────────────────────────────────────────────────────
+        // ── Session ──────────────────────────────────────────────────────
         // Was sich nicht zurueckdrehen laesst, fragt nach. In einer
-        // Suchpalette liegt "Ausschalten" sonst einen Tippfehler entfernt.
-        out.push(entry("Sperren", "Bildschirm sperren", "Sitzung", () => Session.run("lock")));
-        out.push(entry("Bereitschaft", "suspend", "Sitzung", () => Session.run("suspend")));
-        out.push(entry("Ruhezustand", "hibernate", "Sitzung", () => Session.run("hibernate"), true));
-        out.push(entry("Abmelden", "niri beenden", "Sitzung", () => Session.run("logout"), true));
-        out.push(entry("Neu starten", "reboot", "Sitzung", () => Session.run("reboot"), true));
-        out.push(entry("Ausschalten", "poweroff", "Sitzung", () => Session.run("poweroff"), true));
+        // Suchpalette liegt "Power off" sonst einen Tippfehler entfernt.
+        out.push(entry("Lock", "lock the screen", "Session", () => Session.run("lock")));
+        out.push(entry("Suspend", "suspend", "Session", () => Session.run("suspend")));
+        out.push(entry("Hibernate", "hibernate", "Session", () => Session.run("hibernate"), true));
+        out.push(entry("Log out", "quit niri", "Session", () => Session.run("logout"), true));
+        out.push(entry("Restart", "reboot", "Session", () => Session.run("reboot"), true));
+        out.push(entry("Power off", "poweroff", "Session", () => Session.run("poweroff"), true));
 
         return out;
     }
@@ -112,7 +112,7 @@ Singleton {
     readonly property var all: root.builtin.concat(root.userCommands)
 
     // Gesucht wird in Name UND Beschreibung -- wer "stumm" tippt, meint den
-    // Ton, auch wenn der Befehl "Ton aus" heisst. Die Beschreibung zaehlt
+    // Audio, auch wenn der Befehl "Audio aus" heisst. Die Beschreibung zaehlt
     // weniger, sonst draengt sich ein Eintrag wegen seines Fliesstexts vor.
     function rank(query) {
         const items = root.all;
@@ -177,7 +177,7 @@ Singleton {
                         "kind": "cmd",
                         "name": String(e.name),
                         "comment": String(e.comment ?? e.description ?? ""),
-                        "category": String(e.category ?? "Eigene"),
+                        "category": String(e.category ?? "Custom"),
                         "run": String(e.run),
                         "confirm": e.confirm === true
                     }));

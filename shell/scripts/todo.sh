@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Aufgabenliste -- der Teil, der ins Dateisystem greift.
 #
-#   todo.sh merge <datei>   Konfliktkopien zurueckfalten
-#   todo.sh show  <datei>   die Liste als Text (fuers Terminal)
+#   todo.sh merge <file>   Konfliktkopien zurueckfalten
+#   todo.sh show  <file>   die Liste als Text (fuers Terminal)
 #
 # Warum ueberhaupt: ein Dateiabgleich (Syncthing, Nextcloud, Dropbox) kann zwei
 # gleichzeitige Aenderungen nicht aufloesen. Er behaelt eine Fassung und legt
@@ -22,7 +22,7 @@ set -uo pipefail
 cmd="${1:-}"
 file="${2:-}"
 
-[ -n "$file" ] || { echo "Datei fehlt" >&2; exit 2; }
+[ -n "$file" ] || { echo "file is required" >&2; exit 2; }
 
 dir="$(dirname "$file")"
 base="$(basename "$file")"
@@ -82,7 +82,7 @@ case "$cmd" in
         ;;
 
     *)
-        echo "todo.sh merge|show <datei>" >&2
+        echo "todo.sh merge|show <file>" >&2
         exit 2
         ;;
 esac

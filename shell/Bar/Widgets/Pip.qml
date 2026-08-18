@@ -37,13 +37,13 @@ Cell {
                 spacing: Theme.cellW * 2
                 ActionButton { text: "Groesse"; compact: true; onTriggered: ZenPip.run("size") }
                 ActionButton { text: "Ecke"; compact: true; onTriggered: ZenPip.run("corner") }
-                ActionButton { text: "Fokus"; tone: "primary"; compact: true; onTriggered: ZenPip.run("focus") }
-                ActionButton { text: "Schliessen"; tone: "danger"; compact: true; onTriggered: ZenPip.run("close") }
+                ActionButton { text: "Focus"; tone: "primary"; compact: true; onTriggered: ZenPip.run("focus") }
+                ActionButton { text: "Close"; tone: "danger"; compact: true; onTriggered: ZenPip.run("close") }
             }
 
             Line {
                 width: parent.rowWidth
-                text: "Frei bewegen: Mod + linke Maustaste"
+                text: "Move freely: Mod + left mouse button"
                 color: Theme.muted
             }
         }

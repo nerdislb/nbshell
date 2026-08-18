@@ -33,7 +33,7 @@ Cell {
                 elide: Text.ElideRight
                 TapHandler { onTapped: Tailnet.copy(Tailnet.ip) }
             }
-            Line { text: "GERAETE  (" + Tailnet.onlinePeers + " online)"; color: Theme.fgDim }
+            Line { text: "DEVICES  (" + Tailnet.onlinePeers + " online)"; color: Theme.fgDim }
 
             Repeater {
                 model: Tailnet.peers
@@ -59,7 +59,7 @@ Cell {
             }
 
             ActionButton {
-                text: "Verwaltung oeffnen"
+                text: "Open admin panel"
                 tone: "primary"
                 onTriggered: Quickshell.execDetached(["xdg-open", "https://login.tailscale.com/admin/machines"])
             }

@@ -89,7 +89,7 @@ Singleton {
             nachfassen.restart();
             return;
         }
-        const line = "sudo systemctl restart '" + einheit.name + "'; echo; read -n1 -r -p 'fertig — Taste schliesst das Fenster'";
+        const line = "sudo systemctl restart '" + einheit.name + "'; echo; read -n1 -r -p 'done — press any key to close the window'";
         Quickshell.execDetached([root.terminal, "-e", "sh", "-c", line]);
         nachfassen.restart();
     }
@@ -102,7 +102,7 @@ Singleton {
             nachfassen.restart();
             return;
         }
-        const line = "sudo systemctl reset-failed '" + einheit.name + "'; echo; read -n1 -r -p 'fertig — Taste schliesst das Fenster'";
+        const line = "sudo systemctl reset-failed '" + einheit.name + "'; echo; read -n1 -r -p 'done — press any key to close the window'";
         Quickshell.execDetached([root.terminal, "-e", "sh", "-c", line]);
         nachfassen.restart();
     }

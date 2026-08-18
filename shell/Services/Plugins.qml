@@ -45,56 +45,56 @@ Singleton {
     readonly property var builtins: [
         {
             "id": "workspaces",
-            "name": "Arbeitsflaechen",
+            "name": "Workspaces",
             "description": "die Flaechen von niri",
             "category": "niri"
         },
         {
             "id": "window",
-            "name": "Fenstertitel",
-            "description": "was gerade den Fokus hat",
+            "name": "Window title",
+            "description": "what currently has focus",
             "category": "niri"
         },
         {
             "id": "clock",
-            "name": "Uhr",
-            "description": "Datum und Zeit, Klick oeffnet den Kalender",
+            "name": "Clock",
+            "description": "date and time; click opens the calendar",
             "category": "Zeit"
         },
         {
             "id": "media",
-            "name": "Medien",
-            "description": "was gerade laeuft",
-            "category": "Ton"
+            "name": "Media",
+            "description": "currently playing media",
+            "category": "Audio"
         },
         {
             "id": "musik",
-            "name": "Wiedergabe",
-            "description": "zurueck, Pause, weiter, Zufall",
-            "category": "Ton"
+            "name": "Playback",
+            "description": "previous, pause, next, shuffle",
+            "category": "Audio"
         },
         {
             "id": "vis",
-            "name": "Ausschlag",
-            "description": "Balken, solange etwas spielt (cava)",
-            "category": "Ton"
+            "name": "Visualizer",
+            "description": "meter while media is playing (cava)",
+            "category": "Audio"
         },
         {
             "id": "bongo",
             "name": "Bongo Cat",
-            "description": "tippende Katze mit Sitzungseingabe",
+            "description": "typing cat using session input",
             "category": "Spass"
         },
         {
             "id": "sys",
-            "name": "Systemlast",
-            "description": "CPU und Speicher",
+            "name": "System load",
+            "description": "CPU and memory",
             "category": "System"
         },
         {
             "id": "battery",
-            "name": "Akku",
-            "description": "Ladestand, Restzeit, Energieprofil",
+            "name": "Battery",
+            "description": "battery level, remaining time, power profile",
             "category": "System"
         },
         {
@@ -106,108 +106,108 @@ Singleton {
         {
             "id": "tray",
             "name": "System-Tray",
-            "description": "Symbole der Programme",
+            "description": "application icons",
             "category": "System"
         },
         {
             "id": "notifications",
-            "name": "Benachrichtigungen",
-            "description": "Anzahl und Archiv",
+            "name": "Notifications",
+            "description": "count and archive",
             "category": "System"
         },
         {
             "id": "clipboard",
-            "name": "Zwischenablage",
+            "name": "Clipboard",
             "description": "Verlauf",
             "category": "System"
         },
         {
             "id": "capture",
-            "name": "Aufnahme",
-            "description": "Screenshot und Bildschirmaufnahme",
+            "name": "Capture",
+            "description": "screenshots and screen recording",
             "category": "System"
         },
         {
             "id": "control",
             "name": "Control Center",
-            "description": "Helligkeit, WLAN, Bluetooth",
+            "description": "brightness, Wi-Fi, Bluetooth",
             "category": "System"
         },
         {
             "id": "volume",
-            "name": "Lautstaerke",
-            "description": "Regler und Geraetewahl",
-            "category": "Ton"
+            "name": "Volume",
+            "description": "controls and device selection",
+            "category": "Audio"
         },
         {
             "id": "themes",
-            "name": "Themewahl",
-            "description": "Farbpalette wechseln",
-            "category": "Aussehen"
+            "name": "Theme picker",
+            "description": "switch the color palette",
+            "category": "Appearance"
         },
         {
             "id": "ai",
-            "name": "KI-Verbrauch",
-            "description": "Fuellstand je Anbieter",
+            "name": "AI usage",
+            "description": "usage level for each provider",
             "category": "System"
         },
         {
             "id": "updates",
             "name": "Updates",
-            "description": "offene Systemupdates",
+            "description": "available system updates",
             "category": "System"
         },
         {
             "id": "units",
-            "name": "Kaputte Dienste",
-            "description": "fehlgeschlagene systemd-Einheiten -- unsichtbar, solange alles laeuft",
+            "name": "Failed services",
+            "description": "failed systemd units; hidden while everything works",
             "category": "System"
         },
         {
             "id": "todo",
-            "name": "Aufgaben",
-            "description": "offene Punkte, Liste per Mod+T",
+            "name": "Tasks",
+            "description": "open tasks; list with Mod+T",
             "category": "System"
         },
         {
             "id": "habits",
-            "name": "Gewohnheiten",
-            "description": "nbHabits / init.Habits Tracker mit 20-Wochen-Heatmap Matrix und Streaks",
+            "name": "Habits",
+            "description": "nbHabits / init.Habits tracker with a 20-week heatmap and streaks",
             "category": "System"
         },
         {
             "id": "devices",
-            "name": "Geraeteakkus",
-            "description": "Maus, Kopfhoerer -- meldet sich nur, wenn es knapp wird",
+            "name": "Device batteries",
+            "description": "mouse and headphones; only appears when battery is low",
             "category": "System"
         },
         {
             "id": "nearby",
             "name": "In der Naehe",
-            "description": "Zwischenablage und Bilder ans Telefon (LocalSend)",
+            "description": "Clipboard und Bilder ans Telefon (LocalSend)",
             "category": "System"
         },
         {
             "id": "caffeine",
             "name": "Wachhalten",
-            "description": "haelt Dimmen, Bildschirm-aus und Sperren an",
+            "description": "prevents dimming, screen-off, and locking",
             "category": "System"
         },
         {
             "id": "tailscale",
             "name": "Tailscale",
-            "description": "Tailnet-Zustand, Online-Geraete und Adressen",
+            "description": "Tailnet status, online devices, and addresses",
             "category": "Netz"
         },
         {
             "id": "whatsapp",
             "name": "WhatsApp",
-            "description": "Ungelesene Nachrichten, Chatverlauf und direktes Antworten",
+            "description": "unread messages, chat history, and direct replies",
             "category": "Netz"
         },
         {
             "id": "sep",
-            "name": "Trenner",
+            "name": "Separator",
             "description": "senkrechter Strich",
             "category": "Aussehen"
         }
@@ -269,7 +269,7 @@ Singleton {
 
     function describe(id) {
         const e = entry(id);
-        return e ? e.description : "unbekannter Baustein";
+        return e ? e.description : "unknown module";
     }
 
     // Der Pfad zur QML-Datei -- leer, wenn der Baustein eingebaut ist. Genau
@@ -320,15 +320,15 @@ Singleton {
     function invoke(id, verb, payload) {
         const item = runtimeInstance(id);
         if (!item)
-            return "Plugin nicht aktiv oder ohne Laufzeit-Einstiegspunkt: " + id;
+            return "Plugin is disabled or has no runtime entry point: " + id;
         if (typeof item[verb] !== "function")
             return "Plugin " + id + " kennt " + verb + " nicht";
         try {
             const result = item[verb](payload ?? "{}");
             return result === undefined ? id + ": " + verb : String(result);
         } catch (e) {
-            console.warn("nbshell/plugins:", id, verb, "fehlgeschlagen —", e);
-            return id + ": Fehler bei " + verb;
+            console.warn("nbshell/plugins:", id, verb, "failed —", e);
+            return id + ": error while " + verb;
         }
     }
 

@@ -421,7 +421,7 @@ Singleton {
         try {
             raw = JSON.parse(trimmed);
         } catch (e) {
-            console.warn("nbshell/habits: Datei unlesbar --", e);
+            console.warn("nbshell/habits: file unreadable --", e);
             return;
         }
 

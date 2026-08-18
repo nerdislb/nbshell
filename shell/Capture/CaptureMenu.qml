@@ -18,14 +18,14 @@ PanelWindow {
     property string pending: ""
 
     readonly property var actions: [
-        { "id": "screen", "label": "Bildschirm", "key": "b" },
-        { "id": "window", "label": "Fenster", "key": "f" },
-        { "id": "region", "label": "Bereich", "key": "a" },
+        { "id": "screen", "label": "Screen", "key": "b" },
+        { "id": "window", "label": "Window", "key": "f" },
+        { "id": "region", "label": "Region", "key": "a" },
         { "id": "ocr", "label": "Text erkennen", "key": "t" },
         { "id": "qr", "label": "QR-Code erkennen", "key": "q" },
-        { "id": "record", "label": CaptureService.recording ? "Aufnahme beenden" : "Aufnahme starten", "key": "v" },
-        { "id": "edit", "label": "Letztes bearbeiten", "key": "e" },
-        { "id": "open", "label": "Ordner oeffnen", "key": "o" }
+        { "id": "record", "label": CaptureService.recording ? "Stop recording" : "Start recording", "key": "v" },
+        { "id": "edit", "label": "Edit latest", "key": "e" },
+        { "id": "open", "label": "Open folder", "key": "o" }
     ]
 
     visible: Runtime.captureOpen
@@ -147,7 +147,7 @@ PanelWindow {
                 spacing: Theme.cellH * 0.2
 
                 Line {
-                    text: CaptureService.recording ? "AUFNAHME LAEUFT" : "AUFNEHMEN"
+                    text: CaptureService.recording ? "RECORDING" : "AUFNEHMEN"
                     color: CaptureService.recording ? Theme.red : Theme.fgDim
                     bottomPadding: Theme.cellH * 0.4
                 }
@@ -185,7 +185,7 @@ PanelWindow {
                 }
 
                 Line {
-                    text: "Esc schliesst"
+                    text: "Esc closes"
                     color: Theme.muted
                     topPadding: Theme.cellH * 0.4
                 }

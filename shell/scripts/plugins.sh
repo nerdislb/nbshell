@@ -16,7 +16,7 @@
 #
 #   plugins.sh list           -> JSON
 #   plugins.sh dir            -> das Verzeichnis (auch wenn es noch nicht existiert)
-#   plugins.sh add <quelle>   -> git-Repo oder Verzeichnis hereinholen
+#   plugins.sh add <source>   -> git-Repo oder Verzeichnis hereinholen
 #   plugins.sh update [name]  -> geklonte Plugins nachziehen
 #   plugins.sh remove <name>  -> wieder entfernen
 set -uo pipefail
@@ -88,7 +88,7 @@ for root, dirs, files in os.walk(directory, followlinks=False):
     for name in dirs + files:
         candidate = os.path.join(root, name)
         if os.path.islink(candidate):
-            raise SystemExit("Symlinks sind im Plugin nicht erlaubt: %s" % os.path.relpath(candidate, directory))
+            raise SystemExit("Symlinks are not allowed in plugins: %s" % os.path.relpath(candidate, directory))
 
 schema = data.get("schemaVersion")
 if schema is None:
@@ -96,14 +96,14 @@ if schema is None:
     entry_points = {"barWidget": str(data.get("entry") or "BarWidget.qml")}
 else:
     if schema != 2:
-        raise SystemExit("nicht unterstuetzte schemaVersion (erwartet: 2)")
+        raise SystemExit("unsupported schemaVersion (expected: 2)")
     for field in ("id", "name", "version", "kinds", "entryPoints"):
         if field not in data:
             raise SystemExit("Pflichtfeld fehlt: %s" % field)
     kinds = data.get("kinds")
     entry_points = data.get("entryPoints")
     if not isinstance(kinds, list) or not kinds:
-        raise SystemExit("kinds muss eine nicht-leere Liste sein")
+        raise SystemExit("kinds must be a non-empty list")
     if not isinstance(entry_points, dict):
         raise SystemExit("entryPoints muss ein Objekt sein")
 
@@ -153,7 +153,7 @@ valid_name() {
 }
 
 cmd_add() {
-	local source="${1:?Quelle fehlt}"
+	local source="${1:?source is required}"
 	local name="${2:-}"
 
 	if [ -z "$name" ]; then
@@ -172,7 +172,7 @@ cmd_add() {
 	local target="$PLUGIN_DIR/$name"
 	if [ -e "$target" ]; then
 		echo "'$name' ist schon da: $target" >&2
-		echo "  entfernen: nbshell plugin remove $name" >&2
+		echo "  remove: nbshell plugin remove $name" >&2
 		return 1
 	fi
 
@@ -187,7 +187,7 @@ cmd_add() {
 		# nicht erst ein halbes Dateisystem kopiert werden, um am Ende
 		# festzustellen, dass kein Manifest darin liegt.
 		[ -f "$source/manifest.json" ] || {
-			echo "Kein nbshell-Plugin: $source/manifest.json fehlt" >&2
+			echo "Not an nbshell plugin: $source/manifest.json is missing" >&2
 			rm -rf "$staging"
 			return 1
 		}
@@ -198,18 +198,18 @@ cmd_add() {
 		}
 	else
 		command -v git >/dev/null 2>&1 || {
-			echo "git fehlt -- ohne das laesst sich nichts klonen." >&2
+			echo "git is missing -- cannot clone the plugin." >&2
 			rm -rf "$staging"
 			return 1
 		}
 		echo "Hole $source …"
 		echo
-		echo "ACHTUNG: ein Plugin ist QML, das IN der Shell laeuft. Es kann"
-		echo "alles, was die Shell kann -- Dateien lesen, Programme starten."
-		echo "Nur hereinholen, was du gelesen hast oder wem du traust."
+		echo "WARNING: plugins are QML running INSIDE the shell. They can"
+		echo "do everything the shell can do, including reading files and starting programs."
+		echo "Only install code you reviewed or trust."
 		echo
 		git clone --depth 1 -- "$source" "$staging/holen" >/dev/null 2>&1 || {
-			echo "Klonen fehlgeschlagen: $source" >&2
+			echo "Clone failed: $source" >&2
 			rm -rf "$staging"
 			return 1
 		}
@@ -220,7 +220,7 @@ cmd_add() {
 	# dann meldet `update` es einfach nicht.
 	local label
 	label="$(check_plugin "$staging/holen" 2>&1)" || {
-		echo "Kein nbshell-Plugin: $label" >&2
+		echo "Not an nbshell plugin: $label" >&2
 		rm -rf "$staging"
 		return 1
 	}
@@ -231,8 +231,8 @@ cmd_add() {
 	}
 	rm -rf "$staging"
 	echo "$label -> $target"
-	echo "Sichtbar wird es erst nach: nbshell restart"
-	echo "In die Leiste kommt es ueber: nbshell modules  (oder Mod+Comma)"
+	echo "It becomes visible after: nbshell restart"
+	echo "Add it to the bar with: nbshell modules  (or Mod+Comma)"
 }
 
 cmd_remove() {
@@ -243,7 +243,7 @@ cmd_remove() {
 	}
 	local target="$PLUGIN_DIR/$name"
 	[ -d "$target" ] || {
-		echo "'$name' nicht gefunden in $PLUGIN_DIR" >&2
+		echo "'$name' was not found in $PLUGIN_DIR" >&2
 		return 1
 	}
 	rm -rf "$target"
@@ -271,18 +271,18 @@ cmd_update() {
 		local stage upstream candidate message
 		stage="$(mktemp -d "${TMPDIR:-/tmp}/nbshell-plugin-update.XXXXXX")" || continue
 		if ! git -C "$dir" fetch --quiet; then
-			echo "Abruf fehlgeschlagen"
+			echo "Fetch failed"
 			rm -rf "$stage"
 			continue
 		fi
 		upstream="$(git -C "$dir" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null)" || upstream="origin/$(git -C "$dir" branch --show-current)"
 		candidate="$(git -C "$dir" rev-parse "$upstream" 2>/dev/null)" || {
-			echo "kein Upstream"
+			echo "no upstream"
 			rm -rf "$stage"
 			continue
 		}
 		git -C "$dir" archive "$candidate" | tar -x -C "$stage" || {
-			echo "Pruefkopie fehlgeschlagen"
+			echo "Validation copy failed"
 			rm -rf "$stage"
 			continue
 		}
@@ -294,7 +294,7 @@ cmd_update() {
 		rm -rf "$stage"
 		git -C "$dir" merge --ff-only "$candidate" 2>&1 | tail -1
 	done
-	[ $found -eq 1 ] || echo "Nichts zu aktualisieren (kein Plugin mit .git in $PLUGIN_DIR)."
+	[ $found -eq 1 ] || echo "Nothing to update (no plugin with .git in $PLUGIN_DIR)."
 }
 
 plugin_id_exists() {
@@ -315,7 +315,7 @@ set_enabled() {
 		return 1
 	}
 	plugin_id_exists "$id" || {
-		echo "Plugin nicht gefunden oder ungueltig: $id" >&2
+		echo "Plugin not found or invalid: $id" >&2
 		return 1
 	}
 
@@ -352,7 +352,7 @@ finally:
     if os.path.exists(temp):
         os.unlink(temp)
 PY
-	[ "$enabled" = 1 ] && echo "$id aktiviert" || echo "$id deaktiviert"
+	[ "$enabled" = 1 ] && echo "$id enabled" || echo "$id disabled"
 }
 
 case "${1:-list}" in
@@ -385,7 +385,7 @@ update)
 	cmd_update "$@"
 	;;
 *)
-echo "Aufruf: $(basename "$0") list|dir|validate <verzeichnis>|add <quelle>|enable <id>|disable <id>|update [name]|remove <name>" >&2
+echo "Aufruf: $(basename "$0") list|dir|validate <directory>|add <source>|enable <id>|disable <id>|update [name]|remove <name>" >&2
 	exit 2
 	;;
 esac

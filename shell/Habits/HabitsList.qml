@@ -166,7 +166,7 @@ PanelWindow {
                     }
 
                     Text {
-                        text: "GEWOHNHEITEN"
+                        text: "HABITS"
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize + 3
                         font.bold: true
@@ -199,7 +199,7 @@ PanelWindow {
                     }
 
                     Text {
-                        text: "[ ESC SCHLIESSEN ]"
+                        text: "[ ESC CLOSE ]"
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize - 1
                         font.bold: true
@@ -241,7 +241,7 @@ PanelWindow {
                         Text {
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
-                            text: root.shortPath !== "" ? root.shortPath : "Sync aktiv"
+                            text: root.shortPath !== "" ? root.shortPath : "Sync active"
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSize - 1
                             color: Theme.fgDim
@@ -249,7 +249,7 @@ PanelWindow {
                     }
 
                     Text {
-                        text: Habits.doneCount + " / " + Habits.count + " ERLEDIGT  ·  " + Habits.progressPercent + "%"
+                        text: Habits.doneCount + " / " + Habits.count + " DONE  ·  " + Habits.progressPercent + "%"
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize
                         color: Habits.progressPercent >= 100 ? Theme.green : Theme.accent
@@ -287,7 +287,7 @@ PanelWindow {
                         Text {
                             anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "VERLAUF  ·  20 WOCHEN"
+                            text: "HISTORY  ·  20 WEEKS"
                             font.family: Theme.fontFamily
                             font.pixelSize: 10
                             color: Theme.fgDim
@@ -341,8 +341,8 @@ PanelWindow {
                 spacing: Theme.cellW * 0.5
 
                 readonly property var routines: [
-                    { id: "all", label: "ALLE" },
-                    { id: "morning", label: "MORGEN" },
+                    { id: "all", label: "ALL" },
+                    { id: "morning", label: "MORNING" },
                     { id: "workout", label: "TRAINING" },
                     { id: "work", label: "ARBEIT" },
                     { id: "evening", label: "ABEND" },
@@ -589,7 +589,7 @@ PanelWindow {
 
                                 Text {
                                     anchors.centerIn: parent
-                                    text: row.isDone ? "FOKUS ✓" : "FOKUS"
+                                    text: row.isDone ? "FOCUS ✓" : "FOCUS"
                                     font.family: Theme.fontFamily
                                     font.bold: true
                                     font.pixelSize: 10
@@ -614,7 +614,7 @@ PanelWindow {
 
                                 Text {
                                     anchors.centerIn: parent
-                                    text: row.isDone ? "ERLEDIGT" : "ERLEDIGEN"
+                                    text: row.isDone ? "DONE" : "ERLEDIGEN"
                                     font.family: Theme.fontFamily
                                     font.bold: true
                                     font.pixelSize: 10
@@ -702,7 +702,7 @@ PanelWindow {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
                         visible: input.text === ""
-                        text: "neue Gewohnheit, optional // routine"
+                        text: "new habit, optional // routine"
                         font.family: Theme.fontFamily
                         font.pixelSize: 11
                         color: Theme.fgDim

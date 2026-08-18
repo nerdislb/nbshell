@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 #
-# nbshell komplett einrichten: Pakete, Dateien, Dienste.
+# nbshell komplett einrichten: Packages, Files, Services.
 #
-# `install.sh` legt nur die Dateien ab und MELDET, was fehlt -- das ist der
+# `install.sh` legt nur die Files ab und MELDET, was fehlt -- das ist der
 # richtige Weg, wenn man nicht weiss, wem der Rechner gehoert. Dieses Skript
 # ist der andere Fall: es holt alles, was nbshell braucht, damit hinterher
 # kein Baustein still bleibt und kein Knopf ins Leere greift.
 #
 #   setup.sh                  der ganze Weg
-#   setup.sh --no-packages    nur die Dateien (dasselbe wie install.sh)
+#   setup.sh --no-packages    nur die Files (dasselbe wie install.sh)
 #   setup.sh --with-legacy-dotfiles  alte DMS-Dotfiles zusaetzlich uebernehmen
-#   setup.sh --no-aur         den AUR-Helfer nicht bauen
-#   setup.sh --with-hardware  auch die Hardware-Pakete der Paketliste
+#   setup.sh --no-aur         den AUR helper nicht bauen
+#   setup.sh --with-hardware  auch die Hardware-Packages der Paketliste
 #   setup.sh --yes            nichts fragen, alles ja
 #
-# Absichtlich NICHT als root aufzurufen: die Dateien gehoeren in $HOME, und ein
+# Absichtlich NICHT als root aufzurufen: die Files gehoeren in $HOME, und ein
 # `sudo ./setup.sh` legte sie in /root ab. Fuer pacman ruft das Skript sudo
 # selbst auf, an einer einzigen Stelle.
 set -euo pipefail
@@ -43,22 +43,20 @@ while [ $# -gt 0 ]; do
 	-y | --yes) ASSUME_YES=1 && shift ;;
 	-h | --help)
 		cat <<'USAGE'
-setup.sh -- nbshell einrichten: Pakete, Dateien und Dienste.
+setup.sh -- install nbshell packages, files, and services.
 
-  setup.sh                  nbshell eigenstaendig einrichten (ohne DMS)
-  setup.sh --no-packages    nur die Dateien (dasselbe wie install.sh)
+  setup.sh                  install nbshell without DMS
+  setup.sh --no-packages    install files only (same as install.sh)
   setup.sh --with-legacy-dotfiles
-                            optional: bisherige DMS-Dotfiles migrieren
-  setup.sh --no-aur         den AUR-Helfer nicht bauen
-  setup.sh --with-hardware  auch die Hardware-Pakete der Paketliste
-                            (nvidia, ucode, mesa ...) -- nur auf gleicher
-                            Hardware sinnvoll
-  setup.sh --yes            nichts fragen, alles ja
+                            optionally migrate old DMS dotfiles
+  setup.sh --no-aur         do not offer to install an AUR helper
+  setup.sh --with-hardware  include hardware-specific legacy packages
+  setup.sh --yes            accept normal package and service prompts
 USAGE
 		exit 0
 		;;
 	*)
-		printf 'Unbekannt: %s (--help zeigt die Aufrufe)\n' "$1" >&2
+		printf 'Unknown option: %s (see --help)\n' "$1" >&2
 		exit 2
 		;;
 	esac
@@ -75,36 +73,36 @@ die() {
 # Wird nur in einem `if` benutzt -- dort setzt `set -e` aus, der abschliessende
 # Test kann das Skript also nicht stillschweigend beenden.
 ask() {
-	local q="$1" def="${2:-j}" ans=""
+	local q="$1" def="${2:-y}" ans=""
 	[ "$ASSUME_YES" = "1" ] && return 0
-	if [ "$def" = "j" ]; then
-		read -r -p "$q [J/n] " ans || return 1
+	if [ "$def" = "j" ] || [ "$def" = "y" ]; then
+		read -r -p "$q [Y/n] " ans || return 1
 		[ -z "$ans" ] || [[ $ans =~ ^[jJyY] ]]
 	else
-		read -r -p "$q [j/N] " ans || return 1
+		read -r -p "$q [y/N] " ans || return 1
 		[[ $ans =~ ^[jJyY] ]]
 	fi
 }
 
-[ "$(id -u)" != "0" ] || die "Bitte NICHT als root: nbshell wird in dein \$HOME installiert."
+[ "$(id -u)" != "0" ] || die "Do not run this script as root. nbshell is installed in your home directory."
 
-# ── Die Pakete ───────────────────────────────────────────────────────────
+# ── Die Packages ───────────────────────────────────────────────────────────
 #
 # Nach Zweck sortiert, damit man sieht, wofuer man was bekommt. Alles davon
-# liegt in den offiziellen Repos -- auch quickshell. Nur der AUR-Helfer weiter
+# liegt in den offiziellen Repos -- auch quickshell. Nur der AUR helper weiter
 # unten ist ein Sonderfall.
 
-# Ohne das laeuft nichts.
+# Ohne das running nichts.
 PKG_BASIS=(quickshell niri ttf-inconsolata-nerd python jq git curl)
 
 # Woher die Bausteine ihre Zahlen haben. Quickshell spricht mit diesen
-# Diensten ueber DBus, `pactl` braucht die Aufnahme fuer den Ton.
+# Servicesn ueber DBus, `pactl` braucht die Aufnahme fuer den audio.
 PKG_SYSTEM=(networkmanager bluez bluez-utils pipewire pipewire-pulse wireplumber libpulse upower)
 
 # Einzelne Bausteine und Knoepfe.
 #   wl-clipboard   Ablage (`wl-paste --watch`, `wl-copy`)
 #   hyprlock       Sperren im Power-Menue
-#   tuned          Energieprofile beim Akku
+#   tuned          power profiles beim Akku
 #   libnotify      `notify-send` aus den Skripten
 #   xdg-utils      `xdg-open` nach einer Aufnahme
 #   pacman-contrib `checkupdates` -- ohne das rechnet der Updater langsamer
@@ -133,9 +131,9 @@ PKG_AUFNAHME=(wf-recorder slurp satty swappy tesseract tesseract-data-deu tesser
 ALLE=("${PKG_BASIS[@]}" "${PKG_SYSTEM[@]}" "${PKG_BAUSTEINE[@]}" "${PKG_KALENDER[@]}" "${PKG_ABGLEICH[@]}" "${PKG_AUFNAHME[@]}")
 
 if [ $WITH_PACKAGES -eq 1 ]; then
-	command -v pacman >/dev/null || die "Kein pacman gefunden. Dieses Skript richtet sich an Arch; auf anderen Systemen: --no-packages und die Liste im Kopf von Hand nachbauen."
+	command -v pacman >/dev/null || die "pacman was not found. This installer targets Arch Linux. On other systems, use --no-packages and install the listed dependencies manually."
 
-	head2 "Pakete"
+	head2 "Packages"
 
 	fehlend=()
 	for p in "${ALLE[@]}"; do
@@ -143,44 +141,44 @@ if [ $WITH_PACKAGES -eq 1 ]; then
 	done
 
 	if [ ${#fehlend[@]} -eq 0 ]; then
-		green "Alle ${#ALLE[@]} Pakete sind schon da."
+		green "All ${#ALLE[@]} packages are already installed."
 	else
-		printf 'Es fehlen %d von %d:\n\n' "${#fehlend[@]}" "${#ALLE[@]}"
+		printf 'Missing %d of %d:\n\n' "${#fehlend[@]}" "${#ALLE[@]}"
 		printf '  %s\n' "${fehlend[*]}"
 		printf '\n'
-		if ask "Mit pacman installieren?"; then
+		if ask "Install with pacman?"; then
 			# --needed: schon Vorhandenes wird nicht neu gebaut.
 			#
 			# Bricht pacman ab (Abbruch an seiner eigenen Frage, kein Netz,
 			# ein Konflikt), darf das NICHT das ganze Skript beenden: die
-			# Dateien weiter unten will man dann trotzdem haben.
+			# Files weiter unten will man dann trotzdem haben.
 			if sudo pacman -S --needed "${fehlend[@]}"; then
-				green "Pakete installiert."
+				green "Packages installed."
 			else
-				warn "pacman ist ausgestiegen -- die Dateien werden trotzdem eingerichtet."
+				warn "pacman failed -- file installation will continue."
 			fi
 		else
-			warn "Uebersprungen -- ohne sie bleiben Bausteine still."
+			warn "Skipped -- related modules will remain unavailable."
 		fi
 	fi
 
-	# ── AUR-Helfer ───────────────────────────────────────────────────
+	# ── AUR helper ───────────────────────────────────────────────────
 	#
-	# Nur fuer EINE Sache: der Updater zaehlt damit auch AUR-Pakete. Er
-	# laeuft ohne, dann fehlen in der Zahl eben die AUR-Updates.
+	# Nur fuer EINE Sache: der Updater zaehlt damit auch AUR-Packages. Er
+	# running ohne, dann fehlen in der Zahl eben die AUR-Updates.
 	#
 	# Das ist der einzige Schritt, der Fremdcode uebersetzt -- deshalb wird
 	# gefragt, auch mit --yes nicht uebergangen, und die Adresse steht dabei.
 	if [ $WITH_AUR -eq 1 ] && ! command -v paru >/dev/null 2>&1 && ! command -v yay >/dev/null 2>&1; then
-		head2 "AUR-Helfer"
-		echo "Fuer die AUR-Updates im Updater fehlt paru oder yay."
-		echo "Bauen von https://aur.archlinux.org/paru-bin.git (dein sudo, dein makepkg)."
+		head2 "AUR helper"
+		echo "paru or yay is required to include AUR updates."
+		echo "Build from https://aur.archlinux.org/paru-bin.git (uses your sudo and makepkg)."
 		echo
 		# Hier wird bewusst IMMER gefragt, auch mit --yes: das ist der einzige
-		# Schritt, der Code von ausserhalb der Repos uebersetzt und ausfuehrt.
+		# Schritt, der Code of ausserhalb der Repos uebersetzt und ausfuehrt.
 		# Das soll niemand aus Versehen anstossen.
 		aur_ans=""
-		read -r -p "paru-bin jetzt bauen? [j/N] " aur_ans || aur_ans=""
+		read -r -p "Build paru-bin now? [y/N] " aur_ans || aur_ans=""
 		if [[ $aur_ans =~ ^[jJyY] ]]; then
 			pacman -Qq base-devel >/dev/null 2>&1 || sudo pacman -S --needed base-devel
 			tmp="$(mktemp -d)"
@@ -189,51 +187,51 @@ if [ $WITH_PACKAGES -eq 1 ]; then
 			if git clone --depth 1 --quiet https://aur.archlinux.org/paru-bin.git "$tmp/paru-bin" &&
 				(cd "$tmp/paru-bin" && makepkg -si --noconfirm); then
 				rm -rf "$tmp"
-				green "paru installiert."
+				green "paru installed."
 			else
-				warn "Bau fehlgeschlagen. Das Verzeichnis bleibt zum Nachsehen: $tmp/paru-bin"
+				warn "Build failed. The directory was kept for inspection: $tmp/paru-bin"
 			fi
 		else
-			warn "Ohne AUR-Helfer zaehlt der Updater nur die Repo-Updates."
+			warn "Without an AUR helper, the updater only counts repository updates."
 		fi
 	fi
 
-	# ── Dienste ──────────────────────────────────────────────────────
+	# ── Services ──────────────────────────────────────────────────────
 	#
 	# Diese werden NICHT ungefragt eingeschaltet. Wer sein Netz mit
 	# systemd-networkd oder iwd verwaltet, steht nach einem beherzten
 	# `enable NetworkManager` ohne Verbindung da -- und das waere ein
 	# teurer Preis fuer eine Zahl in der Leiste.
-	head2 "Dienste"
+	head2 "Services"
 
 	dienst() {
 		local unit="$1" zweck="$2" vorgabe="${3:-j}"
 
-		# Gibt es die Unit gar nicht, wurde ihr Paket nicht installiert.
+		# Gibt es die Unit gar nicht, wurde ihr Paket not installed.
 		# Ein `enable` darauf scheitert -- und unter `set -e` risse es das
-		# ganze Skript mit, kurz vor den Dateien.
+		# ganze Skript mit, kurz vor den Files.
 		if ! systemctl list-unit-files "$unit.service" >/dev/null 2>&1 ||
 			[ -z "$(systemctl list-unit-files --no-legend "$unit.service" 2>/dev/null)" ]; then
-			printf '  %-16s nicht installiert (%s)\n' "$unit" "$zweck"
+			printf '  %-16s not installed (%s)\n' "$unit" "$zweck"
 			return 0
 		fi
 		if systemctl is-active --quiet "$unit" 2>/dev/null || systemctl is-enabled --quiet "$unit" 2>/dev/null; then
-			printf '  %-16s laeuft (%s)\n' "$unit" "$zweck"
+			printf '  %-16s running (%s)\n' "$unit" "$zweck"
 			return 0
 		fi
-		printf '  %-16s aus (%s)\n' "$unit" "$zweck"
-		if ask "    $unit einschalten?" "$vorgabe"; then
-			sudo systemctl enable --now "$unit" || warn "    ging nicht -- von Hand: sudo systemctl enable --now $unit"
+		printf '  %-16s off (%s)\n' "$unit" "$zweck"
+		if ask "    $unit enable?" "$vorgabe"; then
+			sudo systemctl enable --now "$unit" || warn "    failed -- run manually: sudo systemctl enable --now $unit"
 		fi
 		return 0
 	}
 
 	# NetworkManager mit Vorgabe "nein" -- siehe oben.
-	dienst NetworkManager "Netz-Baustein" n
-	dienst bluetooth "Bluetooth-Baustein"
-	dienst tuned "Energieprofile"
+	dienst NetworkManager "network module" n
+	dienst bluetooth "Bluetooth module"
+	dienst tuned "power profiles"
 
-	# Syncthing ist der einzige BENUTZERdienst hier: die Dateien, die es
+	# Syncthing ist der einzige BENUTZERdienst hier: die Files, die es
 	# bewegt, gehoeren dem Benutzer, und es haelt seine Einstellungen unter
 	# ~/.local/state. Als Systemdienst muesste es sich beides erst nehmen.
 	# Es laesst sich getrost einschalten, bevor ein Ordner eingerichtet ist
@@ -241,25 +239,25 @@ if [ $WITH_PACKAGES -eq 1 ]; then
 	# Oberflaeche auf 127.0.0.1:8384 anzubieten.
 	if [ -n "$(systemctl --user list-unit-files --no-legend syncthing.service 2>/dev/null)" ]; then
 		if systemctl --user is-enabled --quiet syncthing.service 2>/dev/null; then
-			printf '  %-16s laeuft (Aufgaben abgleichen)\n' "syncthing"
+			printf '  %-16s running (task sync)\n' "syncthing"
 		else
-			printf '  %-16s aus (Aufgabenliste mit dem Telefon abgleichen)\n' "syncthing"
-			if ask "    syncthing einschalten?" j; then
+			printf '  %-16s off (sync tasks with the phone)\n' "syncthing"
+			if ask "    syncthing enable?" j; then
 				systemctl --user enable --now syncthing.service ||
-					warn "    ging nicht -- von Hand: systemctl --user enable --now syncthing.service"
+					warn "    failed -- run manually: systemctl --user enable --now syncthing.service"
 			fi
 		fi
 	else
-		printf '  %-16s nicht installiert (Aufgaben abgleichen)\n' "syncthing"
+		printf '  %-16s not installed (task sync)\n' "syncthing"
 	fi
 
 	# Die beiden laufen je Sitzung und sind ueber Sockets aktiviert; sie
 	# einzuschalten ist selten noetig, ihr Fehlen aber einen Hinweis wert.
 	for u in pipewire wireplumber; do
 		if systemctl --user is-active --quiet "$u" 2>/dev/null; then
-			printf '  %-16s laeuft (Ton)\n' "$u"
+			printf '  %-16s running (audio)\n' "$u"
 		else
-			warn "  $u laeuft nicht -- ohne ihn bleibt der Lautstaerkebaustein leer."
+			warn "  $u is not running -- the volume module needs it."
 		fi
 	done
 fi
@@ -267,21 +265,21 @@ fi
 # ── Dotfiles ─────────────────────────────────────────────────────────────
 #
 # Nur fuer die bewusste Migration einer vorhandenen alten Installation. Der
-# Standardweg bleibt vollstaendig unabhaengig von diesem DMS-Dotfiles-Repo.
+# Standardweg bleibt vollstaendig unabhaengig of diesem DMS-Dotfiles-Repo.
 if [ $WITH_DOTFILES -eq 1 ]; then
 	head2 "Dotfiles"
-	[ -n "$DOTFILES_REPO" ] || die "Fuer die Alt-Migration zuerst NBSHELL_LEGACY_DOTFILES_REPO setzen."
+	[ -n "$DOTFILES_REPO" ] || die "Set NBSHELL_LEGACY_DOTFILES_REPO before using legacy migration."
 
 	if [ -d "$DOTFILES_DIR/.git" ]; then
-		printf '  %s ist da -- hole den neuesten Stand.\n' "${DOTFILES_DIR/#$HOME/\~}"
+		printf '  %s exists -- fetching the latest revision.\n' "${DOTFILES_DIR/#$HOME/\~}"
 		git -C "$DOTFILES_DIR" pull --ff-only --quiet 2>/dev/null ||
-			warn "  git pull ging nicht (eigene Aenderungen?) -- der vorhandene Stand wird benutzt."
+			warn "  git pull failed (local changes?) -- using the existing checkout."
 	elif [ -e "$DOTFILES_DIR" ]; then
-		die "$DOTFILES_DIR gibt es, ist aber kein Git-Repo. Bitte selbst aufraeumen."
+		die "$DOTFILES_DIR exists but is not a Git repository. Move or remove it first."
 	else
-		printf '  hole %s\n' "$DOTFILES_REPO"
+		printf '  cloning %s\n' "$DOTFILES_REPO"
 		git clone --quiet "$DOTFILES_REPO" "$DOTFILES_DIR" ||
-			die "Klonen fehlgeschlagen. Liegt dein SSH-Schluessel bei GitHub? Probe: ssh -T git@github.com"
+			die "Clone failed. Check GitHub authentication with: ssh -T git@github.com"
 	fi
 
 	# ── Die Paketliste des anderen Rechners ──────────────────────────
@@ -308,16 +306,16 @@ if [ $WITH_DOTFILES -eq 1 ]; then
 		done <"$DOTFILES_DIR/pkglist.txt"
 
 		if [ ${#hw[@]} -gt 0 ]; then
-			printf '\n  Hardware-nah, deshalb aussen vor (%d):\n    %s\n' "${#hw[@]}" "${hw[*]}"
-			[ $WITH_HARDWARE -eq 1 ] && rest+=("${hw[@]}") && echo "    --with-hardware: werden mitgenommen."
+			printf '\n  Hardware-specific packages skipped by default (%d):\n    %s\n' "${#hw[@]}" "${hw[*]}"
+			[ $WITH_HARDWARE -eq 1 ] && rest+=("${hw[@]}") && echo "    --with-hardware: included."
 		fi
 
 		if [ ${#rest[@]} -eq 0 ]; then
-			green "  Aus pkglist.txt fehlt nichts."
+			green "  All packages from pkglist.txt are installed."
 		else
-			printf '\n  Aus pkglist.txt fehlen %d:\n    %s\n\n' "${#rest[@]}" "${rest[*]}"
-			if ask "  installieren?"; then
-				sudo pacman -S --needed "${rest[@]}" || warn "  pacman ist ausgestiegen."
+			printf '\n  Missing %d packages from pkglist.txt:\n    %s\n\n' "${#rest[@]}" "${rest[*]}"
+			if ask "  Install them?"; then
+				sudo pacman -S --needed "${rest[@]}" || warn "  pacman failed."
 			fi
 		fi
 	fi
@@ -334,40 +332,39 @@ if [ $WITH_DOTFILES -eq 1 ]; then
 				pacman -Qq "$p" >/dev/null 2>&1 || aur+=("$p")
 			done <"$DOTFILES_DIR/pkglist-aur.txt"
 			if [ ${#aur[@]} -eq 0 ]; then
-				green "  Aus pkglist-aur.txt fehlt nichts."
+				green "  All packages from pkglist-aur.txt are installed."
 			else
-				printf '\n  Aus pkglist-aur.txt fehlen %d:\n    %s\n\n' "${#aur[@]}" "${aur[*]}"
-				if ask "  mit $(basename "$helper") bauen?"; then
-					"$helper" -S --needed "${aur[@]}" || warn "  $(basename "$helper") ist ausgestiegen."
+				printf '\n  Missing %d packages from pkglist-aur.txt:\n    %s\n\n' "${#aur[@]}" "${aur[*]}"
+				if ask "  Build with $(basename "$helper")?"; then
+					"$helper" -S --needed "${aur[@]}" || warn "  $(basename "$helper") failed."
 				fi
 			fi
 		else
-			warn "  Kein paru/yay -- die AUR-Liste bleibt liegen."
+			warn "  No paru/yay -- skipping the AUR package list."
 		fi
 	fi
 
 	# ── Die Einstellungen selbst ─────────────────────────────────────
 	if [ -x "$DOTFILES_DIR/bin/restore.sh" ]; then
 		echo
-		warn "  restore.sh ERSETZT ~/.local/bin vollstaendig: was dort liegt und"
-		warn "  nicht im Dotfiles-Repo steht, ist danach weg (etwa das agy-Binary)."
-		echo "  Von allem Ueberschriebenen legt es vorher eine .bak-Kopie an."
+		warn "  restore.sh REPLACES ~/.local/bin. Files not stored in the dotfiles"
+		warn "  repository will be removed. It creates .bak copies first."
 		echo
-		if ask "  restore.sh jetzt laufen lassen?"; then
+		if ask "  Run restore.sh now?"; then
 			# Es fragt selbst noch einmal nach. Mit --yes soll nichts
 			# stehen bleiben, also wird die Antwort hineingereicht.
 			if [ "$ASSUME_YES" = "1" ]; then
-				printf 'j\n' | "$DOTFILES_DIR/bin/restore.sh" || warn "  restore.sh ist ausgestiegen."
+				printf 'y\n' | "$DOTFILES_DIR/bin/restore.sh" || warn "  restore.sh failed."
 			else
-				"$DOTFILES_DIR/bin/restore.sh" || warn "  restore.sh ist ausgestiegen."
+				"$DOTFILES_DIR/bin/restore.sh" || warn "  restore.sh failed."
 			fi
 		fi
 	else
-		warn "  $DOTFILES_DIR/bin/restore.sh fehlt -- Einstellungen bleiben, wie sie sind."
+		warn "  $DOTFILES_DIR/bin/restore.sh is missing -- keeping current settings."
 	fi
 fi
 
-# ── Dateien ──────────────────────────────────────────────────────────────
+# ── Files ──────────────────────────────────────────────────────────────
 #
 # Den Rest kann install.sh schon: Shell, Themes, Config, Plugins, Unit,
 # Tastenkuerzel, der Befehl. Zweimal dasselbe zu schreiben hiesse, es zweimal
@@ -377,32 +374,32 @@ fi
 # ~/.local/bin als Ganzes, also auch den Befehl `nbshell` darin. Andersherum
 # gewaenne die Kopie aus dem Dotfiles-Repo -- und die ist nur so neu wie das
 # letzte save.sh.
-head2 "Dateien"
+head2 "Files"
 NBSHELL_FROM_SETUP=1 "$SRC/install.sh"
 
 if [ $WITH_PACKAGES -eq 1 ]; then
-	# Zum Schluss die Gegenprobe: was von den Befehlen, die die Skripte
+	# Zum Schluss die Final check: was of den Befehlen, die die Skripte
 	# aufrufen, ist jetzt WIRKLICH da? Ein installiertes Paket ist noch kein
 	# Befehl im PATH.
-	head2 "Gegenprobe"
+	head2 "Final check"
 	fehlt=0
 	for c in qs niri python3 jq git curl wl-copy wl-paste notify-send xdg-open \
 		hyprlock tuned-adm khal vdirsyncer wf-recorder slurp satty swappy \
 		tesseract pactl checkupdates fakeroot; do
 		command -v "$c" >/dev/null 2>&1 || {
-			warn "  $c fehlt weiterhin"
+			warn "  $c is still missing"
 			fehlt=1
 		}
 	done
-	[ $fehlt -eq 0 ] && green "Alle Befehle da."
+	[ $fehlt -eq 0 ] && green "All required commands are available."
 fi
 
 cat <<'EOF'
 
-Weiter geht es mit:
-  nbshell start -d       im Hintergrund starten
-  nbshell switch on      dauerhaft einrichten (Autostart, Tastenkuerzel,
-                         Benachrichtigungen, Fensterrahmen, Terminalfarben)
+Next steps:
+  nbshell start -d       start in the background
+  nbshell switch on      enable autostart, notifications, niri integration,
+                         window borders, and terminal colors
 
-Der Kalender braucht noch seine Konten -- siehe README, Abschnitt "Kalender".
+Calendar accounts require separate khal/vdirsyncer configuration; see README.md.
 EOF

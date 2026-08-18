@@ -79,7 +79,7 @@ PanelWindow {
             editing = "";
         } else {
             Todo.add(text);
-            // Neues steht unten bei den offenen -- die Auswahl geht mit, sonst
+            // Neues steht unten bei den openen -- die Auswahl geht mit, sonst
             // zeigt der Pfeil nach dem Eintragen auf etwas anderes.
             selected = Todo.list.length - 1;
         }
@@ -188,7 +188,7 @@ PanelWindow {
                 anchors.right: counts.left
                 anchors.rightMargin: Theme.cellW
                 elide: Text.ElideMiddle
-                text: "AUFGABEN" + (root.shortPath !== "" ? "  ·  " + root.shortPath : "")
+                text: "TASKS" + (root.shortPath !== "" ? "  ·  " + root.shortPath : "")
                 color: Theme.fgDim
             }
 
@@ -197,7 +197,7 @@ PanelWindow {
 
                 anchors.top: parent.top
                 anchors.right: parent.right
-                text: Todo.count + " offen" + (Todo.doneCount > 0 ? "  ·  " + Todo.doneCount + " erledigt" : "")
+                text: Todo.count + " open" + (Todo.doneCount > 0 ? "  ·  " + Todo.doneCount + " done" : "")
                 color: Theme.fgDim
             }
 
@@ -270,7 +270,7 @@ PanelWindow {
                 Line {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: input.text === ""
-                    text: "neue Aufgabe eintippen, Enter legt sie an"
+                    text: "type a new task and press Enter"
                     color: Theme.muted
                 }
             }
@@ -309,7 +309,7 @@ PanelWindow {
                 anchors.top: parent.top
                 anchors.topMargin: Theme.cellH * 0.3
                 visible: root.list.length === 0
-                text: Todo.doneCount > 0 ? "alles erledigt." : "nichts vorgemerkt."
+                text: Todo.doneCount > 0 ? "alles done." : "no tasks."
                 color: Theme.muted
             }
 
@@ -396,7 +396,7 @@ PanelWindow {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                text: root.editing !== "" ? "Enter uebernimmt · Esc bricht ab" : "Tab hakt ab · ↑↓ waehlen · Strg+E aendern · Strg+D loescht · Strg+L raeumt auf"
+                text: root.editing !== "" ? "Enter saves · Esc cancels" : "Tab toggles · ↑↓ select · Ctrl+E edit · Ctrl+D delete · Ctrl+L clean up"
                 color: Theme.muted
                 elide: Text.ElideRight
             }

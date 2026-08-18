@@ -66,7 +66,7 @@ PanelWindow {
                 anchors.fill: parent
                 anchors.margins: Theme.cellW * 2
                 spacing: Theme.cellH
-                Line { width: parent.width; text: root.query === "" ? "EMOJI SUCHEN …" : root.query; color: root.query === "" ? Theme.muted : Theme.fg; elide: Text.ElideRight }
+                Line { width: parent.width; text: root.query === "" ? "SEARCH EMOJI …" : root.query; color: root.query === "" ? Theme.muted : Theme.fg; elide: Text.ElideRight }
                 GridView {
                     width: parent.width
                     height: parent.height - Theme.cellH * 3

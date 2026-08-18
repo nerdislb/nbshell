@@ -119,7 +119,7 @@ Singleton {
     readonly property string label: {
         if (!active)
             return "";
-        const t = title || "unbekannt";
+        const t = title || "unknown";
         return artist ? (artist + " — " + t) : t;
     }
 

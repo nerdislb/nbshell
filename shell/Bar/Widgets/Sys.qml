@@ -109,7 +109,7 @@ Cell {
             PanelHead {
                 rowWidth: panel.rowWidth
                 icon: Icons.cpu
-                title: SysInfo.hasDetail ? String(panel.d.modell) : "Prozessor"
+                title: SysInfo.hasDetail ? String(panel.d.modell) : "Processor"
                 subtitle: SysInfo.hasDetail && panel.d.mhz ? (panel.d.mhz + " MHz") : ""
                 badge: SysInfo.cpuPercent + " %"
                 badgeColor: SysInfo.cpuPercent >= 90 ? Theme.red : Theme.fgDim
@@ -126,11 +126,11 @@ Cell {
                 rowWidth: panel.rowWidth
                 pairs: SysInfo.hasDetail ? [
                     {
-                        "label": "Last",
+                        "label": "Load",
                         "value": panel.d.last.join("  ")
                     },
                     {
-                        "label": "Laufzeit",
+                        "label": "Uptime",
                         "value": SysInfo.uptimeText(panel.d.laufzeit)
                     }
                 ] : []
@@ -171,7 +171,7 @@ Cell {
 
             Rule {
                 rowWidth: panel.rowWidth
-                label: "SPEICHER"
+                label: "MEMORY"
             }
 
             Gauge {
@@ -190,7 +190,7 @@ Cell {
 
             Line {
                 visible: SysInfo.hasDetail
-                text: "  davon Cache " + (SysInfo.hasDetail ? panel.d.speicher.cache.toFixed(1) : "0") + " GB"
+                text: "  cache " + (SysInfo.hasDetail ? panel.d.speicher.cache.toFixed(1) : "0") + " GB"
                 color: Theme.fgDim
             }
 
@@ -232,7 +232,7 @@ Cell {
             Rule {
                 rowWidth: panel.rowWidth
                 visible: SysInfo.hasDetail && ((panel.d.temps ?? []).length > 0 || (panel.d.luefter ?? []).length > 0)
-                label: "TEMPERATUR UND LUEFTER"
+                label: "TEMPERATURE AND FANS"
             }
 
             // Temperaturen und Luefter zusammen in EINEM Raster: es sind
@@ -252,7 +252,7 @@ Cell {
                             }));
                     const fans = (panel.d.luefter ?? []).map(f => ({
                                 "label": f.name,
-                                "value": f.wert > 0 ? (f.wert + " U/min") : "aus",
+                                "value": f.wert > 0 ? (f.wert + " RPM") : "off",
                                 "color": f.wert > 0 ? Theme.fg : Theme.muted
                             }));
                     return temps.concat(fans);
@@ -264,7 +264,7 @@ Cell {
             Rule {
                 rowWidth: panel.rowWidth
                 visible: SysInfo.hasDetail && panel.d.gpu
-                label: "GRAFIK"
+                label: "GRAPHICS"
             }
 
             PanelHead {
@@ -280,11 +280,11 @@ Cell {
                 visible: SysInfo.hasDetail && panel.d.gpu
                 pairs: SysInfo.hasDetail && panel.d.gpu ? [
                     {
-                        "label": "Last",
+                        "label": "Load",
                         "value": panel.d.gpu.last + " %"
                     },
                     {
-                        "label": "Speicher",
+                        "label": "Memory",
                         "value": panel.d.gpu.benutzt + " / " + panel.d.gpu.gesamt + " MB"
                     }
                 ] : []
@@ -292,7 +292,7 @@ Cell {
 
             Line {
                 visible: !SysInfo.hasDetail
-                text: "  wird gemessen …"
+                text: "  measuring …"
                 color: Theme.muted
             }
         }

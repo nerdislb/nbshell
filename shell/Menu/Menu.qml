@@ -91,7 +91,7 @@ PanelWindow {
     // mit einer Pause am Ende, damit man das Ergebnis noch liest.
     function term(cmd) {
         Quickshell.execDetached([Apps.terminal, "-e", "sh", "-c",
-            cmd + "; printf '\\n[Enter] schliesst das Fenster … '; read -r _"]);
+            cmd + "; printf '\\n[Enter] closes this window … '; read -r _"]);
     }
 
     onVisibleChanged: {
@@ -125,98 +125,98 @@ PanelWindow {
             }
         },
         {
-            "key": "d", "label": "Dashboard", "description": "Heute, Medien und oft gebrauchte Werkzeuge", "icon": Icons.cp(0xF0F9),
+            "key": "d", "label": "Dashboard", "description": "Today, media, and frequently used tools", "icon": Icons.cp(0xF0F9),
             "run": () => Runtime.dashboardOpen = true
         },
         {
-            "key": "h", "label": "System & Plugins", "description": "Agenten, Sync, Updates, Druck, Ports und Hardware", "icon": Icons.matrix,
+            "key": "h", "label": "System & Plugins", "description": "Agents, sync, updates, printing, ports, and hardware", "icon": Icons.matrix,
             "run": () => Runtime.hubOpen = true
         },
         {
-            "key": "n", "label": "Benachrichtigungen", "description": "durchsuchen, DND und Archiv", "icon": Icons.bell,
+            "key": "n", "label": "Notifications", "description": "search, DND, and archive", "icon": Icons.bell,
             "run": () => Runtime.notificationCenterOpen = true
         },
         {
-            "key": "e", "label": "Emoji", "description": "lokal suchen und kopieren", "icon": "😀",
+            "key": "e", "label": "Emoji", "description": "search and copy locally", "icon": "😀",
             "run": () => Runtime.emojiOpen = true
         },
         {
-            "key": "m", "label": "Module", "description": "Bar-Bausteine anordnen", "icon": Icons.cp(0xF12E),
+            "key": "m", "label": "Modules", "description": "Arrange bar modules", "icon": Icons.cp(0xF12E),
             "run": () => Runtime.modulesOpen = true
         },
         {
             "key": "w", "label": "Webapps", "icon": Icons.cp(0xF059F),
             "sub": [
-                { "key": "a", "label": "Webapp anlegen", "icon": Icons.cp(0xF0704), "run": () => root.term("$HOME/.local/bin/webapp add") },
-                { "key": "e", "label": "Webapp entfernen", "icon": Icons.cp(0xF01B4), "run": () => root.term("$HOME/.local/bin/webapp remove") },
-                { "key": "l", "label": "Webapps auflisten", "icon": Icons.cp(0xF035C), "run": () => root.term("$HOME/.local/bin/webapp list") }
+                { "key": "a", "label": "Create web app", "icon": Icons.cp(0xF0704), "run": () => root.term("$HOME/.local/bin/webapp add") },
+                { "key": "e", "label": "Remove web app", "icon": Icons.cp(0xF01B4), "run": () => root.term("$HOME/.local/bin/webapp remove") },
+                { "key": "l", "label": "List web apps", "icon": Icons.cp(0xF035C), "run": () => root.term("$HOME/.local/bin/webapp list") }
             ]
         },
         {
-            "key": "l", "label": "Look & Feel", "description": "Themes, Wallpaper, Bar und Einstellungen", "icon": Icons.palette,
+            "key": "l", "label": "Look & Feel", "description": "Themes, wallpaper, bar, and settings", "icon": Icons.palette,
             "sub": [
-                { "key": "t", "label": "Theme wählen", "icon": Icons.palette, "run": () => Runtime.themePickerOpen = true },
-                { "key": "n", "label": "Nächstes Theme", "icon": Icons.cp(0xF0142), "run": () => ThemeIndex.step(1) },
-                { "key": "v", "label": "Voriges Theme", "icon": Icons.cp(0xF0141), "run": () => ThemeIndex.step(-1) },
+                { "key": "t", "label": "Choose theme", "icon": Icons.palette, "run": () => Runtime.themePickerOpen = true },
+                { "key": "n", "label": "Next theme", "icon": Icons.cp(0xF0142), "run": () => ThemeIndex.step(1) },
+                { "key": "v", "label": "Previous theme", "icon": Icons.cp(0xF0141), "run": () => ThemeIndex.step(-1) },
                 { "key": "w", "label": "Wallpaper", "icon": Icons.cp(0xF02E9), "run": () => Runtime.wallpaperOpen = true },
-                { "key": "b", "label": "Bar-Form wechseln", "icon": Icons.cp(0xF0379), "run": () => {
+                { "key": "b", "label": "Change bar shape", "icon": Icons.cp(0xF0379), "run": () => {
                     const order = ["island", "pill", "bar"];
                     Config.set("mode", order[(order.indexOf(Config.mode) + 1) % order.length]);
                 } },
-                { "key": "e", "label": "Einstellungen", "icon": Icons.cp(0xF0493), "run": () => Runtime.settingsOpen = true },
-                { "key": "a", "label": "Aether öffnen", "icon": Icons.palette, "run": () => Quickshell.execDetached(["aether"]) },
-                { "key": "i", "label": "Aether-Theme holen", "icon": Icons.download, "run": () => root.term("$HOME/.local/bin/nb-aether-import") },
-                { "key": "x", "label": "Theme entfernen", "icon": Icons.cp(0xF01B4), "run": () => root.term("$HOME/.local/bin/nbshell theme remove") }
+                { "key": "e", "label": "Settings", "icon": Icons.cp(0xF0493), "run": () => Runtime.settingsOpen = true },
+                { "key": "a", "label": "Open Aether", "icon": Icons.palette, "run": () => Quickshell.execDetached(["aether"]) },
+                { "key": "i", "label": "Import Aether theme", "icon": Icons.download, "run": () => root.term("$HOME/.local/bin/nb-aether-import") },
+                { "key": "x", "label": "Remove theme", "icon": Icons.cp(0xF01B4), "run": () => root.term("$HOME/.local/bin/nbshell theme remove") }
             ]
         },
         {
-            "key": "c", "label": "Capture", "description": "Screenshot, OCR, QR und Recording", "icon": Icons.camera,
+            "key": "c", "label": "Capture", "description": "Screenshots, OCR, QR, and recording", "icon": Icons.camera,
             "sub": [
-                { "key": "r", "label": "Bereich", "icon": Icons.camera, "run": () => CaptureService.shoot("region") },
-                { "key": "b", "label": "Bildschirm", "icon": Icons.cp(0xF0379), "run": () => CaptureService.shoot("screen") },
-                { "key": "f", "label": "Fenster", "icon": Icons.cp(0xF04A1), "run": () => CaptureService.shoot("window") },
-                { "key": "o", "label": "Text erkennen (OCR)", "icon": Icons.cp(0xF0219), "run": () => CaptureService.ocr() },
-                { "key": "q", "label": "QR-Code erkennen", "icon": Icons.cp(0xF0432), "run": () => CaptureService.qr() },
-                { "key": "a", "label": "Aufnahme starten/stoppen", "icon": Icons.record, "run": () => CaptureService.toggleRecording() }
+                { "key": "r", "label": "Region", "icon": Icons.camera, "run": () => CaptureService.shoot("region") },
+                { "key": "b", "label": "Screen", "icon": Icons.cp(0xF0379), "run": () => CaptureService.shoot("screen") },
+                { "key": "f", "label": "Window", "icon": Icons.cp(0xF04A1), "run": () => CaptureService.shoot("window") },
+                { "key": "o", "label": "Recognize text (OCR)", "icon": Icons.cp(0xF0219), "run": () => CaptureService.ocr() },
+                { "key": "q", "label": "Scan QR code", "icon": Icons.cp(0xF0432), "run": () => CaptureService.qr() },
+                { "key": "a", "label": "Start/stop recording", "icon": Icons.record, "run": () => CaptureService.toggleRecording() }
             ]
         },
         {
-            "key": "y", "label": "Sitzung", "description": "Sperren, schlafen, neu starten oder ausschalten", "icon": Icons.cp(0xF0425),
+            "key": "y", "label": "Session", "description": "Lock, sleep, restart, or power off", "icon": Icons.cp(0xF0425),
             "sub": [
-                { "key": "s", "label": "Sperren", "icon": Icons.cp(0xF033E), "run": () => Session.run("lock") },
-                { "key": "a", "label": "Abmelden", "icon": Icons.cp(0xF0343), "run": () => Session.run("logout") },
-                { "key": "b", "label": "Bereitschaft", "icon": Icons.sleep, "run": () => Session.run("suspend") },
-                { "key": "u", "label": "Ruhezustand", "icon": Icons.sleep, "run": () => Session.run("hibernate") },
-                { "key": "n", "label": "Neu starten", "icon": Icons.refresh, "run": () => Session.run("reboot") },
-                { "key": "x", "label": "Ausschalten", "icon": Icons.cp(0xF0425), "run": () => Session.run("poweroff") }
+                { "key": "s", "label": "Lock", "icon": Icons.cp(0xF033E), "run": () => Session.run("lock") },
+                { "key": "a", "label": "Log out", "icon": Icons.cp(0xF0343), "run": () => Session.run("logout") },
+                { "key": "b", "label": "Suspend", "icon": Icons.sleep, "run": () => Session.run("suspend") },
+                { "key": "u", "label": "Hibernate", "icon": Icons.sleep, "run": () => Session.run("hibernate") },
+                { "key": "n", "label": "Restart", "icon": Icons.refresh, "run": () => Session.run("reboot") },
+                { "key": "x", "label": "Power off", "icon": Icons.cp(0xF0425), "run": () => Session.run("poweroff") }
             ]
         },
         {
-            "key": "v", "label": "Verbindungen", "description": "Netz, Bluetooth, Tailscale und QR", "icon": Icons.wifi,
+            "key": "v", "label": "Connections", "description": "Network, Bluetooth, Tailscale, and QR", "icon": Icons.wifi,
             "sub": [
-                { "key": "c", "label": "Control-Center", "icon": Icons.wifi, "run": () => Runtime.controlOpen = true },
+                { "key": "c", "label": "Control center", "icon": Icons.wifi, "run": () => Runtime.controlOpen = true },
                 { "key": "t", "label": "Tailscale", "icon": "󰖂", "run": () => root.term("tailscale status") },
-                { "key": "q", "label": "WLAN-QR-Code", "icon": Icons.cp(0xF0432), "run": () => Runtime.qrOpen = true },
+                { "key": "q", "label": "Wi-Fi QR code", "icon": Icons.cp(0xF0432), "run": () => Runtime.qrOpen = true },
                 { "key": "s", "label": "Speedtest", "icon": Icons.cpu, "run": () => Runtime.speedOpen = true }
             ]
         },
         {
             "key": "e", "label": "Extras", "icon": Icons.cp(0xF035C),
             "sub": [
-                { "key": "p", "label": "Plugin-Verwaltung", "icon": Icons.cp(0xF12E), "sub": [
-                    { "key": "a", "label": "Module anordnen", "icon": Icons.matrix, "run": () => Runtime.modulesOpen = true },
-                    { "key": "d", "label": "Plugin-Diagnose", "icon": Icons.cpu, "run": () => Runtime.pluginDeveloperOpen = true },
-                    { "key": "l", "label": "Plugins auflisten", "icon": Icons.cp(0xF035C), "run": () => root.term("nbshell plugins") },
-                    { "key": "u", "label": "Plugins aktualisieren", "icon": Icons.refresh, "run": () => root.term("nbshell plugin update") },
-                    { "key": "o", "label": "Plugin-Ordner oeffnen", "icon": Icons.cp(0xF024B), "run": () => Quickshell.execDetached(["xdg-open", Quickshell.env("HOME") + "/.config/nbshell/plugins"]) }
+                { "key": "p", "label": "Plugin management", "icon": Icons.cp(0xF12E), "sub": [
+                    { "key": "a", "label": "Arrange modules", "icon": Icons.matrix, "run": () => Runtime.modulesOpen = true },
+                    { "key": "d", "label": "Plugin diagnostics", "icon": Icons.cpu, "run": () => Runtime.pluginDeveloperOpen = true },
+                    { "key": "l", "label": "List plugins", "icon": Icons.cp(0xF035C), "run": () => root.term("nbshell plugins") },
+                    { "key": "u", "label": "Update plugins", "icon": Icons.refresh, "run": () => root.term("nbshell plugin update") },
+                    { "key": "o", "label": "Open plugin folder", "icon": Icons.cp(0xF024B), "run": () => Quickshell.execDetached(["xdg-open", Quickshell.env("HOME") + "/.config/nbshell/plugins"]) }
                 ] },
-                { "key": "z", "label": "Zwischenablage", "icon": Icons.clipboard, "run": () => Runtime.clipOpen = true },
-                { "key": "r", "label": "Prozesse", "icon": Icons.cpu, "run": () => Runtime.procsOpen = true },
-                { "key": "m", "label": "Medien", "icon": Icons.play, "run": () => { Runtime.dashboardPage = 1; Runtime.dashboardOpen = true; } },
-                { "key": "a", "label": "Fokus & Equalizer", "icon": Icons.volumeHigh, "run": () => Runtime.audioToolsOpen = true },
+                { "key": "z", "label": "Clipboard", "icon": Icons.clipboard, "run": () => Runtime.clipOpen = true },
+                { "key": "r", "label": "Processes", "icon": Icons.cpu, "run": () => Runtime.procsOpen = true },
+                { "key": "m", "label": "Media", "icon": Icons.play, "run": () => { Runtime.dashboardPage = 1; Runtime.dashboardOpen = true; } },
+                { "key": "a", "label": "Focus & equalizer", "icon": Icons.volumeHigh, "run": () => Runtime.audioToolsOpen = true },
                 { "key": "t", "label": "Todo", "icon": Icons.todo, "run": () => Runtime.todoOpen = true },
                 { "key": "h", "label": "Habits", "icon": Icons.habit, "run": () => Runtime.habitsOpen = true },
-                { "key": "k", "label": "Tastenkürzel", "icon": Icons.keyboard, "run": () => Runtime.keysOpen = true }
+                { "key": "k", "label": "Keyboard shortcuts", "icon": Icons.keyboard, "run": () => Runtime.keysOpen = true }
             ]
         }
     ]
@@ -227,7 +227,7 @@ PanelWindow {
     // Kopfzeile: Wurzel heisst „MENÜ", sonst der Pfad der betretenen Kategorien.
     readonly property string crumb: trail.length
         ? trail.map(t => t.label).join("  ›  ").toUpperCase()
-        : "MENÜ"
+        : "MENU"
 
     Rectangle {
         anchors.fill: parent
@@ -314,7 +314,7 @@ PanelWindow {
                     }
                 }
 
-                Line { visible: root.items.length === 0; text: "Keine Treffer"; color: Theme.muted; topPadding: Theme.cellH }
+                Line { visible: root.items.length === 0; text: "No results"; color: Theme.muted; topPadding: Theme.cellH }
 
                 Repeater {
                     model: root.items
@@ -387,7 +387,7 @@ PanelWindow {
                 }
 
                 Line {
-                    text: root.filterText !== "" ? "Tippen sucht · Backspace loescht · Enter waehlt" : (root.trail.length ? "Esc/← zurueck · Tippen sucht" : "Esc schliesst · Tippen sucht")
+                    text: root.filterText !== "" ? "Type to search · Backspace deletes · Enter selects" : (root.trail.length ? "Esc/← back · type to search" : "Esc closes · type to search")
                     color: Theme.muted
                     topPadding: Theme.cellH * 0.4
                 }

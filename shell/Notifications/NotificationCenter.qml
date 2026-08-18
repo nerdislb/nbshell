@@ -70,18 +70,18 @@ PanelWindow {
                 spacing: Theme.cellH * 0.4
                 Row {
                     width: parent.width
-                    Line { width: parent.width - controls.width; text: Icons.bell + "  BENACHRICHTIGUNGEN  (" + Notify.count + ")"; color: Theme.fg; font.pixelSize: Theme.fontSize + 3 }
+                    Line { width: parent.width - controls.width; text: Icons.bell + "  NOTIFICATIONS  (" + Notify.count + ")"; color: Theme.fg; font.pixelSize: Theme.fontSize + 3 }
                     Row {
                         id: controls
                         spacing: Theme.cellW
-                        ActionButton { text: Notify.dnd ? "DND an" : "DND aus"; tone: Notify.dnd ? "primary" : "secondary"; compact: true; accentColor: Theme.yellow; onTriggered: Notify.setDnd(!Notify.dnd) }
-                        ActionButton { text: "Alles leeren"; tone: "danger"; compact: true; enabled: Notify.count > 0; onTriggered: Notify.clear() }
+                        ActionButton { text: Notify.dnd ? "DND on" : "DND off"; tone: Notify.dnd ? "primary" : "secondary"; compact: true; accentColor: Theme.yellow; onTriggered: Notify.setDnd(!Notify.dnd) }
+                        ActionButton { text: "Clear all"; tone: "danger"; compact: true; enabled: Notify.count > 0; onTriggered: Notify.clear() }
                     }
                 }
                 Rectangle {
                     width: parent.width; height: Theme.cellH * 2; radius: Theme.radius; color: Theme.bgLight
                     border.width: Theme.borderWidth; border.color: root.query !== "" ? Theme.accent : Theme.muted
-                    Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: root.query !== "" ? root.query : "Tippen zum Suchen …"; color: root.query !== "" ? Theme.fg : Theme.muted }
+                    Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: root.query !== "" ? root.query : "Type to search …"; color: root.query !== "" ? Theme.fg : Theme.muted }
                 }
                 Rule { rowWidth: parent.width }
                 Flickable {
@@ -101,7 +101,7 @@ PanelWindow {
                         id: cards
                         width: flick.width
                         spacing: Theme.cellH * 0.3
-                        Line { visible: root.shown.length === 0; text: Notify.count ? "Kein Treffer" : "Noch keine Benachrichtigungen"; color: Theme.muted }
+                        Line { visible: root.shown.length === 0; text: Notify.count ? "No results" : "No notifications yet"; color: Theme.muted }
                         Repeater {
                             model: root.shown
                             NotificationCard {
@@ -118,7 +118,7 @@ PanelWindow {
                         }
                     }
                 }
-                Line { text: "↑↓ wählen · x/Entf löschen · d DND · Ctrl+c alles leeren · Tippen sucht · Esc"; color: Theme.muted }
+                Line { text: "↑↓ select · x/Del remove · d DND · Ctrl+c clear all · type to search · Esc"; color: Theme.muted }
             }
         }
     }

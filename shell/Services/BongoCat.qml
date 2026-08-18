@@ -53,12 +53,12 @@ Singleton {
     function test() { pressLeft(); pressRight(); }
 
     function statusText() {
-        if (!active) return "ausgeschaltet";
+        if (!active) return "disabled";
         if (inputState === "ready") return keyboards + (keyboards === 1 ? " Tastatur aktiv" : " Tastaturen aktiv");
         if (inputState === "permission")
             return error !== "" ? error : "Eingabezugriff erforderlich";
-        if (inputState === "authorizing") return "warte auf Freigabe …";
-        if (inputState === "no-device") return "keine Tastatur gefunden";
+        if (inputState === "authorizing") return "waiting for authorization …";
+        if (inputState === "no-device") return "no keyboard found";
         return error !== "" ? error : inputState;
     }
 
@@ -78,7 +78,7 @@ Singleton {
         restartTimer.stop();
         if (!active) {
             authorized = false;
-            inputState = "ausgeschaltet";
+            inputState = "disabled";
             if (inputProc.running) { stopping = true; inputProc.running = false; }
             return;
         }

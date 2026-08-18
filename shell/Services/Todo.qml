@@ -277,13 +277,13 @@ Singleton {
         } catch (e) {
             // Halb geschriebenes JSON. Auch das ist kein Grund, die eigene
             // Fassung darueberzuschreiben -- der naechste Versuch kommt gleich.
-            console.warn("nbshell/todo: Datei unlesbar --", e);
+            console.warn("nbshell/todo: file unreadable --", e);
             return;
         }
         // Gueltiges JSON, aber keine Liste -- das ist keine Aufgabendatei. Sie
         // als leere zu lesen fuehrte geradewegs zurueck ins Ueberschreiben.
         if (!Array.isArray(raw) && !(raw && Array.isArray(raw.items))) {
-            console.warn("nbshell/todo: das ist keine Aufgabenliste --", root.file);
+            console.warn("nbshell/todo: this is not a task list --", root.file);
             return;
         }
 

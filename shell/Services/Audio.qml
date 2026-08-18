@@ -50,7 +50,7 @@ Singleton {
         if (root.tonLaeuft)
             return;
         root.tonLaeuft = true;
-        root.tonStatus = "hole den Ton zurück …";
+        root.tonStatus = "restoring audio …";
         holer.command = ["bash", root.tonSkript];
         holer.running = true;
     }
@@ -76,12 +76,12 @@ Singleton {
                     // Terminal, und beide sind weg, bevor die Antwort da ist.
                     // Ein Fehlschlag, den niemand sieht, ist derselbe wie
                     // keiner -- man drueckt noch dreimal und wundert sich.
-                    Quickshell.execDetached(["notify-send", "-a", "nbshell", "-u", "normal", "Ton kam nicht zurück", String(d.grund)]);
+                    Quickshell.execDetached(["notify-send", "-a", "nbshell", "-u", "normal", "Audio was not restored", String(d.grund)]);
                     quittung.restart();
                     return;
                 }
-                root.tonStatus = "Ton ist wieder da";
-                Quickshell.execDetached(["notify-send", "-a", "nbshell", "-t", "2500", "Ton ist wieder da", String(d.senke ?? "")]);
+                root.tonStatus = "Audio restored";
+                Quickshell.execDetached(["notify-send", "-a", "nbshell", "-t", "2500", "Audio restored", String(d.senke ?? "")]);
                 // Die Musik stand ja still, deshalb wurde der Knopf gedrueckt.
                 // Aber nur fortsetzen, was PAUSIERT ist -- ein gestoppter
                 // Spieler soll nicht von allein losspielen.

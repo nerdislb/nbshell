@@ -8,7 +8,7 @@ import qs.Widgets
 
 PanelWindow {
     id: root
-    property var toolState: ({"ambience": "", "bypass": "unbekannt", "presets": []})
+    property var toolState: ({"ambience": "", "bypass": "unknown", "presets": []})
     property bool loading: false
     readonly property string script: Qt.resolvedUrl("../scripts/audio-tools.py").toString().replace("file://", "")
     visible: Runtime.audioToolsOpen
@@ -40,9 +40,9 @@ PanelWindow {
             MouseArea { anchors.fill: parent }
             Column {
                 anchors.fill: parent; anchors.margins: Theme.cellW * 2; spacing: Theme.cellH * .6
-                PanelHead { rowWidth: parent.width; icon: Icons.volumeHigh; title: "Fokus & Equalizer"; subtitle: "PipeWire · EasyEffects"; badge: root.loading ? "…" : "" }
+                PanelHead { rowWidth: parent.width; icon: Icons.volumeHigh; title: "Focus & equalizer"; subtitle: "PipeWire · EasyEffects"; badge: root.loading ? "…" : "" }
                 Rule { rowWidth: parent.width }
-                Line { text: "FOKUSGERAEUSCHE"; color: Theme.fgDim }
+                Line { text: "FOCUS SOUNDS"; color: Theme.fgDim }
                 Row {
                     spacing: Theme.cellW
                     Repeater {
@@ -62,7 +62,7 @@ PanelWindow {
                         MouseArea { anchors.fill: parent; onClicked: root.run(["stop"]) }
                     }
                 }
-                Line { text: "Laeuft als eigener PipeWire-Stream und ist im Audio-Popout regelbar."; color: Theme.muted }
+                Line { text: "Runs as a separate PipeWire stream and can be controlled in the audio popout."; color: Theme.muted }
                 Rule { rowWidth: parent.width }
                 Line { text: "EQUALIZER"; color: Theme.fgDim }
                 Row {
@@ -71,16 +71,16 @@ PanelWindow {
                         width: Theme.cellW * 21; height: Theme.cellH * 3; radius: Theme.radius
                         color: root.toolState.bypass === "an" ? Theme.bgLight : Theme.selection
                         border.width: Theme.borderWidth; border.color: Theme.accent
-                        Line { anchors.centerIn: parent; text: root.toolState.bypass === "an" ? "Effekte aus" : "Effekte aktiv"; color: Theme.fg }
+                        Line { anchors.centerIn: parent; text: root.toolState.bypass === "an" ? "Effects off" : "Effects active"; color: Theme.fg }
                         MouseArea { anchors.fill: parent; onClicked: root.run(["bypass"]) }
                     }
                     Rectangle {
                         width: Theme.cellW * 24; height: Theme.cellH * 3; radius: Theme.radius; color: Theme.bgLight
-                        Line { anchors.centerIn: parent; text: "Equalizer bearbeiten"; color: Theme.fg }
+                        Line { anchors.centerIn: parent; text: "Edit equalizer"; color: Theme.fg }
                         MouseArea { anchors.fill: parent; onClicked: Quickshell.execDetached(["easyeffects"]) }
                     }
                 }
-                Line { text: root.toolState.presets.length ? "PRESETS" : "Noch keine Presets · im Editor speichern, dann F5"; color: Theme.fgDim }
+                Line { text: root.toolState.presets.length ? "PRESETS" : "No presets yet · save one in the editor, then press F5"; color: Theme.fgDim }
                 Flow {
                     width: parent.width; spacing: Theme.cellW
                     Repeater {
@@ -94,7 +94,7 @@ PanelWindow {
                     }
                 }
                 Item { width: 1; height: Theme.cellH }
-                Line { text: "F5 aktualisiert · Esc schliesst"; color: Theme.muted }
+                Line { text: "F5 refreshes · Esc closes"; color: Theme.muted }
             }
         }
     }
