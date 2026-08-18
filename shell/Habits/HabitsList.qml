@@ -358,13 +358,14 @@ PanelWindow {
                         width: tabText.width + Theme.cellW * 2
                         height: Theme.cellH * 1.45
                         radius: Theme.radius
-                        color: root.selectedRoutine === modelData.id ? Theme.selection : "transparent"
-                        border.width: 0
+                        color: root.selectedRoutine === modelData.id ? Theme.alpha(Theme.accent, 0.24) : Theme.bgLight
+                        border.width: Theme.borderWidth
+                        border.color: root.selectedRoutine === modelData.id ? Theme.accent : Theme.muted
 
                         Text {
                             id: tabText
                             anchors.centerIn: parent
-                            text: "[ " + modelData.label + " ]"
+                            text: modelData.label
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSize - 1
                             color: root.selectedRoutine === modelData.id ? Theme.on(Theme.selection) : Theme.fgDim
@@ -501,16 +502,18 @@ PanelWindow {
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: Theme.cellW * 0.5
 
-                            // Stepper fuer Counter: [ - ] und [ +1 ]
+                            // Kompakte Stepper fuer Counter.
                             Rectangle {
                                 visible: modelData.mode === "COUNTER"
                                 width: Theme.cellW * 4
                                 height: Theme.cellH * 1.5
-                                color: "transparent"
+                                color: Theme.bgLight
+                                border.width: Theme.borderWidth
+                                border.color: Theme.muted
 
                                 Text {
                                     anchors.centerIn: parent
-                                    text: "[ - ]"
+                                    text: "−"
                                     font.family: Theme.fontFamily
                                     font.bold: true
                                     font.pixelSize: 13
@@ -528,11 +531,13 @@ PanelWindow {
                                 visible: modelData.mode === "COUNTER"
                                 width: Theme.cellW * 5
                                 height: Theme.cellH * 1.5
-                                color: "transparent"
+                                color: Theme.alpha(Theme.accent, 0.16)
+                                border.width: Theme.borderWidth
+                                border.color: Theme.accent
 
                                 Text {
                                     anchors.centerIn: parent
-                                    text: "[ +1 ]"
+                                    text: "+1"
                                     font.family: Theme.fontFamily
                                     font.bold: true
                                     font.pixelSize: 11
@@ -551,11 +556,13 @@ PanelWindow {
                                 visible: modelData.mode === "DURATION"
                                 width: Theme.cellW * 6
                                 height: Theme.cellH * 1.5
-                                color: "transparent"
+                                color: Theme.alpha(Theme.accent, 0.16)
+                                border.width: Theme.borderWidth
+                                border.color: Theme.accent
 
                                 Text {
                                     anchors.centerIn: parent
-                                    text: "[ +15m ]"
+                                    text: "+15m"
                                     font.family: Theme.fontFamily
                                     font.bold: true
                                     font.pixelSize: 10
@@ -576,11 +583,13 @@ PanelWindow {
                                 visible: modelData.mode === "TIMER"
                                 width: Theme.cellW * 11
                                 height: Theme.cellH * 1.5
-                                color: "transparent"
+                                color: Theme.alpha(Theme.magenta, 0.16)
+                                border.width: Theme.borderWidth
+                                border.color: Theme.magenta
 
                                 Text {
                                     anchors.centerIn: parent
-                                    text: row.isDone ? "[ FOKUS ✓ ]" : "[ FOKUS ]"
+                                    text: row.isDone ? "FOKUS ✓" : "FOKUS"
                                     font.family: Theme.fontFamily
                                     font.bold: true
                                     font.pixelSize: 10
@@ -599,11 +608,13 @@ PanelWindow {
                                 visible: modelData.mode !== "TIMER"
                                 width: Theme.cellW * 9
                                 height: Theme.cellH * 1.5
-                                color: "transparent"
+                                color: Theme.alpha(row.isDone ? Theme.green : Theme.accent, 0.14)
+                                border.width: Theme.borderWidth
+                                border.color: row.isDone ? Theme.green : Theme.muted
 
                                 Text {
                                     anchors.centerIn: parent
-                                    text: row.isDone ? "[ ERLEDIGT ]" : "[ ERLEDIGEN ]"
+                                    text: row.isDone ? "ERLEDIGT" : "ERLEDIGEN"
                                     font.family: Theme.fontFamily
                                     font.bold: true
                                     font.pixelSize: 10
@@ -619,7 +630,7 @@ PanelWindow {
 
                             // Delete Button
                             Text {
-                                text: "[ × ]"
+                                text: "×"
                                 font.family: Theme.fontFamily
                                 font.pixelSize: 14
                                 color: root.selected === index ? Theme.on(Theme.selection) : Theme.red

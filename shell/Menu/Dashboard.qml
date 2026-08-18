@@ -327,21 +327,9 @@ PanelWindow {
                             Row {
                                 visible: MediaService.active
                                 spacing: Theme.cellW * 3
-                                Line {
-                                    text: "[ zurueck ]"; color: prevHover.hovered ? Theme.accent : Theme.fgDim
-                                    HoverHandler { id: prevHover; cursorShape: Qt.PointingHandCursor }
-                                    TapHandler { onTapped: MediaService.previous() }
-                                }
-                                Line {
-                                    text: MediaService.playing ? "[ pause ]" : "[ play ]"; color: playHover.hovered ? Theme.accent : Theme.fg
-                                    HoverHandler { id: playHover; cursorShape: Qt.PointingHandCursor }
-                                    TapHandler { onTapped: MediaService.playPause() }
-                                }
-                                Line {
-                                    text: "[ weiter ]"; color: nextHover.hovered ? Theme.accent : Theme.fgDim
-                                    HoverHandler { id: nextHover; cursorShape: Qt.PointingHandCursor }
-                                    TapHandler { onTapped: MediaService.next() }
-                                }
+                                ActionButton { text: "Zurueck"; compact: true; onTriggered: MediaService.previous() }
+                                ActionButton { text: MediaService.playing ? "Pause" : "Play"; tone: "primary"; compact: true; onTriggered: MediaService.playPause() }
+                                ActionButton { text: "Weiter"; compact: true; onTriggered: MediaService.next() }
                             }
                             }
                         }
@@ -470,24 +458,17 @@ PanelWindow {
                             Row {
                                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                                 spacing: Theme.cellW * 2
-                                Line {
-                                    text: Updates.checking ? "[ prueft … ]" : "[ neu pruefen ]"
-                                    color: checkHover.hovered ? Theme.accent : Theme.fgDim
-                                    HoverHandler { id: checkHover; cursorShape: Qt.PointingHandCursor }
-                                    TapHandler { onTapped: Updates.refresh() }
+                                ActionButton {
+                                    text: Updates.checking ? "Prueft …" : "Neu pruefen"
+                                    busy: Updates.checking; compact: true
+                                    onTriggered: Updates.refresh()
                                 }
-                                Line {
+                                ActionButton {
                                     visible: Updates.count > 0
-                                    text: "[ aktualisieren ]"
-                                    color: runHover.hovered ? Theme.green : Theme.fgDim
-                                    HoverHandler { id: runHover; cursorShape: Qt.PointingHandCursor }
-                                    TapHandler { onTapped: root.openSurface(() => Updates.update()) }
+                                    text: "Aktualisieren"; tone: "primary"; accentColor: Theme.green; compact: true
+                                    onTriggered: root.openSurface(() => Updates.update())
                                 }
-                                Line {
-                                    text: "[ schliessen ]"; color: closeHover.hovered ? Theme.accent : Theme.fgDim
-                                    HoverHandler { id: closeHover; cursorShape: Qt.PointingHandCursor }
-                                    TapHandler { onTapped: root.updatesOpen = false }
-                                }
+                                ActionButton { text: "Schliessen"; compact: true; onTriggered: root.updatesOpen = false }
                             }
                         }
 

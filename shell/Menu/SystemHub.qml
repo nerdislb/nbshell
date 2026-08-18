@@ -173,7 +173,7 @@ PanelWindow {
 
                                         Line {
                                             visible: itemBlock.expanded && !!itemBlock.modelData.command
-                                            text: "  [ extern oeffnen · Rechtsklick auf Kopf ]"
+                                            text: "  Extern oeffnen: Rechtsklick auf den Kopf"
                                             color: Theme.muted
                                         }
                                     }

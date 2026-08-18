@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Common
+import qs.Notifications
 import qs.Services
 import qs.Widgets
 
@@ -59,29 +60,22 @@ Cell {
 
                 Row {
                     anchors.right: parent.right
-                    spacing: Theme.cellW * 2
+                    spacing: Theme.cellW
 
-                    Line {
-                        text: Notify.dnd ? "[ nicht stoeren ]" : "[ stumm ]"
-                        color: Notify.dnd ? Theme.yellow : Theme.fgDim
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Notify.setDnd(!Notify.dnd)
-                        }
+                    ActionButton {
+                        text: Notify.dnd ? "DND an" : "Stumm"
+                        tone: Notify.dnd ? "primary" : "secondary"
+                        accentColor: Theme.yellow
+                        compact: true
+                        onTriggered: Notify.setDnd(!Notify.dnd)
                     }
 
-                    Line {
+                    ActionButton {
                         visible: Notify.count > 0
-                        text: "[ leeren ]"
-                        color: Theme.red
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Notify.clear()
-                        }
+                        text: "Leeren"
+                        tone: "danger"
+                        compact: true
+                        onTriggered: Notify.clear()
                     }
                 }
             }
@@ -110,7 +104,7 @@ Cell {
                     color: Theme.fg
                     selectionColor: Theme.accent
                     selectedTextColor: Theme.bg
-                    font.family: Theme.font
+                    font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize
                     text: panel.query
                     onTextChanged: panel.query = text
@@ -134,51 +128,16 @@ Cell {
             Repeater {
                 model: panel.shownNotifications
 
-                Rectangle {
+                NotificationCard {
                     id: row
 
                     required property var modelData
 
                     width: panel.rowWidth
-                    height: content.implicitHeight + Theme.cellH * 0.6
-                    radius: Theme.radius
-                    color: mouse.hovered ? Theme.hover : "transparent"
-
-                    Column {
-                        id: content
-
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.margins: Theme.cellW / 2
-                        spacing: 0
-
-                        Line {
-                            width: parent.width
-                            text: (row.modelData.appName || "System")
-                                + ((row.modelData.repeat ?? 1) > 1 ? ("  ×" + row.modelData.repeat) : "")
-                                + "  ·  " + Notify.ago(row.modelData.time)
-                            color: Theme.fgDim
-                            elide: Text.ElideRight
-                        }
-
-                        Line {
-                            width: parent.width
-                            text: (row.modelData.summary ?? "") + (row.modelData.body ? ("  —  " + String(row.modelData.body).replace(/<[^>]*>/g, "")) : "")
-                            color: Theme.fg
-                            elide: Text.ElideRight
-                        }
-                    }
-
-                    HoverHandler {
-                        id: mouse
-
-                        cursorShape: Qt.PointingHandCursor
-                    }
-
-                    TapHandler {
-                        onTapped: Notify.drop(row.modelData.key)
-                    }
+                    entry: modelData
+                    detailed: false
+                    onOpened: { Notify.open(modelData); panel.closePopout?.(); }
+                    onRemoved: Notify.drop(modelData.key)
                 }
             }
         }

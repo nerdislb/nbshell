@@ -66,6 +66,79 @@ Singleton {
 
     readonly property int count: history.length
 
+    readonly property var webSources: ({
+        "reddit.com": { "name": "Reddit", "icon": "reddit" },
+        "github.com": { "name": "GitHub", "icon": "github" },
+        "youtube.com": { "name": "YouTube", "icon": "youtube" },
+        "web.whatsapp.com": { "name": "WhatsApp", "icon": "whatsapp" },
+        "whatsapp.com": { "name": "WhatsApp", "icon": "whatsapp" },
+        "mail.google.com": { "name": "Gmail", "icon": "gmail" },
+        "gmail.com": { "name": "Gmail", "icon": "gmail" },
+        "web.telegram.org": { "name": "Telegram", "icon": "telegram" },
+        "telegram.org": { "name": "Telegram", "icon": "telegram" },
+        "discord.com": { "name": "Discord", "icon": "discord" },
+        "instagram.com": { "name": "Instagram", "icon": "instagram" },
+        "facebook.com": { "name": "Facebook", "icon": "facebook" },
+        "x.com": { "name": "X", "icon": "twitter" },
+        "twitter.com": { "name": "X", "icon": "twitter" },
+        "linkedin.com": { "name": "LinkedIn", "icon": "linkedin" }
+    })
+
+    function plain(text) {
+        return String(text ?? "").replace(/<[^>]*>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+    }
+
+    function domain(entry) {
+        const text = String(entry?.body ?? "");
+        const match = text.match(/https?:\/\/([^\s\/'\"<>]+)/i);
+        return match ? match[1].toLowerCase().replace(/^www\./, "") : "";
+    }
+
+    function webSource(entry) {
+        const host = domain(entry);
+        if (webSources[host]) return webSources[host];
+        const keys = Object.keys(webSources);
+        for (var i = 0; i < keys.length; i++)
+            if (host.endsWith("." + keys[i])) return webSources[keys[i]];
+        return null;
+    }
+
+    function sourceName(entry) {
+        const site = webSource(entry);
+        const app = String(entry?.appName || "System");
+        return site ? site.name + " · " + app : app;
+    }
+
+    function sourceIcon(entry) {
+        return webSource(entry)?.icon || entry?.appIcon || "";
+    }
+
+    function focus(entry) {
+        const app = String(entry?.desktopEntry || entry?.appName || "").toLowerCase();
+        if (!app) return false;
+        const candidates = Niri.windows.filter(w => {
+            const id = String(w.app_id || "").toLowerCase();
+            const title = String(w.title || "").toLowerCase();
+            const words = app.split(/[^a-z0-9]+/).filter(x => x.length > 2);
+            if (id.indexOf(app) >= 0 || app.indexOf(id) >= 0 || title.indexOf(app) >= 0) return true;
+            return words.some(word => id.indexOf(word) >= 0 || title.indexOf(word) >= 0);
+        });
+        if (candidates.length === 0) return false;
+        Niri.action(["focus-window", "--id", String(candidates[0].id)]);
+        return true;
+    }
+
+    function open(entry) {
+        const action = entry?.notification?.actions?.find(a => a.identifier === "default")
+            ?? entry?.notification?.actions?.[0];
+        if (action) {
+            action.invoke();
+            dismissPopup(entry.key);
+            return true;
+        }
+        return focus(entry);
+    }
+
     // Gesucht wird ueber den Schluessel, NICHT ueber das Objekt: was ein
     // Repeater als `modelData` herausgibt, ist eine eigene Verpackung desselben
     // Werts -- `!==` trifft damit immer zu, und die Karte bliebe ewig stehen.
@@ -131,6 +204,8 @@ Singleton {
                     "appName": e.appName,
                     "summary": e.summary,
                     "body": e.body,
+                    "appIcon": e.appIcon ?? "",
+                    "desktopEntry": e.desktopEntry ?? "",
                     "urgency": e.urgency,
                     "repeat": e.repeat ?? 1,
                     "time": e.time.getTime(),
@@ -163,6 +238,8 @@ Singleton {
                         "appName": e.appName,
                         "summary": e.summary,
                         "body": e.body,
+                        "appIcon": e.appIcon ?? "",
+                        "desktopEntry": e.desktopEntry ?? "",
                         "urgency": e.urgency,
                         "repeat": e.repeat ?? 1,
                         "time": new Date(e.time),
@@ -220,6 +297,8 @@ Singleton {
                     "appName": notification.appName,
                     "summary": notification.summary,
                     "body": notification.body,
+                    "appIcon": notification.appIcon ?? "",
+                    "desktopEntry": notification.desktopEntry ?? "",
                     "urgency": notification.urgency,
                     "repeat": duplicate ? ((duplicate.repeat ?? 1) + 1) : 1,
                     "time": now,

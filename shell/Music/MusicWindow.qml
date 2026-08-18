@@ -657,24 +657,16 @@ PanelWindow {
 
             // Angeheftet gibt das Fenster die Tastatur ab -- das Loesen muss
             // also mit der Maus gehen.
-            Line {
+            ActionButton {
                 anchors.right: parent.right
                 anchors.rightMargin: Theme.cellW
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: Theme.cellH / 2
 
-                text: root.pinned ? "[ angeheftet ]" : "[ anheften ]"
-                color: root.pinned ? Theme.readable(Theme.accent, Theme.bg) : (nadel.hovered ? Theme.fg : Theme.muted)
-
-                HoverHandler {
-                    id: nadel
-
-                    cursorShape: Qt.PointingHandCursor
-                }
-
-                TapHandler {
-                    onTapped: root.anheften()
-                }
+                text: root.pinned ? "Angeheftet" : "Anheften"
+                tone: root.pinned ? "primary" : "secondary"
+                compact: true
+                onTriggered: root.anheften()
             }
         }
     }

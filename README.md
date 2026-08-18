@@ -16,7 +16,8 @@ des Projekts bleiben dabei menschlich gesteuert.
 
 - Insel, Pille oder durchgehende Bar mit frei anordenbaren Modulen
 - Omarchy-inspirierte Menues, Dashboard, Themes und Wallpaper
-- Launcher, Zwischenablage, Benachrichtigungen und System-Tray
+- Launcher, Zwischenablage, persistente Herald-inspirierte Benachrichtigungen
+  mit App-Fokus und System-Tray
 - Audio, Medien, Bluetooth, WLAN, Akkus und Energieprofile
 - Zen-Picture-in-Picture als frei schwebendes Videofenster mit Groessen- und Eckwahl
 - Kalender, Aufgaben, Gewohnheiten und KDE Connect
@@ -76,6 +77,11 @@ Zens natives Picture-in-Picture wird im Video mit `Ctrl+Shift+]` geoeffnet.
 nbshell setzt das Fenster automatisch schwebend in die gespeicherte Ecke. Das
 eingeblendete `PIP`-Modul sowie `Mod+Alt+P` wechseln die Groesse;
 `Mod+Alt+Shift+P` wechselt die Ecke.
+
+Klickbare Aktionen erscheinen nbshell-weit als flache, farblich markierte
+Flaechen statt als Texte in eckigen Klammern. Akzent, Warnfarbe sowie Hover-
+und Disabled-Zustand zeigen ihre Funktion; Klammern bleiben Tastaturhinweisen
+und echten textuellen Notationen vorbehalten.
 
 ## Hilfe
 

@@ -51,18 +51,14 @@ Cell {
                     color: Theme.fgDim
                 }
 
-                Line {
+                ActionButton {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     visible: Todo.doneCount > 0
-                    text: "[ aufraeumen ]"
-                    color: Theme.red
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: Todo.clearDone()
-                    }
+                    text: "Aufraeumen"
+                    tone: "danger"
+                    compact: true
+                    onTriggered: Todo.clearDone()
                 }
             }
 

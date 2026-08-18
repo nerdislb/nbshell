@@ -24,7 +24,10 @@ Singleton {
     // Alles, was die Oberflaeche kennt, steht hier einmal -- so ist die Liste
     // der Schluessel an einer Stelle nachlesbar.
 
-    readonly property string theme: value("theme", "tokyo-night")
+    // Nicht ueber value("theme", ...) binden: QML loest den gleichnamigen
+    // Schluessel dabei als Rueckbezug auf diese Property auf und meldet eine
+    // Binding-Schleife. Theme wird beim Laden und Schreiben explizit gespiegelt.
+    property string theme: "tokyo-night"
 
     readonly property string fontFamily: value("font", "Inconsolata Nerd Font Mono")
     readonly property int fontSize: value("fontSize", 13)
@@ -143,6 +146,8 @@ Singleton {
         const next = JSON.parse(JSON.stringify(data));
         next[key] = val;
         data = next;
+        if (key === "theme")
+            theme = String(val || "tokyo-night");
         file.setText(JSON.stringify(next, null, 2) + "\n");
     }
 
@@ -166,12 +171,16 @@ Singleton {
         onLoaded: {
             try {
                 root.data = JSON.parse(text() || "{}");
+                root.theme = String(root.data.theme || "tokyo-night");
             } catch (e) {
                 console.warn("nbshell: config.json ist kaputt --", e);
             }
         }
         // Fehlt die Datei, bleiben die Vorgaben oben stehen. Kein Grund zu
         // meckern: beim ersten Start ist das der Normalfall.
-        onLoadFailed: root.data = ({})
+        onLoadFailed: {
+            root.data = ({});
+            root.theme = "tokyo-night";
+        }
     }
 }

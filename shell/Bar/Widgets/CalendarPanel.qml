@@ -95,27 +95,8 @@ Column {
         color: Theme.fgDim
     }
 
-    component Action: Line {
-        id: action
-
-        signal triggered
-
-        color: actionHover.hovered ? Theme.readable(Theme.accent, Theme.bg) : Theme.fgDim
-
-        // Handler statt MouseArea -- siehe die Erklaerung bei den Tageszellen
-        // weiter unten: eine MouseArea nimmt das Ueberfahren fuer sich und
-        // laesst das Popout glauben, die Maus sei weg.
-        HoverHandler {
-            id: actionHover
-
-            margin: Theme.cellW / 2
-            cursorShape: Qt.PointingHandCursor
-        }
-
-        TapHandler {
-            margin: Theme.cellW / 2
-            onTapped: action.triggered()
-        }
+    component Action: ActionButton {
+        compact: true
     }
 
     // ── Kopfzeile ─────────────────────────────────────────────────────────
@@ -145,17 +126,17 @@ Column {
             }
 
             Action {
-                text: "[ ‹ ]"
+                text: "‹"
                 onTriggered: panel.moveMonth(-1)
             }
 
             Action {
-                text: "[ heute ]"
+                text: "Heute"
                 onTriggered: panel.heute()
             }
 
             Action {
-                text: "[ › ]"
+                text: "›"
                 onTriggered: panel.moveMonth(1)
             }
         }
@@ -332,7 +313,8 @@ Column {
         Action {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            text: Calendar.loading ? "[ liest … ]" : "[ abgleichen ]"
+            text: Calendar.loading ? "Liest …" : "Abgleichen"
+            busy: Calendar.loading
             onTriggered: Calendar.sync()
         }
     }

@@ -41,19 +41,16 @@ Cell {
                     color: Theme.accent
                 }
 
-                Line {
+                ActionButton {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "[ matrix öffnen ]"
-                    color: Theme.cyan
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (panel.closePopout) panel.closePopout();
-                            Runtime.habitsOpen = true;
-                        }
+                    text: "Matrix oeffnen"
+                    tone: "primary"
+                    accentColor: Theme.cyan
+                    compact: true
+                    onTriggered: {
+                        if (panel.closePopout) panel.closePopout();
+                        Runtime.habitsOpen = true;
                     }
                 }
             }

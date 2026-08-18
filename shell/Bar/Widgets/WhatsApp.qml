@@ -42,14 +42,12 @@ Cell {
                 badgeColor: WhatsApp.ready ? Theme.green : Theme.fgDim
             }
 
-            Rectangle {
+            ActionButton {
                 visible: !WhatsApp.online
-                width: panel.rowWidth; height: Theme.cellH * 2
-                color: installHover.hovered ? Theme.hover : "transparent"
-                border.width: Theme.borderWidth; border.color: Theme.accent; radius: Theme.radius
-                Line { anchors.centerIn: parent; text: "[ Bridge installieren und starten ]"; color: Theme.accent }
-                HoverHandler { id: installHover; cursorShape: Qt.PointingHandCursor }
-                TapHandler { onTapped: WhatsApp.setup() }
+                width: panel.rowWidth
+                text: "Bridge installieren und starten"
+                tone: "primary"
+                onTriggered: WhatsApp.setup()
             }
 
             Column {
@@ -57,13 +55,11 @@ Cell {
                 width: panel.rowWidth
                 spacing: Theme.cellH * 0.25
                 Line { text: "Dieses nbshell als verknuepftes Geraet anmelden."; color: Theme.fg }
-                Rectangle {
-                    width: panel.rowWidth; height: Theme.cellH * 1.7
-                    color: loginHover.hovered ? Theme.hover : "transparent"
-                    border.width: Theme.borderWidth; border.color: Theme.accent; radius: Theme.radius
-                    Line { anchors.centerIn: parent; text: WhatsApp.hasQr ? "[ QR-Code erneuern ]" : "[ Geraet verbinden ]"; color: Theme.accent }
-                    HoverHandler { id: loginHover; cursorShape: Qt.PointingHandCursor }
-                    TapHandler { onTapped: WhatsApp.beginLogin() }
+                ActionButton {
+                    width: panel.rowWidth
+                    text: WhatsApp.hasQr ? "QR-Code erneuern" : "Geraet verbinden"
+                    tone: "primary"
+                    onTriggered: WhatsApp.beginLogin()
                 }
                 Image {
                     visible: WhatsApp.hasQr && WhatsApp.qrPng !== ""

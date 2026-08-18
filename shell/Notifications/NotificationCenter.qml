@@ -70,9 +70,9 @@ PanelWindow {
                     Line { width: parent.width - controls.width; text: Icons.bell + "  BENACHRICHTIGUNGEN  (" + Notify.count + ")"; color: Theme.fg; font.pixelSize: Theme.fontSize + 3 }
                     Row {
                         id: controls
-                        spacing: Theme.cellW * 2
-                        Line { text: Notify.dnd ? "[ DND an ]" : "[ DND aus ]"; color: Notify.dnd ? Theme.yellow : Theme.fgDim; TapHandler { onTapped: Notify.setDnd(!Notify.dnd) } }
-                        Line { text: "[ leeren ]"; color: Theme.red; TapHandler { onTapped: Notify.clear() } }
+                        spacing: Theme.cellW
+                        ActionButton { text: Notify.dnd ? "DND an" : "DND aus"; tone: Notify.dnd ? "primary" : "secondary"; compact: true; accentColor: Theme.yellow; onTriggered: Notify.setDnd(!Notify.dnd) }
+                        ActionButton { text: "Alles leeren"; tone: "danger"; compact: true; enabled: Notify.count > 0; onTriggered: Notify.clear() }
                     }
                 }
                 Rectangle {
@@ -95,25 +95,16 @@ PanelWindow {
                         Line { visible: root.shown.length === 0; text: Notify.count ? "Kein Treffer" : "Noch keine Benachrichtigungen"; color: Theme.muted }
                         Repeater {
                             model: root.shown
-                            Rectangle {
+                            NotificationCard {
                                 id: card
                                 required property var modelData
                                 required property int index
                                 width: cards.width
-                                height: body.implicitHeight + Theme.cellH
-                                radius: Theme.radius
-                                color: index === root.selected ? Theme.selection : Theme.bgLight
-                                border.width: Theme.borderWidth
-                                border.color: index === root.selected ? Theme.accent : Theme.muted
-                                Column {
-                                    id: body
-                                    anchors.left: parent.left; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                                    anchors.margins: Theme.cellW
-                                    Line { width: parent.width; text: (card.modelData.appName || "System") + ((card.modelData.repeat ?? 1) > 1 ? "  ×" + card.modelData.repeat : "") + "  ·  " + Notify.ago(card.modelData.time); color: Theme.fgDim; elide: Text.ElideRight }
-                                    Line { width: parent.width; text: card.modelData.summary || ""; color: Theme.fg; font.pixelSize: Theme.fontSize + 1; wrapMode: Text.WordWrap }
-                                    Line { width: parent.width; visible: !!card.modelData.body; text: String(card.modelData.body || "").replace(/<[^>]*>/g, ""); color: Theme.fgDim; wrapMode: Text.WordWrap }
-                                }
-                                MouseArea { anchors.fill: parent; hoverEnabled: true; onEntered: root.selected = index; onClicked: Notify.drop(card.modelData.key) }
+                                entry: modelData
+                                selected: index === root.selected
+                                onOpened: { Notify.open(modelData); root.close(); }
+                                onRemoved: Notify.drop(modelData.key)
+                                HoverHandler { onHoveredChanged: if (hovered) root.selected = index }
                             }
                         }
                     }

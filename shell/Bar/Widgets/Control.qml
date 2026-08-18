@@ -83,33 +83,11 @@ Cell {
                 color: Theme.fgDim
             }
 
-            // Ein Knopf aus Text. Angefasst wird ein Stueck ausserhalb mit --
-            // ein Wort ist eine schmale Zielflaeche.
-            component Action: Line {
-                id: action
-
+            component Action: ActionButton {
                 property bool on: false
-
-                signal triggered
-
-                color: actionMouse.hovered ? Theme.readable(Theme.accent, Theme.bg) : (action.on ? Theme.green : Theme.fgDim)
-
-                // Handler statt MouseArea: eine MouseArea mit `hoverEnabled`
-                // nimmt das Ueberfahren fuer sich, und der HoverHandler des
-                // Popoutfensters sieht es nicht mehr -- das Popout haelt die
-                // Maus dann fuer verschwunden und klappt mitten im Lesen zu.
-                // Handler blockieren einander nicht.
-                HoverHandler {
-                    id: actionMouse
-
-                    margin: Theme.cellW / 2
-                    cursorShape: Qt.PointingHandCursor
-                }
-
-                TapHandler {
-                    margin: Theme.cellW / 2
-                    onTapped: action.triggered()
-                }
+                compact: true
+                tone: on ? "primary" : "secondary"
+                accentColor: on ? Theme.green : Theme.accent
             }
 
             // Woran der Rechner haengt, steht jetzt OBEN und nicht mehr
@@ -249,7 +227,7 @@ Cell {
                     // Minute auf eine Messung wartet.
                     Action {
                         visible: Net.online
-                        text: "[ speed ]"
+                        text: "Speedtest"
                         onTriggered: {
                             Runtime.speedOpen = true;
                             if (panel.closePopout)
@@ -259,7 +237,7 @@ Cell {
 
                     Action {
                         visible: Net.activeWifi !== null
-                        text: "[ qr ]"
+                        text: "WLAN-QR"
                         onTriggered: {
                             Runtime.qrOpen = true;
                             if (panel.closePopout)
@@ -269,13 +247,14 @@ Cell {
 
                     Action {
                         visible: Net.wifiEnabled
-                        text: Net.scanning ? ("[ " + panel.spin + " sucht ]") : "[ suchen ]"
+                        text: Net.scanning ? (panel.spin + " sucht") : "Suchen"
+                        busy: Net.scanning
                         onTriggered: Net.rescan()
                     }
 
                     Action {
                         on: Net.wifiEnabled
-                        text: Net.wifiEnabled ? "[ an ]" : "[ aus ]"
+                        text: Net.wifiEnabled ? "WLAN an" : "WLAN aus"
                         onTriggered: Net.setWifiEnabled(!Net.wifiEnabled)
                     }
                 }
@@ -285,7 +264,7 @@ Cell {
             // noch niemand gesucht hat.
             Line {
                 visible: Net.wifiEnabled && Net.wifiNetworks.length === 0
-                text: Net.scanning ? "  sucht …" : "  nichts gefunden — [ suchen ]"
+                text: Net.scanning ? "  sucht …" : "  nichts gefunden"
                 color: Theme.fgDim
             }
 
@@ -417,13 +396,14 @@ Cell {
                     Action {
                         visible: Bt.enabled
                         on: Bt.requested
-                        text: Bt.discovering ? ("[ " + panel.spin + " sucht ]") : "[ suchen ]"
+                        text: Bt.discovering ? (panel.spin + " sucht") : "Suchen"
+                        busy: Bt.discovering
                         onTriggered: Bt.toggleScan()
                     }
 
                     Action {
                         on: Bt.enabled
-                        text: Bt.enabled ? "[ an ]" : "[ aus ]"
+                        text: Bt.enabled ? "Bluetooth an" : "Bluetooth aus"
                         onTriggered: Bt.setEnabled(!Bt.enabled)
                     }
                 }
@@ -431,7 +411,7 @@ Cell {
 
             Line {
                 visible: Bt.available && Bt.enabled && Bt.sorted.length === 0
-                text: Bt.discovering ? "  sucht …" : "  nichts gekoppelt — [ suchen ]"
+                text: Bt.discovering ? "  sucht …" : "  nichts gekoppelt"
                 color: Theme.fgDim
             }
 

@@ -58,10 +58,10 @@ Cell {
                 }
             }
 
-            Line {
-                text: "[ Verwaltung oeffnen ]"
-                color: Theme.accent
-                TapHandler { onTapped: Quickshell.execDetached(["xdg-open", "https://login.tailscale.com/admin/machines"]) }
+            ActionButton {
+                text: "Verwaltung oeffnen"
+                tone: "primary"
+                onTriggered: Quickshell.execDetached(["xdg-open", "https://login.tailscale.com/admin/machines"])
             }
         }
     }

@@ -84,33 +84,17 @@ Cell {
                     Row {
                         spacing: Theme.cellW * 2
 
-                        component Knopf: Line {
-                            id: knopf
-
-                            signal triggered
-
-                            color: maus.hovered ? Theme.readable(Theme.accent, Theme.bg) : Theme.fgDim
-
-                            HoverHandler {
-                                id: maus
-
-                                margin: Theme.cellW / 2
-                                cursorShape: Qt.PointingHandCursor
-                            }
-
-                            TapHandler {
-                                margin: Theme.cellW / 2
-                                onTapped: knopf.triggered()
-                            }
+                        component Knopf: ActionButton {
+                            compact: true
                         }
 
                         Knopf {
-                            text: "  [ Zwischenablage ]"
+                            text: "Zwischenablage"
                             onTriggered: Nearby.sendText(eintrag.modelData, Clipboard.entries.length > 0 ? Clipboard.entries[0] : "")
                         }
 
                         Knopf {
-                            text: "[ letztes Bild ]"
+                            text: "Letztes Bild"
                             onTriggered: Nearby.sendLastShot(eintrag.modelData)
                         }
                     }

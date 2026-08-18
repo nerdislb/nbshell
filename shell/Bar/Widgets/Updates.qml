@@ -48,7 +48,7 @@ Cell {
                     anchors.verticalCenter: parent.verticalCenter
                     elide: Text.ElideRight
                     // Keine Marke rechts wie in den anderen Popouts: dort
-                    // stehen hier schon die Knoepfe ([ pruefen ], [ jetzt ]),
+                    // stehen hier schon die Knoepfe (Pruefen, Aktualisieren),
                     // und zwei Dinge am selben Rand sind eines zu viel.
                     text: "UPDATES  (" + Updates.count + ")"
                     color: Theme.fgDim
@@ -61,42 +61,23 @@ Cell {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: Theme.cellW * 2
 
-                    Line {
-                        text: Updates.checking ? "[ prueft … ]" : "[ neu pruefen ]"
-                        color: pruefenHover.hovered ? Theme.readable(Theme.accent, Theme.bg) : Theme.fgDim
-
-                        // HoverHandler + TapHandler statt MouseArea: eine
-                        // MouseArea nimmt das Ueberfahren fuer sich, der
-                        // HoverHandler in Popout.qml sieht es dann nicht mehr
-                        // und schliesst das Fenster waehrend man noch drin ist.
-                        HoverHandler {
-                            id: pruefenHover
-
-                            cursorShape: Qt.PointingHandCursor
-                        }
-
-                        TapHandler {
-                            onTapped: Updates.refresh()
-                        }
+                    ActionButton {
+                        text: Updates.checking ? "Prueft …" : "Neu pruefen"
+                        busy: Updates.checking
+                        compact: true
+                        onTriggered: Updates.refresh()
                     }
 
-                    Line {
+                    ActionButton {
                         visible: Updates.count > 0
-                        text: "[ aktualisieren ]"
-                        color: aktualisierenHover.hovered ? Theme.readable(Theme.green, Theme.bg) : Theme.green
-
-                        HoverHandler {
-                            id: aktualisierenHover
-
-                            cursorShape: Qt.PointingHandCursor
-                        }
-
-                        TapHandler {
-                            onTapped: {
-                                Updates.update();
-                                if (panel.closePopout)
-                                    panel.closePopout();
-                            }
+                        text: "Aktualisieren"
+                        tone: "primary"
+                        accentColor: Theme.green
+                        compact: true
+                        onTriggered: {
+                            Updates.update();
+                            if (panel.closePopout)
+                                panel.closePopout();
                         }
                     }
                 }

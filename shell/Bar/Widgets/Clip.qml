@@ -48,18 +48,14 @@ Cell {
                     color: Theme.fgDim
                 }
 
-                Line {
+                ActionButton {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     visible: Clipboard.entries.length + Clipboard.images.length > 0
-                    text: "[ leeren ]"
-                    color: Theme.red
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: Clipboard.clear()
-                    }
+                    text: "Leeren"
+                    tone: "danger"
+                    compact: true
+                    onTriggered: Clipboard.clear()
                 }
             }
 

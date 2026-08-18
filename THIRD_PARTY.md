@@ -13,6 +13,11 @@ stammen aus anderen MIT-lizenzierten Projekten oder wurden davon abgeleitet:
   [OmaConnect](https://github.com/jitendradara12/omaconnect) abgeleitet.
 - Der AI-Usage-Provider wurde aus dem MIT-lizenzierten `aiOverviewControl`
   integriert. Sein Lizenztext liegt unter `shell/scripts/ai-usage/LICENSE`.
+- App-/Web-Herkunft, Fokusaktion und Kartenaufbau der Benachrichtigungszentrale
+  sind von Jesse Burlamaques MIT-lizenziertem
+  [Herald Notification Center](https://github.com/jesseburlamaque/herald-notification)
+  inspiriert. nbshell verwendet dabei weiterhin seinen eigenen persistenten
+  Benachrichtigungsdienst und eine eigenstaendige TUI-Implementierung.
 
 Omarchy, niri, Quickshell und die genannten Projekte sind eigenstaendige
 Projekte. Ihre Nennung bedeutet keine offizielle Verbindung oder Unterstuetzung.

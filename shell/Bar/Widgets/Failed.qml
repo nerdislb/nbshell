@@ -38,27 +38,11 @@ Cell {
 
             spacing: Theme.cellH * 0.2
 
-            component Action: Line {
-                id: action
-
-                signal triggered
-
+            component Action: ActionButton {
                 property color ton: Theme.fgDim
-
-                color: hover.hovered ? Theme.readable(action.ton, Theme.bg) : action.ton
-
-                // Handler statt MouseArea -- eine MouseArea nimmt das
-                // Ueberfahren fuer sich, und das Popout haelt die Maus dann
-                // fuer verschwunden und klappt beim Lesen zu.
-                HoverHandler {
-                    id: hover
-
-                    cursorShape: Qt.PointingHandCursor
-                }
-
-                TapHandler {
-                    onTapped: action.triggered()
-                }
+                tone: "primary"
+                accentColor: ton
+                compact: true
             }
 
             Item {
@@ -75,7 +59,8 @@ Cell {
                 Action {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    text: Units.checking ? "[ sieht nach … ]" : "[ neu pruefen ]"
+                    text: Units.checking ? "Prueft …" : "Neu pruefen"
+                    busy: Units.checking
                     onTriggered: Units.refresh()
                 }
             }
@@ -115,7 +100,7 @@ Cell {
                         bottomPadding: Theme.cellH * 0.3
 
                         Action {
-                            text: "[ neu starten ]"
+                            text: "Neu starten"
                             ton: Theme.green
                             onTriggered: {
                                 Units.restart(eintrag.modelData);
@@ -125,7 +110,7 @@ Cell {
                         }
 
                         Action {
-                            text: "[ protokoll ]"
+                            text: "Protokoll"
                             onTriggered: {
                                 Units.journal(eintrag.modelData);
                                 if (panel.closePopout)
@@ -134,7 +119,8 @@ Cell {
                         }
 
                         Action {
-                            text: "[ abraeumen ]"
+                            text: "Abraeumen"
+                            ton: Theme.red
                             onTriggered: {
                                 Units.clear(eintrag.modelData);
                                 if (eintrag.modelData.bereich !== "user" && panel.closePopout)
