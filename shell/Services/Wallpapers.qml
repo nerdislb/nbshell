@@ -7,7 +7,8 @@ import qs.Common
 
 // Die Bilder des aktuellen Themes.
 //
-// Gesucht wird beim Theme selbst und im eigenen nbshell-Datenbereich.
+// Gesucht wird beim Theme selbst, im eigenen nbshell-Datenbereich und im
+// zwischen Rechnern synchronisierten ~/Sync/nbshell/wallpapers.
 //
 // Bewusst OHNE Zwischenspeicher: die Liste wird bei jedem Oeffnen frisch
 // gelesen. Ein Cache hat in der Vorlage (themeWallpaper) genau das kaputt
@@ -30,10 +31,19 @@ Singleton {
     function findCommand(theme) {
         const home = Quickshell.env("HOME");
         const data = Quickshell.env("XDG_DATA_HOME") || (home + "/.local/share");
-        const dirs = [Config.themeDir + "/" + theme + "/backgrounds", data + "/nbshell/wallpapers/" + theme];
+        const dirs = [
+            Config.themeDir + "/" + theme + "/backgrounds",
+            data + "/nbshell/wallpapers/" + theme,
+            home + "/Sync/nbshell/wallpapers/" + theme
+        ];
         // `find` statt `ls`: es kennt mehrere Endungen in einem Aufruf und
         // stolpert nicht ueber Leerzeichen in Namen.
-        return "find " + dirs.map(d => JSON.stringify(d)).join(" ") + " -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \\) 2>/dev/null | sort";
+        // Pro Quelle sortieren und danach gleiche Dateinamen aus spaeteren
+        // Quellen ausblenden. Auf dem Hauptrechner liegen dieselben Bilder
+        // oft beim Theme UND in Syncthing; ohne Deduplizierung erschiene jedes
+        // davon zweimal im Karussell.
+        return "for d in " + dirs.map(d => JSON.stringify(d)).join(" ") +
+            "; do find \"$d\" -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \\) 2>/dev/null | sort; done | awk -F/ '!seen[$NF]++'";
     }
 
     // Die Wahl gilt FUER DAS THEME, nicht fuer immer.
@@ -72,6 +82,19 @@ Singleton {
             onStreamFinished: {
                 root.list = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
                 root.loading = false;
+                // Dotfiles speichern absolute Wallpaper-Pfade. Auf einem
+                // zweiten Rechner kann derselbe Dateiname aus Syncthing an
+                // einem anderen der drei Orte liegen. Dann den alten Pfad
+                // automatisch auf das gefundene Bild desselben Namens heilen.
+                const selected = root.current;
+                if (selected && root.list.indexOf(selected) < 0) {
+                    const wanted = root.nameOf(selected);
+                    const replacement = root.list.find(path => root.nameOf(path) === wanted);
+                    if (replacement)
+                        root.apply(replacement);
+                    else
+                        root.reset();
+                }
             }
         }
     }

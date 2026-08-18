@@ -10,10 +10,12 @@ set -euo pipefail
 
 THEME_DIR="${1:-${XDG_CONFIG_HOME:-$HOME/.config}/nbshell/themes}"
 DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+SYNC_WALLPAPERS="$HOME/Sync/nbshell/wallpapers"
 
-# Wallpaper liegen entweder direkt beim Theme oder im nbshell-Datenbereich.
+# Wallpaper liegen direkt beim Theme, im nbshell-Datenbereich oder im
+# Syncthing-Bestand, der auf weiteren Rechnern ohne Kopierjob auftaucht.
 wallpaper_dirs() {
-    printf '%s\n' "$1/backgrounds" "$DATA_HOME/nbshell/wallpapers/$2"
+    printf '%s\n' "$1/backgrounds" "$DATA_HOME/nbshell/wallpapers/$2" "$SYNC_WALLPAPERS/$2"
 }
 
 first_wallpaper() {

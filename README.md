@@ -36,6 +36,18 @@ cd nbshell
 nbshell switch on
 ```
 
+Fuer Nerdis vollstaendiges Mehrrechner-Setup (Dotfiles, zusaetzliche
+Themes, Plugins und Hardwarefilter) ist stattdessen der Bootstrap im privaten
+Dotfiles-Repo vorgesehen:
+
+```bash
+git clone git@github.com:nerdislb/dotfiles-dms.git ~/dotfiles
+~/dotfiles/bin/bootstrap-nbshell.sh
+```
+
+Mit Syncthing synchronisierte Wallpaper unter `~/Sync/nbshell/wallpapers`
+werden direkt gelesen; sie muessen nicht in das Git-Repo kopiert werden.
+
 `setup.sh` zeigt vor jeder Paketinstallation, was fehlt. Wer Pakete lieber
 selbst verwaltet, installiert nur die Dateien:
 
