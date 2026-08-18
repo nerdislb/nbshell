@@ -119,9 +119,9 @@ Variants {
 
         implicitHeight: Theme.barHeight + (barMode ? 0 : Config.gap)
 
-        // Im Balkenmodus reserviert die Leiste ihren Platz, die Fenster ruecken
-        // also nach. Als Insel schwebt sie darueber.
-        exclusiveZone: barMode ? Theme.barHeight : -1
+        // Reserve the visible shell height in every mode. Island and pill keep
+        // their floating shape, but regular windows no longer sit underneath.
+        exclusiveZone: Theme.barHeight + (barMode ? 0 : Config.gap)
 
         mask: Region {
             item: frame

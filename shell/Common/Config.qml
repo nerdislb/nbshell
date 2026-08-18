@@ -36,8 +36,8 @@ Singleton {
     //
     //   island  freistehende Pille, die zur Uhr zusammenschrumpft und erst
     //           beim Ueberfahren alles zeigt.
-    //   pill    dieselbe Pille, die aber offen BLEIBT -- sie schwebt weiter
-    //           ueber den Fenstern, ist aber nie leer.
+    //   pill    dieselbe Pille, die aber offen BLEIBT -- sie bleibt optisch
+    //           freistehend, reserviert aber wie die Insel ihren Platz.
     //   bar     durchgehender Balken ueber die volle Breite, der den Fenstern
     //           ihren Platz wegnimmt.
     readonly property string mode: value("mode", "island")
