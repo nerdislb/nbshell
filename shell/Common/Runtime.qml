@@ -40,7 +40,6 @@ Singleton {
     property bool habitsOpen: false
     property bool qrOpen: false
     property bool speedOpen: false
-    property bool musicOpen: false
     property bool keysOpen: false
     property bool menuOpen: false
     property bool emojiOpen: false

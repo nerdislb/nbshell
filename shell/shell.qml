@@ -116,8 +116,6 @@ ShellRoot {
 
     SpeedWindow {}
 
-    MusicWindow {}
-
     AudioTools {}
 
     KeysWindow {}

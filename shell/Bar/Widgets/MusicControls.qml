@@ -21,7 +21,7 @@ Cell {
 
     // Ohne Abspieler waeren es tote Knoepfe; sobald einer vorhanden ist,
     // bleibt die Steuerung aber auch in Pause dauerhaft sichtbar.
-    shown: Music.da
+    shown: MediaService.active
     quiet: false
 
     // Breite VORGEBEN, nicht messen lassen. Cells `contentItem` misst sich zwar
@@ -30,7 +30,7 @@ Cell {
     // und weil ihr Inhalt zentriert sitzt, quoll er nach links ueber die
     // Arbeitsflaechen-Punkte. `slotChars` ist die Untergrenze, die Cell dafuer
     // schon kennt -- vier Knoepfe zu 1,6 Zellen plus drei Luecken zu 0,6.
-    slotChars: Math.round(4 * 1.6 + 3 * 0.6)
+    slotChars: Math.round(3 * 1.6 + 2 * 0.6)
 
     // KEIN `anchors` an dieser Reihe: Cells `contentItem` misst sich an seinen
     // Kindern (`width: childrenRect.width`). Ein Kind, das sich am Eltern-
@@ -84,28 +84,17 @@ Cell {
 
         Knopf {
             text: Icons.skipPrevious
-            onTriggered: Music.zurueck()
+            onTriggered: MediaService.previous()
         }
 
         Knopf {
-            text: Music.spielt ? Icons.pause : Icons.play
-            onTriggered: Music.playPause()
+            text: MediaService.playing ? Icons.pause : Icons.play
+            onTriggered: MediaService.playPause()
         }
 
         Knopf {
             text: Icons.skipNext
-            onTriggered: Music.weiter()
-        }
-
-        // Der Zufall gilt nur fuer unsere eigene Warteschlange -- MPRIS kann
-        // ihn nicht, und ein Knopf, der bei fremden Spielern nichts taete,
-        // waere eine Luege. Deshalb nur sichtbar, wenn wir selbst spielen.
-        Knopf {
-            visible: Music.queue.length > 0
-
-            text: Icons.shuffle
-            color: Music.shuffle ? Theme.readable(Theme.accent, Theme.bg) : (hovered ? Theme.fg : Theme.muted)
-            onTriggered: Music.toggleShuffle()
+            onTriggered: MediaService.next()
         }
     }
 }

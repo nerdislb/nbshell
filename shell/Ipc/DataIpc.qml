@@ -15,77 +15,46 @@ import qs.Services
 // begraben lag. Sie sprechen ausschliesslich mit Singletons, also war der
 // Schnitt schmerzlos.
 Scope {
-    // Musik. Die Mediathek (Playlists, Suche) laeuft NICHT hierueber, sondern
-    // direkt ueber scripts/ytm.py -- `nbshell music` muss auch dann noch
-    // antworten, wenn die Shell gerade nicht laeuft. Hier steht nur, was einen
-    // laufenden Abspieler braucht.
+    // Mediensteuerung fuer den jeweils aktiven MPRIS-Player. nbshell spielt
+    // selbst nichts ab; Browser und Medien-Apps bleiben die Quelle.
     IpcHandler {
         target: "music"
 
-        function play(id: string, titel: string): string {
-            if (id === "")
-                return "welcher Titel?";
-            Music.spiele({
-                "id": id,
-                "titel": titel === "" ? id : titel,
-                "interpret": ""
-            });
-            return "spielt: " + (titel === "" ? id : titel);
-        }
-
         function open(): string {
-            Runtime.musicOpen = true;
+            Runtime.dashboardPage = 1;
+            Runtime.dashboardOpen = true;
             return "offen";
         }
 
         function toggle(): string {
-            Runtime.musicOpen = !Runtime.musicOpen;
-            return Runtime.musicOpen ? "offen" : "zu";
+            if (Runtime.dashboardOpen && Runtime.dashboardPage === 1)
+                Runtime.dashboardOpen = false;
+            else {
+                Runtime.dashboardPage = 1;
+                Runtime.dashboardOpen = true;
+            }
+            return Runtime.dashboardOpen ? "offen" : "zu";
         }
 
-        // Angeheftet bleibt das Fenster stehen und gibt die Tastatur ab.
-        function pin(): string {
-            const jetzt = !Config.value("musicPinned", false);
-            Config.set("musicPinned", jetzt);
-            // Wie im Fenster: Loesen laesst es stehen, statt es wegzunehmen.
-            if (!jetzt)
-                Runtime.musicOpen = true;
-            return jetzt ? "angeheftet" : "geloest, bleibt offen";
-        }
-
-        // Auf WEN zielen die Musikknoepfe gerade? Genau das war die Frage, als
-        // eine Sprachnachricht im Browser den mpv verdraengt hatte.
         function status(): string {
             return JSON.stringify({
-                "spieler": String(Music.spieler?.identity ?? "keiner"),
-                "eigener": MediaService.mpv !== null,
-                "spielt": Music.spielt,
-                "titel": Music.titel,
-                "stelle": MediaService.zeit(Music.stelle),
-                "warteschlange": Music.queue.length,
+                "spieler": String(MediaService.player?.identity ?? "keiner"),
+                "spielt": MediaService.playing,
+                "titel": MediaService.title,
+                "interpret": MediaService.artist,
+                "stelle": MediaService.zeit(MediaService.position),
                 "alle": MediaService.players.map(p => String(p?.identity ?? "?"))
             });
         }
 
         function pause(): string {
-            // Vorher lesen: nach dem Umschalten steht der neue Zustand noch
-            // nicht da, MPRIS meldet ihn erst zurueck. Die Antwort waere sonst
-            // jedesmal die falsche.
-            const lief = Music.spielt;
-            Music.playPause();
+            const lief = MediaService.playing;
+            MediaService.playPause();
             return lief ? "pausiert" : "spielt";
         }
 
-        function stop(): string {
-            Music.leeren();
-            return "gestoppt";
-        }
-
-        function queue(): string {
-            if (Music.queue.length === 0)
-                return "die Warteschlange ist leer";
-            return Music.queue.map((t, i) => (i === Music.position ? "▸ " : "  ") + t.titel + (t.interpret ? "  —  " + t.interpret : "")).join("\n");
-        }
+        function next(): string { MediaService.next(); return "weiter"; }
+        function previous(): string { MediaService.previous(); return "zurueck"; }
     }
 
     IpcHandler {

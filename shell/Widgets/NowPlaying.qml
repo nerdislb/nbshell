@@ -22,10 +22,10 @@ Column {
 
     PanelHead {
         rowWidth: panel.rowWidth
-        icon: Music.spielt ? Icons.play : Icons.pause
-        title: Music.titel || "nichts"
-        subtitle: Music.interpret
-        badge: MediaService.zeit(Music.stelle)
+        icon: MediaService.playing ? Icons.play : Icons.pause
+        title: MediaService.title || "nichts"
+        subtitle: MediaService.artist
+        badge: MediaService.zeit(MediaService.position)
     }
 
     Rule {
@@ -45,7 +45,7 @@ Column {
             anchors.verticalCenter: parent.verticalCenter
 
             width: Theme.cellW * 6
-            text: MediaService.zeit(Music.stelle)
+            text: MediaService.zeit(MediaService.position)
             color: Theme.muted
         }
 
@@ -56,10 +56,10 @@ Column {
             anchors.verticalCenter: parent.verticalCenter
 
             cells: 36
-            value: Math.round(Music.stelle)
-            maximum: Math.max(1, Math.round(Music.laenge))
-            interactive: Music.spulbar
-            onMoved: v => Music.spulen(v)
+            value: Math.round(MediaService.position)
+            maximum: Math.max(1, Math.round(MediaService.length))
+            interactive: MediaService.seekable
+            onMoved: v => MediaService.seek(v)
         }
 
         Line {
@@ -68,7 +68,7 @@ Column {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
 
-            text: MediaService.zeit(Music.laenge)
+            text: MediaService.zeit(MediaService.length)
             color: Theme.muted
         }
     }
@@ -78,7 +78,7 @@ Column {
         width: panel.rowWidth
         height: Theme.cellH * 1.4
 
-        visible: Music.lautstaerkeGeht
+        visible: MediaService.volumeSupported
 
         Line {
             id: vlabel
@@ -96,74 +96,19 @@ Column {
             anchors.verticalCenter: parent.verticalCenter
 
             cells: 20
-            value: Math.round(Music.lautstaerke * 100)
+            value: Math.round(MediaService.volume * 100)
             maximum: 100
             fillColor: Theme.green
-            onMoved: v => Music.setzeLautstaerke(v / 100)
+            onMoved: v => MediaService.setVolume(v / 100)
         }
 
         Line {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
 
-            text: Math.round(Music.lautstaerke * 100) + "%"
+            text: Math.round(MediaService.volume * 100) + "%"
             color: Theme.muted
         }
     }
 
-    Rule {
-        rowWidth: panel.rowWidth
-        label: "als Naechstes"
-        visible: panel.naechste.length > 0
-    }
-
-    // Was noch kommt: die drei Titel nach dem laufenden. Das weiss nur unsere
-    // eigene Warteschlange -- spielt etwas anderes, bleibt der Abschnitt weg.
-    readonly property var naechste: {
-        if (Music.queue.length === 0 || !Music.current)
-            return [];
-        const i = Music.queue.indexOf(Music.current);
-        return i < 0 ? [] : Music.queue.slice(i + 1, i + 4);
-    }
-
-    Repeater {
-        model: panel.naechste
-
-        Item {
-            id: zeile
-
-            required property var modelData
-
-            width: panel.rowWidth
-            height: Theme.cellH * 1.25
-
-            Line {
-                anchors.left: parent.left
-                anchors.verticalCenter: parent.verticalCenter
-
-                width: panel.rowWidth * 0.62
-                elide: Text.ElideRight
-                text: "  " + zeile.modelData.titel
-                color: Theme.fgDim
-            }
-
-            Line {
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-
-                width: panel.rowWidth * 0.34
-                elide: Text.ElideRight
-                horizontalAlignment: Text.AlignRight
-                text: zeile.modelData.interpret
-                color: Theme.muted
-            }
-        }
-    }
-
-    Line {
-        width: panel.rowWidth
-        visible: Music.shuffle && Music.queue.length > 0
-        text: "  Zufall an"
-        color: Theme.readable(Theme.accent, Theme.bg)
-    }
 }

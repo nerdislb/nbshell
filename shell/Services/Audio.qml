@@ -85,8 +85,8 @@ Singleton {
                 // Die Musik stand ja still, deshalb wurde der Knopf gedrueckt.
                 // Aber nur fortsetzen, was PAUSIERT ist -- ein gestoppter
                 // Spieler soll nicht von allein losspielen.
-                if (Music.spieler && !Music.spielt && Music.queue.length > 0)
-                    Music.playPause();
+                if (MediaService.active && !MediaService.playing)
+                    MediaService.playPause();
                 quittung.restart();
             }
         }

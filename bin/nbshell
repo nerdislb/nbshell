@@ -96,7 +96,6 @@ alacritty_theme() {
 # niri und GTK. Wer hier direkt schriebe, haette zwei Wahrheiten, und die
 # naechste Aenderung im Menue ueberschriebe sie wortlos.
 CURSOR_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/cursors.sh"
-MUSIC_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/ytm.py"
 KEYS_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/keys.py"
 PIP_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/zen-pip.py"
 
@@ -487,10 +486,7 @@ nbshell -- eigene Shell auf Quickshell
   nbshell nearby            gefundene Geraete auflisten
   nbshell nearby send <datei> [alias]
 
-  nbshell music login       YouTube Music verbinden (Cookies einfuegen)
-  nbshell music status      angemeldet? wie viele Playlists?
-  nbshell music playlists   eigene Playlists auflisten
-  nbshell music suche <text>  Titel suchen
+  nbshell media             aktiven Browser-/App-Player steuern
 
   nbshell keys              alle Tastenkuerzel (Fenster, Mod+K)
   nbshell keys liste        dieselben Kuerzel im Terminal
@@ -676,34 +672,11 @@ for b in d["binds"]:
             *)               ipc keys toggle ;;
         esac
         ;;
-    music|musik)
-        # Direkt ans Skript, nicht ueber die Shell: Anmelden und Nachsehen muss
-        # auch gehen, wenn nbshell gar nicht laeuft -- und beim Anmelden wandert
-        # ein mehrzeiliger Einfuegetext durch stdin, den IPC nicht durchreicht.
-        unter="${1:-status}"; shift || true
-        case "$unter" in
-            login|anmelden)
-                cat >&2 <<'ENDE'
-YouTube Music verbinden — einmal einrichten:
-
-  1. music.youtube.com im Browser oeffnen, angemeldet sein
-  2. F12 -> Reiter "Netzwerk"
-  3. eine beliebige Anfrage an music.youtube.com anklicken
-  4. Rechtsklick -> Copy -> Copy request headers
-  5. hier einfuegen, dann Strg-D (in einer neuen Zeile)
-
-Die Cookies landen in ~/.config/nbshell/ytmusic.json (Rechte 600) und sind
-ein Passwort-Aequivalent. Sie sind vom Dotfiles-Repo ausgeschlossen.
-
-Jetzt einfuegen:
-ENDE
-                python3 "$MUSIC_TOOL" login ;;
-            fenster|window) ipc music toggle ;;
-            play|spiel)     ipc music play "${1:?Titel-ID fehlt}" "${2:-}" ;;
-            stop)           ipc music stop ;;
-            queue|liste)    ipc music queue ;;
-            suche|search)   python3 "$MUSIC_TOOL" search "$@" ;;
-            *)              python3 "$MUSIC_TOOL" "$unter" "$@" ;;
+    music|musik|media|medien)
+        case "${1:-open}" in
+            status|pause|next|previous) ipc music "${1}" ;;
+            toggle|fenster|window) ipc music toggle ;;
+            *) ipc music open ;;
         esac
         ;;
     ton|audio)

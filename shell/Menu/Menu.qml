@@ -212,7 +212,7 @@ PanelWindow {
                 ] },
                 { "key": "z", "label": "Zwischenablage", "icon": Icons.clipboard, "run": () => Runtime.clipOpen = true },
                 { "key": "r", "label": "Prozesse", "icon": Icons.cpu, "run": () => Runtime.procsOpen = true },
-                { "key": "m", "label": "Musik", "icon": Icons.play, "run": () => Runtime.musicOpen = true },
+                { "key": "m", "label": "Medien", "icon": Icons.play, "run": () => { Runtime.dashboardPage = 1; Runtime.dashboardOpen = true; } },
                 { "key": "a", "label": "Fokus & Equalizer", "icon": Icons.volumeHigh, "run": () => Runtime.audioToolsOpen = true },
                 { "key": "t", "label": "Todo", "icon": Icons.todo, "run": () => Runtime.todoOpen = true },
                 { "key": "h", "label": "Habits", "icon": Icons.habit, "run": () => Runtime.habitsOpen = true },
