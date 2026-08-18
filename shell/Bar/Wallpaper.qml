@@ -95,18 +95,30 @@ Scope {
             property bool showA: true
             readonly property string source: Config.value("wallpaperOverride", "") || (ThemeIndex.current?.wallpaper ?? "")
 
-            onSourceChanged: {
-                if (!source) {
+            function stage(path) {
+                if (!path) {
                     imageA.source = "";
                     imageB.source = "";
                     return;
                 }
-                const url = "file://" + source;
-                if (showA)
-                    imageB.source = url;
-                else
-                    imageA.source = url;
+
+                const url = "file://" + path;
+                const target = showA ? imageB : imageA;
+
+                // Beim Rueckwechsel liegt das gewuenschte Bild oft noch
+                // fertig geladen in der gerade verdeckten Ebene. Dieselbe URL
+                // erneut zuzuweisen erzeugt kein StatusChanged/Ready-Signal;
+                // dadurch blieb die sichtbare andere Ebene (z. B. Harbor)
+                // endlos oben. Ist das Ziel schon bereit, direkt ueberblenden.
+                if (String(target.source) === url && target.status === Image.Ready) {
+                    showA = target === imageA;
+                    return;
+                }
+
+                target.source = url;
             }
+
+            onSourceChanged: win.stage(source)
 
             Connections {
                 target: imageA

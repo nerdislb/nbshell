@@ -106,11 +106,22 @@ Singleton {
         target: Config
 
         function onThemeChanged() {
-            root.refresh();
-            // Das Bild des neuen Themes -- oder das, was dort zuletzt gewaehlt
-            // wurde.
-            const map = Config.value("wallpaperByTheme", {});
-            Config.set("wallpaperOverride", map[Config.theme] ?? "");
+            // Config.set("theme", …) schreibt seinen Snapshot erst fertig,
+            // nachdem dieses Signal zurueckkehrt. Ein synchrones set() hier
+            // wurde deshalb danach wieder vom alten wallpaperOverride dieses
+            // Snapshots ueberschrieben (sichtbar: Harbor blieb nach dem
+            // Zurueckwechseln stehen). Einen Event-Loop-Takt spaeter ist der
+            // Theme-Schreibvorgang abgeschlossen und unsere Wahl gewinnt.
+            const changedTheme = Config.theme;
+            Qt.callLater(() => {
+                // Schnelles Durchschalten: nur der letzte Themewechsel darf
+                // noch ein Bild anwenden.
+                if (Config.theme !== changedTheme)
+                    return;
+                const map = Config.value("wallpaperByTheme", {});
+                Config.set("wallpaperOverride", map[changedTheme] ?? "");
+                root.refresh();
+            });
         }
     }
 }
