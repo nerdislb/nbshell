@@ -71,6 +71,9 @@ missing_optional="$(
     optional_check tte           "Bildschirmschoner: 39 Effekte statt 10" "python-terminaltexteffects (AUR)"
     optional_check sqlite3       "Antigravity-Konten finden" "sqlite"
     optional_check secret-tool   "Antigravity-Keyring lesen" "libsecret"
+    optional_check adb           "Android-Verbindung"        "android-tools"
+    optional_check scrcpy        "Android-Spiegelung"        "scrcpy"
+    optional_check nbphone       "Telefonspiegelung steuern" "github.com/nerdislb/nbphone"
 )"
 if [ -n "$missing_optional" ]; then
     printf '%s\n' "$missing_optional"

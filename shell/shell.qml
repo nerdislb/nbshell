@@ -76,6 +76,7 @@ ShellRoot {
         void Idle.enabled;
         void Cursor.themes;
         void Nearby.enabled;
+        void Phone.available;
         void Tailnet.available;
         void WhatsApp.unread;
         void ZenPip.active;

@@ -29,9 +29,11 @@ Cell {
     color: root.linked ? (root.dev.capabilities.battery && root.dev.charge >= 0 && root.dev.charge <= 15 ? Theme.red : Theme.barAccent) : Theme.textDim
 
     onClicked: Kdeconnect.refresh()
-
-    // LocalSend nur suchen, solange jemand hinsieht.
-    onPopoutVisibleChanged: Nearby.wanted = root.popoutVisible
+    onPopoutVisibleChanged: {
+        Nearby.wanted = root.popoutVisible;
+        if (root.popoutVisible)
+            Phone.refresh();
+    }
 
     popout: Component {
         Column {
@@ -254,6 +256,62 @@ Cell {
                         }
                     }
                 }
+            }
+
+            // ── PHONE MIRROR ──────────────────────────────────────────────
+            Rule {
+                rowWidth: panel.rowWidth
+                label: "PHONE MIRROR · NBPHONE"
+            }
+
+            Line {
+                width: panel.rowWidth
+                text: {
+                    if (!Phone.available)
+                        return "nbphone nicht installiert — siehe github.com/nerdislb/nbphone";
+                    if (!Phone.scrcpyAvailable)
+                        return "scrcpy fehlt — sudo pacman -S scrcpy";
+                    if (!Phone.connected)
+                        return "Kein ADB-Geraet — USB-Debugging oder nbphone connect";
+                    const name = Phone.model !== "" ? Phone.model : Phone.serial;
+                    return name + "  •  " + (Phone.mirroring ? "Spiegelung laeuft" : "bereit");
+                }
+                color: Phone.connected && Phone.scrcpyAvailable ? Theme.fg : Theme.yellow
+                wrapMode: Text.WordWrap
+            }
+
+            Row {
+                spacing: Theme.cellW
+                visible: Phone.available
+
+                ActionButton {
+                    text: Phone.mirroring ? "Stop" : "Open"
+                    busy: Phone.busy
+                    enabled: Phone.mirroring || (Phone.connected && Phone.scrcpyAvailable)
+                    onTriggered: Phone.mirroring ? Phone.stop() : Phone.start(false)
+                }
+
+                ActionButton {
+                    text: "Private"
+                    busy: Phone.busy
+                    enabled: !Phone.mirroring && Phone.connected && Phone.scrcpyAvailable
+                    onTriggered: Phone.start(true)
+                }
+
+                ActionButton {
+                    text: "Refresh"
+                    enabled: !Phone.busy
+                    onTriggered: Phone.refresh()
+                }
+            }
+
+            Line {
+                visible: Phone.status !== ""
+                width: panel.rowWidth
+                text: Phone.status
+                color: Phone.status.indexOf("fehlt") !== -1 || Phone.status.indexOf("kein") !== -1 ? Theme.yellow : Theme.green
+                wrapMode: Text.WordWrap
+                font.pixelSize: Theme.fontSize - 1
             }
 
             // Composer (Text/Link teilen bzw. Ping mit Text)
