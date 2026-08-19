@@ -21,6 +21,7 @@ binds {
     // Omarchys Super+Ctrl-E/C/H/A-Schema: eigenstaendige Shell-Oberflaechen
     // liegen gemeinsam auf der Ctrl-Ebene und sind dadurch leicht merkbar.
     Mod+Ctrl+E hotkey-overlay-title="nbshell: Emoji" { spawn "sh" "-c" "$HOME/.local/bin/nbshell emoji"; }
+    Mod+Ctrl+T hotkey-overlay-title="nbshell: Quick Translate" { spawn "sh" "-c" "$HOME/.local/bin/nbshell translate"; }
     Mod+Ctrl+C hotkey-overlay-title="nbshell: Capture" { spawn "sh" "-c" "$HOME/.local/bin/nbshell capture"; }
     Mod+Ctrl+H hotkey-overlay-title="nbshell: System & Plugins" { spawn "sh" "-c" "$HOME/.local/bin/nbshell hub"; }
     Mod+Ctrl+M hotkey-overlay-title="nbshell: Arrange modules" { spawn "sh" "-c" "$HOME/.local/bin/nbshell modules"; }

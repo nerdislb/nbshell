@@ -442,6 +442,7 @@ nbshell -- an independent Quickshell desktop shell for niri
   nbshell plugin remove <name>
   nbshell popout <name>     open a module popout
   nbshell extension toggle <id>  toggle a plugin panel or overlay
+  nbshell translate         toggle the optional Quick Translate overlay
   nbshell emoji             search emoji and copy the selection
   nbshell hub               system, plugin, and integration status
   nbshell battery           battery and power profile
@@ -760,6 +761,9 @@ for b in d["binds"]:
         ;;
     extension)
         ipc plugin "${1:-toggle}" "${2:?plugin ID is required}"
+        ;;
+    translate|uebersetzen)
+        ipc plugin toggle shaun.quick-translate
         ;;
     emoji|emojis)
         ipc emoji "${1:-toggle}"

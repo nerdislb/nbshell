@@ -211,6 +211,7 @@ PanelWindow {
                     { "key": "o", "label": "Open plugin folder", "icon": Icons.cp(0xF024B), "run": () => Quickshell.execDetached(["xdg-open", Quickshell.env("HOME") + "/.config/nbshell/plugins"]) }
                 ] },
                 { "key": "z", "label": "Clipboard", "icon": Icons.clipboard, "run": () => Runtime.clipOpen = true },
+                { "key": "g", "label": "Translate", "icon": "文", "run": () => Plugins.invoke("shaun.quick-translate", "toggle", "{}") },
                 { "key": "r", "label": "Processes", "icon": Icons.cpu, "run": () => Runtime.procsOpen = true },
                 { "key": "m", "label": "Media", "icon": Icons.play, "run": () => { Runtime.dashboardPage = 1; Runtime.dashboardOpen = true; } },
                 { "key": "a", "label": "Focus & equalizer", "icon": Icons.volumeHigh, "run": () => Runtime.audioToolsOpen = true },
