@@ -48,12 +48,13 @@ Variants {
 
         WlrLayershell.namespace: "nbshell:notifications"
         WlrLayershell.layer: WlrLayershell.Overlay
-        // OnDemand statt Exclusive: der Fokus wechselt erst, wenn man die Karte
-        // wirklich anklickt -- eine auftauchende Benachrichtigung reisst also
-        // nicht die Tastatur aus der gerade benutzten App. Auch Karten ohne
-        // App-Aktionen brauchen OnDemand: mit None lieferte niri zwar Hover,
-        // aber keinen Rechtsklick zum Wegwischen.
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+        // Toasts duerfen niemals Tastaturfokus anfordern. Mit OnDemand nahm
+        // Niri 26.04 beim Mappen des neuen Layer-Fensters Herdr bereits den
+        // aktiven Sitz weg, obwohl niemand die Karte angeklickt hatte. Pointer-
+        // Eingaben (Hover, Aktionen, Rechtsklick) brauchen keinen Keyboard-
+        // Fokus; nur die bewusst geoeffnete NotificationCenter-Oberflaeche
+        // verwendet weiterhin Exclusive.
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
         exclusionMode: ExclusionMode.Ignore
 
         anchors.right: true
