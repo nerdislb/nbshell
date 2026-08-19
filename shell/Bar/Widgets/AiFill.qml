@@ -21,7 +21,8 @@ Cell {
     // verschieden grosse Symbole.
     readonly property real inkTarget: Math.round(Theme.cellH * 0.8)
 
-    shown: AiUsage.available && AiUsage.list.length > 0
+    shown: Dictation.active || Agents.workingCount > 0 || Agents.waitingCount > 0
+        || (AiUsage.available && AiUsage.list.length > 0)
     custom: true
     interactive: true
 
@@ -30,6 +31,20 @@ Cell {
 
     Row {
         spacing: Theme.cellW
+
+        Line {
+            visible: Agents.workingCount > 0 || Agents.waitingCount > 0
+            text: Agents.waitingCount > 0 ? (Agents.waitingCount + " WAIT") : (Agents.workingCount + " RUN")
+            color: Agents.waitingCount > 0 ? Theme.yellow : Theme.green
+            TapHandler { onTapped: Runtime.agentCenterOpen = true }
+        }
+
+        Line {
+            visible: Dictation.active
+            text: String.fromCodePoint(0xF036C) + "  " + Dictation.label
+            color: Dictation.state === "recording" ? Theme.red : Theme.yellow
+            TapHandler { onTapped: Dictation.toggle() }
+        }
 
         Repeater {
             model: AiUsage.list

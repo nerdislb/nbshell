@@ -169,15 +169,17 @@ Then run `ollama pull qwen3.5:4b` and verify the route with
 `opencode models ollama`. Local models still need enough context for reliable
 tool use; 16K to 32K is a practical starting range.
 
-Inside a Herdr pane, `nbshell agent workspace dev` creates an editor, agent,
-and terminal layout. `workspace review` adds a read-only review-agent pane.
-`workspace pair` adds a deliberately started second agent: the configured
-default remains the lead and OpenCode uses the local route when available.
-Agent state changes are watched while nbshell is running. Finished background
-agents and sessions waiting for input create an actionable notification; its
-`Open session` action focuses the matching Herdr pane. Codex uses its native
-lifecycle hook for immediate completion and permission notifications, while
-other Herdr-supported agents use the shared session watcher.
+The `DEV`, `REVIEW`, and `PAIR` buttons in Agent Center create a new Herdr tab
+for the selected project. From an existing Herdr pane, the same layouts are
+available as `nbshell agent workspace dev|review|pair`. `DEV` creates an editor,
+agent, and terminal layout. `REVIEW` adds a read-only review-agent pane. `PAIR`
+adds a deliberately started second agent: the configured default remains the
+lead and OpenCode uses the local route when available. The AI bar module shows
+compact `RUN` and `WAIT` counts. Finished background agents and sessions
+waiting for input create an actionable notification; its `Open session` action
+focuses the matching Herdr pane. Codex uses its native lifecycle hook for
+immediate completion and permission notifications, while other Herdr-supported
+agents use the shared session watcher.
 
 Missing agents show `INSTALL…` in the Agent Center. Selecting it opens a
 terminal that displays the exact package command and asks for confirmation;
@@ -202,8 +204,9 @@ the shell source.
 - Local dictation is optional. Install `voxtype-bin` from the AUR, download a
   model with `voxtype setup --download --model small`, and enable its user
   service. `F9`, `nbshell dictate`, and `Capture → Toggle dictation` then start
-  or stop recording. nbshell uses compositor control, so Voxtype's evdev
-  hotkey can remain disabled.
+  or stop recording. While recording or transcribing, the AI bar module shows
+  the live state and also acts as a stop button. nbshell uses compositor
+  control, so Voxtype's evdev hotkey can remain disabled.
 
 ## Updating
 

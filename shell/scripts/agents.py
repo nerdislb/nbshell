@@ -100,6 +100,7 @@ def herdr_sessions() -> list[dict]:
                 "project": str(row.get("cwd") or ""),
                 "title": str(row.get("terminal_title_stripped") or row.get("title") or ""),
                 "focused": bool(row.get("focused", False)),
+                "workspace": str(row.get("workspace_id") or ""),
             } for row in raw]
         except (ValueError, AttributeError):
             return []
@@ -307,13 +308,35 @@ def doctor() -> int:
     return problems
 
 
-def herdr_workspace(template: str, project: str | None) -> None:
+def herdr_workspace(template: str, project: str | None, new_tab: bool = False) -> None:
     pane = os.environ.get("HERDR_PANE_ID", "")
     tab = os.environ.get("HERDR_TAB_ID", "")
-    if not pane:
-        raise SystemExit("Workspace templates must be started inside a Herdr pane.")
     config = load_config()
     cwd = str(Path(project or config.get("lastProject") or Path.cwd()).expanduser().resolve())
+    if new_tab:
+        workspace_id = ""
+        current = subprocess.run(["herdr", "pane", "current"], text=True, capture_output=True, check=False)
+        if current.returncode == 0:
+            try:
+                workspace_id = str(json.loads(current.stdout).get("result", {}).get("pane", {}).get("workspace_id", ""))
+            except (ValueError, AttributeError):
+                pass
+        if not workspace_id:
+            sessions = herdr_sessions()
+            source = next((row for row in sessions if row["focused"]), sessions[0] if sessions else None)
+            workspace_id = str(source.get("workspace") or "") if source else ""
+        if not workspace_id:
+            raise SystemExit("No active Herdr workspace found. Open Herdr once, then try again.")
+        result = subprocess.run(
+            ["herdr", "tab", "create", "--workspace", workspace_id, "--cwd", cwd,
+             "--label", Path(cwd).name, "--focus"],
+            text=True, capture_output=True, check=True,
+        )
+        created = json.loads(result.stdout).get("result", {})
+        pane = str(created.get("root_pane", {}).get("pane_id", ""))
+        tab = str(created.get("tab", {}).get("tab_id", ""))
+    if not pane:
+        raise SystemExit("Workspace templates must be started inside Herdr or with --new-tab.")
     agent = str(config["defaultAgent"])
     binary = AGENTS.get(agent, {}).get("binary", agent)
     agent_cmd = " ".join(shlex.quote(x) for x in [binary, *profile_args(agent, str(config["profile"]))])
@@ -368,7 +391,7 @@ def main() -> int:
     install_p = sub.add_parser("install"); install_p.add_argument("agent", choices=sorted(AGENTS))
     prompt_p = sub.add_parser("prompt"); prompt_p.add_argument("prompt", nargs="+"); prompt_p.add_argument("--agent"); prompt_p.add_argument("--project")
     ollama = sub.add_parser("ollama"); ollama.add_argument("action", nargs="?", default="status", choices=["status", "start", "stop"])
-    workspace = sub.add_parser("workspace"); workspace.add_argument("template", choices=["dev", "review", "pair"]); workspace.add_argument("--project")
+    workspace = sub.add_parser("workspace"); workspace.add_argument("template", choices=["dev", "review", "pair"]); workspace.add_argument("--project"); workspace.add_argument("--new-tab", action="store_true")
     args = parser.parse_args()
     config = load_config()
     command = args.command or "status"
@@ -407,7 +430,7 @@ def main() -> int:
     if command == "install": install_agent(args.agent); return 0
     if command == "prompt": launch(args.agent, args.project, " ".join(args.prompt)); return 0
     if command == "ollama": ollama_control(args.action); return 0
-    if command == "workspace": herdr_workspace(args.template, args.project); return 0
+    if command == "workspace": herdr_workspace(args.template, args.project, args.new_tab); return 0
     return 2
 
 

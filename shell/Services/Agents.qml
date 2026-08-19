@@ -21,6 +21,8 @@ Singleton {
     readonly property string defaultAgent: String(config.defaultAgent ?? "codex")
     readonly property string approvalProfile: String(config.profile ?? "balanced")
     readonly property string modelProfile: String(config.modelProfile ?? "cloud")
+    readonly property int workingCount: sessions.filter(row => String(row.status) === "working").length
+    readonly property int waitingCount: sessions.filter(row => String(row.status) === "waiting" || String(row.status) === "permission").length
 
     function refresh() {
         if (status.running)
@@ -46,6 +48,11 @@ Singleton {
         action(args);
     }
     function install(id) { action(["install", id]); }
+    function workspace(templateName, project) {
+        var args = ["workspace", templateName, "--new-tab"];
+        if (project) args = args.concat(["--project", project]);
+        action(args);
+    }
     function ollamaAction(name) { action(["ollama", name]); }
     function focusSession(id) {
         if (id) Quickshell.execDetached(["herdr", "agent", "focus", id]);

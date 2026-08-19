@@ -9,6 +9,8 @@ Requisite=graphical-session.target
 
 [Service]
 Type=simple
+Environment="PATH=%h/.local/bin:%h/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/bin"
+Environment="HERDR_SOCKET_PATH=%h/.config/herdr/herdr.sock"
 ExecStart=%h/.local/bin/nbshell start
 ExecReload=%h/.local/bin/nbshell restart
 Restart=on-failure

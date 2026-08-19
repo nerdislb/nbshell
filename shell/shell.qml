@@ -59,6 +59,7 @@ ShellRoot {
         void CaptureService.recording;
         void AiUsage.available;
         void Agents.defaultAgent;
+        void Dictation.state;
         void BongoCat.active;
         void Updates.enabled;
         void PowerService.available;

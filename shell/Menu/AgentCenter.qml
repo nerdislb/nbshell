@@ -212,6 +212,39 @@ PanelWindow {
 
                         Column {
                             width: parent.width
+                            spacing: Theme.cellH * 0.25
+                            Line { text: "NEW WORKSPACE"; color: Theme.fgDim }
+                            Row {
+                                spacing: Theme.cellW
+                                Repeater {
+                                    model: [
+                                        { "id": "dev", "label": "DEV", "hint": "editor · agent · terminal" },
+                                        { "id": "review", "label": "REVIEW", "hint": "adds read-only review" },
+                                        { "id": "pair", "label": "PAIR", "hint": "lead · local agent" }
+                                    ]
+                                    Rectangle {
+                                        id: workspaceButton
+                                        required property var modelData
+                                        width: (body.width - Theme.cellW * 2) / 3
+                                        height: Theme.cellH * 2.6
+                                        radius: Theme.radius
+                                        color: workspaceHover.hovered ? Theme.hover : "transparent"
+                                        border.width: Theme.borderWidth
+                                        border.color: Theme.muted
+                                        Column {
+                                            anchors.centerIn: parent
+                                            Line { anchors.horizontalCenter: parent.horizontalCenter; text: workspaceButton.modelData.label; color: Theme.accent }
+                                            Line { anchors.horizontalCenter: parent.horizontalCenter; text: workspaceButton.modelData.hint; color: Theme.muted }
+                                        }
+                                        HoverHandler { id: workspaceHover; cursorShape: Qt.PointingHandCursor }
+                                        TapHandler { onTapped: Agents.workspace(workspaceButton.modelData.id, Agents.config.lastProject || "") }
+                                    }
+                                }
+                            }
+                        }
+
+                        Column {
+                            width: parent.width
                             spacing: Theme.cellH * 0.2
                             Line { text: "LOCAL MODELS"; color: Theme.fgDim }
                             Rectangle {
