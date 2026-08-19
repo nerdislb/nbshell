@@ -166,7 +166,7 @@ Scope {
         function toggle(name: string): string {
             if (!Plugins.entry(name))
                 return "unknown module: " + name;
-            Runtime.islandOpen = true;
+            Runtime.revealIslandTemporarily();
             Runtime.requestPopout(name);
             return name;
         }
@@ -181,7 +181,7 @@ Scope {
         }
 
         function toggle(): string {
-            Runtime.islandOpen = true;
+            Runtime.revealIslandTemporarily();
             Runtime.notifyOpen = !Runtime.notifyOpen;
             return Runtime.notifyOpen ? "open" : "closed";
         }
@@ -345,7 +345,7 @@ Scope {
         target: "control"
 
         function toggle(): string {
-            Runtime.islandOpen = true;
+            Runtime.revealIslandTemporarily();
             Runtime.controlOpen = !Runtime.controlOpen;
             return Runtime.controlOpen ? "open" : "closed";
         }

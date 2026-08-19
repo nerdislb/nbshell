@@ -214,7 +214,7 @@ Scope {
         }
 
         function panel(): string {
-            Runtime.islandOpen = true;
+            Runtime.revealIslandTemporarily();
             Runtime.audioPanelOpen = !Runtime.audioPanelOpen;
             return Runtime.audioPanelOpen ? "open" : "closed";
         }

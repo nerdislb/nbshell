@@ -59,6 +59,7 @@ Item {
     readonly property bool nimmtKlicks: root.interactive || (root.popout !== null && !root.popoutOnHover)
     property bool popoutTakesKeyboard: false
     property bool active: false
+    property int pendingPopoutToken: -1
     property alias hovered: mouse.containsMouse
 
     // Ersetzt den Text durch eigenen Inhalt, wenn eine Zelle mehr zeigen soll
@@ -237,8 +238,25 @@ Item {
         }
 
         function onPopoutTokenChanged() {
-            if (root.widgetId !== "" && Runtime.popoutTarget === root.widgetId)
-                root.setPopout(!root.popoutVisible);
+            if (root.widgetId !== "" && Runtime.popoutTarget === root.widgetId) {
+                if (!root.enabled) {
+                    // An IPC request can reveal a collapsed island and target
+                    // a widget in the same frame. Its expanded row is not
+                    // enabled until the handoff animation reaches it, so keep
+                    // the request instead of silently dropping it.
+                    root.pendingPopoutToken = Runtime.popoutToken;
+                } else {
+                    root.pendingPopoutToken = -1;
+                    root.setPopout(!root.popoutVisible);
+                }
+            }
+        }
+    }
+
+    onEnabledChanged: {
+        if (enabled && pendingPopoutToken === Runtime.popoutToken) {
+            pendingPopoutToken = -1;
+            root.setPopout(true);
         }
     }
 

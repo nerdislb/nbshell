@@ -26,6 +26,10 @@ Scope {
             const next = value === "toggle" ? order[(order.indexOf(Config.mode) + 1) % order.length] : value;
             if (order.indexOf(next) < 0)
                 return "unknown: " + value + " (island|pill|bar|toggle)";
+            // Each shape starts in its canonical state. In particular, an
+            // old transient popout reveal must not keep Island expanded.
+            Runtime.islandTransient = false;
+            Runtime.islandOpen = false;
             Config.set("mode", next);
             return next;
         }
@@ -39,16 +43,19 @@ Scope {
         }
 
         function open(): string {
+            Runtime.islandTransient = false;
             Runtime.islandOpen = true;
             return "open";
         }
 
         function close(): string {
+            Runtime.islandTransient = false;
             Runtime.islandOpen = false;
             return "closed";
         }
 
         function toggle(): string {
+            Runtime.islandTransient = false;
             Runtime.islandOpen = !Runtime.islandOpen;
             return Runtime.islandOpen ? "open" : "closed";
         }
@@ -228,7 +235,7 @@ Scope {
         // Die Insel klappt mit auf: sonst haengt der Waehler an einer Zelle,
         // die gerade gar nicht zu sehen ist.
         function open(): string {
-            Runtime.islandOpen = true;
+            Runtime.revealIslandTemporarily();
             Runtime.themePickerOpen = true;
             return "open";
         }

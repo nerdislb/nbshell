@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import qs.Common
 import qs.Services
 import qs.Widgets
@@ -20,6 +21,7 @@ Cell {
     // eine Bindung wuerde ihn beim naechsten Mal ueberschreiben.
     // Zurueckmelden, wenn der Kompositor das Popout geschlossen hat.
     onPopoutVisibleChanged: Runtime.themePickerOpen = root.popoutVisible
+    onEnabledChanged: if (enabled && Runtime.themePickerOpen) root.setPopout(true)
 
     Connections {
         target: Runtime
@@ -144,72 +146,107 @@ Cell {
                 rowWidth: picker.rowWidth
             }
 
-            Repeater {
-                model: ThemeIndex.list
+            // Keep the fixed preview and accent controls visible while the
+            // theme catalogue scrolls. A bounded viewport also prevents a
+            // large synced theme collection from growing beyond the screen.
+            Flickable {
+                id: themeList
 
-                Rectangle {
-                    id: row
+                readonly property real itemHeight: Theme.controlHeight
+                width: picker.rowWidth
+                height: Math.min(Theme.cellH * 18, listColumn.implicitHeight)
+                contentWidth: width
+                contentHeight: listColumn.implicitHeight
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
 
-                    required property var modelData
+                function revealCurrent() {
+                    const index = ThemeIndex.list.findIndex(theme => theme.name === Config.theme);
+                    if (index < 0 || contentHeight <= height)
+                        return;
+                    contentY = Math.max(0, Math.min(index * itemHeight - (height - itemHeight) / 2, contentHeight - height));
+                }
 
-                    readonly property bool isCurrent: modelData.name === Config.theme
+                Component.onCompleted: Qt.callLater(revealCurrent)
 
-                    width: picker.rowWidth
-                    height: Theme.cellH * 1.5
-                    radius: Theme.radius
-                    color: row.isCurrent ? Theme.selectedSurface(Theme.accent) : (mouse.hovered ? Theme.hover : "transparent")
-                    border.width: row.isCurrent ? Theme.borderWidth : 0
-                    border.color: row.isCurrent ? Theme.focusBorder : Theme.panelBorder
-
-                    Line {
-                        anchors.left: parent.left
-                        anchors.leftMargin: Theme.cellW
-                        anchors.verticalCenter: parent.verticalCenter
-                        // Der Zeiger markiert das aktive Theme -- so, wie eine
-                        // Auswahl im Terminal aussieht.
-                        text: (row.isCurrent ? "▸ " : "  ") + row.modelData.name
-                        color: row.isCurrent ? Theme.selectedForeground(Theme.accent) : Theme.fg
+                ScrollBar.vertical: ScrollBar {
+                    width: Math.max(4, Theme.borderWidth * 3)
+                    policy: themeList.contentHeight > themeList.height ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
+                    contentItem: Rectangle {
+                        color: Theme.accent
+                        radius: Theme.radius
                     }
+                    background: Rectangle {
+                        color: Theme.alpha(Theme.fg, 0.10)
+                        radius: Theme.radius
+                    }
+                }
 
-                    // Farbprobe: dieselben fuenf Farben, die auch das Terminal
-                    // zeigt. Damit sieht man vor dem Wechseln, was kommt.
-                    Row {
-                        anchors.right: parent.right
-                        anchors.rightMargin: Theme.cellW
-                        anchors.verticalCenter: parent.verticalCenter
-                        spacing: 2
+                Column {
+                    id: listColumn
+                    width: themeList.width - (themeList.contentHeight > themeList.height ? Theme.cellW : 0)
 
-                        Repeater {
-                            model: [row.modelData.background, row.modelData.accent, row.modelData.red, row.modelData.green, row.modelData.yellow]
+                    Repeater {
+                        model: ThemeIndex.list
 
-                            Rectangle {
-                                required property var modelData
-                                width: Theme.cellW * 1.6
-                                height: Theme.cellH * 0.8
-                                color: modelData || "transparent"
-                                border.width: 1
-                                border.color: Theme.muted
+                        Rectangle {
+                            id: row
+
+                            required property var modelData
+
+                            readonly property bool isCurrent: modelData.name === Config.theme
+
+                            width: listColumn.width
+                            height: themeList.itemHeight
+                            radius: Theme.radius
+                            color: row.isCurrent ? Theme.selectedSurface(Theme.accent) : (mouse.hovered ? Theme.hover : "transparent")
+                            border.width: row.isCurrent ? Theme.controlBorderWidth(mouse.hovered, true, false) : 0
+                            border.color: Theme.controlBorder(mouse.hovered, row.isCurrent, false)
+
+                            Line {
+                                anchors.left: parent.left
+                                anchors.leftMargin: Theme.cellW
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: (row.isCurrent ? "▸ " : "  ") + row.modelData.name
+                                color: row.isCurrent ? Theme.selectedForeground(Theme.accent) : Theme.fg
+                                font.pixelSize: Theme.fontBody
                             }
-                        }
-                    }
 
-                    HoverHandler {
-                        id: mouse
+                            Row {
+                                anchors.right: parent.right
+                                anchors.rightMargin: Theme.cellW
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 2
 
-                        cursorShape: Qt.PointingHandCursor
+                                Repeater {
+                                    model: [row.modelData.background, row.modelData.accent, row.modelData.red, row.modelData.green, row.modelData.yellow]
 
-                        // Beim Verlassen zurueck auf das aktive Theme, nicht
-                        // auf die zuletzt beruehrte Zeile: sonst behauptet die
-                        // Kopfzeile weiter "Vorschau", obwohl die Maus laengst
-                        // woanders ist.
-                        onHoveredChanged: picker.previewName = mouse.hovered ? row.modelData.name : Config.theme
-                    }
+                                    Rectangle {
+                                        required property var modelData
+                                        width: Theme.cellW * 1.6
+                                        height: Theme.cellH * 0.8
+                                        color: modelData || "transparent"
+                                        border.width: 1
+                                        border.color: Theme.muted
+                                    }
+                                }
+                            }
 
-                    TapHandler {
-                        onTapped: {
-                            ThemeIndex.apply(row.modelData.name);
-                            if (picker.closePopout)
-                                picker.closePopout();
+                            HoverHandler {
+                                id: mouse
+
+                                cursorShape: Qt.PointingHandCursor
+
+                                onHoveredChanged: picker.previewName = mouse.hovered ? row.modelData.name : Config.theme
+                            }
+
+                            TapHandler {
+                                onTapped: {
+                                    ThemeIndex.apply(row.modelData.name);
+                                    if (picker.closePopout)
+                                        picker.closePopout();
+                                }
+                            }
                         }
                     }
                 }

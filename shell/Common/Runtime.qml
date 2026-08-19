@@ -12,6 +12,22 @@ Singleton {
     id: root
 
     property bool islandOpen: false
+    // External actions may have to reveal a widget before its popout can be
+    // mapped. That reveal is temporary and must not pin the island open after
+    // the popout closes. Explicit `nbshell open` remains persistent.
+    property bool islandTransient: false
+
+    function revealIslandTemporarily() {
+        islandTransient = true;
+        islandOpen = true;
+    }
+
+    function clearTransientIsland() {
+        if (!islandTransient)
+            return;
+        islandTransient = false;
+        islandOpen = false;
+    }
 
     // Der Themewaehler laesst sich auch per Tastenkuerzel oeffnen, nicht nur
     // durch einen Klick auf die Zelle.

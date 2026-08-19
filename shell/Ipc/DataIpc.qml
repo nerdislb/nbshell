@@ -264,7 +264,7 @@ Scope {
         target: "clipboard"
 
         function toggle(): string {
-            Runtime.islandOpen = true;
+            Runtime.revealIslandTemporarily();
             Runtime.clipOpen = !Runtime.clipOpen;
             return Runtime.clipOpen ? "open" : "closed";
         }

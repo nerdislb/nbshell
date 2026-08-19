@@ -161,6 +161,7 @@ Variants {
                 win.hovering = true;
             } else if (!barMode && !pillMode) {
                 // Zurueck ist der Weg durch die Leiste -- deshalb nicht sofort.
+                Runtime.clearTransientIsland();
                 collapseTimer.restart();
             }
         }
