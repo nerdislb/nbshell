@@ -39,19 +39,15 @@ Cell {
 
             Item {
                 width: panel.rowWidth
-                height: Theme.cellH * 1.4
+                height: Theme.cellH * 2.6
 
-                Line {
+                PanelHead {
                     anchors.left: parent.left
-                    anchors.right: actions.left
-                    anchors.rightMargin: Theme.cellW
-                    anchors.verticalCenter: parent.verticalCenter
-                    elide: Text.ElideRight
-                    // Keine Marke rechts wie in den anderen Popouts: dort
-                    // stehen hier schon die Knoepfe (Pruefen, Update),
-                    // und zwei Dinge am selben Rand sind eines zu viel.
-                    text: "UPDATES  (" + Updates.count + ")"
-                    color: Theme.fgDim
+                    rowWidth: panel.rowWidth - actions.width - Theme.spaceLg
+                    icon: Updates.checking ? Icons.refresh : Icons.download
+                    title: "System updates"
+                    subtitle: Updates.checking ? "Checking repositories" : "Available packages"
+                    badge: String(Updates.count)
                 }
 
                 Row {
@@ -62,7 +58,7 @@ Cell {
                     spacing: Theme.cellW * 2
 
                     ActionButton {
-                        text: Updates.checking ? "Prueft …" : "Check again"
+                        text: Updates.checking ? "Checking …" : "Check again"
                         busy: Updates.checking
                         compact: true
                         onTriggered: Updates.refresh()
@@ -114,7 +110,7 @@ Cell {
                 text: {
                     const parts = [];
                     if (Updates.repo.length > 0)
-                        parts.push(Updates.repo.length + " aus den Repos");
+                        parts.push(Updates.repo.length + " repositories");
                     if (Updates.aur.length > 0)
                         parts.push(Updates.aur.length + " AUR");
                     if (Updates.flatpak.length > 0)

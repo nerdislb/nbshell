@@ -15,6 +15,21 @@ import qs.Services
 // begraben lag. Sie sprechen ausschliesslich mit Singletons, also war der
 // Schnitt schmerzlos.
 Scope {
+    IpcHandler {
+        target: "displays"
+        function toggle(): string { Runtime.displayOpen = !Runtime.displayOpen; return Runtime.displayOpen ? "open" : "closed"; }
+        function open(): string { Runtime.displayOpen = true; return "open"; }
+        function close(): string { Runtime.displayOpen = false; return "closed"; }
+        function refresh(): string { Displays.refresh(); return "refreshing"; }
+    }
+
+    IpcHandler {
+        target: "uiGallery"
+        function toggle(): string { Runtime.uiGalleryOpen = !Runtime.uiGalleryOpen; return Runtime.uiGalleryOpen ? "open" : "closed"; }
+        function open(): string { Runtime.uiGalleryOpen = true; return "open"; }
+        function close(): string { Runtime.uiGalleryOpen = false; return "closed"; }
+    }
+
     // Die beiden Netzfenster.
     IpcHandler {
         target: "net"
@@ -96,7 +111,9 @@ Scope {
                 "speedtest": Runtime.speedOpen,
                 "prozesse": Runtime.procsOpen,
                 "aufnahme": Runtime.captureOpen,
-                "power": Runtime.powerOpen
+                "power": Runtime.powerOpen,
+                "displays": Runtime.displayOpen,
+                "uiGallery": Runtime.uiGalleryOpen
             });
         }
     }
@@ -182,10 +199,10 @@ Scope {
 
         function list(): string {
             const rows = Plugins.catalog.map(e => {
-                const kind = e.entry ? "plugin" : "eingebaut";
+                const kind = e.entry ? "plugin" : "built-in";
                 return e.id.padEnd(16) + kind.padEnd(11) + e.name;
             });
-            return rows.join("\n") + "\n\n" + Plugins.plugins.length + " von aussen — " + Plugins.dir;
+            return rows.join("\n") + "\n\n" + Plugins.plugins.length + " external — " + Plugins.dir;
         }
 
         function reload(): string {

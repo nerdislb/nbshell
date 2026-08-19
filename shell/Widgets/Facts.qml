@@ -54,7 +54,7 @@ Grid {
             required property var modelData
 
             width: root.cellWidth
-            height: Theme.cellH * 1.3
+            height: Theme.controlHeight
 
             Line {
                 id: key
@@ -66,6 +66,7 @@ Grid {
                 width: Math.max(0, pair.width - value.implicitWidth - Theme.cellW)
                 text: String(pair.modelData.label ?? "")
                 color: Theme.fgDim
+                font.pixelSize: Theme.fontCaption
                 elide: Text.ElideRight
             }
 
@@ -76,6 +77,7 @@ Grid {
                 anchors.verticalCenter: parent.verticalCenter
                 text: String(pair.modelData.value ?? "")
                 color: pair.modelData.color ?? Theme.fg
+                font.pixelSize: Theme.fontBody
             }
         }
     }

@@ -49,6 +49,8 @@ Singleton {
     property bool agentCenterOpen: false
     property int dashboardPage: 0
     property bool pluginDeveloperOpen: false
+    property bool displayOpen: false
+    property bool uiGalleryOpen: false
 
     // Wie viele Popouts gerade offen sind. Die Leiste braucht das: ein
     // Popup-Griff wird vom Kompositor nur erlaubt, wenn die Layer-Flaeche

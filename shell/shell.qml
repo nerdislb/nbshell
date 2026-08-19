@@ -46,6 +46,7 @@ ShellRoot {
         // sonst faengt der Helligkeitsdienst erst an zu suchen, wenn das
         // Control Center zum ersten Mal aufgeht, und zeigt so lange 0 %.
         void Brightness.available;
+        void Displays.outputs;
         void Net.summary;
         void Bt.available;
         void Audio.ready;
@@ -107,6 +108,10 @@ ShellRoot {
     ModulesMenu {}
 
     PluginDeveloper {}
+
+    DisplayPanel {}
+
+    UiGallery {}
 
     WallpaperPicker {}
 

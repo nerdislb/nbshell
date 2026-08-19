@@ -77,7 +77,7 @@ case "$cmd" in
             | (map(select(.done | not)) | sort_by(.created // .id))
             + (map(select(.done))       | sort_by(-(.updated // 0)))
             | to_entries[]
-            | "\(.key + 1 | tostring | (" " * (3 - length)) + .)  \(if .value.done then "[x]" else "[ ]" end)  \(.value.text)"
+            | "\(.key + 1 | tostring | (" " * (3 - length)) + .)  \(if .value.done then "✓" else "○" end)  \(.value.text)"
         ' "$file"
         ;;
 

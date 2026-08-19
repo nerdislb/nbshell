@@ -118,18 +118,14 @@ PanelWindow {
         onClicked: root.close()
     }
 
-    Rectangle {
+    PanelSurface {
         id: box
+        accentBorder: false
 
         x: Math.round((parent.width - width) / 2)
         y: Math.round(parent.height * 0.10)
         width: Math.min(parent.width - Theme.cellW * 8, Theme.cellW * 96)
         height: Math.min(parent.height * 0.20 + Theme.cellH * 34, Theme.cellH * 44)
-
-        radius: Theme.radius
-        color: Theme.bg
-        border.width: Theme.borderWidth
-        border.color: Theme.accent
 
         DragHandler {
             acceptedModifiers: Qt.MetaModifier
@@ -160,7 +156,7 @@ PanelWindow {
                     Text {
                         text: Icons.habit
                         font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize + 3
+                        font.pixelSize: Theme.fontTitle
                         font.bold: true
                         color: Theme.accent
                     }
@@ -168,7 +164,7 @@ PanelWindow {
                     Text {
                         text: "HABITS"
                         font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize + 3
+                        font.pixelSize: Theme.fontTitle
                         font.bold: true
                         color: Theme.fg
                     }
@@ -193,15 +189,15 @@ PanelWindow {
                             anchors.centerIn: parent
                             text: Config.theme.toUpperCase()
                             font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize - 1
+                            font.pixelSize: Theme.fontCaption
                             color: Theme.fgDim
                         }
                     }
 
                     Text {
-                        text: "[ ESC CLOSE ]"
+                        text: "Esc closes"
                         font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize - 1
+                        font.pixelSize: Theme.fontCaption
                         font.bold: true
                         color: Theme.red
                         anchors.verticalCenter: parent.verticalCenter
@@ -234,7 +230,7 @@ PanelWindow {
                             anchors.verticalCenter: parent.verticalCenter
                             text: "STATUS  ·  " + Habits.todayString
                             font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
+                            font.pixelSize: Theme.fontBody
                             color: Theme.fgDim
                         }
 
@@ -243,7 +239,7 @@ PanelWindow {
                             anchors.verticalCenter: parent.verticalCenter
                             text: root.shortPath !== "" ? root.shortPath : "Sync active"
                             font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize - 1
+                            font.pixelSize: Theme.fontCaption
                             color: Theme.fgDim
                         }
                     }
@@ -251,7 +247,7 @@ PanelWindow {
                     Text {
                         text: Habits.doneCount + " / " + Habits.count + " DONE  ·  " + Habits.progressPercent + "%"
                         font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
+                        font.pixelSize: Theme.fontBody
                         color: Habits.progressPercent >= 100 ? Theme.green : Theme.accent
                     }
 
@@ -289,16 +285,16 @@ PanelWindow {
                             anchors.verticalCenter: parent.verticalCenter
                             text: "HISTORY  ·  20 WEEKS"
                             font.family: Theme.fontFamily
-                            font.pixelSize: 10
+                            font.pixelSize: Theme.fontCaption
                             color: Theme.fgDim
                         }
 
                         Text {
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "WENIG  ░ ▒ ▓ █  VIEL"
+                            text: "LESS  ░ ▒ ▓ █  MORE"
                             font.family: Theme.fontFamily
-                            font.pixelSize: 9
+                            font.pixelSize: Theme.fontCaption
                             color: Theme.fgDim
                         }
                     }
@@ -344,9 +340,9 @@ PanelWindow {
                     { id: "all", label: "ALL" },
                     { id: "morning", label: "MORNING" },
                     { id: "workout", label: "TRAINING" },
-                    { id: "work", label: "ARBEIT" },
-                    { id: "evening", label: "ABEND" },
-                    { id: "general", label: "ALLGEMEIN" }
+                    { id: "work", label: "WORK" },
+                    { id: "evening", label: "EVENING" },
+                    { id: "general", label: "GENERAL" }
                 ]
 
                 Repeater {
@@ -358,7 +354,7 @@ PanelWindow {
                         width: tabText.width + Theme.cellW * 2
                         height: Theme.cellH * 1.45
                         radius: Theme.radius
-                        color: root.selectedRoutine === modelData.id ? Theme.alpha(Theme.accent, 0.24) : Theme.bgLight
+                        color: root.selectedRoutine === modelData.id ? Theme.selectedSurface() : Theme.panelSurfaceRaised
                         border.width: Theme.borderWidth
                         border.color: root.selectedRoutine === modelData.id ? Theme.accent : Theme.muted
 
@@ -367,8 +363,8 @@ PanelWindow {
                             anchors.centerIn: parent
                             text: modelData.label
                             font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize - 1
-                            color: root.selectedRoutine === modelData.id ? Theme.on(Theme.selection) : Theme.fgDim
+                            font.pixelSize: Theme.fontCaption
+                            color: root.selectedRoutine === modelData.id ? Theme.selectedForeground() : Theme.fgDim
                         }
 
                         MouseArea {
@@ -408,7 +404,8 @@ PanelWindow {
 
                     width: habitList.width
                     height: Theme.cellH * 2.5
-                    color: root.selected === index ? Theme.selection : "transparent"
+                    color: root.selected === index ? Theme.selectedSurface() : "transparent"
+                    radius: Theme.radius
 
                     MouseArea {
                         anchors.fill: parent
@@ -426,17 +423,17 @@ PanelWindow {
                         Text {
                             text: root.selected === index ? "▸" : " "
                             font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            color: root.selected === index ? Theme.on(Theme.selection) : Theme.accent
+                            font.pixelSize: Theme.fontBody
+                            color: root.selected === index ? Theme.selectedForeground() : Theme.accent
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
                         // Icon
                         Text {
-                            text: row.isDone ? "[x]" : "[ ]"
+                            text: row.isDone ? Icons.check : Icons.circleOutline
                             font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            color: row.isDone ? Theme.green : (root.selected === index ? Theme.on(Theme.selection) : Theme.fgDim)
+                            font.pixelSize: Theme.fontBody
+                            color: row.isDone ? Theme.green : (root.selected === index ? Theme.selectedForeground() : Theme.fgDim)
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
@@ -451,9 +448,9 @@ PanelWindow {
                                 Text {
                                     text: modelData.name
                                     font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSize
+                                    font.pixelSize: Theme.fontBody
                                     font.strikeout: row.isDone
-                                    color: row.isDone ? Theme.muted : (root.selected === index ? Theme.on(Theme.selection) : Theme.fg)
+                                    color: row.isDone ? Theme.muted : (root.selected === index ? Theme.selectedForeground() : Theme.fg)
                                     elide: Text.ElideRight
                                     width: Math.min(implicitWidth, 260)
                                 }
@@ -461,22 +458,22 @@ PanelWindow {
                                 Text {
                                     text: "· " + String(modelData.routine || "all").toUpperCase()
                                     font.family: Theme.fontFamily
-                                    font.pixelSize: 10
-                                    color: root.selected === index ? Theme.on(Theme.selection) : Theme.fgDim
+                                    font.pixelSize: Theme.fontCaption
+                                    color: root.selected === index ? Theme.selectedForeground() : Theme.fgDim
                                 }
 
                                 Text {
-                                    text: "SERIE " + row.streakData.current + "T"
+                                    text: "STREAK " + row.streakData.current + "D"
                                     font.family: Theme.fontFamily
-                                    font.pixelSize: 10
-                                    color: root.selected === index ? Theme.on(Theme.selection) : Theme.yellow
+                                    font.pixelSize: Theme.fontCaption
+                                    color: root.selected === index ? Theme.selectedForeground() : Theme.yellow
                                 }
 
                                 Text {
-                                    text: "SCHILD " + (modelData.shields || 2)
+                                    text: "SHIELDS " + (modelData.shields || 2)
                                     font.family: Theme.fontFamily
-                                    font.pixelSize: 10
-                                    color: root.selected === index ? Theme.on(Theme.selection) : Theme.fgDim
+                                    font.pixelSize: Theme.fontCaption
+                                    color: root.selected === index ? Theme.selectedForeground() : Theme.fgDim
                                 }
                             }
 
@@ -487,8 +484,8 @@ PanelWindow {
                                 Text {
                                     text: row.curVal + " / " + modelData.targetValue + " " + (modelData.unit || "")
                                     font.family: Theme.fontFamily
-                                    font.pixelSize: 10
-                                    color: root.selected === index ? Theme.on(Theme.selection) : Theme.fgDim
+                                    font.pixelSize: Theme.fontCaption
+                                    color: root.selected === index ? Theme.selectedForeground() : Theme.fgDim
                                 }
                             }
                         }
@@ -507,7 +504,7 @@ PanelWindow {
                                 visible: modelData.mode === "COUNTER"
                                 width: Theme.cellW * 4
                                 height: Theme.cellH * 1.5
-                                color: Theme.bgLight
+                                color: Theme.panelSurfaceRaised
                                 border.width: Theme.borderWidth
                                 border.color: Theme.muted
 
@@ -516,8 +513,8 @@ PanelWindow {
                                     text: "−"
                                     font.family: Theme.fontFamily
                                     font.bold: true
-                                    font.pixelSize: 13
-                                    color: root.selected === index ? Theme.on(Theme.selection) : Theme.fgDim
+                                    font.pixelSize: Theme.fontSubtitle
+                                    color: root.selected === index ? Theme.selectedForeground() : Theme.fgDim
                                 }
 
                                 MouseArea {
@@ -531,17 +528,17 @@ PanelWindow {
                                 visible: modelData.mode === "COUNTER"
                                 width: Theme.cellW * 5
                                 height: Theme.cellH * 1.5
-                                color: Theme.alpha(Theme.accent, 0.16)
+                                color: Theme.panelSurfaceRaised
                                 border.width: Theme.borderWidth
-                                border.color: Theme.accent
+                                border.color: Theme.panelBorder
 
                                 Text {
                                     anchors.centerIn: parent
                                     text: "+1"
                                     font.family: Theme.fontFamily
                                     font.bold: true
-                                    font.pixelSize: 11
-                                    color: root.selected === index ? Theme.on(Theme.selection) : Theme.accent
+                                    font.pixelSize: Theme.fontBody
+                                    color: root.selected === index ? Theme.selectedForeground() : Theme.accent
                                 }
 
                                 MouseArea {
@@ -556,17 +553,17 @@ PanelWindow {
                                 visible: modelData.mode === "DURATION"
                                 width: Theme.cellW * 6
                                 height: Theme.cellH * 1.5
-                                color: Theme.alpha(Theme.accent, 0.16)
+                                color: Theme.panelSurfaceRaised
                                 border.width: Theme.borderWidth
-                                border.color: Theme.accent
+                                border.color: Theme.panelBorder
 
                                 Text {
                                     anchors.centerIn: parent
                                     text: "+15m"
                                     font.family: Theme.fontFamily
                                     font.bold: true
-                                    font.pixelSize: 10
-                                    color: root.selected === index ? Theme.on(Theme.selection) : Theme.accent
+                                    font.pixelSize: Theme.fontCaption
+                                    color: root.selected === index ? Theme.selectedForeground() : Theme.accent
                                 }
 
                                 MouseArea {
@@ -592,8 +589,8 @@ PanelWindow {
                                     text: row.isDone ? "FOCUS ✓" : "FOCUS"
                                     font.family: Theme.fontFamily
                                     font.bold: true
-                                    font.pixelSize: 10
-                                    color: root.selected === index ? Theme.on(Theme.selection) : Theme.magenta
+                                    font.pixelSize: Theme.fontCaption
+                                    color: root.selected === index ? Theme.selectedForeground() : Theme.magenta
                                 }
 
                                 MouseArea {
@@ -614,11 +611,11 @@ PanelWindow {
 
                                 Text {
                                     anchors.centerIn: parent
-                                    text: row.isDone ? "DONE" : "ERLEDIGEN"
+                                    text: row.isDone ? "DONE" : "COMPLETE"
                                     font.family: Theme.fontFamily
                                     font.bold: true
-                                    font.pixelSize: 10
-                                    color: root.selected === index ? Theme.on(Theme.selection) : (row.isDone ? Theme.green : Theme.fgDim)
+                                    font.pixelSize: Theme.fontCaption
+                                    color: root.selected === index ? Theme.selectedForeground() : (row.isDone ? Theme.green : Theme.fgDim)
                                 }
 
                                 MouseArea {
@@ -632,8 +629,8 @@ PanelWindow {
                             Text {
                                 text: "×"
                                 font.family: Theme.fontFamily
-                                font.pixelSize: 14
-                                color: root.selected === index ? Theme.on(Theme.selection) : Theme.red
+                                font.pixelSize: Theme.fontTitle
+                                color: root.selected === index ? Theme.selectedForeground() : Theme.red
                                 anchors.verticalCenter: parent.verticalCenter
 
                                 MouseArea {
@@ -662,7 +659,7 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "> "
                     font.family: Theme.fontFamily
-                    font.pixelSize: 13
+                    font.pixelSize: Theme.fontSubtitle
                     font.bold: true
                     color: Theme.green
                 }
@@ -675,7 +672,7 @@ PanelWindow {
                     anchors.rightMargin: Theme.cellW
                     anchors.verticalCenter: parent.verticalCenter
                     font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
+                    font.pixelSize: Theme.fontBody
                     color: Theme.fg
                     focus: true
                     selectByMouse: true
@@ -704,7 +701,7 @@ PanelWindow {
                         visible: input.text === ""
                         text: "new habit, optional // routine"
                         font.family: Theme.fontFamily
-                        font.pixelSize: 11
+                        font.pixelSize: Theme.fontBody
                         color: Theme.fgDim
                     }
                 }
@@ -714,9 +711,9 @@ PanelWindow {
                     anchors.right: parent.right
                     anchors.rightMargin: Theme.cellW
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "[ ENTER ]"
+                    text: "Enter adds"
                     font.family: Theme.fontFamily
-                    font.pixelSize: 10
+                    font.pixelSize: Theme.fontCaption
                     color: Theme.accent
                 }
             }

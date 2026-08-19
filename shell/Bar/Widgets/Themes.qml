@@ -157,9 +157,9 @@ Cell {
                     width: picker.rowWidth
                     height: Theme.cellH * 1.5
                     radius: Theme.radius
-                    color: mouse.hovered ? Theme.hover : "transparent"
+                    color: row.isCurrent ? Theme.selectedSurface(Theme.accent) : (mouse.hovered ? Theme.hover : "transparent")
                     border.width: row.isCurrent ? Theme.borderWidth : 0
-                    border.color: Theme.accent
+                    border.color: row.isCurrent ? Theme.focusBorder : Theme.panelBorder
 
                     Line {
                         anchors.left: parent.left
@@ -168,7 +168,7 @@ Cell {
                         // Der Zeiger markiert das aktive Theme -- so, wie eine
                         // Auswahl im Terminal aussieht.
                         text: (row.isCurrent ? "▸ " : "  ") + row.modelData.name
-                        color: row.isCurrent ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg
+                        color: row.isCurrent ? Theme.selectedForeground(Theme.accent) : Theme.fg
                     }
 
                     // Farbprobe: dieselben fuenf Farben, die auch das Terminal

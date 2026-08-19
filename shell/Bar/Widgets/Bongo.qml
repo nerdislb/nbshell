@@ -45,7 +45,7 @@ Cell {
                 rowWidth: panel.rowWidth
                 options: [
                     { "label": BongoCat.active ? "active" : "off", "value": "toggle" },
-                    { "label": "Pfoten testen", "value": "test" },
+                    { "label": "Test paws", "value": "test" },
                     { "label": "Reset", "value": "reset" }
                 ]
                 current: BongoCat.active ? "toggle" : ""
@@ -59,9 +59,9 @@ Cell {
             Facts {
                 rowWidth: panel.rowWidth
                 pairs: [
-                    { "label": "Breite", "value": BongoCat.catWidth + " px" },
-                    { "label": "Rechts", "value": BongoCat.rightMargin + " px" },
-                    { "label": "Unten", "value": BongoCat.bottomMargin + " px" },
+                    { "label": "Width", "value": BongoCat.catWidth + " px" },
+                    { "label": "Right", "value": BongoCat.rightMargin + " px" },
+                    { "label": "Bottom", "value": BongoCat.bottomMargin + " px" },
                     { "label": "Input", "value": BongoCat.keyboards }
                 ]
             }
@@ -70,8 +70,8 @@ Cell {
             Segments {
                 rowWidth: panel.rowWidth
                 options: [
-                    { "label": "− kleiner", "value": "smaller" },
-                    { "label": "+ groesser", "value": "larger" },
+                    { "label": "− smaller", "value": "smaller" },
+                    { "label": "+ larger", "value": "larger" },
                     { "label": "←", "value": "left" },
                     { "label": "→", "value": "right" },
                     { "label": "↑", "value": "up" },
@@ -97,8 +97,8 @@ Cell {
             Segments {
                 rowWidth: panel.rowWidth
                 options: BongoCat.authorized
-                    ? [{ "label": "Zugriff entziehen", "value": "revoke" }]
-                    : [{ "label": "Input erlauben", "value": "allow" }]
+                    ? [{ "label": "Revoke access", "value": "revoke" }]
+                    : [{ "label": "Allow input", "value": "allow" }]
                 current: BongoCat.authorized ? "revoke" : ""
                 onChosen: value => value === "allow" ? BongoCat.allowInput() : BongoCat.revokeInput()
             }

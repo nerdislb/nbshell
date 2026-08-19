@@ -116,7 +116,7 @@ Scope {
 
         readonly property var choices: ({
                 "display": ["auto", "full", "icon", "text"],
-                "style": ["auto", "box", "bracket", "plain"],
+                "style": ["auto", "box", "plain"],
                 "color": ["auto", "theme", "red", "green", "yellow", "blue", "magenta", "cyan", "orange", "foreground"]
             })
     }

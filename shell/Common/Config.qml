@@ -29,7 +29,7 @@ Singleton {
     // Binding-Schleife. Theme wird beim Laden und Schreiben explizit gespiegelt.
     property string theme: "tokyo-night"
 
-    readonly property string fontFamily: value("font", "Inconsolata Nerd Font Mono")
+    readonly property string fontFamily: value("font", "JetBrainsMono Nerd Font")
     readonly property int fontSize: value("fontSize", 13)
 
     // Drei Formen, zwei Geometrien:

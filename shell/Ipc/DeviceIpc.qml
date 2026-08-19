@@ -112,7 +112,7 @@ Scope {
 
         function playpause(): string {
             MediaService.playPause();
-            return MediaService.playing ? "spielt" : "pausiert";
+            return MediaService.playing ? "playing" : "paused";
         }
 
         function next(): string {

@@ -129,6 +129,8 @@ PanelWindow {
         }
     }
 
+    Rectangle { anchors.fill: parent; color: Theme.scrim }
+
     MouseArea {
         anchors.fill: parent
         onClicked: root.close()
@@ -166,15 +168,12 @@ PanelWindow {
             }
         }
 
-        Rectangle {
+        PanelSurface {
             anchors.centerIn: parent
             width: Theme.cellW * 38
             height: column.implicitHeight + Theme.cellH * 2
 
-            color: Theme.bg
-            radius: Theme.radius
-            border.width: Theme.borderWidth
-            border.color: CaptureService.recording ? Theme.red : Theme.accent
+            accentBorder: false
 
             MouseArea {
                 anchors.fill: parent
@@ -187,10 +186,10 @@ PanelWindow {
                 width: parent.width - Theme.cellW * 2
                 spacing: Theme.cellH * 0.2
 
-                Line {
-                    text: root.windowMode ? "SELECT WINDOW" : (CaptureService.recording ? "RECORDING" : "CAPTURE")
-                    color: CaptureService.recording ? Theme.red : Theme.fgDim
-                    bottomPadding: Theme.cellH * 0.4
+                SectionHeader {
+                    width: column.width
+                    text: root.windowMode ? "Select window" : (CaptureService.recording ? "Recording" : "Capture")
+                    detail: root.windowMode ? root.shownActions.length + " windows" : "Choose an action"
                 }
 
                 Repeater {
@@ -203,11 +202,11 @@ PanelWindow {
                         required property int index
 
                         width: column.width
-                        height: Theme.cellH * 1.6
+                        height: Theme.rowHeight
                         radius: Theme.radius
-                        color: row.index === root.selected ? Theme.hover : Theme.bgLight
+                        color: row.index === root.selected ? Theme.selectedSurface(Theme.accent) : Theme.panelSurfaceRaised
                         border.width: Theme.borderWidth
-                        border.color: row.index === root.selected ? Theme.accent : Theme.muted
+                        border.color: row.index === root.selected ? Theme.focusBorder : Theme.panelBorder
 
                         Rectangle {
                             anchors.left: parent.left
@@ -215,7 +214,7 @@ PanelWindow {
                             width: Theme.borderWidth * 2
                             height: parent.height * 0.55
                             radius: width
-                            color: Theme.accent
+                            color: row.index === root.selected ? Theme.selectedForeground(Theme.accent) : Theme.accent
                             visible: row.index === root.selected
                         }
 
@@ -236,7 +235,8 @@ PanelWindow {
                             anchors.rightMargin: Theme.cellW / 2
                             anchors.verticalCenter: parent.verticalCenter
                             text: row.modelData.label + (row.modelData.detail ? "  ·  " + row.modelData.detail : "")
-                            color: row.index === root.selected ? Theme.fgBright : Theme.fg
+                            color: row.index === root.selected ? Theme.selectedForeground(Theme.accent) : Theme.fg
+                            font.pixelSize: Theme.fontBody
                             elide: Text.ElideRight
                         }
 

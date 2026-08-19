@@ -247,16 +247,16 @@ Column {
                                 anchors.fill: parent
                                 anchors.margins: 1
                                 radius: Theme.radius
-                                color: dayCell.isSelected ? Theme.alpha(Theme.accent, 0.2) : (dayHover.hovered ? Theme.hover : "transparent")
+                                color: dayCell.isSelected ? Theme.selectedSurface(Theme.accent) : (dayHover.hovered ? Theme.hover : "transparent")
                                 border.width: dayCell.isToday ? Theme.borderWidth : 0
-                                border.color: Theme.readable(Theme.accent, Theme.bg)
+                                border.color: dayCell.isSelected ? Theme.focusBorder : Theme.readable(Theme.accent, Theme.bg)
                             }
 
                             Line {
                                 anchors.centerIn: parent
                                 anchors.verticalCenterOffset: -Theme.cellH * 0.3
                                 text: dayCell.day.getDate()
-                                color: dayCell.inMonth ? (dayCell.isToday ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg) : Theme.muted
+                                color: dayCell.inMonth ? (dayCell.isSelected ? Theme.selectedForeground(Theme.accent) : (dayCell.isToday ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg)) : Theme.muted
                             }
 
                             // Der Punkt sagt nur "da steht etwas an" -- wie viel,
@@ -267,7 +267,7 @@ Column {
                                 anchors.bottomMargin: Theme.cellH * 0.1
                                 visible: dayCell.busy
                                 text: "·"
-                                color: dayCell.inMonth ? Theme.readable(Theme.accent, Theme.bg) : Theme.muted
+                                color: dayCell.inMonth ? (dayCell.isSelected ? Theme.selectedForeground(Theme.accent) : Theme.readable(Theme.accent, Theme.bg)) : Theme.muted
                             }
 
                             // KEINE MouseArea mit `hoverEnabled`: die nimmt das

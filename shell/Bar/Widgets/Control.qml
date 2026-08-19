@@ -18,7 +18,9 @@ Cell {
 
     // Kabel schlaegt Funk: haengt beides, ist das Kabel die Verbindung, ueber
     // die es laeuft.
-    icon: Net.wiredConnected ? Icons.lan : (Net.wifiEnabled ? Icons.wifi : Icons.wifiOff)
+    icon: Net.wiredConnected ? Icons.lan
+        : (Net.activeWifi ? Icons.wifiSignal(Net.activeWifi.signalStrength)
+            : (Net.wifiEnabled ? Icons.wifiDisconnected : Icons.wifiOff))
     // Der Netzname stand frueher daneben. Das Symbol sagt schon, ob und
     // wie man haengt -- im Popout steht der Name ohnehin. Ohne Symbole
     // bleibt er, sonst waere die Zelle leer.
@@ -96,7 +98,7 @@ Cell {
             // Abgeschaut bei Omarchys Netz-Panel.
             PanelHead {
                 rowWidth: panel.rowWidth
-                icon: Net.online ? (Net.activeWifi ? Icons.wifi : Icons.lan) : Icons.wifiOff
+                icon: Net.online ? (Net.activeWifi ? Icons.wifiSignal(Net.activeWifi.signalStrength) : Icons.lan) : Icons.wifiOff
                 title: Net.summary
                 subtitle: Net.activeWifi ? "Wi-Fi" : (Net.wiredConnected ? "Wired" : "not connected")
                 badge: Net.activeWifi ? (Net.percentOf(Net.activeWifi.signalStrength) + " %") : (Net.wiredConnected ? "LAN" : "")
@@ -112,7 +114,7 @@ Cell {
                         "value": Net.bars(Net.activeWifi.signalStrength)
                     },
                     {
-                        "label": "Sicherheit",
+                        "label": "Security",
                         "value": Net.activeWifi.security !== WifiSecurityType.Open ? "secured" : "open",
                         "color": Net.activeWifi.security !== WifiSecurityType.Open ? Theme.fg : Theme.yellow
                     }
@@ -121,7 +123,7 @@ Cell {
 
             Rule {
                 rowWidth: panel.rowWidth
-                label: "DATENRATE" + (Net.trafficInterface !== "" ? (" · " + Net.trafficInterface) : "")
+                label: "TRAFFIC" + (Net.trafficInterface !== "" ? (" · " + Net.trafficInterface) : "")
                 visible: Net.online
             }
 
@@ -197,6 +199,15 @@ Cell {
                 Line {
                     text: (Brightness.percent + "%").padStart(5, " ")
                     color: Theme.fg
+                }
+
+                Action {
+                    text: "Displays"
+                    onTriggered: {
+                        Runtime.displayOpen = true;
+                        if (panel.closePopout)
+                            panel.closePopout();
+                    }
                 }
             }
 
@@ -285,7 +296,10 @@ Cell {
                         width: panel.rowWidth
                         height: Theme.cellH * 1.4
                         radius: Theme.radius
-                        color: wifiMouse.hovered ? Theme.hover : "transparent"
+                        color: entry.isCurrent ? Theme.selectedSurface(Theme.accent)
+                            : (wifiMouse.hovered ? Theme.hover : "transparent")
+                        border.width: entry.isCurrent ? Theme.borderWidth : 0
+                        border.color: Theme.controlBorder(false, entry.isCurrent, false)
 
                         Line {
                             anchors.left: parent.left
@@ -293,7 +307,7 @@ Cell {
                             anchors.right: strength.left
                             anchors.verticalCenter: parent.verticalCenter
                             text: (entry.isCurrent ? "▸ " : "  ") + entry.modelData.name + (entry.modelData.known && !entry.isCurrent ? "  ·saved" : "")
-                            color: entry.isCurrent ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg
+                            color: entry.isCurrent ? Theme.selectedForeground(Theme.accent) : Theme.fg
                             elide: Text.ElideRight
                         }
 
@@ -346,7 +360,7 @@ Cell {
                             verticalAlignment: TextInput.AlignVCenter
                             color: Theme.fg
                             font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
+                            font.pixelSize: Theme.fontBody
                             echoMode: TextInput.Password
                             focus: entry.asksPassword
                             onAccepted: {
@@ -362,7 +376,7 @@ Cell {
                             Line {
                                 anchors.verticalCenter: parent.verticalCenter
                                 visible: pskField.text === ""
-                                text: "Passwort, Enter verbindet"
+                                text: "Password, Enter connects"
                                 color: Theme.fgDim
                             }
                         }
@@ -426,7 +440,10 @@ Cell {
                     width: panel.rowWidth
                     height: Theme.cellH * 1.4
                     radius: Theme.radius
-                    color: btMouse.hovered ? Theme.hover : "transparent"
+                    color: btRow.modelData.connected ? Theme.selectedSurface(Theme.accent)
+                        : (btMouse.hovered ? Theme.hover : "transparent")
+                    border.width: btRow.modelData.connected ? Theme.borderWidth : 0
+                    border.color: Theme.controlBorder(false, btRow.modelData.connected, false)
 
                     Line {
                         anchors.left: parent.left
@@ -434,7 +451,7 @@ Cell {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         text: (btRow.modelData.connected ? "▸ " : "  ") + Bt.label(btRow.modelData) + (btRow.modelData.batteryAvailable ? ("  " + Math.round(btRow.modelData.battery * 100) + "%") : "") + (btRow.modelData.pairing ? "  ·pairing" : (btRow.modelData.paired || btRow.modelData.connected ? "" : "  ·new"))
-                        color: btRow.modelData.connected ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg
+                        color: btRow.modelData.connected ? Theme.selectedForeground(Theme.accent) : Theme.fg
                         elide: Text.ElideRight
                     }
 

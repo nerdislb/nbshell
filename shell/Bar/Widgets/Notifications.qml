@@ -51,15 +51,19 @@ Cell {
 
             Item {
                 width: panel.rowWidth
-                height: Theme.cellH
+                height: Theme.cellH * 2.6
 
-                Line {
+                PanelHead {
                     anchors.left: parent.left
-                    text: "NOTIFICATIONS  (" + Notify.count + ")"
-                    color: Theme.fgDim
+                    rowWidth: panel.rowWidth - actions.width - Theme.spaceLg
+                    icon: Notify.dnd ? Icons.bellOff : Icons.bell
+                    title: "Notifications"
+                    subtitle: Notify.dnd ? "Do not disturb" : "Recent messages"
+                    badge: String(Notify.count)
                 }
 
                 Row {
+                    id: actions
                     anchors.right: parent.right
                     spacing: Theme.cellW
 
@@ -89,12 +93,12 @@ Cell {
 
             Rectangle {
                 width: panel.rowWidth
-                height: Theme.cellH * 1.5
+                height: Theme.controlHeight
                 visible: Notify.count > 0
                 radius: Theme.radius
-                color: Theme.bgLight
+                color: Theme.panelSurfaceRaised
                 border.width: Theme.borderWidth
-                border.color: search.activeFocus ? Theme.accent : Theme.muted
+                border.color: search.activeFocus ? Theme.focusBorder : Theme.panelBorder
 
                 TextInput {
                     id: search
@@ -106,7 +110,7 @@ Cell {
                     selectionColor: Theme.accent
                     selectedTextColor: Theme.bg
                     font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
+                    font.pixelSize: Theme.fontBody
                     text: panel.query
                     onTextChanged: panel.query = text
 
@@ -114,7 +118,7 @@ Cell {
                         anchors.fill: parent
                         visible: parent.text === "" && !parent.activeFocus
                         verticalAlignment: Text.AlignVCenter
-                        text: "search …"
+                        text: "Search notifications …"
                         color: Theme.muted
                     }
                 }

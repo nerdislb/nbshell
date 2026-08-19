@@ -25,7 +25,7 @@ Cell {
 
     icon: {
         if (Idle.caffeine)
-            return Icons.coffee;
+            return Icons.stayAwake;
         return Idle.enabled ? Icons.sleep : Icons.sleepOff;
     }
 

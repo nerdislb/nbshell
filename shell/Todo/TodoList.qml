@@ -134,8 +134,9 @@ PanelWindow {
         onClicked: root.close()
     }
 
-    Rectangle {
+    PanelSurface {
         id: box
+        accentBorder: false
 
         // Mittig oben -- bis jemand ihn wegzieht. niri kann dieses Fenster
         // nicht verschieben: es ist eine Layer-Shell-Flaeche und liegt
@@ -161,11 +162,6 @@ PanelWindow {
         // Die Fusszeile braucht Luft nach oben, sonst klebt sie an der letzten
         // Aufgabe und liest sich wie eine weitere Zeile der Liste.
         height: header.height + rows.height + footer.height + Theme.cellH * 1.6
-
-        color: Theme.bg
-        radius: Theme.radius
-        border.width: Theme.borderWidth
-        border.color: Theme.accent
 
         MouseArea {
             anchors.fill: parent
@@ -222,7 +218,7 @@ PanelWindow {
                 anchors.right: parent.right
                 color: Theme.fg
                 font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
+                font.pixelSize: Theme.fontBody
                 focus: true
                 selectByMouse: true
                 selectionColor: Theme.selection
@@ -309,7 +305,7 @@ PanelWindow {
                 anchors.top: parent.top
                 anchors.topMargin: Theme.cellH * 0.3
                 visible: root.list.length === 0
-                text: Todo.doneCount > 0 ? "alles done." : "no tasks."
+                text: Todo.doneCount > 0 ? "All tasks completed." : "No tasks."
                 color: Theme.muted
             }
 
@@ -323,7 +319,8 @@ PanelWindow {
 
                 width: rows.width
                 height: rows.rowHeight
-                color: row.chosen ? Theme.selection : "transparent"
+                color: row.chosen ? Theme.selectedSurface() : "transparent"
+                radius: Theme.radius
 
                 Line {
                     id: marker
@@ -340,7 +337,7 @@ PanelWindow {
                     anchors.left: marker.right
                     anchors.leftMargin: Theme.cellW
                     anchors.verticalCenter: parent.verticalCenter
-                    text: row.modelData.done ? "[x]" : "[ ]"
+                    text: row.modelData.done ? Icons.check : Icons.circleOutline
                     color: row.modelData.done ? Theme.green : Theme.fgDim
                 }
 
@@ -351,7 +348,7 @@ PanelWindow {
                     anchors.rightMargin: Theme.cellW
                     anchors.verticalCenter: parent.verticalCenter
                     text: row.modelData.text
-                    color: row.modelData.done ? Theme.muted : (row.chosen ? Theme.on(Theme.selection) : Theme.fg)
+                    color: row.modelData.done ? Theme.muted : (row.chosen ? Theme.selectedForeground() : Theme.fg)
                     font.strikeout: row.modelData.done
                     elide: Text.ElideRight
                 }

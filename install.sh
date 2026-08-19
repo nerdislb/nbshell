@@ -31,8 +31,8 @@ fi
 # `grep -c` statt `grep -q`: -q steigt beim ersten Treffer aus, das schickt
 # fc-list ein SIGPIPE -- und unter `set -o pipefail` gilt die ganze Kette dann
 # als gescheitert, obwohl die Schrift da ist.
-fc-list 2>/dev/null | grep -ci "Inconsolata.*Nerd Font" >/dev/null || \
-    warn "Note: 'Inconsolata Nerd Font Mono' was not found. Install: ttf-inconsolata-nerd"
+fc-list 2>/dev/null | grep -ci "JetBrainsMono.*Nerd Font" >/dev/null || \
+    warn "Note: 'JetBrainsMono Nerd Font' was not found. Install: ttf-jetbrains-mono-nerd"
 
 # Was ohne ein Programm still bleibt. Dieses Skript installiert bewusst nichts
 # -- Pakete gehoeren in die Hand des Benutzers. Wer sie in einem Rutsch will,
@@ -166,7 +166,7 @@ if [ ! -f "$DATA_DIR/config.json" ]; then
   "theme": "tokyo-night",
   "mode": "island",
   "edge": "top",
-  "font": "Inconsolata Nerd Font Mono",
+  "font": "JetBrainsMono Nerd Font",
   "fontSize": 13,
   "gap": 6,
   "radius": 0,
@@ -213,6 +213,9 @@ green "Unit    -> $UNIT_DIR/nbshell.service (not enabled yet)"
 # ── niri-Tastenkuerzel ───────────────────────────────────────────────────
 mkdir -p "$CONFIG_HOME/niri"
 install -m 644 "$SRC/niri/nbshell-takeover.kdl" "$CONFIG_HOME/niri/nbshell-takeover.kdl"
+if [ ! -f "$CONFIG_HOME/niri/nbshell-outputs.kdl" ]; then
+    printf '// Managed by nbshell display; intentionally empty until a setting is saved.\n' > "$CONFIG_HOME/niri/nbshell-outputs.kdl"
+fi
 if [ ! -f "$CONFIG_HOME/niri/config.kdl" ]; then
     printf '// Standalone niri configuration created by nbshell\ninclude "nbshell-takeover.kdl"\n' > "$CONFIG_HOME/niri/config.kdl"
     green "Niri    -> $CONFIG_HOME/niri/config.kdl (created)"

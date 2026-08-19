@@ -138,27 +138,26 @@ PanelWindow {
         }
     }
 
+    Rectangle { anchors.fill: parent; color: Theme.scrim }
+
     // Klick daneben schliesst.
     MouseArea {
         anchors.fill: parent
         onClicked: root.close()
     }
 
-    Rectangle {
+    PanelSurface {
         id: box
 
         anchors.horizontalCenter: parent.horizontalCenter
         // Etwas oberhalb der Mitte: dort sucht das Auge zuerst, und die Liste
         // waechst nach unten.
-        y: Math.round(parent.height * 0.22)
+        y: Math.round(parent.height * 0.12)
 
-        width: Math.round(Theme.cellW * 64)
+        width: Math.min(parent.width - Theme.spaceXl * 4, Math.round(Theme.cellW * 92))
         height: header.height + list.height + footer.height + Theme.cellH
 
-        color: Theme.bg
-        radius: Theme.radius
-        border.width: Theme.borderWidth
-        border.color: Theme.accent
+        accentBorder: false
 
         // Klicks im Kasten sollen ihn nicht schliessen.
         MouseArea {
@@ -172,7 +171,15 @@ PanelWindow {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.margins: Theme.cellW
-            height: Theme.cellH * 1.8
+            height: Theme.cellH * 2.35
+
+            Rectangle {
+                anchors.fill: parent
+                color: Theme.panelSurfaceRaised
+                radius: Theme.radius
+                border.width: Theme.borderWidth
+                border.color: input.activeFocus ? Theme.focusBorder : Theme.panelBorder
+            }
 
             Line {
                 id: prompt
@@ -180,7 +187,7 @@ PanelWindow {
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
                 text: "> "
-                color: Theme.accent
+                color: Theme.readable(Theme.accent, Theme.panelSurfaceRaised, 4.5)
             }
 
             TextInput {
@@ -191,7 +198,7 @@ PanelWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 color: Theme.fg
                 font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
+                font.pixelSize: Theme.fontSubtitle
                 focus: true
                 selectByMouse: true
                 selectionColor: Theme.selection
@@ -246,12 +253,6 @@ PanelWindow {
                 color: Theme.fgDim
             }
 
-            Rectangle {
-                anchors.bottom: parent.bottom
-                width: parent.width
-                height: Theme.borderWidth
-                color: Theme.muted
-            }
         }
 
         ListView {
@@ -265,8 +266,8 @@ PanelWindow {
 
             // Feste Zeilenzahl statt einer Hoehe in Pixeln: der Kasten aendert
             // seine Groesse beim Tippen dann nicht.
-            height: rowHeight * Math.min(12, Math.max(1, root.results.length))
-            readonly property real rowHeight: Theme.cellH * 2.4
+            height: rowHeight * Math.min(14, Math.max(1, root.results.length))
+            readonly property real rowHeight: Theme.menuRowHeight
 
             clip: true
             model: root.results
@@ -281,7 +282,10 @@ PanelWindow {
 
                 width: list.width
                 height: list.rowHeight
-                color: index === root.selected ? Theme.selection : "transparent"
+                radius: Theme.radius
+                color: index === root.selected ? Theme.selectedSurface(Theme.accent) : "transparent"
+                border.width: index === root.selected ? Theme.borderWidth : 0
+                border.color: Theme.focusBorder
 
                 Line {
                     id: marker
@@ -289,7 +293,7 @@ PanelWindow {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: row.index === root.selected ? "▸" : " "
-                    color: Theme.accent
+                    color: row.index === root.selected ? Theme.selectedForeground(Theme.accent) : Theme.accent
                 }
 
                 // Das Symbol des Programms. Die einzige Stelle im Starter, die
@@ -300,7 +304,7 @@ PanelWindow {
                     anchors.left: marker.right
                     anchors.leftMargin: Theme.cellW
                     anchors.verticalCenter: parent.verticalCenter
-                    width: Math.round(Theme.cellH * 1.5)
+                    width: Math.round(Theme.cellH * 1.75)
                     height: width
 
                     // Befehle haben kein Symbol und sollen auch keines
@@ -344,7 +348,8 @@ PanelWindow {
                     Line {
                         width: parent.width
                         text: row.modelData.name
-                        color: row.index === root.selected ? Theme.on(Theme.selection) : Theme.fg
+                        color: row.index === root.selected ? Theme.selectedForeground(Theme.accent) : Theme.fg
+                        font.pixelSize: Theme.fontBody
                         elide: Text.ElideRight
                     }
 
@@ -352,7 +357,8 @@ PanelWindow {
                         width: parent.width
                         visible: text !== ""
                         text: row.modelData.genericName || row.modelData.comment || ""
-                        color: Theme.fgDim
+                        color: row.index === root.selected ? Theme.selectedForeground(Theme.accent) : Theme.fgDim
+                        font.pixelSize: Theme.fontCaption
                         elide: Text.ElideRight
                     }
                 }
@@ -364,7 +370,9 @@ PanelWindow {
                     anchors.rightMargin: Theme.cellW / 2
                     anchors.verticalCenter: parent.verticalCenter
                     text: row.modelData.kind === "cmd" ? (row.modelData.category || "COMMAND").toUpperCase() : (row.modelData.runInTerminal ? "TUI" : "APP")
-                    color: row.modelData.kind === "cmd" ? Theme.fgDim : Theme.muted
+                    color: row.index === root.selected ? Theme.selectedForeground(Theme.accent)
+                        : (row.modelData.kind === "cmd" ? Theme.fgDim : Theme.muted)
+                    font.pixelSize: Theme.fontCaption
                 }
 
                 MouseArea {

@@ -42,20 +42,23 @@ Cell {
 
             Item {
                 width: panel.rowWidth
-                height: Theme.cellH * 1.4
+                height: Theme.cellH * 2.6
 
-                Line {
+                PanelHead {
                     anchors.left: parent.left
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "TASKS  (" + Todo.count + (Todo.doneCount > 0 ? " open, " + Todo.doneCount + " done" : "") + ")"
-                    color: Theme.fgDim
+                    rowWidth: panel.rowWidth - cleanup.width - Theme.spaceLg
+                    icon: Icons.todo
+                    title: "Tasks"
+                    subtitle: Todo.doneCount > 0 ? (Todo.doneCount + " completed") : "Open items"
+                    badge: String(Todo.count)
                 }
 
                 ActionButton {
+                    id: cleanup
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     visible: Todo.doneCount > 0
-                    text: "Aufraeumen"
+                    text: "Clean up"
                     tone: "danger"
                     compact: true
                     onTriggered: Todo.clearDone()
@@ -86,7 +89,7 @@ Cell {
                         anchors.right: parent.right
                         anchors.leftMargin: Theme.cellW / 2
                         anchors.verticalCenter: parent.verticalCenter
-                        text: (row.modelData.done ? "[x]  " : "[ ]  ") + row.modelData.text
+                        text: (row.modelData.done ? Icons.check : Icons.circleOutline) + "  " + row.modelData.text
                         color: row.modelData.done ? Theme.muted : Theme.fg
                         font.strikeout: row.modelData.done
                         elide: Text.ElideRight

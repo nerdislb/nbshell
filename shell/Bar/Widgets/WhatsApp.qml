@@ -91,10 +91,10 @@ Cell {
                             required property var modelData
                             width: 22 * Theme.cellW; height: Theme.cellH * 2.3
                             clip: true
-                            color: WhatsApp.currentJid === modelData.jid ? Theme.selection : (chatHover.hovered ? Theme.hover : "transparent")
+                            color: WhatsApp.currentJid === modelData.jid ? Theme.selectedSurface() : (chatHover.hovered ? Theme.hover : "transparent")
                             Column {
                                 anchors.left: parent.left; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                                Line { width: parent.width; text: (chatRow.modelData.unread > 0 ? "[" + chatRow.modelData.unread + "] " : "") + chatRow.modelData.name; color: chatRow.modelData.unread > 0 ? Theme.fgBright : Theme.fg; elide: Text.ElideRight; maximumLineCount: 1 }
+                                Line { width: parent.width; text: (chatRow.modelData.unread > 0 ? chatRow.modelData.unread + "  " : "") + chatRow.modelData.name; color: chatRow.modelData.unread > 0 ? Theme.fgBright : Theme.fg; elide: Text.ElideRight; maximumLineCount: 1 }
                                 Line { width: parent.width; text: chatRow.modelData.lastText || ""; color: Theme.fgDim; elide: Text.ElideRight; maximumLineCount: 1 }
                             }
                             HoverHandler { id: chatHover; cursorShape: Qt.PointingHandCursor }
@@ -113,7 +113,7 @@ Cell {
                         Line {
                             required property var modelData
                             width: 35 * Theme.cellW
-                            text: (modelData.fromMe ? "> " : "< ") + (modelData.text || "[Media]")
+                            text: (modelData.fromMe ? "> " : "< ") + (modelData.text || "Media")
                             color: modelData.fromMe ? Theme.accent : Theme.fg
                             wrapMode: Text.Wrap
                             maximumLineCount: 2

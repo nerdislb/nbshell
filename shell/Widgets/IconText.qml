@@ -19,6 +19,7 @@ Row {
     property bool spins: false
 
     property real iconHeight: Math.round(Theme.cellH * 0.72)
+    property bool fixedIconSlot: true
 
     // Vorgabe ist die allgemeine Einstellung; `Cell` setzt hier das Ergebnis
     // seiner eigenen Rechnung hinein, weil ein Baustein sie ueberschreiben
@@ -35,7 +36,7 @@ Row {
     Item {
         // Die Breite der Zeichnung, nicht die der Zelle: sonst steht neben
         // schmalen Symbolen ein Loch, das nur aus Vorschub besteht.
-        width: root.showIcon ? Math.ceil(mark.inkWidth) : 0
+        width: root.showIcon ? (root.fixedIconSlot ? Theme.barIconSlot : Math.ceil(mark.inkWidth)) : 0
         height: Theme.cellH
         visible: root.showIcon
 
@@ -46,7 +47,7 @@ Row {
             anchors.horizontalCenterOffset: mark.inkOffsetX
             text: root.icon
             color: root.color
-            inkHeight: root.iconHeight
+            inkHeight: root.fixedIconSlot ? Theme.barIconHeight : root.iconHeight
 
             RotationAnimator on rotation {
                 from: 0

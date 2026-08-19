@@ -2,7 +2,7 @@ import QtQuick
 import qs.Common
 
 // Die Kopfzeile eines Popouts: Symbol und Titel, darunter gedimmt der
-// Zusammenhang, rechts ein gerahmter Kurzwert.
+// Zusammenhang, rechts ein ruhiger Kurzwert.
 //
 //    Ethernet                                        [ 2.5gbit ]
 //    WIRING BITS
@@ -14,7 +14,8 @@ import qs.Common
 //     mussten sich die Breite teilen.
 //   * Der Kurzwert rechts ist die eine Zahl, die man ohne Lesen erkennen
 //     will -- Verbindungsgeschwindigkeit, Anzahl der Updates, Laufzeit einer
-//     Aufnahme. Der Rahmen macht ihn zur Marke statt zu noch einem Wort.
+//     Aufnahme. Eine leicht angehobene Flaeche trennt ihn ohne einen weiteren
+//     dekorativen Rahmen vom Titel.
 //
 // Alles ausser dem Titel ist freiwillig; was leer bleibt, nimmt keinen Platz.
 Item {
@@ -50,6 +51,8 @@ Item {
         anchors.rightMargin: Theme.cellW
         text: root.title
         color: Theme.fgBright
+        font.pixelSize: Theme.fontTitle
+        font.bold: true
         elide: Text.ElideRight
     }
 
@@ -60,6 +63,7 @@ Item {
         visible: root.subtitle !== ""
         text: root.subtitle.toUpperCase()
         color: Theme.fgDim
+        font.pixelSize: Theme.fontCaption
         elide: Text.ElideRight
     }
 
@@ -73,16 +77,16 @@ Item {
         width: visible ? badgeText.implicitWidth + Theme.cellW * 1.5 : 0
         height: Theme.cellH * 1.4
         radius: Theme.radius
-        color: "transparent"
-        border.width: Theme.borderWidth
-        border.color: root.badgeColor
+        color: Theme.panelSurfaceRaised
+        border.width: 0
 
         Line {
             id: badgeText
 
             anchors.centerIn: parent
             text: root.badge
-            color: root.badgeColor
+            color: Theme.readable(root.badgeColor, Theme.bg, 4.5)
+            font.pixelSize: Theme.fontCaption
         }
     }
 }

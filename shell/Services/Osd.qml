@@ -36,7 +36,7 @@ Singleton {
         case "volume":
             return "VOLUME";
         case "mic":
-            return "MIKROFON";
+            return "MICROPHONE";
         case "brightness":
             return "BRIGHTNESS";
         }

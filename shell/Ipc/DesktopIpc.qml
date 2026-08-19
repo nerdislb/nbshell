@@ -200,13 +200,13 @@ Scope {
 
         function dnd(): string {
             Notify.setDnd(!Notify.dnd);
-            return Notify.dnd ? "do not disturb" : "wieder laut";
+            return Notify.dnd ? "do not disturb" : "notifications enabled";
         }
 
         function clear(): string {
             const n = Notify.count;
             Notify.clear();
-            return "geloescht: " + n;
+            return "cleared: " + n;
         }
 
         function status(): string {
@@ -231,14 +231,14 @@ Scope {
         function toggle(): string {
             const next = !Config.value("trayExpanded", false);
             Config.set("trayExpanded", next);
-            return next ? "aufgeklappt" : "eingeklappt";
+            return next ? "expanded" : "collapsed";
         }
 
         function list(): string {
             const items = SystemTray.items?.values ?? [];
             if (items.length === 0)
-                return "leer";
-            return items.map(i => (i.title || i.id) + (i.hasMenu ? "  [Menue]" : "")).join("\n");
+                return "empty";
+            return items.map(i => (i.title || i.id) + (i.hasMenu ? "  menu" : "")).join("\n");
         }
     }
 
@@ -248,17 +248,17 @@ Scope {
         // Zum Ausprobieren, ohne an einem Regler zu drehen.
         function test(): string {
             Osd.show("volume");
-            return Osd.showing ? "sichtbar" : "unterdrueckt";
+            return Osd.showing ? "visible" : "suppressed";
         }
 
         function on(): string {
             Config.set("osd", true);
-            return "an";
+            return "on";
         }
 
         function off(): string {
             Config.set("osd", false);
-            return "aus";
+            return "off";
         }
 
         function status(): string {
@@ -325,7 +325,7 @@ Scope {
         function exec(query: string): string {
             const hit = Commands.search(query)[0];
             if (!hit)
-                return "kein Befehl passt zu: " + query;
+                return "no command matches: " + query;
             if (hit.confirm)
                 return hit.name + " requires confirmation and only runs in the window (Mod+Space)";
             Commands.invoke(hit);

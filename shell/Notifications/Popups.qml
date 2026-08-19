@@ -95,7 +95,7 @@ Variants {
             Repeater {
                 model: Notify.popups
 
-                Rectangle {
+                PanelSurface {
                     id: card
 
                     required property var modelData
@@ -110,12 +110,8 @@ Variants {
                     width: Theme.cellW * 48
                     height: body.implicitHeight + Theme.cellH
 
-                    color: Theme.bg
-                    radius: Theme.radius
-                    border.width: Theme.borderWidth
-                    // Akzent-Rahmen wie bei den Bar-Popouts und dem Optionsmenue
-                    // (vorher Theme.muted -> kaum sichtbar). Dringendes bleibt rot.
-                    border.color: card.urgent ? Theme.red : Theme.accent
+                    accentBorder: false
+                    border.color: card.urgent ? Theme.red : Theme.panelBorder
 
                     // Dringendes bleibt stehen, bis es jemand wegklickt.
                     Timer {
@@ -175,32 +171,14 @@ Variants {
                             Repeater {
                                 model: card.n?.actions ?? []
 
-                                Rectangle {
+                                ActionButton {
                                     id: actionButton
 
                                     required property var modelData
 
-                                    width: actionText.implicitWidth + Theme.cellW * 2
-                                    height: Theme.cellH * 1.4
-                                    radius: Theme.radius
-                                    color: actionMouse.containsMouse ? Theme.selection : "transparent"
-                                    border.width: Theme.borderWidth
-                                    border.color: Theme.muted
-
-                                    Line {
-                                        id: actionText
-                                        anchors.centerIn: parent
-                                        text: actionButton.modelData.text
-                                        color: Theme.accent
-                                    }
-
-                                    MouseArea {
-                                        id: actionMouse
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: Notify.invoke(card.modelData.key, actionButton.modelData)
-                                    }
+                                    text: actionButton.modelData.text
+                                    compact: true
+                                    onTriggered: Notify.invoke(card.modelData.key, actionButton.modelData)
                                 }
                             }
                         }

@@ -105,7 +105,7 @@ PanelWindow {
             "key": "widgetStyle",
             "def": "box",
             "label": "Shape",
-            "values": ["box", "bracket", "plain"]
+            "values": ["box", "plain"]
         },
         {
             "key": "meterStyle",
@@ -551,21 +551,17 @@ PanelWindow {
                 root.step(root.items[root.selected], 1);
         }
 
-        Rectangle {
+        OverlaySurface {
             id: box
 
-            readonly property real rowHeight: Theme.cellH * 1.5
-            readonly property real leftWidth: Theme.cellW * 16
-            readonly property real rightWidth: Theme.cellW * 42
+            readonly property real rowHeight: Theme.rowHeight
+            // Omarchy-sized navigation and value columns: the settings view
+            // should read as a calm overview, not a narrow terminal table.
+            readonly property real leftWidth: Theme.cellW * 19
+            readonly property real rightWidth: Theme.cellW * 47
 
-            anchors.centerIn: parent
-            width: box.leftWidth + box.rightWidth + Theme.cellW * 3
-            height: header.implicitHeight + root.maxItems * box.rowHeight + footer.implicitHeight + Theme.cellH * 2.5
-
-            color: Theme.bg
-            radius: Theme.radius
-            border.width: Theme.borderWidth
-            border.color: Theme.accent
+            preferredWidth: box.leftWidth + box.rightWidth + Theme.cellW * 4
+            preferredHeight: header.implicitHeight + root.maxItems * box.rowHeight + footer.implicitHeight + Theme.cellH * 2.5
 
             MouseArea {
                 anchors.fill: parent
@@ -610,7 +606,7 @@ PanelWindow {
                         // Nur die Seite, die die Tasten hat, bekommt die
                         // volle Markierung -- sonst sehen beide gleich
                         // ausgewaehlt aus und man weiss nicht, wo man tippt.
-                        color: groupRow.current && root.pane === 0 ? Theme.selection : "transparent"
+                        color: groupRow.current && root.pane === 0 ? Theme.selectedSurface(Theme.accent) : "transparent"
 
                         Line {
                             anchors.left: parent.left
@@ -619,7 +615,7 @@ PanelWindow {
                             text: (groupRow.current ? "▸ " : "  ") + groupRow.modelData.head
                             color: {
                                 if (groupRow.current && root.pane === 0)
-                                    return Theme.on(Theme.selection);
+                                    return Theme.selectedForeground(Theme.accent);
                                 return groupRow.current ? Theme.readable(Theme.accent, Theme.bg) : Theme.fgDim;
                             }
                         }
@@ -678,14 +674,14 @@ PanelWindow {
                         width: itemColumn.width
                         height: box.rowHeight
                         radius: Theme.radius
-                        color: row.current && root.pane === 1 ? Theme.selection : "transparent"
+                        color: row.current && root.pane === 1 ? Theme.selectedSurface(Theme.accent) : "transparent"
 
                         Line {
                             anchors.left: parent.left
                             anchors.leftMargin: Theme.cellW / 2
                             anchors.verticalCenter: parent.verticalCenter
                             text: (row.current ? "▸ " : "  ") + row.modelData.label
-                            color: row.current && root.pane === 1 ? Theme.on(Theme.selection) : Theme.fg
+                            color: row.current && root.pane === 1 ? Theme.selectedForeground(Theme.accent) : Theme.fg
                         }
 
                         Line {
@@ -695,7 +691,7 @@ PanelWindow {
                             // Die Pfeile nur auf der Seite, die sie auch
                             // annimmt: links kaeme ←→ nicht hier an.
                             text: (row.current && root.pane === 1 ? "◂ " : "  ") + root.shown(row.modelData) + (row.current && root.pane === 1 ? " ▸" : "  ")
-                            color: row.current && root.pane === 1 ? Theme.readable(Theme.accent, Theme.selection) : Theme.fgDim
+                            color: row.current && root.pane === 1 ? Theme.selectedForeground(Theme.accent) : Theme.fgDim
                         }
 
                         MouseArea {

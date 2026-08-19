@@ -1,5 +1,6 @@
 // Eigenstaendige nbshell-Tastenkuerzel. `nbshell switch on` bindet diese
 // Datei in niris config.kdl ein; `switch off` entfernt den Include wieder.
+include "nbshell-outputs.kdl"
 //
 // Der Sperrbildschirm (Mod+Alt+L) zeigt auf `nbshell power lock` und damit auf
 // `lockCommand` aus der Config -- Vorgabe hyprlock. Ist keiner installiert,

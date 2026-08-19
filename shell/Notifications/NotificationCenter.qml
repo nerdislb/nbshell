@@ -32,7 +32,7 @@ PanelWindow {
     onVisibleChanged: if (visible) { query = ""; selected = 0; keys.forceActiveFocus(); }
     onQueryChanged: selected = 0
 
-    Rectangle { anchors.fill: parent; color: Theme.alpha(Theme.bgDarker, 0.78) }
+    Rectangle { anchors.fill: parent; color: Theme.scrim }
     MouseArea { anchors.fill: parent; onClicked: root.close() }
 
     FocusScope {
@@ -51,17 +51,12 @@ PanelWindow {
             event.accepted = true;
         }
 
-        Rectangle {
+        OverlaySurface {
             id: box
-            anchors.centerIn: parent
             // Breiter fuer klare Kartenzeilen, aber bewusst nur rund ein
             // halber Bildschirm hoch. Der Verlauf scrollt innerhalb der Box.
-            width: Math.min(parent.width - Theme.cellW * 6, Theme.cellW * 116)
-            height: Math.min(parent.height - Theme.cellH * 12, Theme.cellH * 31)
-            color: Theme.bg
-            radius: Theme.radius
-            border.width: Theme.borderWidth
-            border.color: Theme.accent
+            preferredWidth: Theme.cellW * 116
+            preferredHeight: Theme.cellH * 31
             MouseArea { anchors.fill: parent }
 
             Column {
@@ -70,7 +65,7 @@ PanelWindow {
                 spacing: Theme.cellH * 0.4
                 Row {
                     width: parent.width
-                    Line { width: parent.width - controls.width; text: Icons.bell + "  NOTIFICATIONS  (" + Notify.count + ")"; color: Theme.fg; font.pixelSize: Theme.fontSize + 3 }
+                    Line { width: parent.width - controls.width; text: Icons.bell + "  NOTIFICATIONS  (" + Notify.count + ")"; color: Theme.fg; font.pixelSize: Theme.fontHeading; font.bold: true }
                     Row {
                         id: controls
                         spacing: Theme.cellW
@@ -79,8 +74,8 @@ PanelWindow {
                     }
                 }
                 Rectangle {
-                    width: parent.width; height: Theme.cellH * 2; radius: Theme.radius; color: Theme.bgLight
-                    border.width: Theme.borderWidth; border.color: root.query !== "" ? Theme.accent : Theme.muted
+                    width: parent.width; height: Theme.controlHeight; radius: Theme.radius; color: Theme.panelSurfaceRaised
+                    border.width: Theme.borderWidth; border.color: root.query !== "" ? Theme.focusBorder : Theme.panelBorder
                     Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: root.query !== "" ? root.query : "Type to search …"; color: root.query !== "" ? Theme.fg : Theme.muted }
                 }
                 Rule { rowWidth: parent.width }

@@ -47,7 +47,7 @@ PanelWindow {
     }
 
     // Etwas groesser als die Leiste -- das Menue soll bequem lesbar sein.
-    readonly property int fs: Theme.fontSize + 3
+    readonly property int fs: Theme.fontTitle
 
     function open() {
         root.trail = [];
@@ -91,7 +91,7 @@ PanelWindow {
     // mit einer Pause am Ende, damit man das Ergebnis noch liest.
     function term(cmd) {
         Quickshell.execDetached([Apps.terminal, "-e", "sh", "-c",
-            cmd + "; printf '\\n[Enter] closes this window … '; read -r _"]);
+            cmd + "; printf '\\nEnter closes this window … '; read -r _"]);
     }
 
     onVisibleChanged: {
@@ -137,6 +137,10 @@ PanelWindow {
             "run": () => Runtime.hubOpen = true
         },
         {
+            "key": "o", "label": "Displays", "description": "Resolution, scale, orientation, and position", "icon": Icons.cp(0xF0379),
+            "run": () => Runtime.displayOpen = true
+        },
+        {
             "key": "n", "label": "Notifications", "description": "search, DND, and archive", "icon": Icons.bell,
             "run": () => Runtime.notificationCenterOpen = true
         },
@@ -168,6 +172,7 @@ PanelWindow {
                     Config.set("mode", order[(order.indexOf(Config.mode) + 1) % order.length]);
                 } },
                 { "key": "e", "label": "Settings", "icon": Icons.cp(0xF0493), "run": () => Runtime.settingsOpen = true },
+                { "key": "g", "label": "UI gallery", "icon": Icons.cp(0xF03D9), "run": () => Runtime.uiGalleryOpen = true },
                 { "key": "a", "label": "Open Aether", "icon": Icons.palette, "run": () => Quickshell.execDetached(["aether"]) },
                 { "key": "i", "label": "Import Aether theme", "icon": Icons.download, "run": () => root.term("$HOME/.local/bin/nb-aether-import") },
                 { "key": "x", "label": "Remove theme", "icon": Icons.cp(0xF01B4), "run": () => root.term("$HOME/.local/bin/nbshell theme remove") }
@@ -240,7 +245,7 @@ PanelWindow {
 
     Rectangle {
         anchors.fill: parent
-        color: Theme.alpha(Theme.bgDarker, 0.76)
+        color: Theme.scrim
     }
 
     // Klick daneben schliesst.
@@ -280,17 +285,14 @@ PanelWindow {
             }
         }
 
-        Rectangle {
+        PanelSurface {
             id: box
 
             anchors.centerIn: parent
             width: Theme.cellW * 48
             height: column.implicitHeight + Theme.cellH * 2
 
-            color: Theme.bg
-            radius: Theme.radius
-            border.width: Theme.borderWidth
-            border.color: Theme.muted
+            accentBorder: false
 
             // Klick im Kasten NICHT durchreichen (sonst schliesst der Backdrop).
             MouseArea {
@@ -308,7 +310,9 @@ PanelWindow {
                     width: column.width
                     height: Theme.cellH * 3
                     radius: Theme.radius
-                    color: Theme.bgLight
+                    color: Theme.panelSurfaceRaised
+                    border.width: Theme.borderWidth
+                    border.color: Theme.panelBorder
 
                     Line {
                         anchors.left: parent.left
@@ -340,7 +344,9 @@ PanelWindow {
                         width: column.width
                         height: root.fs * (rowItem.modelData.description ? 3.15 : 2.65)
                         radius: Theme.radius
-                        color: rowItem.active ? Theme.selection : "transparent"
+                        color: rowItem.active ? Theme.selectedSurface(Theme.accent) : "transparent"
+                        border.width: rowItem.active ? Theme.borderWidth : 0
+                        border.color: Theme.focusBorder
 
                         // Akzent-Balken links, wenn die Zeile gewaehlt ist.
                         Rectangle {
@@ -359,7 +365,7 @@ PanelWindow {
                             anchors.leftMargin: Theme.cellW
                             anchors.verticalCenter: parent.verticalCenter
                             text: rowItem.modelData.icon || ""
-                            color: rowItem.active ? Theme.on(Theme.selection) : Theme.accent
+                            color: rowItem.active ? Theme.selectedForeground(Theme.accent) : Theme.accent
                             font.pixelSize: root.fs + 1
                         }
 
@@ -370,8 +376,8 @@ PanelWindow {
                             anchors.rightMargin: Theme.cellW
                             anchors.verticalCenter: parent.verticalCenter
                             spacing: 0
-                            Line { width: parent.width; text: rowItem.modelData.label; color: rowItem.active ? Theme.on(Theme.selection) : Theme.fg; font.pixelSize: root.fs; elide: Text.ElideRight }
-                            Line { width: parent.width; visible: !!rowItem.modelData.description; text: rowItem.modelData.description || ""; color: rowItem.active ? Theme.on(Theme.selection) : Theme.muted; font.pixelSize: Theme.fontSize; elide: Text.ElideRight }
+                            Line { width: parent.width; text: rowItem.modelData.label; color: rowItem.active ? Theme.selectedForeground(Theme.accent) : Theme.fg; font.pixelSize: root.fs; elide: Text.ElideRight }
+                            Line { width: parent.width; visible: !!rowItem.modelData.description; text: rowItem.modelData.description || ""; color: rowItem.active ? Theme.selectedForeground(Theme.accent) : Theme.muted; font.pixelSize: Theme.fontCaption; elide: Text.ElideRight }
                         }
 
                         // Rechts: Pfeil bei Untermenue, sonst das Buchstabenkuerzel.
@@ -381,7 +387,7 @@ PanelWindow {
                             anchors.rightMargin: Theme.cellW
                             anchors.verticalCenter: parent.verticalCenter
                             text: rowItem.isSub ? "›" : "↵"
-                            color: rowItem.active ? Theme.on(Theme.selection) : Theme.muted
+                            color: rowItem.active ? Theme.selectedForeground(Theme.accent) : Theme.muted
                             font.pixelSize: root.fs
                         }
 

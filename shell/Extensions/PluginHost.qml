@@ -25,7 +25,7 @@ Item {
 
             onLoaded: {
                 Plugins.registerInstance(modelData.id, modelData.kind, item);
-                Plugins.reportLoadState(modelData.id, modelData.kind, "geladen", modelData.source);
+                Plugins.reportLoadState(modelData.id, modelData.kind, "loaded", modelData.source);
             }
             onStatusChanged: {
                 if (status === Loader.Loading)
@@ -37,7 +37,7 @@ Item {
             }
             Component.onDestruction: {
                 Plugins.unregisterInstance(modelData.id, modelData.kind, item);
-                Plugins.reportLoadState(modelData.id, modelData.kind, "inaktiv", "");
+                Plugins.reportLoadState(modelData.id, modelData.kind, "inactive", "");
             }
         }
     }

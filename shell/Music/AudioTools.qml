@@ -34,62 +34,45 @@ PanelWindow {
         id: keys; anchors.fill: parent; focus: root.visible
         Keys.onEscapePressed: Runtime.audioToolsOpen = false
         Keys.onPressed: event => { if (event.key === Qt.Key_F5) root.run(["status"]); }
-        Rectangle {
-            anchors.centerIn: parent; width: Theme.cellW * 72; height: Theme.cellH * 30
-            color: Theme.bg; radius: Theme.radius; border.width: Theme.borderWidth; border.color: Theme.accent
+        OverlaySurface {
+            preferredWidth: Theme.cellW * 72; preferredHeight: Theme.cellH * 30
             MouseArea { anchors.fill: parent }
             Column {
                 anchors.fill: parent; anchors.margins: Theme.cellW * 2; spacing: Theme.cellH * .6
                 PanelHead { rowWidth: parent.width; icon: Icons.volumeHigh; title: "Focus & equalizer"; subtitle: "PipeWire · EasyEffects"; badge: root.loading ? "…" : "" }
                 Rule { rowWidth: parent.width }
-                Line { text: "FOCUS SOUNDS"; color: Theme.fgDim }
+                SectionHeader { width: parent.width; text: "Focus sounds" }
                 Row {
                     spacing: Theme.cellW
                     Repeater {
-                        model: [{id:"pink",label:"Pink"},{id:"brown",label:"Braun"},{id:"rain",label:"Regen"},{id:"white",label:"Weiss"}]
-                        Rectangle {
+                        model: [{id:"pink",label:"Pink"},{id:"brown",label:"Brown"},{id:"rain",label:"Rain"},{id:"white",label:"White"}]
+                        ControlButton {
                             required property var modelData
-                            width: Theme.cellW * 12; height: Theme.cellH * 3; radius: Theme.radius
-                            color: root.toolState.ambience === modelData.id ? Theme.selection : Theme.bgLight
-                            border.width: Theme.borderWidth; border.color: root.toolState.ambience === modelData.id ? Theme.accent : Theme.muted
-                            Line { anchors.centerIn: parent; text: modelData.label; color: Theme.fg }
-                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.run(["start", modelData.id]) }
+                            width: Theme.cellW * 12
+                            text: modelData.label
+                            selected: root.toolState.ambience === modelData.id
+                            onTriggered: root.run(["start", modelData.id])
                         }
                     }
-                    Rectangle {
-                        width: Theme.cellW * 12; height: Theme.cellH * 3; radius: Theme.radius; color: Theme.bgLight
-                        Line { anchors.centerIn: parent; text: "Stop"; color: Theme.red }
-                        MouseArea { anchors.fill: parent; onClicked: root.run(["stop"]) }
-                    }
+                    ControlButton { width: Theme.cellW * 12; text: "Stop"; danger: true; onTriggered: root.run(["stop"]) }
                 }
                 Line { text: "Runs as a separate PipeWire stream and can be controlled in the audio popout."; color: Theme.muted }
                 Rule { rowWidth: parent.width }
-                Line { text: "EQUALIZER"; color: Theme.fgDim }
+                SectionHeader { width: parent.width; text: "Equalizer" }
                 Row {
                     spacing: Theme.cellW * 2
-                    Rectangle {
-                        width: Theme.cellW * 21; height: Theme.cellH * 3; radius: Theme.radius
-                        color: root.toolState.bypass === "an" ? Theme.bgLight : Theme.selection
-                        border.width: Theme.borderWidth; border.color: Theme.accent
-                        Line { anchors.centerIn: parent; text: root.toolState.bypass === "an" ? "Effects off" : "Effects active"; color: Theme.fg }
-                        MouseArea { anchors.fill: parent; onClicked: root.run(["bypass"]) }
-                    }
-                    Rectangle {
-                        width: Theme.cellW * 24; height: Theme.cellH * 3; radius: Theme.radius; color: Theme.bgLight
-                        Line { anchors.centerIn: parent; text: "Edit equalizer"; color: Theme.fg }
-                        MouseArea { anchors.fill: parent; onClicked: Quickshell.execDetached(["easyeffects"]) }
-                    }
+                    ControlButton { width: Theme.cellW * 21; text: root.toolState.bypass === "an" ? "Effects off" : "Effects active"; selected: root.toolState.bypass !== "an"; onTriggered: root.run(["bypass"]) }
+                    ControlButton { width: Theme.cellW * 24; text: "Edit equalizer"; onTriggered: Quickshell.execDetached(["easyeffects"]) }
                 }
                 Line { text: root.toolState.presets.length ? "PRESETS" : "No presets yet · save one in the editor, then press F5"; color: Theme.fgDim }
                 Flow {
                     width: parent.width; spacing: Theme.cellW
                     Repeater {
                         model: root.toolState.presets
-                        Rectangle {
+                        ControlButton {
                             required property string modelData
-                            width: Math.max(Theme.cellW * 12, label.implicitWidth + Theme.cellW * 2); height: Theme.cellH * 2.5; radius: Theme.radius; color: Theme.bgLight
-                            Line { id: label; anchors.centerIn: parent; text: modelData; color: Theme.fg }
-                            MouseArea { anchors.fill: parent; onClicked: root.run(["preset", modelData]) }
+                            text: modelData
+                            onTriggered: root.run(["preset", modelData])
                         }
                     }
                 }

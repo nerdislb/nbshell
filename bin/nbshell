@@ -9,6 +9,7 @@ CONFIG_NAME="nbshell"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/nbshell"
 THEME_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/theme-install.sh"
 PLUGIN_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/plugins.sh"
+DISPLAY_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/displays.py"
 
 qs_bin() {
     if command -v qs >/dev/null 2>&1; then echo qs; else echo quickshell; fi
@@ -103,7 +104,7 @@ AGENT_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/agents.
 cursor_status() {
     local jetzt
     jetzt="$(bash "$CURSOR_TOOL" current 2>/dev/null)"
-    printf 'Thema     %s\n' "$(printf '%s' "$jetzt" | python3 -c 'import json,sys; print(json.load(sys.stdin)["theme"] or "(keins gesetzt)")' 2>/dev/null)"
+    printf 'Theme     %s\n' "$(printf '%s' "$jetzt" | python3 -c 'import json,sys; print(json.load(sys.stdin)["theme"] or "(not set)")' 2>/dev/null)"
     printf 'Size      %s px\n' "$(printf '%s' "$jetzt" | python3 -c 'import json,sys; print(json.load(sys.stdin)["size"])' 2>/dev/null)"
     if command -v gsettings >/dev/null 2>&1; then
         printf 'GTK       %s, %s px\n' "$(gsettings get org.gnome.desktop.interface cursor-theme 2>/dev/null | tr -d "'")" "$(gsettings get org.gnome.desktop.interface cursor-size 2>/dev/null)"
@@ -340,12 +341,12 @@ switch_off() {
 
 switch_status() {
     if systemctl --user cat dms.service >/dev/null 2>&1; then
-        printf 'Alt-DMS          %s\n' "$(systemctl --user is-active dms.service 2>/dev/null; systemctl --user is-enabled dms.service 2>/dev/null | tr '\n' ' ')"
+        printf 'Legacy DMS          %s\n' "$(systemctl --user is-active dms.service 2>/dev/null; systemctl --user is-enabled dms.service 2>/dev/null | tr '\n' ' ')"
     fi
-    printf 'Benachrichtigung %s\n' "$(busctl --user list 2>/dev/null | awk '/^org.freedesktop.Notifications/ {print $2" ("$3")"}')"
+    printf 'Notification server %s\n' "$(busctl --user list 2>/dev/null | awk '/^org.freedesktop.Notifications/ {print $2" ("$3")"}')"
     printf 'niri bindings       %s\n' "$([ -f "$NIRI_DIR/config.kdl" ] && grep -qF "$INCLUDE_LINE" "$NIRI_DIR/config.kdl" && echo "nbshell" || echo "not included")"
     printf 'Window borders    %s\n' "$([ -f "$NIRI_DIR/config.kdl" ] && grep -qF "$COLORS_LINE" "$NIRI_DIR/config.kdl" && echo "nbshell" || echo "not included")"
-    printf 'nbshell autostart %s\n' "$([ -f "$UNIT_DROPIN" ] && echo "an ($(systemctl --user is-active nbshell.service))" || echo "aus")"
+    printf 'nbshell autostart    %s\n' "$([ -f "$UNIT_DROPIN" ] && echo "on ($(systemctl --user is-active nbshell.service))" || echo "off")"
     polkit_status
 }
 
@@ -410,6 +411,11 @@ nbshell -- an independent Quickshell desktop shell for niri
 
   nbshell modules           arrange bar modules
   nbshell settings          open appearance and behavior settings
+  nbshell display           open Niri display management
+  nbshell display status    list connected outputs as JSON
+  nbshell display set <output> mode|scale|transform|enabled <value>
+  nbshell display place <output> left|right|above|below <reference>
+  nbshell ui-gallery        preview the shared nbshell component language
   nbshell updates           Updates: status, check, list, run
   nbshell ai                open the Agent Center (also: usage, refresh)
   nbshell agent list [--json]
@@ -735,6 +741,15 @@ for b in d["binds"]:
         ;;
     settings)
         ipc settings toggle
+        ;;
+    display|displays|monitor|monitors)
+        case "${1:-open}" in
+            open|toggle) ipc displays toggle ;;
+            *) python3 "$DISPLAY_TOOL" "$@" ;;
+        esac
+        ;;
+    ui-gallery|gallery)
+        ipc uiGallery toggle
         ;;
     modules)
         ipc settings modules

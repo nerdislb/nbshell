@@ -34,7 +34,7 @@ Cell {
 
         Line {
             visible: Agents.workingCount > 0 || Agents.waitingCount > 0
-            text: Agents.waitingCount > 0 ? (Agents.waitingCount + " WAIT") : (Agents.workingCount + " RUN")
+            text: Icons.agent + "  " + (Agents.waitingCount > 0 ? (Agents.waitingCount + " WAIT") : (Agents.workingCount + " RUN"))
             color: Agents.waitingCount > 0 ? Theme.yellow : Theme.green
             TapHandler { onTapped: Runtime.agentCenterOpen = true }
         }
@@ -153,9 +153,12 @@ Cell {
 
             spacing: Theme.cellH * 0.3
 
-            Line {
-                text: "AI USAGE"
-                color: Theme.fgDim
+            PanelHead {
+                rowWidth: panel.rowWidth
+                icon: Icons.agent
+                title: "AI usage"
+                subtitle: "Model limits and active agents"
+                badge: String(AiUsage.list.length)
             }
 
             Repeater {

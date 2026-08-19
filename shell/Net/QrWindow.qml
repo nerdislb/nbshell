@@ -110,16 +110,13 @@ PanelWindow {
         Keys.onReturnPressed: root.close()
     }
 
-    Rectangle {
+    PanelSurface {
         anchors.centerIn: parent
 
         width: card.implicitWidth + Theme.cellW * 4
         height: card.implicitHeight + Theme.cellH * 2
 
-        color: Theme.bg
-        radius: Theme.radius
-        border.width: Theme.borderWidth
-        border.color: Theme.accent
+        accentBorder: false
 
         MouseArea {
             anchors.fill: parent

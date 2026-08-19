@@ -16,7 +16,7 @@ Cell {
     // Der Lautsprecher zeigt schon, worum es geht -- das "VOL" davor war
     // Beschriftung fuer eine Beschriftung.
     label: "VOL"
-    icon: Audio.muted ? Icons.volumeMuted : (Audio.volume >= 50 ? Icons.volumeHigh : Icons.volumeLow)
+    icon: Audio.muted ? Icons.volumeMuted : (Audio.volume >= 67 ? Icons.volumeHigh : (Audio.volume >= 34 ? Icons.volumeMid : Icons.volumeLow))
     text: Audio.muted ? "--" : (Audio.volume + "%")
 
     // Die Schrittweite haengt daran, WIE gescrollt wurde: ein Mausrad rastet
@@ -61,19 +61,16 @@ Cell {
 
             spacing: Theme.cellH * 0.4
 
-            Line {
-                text: "AUDIO"
-                color: Theme.fgDim
+            PanelHead {
+                rowWidth: panel.rowWidth
+                icon: Audio.muted ? Icons.volumeMuted : Icons.volumeHigh
+                title: Audio.label(Audio.sink)
+                subtitle: "Audio output"
+                badge: Audio.muted ? "MUTED" : (Audio.volume + " %")
+                badgeColor: Audio.muted ? Theme.red : Theme.accent
             }
 
             // ── Ausgabe ───────────────────────────────────────────────────
-
-            Line {
-                width: panel.rowWidth
-                text: Audio.label(Audio.sink)
-                color: Theme.fg
-                elide: Text.ElideRight
-            }
 
             Row {
                 spacing: Theme.cellW
@@ -129,10 +126,10 @@ Cell {
 
             // ── Anwendungen ──────────────────────────────────────────────
 
-            Line {
+            Rule {
                 visible: Audio.appStreams.length > 0
-                text: "APPLICATIONS"
-                color: Theme.fgDim
+                rowWidth: panel.rowWidth
+                label: "APPLICATIONS"
             }
 
             Repeater {
@@ -183,10 +180,10 @@ Cell {
                 }
             }
 
-            Line {
+            Rule {
                 visible: Audio.routes.length > 0 && Audio.routeSinks.length > 1
-                text: "OUTPUT ROUTES  —  click to switch device"
-                color: Theme.fgDim
+                rowWidth: panel.rowWidth
+                label: "OUTPUT ROUTES · CLICK TO SWITCH"
             }
 
             Repeater {
@@ -211,12 +208,10 @@ Cell {
             // hervorgehoben, ein Klick wechselt -- und der Ton setzt dabei
             // kurz aus, weil PipeWire die Verbindung neu aushandelt.
 
-            Line {
+            Rule {
                 visible: Audio.btDa
-                text: "CODEC" + (Audio.btGeraet !== "" ? "  —  " + Audio.btGeraet : "")
-                color: Theme.fgDim
-                width: panel.rowWidth
-                elide: Text.ElideRight
+                rowWidth: panel.rowWidth
+                label: "CODEC" + (Audio.btGeraet !== "" ? " · " + Audio.btGeraet : "")
             }
 
             // Beim Telefonieren steht das Geraet im Headset-Profil: schmale
@@ -245,7 +240,7 @@ Cell {
                         width: name.implicitWidth + Theme.cellW * 2
                         height: Theme.cellH * 1.4
                         radius: Theme.radius
-                        color: codec.aktiv ? Theme.alpha(Theme.accent, 0.2) : (hover.hovered ? Theme.hover : "transparent")
+                        color: codec.aktiv ? Theme.selectedSurface(Theme.accent) : (hover.hovered ? Theme.hover : "transparent")
                         border.width: codec.aktiv ? Theme.borderWidth : 0
                         border.color: Theme.readable(Theme.accent, Theme.bg)
 
@@ -254,7 +249,7 @@ Cell {
 
                             anchors.centerIn: parent
                             text: codec.modelData.codec
-                            color: codec.aktiv ? Theme.readable(Theme.accent, Theme.bg) : Theme.fgDim
+                            color: codec.aktiv ? Theme.selectedForeground(Theme.accent) : Theme.fgDim
                         }
 
                         HoverHandler {
@@ -275,7 +270,7 @@ Cell {
             // etwas nie auf.
             Line {
                 visible: Audio.btSchlechter
-                text: "  geht besser: " + (Audio.btCodecs.length > 0 ? Audio.btCodecs[0].codec : "")
+                text: "  better codec available: " + (Audio.btCodecs.length > 0 ? Audio.btCodecs[0].codec : "")
                 color: Theme.yellow
 
                 HoverHandler {
@@ -289,9 +284,9 @@ Cell {
 
             // ── Geraete ───────────────────────────────────────────────────
 
-            Line {
-                text: "OUTPUT"
-                color: Theme.fgDim
+            Rule {
+                rowWidth: panel.rowWidth
+                label: "OUTPUT"
             }
 
             Repeater {
@@ -307,7 +302,10 @@ Cell {
                     width: panel.rowWidth
                     height: Theme.cellH * 1.4
                     radius: Theme.radius
-                    color: mouse.hovered ? Theme.hover : "transparent"
+                    color: device.isCurrent ? Theme.selectedSurface(Theme.accent)
+                        : (mouse.hovered ? Theme.hover : "transparent")
+                    border.width: device.isCurrent ? Theme.borderWidth : 0
+                    border.color: Theme.controlBorder(false, device.isCurrent, false)
 
                     Line {
                         anchors.left: parent.left
@@ -315,7 +313,7 @@ Cell {
                         anchors.leftMargin: Theme.cellW / 2
                         anchors.verticalCenter: parent.verticalCenter
                         text: (device.isCurrent ? "▸ " : "  ") + Audio.label(device.modelData)
-                        color: device.isCurrent ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg
+                        color: device.isCurrent ? Theme.selectedForeground(Theme.accent) : Theme.fg
                         elide: Text.ElideRight
                     }
 

@@ -50,7 +50,7 @@ Scope {
         function pause(): string {
             const lief = MediaService.playing;
             MediaService.playPause();
-            return lief ? "pausiert" : "spielt";
+            return lief ? "paused" : "playing";
         }
 
         function next(): string { MediaService.next(); return "next"; }
@@ -110,14 +110,14 @@ Scope {
         function list(): string {
             if (Todo.list.length === 0)
                 return "no tasks";
-            return Todo.list.map((e, i) => String(i + 1).padStart(3, " ") + "  " + (e.done ? "[x]" : "[ ]") + "  " + e.text).join("\n");
+            return Todo.list.map((e, i) => String(i + 1).padStart(3, " ") + "  " + (e.done ? "✓" : "○") + "  " + e.text).join("\n");
         }
 
         // Nummern beziehen sich auf genau die Liste, die `list` ausgibt.
         function done(which: string): string {
             const e = Todo.list[parseInt(which, 10) - 1];
             if (!e)
-                return "keine Nummer " + which;
+                return "no item " + which;
             Todo.toggle(e.id);
             return (e.done ? "open again: " : "done: ") + e.text;
         }
@@ -125,9 +125,9 @@ Scope {
         function drop(which: string): string {
             const e = Todo.list[parseInt(which, 10) - 1];
             if (!e)
-                return "keine Nummer " + which;
+                return "no item " + which;
             Todo.remove(e.id);
-            return "geloescht: " + e.text;
+            return "deleted: " + e.text;
         }
 
         function clear(): string {
@@ -176,7 +176,7 @@ Scope {
                 const done = e ? e.isCompleted : false;
                 const curVal = e ? e.currentValue : 0.0;
                 const streak = Habits.calculateStreak(h.id);
-                var line = String(i + 1).padStart(2, " ") + "  " + (done ? "[✔]" : "[ ]") + "  " + (h.icon || "✨") + "  " + h.name;
+                var line = String(i + 1).padStart(2, " ") + "  " + (done ? "✓" : "○") + "  " + (h.icon || "✨") + "  " + h.name;
                 if (h.mode === "COUNTER" || h.mode === "NUMBER" || h.mode === "DURATION") {
                     line += " (" + curVal + "/" + h.targetValue + " " + (h.unit || "") + ")";
                 }
@@ -190,7 +190,7 @@ Scope {
         function done(which: string): string {
             const h = Habits.habits[parseInt(which, 10) - 1];
             if (!h)
-                return "keine Nummer " + which;
+                return "no item " + which;
             Habits.toggle(h.id);
             const e = Habits.todayMap[String(h.id)];
             return (e && e.isCompleted ? "done: " : "open again: ") + h.name;
@@ -199,7 +199,7 @@ Scope {
         function inc(which: string, delta: string): string {
             const h = Habits.habits[parseInt(which, 10) - 1];
             if (!h)
-                return "keine Nummer " + which;
+                return "no item " + which;
             const step = delta !== "" ? parseFloat(delta) : 1.0;
             Habits.increment(h.id, isNaN(step) ? 1.0 : step);
             const e = Habits.todayMap[String(h.id)];
@@ -231,15 +231,15 @@ Scope {
             else if (routine === "evening") icon = "🌙";
 
             const h = Habits.add(name, icon, routine, mode, target, unit, 2);
-            return h ? "eingetragen: " + h.name + " // " + h.routine : "nothing entered";
+            return h ? "added: " + h.name + " // " + h.routine : "nothing entered";
         }
 
         function drop(which: string): string {
             const h = Habits.habits[parseInt(which, 10) - 1];
             if (!h)
-                return "keine Nummer " + which;
+                return "no item " + which;
             Habits.remove(h.id);
-            return "geloescht: " + h.name;
+            return "deleted: " + h.name;
         }
 
         function sync(): string {
@@ -278,7 +278,7 @@ Scope {
         function clear(): string {
             const n = Clipboard.entries.length;
             Clipboard.clear();
-            return "geloescht: " + n;
+            return "deleted: " + n;
         }
     }
 }

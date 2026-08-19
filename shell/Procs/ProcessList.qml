@@ -63,7 +63,7 @@ PanelWindow {
         onClicked: root.close()
     }
 
-    Rectangle {
+    PanelSurface {
         id: box
 
         anchors.horizontalCenter: parent.horizontalCenter
@@ -72,10 +72,7 @@ PanelWindow {
         width: Math.round(Theme.cellW * 76)
         height: header.height + list.height + footer.height + Theme.cellH
 
-        color: Theme.bg
-        radius: Theme.radius
-        border.width: Theme.borderWidth
-        border.color: Theme.accent
+        accentBorder: false
 
         MouseArea {
             anchors.fill: parent
@@ -107,7 +104,7 @@ PanelWindow {
                 anchors.top: parent.top
                 color: Theme.fg
                 font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
+                font.pixelSize: Theme.fontBody
                 focus: true
 
                 onTextChanged: {
@@ -151,7 +148,7 @@ PanelWindow {
 
                 anchors.right: parent.right
                 anchors.top: parent.top
-                text: "CPU " + SysInfo.cpuPercent + "%   RAM " + SysInfo.memPercent + "%   " + Procs.list.length + " Prozesse"
+                text: "CPU " + SysInfo.cpuPercent + "%   RAM " + SysInfo.memPercent + "%   " + Procs.list.length + " processes"
                 color: Theme.fgDim
             }
 
@@ -182,7 +179,7 @@ PanelWindow {
             anchors.topMargin: Theme.cellH * 0.3
 
             height: rowHeight * 16
-            readonly property real rowHeight: Theme.cellH * 1.3
+            readonly property real rowHeight: Theme.rowHeight
 
             clip: true
             model: Procs.shown
@@ -197,7 +194,8 @@ PanelWindow {
 
                 width: list.width
                 height: list.rowHeight
-                color: index === root.selected ? Theme.selection : "transparent"
+                radius: Theme.radius
+                color: index === root.selected ? Theme.selectedSurface(Theme.accent) : "transparent"
 
                 function pad(value, width) {
                     return String(value).padStart(width, " ");
@@ -210,7 +208,8 @@ PanelWindow {
                     // Feste Spaltenbreiten: bei Monospace reicht dafuer das
                     // Auffuellen mit Leerzeichen, kein Tabellenlayout noetig.
                     text: (row.index === root.selected ? "▸ " : "  ") + row.pad(row.modelData.pid, 7) + "  " + row.pad(row.modelData.cpu.toFixed(1), 5) + "%  " + row.pad(row.modelData.mem.toFixed(1), 5) + "%  " + row.pad((row.modelData.rss / 1024).toFixed(0), 7) + "M   " + row.modelData.name
-                    color: row.index === root.selected ? Theme.on(Theme.selection) : (row.modelData.cpu >= 50 ? Theme.red : Theme.fg)
+                    color: row.index === root.selected ? Theme.selectedForeground(Theme.accent) : (row.modelData.cpu >= 50 ? Theme.red : Theme.fg)
+                    font.pixelSize: Theme.fontBody
                     elide: Text.ElideRight
                 }
 

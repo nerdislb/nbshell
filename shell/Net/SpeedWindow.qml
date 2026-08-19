@@ -130,16 +130,13 @@ PanelWindow {
         }
     }
 
-    Rectangle {
+    PanelSurface {
         anchors.centerIn: parent
 
         width: inhalt.implicitWidth + Theme.cellW * 4
         height: inhalt.implicitHeight + Theme.cellH * 2
 
-        color: Theme.bg
-        radius: Theme.radius
-        border.width: Theme.borderWidth
-        border.color: Theme.accent
+        accentBorder: false
 
         MouseArea {
             anchors.fill: parent
@@ -185,7 +182,7 @@ PanelWindow {
 
                     Line {
                         width: Theme.cellW * 14
-                        text: messwert.laeuft ? "misst …" : (messwert.wert > 0 ? (messwert.wert.toFixed(1) + " " + messwert.einheit) : "—")
+                        text: messwert.laeuft ? "measuring …" : (messwert.wert > 0 ? (messwert.wert.toFixed(1) + " " + messwert.einheit) : "—")
                         color: messwert.laeuft ? Theme.muted : Theme.fg
                     }
                 }

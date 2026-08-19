@@ -39,7 +39,7 @@ PanelWindow {
         else if (command.indexOf("xdg-open ") === 0)
             Quickshell.execDetached(["sh", "-c", command]);
         else
-            Quickshell.execDetached([Apps.terminal, "-e", "sh", "-c", command + "; printf '\n[Enter] schliesst … '; read -r _"]);
+            Quickshell.execDetached([Apps.terminal, "-e", "sh", "-c", command + "; printf '\nEnter closes this window … '; read -r _"]);
     }
 
     onVisibleChanged: if (visible) { refresh(); keys.forceActiveFocus(); }
@@ -67,14 +67,9 @@ PanelWindow {
         }
         MouseArea { anchors.fill: parent; onClicked: Runtime.hubOpen = false }
 
-        Rectangle {
-            width: Math.min(parent.width - Theme.cellW * 8, Theme.cellW * 96)
-            height: Math.min(parent.height - Theme.cellH * 8, Theme.cellH * 42)
-            anchors.centerIn: parent
-            color: Theme.bg
-            radius: Theme.radius
-            border.width: Theme.borderWidth
-            border.color: Theme.accent
+        OverlaySurface {
+            preferredWidth: Theme.cellW * 96
+            preferredHeight: Theme.cellH * 42
             MouseArea { anchors.fill: parent; onClicked: {} }
 
             Column {
@@ -84,11 +79,12 @@ PanelWindow {
 
                 Row {
                     width: parent.width
-                    Line { width: parent.width - reload.width; text: Icons.matrix + "  SYSTEM & PLUGINS"; color: Theme.fg; font.pixelSize: Theme.fontSize + 3 }
+                    Line { width: parent.width - reload.width; text: Icons.matrix + "  SYSTEM & PLUGINS"; color: Theme.fg; font.pixelSize: Theme.fontHeading; font.bold: true }
                     Line {
                         id: reload
-                        text: root.loading ? "…" : "[ F5 REFRESH ]"
-                        color: Theme.accent
+                        text: root.loading ? "…" : "F5  REFRESH"
+                        color: Theme.readable(Theme.accent, Theme.bg, 4.5)
+                        font.pixelSize: Theme.fontCaption
                         TapHandler { onTapped: root.refresh() }
                     }
                 }
@@ -130,9 +126,9 @@ PanelWindow {
                                             width: itemBlock.width
                                             height: Theme.cellH * 2
                                             radius: Theme.radius
-                                            color: hover.hovered ? Theme.hover : Theme.bgLight
+                                            color: hover.hovered ? Theme.hover : Theme.panelSurfaceRaised
                                             border.width: Theme.borderWidth
-                                            border.color: itemBlock.expanded ? Theme.accent : Theme.muted
+                                            border.color: itemBlock.expanded ? Theme.focusBorder : Theme.panelBorder
 
                                             Rectangle {
                                                 width: Theme.borderWidth * 2
@@ -162,7 +158,7 @@ PanelWindow {
                                                 width: itemBlock.width
                                                 height: Theme.cellH * 1.65
                                                 radius: Theme.radius
-                                                color: Theme.alpha(Theme.bgLight, 0.65)
+                                                color: Theme.panelSurfaceRaised
                                                 Rectangle { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: Theme.borderWidth * 2; height: parent.height * 0.45; color: detailRow.modelData.state === "warn" ? Theme.yellow : Theme.green }
                                                 Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW * 2; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.35; text: detailRow.modelData.label; color: Theme.fg; elide: Text.ElideRight }
                                                 Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.56; horizontalAlignment: Text.AlignRight; text: detailRow.modelData.detail; color: Theme.fgDim; elide: Text.ElideRight }

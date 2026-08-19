@@ -143,9 +143,9 @@ Cell {
                             width: 24
                             height: 20
                             radius: 2
-                            color: Theme.alpha(Theme.accent, 0.2)
+                            color: Theme.panelSurfaceRaised
                             border.width: 1
-                            border.color: Theme.accent
+                            border.color: Theme.panelBorder
 
                             Text {
                                 anchors.centerIn: parent

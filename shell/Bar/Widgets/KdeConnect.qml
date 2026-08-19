@@ -223,7 +223,7 @@ Cell {
                         width: actLabel.implicitWidth + Theme.cellW * 2
                         height: Theme.cellH * 1.4
                         radius: Theme.radius
-                        color: actBtn.active ? Theme.selection : (actMouse.containsMouse ? Theme.hover : "transparent")
+                        color: actBtn.active ? Theme.selectedSurface() : (actMouse.containsMouse ? Theme.hover : "transparent")
                         border.width: Theme.borderWidth
                         border.color: actBtn.active ? Theme.accent : Theme.alpha(Theme.fg, 0.15)
 
@@ -231,7 +231,7 @@ Cell {
                             id: actLabel
                             anchors.centerIn: parent
                             text: actBtn.modelData.label
-                            color: actBtn.active ? Theme.readable(Theme.selection, Theme.fg) : Theme.fg
+                            color: actBtn.active ? Theme.selectedForeground() : Theme.fg
                         }
 
                         MouseArea {

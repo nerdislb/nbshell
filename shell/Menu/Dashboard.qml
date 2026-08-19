@@ -18,8 +18,6 @@ PanelWindow {
     property bool updatesOpen: false
     readonly property date now: clock.date
     readonly property real cardGap: Theme.cellW * 1.5
-    readonly property real panelWidth: Math.min(width - Theme.cellW * 8, Theme.cellW * 104)
-    readonly property real panelHeight: Math.min(height - Theme.cellH * 6, Theme.cellH * 43)
     readonly property var nextEvents: Calendar.events.filter(e => e.end >= new Date()).slice(0, 7)
 
     visible: Runtime.dashboardOpen
@@ -107,24 +105,21 @@ PanelWindow {
     }
 
     // Kleine, wiederverwendbare TUI-Karte.
-    component Card: Rectangle {
+    component Card: PanelSurface {
         property string title: ""
         property string badge: ""
         default property alias content: body.data
-        color: Theme.alpha(Theme.bgLight, 0.72)
-        radius: Theme.radius
-        border.width: Theme.borderWidth
-        border.color: Theme.alpha(Theme.accent, 0.55)
+        raised: true
 
         Line {
             anchors.left: parent.left; anchors.leftMargin: Theme.cellW * 1.2
             anchors.top: parent.top; anchors.topMargin: Theme.cellH * 0.65
-            text: parent.title.toUpperCase(); color: Theme.fgDim
+            text: parent.title.toUpperCase(); color: Theme.fgDim; font.pixelSize: Theme.fontCaption; font.bold: true; font.letterSpacing: 0.6
         }
         Line {
             anchors.right: parent.right; anchors.rightMargin: Theme.cellW * 1.2
             anchors.top: parent.top; anchors.topMargin: Theme.cellH * 0.65
-            text: parent.badge; color: Theme.readable(Theme.accent, Theme.bg)
+            text: parent.badge; color: Theme.readable(Theme.accent, Theme.bg); font.pixelSize: Theme.fontCaption
         }
         Column {
             id: body
@@ -147,15 +142,16 @@ PanelWindow {
         width: Theme.cellW * 21
         height: Theme.cellH * 3.2
         radius: Theme.radius
-        color: actionHover.hovered ? Theme.hover : Theme.alpha(Theme.bgLight, 0.72)
+        color: Theme.controlFill(actionHover.hovered, false, actionTap.pressed)
         border.width: Theme.borderWidth
-        border.color: actionHover.hovered ? action.tone : Theme.alpha(action.tone, 0.55)
+        border.color: actionHover.hovered ? action.tone : Theme.controlBorder(false, false, false)
 
-        Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.top: parent.top; anchors.topMargin: Theme.cellH * 0.55; text: action.glyph + (action.glyph !== "" ? "  " : "") + action.label; color: action.tone }
-        Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.right: rightHint.left; anchors.rightMargin: Theme.cellW * 0.5; anchors.bottom: parent.bottom; anchors.bottomMargin: Theme.cellH * 0.45; text: action.detail; color: Theme.fgDim; elide: Text.ElideRight }
+        Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.top: parent.top; anchors.topMargin: Theme.cellH * 0.55; text: action.glyph + (action.glyph !== "" ? "  " : "") + action.label; color: action.tone; font.pixelSize: Theme.fontBody; font.bold: true }
+        Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.right: rightHint.left; anchors.rightMargin: Theme.cellW * 0.5; anchors.bottom: parent.bottom; anchors.bottomMargin: Theme.cellH * 0.45; text: action.detail; color: Theme.fgDim; font.pixelSize: Theme.fontCaption; elide: Text.ElideRight }
         Line { id: rightHint; visible: action.rightRun !== null; anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.bottom: parent.bottom; anchors.bottomMargin: Theme.cellH * 0.45; text: "R"; color: Theme.muted }
         HoverHandler { id: actionHover; cursorShape: Qt.PointingHandCursor }
         TapHandler {
+            id: actionTap
             acceptedButtons: Qt.LeftButton | Qt.RightButton
             onTapped: (point, button) => {
                 if (button === Qt.RightButton && action.rightRun)
@@ -182,16 +178,13 @@ PanelWindow {
                 event.accepted = true;
             }
         }
+        Rectangle { anchors.fill: parent; z: -1; color: Theme.scrim }
         MouseArea { anchors.fill: parent; onClicked: root.close() }
 
-        Rectangle {
-            width: root.panelWidth
-            height: root.panelHeight
-            anchors.centerIn: parent
-            color: Theme.bg
-            radius: Theme.radius
+        OverlaySurface {
+            preferredWidth: Theme.cellW * 104
+            preferredHeight: Theme.overlayHeightLarge
             border.width: Math.max(Theme.borderWidth, 2)
-            border.color: Theme.accent
             MouseArea { anchors.fill: parent; onClicked: {} }
 
             Column {
@@ -204,10 +197,10 @@ PanelWindow {
                     height: Theme.cellH * 3.5
                     Column {
                         anchors.left: parent.left
-                        Line { text: root.now.toLocaleString(Qt.locale(Config.value("locale", "en_US")), "dddd, dd. MMMM"); color: Theme.fgBright; font.pixelSize: Theme.fontSize + 5 }
-                        Line { text: "WEEK " + Calendar.isoWeek(root.now) + "  ·  " + Calendar.moonName(root.now); color: Theme.fgDim }
+                        Line { text: root.now.toLocaleString(Qt.locale(Config.value("locale", "en_US")), "dddd, dd. MMMM"); color: Theme.fgBright; font.pixelSize: Theme.fontHeading; font.bold: true }
+                        Line { text: "WEEK " + Calendar.isoWeek(root.now) + "  ·  " + Calendar.moonName(root.now); color: Theme.fgDim; font.pixelSize: Theme.fontCaption }
                     }
-                    Line { anchors.right: parent.right; anchors.top: parent.top; text: root.now.toLocaleTimeString(Qt.locale(), "HH:mm"); color: Theme.readable(Theme.accent, Theme.bg); font.pixelSize: Theme.fontSize + 12 }
+                    Line { anchors.right: parent.right; anchors.top: parent.top; text: root.now.toLocaleTimeString(Qt.locale(), "HH:mm"); color: Theme.readable(Theme.accent, Theme.bg); font.pixelSize: Theme.fontDisplay; font.bold: true }
                 }
 
                 Row {
@@ -220,12 +213,12 @@ PanelWindow {
                             required property int index
                             width: (parent.width - Theme.cellW * 2) / 3
                             height: Theme.cellH * 1.7
-                            color: root.page === index ? Theme.selection : (tabHover.hovered ? Theme.hover : "transparent")
+                            color: Theme.controlFill(tabHover.hovered, root.page === index, tabTap.pressed)
                             border.width: Theme.borderWidth
-                            border.color: root.page === index ? Theme.accent : Theme.muted
-                            Line { anchors.centerIn: parent; text: parent.modelData; color: root.page === parent.index ? Theme.on(Theme.selection) : Theme.fgDim }
+                            border.color: Theme.controlBorder(tabHover.hovered, root.page === index, false)
+                            Line { anchors.centerIn: parent; text: parent.modelData; color: root.page === parent.index ? Theme.selectedForeground(Theme.accent) : Theme.fgDim; font.bold: root.page === parent.index }
                             HoverHandler { id: tabHover; cursorShape: Qt.PointingHandCursor }
-                            TapHandler { onTapped: root.page = parent.index }
+                            TapHandler { id: tabTap; onTapped: root.page = parent.index }
                         }
                     }
                 }
@@ -349,22 +342,21 @@ PanelWindow {
 
                         Item {
                             width: parent.width; height: Theme.cellH * 17
-                            Rectangle {
+                            PanelSurface {
                                 width: parent.height; height: parent.height; anchors.centerIn: parent
-                                color: Theme.bgLight; border.width: Theme.borderWidth; border.color: Theme.accent; radius: Theme.radius
+                                accentBorder: false
                                 Image { anchors.fill: parent; anchors.margins: Theme.borderWidth; source: MediaService.player?.trackArtUrl ?? ""; fillMode: Image.PreserveAspectCrop; asynchronous: true }
                                 Line { anchors.centerIn: parent; visible: (MediaService.player?.trackArtUrl ?? "") === ""; text: Icons.play; color: Theme.muted; font.pixelSize: Theme.fontSize + 40 }
                             }
                         }
 
-                        Rectangle {
+                        PanelSurface {
                             width: parent.width; height: Theme.cellH * 11.5
-                            color: Theme.alpha(Theme.bgLight, 0.72); radius: Theme.radius
-                            border.width: Theme.borderWidth; border.color: Theme.alpha(Theme.accent, 0.55)
+                            accentBorder: false
                             Column {
                                 anchors.fill: parent; anchors.margins: Theme.cellW * 1.5
                                 spacing: Theme.cellH * 0.35
-                                Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: MediaService.active ? (MediaService.title || "Unknown title") : "No active player"; color: Theme.fgBright; font.pixelSize: Theme.fontSize + 4; elide: Text.ElideRight }
+                                Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: MediaService.active ? (MediaService.title || "Unknown title") : "No active player"; color: Theme.fgBright; font.pixelSize: Theme.fontHeading; elide: Text.ElideRight }
                                 Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: MediaService.artist; color: Theme.fgDim; elide: Text.ElideRight }
                                 Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: MediaService.zeit(MediaService.position) + "  /  " + MediaService.zeit(MediaService.length); color: Theme.fgDim }
                                 LevelBar { width: parent.width; cells: 56; value: MediaService.length > 0 ? 100 * MediaService.position / MediaService.length : 0; fillColor: Theme.accent }
@@ -416,6 +408,7 @@ PanelWindow {
                         Action { label: "Modules"; detail: "Arrange the bar"; glyph: Icons.cp(0xF12E); run: () => root.openSurface(() => Runtime.modulesOpen = true) }
                         Action { label: "Clipboard"; detail: Clipboard.entries.length + " entries"; glyph: Icons.clipboard; run: () => root.openSurface(() => Runtime.clipOpen = true) }
                         Action { label: "Audio"; detail: "Mixer and equalizer"; glyph: Icons.volumeHigh; run: () => root.openSurface(() => Runtime.audioToolsOpen = true) }
+                        Action { label: "Displays"; detail: Displays.outputs.length + " connected"; glyph: Displays.outputs.length > 1 ? Icons.monitors : Icons.monitor; run: () => root.openSurface(() => Runtime.displayOpen = true) }
                         Action { label: "Settings"; detail: "Appearance and behavior"; glyph: Icons.cp(0xF0493); run: () => root.openSurface(() => Runtime.settingsOpen = true) }
                     }
                 }
@@ -434,14 +427,11 @@ PanelWindow {
 
                 MouseArea { anchors.fill: parent; onClicked: root.updatesOpen = false }
 
-                Rectangle {
+                PanelSurface {
                     width: Math.min(parent.width - root.cardGap * 4, Theme.cellW * 78)
                     height: Math.min(parent.height - root.cardGap * 4, Theme.cellH * 34)
                     anchors.centerIn: parent
-                    color: Theme.bg
-                    radius: Theme.radius
-                    border.width: Math.max(Theme.borderWidth, 2)
-                    border.color: Theme.accent
+                    accentBorder: false
                     MouseArea { anchors.fill: parent; onClicked: {} }
 
                     Column {
@@ -453,13 +443,13 @@ PanelWindow {
                             width: parent.width; height: Theme.cellH * 2
                             Line {
                                 anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                                text: "UPDATES  (" + Updates.count + ")"; color: Theme.fgBright; font.pixelSize: Theme.fontSize + 4
+                                text: "UPDATES  (" + Updates.count + ")"; color: Theme.fgBright; font.pixelSize: Theme.fontHeading
                             }
                             Row {
                                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                                 spacing: Theme.cellW * 2
                                 ActionButton {
-                                    text: Updates.checking ? "Prueft …" : "Check again"
+                                    text: Updates.checking ? "Checking …" : "Check again"
                                     busy: Updates.checking; compact: true
                                     onTriggered: Updates.refresh()
                                 }
@@ -472,7 +462,7 @@ PanelWindow {
                             }
                         }
 
-                        Rule { rowWidth: parent.width; label: "PAKETE" }
+                        Rule { rowWidth: parent.width; label: "PACKAGES" }
 
                         Item {
                             width: parent.width

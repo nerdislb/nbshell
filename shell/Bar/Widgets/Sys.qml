@@ -26,7 +26,7 @@ Cell {
     onPopoutVisibleChanged: SysInfo.detailWanted = root.popoutVisible
 
     Row {
-        spacing: Theme.cellW * 1.5
+        spacing: Theme.cellW * 0.65
 
         IconText {
             icon: Icons.cpu
@@ -53,6 +53,7 @@ Cell {
             // der Plattenzeile aus dem Kasten.
             readonly property real rowWidth: Theme.cellW * 48
             readonly property var d: SysInfo.detail
+            readonly property bool ready: panel.d?.ok === true && panel.d?.speicher !== undefined
 
             spacing: Theme.cellH * 0.25
 
@@ -67,7 +68,7 @@ Cell {
                 property color fill: Theme.readable(Theme.accent, Theme.bg)
 
                 width: panel.rowWidth
-                height: Theme.cellH * 1.3
+                height: Theme.controlHeight
 
                 Line {
                     id: gaugeLabel
@@ -77,6 +78,7 @@ Cell {
                     width: Theme.cellW * 9
                     text: gauge.label
                     color: Theme.fgDim
+                    font.pixelSize: Theme.fontCaption
                     // Neun Zeichen sind das, was die Zeile hergibt: dahinter
                     // stehen 20 Balkenzellen und die Zahlen, und die Zeile ist
                     // 48 Zeichen breit. Ein langer Einhaengepunkt schiebt sonst
@@ -101,6 +103,7 @@ Cell {
                     anchors.verticalCenter: parent.verticalCenter
                     text: gauge.value
                     color: Theme.fg
+                    font.pixelSize: Theme.fontBody
                 }
             }
 
@@ -109,8 +112,8 @@ Cell {
             PanelHead {
                 rowWidth: panel.rowWidth
                 icon: Icons.cpu
-                title: SysInfo.hasDetail ? String(panel.d.modell) : "Processor"
-                subtitle: SysInfo.hasDetail && panel.d.mhz ? (panel.d.mhz + " MHz") : ""
+                title: panel.ready ? String(panel.d.modell ?? "Processor") : "Processor"
+                subtitle: panel.ready && panel.d.mhz ? (panel.d.mhz + " MHz") : ""
                 badge: SysInfo.cpuPercent + " %"
                 badgeColor: SysInfo.cpuPercent >= 90 ? Theme.red : Theme.fgDim
             }
@@ -118,16 +121,16 @@ Cell {
             Gauge {
                 label: "CPU"
                 percent: SysInfo.cpuPercent
-                value: SysInfo.cpuPercent + " %" + (SysInfo.hasDetail && panel.d.mhz ? "   " + panel.d.mhz + " MHz" : "")
+                value: SysInfo.cpuPercent + " %" + (panel.ready && panel.d.mhz ? "   " + panel.d.mhz + " MHz" : "")
             }
 
             Facts {
-                visible: SysInfo.hasDetail
+                visible: panel.ready
                 rowWidth: panel.rowWidth
-                pairs: SysInfo.hasDetail ? [
+                pairs: panel.ready ? [
                     {
                         "label": "Load",
-                        "value": panel.d.last.join("  ")
+                        "value": (panel.d.last ?? []).join("  ")
                     },
                     {
                         "label": "Uptime",
@@ -139,12 +142,12 @@ Cell {
             // Die Kerne als Balkenreihe. Ein Zeichen je Kern waere zu wenig,
             // eine Zeile je Kern zu viel -- zwoelf kurze Balken passen.
             Flow {
-                visible: SysInfo.hasDetail
+                visible: panel.ready
                 width: panel.rowWidth
                 spacing: Theme.cellW
 
                 Repeater {
-                    model: SysInfo.hasDetail ? (panel.d.kerne ?? []) : []
+                    model: panel.ready ? (panel.d.kerne ?? []) : []
 
                     Row {
                         required property var modelData
@@ -181,16 +184,16 @@ Cell {
             }
 
             Gauge {
-                visible: SysInfo.hasDetail && panel.d.speicher.swap_gesamt > 0
+                visible: panel.ready && (panel.d.speicher?.swap_gesamt ?? 0) > 0
                 label: "Swap"
-                percent: SysInfo.hasDetail && panel.d.speicher.swap_gesamt > 0 ? Math.round(100 * panel.d.speicher.swap_benutzt / panel.d.speicher.swap_gesamt) : 0
-                value: SysInfo.hasDetail ? (panel.d.speicher.swap_benutzt.toFixed(1) + " / " + panel.d.speicher.swap_gesamt.toFixed(1) + " GB") : ""
+                percent: panel.ready && panel.d.speicher.swap_gesamt > 0 ? Math.round(100 * panel.d.speicher.swap_benutzt / panel.d.speicher.swap_gesamt) : 0
+                value: panel.ready ? (panel.d.speicher.swap_benutzt.toFixed(1) + " / " + panel.d.speicher.swap_gesamt.toFixed(1) + " GB") : ""
                 fill: Theme.magenta
             }
 
             Line {
-                visible: SysInfo.hasDetail
-                text: "  cache " + (SysInfo.hasDetail ? panel.d.speicher.cache.toFixed(1) : "0") + " GB"
+                visible: panel.ready
+                text: "  cache " + (panel.ready ? panel.d.speicher.cache.toFixed(1) : "0") + " GB"
                 color: Theme.fgDim
             }
 
@@ -202,7 +205,7 @@ Cell {
             // Ab 90 % wird der Balken rot. Das ist die Warnung, wegen der man
             // so eine Liste ueberhaupt aufmacht.
             Repeater {
-                model: SysInfo.hasDetail ? (panel.d.platten ?? []) : []
+                model: panel.ready ? (panel.d.platten ?? []) : []
 
                 delegate: Gauge {
                     required property var modelData
@@ -220,10 +223,10 @@ Cell {
             // Faellt die Liste aus (alte Antwort im Zwischenspeicher), bleibt
             // wenigstens die Wurzel stehen.
             Gauge {
-                visible: SysInfo.hasDetail && panel.d.platte && (panel.d.platten ?? []).length === 0
+                visible: panel.ready && !!panel.d.platte && (panel.d.platten ?? []).length === 0
                 label: "/"
-                percent: SysInfo.hasDetail && panel.d.platte ? panel.d.platte.prozent : 0
-                value: SysInfo.hasDetail && panel.d.platte ? (panel.d.platte.benutzt + " / " + panel.d.platte.gesamt + " GB") : ""
+                percent: panel.ready && panel.d.platte ? panel.d.platte.prozent : 0
+                value: panel.ready && panel.d.platte ? (panel.d.platte.benutzt + " / " + panel.d.platte.gesamt + " GB") : ""
                 fill: Theme.cyan
             }
 
@@ -231,7 +234,7 @@ Cell {
 
             Rule {
                 rowWidth: panel.rowWidth
-                visible: SysInfo.hasDetail && ((panel.d.temps ?? []).length > 0 || (panel.d.luefter ?? []).length > 0)
+                visible: panel.ready && ((panel.d.temps ?? []).length > 0 || (panel.d.luefter ?? []).length > 0)
                 label: "TEMPERATURE AND FANS"
             }
 
@@ -243,7 +246,7 @@ Cell {
             Facts {
                 rowWidth: panel.rowWidth
                 pairs: {
-                    if (!SysInfo.hasDetail)
+                    if (!panel.ready)
                         return [];
                     const temps = (panel.d.temps ?? []).map(t => ({
                                 "label": t.name,
@@ -263,22 +266,22 @@ Cell {
 
             Rule {
                 rowWidth: panel.rowWidth
-                visible: SysInfo.hasDetail && panel.d.gpu
+                visible: panel.ready && !!panel.d.gpu
                 label: "GRAPHICS"
             }
 
             PanelHead {
                 rowWidth: panel.rowWidth
-                visible: SysInfo.hasDetail && panel.d.gpu
-                title: SysInfo.hasDetail && panel.d.gpu ? String(panel.d.gpu.name) : ""
-                badge: SysInfo.hasDetail && panel.d.gpu ? (panel.d.gpu.temp.toFixed(0) + " °C") : ""
-                badgeColor: SysInfo.hasDetail && panel.d.gpu ? SysInfo.tempColor(panel.d.gpu.temp) : Theme.fgDim
+                visible: panel.ready && !!panel.d.gpu
+                title: panel.ready && panel.d.gpu ? String(panel.d.gpu.name) : ""
+                badge: panel.ready && panel.d.gpu ? (panel.d.gpu.temp.toFixed(0) + " °C") : ""
+                badgeColor: panel.ready && panel.d.gpu ? SysInfo.tempColor(panel.d.gpu.temp) : Theme.fgDim
             }
 
             Facts {
                 rowWidth: panel.rowWidth
-                visible: SysInfo.hasDetail && panel.d.gpu
-                pairs: SysInfo.hasDetail && panel.d.gpu ? [
+                visible: panel.ready && !!panel.d.gpu
+                pairs: panel.ready && panel.d.gpu ? [
                     {
                         "label": "Load",
                         "value": panel.d.gpu.last + " %"
@@ -291,7 +294,7 @@ Cell {
             }
 
             Line {
-                visible: !SysInfo.hasDetail
+                visible: !panel.ready
                 text: "  measuring …"
                 color: Theme.muted
             }

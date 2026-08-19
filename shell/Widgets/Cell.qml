@@ -4,9 +4,9 @@ import qs.Common
 // Ein Baustein der Leiste: ein Kasten mit Text, auf dem Zeichenraster.
 //
 // Alles in der Shell besteht daraus. Es gibt bewusst keine Fuellfarbe, keinen
-// Schatten und keine Erhebung -- ein Kasten ist entweder umrandet ("box"),
-// in eckigen Klammern ("bracket") oder blanker Text ("plain"). Welches davon,
-// sagt `Config.widgetStyle` fuer alle gemeinsam.
+// Schatten und keine Erhebung -- a widget is either outlined ("box") or
+// plain text ("plain"). Old "bracket" values are rendered as plain text so
+// legacy configs cannot bring the retired action-bracket language back.
 Item {
     id: root
 
@@ -145,7 +145,6 @@ Item {
 
     readonly property string style: pick("style", Config.widgetStyle)
     readonly property bool boxed: style === "box"
-    readonly property bool bracketed: style === "bracket"
 
     // full = Symbol und Text, icon = nur Symbol, text = nur Text (mit Kuerzel).
     readonly property string display: pick("display", Config.widgetIcons ? "full" : "text")
@@ -162,7 +161,7 @@ Item {
         return (!root.wantIcon && root.label !== "") ? (root.label + (root.text !== "" ? " " + root.text : "")) : root.text;
     }
 
-    readonly property string shownText: (bracketed && labelled !== "") ? ("[" + labelled + "]") : labelled
+    readonly property string shownText: labelled
 
     // Die Farbe wird nur ersetzt, wenn der Baustein die NEUTRALE benutzt. Ein
     // roter Akku und eine rote Prozessorlast sind Warnungen, keine Gestaltung
@@ -181,7 +180,7 @@ Item {
 
     readonly property real contentWidth: Math.max(custom ? contentItem.childrenRect.width : line.implicitWidth, root.slotChars * Theme.cellW)
 
-    implicitWidth: root.concealed ? 0 : contentWidth + Theme.padX * 2
+    implicitWidth: root.concealed ? 0 : contentWidth + Theme.barItemPadding * 2
     implicitHeight: Theme.barHeight - Theme.padY
 
     // Gedaempft, solange er nur zum Vorschein gekommen ist.
@@ -206,7 +205,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: Theme.radius
-        color: root.active || popoutLoader.item?.visible ? Theme.alpha(root.shownColor, 0.15) : (mouse.containsMouse && root.clickable ? Theme.hover : "transparent")
+        color: root.active || popoutLoader.item?.visible ? Theme.mix(Theme.barSurface, root.shownColor, 0.15) : (mouse.containsMouse && root.clickable ? Theme.barHover : "transparent")
         border.width: root.boxed ? Theme.borderWidth : 0
         border.color: root.active || popoutLoader.item?.visible ? root.shownColor : Theme.muted
     }

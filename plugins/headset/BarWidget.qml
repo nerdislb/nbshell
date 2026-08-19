@@ -82,8 +82,8 @@ Cell {
                 text: root.ready ? String(root.data.geraet).toUpperCase() : "HEADSET"
                 color: Theme.readable(Theme.accent, Theme.bg)
                 font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
+                font.pixelSize: Theme.fontBody
+                renderType: Text.QtRendering
             }
 
             Text {
@@ -91,8 +91,8 @@ Cell {
                 text: root.ready ? (root.level + " %" + (root.charging ? "   charging" : "")) : "no device"
                 color: Theme.fg
                 font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
+                font.pixelSize: Theme.fontBody
+                renderType: Text.QtRendering
             }
 
             LevelBar {

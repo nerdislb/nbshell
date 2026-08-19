@@ -59,7 +59,7 @@ Cell {
                 Action {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    text: Units.checking ? "Prueft …" : "Check again"
+                    text: Units.checking ? "Checking …" : "Check again"
                     busy: Units.checking
                     onTriggered: Units.refresh()
                 }
@@ -110,7 +110,7 @@ Cell {
                         }
 
                         Action {
-                            text: "Protokoll"
+                            text: "Journal"
                             onTriggered: {
                                 Units.journal(eintrag.modelData);
                                 if (panel.closePopout)
@@ -119,7 +119,7 @@ Cell {
                         }
 
                         Action {
-                            text: "Abraeumen"
+                            text: "Clear"
                             ton: Theme.red
                             onTriggered: {
                                 Units.clear(eintrag.modelData);

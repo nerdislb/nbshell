@@ -254,7 +254,7 @@ Variants {
                 id: collapsed
 
                 anchors.centerIn: parent
-                spacing: Theme.gap
+                spacing: Theme.barItemGap
                 // Keep the compact clock fixed while the shell grows. The
                 // second clock in the center group takes over only near the
                 // end, avoiding a double-rendered sideways wobble.
@@ -307,7 +307,7 @@ Variants {
 
                 Row {
                     id: leftGroup
-                    spacing: Theme.gap
+                    spacing: Theme.barItemGap
 
                     Repeater {
                         model: Config.leftWidgets
@@ -328,7 +328,7 @@ Variants {
 
                 Row {
                     id: centerGroup
-                    spacing: Theme.gap
+                    spacing: Theme.barItemGap
                     opacity: win.barMode || win.pillMode ? 1
                         : (win.reuseCollapsedCenter ? 0 : win.centerHandoff)
 
@@ -360,7 +360,7 @@ Variants {
 
                 Row {
                     id: rightGroup
-                    spacing: Theme.gap
+                    spacing: Theme.barItemGap
 
                     Repeater {
                         model: Config.rightWidgets

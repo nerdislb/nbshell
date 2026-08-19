@@ -58,7 +58,7 @@ Column {
             Rectangle {
                 visible: !entryColumn.modelData.isSeparator
                 width: root.rowWidth
-                height: visible ? Theme.cellH * 1.4 : 0
+                height: visible ? Theme.rowHeight : 0
                 radius: Theme.radius
                 color: mouse.hovered && entryColumn.modelData.enabled ? Theme.hover : "transparent"
 
@@ -68,20 +68,18 @@ Column {
                     anchors.leftMargin: Theme.cellW / 2 + root.depth * Theme.cellW * 2
                     anchors.verticalCenter: parent.verticalCenter
 
-                    // Kaestchen und Punkte wie in einer TUI: [x] fuer Haken,
-                    // (•) fuer eine Auswahl, sonst zwei Leerzeichen, damit die
-                    // Beschriftungen untereinander stehen.
                     text: {
                         const e = entryColumn.modelData;
                         var prefix = "";
                         if (e.buttonType === QsMenuButtonType.CheckBox)
-                            prefix = e.checkState === Qt.Checked ? "[x] " : "[ ] ";
+                            prefix = e.checkState === Qt.Checked ? Icons.check + "  " : Icons.circleOutline + "  ";
                         else if (e.buttonType === QsMenuButtonType.RadioButton)
-                            prefix = e.checkState === Qt.Checked ? "(•) " : "( ) ";
+                            prefix = e.checkState === Qt.Checked ? "●  " : "○  ";
                         const suffix = e.hasChildren ? (entryColumn.expanded ? "  ▾" : "  ▸") : "";
                         return prefix + e.text + suffix;
                     }
                     color: !entryColumn.modelData.enabled ? Theme.muted : Theme.fg
+                    font.pixelSize: Theme.fontBody
                     elide: Text.ElideRight
                 }
 

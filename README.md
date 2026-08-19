@@ -16,7 +16,8 @@ testing, and the direction of the project remain human-led.
 - Island, pill, or full-width bar with freely arranged modules
 - Searchable menu, application launcher, dashboard, themes, and wallpapers
 - Clipboard history, notification center, and system tray
-- Audio mixer, media controls, Bluetooth, Wi-Fi, batteries, and power profiles
+- Audio mixer, media controls, Bluetooth, Wi-Fi, batteries, power profiles,
+  and persistent Niri display management
 - Floating Picture-in-Picture controls for Zen Browser
 - Calendar, tasks, habits, KDE Connect, and Android screen mirroring
 - Screenshots, screen recording, OCR, QR scanning, and a screen saver
@@ -97,6 +98,8 @@ nbshell settings         # Change appearance and behavior
 nbshell modules          # Arrange bar modules
 nbshell keys             # Show key bindings
 nbshell dashboard        # Open the dashboard
+nbshell display          # Configure connected displays
+nbshell ui-gallery       # Preview shared interface components
 nbshell pip status       # Check Zen Picture-in-Picture
 nbshell --help           # Show every command
 ```
@@ -105,6 +108,24 @@ Zen Browser opens its native Picture-in-Picture window with `Ctrl+Shift+]`.
 nbshell makes that window floating and remembers its size and corner. Use the
 `PIP` module or `Mod+Alt+P` to change its size. Use `Mod+Alt+Shift+P` to move it
 to another corner.
+
+## Displays
+
+Open `Displays` from the main menu, the Control Center, or run
+`nbshell display`. The panel uses modes reported by Niri and can change each
+output's resolution, scale, orientation, enabled state, and position relative
+to another display. Changes apply live through `niri msg output` and are saved
+in `~/.config/niri/nbshell-outputs.kdl`; nbshell never rewrites the rest of
+your Niri configuration. It refuses to turn off the only active output.
+
+The same backend is available without the shell UI:
+
+```bash
+nbshell display status
+nbshell display set DP-1 scale 1.5
+nbshell display set DP-1 transform 90
+nbshell display place DP-1 right eDP-1
+```
 
 ## AI agents and local models
 

@@ -11,8 +11,8 @@ Singleton {
     property bool active: false
     property bool floating: false
     property int windowId: -1
-    property string sizeName: "klein"
-    property string cornerName: "unten-rechts"
+    property string sizeName: "small"
+    property string cornerName: "bottom-right"
 
     function refresh() {
         if (!statusProc.running)
@@ -33,8 +33,8 @@ Singleton {
                     const value = JSON.parse(text);
                     root.active = value.active === true;
                     root.floating = value.floating === true;
-                    root.sizeName = value.sizeName || "klein";
-                    root.cornerName = value.cornerName || "unten-rechts";
+                    root.sizeName = value.sizeName || "small";
+                    root.cornerName = value.cornerName || "bottom-right";
                     const newId = value.id === null ? -1 : Number(value.id);
                     if (newId >= 0 && newId !== root.windowId) {
                         root.windowId = newId;

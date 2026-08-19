@@ -50,23 +50,29 @@ PanelWindow {
             else if (event.text && event.text >= " ") root.query += event.text;
             event.accepted = true;
         }
+        Rectangle { anchors.fill: parent; color: Theme.scrim }
         MouseArea { anchors.fill: parent; onClicked: Runtime.emojiOpen = false }
 
-        Rectangle {
+        PanelSurface {
             width: Theme.cellW * 55
             height: Theme.cellH * 28
             anchors.centerIn: parent
-            color: Theme.bg
-            radius: Theme.radius
-            border.width: Theme.borderWidth
-            border.color: Theme.accent
+            accentBorder: false
             MouseArea { anchors.fill: parent; onClicked: {} }
 
             Column {
                 anchors.fill: parent
                 anchors.margins: Theme.cellW * 2
                 spacing: Theme.cellH
-                Line { width: parent.width; text: root.query === "" ? "SEARCH EMOJI …" : root.query; color: root.query === "" ? Theme.muted : Theme.fg; elide: Text.ElideRight }
+                Rectangle {
+                    width: parent.width
+                    height: Theme.controlHeight
+                    radius: Theme.radius
+                    color: Theme.panelSurfaceRaised
+                    border.width: Theme.borderWidth
+                    border.color: root.query === "" ? Theme.panelBorder : Theme.focusBorder
+                    Line { anchors.left: parent.left; anchors.right: parent.right; anchors.leftMargin: Theme.spaceLg; anchors.rightMargin: Theme.spaceLg; anchors.verticalCenter: parent.verticalCenter; text: root.query === "" ? "Search emoji …" : root.query; color: root.query === "" ? Theme.muted : Theme.fg; font.pixelSize: Theme.fontSubtitle; elide: Text.ElideRight }
+                }
                 GridView {
                     width: parent.width
                     height: parent.height - Theme.cellH * 3
@@ -79,9 +85,11 @@ PanelWindow {
                         required property int index
                         width: GridView.view.cellWidth
                         height: GridView.view.cellHeight
-                        color: index === root.selected ? Theme.alpha(Theme.accent, 0.25) : "transparent"
+                        color: index === root.selected ? Theme.selectedSurface(Theme.accent) : "transparent"
                         radius: Theme.radius
-                        Text { anchors.centerIn: parent; text: modelData.e; font.pixelSize: Theme.fontSize * 2 }
+                        border.width: index === root.selected ? Theme.borderWidth : 0
+                        border.color: Theme.focusBorder
+                        Text { anchors.centerIn: parent; text: modelData.e; font.pixelSize: Theme.fontDisplay }
                         TapHandler { onTapped: root.choose(index) }
                     }
                 }

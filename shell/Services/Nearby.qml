@@ -107,7 +107,7 @@ Singleton {
 
     function sendLastShot(device) {
         root.pendingDevice = device;
-        root.status = "suche das letzte Bild …";
+        root.status = "looking for the latest image …";
         lastShot.command = ["sh", "-c", "ls -1t '" + root.shotDir + "'/*.png '" + root.shotDir + "'/*.jpg 2>/dev/null | head -1"];
         lastShot.running = true;
     }
@@ -181,7 +181,7 @@ Singleton {
                 root.sending = false;
                 try {
                     const d = JSON.parse(text);
-                    root.status = d.ok ? ("gesendet: " + (d.gesendet ?? []).join(", ")) : ("failed: " + d.grund);
+                    root.status = d.ok ? ("sent: " + (d.gesendet ?? []).join(", ")) : ("failed: " + d.grund);
                 } catch (e) {
                     root.status = "Antwort unlesbar";
                 }

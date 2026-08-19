@@ -18,6 +18,11 @@ from or were adapted from other MIT-licensed projects:
   inspired by Jesse Burlamaque's MIT-licensed
   [Herald Notification Center](https://github.com/jesseburlamaque/herald-notification).
   nbshell keeps its own persistent notification service and TUI implementation.
+- The interaction concept for granular per-output controls was inspired by
+  nightdevil00's MIT-licensed
+  [Better Displays](https://github.com/nightdevil00/better.displays). nbshell
+  uses an independent Niri-native backend and does not use its Hyprland/Lua
+  implementation.
 
 Omarchy, niri, Quickshell, and the other named projects are independent. Their
 mention does not imply endorsement or an official relationship.

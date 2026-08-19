@@ -27,7 +27,7 @@ PanelWindow {
 
     readonly property real boxW: Theme.cellW * 130
     readonly property real boxH: Theme.cellH * 36
-    readonly property real zeilenH: Theme.cellH * 1.2
+    readonly property real zeilenH: Theme.controlHeight
 
     // Wie viele Zeilen JE SPALTE hineinpassen -- gerechnet, nicht gesetzt:
     // Kopfzeile, Trennlinie und Fusszeile brauchen zusammen gut sechs Zellen.
@@ -162,7 +162,7 @@ PanelWindow {
             onClicked: root.close()
         }
 
-        Rectangle {
+        PanelSurface {
             id: kasten
 
             x: (parent.width - width) / 2
@@ -171,10 +171,7 @@ PanelWindow {
             width: root.boxW
             height: root.boxH
 
-            color: Theme.bg
-            radius: Theme.radius
-            border.width: Theme.borderWidth
-            border.color: Theme.accent
+            accentBorder: false
 
             // Klicks im Kasten fallen nicht zum Schliessen durch.
             MouseArea {
@@ -199,8 +196,8 @@ PanelWindow {
                 PanelHead {
                     rowWidth: kasten.width - Theme.cellW * 2
                     icon: Icons.keyboard
-                    title: root.query !== "" ? "Suche: " + root.query : "Tastenkuerzel"
-                    subtitle: "niri"
+                    title: root.query !== "" ? "Search: " + root.query : "Keyboard shortcuts"
+                    subtitle: "Niri"
                     badge: Binds.loading ? "…" : String(Binds.list.length)
 
                     // Ziehen an der Kopfzeile, wie bei der Mediathek.

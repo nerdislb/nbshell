@@ -16,23 +16,22 @@ Rectangle {
     signal rightTriggered()
 
     readonly property color idleSurface: tone === "primary"
-        ? Theme.alpha(accentColor, 0.20)
-        : (tone === "danger" ? Theme.alpha(Theme.red, 0.12) : Theme.bgLight)
+        ? Theme.selectedSurface(accentColor)
+        : (tone === "danger" ? Theme.mix(Theme.bg, Theme.red, 0.12) : Theme.panelSurfaceRaised)
     readonly property color activeSurface: tone === "primary"
-        ? Theme.alpha(accentColor, 0.34)
-        : (tone === "danger" ? Theme.alpha(Theme.red, 0.24) : Theme.hover)
-    // Die Flaeche ist teilweise transparent. Kontrast gegen `root.color`
-    // allein waere deshalb falsch: QML mischt sie erst spaeter mit bgLight.
+        ? Theme.mix(Theme.bg, accentColor, 0.28)
+        : (tone === "danger" ? Theme.mix(Theme.bg, Theme.red, 0.22) : Theme.hover)
     readonly property color labelColor: tone === "danger"
-        ? Theme.readable(Theme.red, Theme.bgLight, 4.5)
-        : Theme.readable(Theme.fgBright, Theme.bgLight, 4.5)
+        ? Theme.readable(Theme.red, idleSurface, 4.5)
+        : (tone === "primary" ? Theme.selectedForeground(accentColor) : Theme.fg)
 
     implicitWidth: label.implicitWidth + Theme.cellW * (compact ? 1.5 : 2.5)
     implicitHeight: Theme.cellH * (compact ? 1.35 : 1.65)
     radius: Theme.radius
-    color: !enabled ? Theme.alpha(Theme.bgLight, 0.45) : (hover.hovered || tap.pressed ? activeSurface : idleSurface)
-    border.width: Theme.borderWidth
-    border.color: !enabled ? Theme.muted : (tone === "secondary" ? Theme.muted : accentColor)
+    color: !enabled ? Theme.alpha(Theme.panelSurfaceRaised, 0.45) : (hover.hovered || tap.pressed ? activeSurface : idleSurface)
+    border.width: root.tone === "primary" ? 0 : Theme.borderWidth
+    border.color: !enabled ? Theme.alpha(Theme.fg, 0.2)
+        : (tone === "secondary" ? Theme.alpha(Theme.fg, 0.4) : Theme.alpha(accentColor, 0.8))
     opacity: enabled ? 1 : 0.55
 
     Line {
@@ -41,6 +40,7 @@ Rectangle {
         text: root.busy ? "…" : root.text
         color: !root.enabled ? Theme.fgDim
             : root.labelColor
+        font.pixelSize: Theme.fontBody
         font.bold: root.tone === "primary"
     }
 

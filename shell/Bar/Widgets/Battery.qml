@@ -17,7 +17,7 @@ Cell {
     // Das Symbol fuellt sich mit dem Ladestand, beim Laden steht der Blitz
     // da -- den Pfeil davor braucht es dann nicht mehr.
     label: PowerService.charging ? "BAT ↑" : "BAT"
-    icon: PowerService.charging ? Icons.batteryCharging : Icons.battery(PowerService.percent)
+    icon: PowerService.charging ? Icons.batteryCharge(PowerService.percent) : Icons.battery(PowerService.percent)
     text: hovered ? PowerService.timeText : (PowerService.percent + "%")
 
     color: PowerService.percent <= 20 && !PowerService.charging ? Theme.red : (PowerService.charging ? Theme.green : Theme.text)
@@ -65,7 +65,7 @@ Cell {
 
             PanelHead {
                 rowWidth: panel.rowWidth
-                icon: PowerService.charging ? Icons.batteryCharging : Icons.battery(PowerService.percent)
+                icon: PowerService.charging ? Icons.batteryCharge(PowerService.percent) : Icons.battery(PowerService.percent)
                 title: "Battery levels"
                 subtitle: panel.batteries.length + (panel.batteries.length === 1 ? " device" : " devices")
                 badge: PowerService.percent + " % internal"

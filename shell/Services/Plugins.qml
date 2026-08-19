@@ -303,7 +303,7 @@ Singleton {
     }
 
     function loadState(id, kind) {
-        return root.loadStates[id + ":" + kind] ?? {"state": "inaktiv", "detail": ""};
+        return root.loadStates[id + ":" + kind] ?? {"state": "inactive", "detail": ""};
     }
 
     function setEnabled(id, enabled) {

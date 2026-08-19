@@ -44,5 +44,7 @@ Item {
         visible: root.label !== ""
         text: root.label
         color: Theme.fgDim
+        font.pixelSize: Theme.fontCaption
+        font.letterSpacing: 0.5
     }
 }

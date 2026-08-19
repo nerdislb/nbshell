@@ -20,9 +20,6 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    readonly property real panelWidth: Math.min(width - Theme.cellW * 8, Theme.cellW * 100)
-    readonly property real panelHeight: Math.min(height - Theme.cellH * 7, Theme.cellH * 44)
-
     function close() { Runtime.agentCenterOpen = false; }
 
     onVisibleChanged: {
@@ -40,7 +37,7 @@ PanelWindow {
         function refresh(): void { Agents.refresh(); }
     }
 
-    Rectangle { anchors.fill: parent; color: Theme.alpha(Theme.bgDarker, 0.78) }
+    Rectangle { anchors.fill: parent; color: Theme.scrim }
     MouseArea { anchors.fill: parent; onClicked: root.close() }
 
     FocusScope {
@@ -52,14 +49,9 @@ PanelWindow {
             if (event.key === Qt.Key_F5) { Agents.refresh(); event.accepted = true; }
         }
 
-        Rectangle {
-            width: root.panelWidth
-            height: root.panelHeight
-            anchors.centerIn: parent
-            color: Theme.bg
-            radius: Theme.radius
-            border.width: Theme.borderWidth
-            border.color: Theme.accent
+        OverlaySurface {
+            preferredWidth: Theme.overlayWidthLarge
+            preferredHeight: Theme.cellH * 44
             MouseArea { anchors.fill: parent; onClicked: {} }
 
             Column {
@@ -74,12 +66,14 @@ PanelWindow {
                         width: parent.width - refreshLine.width - parent.spacing
                         text: Icons.cp(0xF1218) + "  AGENT CENTER"
                         color: Theme.fg
-                        font.pixelSize: Theme.fontSize + 3
+                        font.pixelSize: Theme.fontHeading
+                        font.bold: true
                     }
                     Line {
                         id: refreshLine
                         text: Agents.loading ? "…" : "F5  REFRESH"
-                        color: Theme.accent
+                        color: Theme.readable(Theme.accent, Theme.bg, 4.5)
+                        font.pixelSize: Theme.fontCaption
                         TapHandler { onTapped: Agents.refresh() }
                     }
                 }
@@ -88,7 +82,7 @@ PanelWindow {
                     width: parent.width
                     height: Theme.cellH * 3.3
                     radius: Theme.radius
-                    color: Theme.bgLight
+                    color: Theme.panelSurfaceRaised
                     border.width: Theme.borderWidth
                     border.color: Theme.muted
 
@@ -99,17 +93,17 @@ PanelWindow {
                         Column {
                             width: parent.width * 0.31
                             Line { text: "DEFAULT AGENT"; color: Theme.muted }
-                            Line { text: Agents.defaultAgent.toUpperCase(); color: Theme.accent; font.pixelSize: Theme.fontSize + 2 }
+                            Line { text: Agents.defaultAgent.toUpperCase(); color: Theme.accent; font.pixelSize: Theme.fontTitle }
                         }
                         Column {
                             width: parent.width * 0.29
                             Line { text: "APPROVAL"; color: Theme.muted }
-                            Line { text: Agents.approvalProfile.toUpperCase(); color: Agents.approvalProfile === "autonomous" ? Theme.yellow : Theme.fg; font.pixelSize: Theme.fontSize + 2 }
+                            Line { text: Agents.approvalProfile.toUpperCase(); color: Agents.approvalProfile === "autonomous" ? Theme.yellow : Theme.fg; font.pixelSize: Theme.fontTitle }
                         }
                         Column {
                             width: parent.width * 0.31
                             Line { text: "MODEL PROFILE"; color: Theme.muted }
-                            Line { text: Agents.modelProfile.toUpperCase(); color: Theme.fg; font.pixelSize: Theme.fontSize + 2 }
+                            Line { text: Agents.modelProfile.toUpperCase(); color: Theme.fg; font.pixelSize: Theme.fontTitle }
                         }
                     }
                 }
@@ -138,9 +132,10 @@ PanelWindow {
                                     width: body.width
                                     height: Theme.cellH * 2
                                     radius: Theme.radius
-                                    color: agentHover.hovered ? Theme.hover : "transparent"
+                                    color: modelData.id === Agents.defaultAgent ? Theme.selectedSurface(Theme.accent)
+                                        : (agentHover.hovered ? Theme.hover : "transparent")
                                     border.width: Theme.borderWidth
-                                    border.color: modelData.id === Agents.defaultAgent ? Theme.accent : Theme.muted
+                                    border.color: modelData.id === Agents.defaultAgent ? Theme.focusBorder : Theme.panelBorder
                                     Rectangle { width: Theme.borderWidth * 2; height: parent.height * 0.55; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; color: agentRow.modelData.installed ? Theme.green : Theme.muted }
                                     Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW * 1.5; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.36; text: agentRow.modelData.name; color: agentRow.modelData.installed ? Theme.fg : Theme.muted; elide: Text.ElideRight }
                                     Line { anchors.horizontalCenter: parent.horizontalCenter; anchors.verticalCenter: parent.verticalCenter; text: agentRow.modelData.kind.toUpperCase(); color: Theme.fgDim }
@@ -173,10 +168,10 @@ PanelWindow {
                                         width: (body.width - Theme.cellW * 2) / 3
                                         height: Theme.cellH * 2
                                         radius: Theme.radius
-                                        color: approvalHover.hovered ? Theme.hover : (modelData === Agents.approvalProfile ? Theme.alpha(Theme.accent, 0.14) : "transparent")
+                                        color: modelData === Agents.approvalProfile ? Theme.selectedSurface(Theme.accent) : (approvalHover.hovered ? Theme.hover : "transparent")
                                         border.width: Theme.borderWidth
-                                        border.color: modelData === Agents.approvalProfile ? Theme.accent : Theme.muted
-                                        Line { anchors.centerIn: parent; text: approval.modelData.toUpperCase(); color: approval.modelData === "autonomous" ? Theme.yellow : Theme.fg }
+                                        border.color: modelData === Agents.approvalProfile ? Theme.focusBorder : Theme.panelBorder
+                                        Line { anchors.centerIn: parent; text: approval.modelData.toUpperCase(); color: approval.modelData === Agents.approvalProfile ? Theme.selectedForeground(Theme.accent) : (approval.modelData === "autonomous" ? Theme.yellow : Theme.fg) }
                                         HoverHandler { id: approvalHover; cursorShape: Qt.PointingHandCursor }
                                         TapHandler { onTapped: Agents.setProfile(approval.modelData) }
                                     }
@@ -199,10 +194,10 @@ PanelWindow {
                                         width: (body.width - Theme.cellW * 4) / 5
                                         height: Theme.cellH * 2
                                         radius: Theme.radius
-                                        color: routeHover.hovered ? Theme.hover : (modelData === Agents.modelProfile ? Theme.alpha(Theme.accent, 0.14) : "transparent")
+                                        color: modelData === Agents.modelProfile ? Theme.selectedSurface(Theme.accent) : (routeHover.hovered ? Theme.hover : "transparent")
                                         border.width: Theme.borderWidth
-                                        border.color: modelData === Agents.modelProfile ? Theme.accent : Theme.muted
-                                        Line { anchors.centerIn: parent; text: route.modelData.toUpperCase(); color: Theme.fg }
+                                        border.color: modelData === Agents.modelProfile ? Theme.focusBorder : Theme.panelBorder
+                                        Line { anchors.centerIn: parent; text: route.modelData.toUpperCase(); color: modelData === Agents.modelProfile ? Theme.selectedForeground(Theme.accent) : Theme.fg }
                                         HoverHandler { id: routeHover; cursorShape: Qt.PointingHandCursor }
                                         TapHandler { onTapped: Agents.setModelProfile(route.modelData) }
                                     }
@@ -251,7 +246,7 @@ PanelWindow {
                                 width: body.width
                                 height: Theme.cellH * 2.2
                                 radius: Theme.radius
-                                color: ollamaHover.hovered ? Theme.hover : Theme.bgLight
+                                color: ollamaHover.hovered ? Theme.hover : Theme.panelSurfaceRaised
                                 border.width: Theme.borderWidth
                                 border.color: Agents.ollama.running ? Theme.green : Theme.muted
                                 Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: "OLLAMA"; color: Agents.ollama.installed ? Theme.fg : Theme.muted }
@@ -276,7 +271,7 @@ PanelWindow {
                                     radius: Theme.radius
                                     color: projectHover.hovered ? Theme.hover : "transparent"
                                     border.width: Theme.borderWidth
-                                    border.color: String(Agents.config.lastProject || "") === modelData.path ? Theme.accent : Theme.muted
+                                    border.color: String(Agents.config.lastProject || "") === modelData.path ? Theme.focusBorder : Theme.panelBorder
                                     Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: projectRow.modelData.name; color: Theme.fg }
                                     Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.65; horizontalAlignment: Text.AlignRight; elide: Text.ElideMiddle; text: projectRow.modelData.path + "  ›"; color: Theme.fgDim }
                                     HoverHandler { id: projectHover; cursorShape: Qt.PointingHandCursor }

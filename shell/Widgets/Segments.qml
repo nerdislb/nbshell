@@ -57,11 +57,11 @@ Flow {
             readonly property bool active: root.valueOf(segment.modelData) === root.current
 
             width: text.implicitWidth + Theme.cellW * 2
-            height: Theme.cellH * 1.6
+            height: Theme.controlHeight
             radius: Theme.radius
-            border.width: Theme.borderWidth
-            border.color: segment.active ? Theme.accent : Theme.muted
-            color: segment.active ? Theme.selection : (hover.hovered ? Theme.hover : "transparent")
+            border.width: Theme.controlBorderWidth(hover.hovered, segment.active, false)
+            border.color: Theme.controlBorder(hover.hovered, segment.active, false)
+            color: segment.active ? Theme.selectedSurface(Theme.accent) : (hover.hovered ? Theme.hover : "transparent")
 
             Line {
                 id: text
@@ -70,7 +70,8 @@ Flow {
                 text: root.labelOf(segment.modelData)
                 // Das gefuellte Kaestchen bestimmt die Textfarbe mit -- sonst
                 // steht bei einem hellen Theme dunkles Grau auf dunklem Grund.
-                color: segment.active ? Theme.on(Theme.selection) : Theme.fg
+                color: segment.active ? Theme.selectedForeground(Theme.accent) : Theme.fg
+                font.pixelSize: Theme.fontBody
             }
 
             HoverHandler {

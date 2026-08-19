@@ -23,9 +23,10 @@ Rectangle {
 
     implicitHeight: content.implicitHeight + Theme.cellH * 0.7
     radius: Theme.radius
-    color: selected || hover.hovered ? Theme.hover : Theme.bgLight
+    color: selected ? Theme.selectedSurface(urgent ? Theme.red : Theme.accent)
+        : (hover.hovered ? Theme.hover : Theme.panelSurfaceRaised)
     border.width: Theme.borderWidth
-    border.color: urgent ? Theme.red : (selected ? Theme.accent : Theme.muted)
+    border.color: urgent ? Theme.red : (selected ? Theme.focusBorder : Theme.panelBorder)
 
     Row {
         id: content
@@ -64,7 +65,8 @@ Rectangle {
                 anchors.centerIn: parent
                 visible: root.iconPath === ""
                 text: Notify.sourceName(root.entry).slice(0, 1).toUpperCase()
-                color: root.urgent ? Theme.red : Theme.accent
+                color: root.selected ? Theme.selectedForeground(root.urgent ? Theme.red : Theme.accent)
+                    : (root.urgent ? Theme.red : Theme.accent)
                 font.bold: true
             }
         }
@@ -80,7 +82,9 @@ Rectangle {
                     width: parent.width - age.width
                     text: Notify.sourceName(root.entry).toUpperCase()
                         + ((root.entry.repeat ?? 1) > 1 ? "  ×" + root.entry.repeat : "")
-                    color: root.urgent ? Theme.red : Theme.accent
+                    color: root.selected ? Theme.selectedForeground(root.urgent ? Theme.red : Theme.accent)
+                        : (root.urgent ? Theme.red : Theme.accent)
+                    font.pixelSize: Theme.fontCaption
                     font.bold: true
                     elide: Text.ElideRight
                 }
@@ -96,7 +100,7 @@ Rectangle {
                 width: parent.width
                 text: root.entry.summary || ""
                 color: Theme.fgBright
-                font.pixelSize: Theme.fontSize + 1
+                font.pixelSize: Theme.fontSubtitle
                 wrapMode: Text.WordWrap
                 maximumLineCount: 1
                 elide: Text.ElideRight
@@ -107,6 +111,7 @@ Rectangle {
                 visible: root.detailed && text !== ""
                 text: Notify.plain(root.entry.body)
                 color: Theme.fgDim
+                font.pixelSize: Theme.fontBody
                 wrapMode: Text.WordWrap
                 maximumLineCount: 2
                 elide: Text.ElideRight
@@ -129,7 +134,7 @@ Rectangle {
 
                     ActionButton {
                         required property var modelData
-                        text: modelData.text || "Aktion"
+                        text: modelData.text || "Action"
                         compact: true
                         onTriggered: Notify.invoke(root.entry.key, modelData)
                     }

@@ -14,9 +14,9 @@ import qs.Common
 // Schriftgewicht -- musste 146 Stellen finden und keine vergessen. Jetzt ist
 // es eine.
 //
-// `NativeRendering` ist der Grund, warum die Schrift auf dem Pixelraster sitzt
-// statt weichgezeichnet zu sein -- bei einer Oberflaeche, die sich in
-// Zeichenzellen misst, ist das kein Geschmack, sondern Voraussetzung.
+// QtRendering matches the current Omarchy shell and preserves JetBrains
+// Mono's larger x-height and stroke weight. NativeRendering made secondary
+// text look materially smaller at the same nominal pixel size.
 //
 // Ueberschreiben geht wie bei jedem Text: `font.pixelSize`, `font.bold`,
 // `color` einfach am Aufrufort setzen.
@@ -24,5 +24,5 @@ Text {
     color: Theme.fg
     font.family: Theme.fontFamily
     font.pixelSize: Theme.fontSize
-    renderType: Text.NativeRendering
+    renderType: Text.QtRendering
 }

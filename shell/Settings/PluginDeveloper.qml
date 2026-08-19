@@ -38,7 +38,7 @@ PanelWindow {
         if (kind === "bar-widget") {
             const placed = ["collapsedWidgets", "leftWidgets", "centerWidgets", "rightWidgets"]
                 .some(key => Config.value(key, []).indexOf(plugin.id) >= 0);
-            return placed ? "in Bar eingeplant" : "not scheduled";
+            return placed ? "scheduled in bar" : "not scheduled";
         }
         if (!isEnabled(plugin)) return "disabled";
         const state = Plugins.loadState(plugin.id, kind);
@@ -53,7 +53,7 @@ PanelWindow {
         }
     }
 
-    Rectangle { anchors.fill: parent; color: Theme.alpha(Theme.bgDarker, 0.76) }
+    Rectangle { anchors.fill: parent; color: Theme.scrim }
     MouseArea { anchors.fill: parent; onClicked: root.close() }
 
     FocusScope {
@@ -73,15 +73,10 @@ PanelWindow {
             }
         }
 
-        Rectangle {
+        OverlaySurface {
             id: box
-            anchors.centerIn: parent
-            width: Theme.cellW * 92
-            height: Theme.cellH * 33
-            color: Theme.bg
-            radius: Theme.radius
-            border.width: Theme.borderWidth
-            border.color: Theme.accent
+            preferredWidth: Theme.cellW * 92
+            preferredHeight: Theme.cellH * 33
             MouseArea { anchors.fill: parent }
 
             Column {
@@ -92,7 +87,7 @@ PanelWindow {
                 PanelHead {
                     rowWidth: box.width - Theme.cellW * 2
                     icon: Icons.cp(0xF12E)
-                    title: "Plugin-Diagnose"
+                    title: "Plugin diagnostics"
                     subtitle: "Manifest v2 & runtime"
                     badge: String(root.list.length)
                 }
@@ -115,13 +110,13 @@ PanelWindow {
                                 width: Theme.cellW * 28
                                 height: Theme.cellH * 2
                                 radius: Theme.radius
-                                color: index === root.selected ? Theme.selection : "transparent"
+                                color: index === root.selected ? Theme.selectedSurface(Theme.accent) : "transparent"
                                 Line {
                                     anchors.left: parent.left
                                     anchors.leftMargin: Theme.cellW
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: (index === root.selected ? "▸ " : "  ") + modelData.name
-                                    color: index === root.selected ? Theme.readable(Theme.accent, Theme.selection) : Theme.fg
+                                    color: index === root.selected ? Theme.selectedForeground(Theme.accent) : Theme.fg
                                 }
                                 MouseArea { anchors.fill: parent; hoverEnabled: true; onEntered: root.selected = index; onClicked: root.toggleEnabled() }
                             }
@@ -133,7 +128,7 @@ PanelWindow {
                     Column {
                         width: parent.width - Theme.cellW * 30 - Theme.borderWidth
                         spacing: Theme.cellH * 0.35
-                        Line { text: root.plugin ? root.plugin.name + "  " + root.plugin.version : "Select plugin"; color: Theme.fg; font.pixelSize: Theme.fontSize + 3 }
+                        Line { text: root.plugin ? root.plugin.name + "  " + root.plugin.version : "Select plugin"; color: Theme.fg; font.pixelSize: Theme.fontTitle }
                         Line { visible: !!root.plugin; text: root.plugin ? root.plugin.description : ""; color: Theme.fgDim; wrapMode: Text.WordWrap; width: parent.width }
                         Rule { rowWidth: parent.width }
                         Line { visible: !!root.plugin; text: root.plugin ? "ID             " + root.plugin.id : ""; color: Theme.fgDim }

@@ -39,16 +39,19 @@ Cell {
 
             Item {
                 width: panel.rowWidth
-                height: Theme.cellH * 1.4
+                height: Theme.cellH * 2.6
 
-                Line {
+                PanelHead {
                     anchors.left: parent.left
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "CLIPBOARD  (" + (Clipboard.entries.length + Clipboard.images.length) + ")"
-                    color: Theme.fgDim
+                    rowWidth: panel.rowWidth - clearButton.width - Theme.spaceLg
+                    icon: Icons.clipboard
+                    title: "Clipboard"
+                    subtitle: "Recent text and images"
+                    badge: String(Clipboard.entries.length + Clipboard.images.length)
                 }
 
                 ActionButton {
+                    id: clearButton
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     visible: Clipboard.entries.length + Clipboard.images.length > 0
@@ -79,9 +82,9 @@ Cell {
                         width: Theme.cellW * 12
                         height: Theme.cellH * 5
                         radius: Theme.radius
-                        color: imageHover.hovered ? Theme.hover : Theme.bgLight
+                        color: imageHover.hovered ? Theme.hover : Theme.panelSurfaceRaised
                         border.width: Theme.borderWidth
-                        border.color: Theme.muted
+                        border.color: Theme.panelBorder
                         clip: true
 
                         Image {
@@ -121,7 +124,10 @@ Cell {
                     width: panel.rowWidth
                     height: Theme.cellH * 1.4
                     radius: Theme.radius
-                    color: mouse.hovered ? Theme.hover : "transparent"
+                    color: row.index === 0 ? Theme.selectedSurface(Theme.accent)
+                        : (mouse.hovered ? Theme.hover : "transparent")
+                    border.width: row.index === 0 ? Theme.borderWidth : 0
+                    border.color: Theme.focusBorder
 
                     Line {
                         anchors.left: parent.left
@@ -131,7 +137,7 @@ Cell {
                         // Die ersten neun bekommen eine Nummer -- so sieht man
                         // beim Hinsehen, wie weit man zurueckgreift.
                         text: (row.index < 9 ? (row.index + 1) + "  " : "   ") + Clipboard.preview(row.modelData, 46)
-                        color: row.index === 0 ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg
+                        color: row.index === 0 ? Theme.selectedForeground(Theme.accent) : Theme.fg
                         elide: Text.ElideRight
                     }
 

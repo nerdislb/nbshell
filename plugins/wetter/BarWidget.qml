@@ -197,13 +197,13 @@ Cell {
             component Line: Text {
                 color: Theme.fg
                 font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                renderType: Text.NativeRendering
+                font.pixelSize: Theme.fontBody
+                renderType: Text.QtRendering
             }
 
             Item {
                 width: panel.rowWidth
-                height: Theme.cellH * 1.4
+                height: Theme.controlHeight
 
                 Line {
                     anchors.left: parent.left
@@ -213,25 +213,12 @@ Cell {
                     elide: Text.ElideRight
                 }
 
-                Line {
-                    id: reload
-
+                ControlButton {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    text: root.loading ? "[ holt … ]" : "[ neu ]"
-                    color: reloadHover.hovered ? Theme.readable(Theme.accent, Theme.bg) : Theme.fgDim
-
-                    HoverHandler {
-                        id: reloadHover
-
-                        margin: Theme.cellW / 2
-                        cursorShape: Qt.PointingHandCursor
-                    }
-
-                    TapHandler {
-                        margin: Theme.cellW / 2
-                        onTapped: root.refresh()
-                    }
+                    text: root.loading ? "Loading …" : "Refresh"
+                    enabled: !root.loading
+                    onTriggered: root.refresh()
                 }
             }
 

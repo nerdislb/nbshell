@@ -33,18 +33,33 @@ Singleton {
     readonly property string palette: cp(0xF03D8)
 
     // Ton
-    readonly property string volumeHigh: cp(0xF057E)
-    readonly property string volumeLow: cp(0xF0580)
+    // Font Awesome's speaker ladder keeps the same painted size at bar scale;
+    // the MDI variants rendered visibly smaller beside network and battery.
+    readonly property string volumeHigh: cp(0xF028)
+    readonly property string volumeMid: cp(0xF027)
+    readonly property string volumeLow: cp(0xF026)
     readonly property string volumeMuted: cp(0xF0581)
 
     // Netz
     readonly property string wifi: cp(0xF05A9)
     readonly property string wifiOff: cp(0xF05AA)
-    readonly property string lan: cp(0xF0318)
+    readonly property string wifiDisconnected: "󰤮"
+    readonly property var wifiLevels: ["󰤯", "󰤟", "󰤢", "󰤥", "󰤨"]
+    readonly property string lan: "󰈀"
+    readonly property string bluetooth: "󰂯"
+    readonly property string bluetoothConnected: "󰂱"
+    readonly property string bluetoothOff: "󰂲"
+    readonly property string monitor: "󰍹"
+    readonly property string monitors: "󰍺"
+
+    function wifiSignal(percent) {
+        const index = Math.max(0, Math.min(4, Math.ceil(Number(percent || 0) / 20) - 1));
+        return root.wifiLevels[index];
+    }
 
     // Meldungen und Ablage
     readonly property string bell: cp(0xF009A)
-    readonly property string bellOff: cp(0xF009B)
+    readonly property string bellOff: "󰂛"
     readonly property string clipboard: cp(0xF0EA)
 
     // Aufgaben: ein Kaestchen mit Haken.
@@ -54,23 +69,24 @@ Singleton {
     readonly property string matrix: cp(0xF0746) // nf-md-view-grid
 
     // Medien und Aufnahme
-    readonly property string play: cp(0xF040A)
-    readonly property string pause: cp(0xF03E4)
+    readonly property string play: "󰐊"
+    readonly property string pause: "󰏤"
 
     // Wiedergabe vor und zurueck sowie der Zufall. Nachgesehen statt geraten:
     // die beiden naheliegenden Unicode-Zeichen U+23EE/U+23ED kennt die Schrift
     // gar nicht -- gerendert kam nichts. Die MDI-Glyphen sind da.
-    readonly property string skipPrevious: cp(0xF04AE)
-    readonly property string skipNext: cp(0xF04AD)
+    readonly property string skipPrevious: "󰒮"
+    readonly property string skipNext: "󰒭"
     readonly property string shuffle: cp(0xF049D)
     readonly property string camera: cp(0xF0100)
-    readonly property string record: cp(0xF044A)
+    readonly property string record: "󰻂"
 
     // Wachhalten. Die Tasse (nf-md-coffee) ist bei 13 px noch als Tasse zu
     // erkennen -- mit Dampf darueber, und genau der macht sie eindeutig. Das
     // zZz daneben ist absichtlich das leisere Zeichen: es steht fuer den
     // Normalfall, und der soll nicht auffallen.
     readonly property string coffee: cp(0xF0176)
+    readonly property string stayAwake: "󰅶"
     readonly property string sleep: cp(0xF04B2)
     readonly property string sleepOff: cp(0xF04B3)
 
@@ -80,7 +96,10 @@ Singleton {
 
     // Updates
     readonly property string download: cp(0xF01DA)
-    readonly property string refresh: cp(0xF0450)
+    readonly property string refresh: cp(0xF021)
+    readonly property string agent: "󱚣"
+    readonly property string check: "󰄬"
+    readonly property string circleOutline: "󰄱"
 
     // Etwas ist kaputt. Das Warndreieck (nf-md-alert) und nicht das Achteck
     // daneben: bei 14 px bleibt vom Achteck ein Klecks mit Punkt, das Dreieck
@@ -91,13 +110,18 @@ Singleton {
     // Akku. Die Reihe F0079..F0082 ist voll, 10 %, 20 % … 90 % -- also nicht
     // fortlaufend nach Prozent sortiert, sondern "voll" zuerst. Daher die
     // Fallunterscheidung statt einer Rechnung auf dem Zeichencode.
-    readonly property string batteryCharging: cp(0xF0084)
+    readonly property string batteryCharging: "󰂅"
+    readonly property var batteryLevels: ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
+    readonly property var batteryChargingLevels: ["󰢜", "󰂆", "󰂇", "󰂈", "󰢝", "󰂉", "󰢞", "󰂊", "󰂋", "󰂅"]
 
     function battery(percent) {
-        if (percent >= 95)
-            return cp(0xF0079);
-        const step = Math.max(1, Math.min(9, Math.round(percent / 10)));
-        return cp(0xF0079 + step);
+        const step = Math.max(0, Math.min(9, Math.floor(Number(percent || 0) / 10)));
+        return root.batteryLevels[step];
+    }
+
+    function batteryCharge(percent) {
+        const step = Math.max(0, Math.min(9, Math.floor(Number(percent || 0) / 10)));
+        return root.batteryChargingLevels[step];
     }
 
     // Mond. 28 Sicheln aus dem Wetterteil der Schrift (`nf-weather-moon_*`),

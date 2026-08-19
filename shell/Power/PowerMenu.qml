@@ -80,17 +80,14 @@ PanelWindow {
             }
         }
 
-        Rectangle {
+        PanelSurface {
             id: box
 
             anchors.centerIn: parent
             width: Theme.cellW * 34
             height: column.implicitHeight + Theme.cellH * 2
 
-            color: Theme.bg
-            radius: Theme.radius
-            border.width: Theme.borderWidth
-            border.color: Theme.red
+            accentBorder: false
 
             MouseArea {
                 anchors.fill: parent
@@ -103,10 +100,10 @@ PanelWindow {
                 width: parent.width - Theme.cellW * 2
                 spacing: Theme.cellH * 0.2
 
-                Line {
-                    text: "SESSION"
-                    color: Theme.fgDim
-                    bottomPadding: Theme.cellH * 0.4
+                SectionHeader {
+                    width: column.width
+                    text: "Session"
+                    detail: "Choose an action"
                 }
 
                 Repeater {
@@ -119,16 +116,28 @@ PanelWindow {
                         required property int index
 
                         width: column.width
-                        height: Theme.cellH * 1.6
+                        height: Theme.rowHeight
                         radius: Theme.radius
-                        color: row.index === root.selected ? Theme.selection : "transparent"
+                        color: row.index === root.selected ? Theme.selectedSurface(Theme.accent) : "transparent"
+                        border.width: row.index === root.selected ? Theme.borderWidth : 0
+                        border.color: Theme.focusBorder
 
                         Line {
                             anchors.left: parent.left
                             anchors.leftMargin: Theme.cellW / 2
                             anchors.verticalCenter: parent.verticalCenter
-                            text: (row.index === root.selected ? "▸ " : "  ") + "[" + row.modelData.key + "]  " + row.modelData.label
-                            color: row.index === root.selected ? Theme.on(Theme.selection) : Theme.fg
+                            text: row.modelData.label
+                            color: row.index === root.selected ? Theme.selectedForeground(Theme.accent) : Theme.fg
+                            font.pixelSize: Theme.fontBody
+                        }
+
+                        Line {
+                            anchors.right: parent.right
+                            anchors.rightMargin: Theme.spaceLg
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: row.modelData.key.toUpperCase()
+                            color: row.index === root.selected ? Theme.selectedForeground(Theme.accent) : Theme.muted
+                            font.pixelSize: Theme.fontCaption
                         }
 
                         MouseArea {
@@ -142,7 +151,7 @@ PanelWindow {
                 }
 
                 Line {
-                    text: "Esc closes"
+                    text: "Esc closes · ↑/↓ selects · Enter confirms"
                     color: Theme.muted
                     topPadding: Theme.cellH * 0.4
                 }

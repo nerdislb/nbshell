@@ -117,6 +117,7 @@ Singleton {
     readonly property color barFg: Config.barTransparent ? on(barSurface) : fg
     readonly property color barFgDim: Config.barTransparent ? readable(mix(barFg, barSurface, 0.45), barSurface, 3.0) : fgDim
     readonly property color barAccent: Config.barTransparent ? readable(accent, barSurface, 4.5) : accent
+    readonly property color barHover: mix(barSurface, barFg, 0.14)
 
     // Farbe der Bausteine in der Leiste: entweder der normale Vordergrund
     // oder der Akzent des Themes. Warnfarben (leerer Akku, hohe Last) bleiben
@@ -152,10 +153,91 @@ Singleton {
     readonly property real padY: Config.padY
     readonly property real gap: Math.round(cellW * Config.widgetGap)
 
+    // Bar content is optically denser than panel content. Config.padX and
+    // widgetGap remain the user-facing scale, while these derived values keep
+    // Nerd Font glyphs from looking like isolated buttons.
+    readonly property real barItemPadding: Math.max(1, Math.round(padX * 0.62))
+    readonly property real barItemGap: Math.max(1, Math.round(gap * 0.55))
+
     readonly property real barHeight: Math.round(cellH * Config.lines + padY * 2)
+    readonly property real barIconSlot: Math.round(cellH * 1.08)
+    readonly property real barIconCanvas: Math.round(cellH)
+    readonly property real barIconHeight: Math.round(cellH * 0.76)
 
     readonly property int radius: Config.radius
     readonly property int borderWidth: Config.borderWidth
+
+    // Shared visual vocabulary for panels and controls. The bar keeps its
+    // character-cell geometry; these tokens make the larger surfaces speak
+    // one consistent language without forcing every component to invent
+    // pixel sizes and state colors of its own.
+    // Panel typography deliberately starts one step above the bar. The bar
+    // continues to use `fontSize` directly, so its density and pill geometry
+    // do not change when larger surfaces become easier to scan.
+    readonly property int fontCaption: Math.max(9, fontSize - 1)
+    readonly property int fontBody: fontSize + 1
+    readonly property int fontSubtitle: fontSize + 2
+    readonly property int fontTitle: fontSize + 3
+    readonly property int fontHeading: fontSize + 5
+    readonly property int fontDisplay: fontSize + 12
+
+    readonly property real spaceXs: Math.max(2, Math.round(cellW * 0.5))
+    readonly property real spaceSm: Math.max(3, Math.round(cellW * 0.75))
+    readonly property real spaceMd: Math.max(4, Math.round(cellW))
+    readonly property real spaceLg: Math.max(6, Math.round(cellW * 1.5))
+    readonly property real spaceXl: Math.max(8, Math.round(cellW * 2))
+    readonly property real panelScale: fontBody / Math.max(1, fontSize)
+    readonly property real controlHeight: Math.round(cellH * 1.65 * panelScale)
+    readonly property real rowHeight: Math.round(cellH * 2.1 * panelScale)
+    readonly property real panelPadding: Math.round(cellW * 2 * panelScale)
+    readonly property real overlayMarginX: Math.round(spaceXl * 2)
+    readonly property real overlayMarginY: Math.round(cellH * 3)
+    readonly property real overlayWidthMedium: Math.round(cellW * 84)
+    readonly property real overlayWidthLarge: Math.round(cellW * 100)
+    readonly property real overlayHeightMedium: Math.round(cellH * 34)
+    readonly property real overlayHeightLarge: Math.round(cellH * 43)
+
+    readonly property color panelSurface: bg
+    readonly property color panelSurfaceRaised: alpha(bgLight, 0.72)
+    readonly property color panelBorder: mix(bg, fg, 0.24)
+    readonly property color focusBorder: readable(accent, bg, 3.0)
+    // Match Omarchy's default menu scrim: summoned surfaces stand out while
+    // the workspace remains legible rather than falling into near-black.
+    readonly property color scrim: alpha(bgDarker, 0.50)
+
+    // Surface geometry follows one rem-like scale. The bar keeps the separate
+    // geometry tokens above and is therefore not enlarged by menu rows.
+    readonly property real uiScale: Math.max(1, fontSize / 12)
+    readonly property real menuRowHeight: Math.round(50 * uiScale)
+
+    // Selected controls must be opaque before their foreground contrast is
+    // calculated. A translucent accent is composited by QML later and made
+    // the old calculation depend on whatever happened to sit behind it.
+    function selectedSurface(tone) {
+        return mix(bg, tone ?? accent, 0.18);
+    }
+
+    function selectedForeground(tone) {
+        return readable(tone ?? accent, selectedSurface(tone), 4.5);
+    }
+
+    function controlFill(hot, selected, pressed) {
+        if (pressed) return mix(bg, accent, 0.26);
+        if (selected) return selectedSurface(accent);
+        if (hot) return hover;
+        return alpha(bgLight, 0.72);
+    }
+
+    function controlBorder(hot, selected, urgent) {
+        if (urgent) return alpha(red, 0.8);
+        if (selected) return "transparent";
+        return hot ? alpha(fg, 0.25) : alpha(fg, 0.40);
+    }
+
+    function controlBorderWidth(hot, selected, urgent) {
+        if (selected && !urgent) return 0;
+        return borderWidth;
+    }
 
     FontMetrics {
         id: metrics

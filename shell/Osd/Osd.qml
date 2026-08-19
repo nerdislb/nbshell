@@ -45,8 +45,9 @@ Variants {
 
         mask: Region {}
 
-        Rectangle {
+        PanelSurface {
             id: box
+            accentBorder: false
 
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: Config.edge === "bottom" ? parent.top : undefined
@@ -55,11 +56,6 @@ Variants {
 
             width: content.implicitWidth + Theme.cellW * 4
             height: content.implicitHeight + Theme.cellH
-
-            color: Theme.bg
-            radius: Theme.radius
-            border.width: Theme.borderWidth
-            border.color: Theme.muted
 
             // Kurz da, kurz weg -- ohne Bewegung wirkt es wie ein Fehler.
             opacity: Osd.showing ? 1 : 0

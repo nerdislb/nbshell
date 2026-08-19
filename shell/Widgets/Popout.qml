@@ -41,7 +41,7 @@ PopupWindow {
     readonly property bool pointerInside: hover.hovered || (root.anchorItem?.hovered ?? false)
 
     // Innenabstand in Zellen, damit auch das Popout auf dem Raster sitzt.
-    readonly property real padding: Theme.cellW * 2
+    readonly property real padding: Theme.panelPadding
 
     color: "transparent"
     visible: false
@@ -100,20 +100,13 @@ PopupWindow {
             root.visible = false
     }
 
-    Rectangle {
+    PanelSurface {
         anchors.fill: parent
-        color: Theme.bg
+        accentBorder: false
 
         HoverHandler {
             id: hover
         }
-        radius: Theme.radius
-        border.width: Theme.borderWidth
-        // Akzentfarbe wie beim Optionsmenue (Mod+,) und den Fensterraendern,
-        // damit alle aufklappenden Menues einheitlich gerahmt sind (vorher
-        // Theme.muted -> kaum sichtbar).
-        border.color: Theme.accent
-
         Loader {
             id: loader
 

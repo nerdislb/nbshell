@@ -112,8 +112,9 @@ PanelWindow {
             }
         }
 
-        Rectangle {
+        PanelSurface {
             id: box
+            accentBorder: false
 
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
@@ -121,11 +122,6 @@ PanelWindow {
 
             width: Math.min(parent.width - Theme.cellW * 8, Theme.cellW * 130)
             height: strip.height + header.height + Theme.cellH * 2
-
-            color: Theme.alpha(Theme.bg, 0.92)
-            radius: Theme.radius
-            border.width: Theme.borderWidth
-            border.color: Theme.accent
 
             MouseArea {
                 anchors.fill: parent
@@ -140,7 +136,7 @@ PanelWindow {
                 height: Theme.cellH * 1.6
                 text: {
                     if (Wallpapers.loading)
-                        return "HINTERGRUND  ·  suche …";
+                        return "WALLPAPER  ·  searching …";
                     if (root.list.length === 0)
                         return "WALLPAPER  ·  no images for " + Config.theme;
                     return "WALLPAPER  ·  " + Config.theme + "  ·  " + (root.selected + 1) + "/" + root.list.length + "  ·  " + Wallpapers.nameOf(root.list[root.selected] ?? "");
@@ -209,7 +205,8 @@ PanelWindow {
 
                         color: "transparent"
                         border.width: tile.current ? Math.max(2, Theme.borderWidth * 2) : Theme.borderWidth
-                        border.color: tile.current ? Theme.accent : Theme.muted
+                        border.color: tile.current ? Theme.focusBorder : Theme.panelBorder
+                        radius: Theme.radius
                         opacity: tile.current ? 1 : 0.45
 
                         Behavior on opacity {

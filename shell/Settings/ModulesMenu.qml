@@ -229,15 +229,9 @@ PanelWindow {
             }
         }
 
-        Rectangle {
-            anchors.centerIn: parent
-            width: Theme.cellW * 76
-            height: Math.max(left.implicitHeight, right.implicitHeight) + Theme.cellH * 3
-
-            color: Theme.bg
-            radius: Theme.radius
-            border.width: Theme.borderWidth
-            border.color: Theme.accent
+        OverlaySurface {
+            preferredWidth: Theme.cellW * 76
+            preferredHeight: Math.max(left.implicitHeight, right.implicitHeight) + Theme.cellH * 3
 
             MouseArea {
                 anchors.fill: parent
@@ -272,7 +266,7 @@ PanelWindow {
 
                         Item {
                             width: group.width
-                            height: Theme.cellH * 1.3
+                            height: Theme.controlHeight
 
                             Line {
                                 anchors.left: parent.left
@@ -311,9 +305,9 @@ PanelWindow {
                                 readonly property bool current: !root.inCatalog && group.index === root.groupIndex && row.index === root.itemIndex
 
                                 width: root.leftWidth
-                                height: Theme.cellH * 1.3
+                                height: Theme.controlHeight
                                 radius: Theme.radius
-                                color: row.current ? Theme.selection : "transparent"
+                                color: row.current ? Theme.selectedSurface(Theme.accent) : "transparent"
 
                                 opacity: rowDrag.active ? 0.45 : 1
                                 z: rowDrag.active ? 20 : 0
@@ -328,7 +322,7 @@ PanelWindow {
                                     anchors.leftMargin: Theme.cellW * 2
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: (row.current ? "◂ ▸ " : "    ") + Plugins.label(row.modelData)
-                                    color: row.current ? Theme.readable(Theme.accent, Theme.selection) : Theme.fg
+                                    color: row.current ? Theme.selectedForeground(Theme.accent) : Theme.fg
                                 }
 
                                 MouseArea {
@@ -409,16 +403,16 @@ PanelWindow {
                         readonly property bool current: root.inCatalog && catRow.index === root.catalogIndex
 
                         width: root.rightWidth
-                        height: Theme.cellH * 1.3
+                        height: Theme.controlHeight
                         radius: Theme.radius
-                        color: catRow.current ? Theme.selection : "transparent"
+                        color: catRow.current ? Theme.selectedSurface(Theme.accent) : "transparent"
 
                         Line {
                             anchors.left: parent.left
                             anchors.leftMargin: Theme.cellW
                             anchors.verticalCenter: parent.verticalCenter
                             text: (catRow.current ? "▸ " : "  ") + Plugins.label(catRow.modelData) + (Plugins.source(catRow.modelData) === "" ? "" : "  ·plugin")
-                            color: catRow.current ? Theme.readable(Theme.accent, Theme.selection) : Theme.fgDim
+                            color: catRow.current ? Theme.selectedForeground(Theme.accent) : Theme.fgDim
                         }
 
                         MouseArea {
