@@ -21,6 +21,8 @@ testing, and the direction of the project remain human-led.
 - Calendar, tasks, habits, KDE Connect, and Android screen mirroring
 - Screenshots, screen recording, OCR, QR scanning, and a screen saver
 - AI usage for Codex, Claude, Antigravity, and other providers
+- Agent Center with a default-agent launcher, explicit approval profiles,
+  project selection, Herdr sessions, and optional Ollama/OpenCode routing
 - niri key bindings, terminal colors, and systemd autostart
 - Optional herdr status inside the System & Plugins dashboard
 
@@ -104,6 +106,87 @@ nbshell makes that window floating and remembers its size and corner. Use the
 `PIP` module or `Mod+Alt+P` to change its size. Use `Mod+Alt+Shift+P` to move it
 to another corner.
 
+## AI agents and local models
+
+Open `AI & Agents` from the main menu, right-click the AI usage module, press
+`Mod+Ctrl+Shift+A`, or run:
+
+```bash
+nbshell agent center
+nbshell agent doctor
+nbshell agent list
+nbshell agent default codex
+nbshell agent launch --project ~/projects/my-project
+nbshell agent install copilot
+nbshell commands --json
+```
+
+The Agent Center discovers supported tools instead of requiring all of them.
+It currently recognizes Codex, Claude Code, OpenCode, Gemini CLI, GitHub
+Copilot, and Pi. `safe`, `balanced`, and `autonomous` approval profiles map to
+each tool's native controls. The explicitly selected `autonomous` profile uses
+Codex's full approval-and-sandbox bypass; fresh installations therefore
+continue to start in the safer `balanced` profile.
+
+Model profiles route a default launch without changing individual agent
+commands. `local` and `private` route through OpenCode, while `fast` and
+`strong` default to Codex and Claude. Advanced users can set a concrete
+OpenCode model in `~/.config/nbshell/agents.json`, for example:
+
+```json
+{
+  "modelProfiles": {
+    "local": { "agent": "opencode", "model": "ollama/qwen3.5:4b" }
+  }
+}
+```
+
+Ollama is optional and can be controlled after installation with
+`nbshell agent ollama start|stop`. nbshell does not store provider credentials
+or conversation history. The installer links the bundled nbshell system skill
+into the common Codex, Claude, and cross-agent skill directories.
+
+To expose an Ollama model to OpenCode, add a local provider to
+`~/.config/opencode/opencode.jsonc`:
+
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "ollama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Ollama (local)",
+      "options": { "baseURL": "http://127.0.0.1:11434/v1" },
+      "models": {
+        "qwen3.5:4b": { "name": "Qwen 3.5 4B (local)" }
+      }
+    }
+  }
+}
+```
+
+Then run `ollama pull qwen3.5:4b` and verify the route with
+`opencode models ollama`. Local models still need enough context for reliable
+tool use; 16K to 32K is a practical starting range.
+
+Inside a Herdr pane, `nbshell agent workspace dev` creates an editor, agent,
+and terminal layout. `workspace review` adds a read-only review-agent pane.
+`workspace pair` adds a deliberately started second agent: the configured
+default remains the lead and OpenCode uses the local route when available.
+Agent state changes are watched while nbshell is running. Finished background
+agents and sessions waiting for input create an actionable notification; its
+`Open session` action focuses the matching Herdr pane. Codex uses its native
+lifecycle hook for immediate completion and permission notifications, while
+other Herdr-supported agents use the shared session watcher.
+
+Missing agents show `INSTALL…` in the Agent Center. Selecting it opens a
+terminal that displays the exact package command and asks for confirmation;
+merely opening the panel never downloads or executes anything.
+
+`nbshell commands --json` exposes the documented CLI as a versioned JSON
+catalog so agents and scripts can discover supported commands without parsing
+the shell source.
+
 ## Optional features
 
 - Calendar data requires `khal`. Online calendar synchronization can be added
@@ -111,9 +194,16 @@ to another corner.
 - Task and wallpaper files can be synchronized with Syncthing.
 - Phone features require KDE Connect. Android mirroring also requires ADB,
   `scrcpy`, and the separate `nbphone` tool.
+- Live streaming opens OBS Studio from the Capture menu and therefore requires
+  the optional `obs-studio` package. Stream credentials stay in OBS, not nbshell.
 - The herdr panel requires a separately configured read-only bridge. The shell
   works normally without it.
 - AUR update counts require `paru` or `yay`.
+- Local dictation is optional. Install `voxtype-bin` from the AUR, download a
+  model with `voxtype setup --download --model small`, and enable its user
+  service. `F9`, `nbshell dictate`, and `Capture → Toggle dictation` then start
+  or stop recording. nbshell uses compositor control, so Voxtype's evdev
+  hotkey can remain disabled.
 
 ## Updating
 

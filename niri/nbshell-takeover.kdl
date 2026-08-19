@@ -27,6 +27,7 @@ binds {
     Mod+Ctrl+M hotkey-overlay-title="nbshell: Arrange modules" { spawn "sh" "-c" "$HOME/.local/bin/nbshell modules"; }
     Mod+Ctrl+P hotkey-overlay-title="nbshell: Plugin diagnostics" { spawn "sh" "-c" "$HOME/.local/bin/nbshell plugin-dev"; }
     Mod+Ctrl+A hotkey-overlay-title="nbshell: Audio" { spawn "sh" "-c" "$HOME/.local/bin/nbshell audio panel"; }
+    Mod+Ctrl+Shift+A hotkey-overlay-title="nbshell: Agent Center" { spawn "sh" "-c" "$HOME/.local/bin/nbshell agent center"; }
     Mod+Alt+A hotkey-overlay-title="nbshell: Focus & Equalizer" { spawn "sh" "-c" "$HOME/.local/bin/nbshell audio tools"; }
     Mod+Escape hotkey-overlay-title="nbshell: Session" { spawn "sh" "-c" "$HOME/.local/bin/nbshell power menu"; }
 
@@ -74,6 +75,7 @@ binds {
 
     // Aufnahme-Menue (Region/Bildschirm/Fenster/OCR/Aufnahme).
     Print hotkey-overlay-title="nbshell: Capture" { spawn "sh" "-c" "$HOME/.local/bin/nbshell capture"; }
+    F9 hotkey-overlay-title="nbshell: Toggle dictation" { spawn "sh" "-c" "$HOME/.local/bin/nbshell dictate"; }
 
     // Sperrbildschirm aus lockCommand (Vorgabe hyprlock).
     Mod+Alt+L hotkey-overlay-title="nbshell: Lock" { spawn "sh" "-c" "$HOME/.local/bin/nbshell power lock"; }
@@ -117,6 +119,14 @@ window-rule {
     match app-id="scrcpy" title="^Pixel 9 Pro · nbphone$"
     open-floating true
     default-floating-position x=16 y=16 relative-to="bottom-right"
+}
+
+// All agents launched through `nbshell agent` share a predictable prefix.
+// They remain tiled like normal development terminals; the rule only makes
+// them recognizable to Niri and future session/focus integrations.
+window-rule {
+    match app-id=r"^nbshell-agent-.*$"
+    open-focused true
 }
 
 // Die weichgezeichnete Kopie des Hintergrunds gehoert in niris Backdrop --

@@ -26,6 +26,7 @@ Cell {
     interactive: true
 
     onClicked: AiUsage.refresh()
+    onRightClicked: Runtime.agentCenterOpen = true
 
     Row {
         spacing: Theme.cellW
@@ -201,7 +202,7 @@ Cell {
             }
 
             Line {
-                text: "Click the icon to refresh"
+                text: "Click refreshes · right click opens Agent Center"
                 color: Theme.muted
             }
         }

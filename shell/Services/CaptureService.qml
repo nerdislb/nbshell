@@ -55,6 +55,16 @@ Singleton {
         return true;
     }
 
+    function shootWindow(windowId) {
+        const path = shotDir + "/screenshot-" + stamp() + ".png";
+        Quickshell.execDetached(["sh", "-c", "mkdir -p " + JSON.stringify(shotDir)]);
+        if (!Niri.available)
+            return false;
+        Niri.action(["screenshot-window", "--id", String(windowId), "--path", path]);
+        run(["post", path, editor, autoEdit ? "1" : "0", notifyOn ? "1" : "0"]);
+        return true;
+    }
+
     function ocr() {
         const path = "/tmp/nbshell-ocr-" + Date.now() + ".png";
         if (!niriShot("region", path))
@@ -87,6 +97,20 @@ Singleton {
 
     function openDir() {
         run(["open-dir", shotDir]);
+    }
+
+    function openStreamingStudio() {
+        Quickshell.execDetached([
+            "sh", "-lc",
+            "command -v obs >/dev/null 2>&1 && exec obs --profile 'TikTok Live' --collection TikTok_Live || notify-send -u critical 'nbshell' 'OBS Studio is not installed.'"
+        ]);
+    }
+
+    function dictate() {
+        Quickshell.execDetached([
+            "sh", "-lc",
+            "command -v voxtype >/dev/null 2>&1 && exec voxtype record toggle || notify-send 'Dictation is not installed' 'Install the optional voxtype-bin package.'"
+        ]);
     }
 
     // `niri msg action` statt IPC von Hand: siehe die Erklaerung in

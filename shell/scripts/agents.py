@@ -1,0 +1,418 @@
+#!/usr/bin/env python3
+"""nbshell agent registry, launcher, local-model status, and Herdr bridge."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shlex
+import shutil
+import signal
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+
+CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "nbshell"
+STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "nbshell"
+CONFIG_FILE = CONFIG_DIR / "agents.json"
+OLLAMA_PID = STATE_DIR / "ollama.pid"
+
+AGENTS = {
+    "codex": {"name": "Codex", "binary": "codex", "kind": "cloud", "prompt": "positional", "glyph": "code", "install": "npm install -g @openai/codex"},
+    "claude": {"name": "Claude Code", "binary": "claude", "kind": "cloud", "prompt": "positional", "glyph": "claude", "install": "npm install -g @anthropic-ai/claude-code"},
+    "opencode": {"name": "OpenCode", "binary": "opencode", "kind": "hybrid", "prompt": "opencode", "glyph": "terminal", "install": "paru -S opencode"},
+    "gemini": {"name": "Gemini CLI", "binary": "gemini", "kind": "cloud", "prompt": "gemini", "glyph": "spark", "install": "npm install -g @google/gemini-cli"},
+    "copilot": {"name": "GitHub Copilot", "binary": "copilot", "kind": "cloud", "prompt": "copilot", "glyph": "code", "install": "npm install -g @github/copilot"},
+    "pi": {"name": "Pi", "binary": "pi", "kind": "hybrid", "prompt": "positional", "glyph": "terminal", "install": "npm install -g @mariozechner/pi-coding-agent"},
+}
+
+DEFAULT_CONFIG = {
+    "defaultAgent": "codex",
+    "profile": "balanced",
+    "modelProfile": "cloud",
+    "lastProject": "",
+    "projectsDir": str(Path.home() / "projects"),
+    "terminal": "",
+    "modelProfiles": {
+        "local": {"agent": "opencode", "model": ""},
+        "private": {"agent": "opencode", "model": ""},
+        "cloud": {"agent": "", "model": ""},
+        "fast": {"agent": "codex", "model": ""},
+        "strong": {"agent": "claude", "model": ""},
+    },
+}
+
+
+def load_config() -> dict:
+    try:
+        data = json.loads(CONFIG_FILE.read_text())
+        return DEFAULT_CONFIG | data if isinstance(data, dict) else DEFAULT_CONFIG.copy()
+    except (OSError, ValueError):
+        return DEFAULT_CONFIG.copy()
+
+
+def save_config(data: dict) -> None:
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = CONFIG_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, indent=2) + "\n")
+    os.chmod(tmp, 0o600)
+    tmp.replace(CONFIG_FILE)
+
+
+def agent_rows() -> list[dict]:
+    rows = []
+    for agent_id, spec in AGENTS.items():
+        path = shutil.which(spec["binary"])
+        rows.append({"id": agent_id, **spec, "installed": bool(path), "path": path or ""})
+    return rows
+
+
+def ollama_status() -> dict:
+    host = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
+    try:
+        with urllib.request.urlopen(host + "/api/tags", timeout=1.2) as response:
+            body = json.load(response)
+        models = [str(row.get("name", "")) for row in body.get("models", []) if row.get("name")]
+        return {"installed": bool(shutil.which("ollama")), "running": True, "host": host, "models": models}
+    except (OSError, ValueError, urllib.error.URLError):
+        return {"installed": bool(shutil.which("ollama")), "running": False, "host": host, "models": []}
+
+
+def herdr_sessions() -> list[dict]:
+    if not shutil.which("herdr"):
+        return []
+    attempts = (["herdr", "agent", "list", "--json"], ["herdr", "agent", "list"])
+    for command in attempts:
+        result = subprocess.run(command, text=True, capture_output=True, timeout=3, check=False)
+        if result.returncode:
+            continue
+        try:
+            data = json.loads(result.stdout)
+            raw = data.get("result", {}).get("agents", data.get("agents", []))
+            return [{
+                "id": str(row.get("agent_id") or row.get("id") or row.get("pane_id") or ""),
+                "name": str(row.get("agent") or row.get("name") or "Agent"),
+                "status": str(row.get("agent_status") or row.get("status") or "unknown"),
+                "project": str(row.get("cwd") or ""),
+                "title": str(row.get("terminal_title_stripped") or row.get("title") or ""),
+                "focused": bool(row.get("focused", False)),
+            } for row in raw]
+        except (ValueError, AttributeError):
+            return []
+    return []
+
+
+def projects(config: dict) -> list[dict]:
+    base = Path(config.get("projectsDir") or Path.home() / "projects").expanduser()
+    rows = []
+    if base.is_dir():
+        for path in sorted((p for p in base.iterdir() if p.is_dir()), key=lambda p: p.name.lower()):
+            rows.append({"name": path.name, "path": str(path), "git": (path / ".git").exists()})
+    last_raw = str(config.get("lastProject") or "").strip()
+    if last_raw:
+        last = Path(last_raw).expanduser()
+        if last.is_dir() and all(row["path"] != str(last) for row in rows):
+            rows.insert(0, {"name": last.name, "path": str(last), "git": (last / ".git").exists()})
+    return rows
+
+
+def full_status() -> dict:
+    config = load_config()
+    rows = agent_rows()
+    installed = {row["id"] for row in rows if row["installed"]}
+    if config["defaultAgent"] not in installed and installed:
+        config["defaultAgent"] = next(row["id"] for row in rows if row["installed"])
+    return {
+        "config": config,
+        "agents": rows,
+        "ollama": ollama_status(),
+        "sessions": herdr_sessions(),
+        "projects": projects(config),
+    }
+
+
+def terminal_command(config: dict) -> list[str]:
+    configured = str(config.get("terminal") or "").strip()
+    terminal = configured or os.environ.get("TERMINAL", "")
+    if terminal:
+        binary = shutil.which(terminal.split()[0])
+        if binary:
+            return [binary, *terminal.split()[1:]]
+    for candidate in ("ghostty", "foot", "kitty", "alacritty"):
+        binary = shutil.which(candidate)
+        if binary:
+            return [binary]
+    raise SystemExit("No supported terminal found. Set terminal in ~/.config/nbshell/agents.json.")
+
+
+def profile_args(agent_id: str, profile: str) -> list[str]:
+    # Profiles map to each installed CLI's native vocabulary. The dangerous
+    # Codex bypass is only reachable through the visibly selected autonomous
+    # profile; fresh installations still default to balanced.
+    profiles = {
+        "safe": {
+            "codex": ["--ask-for-approval", "untrusted", "--sandbox", "workspace-write"],
+            "claude": ["--permission-mode", "manual"],
+            "gemini": ["--approval-mode", "default"],
+        },
+        "balanced": {
+            "codex": ["--approve-for-me"],
+            "claude": ["--permission-mode", "acceptEdits"],
+            "gemini": ["--approval-mode", "auto_edit"],
+        },
+        "autonomous": {
+            "codex": ["--dangerously-bypass-approvals-and-sandbox"],
+            "claude": ["--permission-mode", "auto"],
+            "opencode": ["--auto"],
+            "gemini": ["--approval-mode", "yolo"],
+            "copilot": ["--allow-all"],
+        },
+    }
+    return profiles.get(profile, {}).get(agent_id, [])
+
+
+def prompt_args(agent_id: str, prompt: str) -> list[str]:
+    if not prompt:
+        return []
+    mode = AGENTS[agent_id]["prompt"]
+    if mode == "opencode":
+        return ["--prompt", prompt]
+    if mode == "gemini":
+        return ["--prompt-interactive", prompt]
+    if mode == "copilot":
+        return ["--interactive", prompt]
+    return [prompt]
+
+
+def launch(agent_id: str | None, project: str | None, prompt: str = "") -> None:
+    config = load_config()
+    route = config.get("modelProfiles", {}).get(str(config.get("modelProfile", "cloud")), {})
+    agent_id = agent_id or str(route.get("agent") or config["defaultAgent"])
+    if agent_id not in AGENTS:
+        raise SystemExit(f"Unknown agent: {agent_id}")
+    binary = shutil.which(AGENTS[agent_id]["binary"])
+    if not binary:
+        raise SystemExit(f"{AGENTS[agent_id]['name']} is not installed ({AGENTS[agent_id]['binary']}).")
+    cwd = Path(project or config.get("lastProject") or Path.cwd()).expanduser().resolve()
+    if not cwd.is_dir():
+        raise SystemExit(f"Project directory does not exist: {cwd}")
+    config["lastProject"] = str(cwd)
+    save_config(config)
+    model_args = []
+    routed_model = str(route.get("model") or "")
+    if routed_model and agent_id == "opencode":
+        model_args = ["--model", routed_model]
+    command = [binary, *profile_args(agent_id, str(config["profile"])), *model_args, *prompt_args(agent_id, prompt)]
+    shell_cmd = "exec " + " ".join(shlex.quote(part) for part in command)
+    terminal = terminal_command(config)
+    name = f"nbshell-agent-{agent_id}"
+    base = Path(terminal[0]).name
+    if base == "ghostty":
+        terminal += ["--class=" + name, "--title=" + AGENTS[agent_id]["name"], "-e", "sh", "-lc", shell_cmd]
+    elif base in {"foot", "kitty"}:
+        terminal += ["--app-id=" + name, "-T", AGENTS[agent_id]["name"], "sh", "-lc", shell_cmd]
+    elif base == "alacritty":
+        terminal += ["--class", name, "--title", AGENTS[agent_id]["name"], "-e", "sh", "-lc", shell_cmd]
+    else:
+        terminal += ["-e", "sh", "-lc", shell_cmd]
+    subprocess.Popen(terminal, cwd=cwd, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def install_agent(agent_id: str) -> None:
+    if agent_id not in AGENTS:
+        raise SystemExit(f"Unknown agent: {agent_id}")
+    spec = AGENTS[agent_id]
+    if shutil.which(spec["binary"]):
+        print(f"{spec['name']} is already installed.")
+        return
+    command = str(spec.get("install") or "")
+    if not command:
+        raise SystemExit(f"No installation command is known for {spec['name']}.")
+    config = load_config()
+    terminal = terminal_command(config)
+    prompt = f"Install {spec['name']} with: {command} [y/N] "
+    script = f"printf '%s' {shlex.quote(prompt)}; read -r answer; case $answer in y|Y) {command} ;; *) echo 'Cancelled.' ;; esac; printf '\\nPress Enter to close.'; read -r _"
+    base = Path(terminal[0]).name
+    if base == "ghostty": terminal += ["--class=nbshell-agent-installer", "--title=Install " + spec["name"], "-e", "sh", "-lc", script]
+    elif base in {"foot", "kitty"}: terminal += ["--app-id=nbshell-agent-installer", "-T", "Install " + spec["name"], "sh", "-lc", script]
+    elif base == "alacritty": terminal += ["--class", "nbshell-agent-installer", "--title", "Install " + spec["name"], "-e", "sh", "-lc", script]
+    else: terminal += ["-e", "sh", "-lc", script]
+    subprocess.Popen(terminal, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def set_value(key: str, value: str) -> None:
+    config = load_config()
+    config[key] = value
+    save_config(config)
+    print(value)
+
+
+def set_profile_model(profile: str, model: str) -> None:
+    config = load_config()
+    routes = DEFAULT_CONFIG["modelProfiles"] | dict(config.get("modelProfiles", {}))
+    route = dict(routes.get(profile, {}))
+    route["model"] = model
+    routes[profile] = route
+    config["modelProfiles"] = routes
+    save_config(config)
+    print(f"{profile}: {model or '(agent default)'}")
+
+
+def ollama_control(action: str) -> None:
+    if action == "status":
+        print(json.dumps(ollama_status()))
+        return
+    if action == "start":
+        if not shutil.which("ollama"):
+            raise SystemExit("Ollama is not installed.")
+        if ollama_status()["running"]:
+            print("Ollama is already running.")
+            return
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        log = open(STATE_DIR / "ollama.log", "ab")
+        proc = subprocess.Popen(["ollama", "serve"], start_new_session=True, stdout=log, stderr=log)
+        OLLAMA_PID.write_text(str(proc.pid) + "\n")
+        print("Ollama started.")
+        return
+    if action == "stop":
+        try:
+            pid = int(OLLAMA_PID.read_text().strip())
+            os.kill(pid, signal.SIGTERM)
+            OLLAMA_PID.unlink(missing_ok=True)
+            print("Ollama stopped.")
+        except (OSError, ValueError):
+            raise SystemExit("No nbshell-managed Ollama process found.")
+
+
+def doctor() -> int:
+    state = full_status()
+    problems = 0
+    print("AGENTS")
+    for row in state["agents"]:
+        mark = "ok" if row["installed"] else "missing"
+        print(f"  {row['id']:<10} {mark:<8} {row['path'] or row['binary']}")
+    default = state["config"]["defaultAgent"]
+    if not next((row["installed"] for row in state["agents"] if row["id"] == default), False):
+        problems += 1
+        print(f"\nERROR  Default agent is unavailable: {default}")
+    print(f"\nPROFILE  {state['config']['profile']} / {state['config']['modelProfile']}")
+    ollama = state["ollama"]
+    print(f"OLLAMA   {'running' if ollama['running'] else ('stopped' if ollama['installed'] else 'not installed')}")
+    print(f"HERDR    {len(state['sessions'])} agent session(s)")
+    print(f"PROJECTS {len(state['projects'])} found")
+    return problems
+
+
+def herdr_workspace(template: str, project: str | None) -> None:
+    pane = os.environ.get("HERDR_PANE_ID", "")
+    tab = os.environ.get("HERDR_TAB_ID", "")
+    if not pane:
+        raise SystemExit("Workspace templates must be started inside a Herdr pane.")
+    config = load_config()
+    cwd = str(Path(project or config.get("lastProject") or Path.cwd()).expanduser().resolve())
+    agent = str(config["defaultAgent"])
+    binary = AGENTS.get(agent, {}).get("binary", agent)
+    agent_cmd = " ".join(shlex.quote(x) for x in [binary, *profile_args(agent, str(config["profile"]))])
+
+    def split(source: str, direction: str, ratio: str) -> str:
+        result = subprocess.run(
+            ["herdr", "pane", "split", source, "--direction", direction, "--ratio", ratio, "--cwd", cwd, "--no-focus"],
+            text=True, capture_output=True, check=True,
+        )
+        data = json.loads(result.stdout)
+        return str(data.get("result", {}).get("pane", {}).get("pane_id", ""))
+
+    if tab:
+        subprocess.run(["herdr", "tab", "rename", tab, Path(cwd).name], check=False)
+    terminal_pane = split(pane, "down", "0.82")
+    agent_pane = split(pane, "right", "0.70")
+    subprocess.run(["herdr", "pane", "run", pane, os.environ.get("EDITOR", "nvim") + " ."], check=True)
+    subprocess.run(["herdr", "pane", "run", agent_pane, agent_cmd], check=True)
+    if template == "review":
+        review_pane = split(agent_pane, "down", "0.50")
+        review_prompt = "Review the current git diff. Do not edit files; report correctness, risks, and missing tests."
+        review_cmd = agent_cmd + " " + shlex.quote(review_prompt)
+        subprocess.run(["herdr", "pane", "run", review_pane, review_cmd], check=True)
+    elif template == "pair":
+        secondary = "opencode" if agent != "opencode" and shutil.which("opencode") else "codex"
+        secondary_spec = AGENTS[secondary]
+        secondary_cmd = [secondary_spec["binary"], *profile_args(secondary, str(config["profile"]))]
+        if secondary == "opencode":
+            local_route = config.get("modelProfiles", {}).get("local", {})
+            local_model = str(local_route.get("model") or "")
+            if local_model:
+                secondary_cmd += ["--model", local_model]
+        pair_pane = split(agent_pane, "down", "0.50")
+        subprocess.run(["herdr", "pane", "run", pair_pane, " ".join(shlex.quote(x) for x in secondary_cmd)], check=True)
+    subprocess.run(["herdr", "pane", "run", terminal_pane, "git status --short; exec $SHELL"], check=True)
+    print(f"Created {template} workspace for {Path(cwd).name}.")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="nbshell AI agent control")
+    sub = parser.add_subparsers(dest="command")
+    sub.add_parser("status")
+    list_p = sub.add_parser("list"); list_p.add_argument("--json", action="store_true")
+    projects_p = sub.add_parser("projects"); projects_p.add_argument("--json", action="store_true")
+    sessions_p = sub.add_parser("sessions"); sessions_p.add_argument("--json", action="store_true")
+    sub.add_parser("doctor")
+    default = sub.add_parser("default"); default.add_argument("agent", nargs="?")
+    profile = sub.add_parser("profile"); profile.add_argument("profile", nargs="?", choices=["safe", "balanced", "autonomous"])
+    model = sub.add_parser("model-profile"); model.add_argument("profile", nargs="?", choices=["local", "cloud", "private", "fast", "strong"])
+    route_model = sub.add_parser("model"); route_model.add_argument("profile", choices=["local", "cloud", "private", "fast", "strong"]); route_model.add_argument("model")
+    launch_p = sub.add_parser("launch"); launch_p.add_argument("agent", nargs="?"); launch_p.add_argument("--project"); launch_p.add_argument("--prompt", default="")
+    install_p = sub.add_parser("install"); install_p.add_argument("agent", choices=sorted(AGENTS))
+    prompt_p = sub.add_parser("prompt"); prompt_p.add_argument("prompt", nargs="+"); prompt_p.add_argument("--agent"); prompt_p.add_argument("--project")
+    ollama = sub.add_parser("ollama"); ollama.add_argument("action", nargs="?", default="status", choices=["status", "start", "stop"])
+    workspace = sub.add_parser("workspace"); workspace.add_argument("template", choices=["dev", "review", "pair"]); workspace.add_argument("--project")
+    args = parser.parse_args()
+    config = load_config()
+    command = args.command or "status"
+    if command == "status": print(json.dumps(full_status())); return 0
+    if command == "list":
+        rows = agent_rows()
+        if args.json: print(json.dumps(rows))
+        else:
+            for row in rows: print(f"{row['id']:<10} {'installed' if row['installed'] else 'missing':<10} {row['name']}")
+        return 0
+    if command == "projects":
+        rows = projects(config)
+        if args.json: print(json.dumps(rows))
+        else:
+            for row in rows: print(row["path"])
+        return 0
+    if command == "sessions":
+        rows = herdr_sessions()
+        if args.json: print(json.dumps(rows))
+        else:
+            for row in rows: print(f"{row['id']:<12} {row['name']:<10} {row['status']:<12} {row['project']}")
+        return 0
+    if command == "doctor": return doctor()
+    if command == "default":
+        if args.agent is None: print(config["defaultAgent"]); return 0
+        if args.agent not in AGENTS: raise SystemExit(f"Unknown agent: {args.agent}")
+        set_value("defaultAgent", args.agent); return 0
+    if command == "profile":
+        if args.profile is None: print(config["profile"]); return 0
+        set_value("profile", args.profile); return 0
+    if command == "model-profile":
+        if args.profile is None: print(config["modelProfile"]); return 0
+        set_value("modelProfile", args.profile); return 0
+    if command == "model": set_profile_model(args.profile, args.model); return 0
+    if command == "launch": launch(args.agent, args.project, args.prompt); return 0
+    if command == "install": install_agent(args.agent); return 0
+    if command == "prompt": launch(args.agent, args.project, " ".join(args.prompt)); return 0
+    if command == "ollama": ollama_control(args.action); return 0
+    if command == "workspace": herdr_workspace(args.template, args.project); return 0
+    return 2
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except subprocess.TimeoutExpired:
+        raise SystemExit("Agent status request timed out.")

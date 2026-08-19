@@ -98,6 +98,7 @@ alacritty_theme() {
 CURSOR_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/cursors.sh"
 KEYS_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/keys.py"
 PIP_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/zen-pip.py"
+AGENT_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/agents.py"
 
 cursor_status() {
     local jetzt
@@ -397,6 +398,7 @@ nbshell -- an independent Quickshell desktop shell for niri
   nbshell palette           open the command-only launcher
   nbshell find <text>       show matching launcher entries
   nbshell commands [text]   list command-palette entries
+  nbshell commands --json   print the CLI catalog for agents and scripts
   nbshell command <text>    run the best command match
 
   nbshell notify            show notification status
@@ -409,7 +411,26 @@ nbshell -- an independent Quickshell desktop shell for niri
   nbshell modules           arrange bar modules
   nbshell settings          open appearance and behavior settings
   nbshell updates           Updates: status, check, list, run
-  nbshell ai                AI usage (also: refresh)
+  nbshell ai                open the Agent Center (also: usage, refresh)
+  nbshell agent list [--json]
+                            list installed and supported coding agents
+  nbshell agent default [id]
+                            show or select the default agent
+  nbshell agent launch [id] [--project <path>]
+                            start an agent in a project terminal
+  nbshell agent prompt <text>
+                            start the default agent with a prompt
+  nbshell agent profile [safe|balanced|autonomous]
+  nbshell agent model-profile [local|cloud|private|fast|strong]
+  nbshell agent model <profile> <provider/model>
+  nbshell agent install <agent>
+  nbshell agent workspace dev|review|pair
+                            set the concrete model used by a routing profile
+  nbshell agent sessions    list active Herdr agent sessions
+  nbshell agent ollama [status|start|stop]
+  nbshell agent workspace dev|review [--project <path>]
+                            create an editor/agent layout inside Herdr
+  nbshell agent doctor      diagnose the local AI toolchain
   nbshell capture           capture menu (screen, window, region, ocr, record)
   nbshell procs             process list (also: top)
   nbshell menu              searchable main menu
@@ -448,6 +469,7 @@ nbshell -- an independent Quickshell desktop shell for niri
   nbshell battery           battery and power profile
   nbshell power             power menu (also: lock, logout, suspend)
   nbshell media playpause|next|previous|status
+  nbshell dictate           toggle local voice dictation
   nbshell pip status|apply|size|corner|focus|close
                             control Zen's native Picture-in-Picture
 
@@ -585,7 +607,22 @@ case "$cmd" in
         ipc launcher find "${1:?search text is required}"
         ;;
     befehle|commands)
-        ipc launcher commands "${1:-}"
+        if [ "${1:-}" = "--json" ]; then
+            usage | python3 -c '
+import json, re, sys
+rows = []
+for line in sys.stdin:
+    match = re.match(r"^  (nbshell\s+\S+(?:\s+\S+)*)\s{2,}(.+)$", line.rstrip())
+    if not match:
+        continue
+    command, summary = match.groups()
+    if command == "nbshell commands --json":
+        summary = "Print this machine-readable CLI catalog"
+    rows.append({"command": command, "summary": summary})
+print(json.dumps({"schemaVersion": 1, "commands": rows}, indent=2))'
+        else
+            ipc launcher commands "${1:-}"
+        fi
         ;;
     befehl|command)
         ipc launcher exec "${1:?Command name is required}"
@@ -709,7 +746,19 @@ for b in d["binds"]:
         ipc updates "${1:-status}"
         ;;
     ai)
-        ipc ai "${1:-status}"
+        case "${1:-center}" in
+            center|open|toggle) ipc agentCenter toggle ;;
+            usage|status|refresh) ipc ai "${1:-status}" ;;
+            *) ipc agentCenter toggle ;;
+        esac
+        ;;
+    agent|agents)
+        sub="${1:-status}"
+        [ $# -gt 0 ] && shift || true
+        case "$sub" in
+            center|open) ipc agentCenter toggle ;;
+            *) python3 "$AGENT_TOOL" "$sub" "$@" ;;
+        esac
         ;;
     capture)
         ipc capture "${1:-menu}"
@@ -856,6 +905,13 @@ for b in d["binds"]:
         ;;
     media)
         ipc media "${1:-status}"
+        ;;
+    dictate)
+        if command -v voxtype >/dev/null 2>&1; then
+            voxtype record toggle
+        else
+            notify-send -u normal "Dictation is not installed" "Install the optional voxtype-bin package."
+        fi
         ;;
     pip)
         "$PIP_TOOL" "${1:-status}"

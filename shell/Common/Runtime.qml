@@ -32,6 +32,7 @@ Singleton {
     property bool clipOpen: false
     property bool procsOpen: false
     property bool captureOpen: false
+    property bool captureWindowSelect: false
     property bool settingsOpen: false
     property bool modulesOpen: false
     property bool wallpaperOpen: false
@@ -45,6 +46,7 @@ Singleton {
     property bool emojiOpen: false
     property bool hubOpen: false
     property bool dashboardOpen: false
+    property bool agentCenterOpen: false
     property int dashboardPage: 0
     property bool pluginDeveloperOpen: false
 

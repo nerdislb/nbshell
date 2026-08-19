@@ -189,11 +189,13 @@ Scope {
         // Der Server ist der Umschalter zwischen den beiden Shells -- deshalb
         // ein eigener Befehl und keine stille Automatik.
         function server(value: string): string {
+            if (value === "status")
+                return Notify.enabled ? "on — nbshell provides the notification service" : "off — notifications are handled elsewhere";
             const next = value === "toggle" ? !Notify.enabled : (value === "on");
             Config.set("notifications", next);
             if (next)
                 return "on — nbshell provides the notification service";
-            return "off — notifications are handled by DMS again";
+            return "off — notifications are handled elsewhere";
         }
 
         function dnd(): string {

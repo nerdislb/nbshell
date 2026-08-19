@@ -58,6 +58,7 @@ ShellRoot {
         void Procs.list;
         void CaptureService.recording;
         void AiUsage.available;
+        void Agents.defaultAgent;
         void BongoCat.active;
         void Updates.enabled;
         void PowerService.available;
@@ -127,6 +128,8 @@ ShellRoot {
     SystemHub {}
 
     Dashboard {}
+
+    AgentCenter {}
 
     // Nachinstallierte Dienste, Panels und Overlays. Nur explizit aktivierte
     // Plugin-IDs werden geladen; reine Bar-Widgets entstehen in WidgetHost.

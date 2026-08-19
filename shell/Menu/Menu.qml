@@ -129,6 +129,10 @@ PanelWindow {
             "run": () => Runtime.dashboardOpen = true
         },
         {
+            "key": "i", "label": "AI & Agents", "description": "Agents, models, projects, sessions, and usage", "icon": Icons.cp(0xF1218),
+            "run": () => Runtime.agentCenterOpen = true
+        },
+        {
             "key": "h", "label": "System & Plugins", "description": "Agents, sync, updates, printing, ports, and hardware", "icon": Icons.matrix,
             "run": () => Runtime.hubOpen = true
         },
@@ -174,10 +178,14 @@ PanelWindow {
             "sub": [
                 { "key": "r", "label": "Region", "icon": Icons.camera, "run": () => CaptureService.shoot("region") },
                 { "key": "b", "label": "Screen", "icon": Icons.cp(0xF0379), "run": () => CaptureService.shoot("screen") },
-                { "key": "f", "label": "Window", "icon": Icons.cp(0xF04A1), "run": () => CaptureService.shoot("window") },
+                { "key": "f", "label": "Window", "icon": Icons.cp(0xF04A1), "run": () => {
+                    Runtime.captureWindowSelect = true;
+                    Runtime.captureOpen = true;
+                } },
                 { "key": "o", "label": "Recognize text (OCR)", "icon": Icons.cp(0xF0219), "run": () => CaptureService.ocr() },
                 { "key": "q", "label": "Scan QR code", "icon": Icons.cp(0xF0432), "run": () => CaptureService.qr() },
-                { "key": "a", "label": "Start/stop recording", "icon": Icons.record, "run": () => CaptureService.toggleRecording() }
+                { "key": "a", "label": "Start/stop recording", "icon": Icons.record, "run": () => CaptureService.toggleRecording() },
+                { "key": "s", "label": "Open streaming studio", "icon": Icons.cp(0xF0502), "run": () => CaptureService.openStreamingStudio() }
             ]
         },
         {

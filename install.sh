@@ -55,6 +55,7 @@ missing_optional="$(
     optional_check curl          "weather plugin"             "curl"
     optional_check vdirsyncer    "calendar sync"              "vdirsyncer"
     optional_check wf-recorder   "screen recording"           "wf-recorder"
+    optional_check obs           "live streaming"             "obs-studio"
     optional_check slurp         "region selection"           "slurp"
     optional_check satty         "screenshot editing"         "satty"
     optional_check tesseract     "OCR"                        "tesseract tesseract-data-eng"
@@ -74,6 +75,9 @@ missing_optional="$(
     optional_check adb           "Android connection"         "android-tools"
     optional_check scrcpy        "Android mirroring"          "scrcpy"
     optional_check nbphone       "phone mirror control"       "github.com/nerdislb/nbphone"
+    optional_check opencode      "local/cloud agent frontend" "opencode"
+    optional_check ollama        "local AI models"            "ollama (optional)"
+    optional_check voxtype       "local voice dictation"      "voxtype-bin (AUR, optional)"
 )"
 if [ -n "$missing_optional" ]; then
     printf '%s\n' "$missing_optional"
@@ -219,6 +223,16 @@ green "Binds   -> $CONFIG_HOME/niri/nbshell-takeover.kdl"
 mkdir -p "$BIN_DIR"
 install -m 755 "$SRC/bin/nbshell" "$BIN_DIR/nbshell"
 green "Command -> $BIN_DIR/nbshell"
+
+# ── Agent skill ──────────────────────────────────────────────────────────
+# One versioned source, linked into the common harness locations. Only the
+# `nbshell` entry is managed; unrelated user skills remain untouched.
+SKILL_SOURCE="$SHELL_DIR/skills/nbshell"
+for skill_home in "$HOME/.agents/skills" "$HOME/.claude/skills" "$HOME/.codex/skills"; do
+    mkdir -p "$skill_home"
+    ln -sfn "$SKILL_SOURCE" "$skill_home/nbshell"
+done
+green "Skill   -> agent skill directories (nbshell)"
 
 case ":$PATH:" in
     *":$BIN_DIR:"*) ;;
