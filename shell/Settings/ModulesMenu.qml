@@ -231,20 +231,30 @@ PanelWindow {
 
         OverlaySurface {
             preferredWidth: Theme.cellW * 76
-            preferredHeight: Math.max(left.implicitHeight, right.implicitHeight) + Theme.cellH * 3
+            preferredHeight: Theme.overlayHeightLarge
 
             MouseArea {
                 anchors.fill: parent
             }
 
-            Column {
-                id: left
-
+            Flickable {
+                id: leftScroll
                 anchors.left: parent.left
                 anchors.top: parent.top
+                anchors.bottom: hint.top
                 anchors.margins: Theme.cellW
+                anchors.bottomMargin: Theme.cellH * 2
                 width: root.leftWidth
-                spacing: 0
+                clip: true
+                contentWidth: width
+                contentHeight: left.implicitHeight
+                boundsBehavior: Flickable.StopAtBounds
+
+                Column {
+                    id: left
+
+                    width: root.leftWidth
+                    spacing: 0
 
                 Line {
                     text: "MODULES"
@@ -252,8 +262,8 @@ PanelWindow {
                     bottomPadding: Theme.cellH * 0.4
                 }
 
-                Repeater {
-                    model: root.groups
+                    Repeater {
+                        model: root.groups
 
                     Column {
                         id: group
@@ -373,17 +383,42 @@ PanelWindow {
                             }
                         }
                     }
+                    }
                 }
             }
 
-            Column {
-                id: right
+            Rectangle {
+                anchors.right: leftScroll.right
+                width: Theme.borderWidth * 2
+                height: leftScroll.contentHeight > leftScroll.height
+                    ? Math.max(Theme.cellH * 2, leftScroll.height * leftScroll.height / leftScroll.contentHeight)
+                    : 0
+                y: leftScroll.contentHeight > leftScroll.height
+                    ? leftScroll.y + leftScroll.contentY * (leftScroll.height - height) / Math.max(1, leftScroll.contentHeight - leftScroll.height)
+                    : leftScroll.y
+                visible: height > 0
+                color: Theme.muted
+                z: 10
+            }
 
+            Flickable {
+                id: rightScroll
                 anchors.right: parent.right
                 anchors.top: parent.top
+                anchors.bottom: hint.top
                 anchors.margins: Theme.cellW
+                anchors.bottomMargin: Theme.cellH * 2
                 width: root.rightWidth
-                spacing: 0
+                clip: true
+                contentWidth: width
+                contentHeight: right.implicitHeight
+                boundsBehavior: Flickable.StopAtBounds
+
+                Column {
+                    id: right
+
+                    width: root.rightWidth
+                    spacing: 0
 
                 Line {
                     text: "AVAILABLE"
@@ -391,8 +426,8 @@ PanelWindow {
                     bottomPadding: Theme.cellH * 0.4
                 }
 
-                Repeater {
-                    model: root.catalog
+                    Repeater {
+                        model: root.catalog
 
                     delegate: Rectangle {
                         id: catRow
@@ -426,7 +461,22 @@ PanelWindow {
                             onClicked: root.addFromCatalog()
                         }
                     }
+                    }
                 }
+            }
+
+            Rectangle {
+                anchors.right: rightScroll.right
+                width: Theme.borderWidth * 2
+                height: rightScroll.contentHeight > rightScroll.height
+                    ? Math.max(Theme.cellH * 2, rightScroll.height * rightScroll.height / rightScroll.contentHeight)
+                    : 0
+                y: rightScroll.contentHeight > rightScroll.height
+                    ? rightScroll.y + rightScroll.contentY * (rightScroll.height - height) / Math.max(1, rightScroll.contentHeight - rightScroll.height)
+                    : rightScroll.y
+                visible: height > 0
+                color: Theme.muted
+                z: 10
             }
 
             // Was der gewaehlte Baustein ueberhaupt tut. In der Liste steht
