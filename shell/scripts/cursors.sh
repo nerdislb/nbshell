@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# Mauszeiger: welche Themen es gibt, und eines setzen.
+# Mouse cursors: list available themes and apply one.
 #
 #   cursors.sh list                 -> JSON: ["Adwaita","macOS",…]
-#   cursors.sh apply <thema> <px>   -> niri-Datei schreiben und GTK nachziehen
-#   cursors.sh current              -> was gerade gilt
+#   cursors.sh apply <theme> <px>   -> write the niri file and update GTK
+#   cursors.sh current              -> print the active settings
 #
 # Ein Zeigerthema ist ein Verzeichnis mit Bilddateien, kein Programm: alles
 # unter /usr/share/icons oder ~/.local/share/icons, das einen `cursors`-Ordner
@@ -47,30 +47,29 @@ cmd_current() {
 }
 
 cmd_apply() {
-	local thema="${1:-}" groesse="${2:-24}"
-	[ -n "$thema" ] || {
-		echo "Thema fehlt" >&2
+	local theme="${1:-}" size="${2:-24}"
+	[ -n "$theme" ] || {
+		echo "Theme is required" >&2
 		return 1
 	}
-	themes | grep -qx "$thema" || {
-		echo "Unbekanntes Zeigerthema: $thema" >&2
+	themes | grep -qx "$theme" || {
+		echo "Unknown cursor theme: $theme" >&2
 		themes | sed 's/^/  /' >&2
 		return 1
 	}
-	case "$groesse" in
+	case "$size" in
 	'' | *[!0-9]*)
-		echo "Size must be a number: $groesse" >&2
+		echo "Size must be a number: $size" >&2
 		return 1
 		;;
 	esac
 
 	mkdir -p "$NIRI_DIR"
 	cat >"$NIRI_DIR/$CURSOR_FILE" <<KDL
-// Von nbshell geschrieben -- \`nbshell cursor\` und das Optionsmenue aendern
-// diese Datei. Von Hand bearbeiten hat also keinen langen Bestand.
+// Managed by nbshell. The cursor command and settings menu update this file.
 cursor {
-    xcursor-theme "$thema"
-    xcursor-size $groesse
+    xcursor-theme "$theme"
+    xcursor-size $size
 }
 KDL
 
@@ -79,20 +78,20 @@ KDL
 	local cfg="$NIRI_DIR/config.kdl"
 	if [ -f "$cfg" ] && ! grep -qF "$CURSOR_LINE" "$cfg"; then
 		cp "$cfg" "$cfg.vor-cursor"
-		printf '\n// Mauszeiger, von nbshell verwaltet\n%s\n' "$CURSOR_LINE" >>"$cfg"
+		printf '\n// Cursor settings managed by nbshell\n%s\n' "$CURSOR_LINE" >>"$cfg"
 		if command -v niri >/dev/null 2>&1 && ! niri validate >/dev/null 2>&1; then
 			mv "$cfg.vor-cursor" "$cfg"
-			echo "niri-Config waere ungueltig geworden -- zurueckgenommen." >&2
+			echo "The niri configuration would be invalid; the change was reverted." >&2
 			return 1
 		fi
 	fi
 
 	if command -v gsettings >/dev/null 2>&1; then
-		gsettings set org.gnome.desktop.interface cursor-theme "$thema" 2>/dev/null || true
-		gsettings set org.gnome.desktop.interface cursor-size "$groesse" 2>/dev/null || true
+		gsettings set org.gnome.desktop.interface cursor-theme "$theme" 2>/dev/null || true
+		gsettings set org.gnome.desktop.interface cursor-size "$size" 2>/dev/null || true
 	fi
 
-	printf '%s %s\n' "$thema" "$groesse"
+	printf '%s %s\n' "$theme" "$size"
 }
 
 case "${1:-list}" in
@@ -103,7 +102,7 @@ apply)
 	cmd_apply "$@"
 	;;
 *)
-	echo "Aufruf: $(basename "$0") list|current|apply <thema> [groesse]" >&2
+	echo "Usage: $(basename "$0") list|current|apply <theme> [size]" >&2
 	exit 2
 	;;
 esac

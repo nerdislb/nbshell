@@ -227,6 +227,14 @@ mkdir -p "$BIN_DIR"
 install -m 755 "$SRC/bin/nbshell" "$BIN_DIR/nbshell"
 green "Command -> $BIN_DIR/nbshell"
 
+# Desktop metadata for portals and notification attribution. The shell stays
+# hidden from application launchers because it is managed as a session unit.
+APP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+mkdir -p "$APP_DIR"
+install -m 644 "$SRC/data/dev.nerdi.nbshell.desktop" "$APP_DIR/dev.nerdi.nbshell.desktop"
+command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$APP_DIR" >/dev/null 2>&1 || true
+green "App     -> $APP_DIR/dev.nerdi.nbshell.desktop"
+
 # ── Agent skill ──────────────────────────────────────────────────────────
 # One versioned source, linked into the common harness locations. Only the
 # `nbshell` entry is managed; unrelated user skills remain untouched.

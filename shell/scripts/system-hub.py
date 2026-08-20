@@ -206,4 +206,4 @@ if __name__ == "__main__":
         if target:
             run("niri", "msg", "action", "focus-window", "--id", str(target.get("id")))
     else:
-        raise SystemExit("Aufruf: system-hub.py status|herdr-focus PANE")
+        raise SystemExit("Usage: system-hub.py status|herdr-focus PANE")

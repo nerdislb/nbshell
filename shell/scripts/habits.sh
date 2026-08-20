@@ -61,10 +61,10 @@ case "$cmd" in
         ' "$file" "${conflicts[@]}" > "$tmp" 2>/dev/null && [ -s "$tmp" ]; then
             mv "$tmp" "$file"
             rm -f "${conflicts[@]}"
-            echo "${#conflicts[@]} Konfliktkopie(n) zurueckgefaltet"
+            echo "Merged ${#conflicts[@]} conflict copy/copies"
         else
             rm -f "$tmp"
-            echo "Konfliktkopie liess sich nicht lesen: ${conflicts[*]}" >&2
+            echo "Could not read conflict copy: ${conflicts[*]}" >&2
         fi
         ;;
 

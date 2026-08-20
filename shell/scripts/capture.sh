@@ -287,7 +287,7 @@ rec-start) shift && cmd_rec_start "$@" ;;
 rec-stop) shift && cmd_rec_stop "$@" ;;
 rec-active) pgrep -x wf-recorder >/dev/null ;;
 *)
-	echo "Aufruf: $(basename "$0") post|ocr|qr|edit-last|open-dir|rec-start|rec-stop|rec-active ..." >&2
+	echo "Usage: $(basename "$0") post|ocr|qr|edit-last|open-dir|rec-start|rec-stop|rec-active ..." >&2
 	exit 2
 	;;
 esac

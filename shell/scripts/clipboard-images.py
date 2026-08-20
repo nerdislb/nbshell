@@ -53,7 +53,7 @@ def emit(entries):
 
 def main():
     if len(sys.argv) < 3:
-        raise SystemExit("Aufruf: clipboard-images.py capture|list|copy|remove|clear DIR [ARG]")
+        raise SystemExit("Usage: clipboard-images.py capture|list|copy|remove|clear DIR [ARG]")
     command, raw_root = sys.argv[1:3]
     root, index = paths(raw_root)
     entries = load(index)
@@ -104,7 +104,7 @@ def main():
         save(index, [])
         emit([])
         return
-    raise SystemExit("unbekannter Befehl")
+    raise SystemExit("unknown command")
 
 
 if __name__ == "__main__":

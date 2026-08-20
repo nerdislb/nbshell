@@ -1,13 +1,14 @@
-## Was aendert sich?
+## What changes?
 
 
-## Wie wurde es getestet?
+## How was it tested?
 
-- [ ] `bash -n` fuer geaenderte Shell-Skripte
+- [ ] `bash -n` for changed shell scripts
 - [ ] `./tests/plugin-validation.sh`
-- [ ] Keine Zugangsdaten oder persoenlichen Konfigurationen enthalten
+- [ ] `./tests/fresh-install.sh`
+- [ ] No credentials or personal configuration included
 
-## KI-Unterstuetzung
+## AI assistance
 
-Wurden wesentliche Teile mit KI erstellt? Wenn ja, kurz nennen und beschreiben,
-wie der Code geprueft wurde.
+Were substantial parts created with AI assistance? If so, briefly say which
+parts and how the result was reviewed.

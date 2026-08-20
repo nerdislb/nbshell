@@ -125,7 +125,7 @@ calendars) cmd_calendars ;;
 sync) cmd_sync ;;
 status) cmd_status ;;
 *)
-	echo "Aufruf: $(basename "$0") events <ISO-Datum> <Tage> | calendars | sync | status" >&2
+	echo "Usage: $(basename "$0") events <ISO-date> <days> | calendars | sync | status" >&2
 	exit 2
 	;;
 esac

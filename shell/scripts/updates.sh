@@ -146,7 +146,7 @@ run)
 	exit $rc
 	;;
 *)
-	echo "Aufruf: $(basename "$0") check|command|run" >&2
+	echo "Usage: $(basename "$0") check|command|run" >&2
 	exit 2
 	;;
 esac

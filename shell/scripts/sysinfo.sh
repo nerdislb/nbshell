@@ -274,7 +274,7 @@ PY
 case "${1:-detail}" in
 detail) shift && cmd_detail "${1:-}" ;;
 *)
-	echo "Aufruf: $(basename "$0") detail [gpu]" >&2
+	echo "Usage: $(basename "$0") detail [gpu]" >&2
 	exit 2
 	;;
 esac

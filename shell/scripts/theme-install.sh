@@ -147,7 +147,7 @@ cmd_install() {
 	done
 
 	src="${1:-}"
-	[ -n "$src" ] || die "Aufruf: theme-install.sh install [--force] <git-url|verzeichnis>"
+	[ -n "$src" ] || die "Usage: theme-install.sh install [--force] <git-url|directory>"
 
 	# user@host:org/repo.git -- den Prefix abschneiden, damit basename greift.
 	path="$src"
@@ -168,10 +168,10 @@ cmd_install() {
 			if [ "$twin" = "$name" ]; then
 				note "'$name' is already installed -- nothing changed."
 			else
-				note "'$twin' ist schon installiert; '$name' ist nur eine andere Schreibweise davon."
+				note "'$twin' is already installed; '$name' is only a spelling variant."
 				note "nothing changed."
 			fi
-			note "trotzdem holen: nbshell theme install --force $src"
+			note "install anyway: nbshell theme install --force $src"
 			return 0
 		fi
 	fi
@@ -200,7 +200,7 @@ cmd_install() {
 		local inner
 		inner="$(find "$work" -mindepth 2 -maxdepth 2 \( -name colors.toml -o -name alacritty.toml \) -print -quit)"
 		[ -n "$inner" ] && {
-			note "Theme liegt in $(basename "$(dirname "$inner")")/"
+			note "Theme found in $(basename "$(dirname "$inner")")/"
 			work="$(dirname "$inner")"
 		}
 	fi
@@ -214,13 +214,13 @@ cmd_install() {
 	fi
 
 	# Jetzt erst das alte ersetzen.
-	[ -d "$dest" ] && { note "'$name' war schon da -- wird ersetzt"; rm -rf "$dest"; }
+	[ -d "$dest" ] && { note "'$name' already exists -- replacing it"; rm -rf "$dest"; }
 	cp -a "$work" "$dest" || die "failed to install to '$dest'"
 
 	local shots
 	shots="$(find "$dest/backgrounds" -maxdepth 1 -type f 2>/dev/null | wc -l)"
-	note "'$name' installiert (${shots} Bilder)"
-	note "wechseln mit: nbshell theme $name"
+	note "Installed '$name' (${shots} images)"
+	note "Switch with: nbshell theme $name"
 }
 
 cmd_remove() {
@@ -261,7 +261,7 @@ cmd_remove() {
 	for name in "${names[@]}"; do
 		# Doppelter Boden: leere oder pfad-artige Namen nie anfassen.
 		[ -n "$name" ] || continue
-		case "$name" in */* | . | ..) note "ungueltiger Themename: '$name'"; continue ;; esac
+		case "$name" in */* | . | ..) note "invalid theme name: '$name'"; continue ;; esac
 		if [ "$name" = "$active" ]; then
 			note "'$name' is the ACTIVE theme -- switch first, then remove it."
 			continue
@@ -269,7 +269,7 @@ cmd_remove() {
 		dest="$THEME_DIR/$name"
 		if [ -d "$dest" ]; then
 			rm -rf "$dest"
-			note "'$name' entfernt"
+			note "Removed '$name'"
 		else
 			note "'$name' is not installed"
 		fi
@@ -285,7 +285,7 @@ cmd_update() {
 		name="$(basename "$t")"
 		found=1
 		if git -C "$t" pull --quiet --ff-only 2>/dev/null; then
-			note "$name aktualisiert"
+			note "Updated $name"
 		else
 			note "$name skipped (fast-forward not possible)"
 		fi
@@ -299,9 +299,9 @@ cmd_list() {
 		[ -f "$t/colors.toml" ] || continue
 		name="$(basename "$t")"
 		if [ -d "$t/.git" ]; then
-			printf '%-22s selbst installiert\n' "$name"
+			printf '%-22s user-installed\n' "$name"
 		else
-			printf '%-22s mitgeliefert\n' "$name"
+			printf '%-22s bundled\n' "$name"
 		fi
 	done
 }
@@ -312,7 +312,7 @@ remove) shift && cmd_remove "$@" ;;
 update) cmd_update ;;
 list) cmd_list ;;
 *)
-	echo "Aufruf: $(basename "$0") install [--force] <url|verzeichnis> | remove <name> | update | list" >&2
+	echo "Usage: $(basename "$0") install [--force] <url|directory> | remove <name> | update | list" >&2
 	exit 2
 	;;
 esac

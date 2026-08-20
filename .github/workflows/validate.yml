@@ -1,0 +1,32 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Install test dependencies
+        run: pacman -Syu --noconfirm git bash python jq
+
+      - uses: actions/checkout@v4
+
+      - name: Check shell syntax
+        run: |
+          find . -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+          bash -n bin/nbshell
+
+      - name: Check Python syntax
+        run: find shell -type f -name '*.py' -exec python3 -m py_compile {} +
+
+      - name: Validate bundled plugins
+        run: ./tests/plugin-validation.sh
+
+      - name: Test a clean installation and update
+        run: ./tests/fresh-install.sh

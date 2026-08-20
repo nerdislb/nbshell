@@ -12,6 +12,8 @@ focused pull requests are the easiest to review.
 
    ```bash
    ./tests/plugin-validation.sh
+   ./tests/fresh-install.sh
+   find shell -type f -name '*.py' -exec python3 -m py_compile {} +
    ```
 
 5. Briefly explain what changes for users and how you tested it.

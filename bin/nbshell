@@ -424,17 +424,18 @@ nbshell -- an independent Quickshell desktop shell for niri
                             show or select the default agent
   nbshell agent launch [id] [--project <path>]
                             start an agent in a project terminal
+  nbshell agent quick [--project <path>]
+                            open the default agent in a floating terminal
   nbshell agent prompt <text>
                             start the default agent with a prompt
   nbshell agent profile [safe|balanced|autonomous]
   nbshell agent model-profile [local|cloud|private|fast|strong]
   nbshell agent model <profile> <provider/model>
-  nbshell agent install <agent>
-  nbshell agent workspace dev|review|pair
                             set the concrete model used by a routing profile
+  nbshell agent install <agent>
   nbshell agent sessions    list active Herdr agent sessions
   nbshell agent ollama [status|start|stop]
-  nbshell agent workspace dev|review [--project <path>]
+  nbshell agent workspace dev|review|pair [--project <path>]
                             create an editor/agent layout inside Herdr
   nbshell agent doctor      diagnose the local AI toolchain
   nbshell capture           capture menu (screen, window, region, ocr, record)

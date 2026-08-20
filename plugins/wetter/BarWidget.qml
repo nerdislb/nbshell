@@ -272,7 +272,7 @@ Cell {
 
             Line {
                 visible: root.ready
-                text: "  auf " + root.clock(panel.d.auf) + "   unter " + root.clock(panel.d.unter) + "   Stand " + root.clock(panel.d.stand)
+                text: "  sunrise " + root.clock(panel.d.auf) + "   sunset " + root.clock(panel.d.unter) + "   updated " + root.clock(panel.d.stand)
                 color: Theme.muted
             }
 
@@ -348,7 +348,7 @@ Cell {
 
             Line {
                 visible: root.ready
-                text: "  Daten von open-meteo.com"
+                text: "  Data from open-meteo.com"
                 color: Theme.muted
             }
         }

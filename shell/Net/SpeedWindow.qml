@@ -191,7 +191,7 @@ PanelWindow {
             PanelHead {
                 rowWidth: inhalt.rowWidth
                 icon: Icons.lan
-                title: "Durchsatz"
+                title: "Throughput"
                 subtitle: (root.result && root.result.ok) ? String(root.result.server) : "Speedtest"
                 badge: root.running ? "misst" : (root.result && root.result.ok ? (root.scale + " Mbit/s") : "")
             }

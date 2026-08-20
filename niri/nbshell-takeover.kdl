@@ -28,6 +28,7 @@ binds {
     Mod+Ctrl+M hotkey-overlay-title="nbshell: Arrange modules" { spawn "sh" "-c" "$HOME/.local/bin/nbshell modules"; }
     Mod+Ctrl+P hotkey-overlay-title="nbshell: Plugin diagnostics" { spawn "sh" "-c" "$HOME/.local/bin/nbshell plugin-dev"; }
     Mod+Ctrl+A hotkey-overlay-title="nbshell: Audio" { spawn "sh" "-c" "$HOME/.local/bin/nbshell audio panel"; }
+    Mod+Shift+A hotkey-overlay-title="nbshell: Quick Agent" { spawn "sh" "-c" "$HOME/.local/bin/nbshell agent quick"; }
     Mod+Ctrl+Shift+A hotkey-overlay-title="nbshell: Agent Center" { spawn "sh" "-c" "$HOME/.local/bin/nbshell agent center"; }
     Mod+Alt+A hotkey-overlay-title="nbshell: Focus & Equalizer" { spawn "sh" "-c" "$HOME/.local/bin/nbshell audio tools"; }
     Mod+Escape hotkey-overlay-title="nbshell: Session" { spawn "sh" "-c" "$HOME/.local/bin/nbshell power menu"; }
@@ -126,8 +127,19 @@ window-rule {
 // They remain tiled like normal development terminals; the rule only makes
 // them recognizable to Niri and future session/focus integrations.
 window-rule {
-    match app-id=r"^nbshell-agent-.*$"
+    match app-id=r"^dev\.nerdi\.nbshell\.agent\..*$"
     open-focused true
+}
+
+// Super+Shift+A is the immediate customization path: the preferred agent
+// opens as a focused floating terminal while normal development agents stay
+// tiled. The app-id is assigned only by `nbshell agent quick`.
+window-rule {
+    match app-id=r"^dev\.nerdi\.nbshell\.agent\.quick\..*$"
+    open-floating true
+    open-focused true
+    default-column-width { proportion 0.64; }
+    default-window-height { proportion 0.72; }
 }
 
 // Die weichgezeichnete Kopie des Hintergrunds gehoert in niris Backdrop --

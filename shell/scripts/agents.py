@@ -189,7 +189,7 @@ def prompt_args(agent_id: str, prompt: str) -> list[str]:
     return [prompt]
 
 
-def launch(agent_id: str | None, project: str | None, prompt: str = "") -> None:
+def launch(agent_id: str | None, project: str | None, prompt: str = "", quick: bool = False) -> None:
     config = load_config()
     route = config.get("modelProfiles", {}).get(str(config.get("modelProfile", "cloud")), {})
     agent_id = agent_id or str(route.get("agent") or config["defaultAgent"])
@@ -198,7 +198,13 @@ def launch(agent_id: str | None, project: str | None, prompt: str = "") -> None:
     binary = shutil.which(AGENTS[agent_id]["binary"])
     if not binary:
         raise SystemExit(f"{AGENTS[agent_id]['name']} is not installed ({AGENTS[agent_id]['binary']}).")
-    cwd = Path(project or config.get("lastProject") or Path.cwd()).expanduser().resolve()
+    quick_project = Path.home() / "projects" / "nbshell"
+    cwd = Path(
+        project
+        or (quick_project if quick and quick_project.is_dir() else "")
+        or config.get("lastProject")
+        or Path.cwd()
+    ).expanduser().resolve()
     if not cwd.is_dir():
         raise SystemExit(f"Project directory does not exist: {cwd}")
     config["lastProject"] = str(cwd)
@@ -210,14 +216,18 @@ def launch(agent_id: str | None, project: str | None, prompt: str = "") -> None:
     command = [binary, *profile_args(agent_id, str(config["profile"])), *model_args, *prompt_args(agent_id, prompt)]
     shell_cmd = "exec " + " ".join(shlex.quote(part) for part in command)
     terminal = terminal_command(config)
-    name = f"nbshell-agent-{agent_id}"
+    name = f"dev.nerdi.nbshell.agent.{'quick.' if quick else ''}{agent_id}"
+    title = ("Quick Agent · " if quick else "") + AGENTS[agent_id]["name"]
     base = Path(terminal[0]).name
     if base == "ghostty":
-        terminal += ["--class=" + name, "--title=" + AGENTS[agent_id]["name"], "-e", "sh", "-lc", shell_cmd]
+        # Ghostty forwards CLI arguments to its existing process by default,
+        # which keeps the original Wayland app-id. A separate GTK instance is
+        # required for Niri to see the per-agent class and apply window rules.
+        terminal += ["--gtk-single-instance=false", "--class=" + name, "--title=" + title, "-e", "sh", "-lc", shell_cmd]
     elif base in {"foot", "kitty"}:
-        terminal += ["--app-id=" + name, "-T", AGENTS[agent_id]["name"], "sh", "-lc", shell_cmd]
+        terminal += ["--app-id=" + name, "-T", title, "sh", "-lc", shell_cmd]
     elif base == "alacritty":
-        terminal += ["--class", name, "--title", AGENTS[agent_id]["name"], "-e", "sh", "-lc", shell_cmd]
+        terminal += ["--class", name, "--title", title, "-e", "sh", "-lc", shell_cmd]
     else:
         terminal += ["-e", "sh", "-lc", shell_cmd]
     subprocess.Popen(terminal, cwd=cwd, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -238,9 +248,9 @@ def install_agent(agent_id: str) -> None:
     prompt = f"Install {spec['name']} with: {command} [y/N] "
     script = f"printf '%s' {shlex.quote(prompt)}; read -r answer; case $answer in y|Y) {command} ;; *) echo 'Cancelled.' ;; esac; printf '\\nPress Enter to close.'; read -r _"
     base = Path(terminal[0]).name
-    if base == "ghostty": terminal += ["--class=nbshell-agent-installer", "--title=Install " + spec["name"], "-e", "sh", "-lc", script]
-    elif base in {"foot", "kitty"}: terminal += ["--app-id=nbshell-agent-installer", "-T", "Install " + spec["name"], "sh", "-lc", script]
-    elif base == "alacritty": terminal += ["--class", "nbshell-agent-installer", "--title", "Install " + spec["name"], "-e", "sh", "-lc", script]
+    if base == "ghostty": terminal += ["--gtk-single-instance=false", "--class=dev.nerdi.nbshell.agent.installer", "--title=Install " + spec["name"], "-e", "sh", "-lc", script]
+    elif base in {"foot", "kitty"}: terminal += ["--app-id=dev.nerdi.nbshell.agent.installer", "-T", "Install " + spec["name"], "sh", "-lc", script]
+    elif base == "alacritty": terminal += ["--class", "dev.nerdi.nbshell.agent.installer", "--title", "Install " + spec["name"], "-e", "sh", "-lc", script]
     else: terminal += ["-e", "sh", "-lc", script]
     subprocess.Popen(terminal, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -388,6 +398,7 @@ def main() -> int:
     model = sub.add_parser("model-profile"); model.add_argument("profile", nargs="?", choices=["local", "cloud", "private", "fast", "strong"])
     route_model = sub.add_parser("model"); route_model.add_argument("profile", choices=["local", "cloud", "private", "fast", "strong"]); route_model.add_argument("model")
     launch_p = sub.add_parser("launch"); launch_p.add_argument("agent", nargs="?"); launch_p.add_argument("--project"); launch_p.add_argument("--prompt", default="")
+    quick_p = sub.add_parser("quick"); quick_p.add_argument("--project"); quick_p.add_argument("--prompt", default="")
     install_p = sub.add_parser("install"); install_p.add_argument("agent", choices=sorted(AGENTS))
     prompt_p = sub.add_parser("prompt"); prompt_p.add_argument("prompt", nargs="+"); prompt_p.add_argument("--agent"); prompt_p.add_argument("--project")
     ollama = sub.add_parser("ollama"); ollama.add_argument("action", nargs="?", default="status", choices=["status", "start", "stop"])
@@ -427,6 +438,7 @@ def main() -> int:
         set_value("modelProfile", args.profile); return 0
     if command == "model": set_profile_model(args.profile, args.model); return 0
     if command == "launch": launch(args.agent, args.project, args.prompt); return 0
+    if command == "quick": launch(None, args.project, args.prompt, quick=True); return 0
     if command == "install": install_agent(args.agent); return 0
     if command == "prompt": launch(args.agent, args.project, " ".join(args.prompt)); return 0
     if command == "ollama": ollama_control(args.action); return 0

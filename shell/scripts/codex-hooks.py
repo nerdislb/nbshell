@@ -67,7 +67,7 @@ def main():
                 "timeout": 3
             }]})
     elif action != "uninstall":
-        raise SystemExit("Aufruf: codex-hooks.py status|install SCRIPT|uninstall")
+        raise SystemExit("Usage: codex-hooks.py status|install SCRIPT|uninstall")
     write(path, data)
     print("installed" if action == "install" else "removed")
 

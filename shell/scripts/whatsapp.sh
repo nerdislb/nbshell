@@ -101,5 +101,5 @@ case "${1:-status}" in
     restart) systemctl --user restart nbshell-whatsapp.service ;;
     status) systemctl --user --no-pager --full status nbshell-whatsapp.service ;;
     open) open_webapp ;;
-    *) die "Aufruf: whatsapp.sh setup|start|restart|status|open" ;;
+    *) die "Usage: whatsapp.sh setup|start|restart|status|open" ;;
 esac

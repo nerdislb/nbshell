@@ -26,7 +26,7 @@ set -uo pipefail
 
 meldung() { printf '{"ok": %s, "grund": "%s"}\n' "$1" "$2"; }
 
-command -v pactl >/dev/null 2>&1 || { meldung false "pactl fehlt"; exit 1; }
+command -v pactl >/dev/null 2>&1 || { meldung false "pactl is missing"; exit 1; }
 
 MERKER="${XDG_STATE_HOME:-$HOME/.local/state}/nbshell/ton-geraet"
 
@@ -54,7 +54,7 @@ if [ -z "$karte" ]; then
 		done < <(bluetoothctl devices Paired 2>/dev/null)
 	fi
 	if [ -z "$mac" ]; then
-		meldung false "kein gepaartes Tongeraet gefunden"
+		meldung false "no paired audio device found"
 		exit 1
 	fi
 
@@ -74,7 +74,7 @@ if [ -z "$karte" ]; then
 	done
 	if [ -z "$karte" ]; then
 		wait 2>/dev/null
-		meldung false "Verbinden mit $mac ging nicht — Hoerer im Etui oder noch am Telefon?"
+		meldung false "could not connect to $mac — are the headphones in their case or still connected to the phone?"
 		exit 1
 	fi
 fi
@@ -118,7 +118,7 @@ if [ "${frisch:-0}" != "1" ]; then
 	pactl set-card-profile "$karte" off 2>/dev/null
 	sleep 0.5
 	pactl set-card-profile "$karte" "$profil" 2>/dev/null || {
-		meldung false "Profil $profil ging nicht"
+		meldung false "could not activate profile $profil"
 		exit 1
 	}
 fi
@@ -132,7 +132,7 @@ for _ in $(seq 1 20); do
 	sleep 0.2
 done
 if [ -z "$senke" ]; then
-	meldung false "Senke kam nicht zurueck"
+	meldung false "audio output did not return"
 	exit 1
 fi
 

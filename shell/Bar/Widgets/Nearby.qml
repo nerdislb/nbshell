@@ -39,7 +39,7 @@ Cell {
             PanelHead {
                 rowWidth: panel.rowWidth
                 icon: Icons.share
-                title: "In der Naehe"
+                title: "Nearby"
                 subtitle: "LocalSend"
                 badge: Nearby.scanning ? "scanning" : String(Nearby.devices.length)
             }
@@ -94,7 +94,7 @@ Cell {
                         }
 
                         Knopf {
-                            text: "Letztes Bild"
+                            text: "Latest image"
                             onTriggered: Nearby.sendLastShot(eintrag.modelData)
                         }
                     }

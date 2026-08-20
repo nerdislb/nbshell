@@ -139,6 +139,7 @@ PanelWindow {
         property color tone: Theme.accent
         property var run: null
         property var rightRun: null
+        property bool centered: false
         width: Theme.cellW * 21
         height: Theme.cellH * 3.2
         radius: Theme.radius
@@ -146,9 +147,18 @@ PanelWindow {
         border.width: Theme.borderWidth
         border.color: actionHover.hovered ? action.tone : Theme.controlBorder(false, false, false)
 
-        Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.top: parent.top; anchors.topMargin: Theme.cellH * 0.55; text: action.glyph + (action.glyph !== "" ? "  " : "") + action.label; color: action.tone; font.pixelSize: Theme.fontBody; font.bold: true }
-        Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.right: rightHint.left; anchors.rightMargin: Theme.cellW * 0.5; anchors.bottom: parent.bottom; anchors.bottomMargin: Theme.cellH * 0.45; text: action.detail; color: Theme.fgDim; font.pixelSize: Theme.fontCaption; elide: Text.ElideRight }
-        Line { id: rightHint; visible: action.rightRun !== null; anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.bottom: parent.bottom; anchors.bottomMargin: Theme.cellH * 0.45; text: "R"; color: Theme.muted }
+        Line { visible: !action.centered; anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.top: parent.top; anchors.topMargin: Theme.cellH * 0.55; text: action.glyph + (action.glyph !== "" ? "  " : "") + action.label; color: action.tone; font.pixelSize: Theme.fontBody; font.bold: true }
+        Line { visible: !action.centered; anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.right: rightHint.left; anchors.rightMargin: Theme.cellW * 0.5; anchors.bottom: parent.bottom; anchors.bottomMargin: Theme.cellH * 0.45; text: action.detail; color: Theme.fgDim; font.pixelSize: Theme.fontCaption; elide: Text.ElideRight }
+        Line { id: rightHint; visible: !action.centered && action.rightRun !== null; anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.bottom: parent.bottom; anchors.bottomMargin: Theme.cellH * 0.45; text: "R"; color: Theme.muted }
+        Column {
+            visible: action.centered
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Theme.spaceXs
+            Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: action.glyph + (action.glyph !== "" ? "  " : "") + action.label; color: action.tone; font.pixelSize: Theme.fontBody; font.bold: true }
+            Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: action.detail; color: Theme.fgDim; font.pixelSize: Theme.fontCaption; elide: Text.ElideRight }
+        }
         HoverHandler { id: actionHover; cursorShape: Qt.PointingHandCursor }
         TapHandler {
             id: actionTap
@@ -363,12 +373,25 @@ PanelWindow {
                                 Row {
                                     width: parent.width
                                     spacing: Theme.cellW * 2
-                                    Action { width: (parent.width - Theme.cellW * 4) / 3; height: Theme.cellH * 2.8; label: "Previous"; glyph: Icons.cp(0xF04AE); detail: "previous track"; run: () => MediaService.previous() }
-                                    Action { width: (parent.width - Theme.cellW * 4) / 3; height: Theme.cellH * 2.8; label: MediaService.playing ? "Pause" : "Play"; glyph: MediaService.playing ? Icons.pause : Icons.play; detail: MediaService.playing ? "pause playback" : "resume playback"; run: () => MediaService.playPause() }
-                                    Action { width: (parent.width - Theme.cellW * 4) / 3; height: Theme.cellH * 2.8; label: "Next"; glyph: Icons.cp(0xF04AD); detail: "next track"; run: () => MediaService.next() }
+                                    Action { centered: true; width: (parent.width - Theme.cellW * 4) / 3; height: Theme.cellH * 2.8; label: "Previous"; glyph: Icons.cp(0xF04AE); detail: "previous track"; run: () => MediaService.previous() }
+                                    Action { centered: true; width: (parent.width - Theme.cellW * 4) / 3; height: Theme.cellH * 2.8; label: MediaService.playing ? "Pause" : "Play"; glyph: MediaService.playing ? Icons.pause : Icons.play; detail: MediaService.playing ? "pause playback" : "resume playback"; run: () => MediaService.playPause() }
+                                    Action { centered: true; width: (parent.width - Theme.cellW * 4) / 3; height: Theme.cellH * 2.8; label: "Next"; glyph: Icons.cp(0xF04AD); detail: "next track"; run: () => MediaService.next() }
                                 }
                                 Line { visible: MediaService.volumeSupported; width: parent.width; horizontalAlignment: Text.AlignHCenter; text: "PLAYER VOLUME  " + Math.round(MediaService.volume * 100) + " %"; color: Theme.fgDim }
-                                LevelBar { visible: MediaService.volumeSupported; width: parent.width; cells: 56; value: MediaService.volume * 100; fillColor: Theme.cyan; interactive: true; onMoved: value => MediaService.setVolume(value / 100) }
+                                Item {
+                                    visible: MediaService.volumeSupported
+                                    width: parent.width
+                                    height: visible ? Theme.cellH : 0
+                                    LevelBar {
+                                        anchors.centerIn: parent
+                                        width: implicitWidth
+                                        cells: 56
+                                        value: MediaService.volume * 100
+                                        fillColor: Theme.cyan
+                                        interactive: true
+                                        onMoved: value => MediaService.setVolume(value / 100)
+                                    }
+                                }
                             }
                         }
                     }

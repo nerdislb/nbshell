@@ -129,14 +129,18 @@ nbshell display place DP-1 right eDP-1
 
 ## AI agents and local models
 
-Open `AI & Agents` from the main menu, right-click the AI usage module, press
-`Mod+Ctrl+Shift+A`, or run:
+Press `Mod+Shift+A` to open the default agent immediately in a focused floating
+terminal. It starts in `~/projects/nbshell` when that checkout exists, so the
+installed nbshell skill can guide customization. The full Agent Center remains
+available through `AI & Agents`, a right-click on AI usage,
+`Mod+Ctrl+Shift+A`, or the CLI:
 
 ```bash
 nbshell agent center
 nbshell agent doctor
 nbshell agent list
 nbshell agent default codex
+nbshell agent quick
 nbshell agent launch --project ~/projects/my-project
 nbshell agent install copilot
 nbshell commands --json

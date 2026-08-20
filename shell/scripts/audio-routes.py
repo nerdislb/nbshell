@@ -31,7 +31,7 @@ def listing():
             "binary": str(props.get("application.process.binary") or ""),
             "sinkIndex": sink_index,
             "sink": by_index.get(sink_index, {}).get("name", ""),
-            "sinkLabel": by_index.get(sink_index, {}).get("label", "unbekannte Ausgabe")
+            "sinkLabel": by_index.get(sink_index, {}).get("label", "unknown output")
         })
     print(json.dumps({"sinks": sinks, "streams": streams}, ensure_ascii=False))
 
@@ -46,7 +46,7 @@ def main():
         if result.returncode:
             raise SystemExit(result.stderr.strip())
     else:
-        raise SystemExit("Aufruf: audio-routes.py list|set STREAM SINK")
+        raise SystemExit("Usage: audio-routes.py list|set STREAM SINK")
 
 
 if __name__ == "__main__": main()

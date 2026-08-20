@@ -175,7 +175,7 @@ case "${1:-current}" in
 current) shift && cmd_current "${1:-}" "${2:-900}" ;;
 geo) shift && resolve "${1:?Ort fehlt}" ;;
 *)
-	echo "Aufruf: $(basename "$0") current <ort> [alter] | geo <ort>" >&2
+	echo "Usage: $(basename "$0") current <location> [max-age] | geo <location>" >&2
 	exit 2
 	;;
 esac

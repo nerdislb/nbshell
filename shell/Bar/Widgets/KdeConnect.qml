@@ -530,7 +530,7 @@ Cell {
                             }
 
                             Knopf {
-                                text: "Letztes Bild"
+                                text: "Latest image"
                                 onTriggered: Nearby.sendLastShot(nbRow.modelData)
                             }
                         }

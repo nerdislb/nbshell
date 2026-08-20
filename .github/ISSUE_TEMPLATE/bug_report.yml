@@ -1,22 +1,22 @@
-name: Fehler melden
-description: Einen reproduzierbaren Fehler in nbshell melden
+name: Bug report
+description: Report a reproducible problem in nbshell
 title: "[Bug]: "
 labels: [bug]
 body:
   - type: markdown
     attributes:
-      value: Danke fuer den Bericht. Bitte keine Zugangsdaten oder privaten Logs einfuegen.
+      value: Thanks for the report. Do not include credentials or private logs.
   - type: textarea
     id: problem
     attributes:
-      label: Fehlerbeschreibung
-      description: Was ist passiert und was hast du erwartet?
+      label: Problem
+      description: What happened, and what did you expect?
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
-      label: Schritte zum Nachstellen
+      label: Steps to reproduce
       placeholder: |
         1. …
         2. …
@@ -26,13 +26,13 @@ body:
   - type: textarea
     id: environment
     attributes:
-      label: Umgebung
-      description: Arch-Derivat, niri-Version, Quickshell-Version und relevanter nbshell-Stand.
+      label: Environment
+      description: Arch-based distribution, niri version, Quickshell version, and nbshell revision.
     validations:
       required: true
   - type: textarea
     id: logs
     attributes:
-      label: Bereinigte Logs
-      description: Entferne Namen, Pfade, Tokens, Kalenderdaten und andere persoenliche Angaben.
+      label: Sanitized logs
+      description: Remove names, paths, tokens, calendar data, and other personal information.
       render: shell

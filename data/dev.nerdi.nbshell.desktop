@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=nbshell
+Comment=Desktop shell for Niri
+Exec=nbshell start -d
+Icon=preferences-desktop
+Terminal=false
+NoDisplay=true
+Categories=System;
+StartupWMClass=dev.nerdi.nbshell

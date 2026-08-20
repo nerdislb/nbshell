@@ -35,8 +35,8 @@ Cell {
 
             Row {
                 spacing: Theme.cellW * 2
-                ActionButton { text: "Groesse"; compact: true; onTriggered: ZenPip.run("size") }
-                ActionButton { text: "Ecke"; compact: true; onTriggered: ZenPip.run("corner") }
+                ActionButton { text: "Size"; compact: true; onTriggered: ZenPip.run("size") }
+                ActionButton { text: "Corner"; compact: true; onTriggered: ZenPip.run("corner") }
                 ActionButton { text: "Focus"; tone: "primary"; compact: true; onTriggered: ZenPip.run("focus") }
                 ActionButton { text: "Close"; tone: "danger"; compact: true; onTriggered: ZenPip.run("close") }
             }

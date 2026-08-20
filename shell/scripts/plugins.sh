@@ -109,7 +109,7 @@ else:
 
 allowed = {"bar-widget": "barWidget", "panel": "panel", "overlay": "overlay", "service": "service"}
 if any(kind not in allowed for kind in kinds):
-    raise SystemExit("unbekannter Plugin-Typ: %s" % ", ".join(str(k) for k in kinds if k not in allowed))
+    raise SystemExit("unknown plugin type: %s" % ", ".join(str(k) for k in kinds if k not in allowed))
 for kind in kinds:
     if allowed[kind] not in entry_points:
         raise SystemExit("Einstiegspunkt fuer %s fehlt: %s" % (kind, allowed[kind]))
@@ -385,7 +385,7 @@ update)
 	cmd_update "$@"
 	;;
 *)
-echo "Aufruf: $(basename "$0") list|dir|validate <directory>|add <source>|enable <id>|disable <id>|update [name]|remove <name>" >&2
+echo "Usage: $(basename "$0") list|dir|validate <directory>|add <source>|enable <id>|disable <id>|update [name]|remove <name>" >&2
 	exit 2
 	;;
 esac

@@ -180,7 +180,7 @@ Column {
 
                     Heading {
                         anchors.centerIn: parent
-                        text: "KW"
+                        text: "WK"
                     }
                 }
 
