@@ -276,7 +276,7 @@ Item {
   }
 
   function pageSubtitle() {
-    if (currentTab === "login") return "Use the YouTube Music session already in Chromium"
+    if (currentTab === "login") return "Use the YouTube Music session already in your browser"
     if (currentTab === "home") return accountConnected ? "Your mix" : "Public shelves"
     if (currentTab === "library") return Api.typeLabel(libraryType === "tracks" ? "track" : libraryType, true)
     if (currentTab === "detail" && service && service.detailItem)
@@ -672,7 +672,7 @@ Item {
 
         Text {
           width: parent.width
-          text: "YouTube Music has no official desktop API. If Chromium on this computer is already signed in at music.youtube.com, copy that session. No DevTools paste."
+          text: "YouTube Music has no official desktop API. If Zen, Chromium, Chrome, or Brave on this computer is already signed in at music.youtube.com, copy that session. No DevTools paste."
           color: Qt.darker(root.foreground, 1.3)
           wrapMode: Text.WordWrap
           font.pixelSize: Style.font.body
@@ -680,7 +680,7 @@ Item {
         Row {
           spacing: Style.space(8)
           Button {
-            text: root.service && root.service.loginBusy ? "Working…" : "Use Chromium session"
+            text: root.service && root.service.loginBusy ? "Working…" : "Use browser session"
             iconText: "󰍂"
             selected: true
             foreground: root.foreground

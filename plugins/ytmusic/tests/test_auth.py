@@ -20,6 +20,7 @@ from auth import (  # noqa: E402
     extract_youtube_cookies,
     headers_raw_from_cookies,
     parse_cookie_header,
+    read_firefox_youtube_cookies,
     unpad_pkcs7,
     write_netscape_cookies,
 )
@@ -133,6 +134,29 @@ class AuthTests(unittest.TestCase):
             self.assertEqual(cookies["SID"], "sid-value")
             self.assertEqual(cookies["PREF"], "plain")
             self.assertNotIn("google-sid", cookies.values())
+
+    def test_extract_youtube_cookies_from_zen_sqlite(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "cookies.sqlite"
+            connection = sqlite3.connect(db_path)
+            connection.execute(
+                "CREATE TABLE moz_cookies (host TEXT, name TEXT, value TEXT)"
+            )
+            connection.executemany(
+                "INSERT INTO moz_cookies VALUES (?, ?, ?)",
+                [
+                    (".youtube.com", "__Secure-3PAPISID", "zen-papisid"),
+                    ("music.youtube.com", "PREF", "music-pref"),
+                    (".google.com", "SID", "not-youtube"),
+                ],
+            )
+            connection.commit()
+            connection.close()
+
+            cookies = dict(read_firefox_youtube_cookies(db_path))
+            self.assertEqual(cookies["__Secure-3PAPISID"], "zen-papisid")
+            self.assertEqual(cookies["PREF"], "music-pref")
+            self.assertNotIn("SID", cookies)
 
     def test_extract_requires_cookie_database(self):
         with self.assertRaises(BrowserAuthError):

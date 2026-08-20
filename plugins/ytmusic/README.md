@@ -89,11 +89,11 @@ player, or toggles the mini-player.
 ## Sign in
 
 YouTube Music has no public desktop API. Library, likes, and playlists use the
-session already in Chromium:
+session already in Zen, Chromium, Chrome, or Brave:
 
-1. Sign in at [music.youtube.com](https://music.youtube.com) in Chromium if you
+1. Sign in at [music.youtube.com](https://music.youtube.com) in a supported browser if you
    have not already.
-2. Click the bar icon → **Set up and continue** → **Use Chromium session**.
+2. Click the bar icon → **Set up and continue** → **Use browser session**.
 
 Home shelves and search work without signing in. If you already use
 `~/.config/ytmusicbar/browser.json`, first setup copies it. Pasting request

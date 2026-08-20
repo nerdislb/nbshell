@@ -31,6 +31,10 @@ BROWSER_ROOTS = (
     ("chrome", "Chrome", Path.home() / ".config" / "google-chrome"),
     ("brave", "Brave", Path.home() / ".config" / "BraveSoftware" / "Brave-Browser"),
 )
+ZEN_ROOTS = (
+    ("zen", "Zen", Path.home() / ".config" / "zen"),
+    ("zen", "Zen", Path.home() / ".zen"),
+)
 
 
 class BrowserAuthError(RuntimeError):
@@ -43,6 +47,7 @@ class CookieDatabase:
     browser: str
     profile: str
     path: Path
+    engine: str = "chromium"
 
 
 def config_dir() -> Path:
@@ -233,6 +238,20 @@ def iter_cookie_databases(
                         path=path,
                     ))
                     break
+    if roots is None:
+        for keyring, label, root in ZEN_ROOTS:
+            if not root.is_dir():
+                continue
+            for profile in sorted(root.iterdir(), key=lambda item: item.name):
+                path = profile / "cookies.sqlite"
+                if profile.is_dir() and path.is_file():
+                    found.append(CookieDatabase(
+                        keyring=keyring,
+                        browser=label,
+                        profile=profile.name,
+                        path=path,
+                        engine="firefox",
+                    ))
     return found
 
 
@@ -248,7 +267,7 @@ def import_from_browser(
     names = {name for name, _ in pairs}
     if "__Secure-3PAPISID" not in names:
         raise BrowserAuthError(
-            "Chromium is not signed in to YouTube Music. "
+            "No supported browser is signed in to YouTube Music. "
             "Open music.youtube.com, sign in, then try again."
         )
     path = save_headers(headers_raw_from_cookies(pairs), dest)
@@ -263,7 +282,7 @@ def extract_youtube_cookies(
     candidates = databases if databases is not None else iter_cookie_databases()
     if not candidates:
         raise BrowserAuthError(
-            "No Chromium cookie database was found on this computer."
+            "No Chromium, Chrome, Brave, or Zen cookie database was found on this computer."
         )
 
     best: tuple[tuple[int, int, int, int], list[tuple[str, str]], CookieDatabase] | None = None
@@ -272,9 +291,12 @@ def extract_youtube_cookies(
 
     for database in candidates:
         try:
-            if database.keyring not in passwords:
-                passwords[database.keyring] = os_crypt_password(database.keyring)
-            pairs = read_youtube_cookies(database.path, passwords[database.keyring])
+            if database.engine == "firefox":
+                pairs = read_firefox_youtube_cookies(database.path)
+            else:
+                if database.keyring not in passwords:
+                    passwords[database.keyring] = os_crypt_password(database.keyring)
+                pairs = read_youtube_cookies(database.path, passwords[database.keyring])
         except BrowserAuthError as exc:
             last_error = str(exc)
             continue
@@ -294,7 +316,7 @@ def extract_youtube_cookies(
     if best is None:
         raise BrowserAuthError(
             last_error
-            or "Could not read Chromium cookies. Unlock the login keyring and try again."
+            or "Could not read browser cookies. Unlock the login keyring and try again."
         )
     return best[1], best[2]
 
@@ -333,6 +355,33 @@ def read_youtube_cookies(db_path: Path, password: bytes) -> list[tuple[str, str]
         previous = by_name.get(name_text)
         if previous is None or preference >= previous[0]:
             by_name[name_text] = (preference, decoded)
+    return [(name, value) for name, (_pref, value) in by_name.items()]
+
+
+def read_firefox_youtube_cookies(db_path: Path) -> list[tuple[str, str]]:
+    """Read YouTube cookies from a Firefox-compatible profile such as Zen."""
+    by_name: dict[str, tuple[int, str]] = {}
+    with tempfile.TemporaryDirectory(prefix="omarchy-ytmusic-cookies-") as tmp:
+        copied = _copy_sqlite(db_path, Path(tmp))
+        connection = sqlite3.connect(str(copied))
+        try:
+            rows = connection.execute(
+                "SELECT host, name, value FROM moz_cookies "
+                "WHERE host LIKE '%youtube.com'"
+            ).fetchall()
+        finally:
+            connection.close()
+
+    for host, name, value in rows:
+        host_text = str(host or "")
+        name_text = str(name or "").strip()
+        value_text = str(value or "")
+        if not name_text or not value_text:
+            continue
+        preference = _host_preference(host_text)
+        previous = by_name.get(name_text)
+        if previous is None or preference >= previous[0]:
+            by_name[name_text] = (preference, value_text)
     return [(name, value) for name, (_pref, value) in by_name.items()]
 
 
@@ -441,7 +490,7 @@ def unpad_pkcs7(data: bytes) -> bytes:
 
 
 def _copy_sqlite(src: Path, directory: Path) -> Path:
-    dest = directory / "Cookies"
+    dest = directory / src.name
     shutil.copy2(src, dest)
     for suffix in ("-wal", "-shm", "-journal"):
         extra = Path(str(src) + suffix)
@@ -467,7 +516,7 @@ def _profile_dirs(root: Path) -> list[Path]:
 
 
 def _browser_rank(keyring: str) -> int:
-    order = {"chromium": 3, "chrome": 2, "brave": 1}
+    order = {"zen": 4, "chromium": 3, "chrome": 2, "brave": 1}
     return order.get(keyring, 0)
 
 

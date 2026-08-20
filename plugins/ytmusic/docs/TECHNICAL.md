@@ -49,12 +49,14 @@ Commands include `hello`, `setup_auth`, `import_browser`, `logout`, `play`, `pau
 
 ## Authentication
 
-The usual sign-in path copies the YouTube Music session already in Chromium
-(or Chrome/Brave) on this computer: decrypt the browser cookie database with
-the libsecret OSCrypt key, then write `ytmusicapi` headers with
-`ytmusicapi.setup()`. Pasting request headers is still supported as a
-fallback. Cookies are exported to a Netscape cookie file so yt-dlp can
-resolve member-only or region-locked streams when the session allows it.
+The usual sign-in path copies the YouTube Music session already in Zen,
+Chromium, Chrome, or Brave on this computer. Firefox-compatible Zen cookies
+are read from its protected profile database; Chromium-family cookies are
+decrypted with the libsecret OSCrypt key. The backend then writes
+`ytmusicapi` headers with `ytmusicapi.setup()`. Pasting request headers is
+still supported as a fallback. Cookies are exported to a Netscape cookie file
+so yt-dlp can resolve member-only or region-locked streams when the session
+allows it.
 
 ## Local development
 
