@@ -54,7 +54,9 @@ Singleton {
     Component.onCompleted: refresh()
 
     Timer {
-        interval: 5000
+        // Keep active mirroring responsive. Merely having nbphone installed
+        // must not run a Python/ADB status check every five seconds forever.
+        interval: root.connected || root.mirroring ? 5000 : 60000
         running: root.available || root.connected || root.mirroring
         repeat: true
         onTriggered: root.refresh()

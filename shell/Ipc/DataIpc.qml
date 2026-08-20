@@ -60,8 +60,19 @@ Scope {
     IpcHandler {
         target: "calendar"
 
+        function open(): string {
+            Runtime.dashboardPage = 3;
+            Runtime.dashboardOpen = true;
+            return "open";
+        }
+
         function toggle(): string {
-            Runtime.dashboardOpen = !Runtime.dashboardOpen;
+            if (Runtime.dashboardOpen && Runtime.dashboardPage === 3)
+                Runtime.dashboardOpen = false;
+            else {
+                Runtime.dashboardPage = 3;
+                Runtime.dashboardOpen = true;
+            }
             return Runtime.dashboardOpen ? "open" : "closed";
         }
 

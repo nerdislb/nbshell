@@ -226,6 +226,10 @@ the shell source.
 - The herdr panel requires a separately configured read-only bridge. The shell
   works normally without it.
 - AUR update counts require `paru` or `yay`.
+- After a successful dashboard update, nbshell recommends a restart only when
+  core components such as the kernel, systemd, glibc, firmware, or graphics
+  drivers changed. The dashboard keeps the English `Restart recommended`
+  notice until the machine actually boots again.
 - Local dictation is optional. Install `voxtype-bin` from the AUR, download a
   model with `voxtype setup --download --model small`, and enable its user
   service. `F9`, `nbshell dictate`, and `Capture → Toggle dictation` then start

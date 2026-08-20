@@ -5,6 +5,7 @@ import Quickshell.Wayland
 import qs.Common
 import qs.Services
 import qs.Widgets
+import qs.Bar.Widgets
 
 // Die Uhr als Eingang in den Alltag: Termine, Wetter, Media und die Dinge,
 // die nicht dauerhaft Platz in der Bar brauchen. Angeregt vom Asked Dashboard
@@ -31,6 +32,7 @@ PanelWindow {
 
     function close() {
         updatesOpen = false;
+        Runtime.calendarOpen = false;
         Runtime.dashboardOpen = false;
     }
     function openSurface(fn) {
@@ -66,12 +68,18 @@ PanelWindow {
 
     onVisibleChanged: if (visible) {
         page = Runtime.dashboardPage;
+        Runtime.calendarOpen = page === 3;
         Calendar.ensure(new Date());
         AiUsage.refresh();
         refreshWeather();
         keys.forceActiveFocus();
+    } else {
+        Runtime.calendarOpen = false;
     }
-    onPageChanged: Runtime.dashboardPage = page
+    onPageChanged: {
+        Runtime.dashboardPage = page;
+        Runtime.calendarOpen = root.visible && page === 3;
+    }
 
     Connections {
         target: Runtime
@@ -108,8 +116,19 @@ PanelWindow {
     component Card: PanelSurface {
         property string title: ""
         property string badge: ""
+        property var run: null
         default property alias content: body.data
         raised: true
+
+        HoverHandler {
+            enabled: parent.run !== null
+            cursorShape: Qt.PointingHandCursor
+        }
+        TapHandler {
+            enabled: parent.run !== null
+            onTapped: if (parent.run)
+                parent.run()
+        }
 
         Line {
             anchors.left: parent.left; anchors.leftMargin: Theme.cellW * 1.2
@@ -183,7 +202,7 @@ PanelWindow {
                 root.close();
         }
         Keys.onPressed: event => {
-            if (event.key >= Qt.Key_1 && event.key <= Qt.Key_3) {
+            if (event.key >= Qt.Key_1 && event.key <= Qt.Key_4) {
                 root.page = event.key - Qt.Key_1;
                 event.accepted = true;
             }
@@ -217,11 +236,11 @@ PanelWindow {
                     width: parent.width
                     spacing: Theme.cellW
                     Repeater {
-                        model: ["TODAY", "MEDIA", "TOOLS"]
+                        model: ["TODAY", "MEDIA", "TOOLS", "CALENDAR"]
                         Rectangle {
                             required property var modelData
                             required property int index
-                            width: (parent.width - Theme.cellW * 2) / 3
+                            width: (parent.width - Theme.cellW * 3) / 4
                             height: Theme.cellH * 1.7
                             color: Theme.controlFill(tabHover.hovered, root.page === index, tabTap.pressed)
                             border.width: Theme.borderWidth
@@ -237,7 +256,7 @@ PanelWindow {
                 Item {
                     visible: root.page === 0
                     width: parent.width
-                    height: parent.height - Theme.cellH * 7
+                    height: parent.height - Theme.cellH * 8.2
 
                     Row {
                         anchors.fill: parent
@@ -252,7 +271,8 @@ PanelWindow {
                             Card {
                             width: parent.width; height: (parent.height - root.cardGap) / 2
                             title: "Upcoming events"
-                            badge: Calendar.loading ? "…" : String(root.nextEvents.length)
+                            badge: Calendar.loading ? "…" : "OPEN  ·  " + String(root.nextEvents.length)
+                            run: () => root.page = 3
                             Line { visible: root.nextEvents.length === 0; text: Calendar.available ? "nothing in the next few days" : Calendar.problem; color: Theme.muted }
                             Repeater {
                                 model: root.nextEvents.slice(0, 5)
@@ -343,10 +363,11 @@ PanelWindow {
                 Item {
                     visible: root.page === 1
                     width: parent.width
-                    height: parent.height - Theme.cellH * 7
+                    height: parent.height - Theme.cellH * 8.2
 
                     Column {
                         anchors.centerIn: parent
+                        anchors.verticalCenterOffset: -Theme.cellH * 1.5
                         width: Math.min(parent.width - root.cardGap * 2, Theme.cellW * 76)
                         spacing: root.cardGap
 
@@ -401,7 +422,7 @@ PanelWindow {
                 Item {
                     visible: root.page === 2
                     width: parent.width
-                    height: parent.height - Theme.cellH * 7
+                    height: parent.height - Theme.cellH * 8.2
 
                     Flow {
                         anchors.centerIn: parent
@@ -413,7 +434,7 @@ PanelWindow {
                         Action { label: "Habits"; detail: Habits.doneCount + "/" + Habits.count + " today"; glyph: Icons.habit; run: () => root.openSurface(() => Runtime.habitsOpen = true) }
                         Action {
                             label: "Updates"
-                            detail: Updates.checking ? "checking …" : Updates.count + " available"
+                            detail: Updates.rebootRecommended ? "restart recommended" : (Updates.checking ? "checking …" : Updates.count + " available")
                             glyph: Icons.download
                             tone: Updates.count > 0 ? Theme.yellow : Theme.green
                             run: () => {
@@ -436,7 +457,43 @@ PanelWindow {
                     }
                 }
 
-                Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: "Esc closes  ·  R marks a right-click action"; color: Theme.muted }
+                // ── CALENDAR ─────────────────────────────────────────
+                // The month view predates the dashboard. Keeping it as one
+                // shared component preserves khal/vdirsyncer events, calendar
+                // colours and day markers instead of introducing a second
+                // calendar implementation just for this surface.
+                Item {
+                    visible: root.page === 3
+                    width: parent.width
+                    height: parent.height - Theme.cellH * 8.2
+
+                    Flickable {
+                        anchors.fill: parent
+                        anchors.margins: root.cardGap
+                        clip: true
+                        contentWidth: width
+                        contentHeight: calendarPanel.implicitHeight
+                        boundsBehavior: Flickable.StopAtBounds
+
+                        CalendarPanel {
+                            id: calendarPanel
+                            x: Math.round((parent.width - width) / 2)
+                        }
+                    }
+                }
+
+                Item {
+                    width: parent.width
+                    height: Theme.cellH * 2.2
+
+                    Line {
+                        anchors.centerIn: parent
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        text: "Esc closes  ·  1–4 switch pages  ·  R marks a right-click action"
+                        color: Theme.muted
+                    }
+                }
             }
 
             // Update-Liste wie im frueheren Bar-Popout, aber als Ebene im
@@ -487,9 +544,42 @@ PanelWindow {
 
                         Rule { rowWidth: parent.width; label: "PACKAGES" }
 
+                        Rectangle {
+                            visible: Updates.rebootRecommended
+                            width: parent.width
+                            height: visible ? Theme.controlHeight * 1.45 : 0
+                            color: Theme.selectedSurface(Theme.yellow)
+                            border.width: Theme.borderWidth
+                            border.color: Theme.yellow
+                            radius: Theme.radius
+
+                            Row {
+                                anchors.fill: parent
+                                anchors.leftMargin: Theme.spaceMd
+                                anchors.rightMargin: Theme.spaceSm
+                                spacing: Theme.spaceMd
+
+                                Line {
+                                    width: parent.width - restartButton.width - parent.spacing
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: "Restart recommended" + (Updates.rebootPackages.length ? " · " + Updates.rebootPackages.join(", ") : "")
+                                    color: Theme.readable(Theme.yellow, Theme.selectedSurface(Theme.yellow), 4.5)
+                                    elide: Text.ElideRight
+                                }
+                                ActionButton {
+                                    id: restartButton
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: "Restart…"
+                                    tone: "primary"
+                                    compact: true
+                                    onTriggered: root.openSurface(() => Runtime.powerOpen = true)
+                                }
+                            }
+                        }
+
                         Item {
                             width: parent.width
-                            height: parent.height - Theme.cellH * 6.6
+                            height: parent.height - Theme.cellH * 6.6 - (Updates.rebootRecommended ? Theme.controlHeight * 1.45 + Theme.cellH * 0.55 : 0)
 
                             Line {
                                 anchors.centerIn: parent

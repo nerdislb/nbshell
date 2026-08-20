@@ -84,7 +84,10 @@ Singleton {
     Component.onCompleted: refresh()
 
     Timer {
-        interval: 5000
+        // Session changes are informative, not frame-critical. The status
+        // helper inspects several agent backends, so a five-second idle poll
+        // spent measurable CPU even while Agent Center was closed.
+        interval: 30000
         running: true
         repeat: true
         onTriggered: root.refresh()

@@ -179,7 +179,9 @@ Item {
   }
 
   Timer {
-    interval: 4000
+    // The player service changes rarely while idle. UI actions update the
+    // state directly; this is only a fallback for external systemctl changes.
+    interval: 15000
     running: root.playbackReady
     repeat: true
     onTriggered: root.refreshStatus()

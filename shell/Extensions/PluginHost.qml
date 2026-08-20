@@ -12,9 +12,8 @@ Item {
     // selbst. Der Host belegt mit 0x0 trotzdem keinen Platz.
     visible: true
 
-    Repeater {
-        model: Plugins.runtimeEntries
-
+    Component {
+        id: runtimeLoader
         Loader {
             id: loader
 
@@ -36,6 +35,8 @@ Item {
                     item.service = Plugins.serviceFor(modelData.id);
                 if (modelData.kind === "service" && item && typeof item.applySettings === "function")
                     item.applySettings(Plugins.settingsFor(modelData.id));
+                if (modelData.kind === "panel" || modelData.kind === "overlay")
+                    Plugins.openLoadedPanel(modelData.id, item);
             }
 
             Binding {
@@ -58,5 +59,18 @@ Item {
                 Plugins.reportLoadState(modelData.id, modelData.kind, "inactive", "");
             }
         }
+    }
+
+    // Services and on-demand surfaces use separate models. Changing the set
+    // of open windows must never rebuild long-lived services with sockets,
+    // timers, or queued callbacks.
+    Repeater {
+        model: Plugins.serviceEntries
+        delegate: runtimeLoader
+    }
+
+    Repeater {
+        model: Plugins.surfaceEntries
+        delegate: runtimeLoader
     }
 }

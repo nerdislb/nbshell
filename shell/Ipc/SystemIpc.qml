@@ -158,6 +158,8 @@ Scope {
                 "aur": Updates.aur.length,
                 "flatpak": Updates.flatpak.length,
                 "prueft": Updates.checking,
+                "rebootRecommended": Updates.rebootRecommended,
+                "rebootPackages": Updates.rebootPackages,
                 "befehl": Updates.updateCommand(),
                 "terminal": Updates.terminal
             });

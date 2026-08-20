@@ -141,6 +141,7 @@ record = {
     "__sourceDir": directory,
     "version": str(data.get("version") or ""),
     "author": data.get("author") or "",
+    "activation": data.get("activation") or "eager",
 }
 if mode == "json":
     print(json.dumps(record, ensure_ascii=False))

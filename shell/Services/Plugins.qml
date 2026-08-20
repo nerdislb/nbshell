@@ -34,6 +34,8 @@ Singleton {
     // bleiben wie bisher durch ihre Position in einer Leistenliste aktiviert.
     readonly property var enabledIds: Config.value("enabledPlugins", [])
     property var instances: ({})
+    property var requestedPanels: []
+    property var pendingPayloads: ({})
     // Laufzeitdiagnose fuer die Entwickleransicht. Loader melden hier sowohl
     // den erfolgreichen Aufbau als auch Fehler; dadurch muss die Vorschau ein
     // Plugin nicht ein zweites Mal ausfuehren.
@@ -236,7 +238,8 @@ Singleton {
     readonly property var ids: catalog.map(e => e.id)
 
     readonly property var runtimeEntries: {
-        const out = [];
+        const services = [];
+        const surfaces = [];
         for (var i = 0; i < root.plugins.length; i++) {
             const plugin = root.plugins[i];
             if (root.enabledIds.indexOf(plugin.id) < 0)
@@ -246,14 +249,28 @@ Singleton {
                 const kind = kinds[j];
                 if (kind === "bar-widget")
                     continue;
+                if ((kind === "panel" || kind === "overlay")
+                        && plugin.activation === "on-demand"
+                        && root.requestedPanels.indexOf(plugin.id) < 0)
+                    continue;
                 const key = kind === "panel" ? "panel" : (kind === "overlay" ? "overlay" : (kind === "service" ? "service" : ""));
                 const source = key !== "" && plugin.entryPoints ? (plugin.entryPoints[key] ?? "") : "";
-                if (source !== "")
-                    out.push({"id": plugin.id, "kind": kind, "source": "file://" + source});
+                if (source !== "") {
+                    const record = {"id": plugin.id, "kind": kind, "source": "file://" + source};
+                    if (kind === "service")
+                        services.push(record);
+                    else
+                        surfaces.push(record);
+                }
             }
         }
-        return out;
+        // Keep long-lived services at stable Repeater indexes. Adding or
+        // releasing an on-demand window must not recreate a mail/player
+        // service that still owns timers, sockets, or delayed callbacks.
+        return services.concat(surfaces);
     }
+    readonly property var serviceEntries: runtimeEntries.filter(entry => entry.kind === "service")
+    readonly property var surfaceEntries: runtimeEntries.filter(entry => entry.kind !== "service")
 
     function entry(id) {
         for (var i = 0; i < root.catalog.length; i++)
@@ -327,22 +344,56 @@ Singleton {
 
     function summon(id, payload) {
         const item = panelFor(id);
-        if (!item || typeof item.open !== "function")
-            return "Plugin is disabled or has no panel: " + id;
+        if (!item) {
+            const plugin = entry(id);
+            if (!plugin || root.enabledIds.indexOf(id) < 0)
+                return "Plugin is disabled or has no panel: " + id;
+            const nextPayloads = Object.assign({}, root.pendingPayloads);
+            nextPayloads[id] = payload ?? "{}";
+            root.pendingPayloads = nextPayloads;
+            if (root.requestedPanels.indexOf(id) < 0)
+                root.requestedPanels = root.requestedPanels.concat([id]);
+            return id + ": loading";
+        }
+        if (typeof item.open !== "function")
+            return "Plugin has no open function: " + id;
         item.open(payload ?? "{}");
         return id + ": open";
+    }
+
+    function openLoadedPanel(id, item) {
+        if (!item || typeof item.open !== "function")
+            return;
+        // Loading an enabled surface is not itself an open request. Persistent
+        // overlays such as Quick Translate exist from shell startup onward,
+        // but must remain closed until a shortcut/menu/IPC action summons
+        // them. On-demand surfaces reach this point only after summon() adds
+        // their ID to requestedPanels.
+        if (root.requestedPanels.indexOf(id) < 0)
+            return;
+        const payload = root.pendingPayloads[id] ?? "{}";
+        const next = Object.assign({}, root.pendingPayloads);
+        delete next[id];
+        root.pendingPayloads = next;
+        item.open(payload);
     }
 
     function hide(id) {
         const item = panelFor(id);
         if (item && typeof item.close === "function")
             item.close();
+        const nextPayloads = Object.assign({}, root.pendingPayloads);
+        delete nextPayloads[id];
+        root.pendingPayloads = nextPayloads;
+        Qt.callLater(function() {
+            root.requestedPanels = root.requestedPanels.filter(value => value !== id);
+        });
     }
 
     function toggle(id, payload) {
         const item = panelFor(id);
         if (!item)
-            return "Plugin is disabled or has no panel: " + id;
+            return summon(id, payload);
         if (item.opened === true) {
             hide(id);
             return id + ": closed";

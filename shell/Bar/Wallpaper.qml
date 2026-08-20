@@ -95,6 +95,22 @@ Scope {
             property bool showA: true
             readonly property string source: Config.value("wallpaperOverride", "") || (ThemeIndex.current?.wallpaper ?? "")
 
+            // Keep both textures only for the duration of the cross-fade.
+            // A decoded screen-sized wallpaper can occupy tens of MiB; leaving
+            // the hidden previous image loaded doubled that cost forever.
+            onShowAChanged: releaseHidden.restart()
+
+            Timer {
+                id: releaseHidden
+                interval: 500
+                onTriggered: {
+                    if (win.showA)
+                        imageB.source = "";
+                    else
+                        imageA.source = "";
+                }
+            }
+
             function stage(path) {
                 if (!path) {
                     imageA.source = "";

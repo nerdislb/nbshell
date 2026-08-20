@@ -32,7 +32,9 @@ Singleton {
 
     Component.onCompleted: refresh()
 
-    Timer { interval: 5000; running: true; repeat: true; onTriggered: root.refresh() }
+    // DisplayPanel refreshes immediately when opened and after every action.
+    // This slow fallback only catches an external hot-plug while it is closed.
+    Timer { interval: 60000; running: true; repeat: true; onTriggered: root.refresh() }
 
     Process {
         id: statusProc

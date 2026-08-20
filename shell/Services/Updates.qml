@@ -27,6 +27,8 @@ Singleton {
     property var flatpak: []
     property bool checking: false
     property date lastCheck: new Date(0)
+    property bool rebootRecommended: false
+    property var rebootPackages: []
 
     readonly property int count: repo.length + aur.length + flatpak.length
     readonly property bool ready: lastCheck.getTime() > 0
@@ -48,6 +50,14 @@ Singleton {
         checking = true;
         proc.command = ["bash", root.script, "check"];
         proc.running = true;
+        refreshRebootStatus();
+    }
+
+    function refreshRebootStatus() {
+        if (!rebootProc.running) {
+            rebootProc.command = ["bash", root.script, "reboot-status"];
+            rebootProc.running = true;
+        }
     }
 
     // Welcher Helfer genommen wird, sagt das Skript -- so steht die Wahl an
@@ -101,6 +111,25 @@ Singleton {
             }
         }
     }
+
+    Process {
+        id: rebootProc
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const data = JSON.parse(text);
+                    root.rebootRecommended = data.recommended === true;
+                    root.rebootPackages = data.packages ?? [];
+                } catch (e) {
+                    root.rebootRecommended = false;
+                    root.rebootPackages = [];
+                }
+            }
+        }
+    }
+
+    Component.onCompleted: refreshRebootStatus()
 
     Timer {
         interval: root.interval
