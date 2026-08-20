@@ -30,10 +30,14 @@ Cell {
     onRightClicked: Runtime.agentCenterOpen = true
 
     Row {
+        id: statusRow
+
+        height: root.height
         spacing: Theme.cellW
 
         Line {
             visible: Agents.workingCount > 0 || Agents.waitingCount > 0
+            y: Math.round((statusRow.height - height) / 2)
             text: Icons.agent + "  " + (Agents.waitingCount > 0 ? (Agents.waitingCount + " WAIT") : (Agents.workingCount + " RUN"))
             color: Agents.waitingCount > 0 ? Theme.yellow : Theme.green
             TapHandler { onTapped: Runtime.agentCenterOpen = true }
@@ -41,6 +45,7 @@ Cell {
 
         Line {
             visible: Dictation.active
+            y: Math.round((statusRow.height - height) / 2)
             text: String.fromCodePoint(0xF036C) + "  " + Dictation.label
             color: Dictation.state === "recording" ? Theme.red : Theme.yellow
             TapHandler { onTapped: Dictation.toggle() }
@@ -66,6 +71,7 @@ Cell {
 
                 width: base.implicitWidth
                 height: base.implicitHeight
+                y: Math.round((statusRow.height - height) / 2)
 
                 // Messung bei fester Groesse: daraus ergibt sich, welchen
                 // Anteil seiner Zeile dieses Zeichen ueberhaupt bemalt. Die
