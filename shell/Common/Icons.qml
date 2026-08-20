@@ -52,8 +52,13 @@ Singleton {
     readonly property string monitor: "󰍹"
     readonly property string monitors: "󰍺"
 
-    function wifiSignal(percent) {
-        const index = Math.max(0, Math.min(4, Math.ceil(Number(percent || 0) / 20) - 1));
+    function wifiSignal(strength) {
+        // Quickshell currently exposes Wi-Fi strength as 0..1, while some
+        // callers and older APIs use 0..100. Accept both here so a healthy
+        // 83% connection does not get mistaken for the empty first level.
+        const raw = Number(strength || 0);
+        const percent = raw > 0 && raw <= 1 ? raw * 100 : raw;
+        const index = Math.max(0, Math.min(4, Math.ceil(percent / 20) - 1));
         return root.wifiLevels[index];
     }
 
