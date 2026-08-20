@@ -26,6 +26,24 @@ Item {
             onLoaded: {
                 Plugins.registerInstance(modelData.id, modelData.kind, item);
                 Plugins.reportLoadState(modelData.id, modelData.kind, "loaded", modelData.source);
+                if (item && "manifest" in item)
+                    item.manifest = Plugins.entry(modelData.id);
+                if (item && "shell" in item)
+                    item.shell = Plugins;
+                if (item && "pluginRegistry" in item)
+                    item.pluginRegistry = Plugins;
+                if (item && "service" in item)
+                    item.service = Plugins.serviceFor(modelData.id);
+                if (modelData.kind === "service" && item && typeof item.applySettings === "function")
+                    item.applySettings(Plugins.settingsFor(modelData.id));
+            }
+
+            Binding {
+                target: loader.item
+                when: loader.item && "service" in loader.item
+                property: "service"
+                value: Plugins.serviceFor(loader.modelData.id)
+                restoreMode: Binding.RestoreNone
             }
             onStatusChanged: {
                 if (status === Loader.Loading)

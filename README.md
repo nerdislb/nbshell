@@ -232,6 +232,20 @@ the shell source.
   or stop recording. While recording or transcribing, the AI bar module shows
   the live state and also acts as a stop button. nbshell uses compositor
   control, so Voxtype's evdev hotkey can remain disabled.
+- Omamail is bundled but disabled by default. Enable it with
+  `nbshell plugin enable omamail`, restart nbshell, and open it with
+  `Mod+Shift+G`. Its setup page guides you through creating your own Google
+  OAuth client; refresh tokens stay in the desktop keyring. It currently
+  supports Gmail through the official Gmail API, not generic IMAP accounts.
+  The optional runtime tools are `socat`, `openssl`, `xdg-open`, and
+  `secret-tool` from `libsecret`.
+- The native YouTube Music player is also bundled and disabled by default.
+  Install `mpv` and `yt-dlp`, enable it with `nbshell plugin enable ytmusic`,
+  restart nbshell, then press `Mod+Shift+M`. First launch creates an
+  unprivileged Python venv and a systemd user service that is not enabled at
+  login. Chromium, Chrome, and Brave sessions can be imported; Zen users can
+  use the built-in request-header paste flow. Authentication files are stored
+  with mode `0600`.
 
 ## Updating
 

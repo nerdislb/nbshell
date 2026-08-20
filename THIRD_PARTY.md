@@ -23,6 +23,18 @@ from or were adapted from other MIT-licensed projects:
   [Better Displays](https://github.com/nightdevil00/better.displays). nbshell
   uses an independent Niri-native backend and does not use its Hyprland/Lua
   implementation.
+- The bundled Omamail port comes from Jason Lee's MIT-licensed
+  [Omamail](https://github.com/huacnlee/omamail). Its Gmail/OAuth implementation
+  and security tests are retained; nbshell supplies the host lifecycle and
+  theme adapter. The upstream license is stored in `plugins/omamail/LICENSE`.
+- The bundled YouTube Music port comes from rlimberger's MIT-licensed
+  [Omarchy YouTube Music](https://github.com/rlimberger/omarchy-ytmusic).
+  nbshell replaces the Omarchy host integration and leaves its optional
+  Omasing installer disabled. The upstream license is stored in
+  `plugins/ytmusic/LICENSE`.
+- Compatibility controls under `shell/Ui/` are adapted from the MIT-licensed
+  [Omarchy](https://github.com/basecamp/omarchy) Quickshell UI kit and map its
+  public visual tokens onto the nbshell theme system.
 
 Omarchy, niri, Quickshell, and the other named projects are independent. Their
 mention does not imply endorsement or an official relationship.

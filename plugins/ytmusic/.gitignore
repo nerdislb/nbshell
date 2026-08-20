@@ -1,0 +1,6 @@
+**/__pycache__/
+*.pyc
+.venv/
+*.qmlc
+*.jsc
+.DS_Store

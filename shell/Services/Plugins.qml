@@ -317,6 +317,60 @@ Singleton {
         return root.instances[id + ":overlay"] ?? root.instances[id + ":panel"] ?? root.instances[id + ":service"] ?? null;
     }
 
+    function serviceFor(id) {
+        return root.instances[id + ":service"] ?? null;
+    }
+
+    function panelFor(id) {
+        return root.instances[id + ":panel"] ?? root.instances[id + ":overlay"] ?? null;
+    }
+
+    function summon(id, payload) {
+        const item = panelFor(id);
+        if (!item || typeof item.open !== "function")
+            return "Plugin is disabled or has no panel: " + id;
+        item.open(payload ?? "{}");
+        return id + ": open";
+    }
+
+    function hide(id) {
+        const item = panelFor(id);
+        if (item && typeof item.close === "function")
+            item.close();
+    }
+
+    function toggle(id, payload) {
+        const item = panelFor(id);
+        if (!item)
+            return "Plugin is disabled or has no panel: " + id;
+        if (item.opened === true) {
+            hide(id);
+            return id + ": closed";
+        }
+        return summon(id, payload);
+    }
+
+    readonly property var shellConfig: ({
+        bar: {
+            layout: {
+                left: Config.leftWidgets.map(id => ({id: id})),
+                center: Config.centerWidgets.map(id => ({id: id})),
+                right: Config.rightWidgets.map(id => ({id: id}))
+            }
+        },
+        plugins: root.enabledIds.map(id => Object.assign({id: id}, Config.value("pluginSettings", {})[id] || ({})))
+    })
+
+    function settingsFor(id) {
+        return Config.value("pluginSettings", {})[id] || ({});
+    }
+
+    function updateEntryInline(id, values) {
+        const all = Object.assign({}, Config.value("pluginSettings", {}));
+        all[id] = Object.assign({}, all[id] || ({}), values || ({}));
+        Config.set("pluginSettings", all);
+    }
+
     function invoke(id, verb, payload) {
         const item = runtimeInstance(id);
         if (!item)

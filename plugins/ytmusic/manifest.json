@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 2,
+  "id": "ytmusic",
+  "name": "YouTube Music",
+  "version": "1.1.0",
+  "author": "rlimberger",
+  "license": "MIT",
+  "description": "YouTube Music in nbshell with search, library, playlists, and local mpv playback.",
+  "kinds": [
+    "service",
+    "bar-widget",
+    "panel"
+  ],
+  "activation": "on-demand",
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml",
+    "panel": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Omarchy YouTube Music",
+    "description": "YouTube Music in Quickshell with a mini player and local mpv playback.",
+    "category": "Media",
+    "aliases": [
+      "ytmusic",
+      "youtube-music",
+      "ytm",
+      "music",
+      "player"
+    ],
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "idleShutdownMinutes": 15,
+      "showMiniPlayer": "On",
+      "shortcutPlayer": "Full player",
+      "audioQuality": "320 kbps"
+    },
+    "schema": [
+      {
+        "key": "idleShutdownMinutes",
+        "type": "integer",
+        "label": "Stop local playback when idle",
+        "min": 0,
+        "max": 1440,
+        "step": 5,
+        "defaultValue": 15,
+        "description": "Minutes. Use 0 to keep the backend running after you pause."
+      },
+      {
+        "key": "showMiniPlayer",
+        "type": "enum",
+        "label": "Open mini-player from bar",
+        "options": [
+          "On",
+          "Off"
+        ],
+        "defaultValue": "On",
+        "description": "When off, clicking the bar icon opens the full player directly."
+      },
+      {
+        "key": "shortcutPlayer",
+        "type": "enum",
+        "label": "Keyboard shortcut opens",
+        "options": [
+          "Full player",
+          "Mini player"
+        ],
+        "defaultValue": "Omarchy Music app",
+        "description": "Choose whether Super+Shift+M launches Omarchy's Music app, the full player, or the mini-player. Bind the shortcut once in Hyprland first."
+      },
+      {
+        "key": "audioQuality",
+        "type": "enum",
+        "label": "Local playback quality",
+        "options": [
+          "96 kbps",
+          "160 kbps",
+          "320 kbps"
+        ],
+        "defaultValue": "320 kbps",
+        "description": "Takes effect the next time a stream is resolved."
+      }
+    ]
+  }
+}

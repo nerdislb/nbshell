@@ -1,0 +1,18 @@
+[Unit]
+Description=Omarchy YouTube Music plugin playback backend
+Documentation=https://github.com/rlimberger/omarchy-ytmusic
+After=graphical-session.target sound.target
+Wants=sound.target
+
+[Service]
+Type=simple
+Environment=PULSE_LATENCY_MSEC=30
+ExecStart=%h/.local/share/omarchy-ytmusic/venv/bin/python %h/.local/lib/omarchy-ytmusic/server.py
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=8
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Never enable this unit at login. The plugin starts it on demand.

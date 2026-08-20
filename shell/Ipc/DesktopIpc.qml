@@ -53,15 +53,16 @@ Scope {
         target: "plugin"
 
         function open(id: string): string {
-            return Plugins.invoke(id, "open", "{}");
+            return Plugins.summon(id, "{}");
         }
 
         function close(id: string): string {
-            return Plugins.invoke(id, "close", "{}");
+            Plugins.hide(id);
+            return id + ": closed";
         }
 
         function toggle(id: string): string {
-            return Plugins.invoke(id, "toggle", "{}");
+            return Plugins.toggle(id, "{}");
         }
     }
 

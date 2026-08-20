@@ -78,6 +78,10 @@ missing_optional="$(
     optional_check opencode      "local/cloud agent frontend" "opencode"
     optional_check ollama        "local AI models"            "ollama (optional)"
     optional_check voxtype       "local voice dictation"      "voxtype-bin (AUR, optional)"
+    optional_check mpv           "native YouTube Music playback" "mpv"
+    optional_check yt-dlp        "native YouTube Music playback" "yt-dlp"
+    optional_check socat         "Omamail OAuth callback"      "socat"
+    optional_check openssl       "Omamail OAuth PKCE"          "openssl"
 )"
 if [ -n "$missing_optional" ]; then
     printf '%s\n' "$missing_optional"
@@ -192,6 +196,12 @@ added=()
 for plugin in "$SRC"/plugins/*/; do
     [ -d "$plugin" ] || continue
     name="$(basename "$plugin")"
+    if [ -f "$plugin/.nbshell-managed" ] && [ -f "$DATA_DIR/plugins/$name/.nbshell-managed" ]; then
+        rm -rf "$DATA_DIR/plugins/$name"
+        cp -a "$plugin" "$DATA_DIR/plugins/"
+        added+=("$name updated")
+        continue
+    fi
     [ -d "$DATA_DIR/plugins/$name" ] && continue
     cp -a "$plugin" "$DATA_DIR/plugins/"
     added+=("$name")

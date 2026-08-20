@@ -138,6 +138,7 @@ record = {
     "entryPoints": resolved,
     "entry": resolved.get("barWidget", ""),
     "dir": directory,
+    "__sourceDir": directory,
     "version": str(data.get("version") or ""),
     "author": data.get("author") or "",
 }
