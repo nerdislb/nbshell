@@ -145,7 +145,7 @@ window-rule {
 }
 
 window-rule {
-    match title="^(Omamail|YouTube Music)$"
+    match title="^(Omamail|YouTube Music|Pit Wall)$"
     open-floating true
     open-focused true
     default-column-width { proportion 0.72; }

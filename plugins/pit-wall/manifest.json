@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 2,
+  "id": "pit-wall",
+  "name": "Pit Wall",
+  "version": "1.0.0-nbshell.1",
+  "author": "Jeremy Longshore; nbshell port by nerdi",
+  "license": "MIT",
+  "description": "Formula 1 weekend countdown, live timing, schedule, and championship standings.",
+  "category": "Info",
+  "kinds": ["service", "bar-widget", "panel"],
+  "activation": "eager",
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml",
+    "panel": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Pit Wall",
+    "description": "Next F1 session in the bar; live timing, schedule, and standings in the popout.",
+    "category": "Info",
+    "aliases": ["f1", "pit-wall", "race-weekend", "formula1"],
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
