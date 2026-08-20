@@ -13,9 +13,9 @@ jobs:
     container: archlinux:latest
     steps:
       - name: Install test dependencies
-        run: pacman -Syu --noconfirm git bash python jq
+        run: pacman -Syu --noconfirm git bash python jq shadow
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Check shell syntax
         run: |
@@ -29,4 +29,6 @@ jobs:
         run: ./tests/plugin-validation.sh
 
       - name: Test a clean installation and update
-        run: ./tests/fresh-install.sh
+        run: |
+          useradd --create-home nbshell-ci
+          runuser -u nbshell-ci -- ./tests/fresh-install.sh
