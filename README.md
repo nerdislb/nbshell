@@ -241,7 +241,7 @@ the shell source.
   `secret-tool` from `libsecret`.
 - The native YouTube Music player is also bundled and disabled by default.
   Install `mpv` and `yt-dlp`, enable it with `nbshell plugin enable ytmusic`,
-  restart nbshell, then press `Mod+Shift+M`. First launch creates an
+  restart nbshell, then press `Mod+Shift+Y`. First launch creates an
   unprivileged Python venv and a systemd user service that is not enabled at
   login. Chromium, Chrome, and Brave sessions can be imported; Zen users can
   use the built-in request-header paste flow. Authentication files are stored
