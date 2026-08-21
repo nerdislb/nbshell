@@ -452,7 +452,7 @@ Cell {
                         anchors.right: removeButton.visible ? removeButton.left : parent.right
                         anchors.rightMargin: removeButton.visible ? Theme.cellW / 2 : 0
                         anchors.verticalCenter: parent.verticalCenter
-                        text: (btRow.modelData.connected ? "▸ " : "  ") + Bt.label(btRow.modelData) + (btRow.modelData.batteryAvailable ? ("  " + Math.round(btRow.modelData.battery * 100) + "%") : "") + (btRow.modelData.pairing ? "  ·pairing" : (btRow.modelData.paired || btRow.modelData.connected ? "" : "  ·new"))
+                        text: (btRow.modelData.connected ? "▸ " : "  ") + Bt.label(btRow.modelData) + (btRow.modelData.batteryAvailable ? ("  " + Math.round(btRow.modelData.battery * 100) + "%") : "") + (btRow.modelData.pairing || Bt.pairingAddress === btRow.modelData.address ? "  ·pairing" : (btRow.modelData.paired || btRow.modelData.connected ? "" : "  ·new"))
                         color: btRow.modelData.connected ? Theme.selectedForeground(Theme.accent) : Theme.fg
                         elide: Text.ElideRight
                     }

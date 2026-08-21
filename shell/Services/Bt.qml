@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Bluetooth
+import Quickshell.Io
 import qs.Common
 
 // Bluetooth. Wie beim Netz spricht Quickshell selbst mit BlueZ; hier steht nur
@@ -30,6 +31,10 @@ Singleton {
     })
 
     readonly property var connected: devices.filter(d => d.connected)
+    readonly property string pairScript: Qt.resolvedUrl("../scripts/bluetooth-pair.sh").toString().replace("file://", "")
+    property string pairingAddress: ""
+    property string pairingName: ""
+    property string pairingError: ""
 
     // ── Akkus der Geraete ────────────────────────────────────────────────
     //
@@ -98,7 +103,17 @@ Singleton {
         else if (device.paired)
             device.connect();
         else
-            device.pair();
+            pairWithAgent(device);
+    }
+
+    function pairWithAgent(device) {
+        if (!device || pairing.running)
+            return;
+        pairingAddress = String(device.address || "");
+        pairingName = root.label(device);
+        pairingError = "";
+        pairing.command = [root.pairScript, pairingAddress, pairingName];
+        pairing.running = true;
     }
 
     function forgetDevice(device) {
@@ -107,6 +122,22 @@ Singleton {
         const name = root.label(device);
         device.forget();
         Quickshell.execDetached(["notify-send", "--app-name=nbshell", "Bluetooth device removed", name]);
+    }
+
+    Process {
+        id: pairing
+
+        stdout: StdioCollector {}
+        stderr: StdioCollector {
+            onStreamFinished: root.pairingError = String(text).trim().split("\n").filter(line => line !== "").pop() || "Pairing failed"
+        }
+        onExited: function(code) {
+            const name = root.pairingName;
+            const detail = code === 0 ? "Connected and trusted" : (root.pairingError || "Put the device in pairing mode and try again");
+            Quickshell.execDetached(["notify-send", "--app-name=nbshell", code === 0 ? "Bluetooth device paired" : "Bluetooth pairing failed", name + " · " + detail]);
+            root.pairingAddress = "";
+            root.pairingName = "";
+        }
     }
 
     // ── Suchen ────────────────────────────────────────────────────────────
