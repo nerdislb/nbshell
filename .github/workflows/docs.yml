@@ -12,12 +12,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
 
 jobs:
   build:
@@ -31,18 +25,10 @@ jobs:
           cache-dependency-path: requirements-docs.txt
       - run: pip install --requirement requirements-docs.txt
       - run: mkdocs build --strict
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      # The private repository's current GitHub plan does not provide Pages.
+      # Keep a complete static build as an artifact; this can switch to the
+      # official Pages actions as soon as the repository becomes public.
+      - uses: actions/upload-artifact@v4
         with:
+          name: nbshell-manual
           path: site
-
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
