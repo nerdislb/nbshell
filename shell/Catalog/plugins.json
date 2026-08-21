@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "plugins": [
+    {
+      "id": "wetter",
+      "name": "Weather",
+      "description": "Current conditions in the bar and a five-day Open-Meteo forecast.",
+      "author": "nbshell",
+      "license": "MIT",
+      "category": "Information",
+      "kinds": ["bar-widget"],
+      "source": "bundled",
+      "repository": "https://github.com/nerdislb/nbshell",
+      "dependencies": {"commands": ["curl"], "packages": ["curl"]}
+    },
+    {
+      "id": "headset",
+      "name": "Headset battery",
+      "description": "Battery status for supported USB headsets through headsetcontrol.",
+      "author": "nerdi",
+      "license": "MIT",
+      "category": "Hardware",
+      "kinds": ["bar-widget"],
+      "source": "bundled",
+      "repository": "https://github.com/nerdislb/nbshell",
+      "dependencies": {"commands": ["headsetcontrol"], "packages": ["headsetcontrol"]}
+    },
+    {
+      "id": "omamail",
+      "name": "Omamail",
+      "description": "Native Gmail and IMAP/SMTP mail client with keyring-backed credentials.",
+      "author": "Jason Lee; nbshell port by nerdi",
+      "license": "MIT",
+      "category": "Communication",
+      "kinds": ["service", "bar-widget", "panel"],
+      "source": "bundled",
+      "repository": "https://github.com/huacnlee/omamail",
+      "dependencies": {"commands": ["curl", "secret-tool", "socat", "openssl", "xdg-open"], "packages": ["curl", "libsecret", "socat", "openssl", "xdg-utils"]}
+    },
+    {
+      "id": "ytmusic",
+      "name": "YouTube Music",
+      "description": "Search, library, playlists, and local mpv playback in a native window.",
+      "author": "rlimberger; nbshell port by nerdi",
+      "license": "MIT",
+      "category": "Media",
+      "kinds": ["service", "bar-widget", "panel"],
+      "source": "bundled",
+      "repository": "https://github.com/rlimberger/omarchy-ytmusic",
+      "dependencies": {"commands": ["mpv", "yt-dlp", "python3"], "packages": ["mpv", "yt-dlp", "python"]}
+    },
+    {
+      "id": "pit-wall",
+      "name": "Pit Wall",
+      "description": "Formula 1 live timing, schedule, standings, sectors, tyres, and track position.",
+      "author": "Jeremy Longshore; nbshell port by nerdi",
+      "license": "MIT",
+      "category": "Sports",
+      "kinds": ["service", "bar-widget", "panel"],
+      "source": "bundled",
+      "repository": "https://github.com/jeremylongshore/pit-wall",
+      "dependencies": {"commands": ["python3"], "packages": ["python"]}
+    },
+    {
+      "id": "beispiel",
+      "name": "Example plugin",
+      "description": "Small click-counter template for learning the nbshell plugin API.",
+      "author": "nbshell",
+      "license": "MIT",
+      "category": "Development",
+      "kinds": ["bar-widget"],
+      "source": "bundled",
+      "repository": "https://github.com/nerdislb/nbshell",
+      "dependencies": {"commands": [], "packages": []}
+    }
+  ]
+}

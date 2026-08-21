@@ -476,8 +476,10 @@ nbshell -- an independent Quickshell desktop shell for niri
   nbshell plugin add <url>  install a third-party plugin; only use trusted code
   nbshell plugin validate <directory>
   nbshell plugin enable|disable <id>
+  nbshell plugin diff <name>   review incoming commits and files
   nbshell plugin update [name]
   nbshell plugin remove <name>
+  nbshell plugin-manager      open installed plugins and the store
   nbshell popout <name>     open a module popout
   nbshell extension toggle <id>  toggle a plugin panel or overlay
   nbshell translate         toggle the optional Quick Translate overlay
@@ -769,7 +771,10 @@ for b in d["binds"]:
     modules)
         ipc settings modules
         ;;
-    plugin-dev|plugin-diagnose)
+    plugin-store)
+        ipc plugins store
+        ;;
+    plugin-manager|plugin-dev|plugin-diagnose)
         ipc plugins developer
         ;;
     updates)

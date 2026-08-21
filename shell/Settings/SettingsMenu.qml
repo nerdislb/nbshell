@@ -96,6 +96,11 @@ PanelWindow {
             "hint": "Enter"
         },
         {
+            "action": "plugins",
+            "label": "Plugin manager …",
+            "hint": "Enter"
+        },
+        {
             "key": "widgetColor",
             "def": "text",
             "label": "Color",
@@ -486,6 +491,8 @@ PanelWindow {
             close();
             if (entry.action === "modules")
                 Runtime.modulesOpen = true;
+            else if (entry.action === "plugins")
+                { Runtime.pluginManagerTab = "installed"; Runtime.pluginDeveloperOpen = true; }
             return;
         }
         const current = valueOf(entry);

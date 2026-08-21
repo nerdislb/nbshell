@@ -5,6 +5,8 @@
   "version": "1.0.0-nbshell.1",
   "author": "Jeremy Longshore; nbshell port by nerdi",
   "license": "MIT",
+  "repository": "https://github.com/jeremylongshore/pit-wall",
+  "dependencies": { "commands": ["python3"], "packages": ["python"] },
   "description": "Formula 1 weekend countdown, live timing, schedule, and championship standings.",
   "category": "Info",
   "kinds": ["service", "bar-widget", "panel"],

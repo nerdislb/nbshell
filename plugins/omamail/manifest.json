@@ -5,6 +5,11 @@
   "version": "0.2.0",
   "author": "Jason Lee <huacnlee@gmail.com>",
   "license": "MIT",
+  "repository": "https://github.com/huacnlee/omamail",
+  "dependencies": {
+    "commands": ["curl", "secret-tool", "socat", "openssl", "xdg-open"],
+    "packages": ["curl", "libsecret", "socat", "openssl", "xdg-utils"]
+  },
   "description": "Read, triage, and reply to Gmail and IMAP mail in a native nbshell window.",
   "kinds": [
     "service",

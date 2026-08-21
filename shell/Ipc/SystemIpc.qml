@@ -195,8 +195,15 @@ Scope {
         target: "plugins"
 
         function developer(): string {
+            Runtime.pluginManagerTab = "installed";
             Runtime.pluginDeveloperOpen = !Runtime.pluginDeveloperOpen;
             return Runtime.pluginDeveloperOpen ? "open" : "closed";
+        }
+
+        function store(): string {
+            Runtime.pluginManagerTab = "store";
+            Runtime.pluginDeveloperOpen = true;
+            return "open";
         }
 
         function list(): string {

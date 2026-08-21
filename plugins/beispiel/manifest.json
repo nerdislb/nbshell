@@ -6,6 +6,9 @@
   "category": "Plugin",
   "version": "1.0.0",
   "author": "nbshell",
+  "license": "MIT",
+  "repository": "https://github.com/nerdislb/nbshell",
+  "dependencies": { "commands": [], "packages": [] },
   "kinds": ["bar-widget"],
   "entryPoints": {
     "barWidget": "BarWidget.qml"

@@ -316,6 +316,27 @@ Singleton {
         if (enabled)
             next.push(id);
         Config.set("enabledPlugins", next);
+
+        const plugin = root.entry(id);
+        if (!plugin || (plugin.kinds ?? []).indexOf("bar-widget") < 0)
+            return;
+
+        const sections = ["collapsedWidgets", "leftWidgets", "centerWidgets", "rightWidgets"];
+        var placed = false;
+        for (var i = 0; i < sections.length; i++) {
+            const values = Config.value(sections[i], []);
+            if (values.indexOf(id) >= 0)
+                placed = true;
+            if (!enabled && values.indexOf(id) >= 0)
+                Config.set(sections[i], values.filter(value => value !== id));
+        }
+        if (!enabled || placed)
+            return;
+
+        const requested = String(plugin.barWidget?.defaultSection || "right").toLowerCase();
+        const target = requested === "left" ? "leftWidgets"
+            : (requested === "center" ? "centerWidgets" : "rightWidgets");
+        Config.set(target, Config.value(target, []).concat([id]));
     }
 
     function runtimeInstance(id) {

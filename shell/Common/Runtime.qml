@@ -68,6 +68,7 @@ Singleton {
     property bool agentCenterOpen: false
     property int dashboardPage: 0
     property bool pluginDeveloperOpen: false
+    property string pluginManagerTab: "installed"
     property bool displayOpen: false
     property bool uiGalleryOpen: false
 

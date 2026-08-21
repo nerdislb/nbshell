@@ -5,6 +5,11 @@
   "version": "1.1.0",
   "author": "rlimberger",
   "license": "MIT",
+  "repository": "https://github.com/rlimberger/omarchy-ytmusic",
+  "dependencies": {
+    "commands": ["mpv", "yt-dlp", "python3"],
+    "packages": ["mpv", "yt-dlp", "python"]
+  },
   "description": "YouTube Music in nbshell with search, library, playlists, and local mpv playback.",
   "kinds": [
     "service",

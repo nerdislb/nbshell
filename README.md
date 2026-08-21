@@ -15,6 +15,8 @@ testing, and the direction of the project remain human-led.
 
 - [Manual](docs/index.md) — setup, features, browser themes, and video trimming
 - [Getting started](docs/getting-started.md) — install, first login, and checks
+- [Plugin development](docs/plugin-development.md) — manifest, lifecycle, safety, and publishing
+- [Plugin store](docs/plugin-store.md) — catalog format and review policy
 - [Feature guide](docs/features.md) — what each part of nbshell does
 - [Phone webcam](docs/phone-webcam.md) — use an Android camera in OBS or calls
 
@@ -32,6 +34,8 @@ online guide without turning this README into a wall of text.
 - Calendar, tasks, habits, KDE Connect, Android mirroring, and a phone webcam
 - Screenshots, screen recording, OCR, QR scanning, and a screen saver
 - AI usage for Codex, Claude, Antigravity, and other providers
+- Curated plugin manager with optional modules, dependency details, update
+  previews, and safe cleanup of external plugins
 - Agent Center with a default-agent launcher, explicit approval profiles,
   project selection, Herdr sessions, and optional Ollama/OpenCode routing
 - niri key bindings, terminal colors, and systemd autostart
@@ -106,6 +110,8 @@ are not overwritten during later installations.
 nbshell menu             # Open the main menu
 nbshell settings         # Change appearance and behavior
 nbshell modules          # Arrange bar modules
+nbshell plugin-manager   # Manage installed and optional plugins
+nbshell plugin-store     # Browse the curated plugin catalog
 nbshell keys             # Show key bindings
 nbshell dashboard        # Open the dashboard
 nbshell display          # Configure connected displays
