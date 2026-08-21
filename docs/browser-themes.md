@@ -23,9 +23,12 @@ managed CSS automatically. Zen's Browser Toolbox can reload `userChrome.css`
 live during development, but a normal browser restart remains the reliable
 fallback.
 
-Brave reloads its platform policy while running. Its toolbar follows the
-nbshell accent. The browser chrome stays dark by default and changes to light
-only when the selected theme explicitly declares `mode = "light"`.
+Brave reloads its color policy while running. Its toolbar follows the nbshell
+accent. On Arch, nbshell also maintains a marked block in
+`~/.config/brave-flags.conf`: dark themes add `--force-dark-mode`, while a
+theme explicitly declaring `mode = "light"` removes that block. Existing
+personal flags outside the marked block remain untouched. Changing the mode
+requires restarting Brave; accent-only changes do not.
 
 ## Commands
 

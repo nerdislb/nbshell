@@ -4,6 +4,9 @@ set -uo pipefail
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 PALETTE="$CONFIG_HOME/nbshell/palette.sh"
 BRAVE_POLICY="${NBSHELL_BRAVE_POLICY:-/etc/brave/policies/managed/nbshell-color.json}"
+BRAVE_FLAGS="$CONFIG_HOME/brave-flags.conf"
+BRAVE_FLAGS_BEGIN='# nbshell browser theme begin'
+BRAVE_FLAGS_END='# nbshell browser theme end'
 IMPORT='@import url("nbshell-theme.css"); /* managed by nbshell */'
 
 die() { printf 'nbshell browser theme: %s\n' "$1" >&2; exit 1; }
@@ -90,7 +93,7 @@ setup_brave() {
 	owner=$(id -un)
 	group=$(id -gn)
 	temporary=$(mktemp)
-	printf '%s\n' '{"BrowserThemeColor":"#1c2027","BrowserColorScheme":"dark"}' > "$temporary"
+	printf '%s\n' '{"BrowserThemeColor":"#1c2027"}' > "$temporary"
 	sudo install -d -m 0755 /etc/brave/policies/managed
 	sudo install -o "$owner" -g "$group" -m 0644 "$temporary" "$BRAVE_POLICY"
 	rm -f "$temporary"
@@ -98,15 +101,32 @@ setup_brave() {
 	printf 'Brave theme policy installed.\n'
 }
 
+apply_brave_mode() {
+	local mode temporary
+	mode=$(palette_value NB_MODE 'dark')
+	[[ $mode == light ]] || mode=dark
+	mkdir -p "$CONFIG_HOME"
+	temporary=$(mktemp "$CONFIG_HOME/.brave-flags.XXXXXX")
+	if [[ -f $BRAVE_FLAGS ]]; then
+		awk -v begin="$BRAVE_FLAGS_BEGIN" -v end="$BRAVE_FLAGS_END" '
+			$0 == begin { managed = 1; next }
+			$0 == end { managed = 0; next }
+			!managed { print }
+		' "$BRAVE_FLAGS" > "$temporary"
+	fi
+	if [[ $mode == dark ]]; then
+		[[ ! -s $temporary ]] || printf '\n' >> "$temporary"
+		printf '%s\n%s\n%s\n' "$BRAVE_FLAGS_BEGIN" '--force-dark-mode' "$BRAVE_FLAGS_END" >> "$temporary"
+	fi
+	mv "$temporary" "$BRAVE_FLAGS"
+}
+
 apply_brave() {
 	[[ -r $PALETTE && -w $BRAVE_POLICY ]] || return 0
-	local accent mode
+	local accent
 	accent=$(palette_value NB_ACCENT '#1c2027')
-	mode=$(palette_value NB_MODE 'dark')
-	# Dark is the safe default. Brave switches to its light chrome only when a
-	# theme explicitly declares itself as light.
-	[[ $mode == light ]] || mode=dark
-	printf '{"BrowserThemeColor":"%s","BrowserColorScheme":"%s"}\n' "$accent" "$mode" > "$BRAVE_POLICY"
+	printf '{"BrowserThemeColor":"%s"}\n' "$accent" > "$BRAVE_POLICY"
+	apply_brave_mode
 	if command -v brave >/dev/null 2>&1 && pgrep -x brave >/dev/null 2>&1; then
 		brave --refresh-platform-policy --no-startup-window >/dev/null 2>&1 &
 	fi
@@ -120,7 +140,7 @@ status() {
 	done < <(zen_profiles)
 	printf 'Palette   %s\n' "$([[ -r $PALETTE ]] && echo ready || echo missing)"
 	printf 'Zen       %s profile(s), %s configured\n' "$profiles" "$configured"
-	printf 'Brave     %s\n' "$([[ -w $BRAVE_POLICY ]] && echo configured || echo 'setup required')"
+	printf 'Brave     %s (%s mode)\n' "$([[ -w $BRAVE_POLICY ]] && echo configured || echo 'setup required')" "$(palette_value NB_MODE dark)"
 }
 
 case "${1:-status}" in

@@ -32,13 +32,18 @@ bash "$ROOT/shell/scripts/browser-theme.sh" setup-zen >/dev/null
 test "$(grep -Fc 'managed by nbshell' "$PROFILE/chrome/userChrome.css")" -eq 1
 test "$(grep -Fc 'toolkit.legacyUserProfileCustomizations.stylesheets' "$PROFILE/user.js")" -eq 1
 
-# Brave follows the theme's explicit mode, never the desktop mode by default.
+# Brave follows the theme's explicit mode through the Arch launcher flags.
 POLICY="$TEST_DIR/brave-policy.json"
 touch "$POLICY"
+printf '%s\n' '--ozone-platform=wayland' > "$XDG_CONFIG_HOME/brave-flags.conf"
 NBSHELL_BRAVE_POLICY="$POLICY" bash "$ROOT/shell/scripts/browser-theme.sh" apply
-grep -Fq '"BrowserColorScheme":"dark"' "$POLICY"
+grep -Fxq -- '--force-dark-mode' "$XDG_CONFIG_HOME/brave-flags.conf"
+grep -Fxq -- '--ozone-platform=wayland' "$XDG_CONFIG_HOME/brave-flags.conf"
+grep -Fq '"BrowserThemeColor":"#42a5f5"' "$POLICY"
+! grep -Fq 'BrowserColorScheme' "$POLICY"
 sed -i "s/NB_MODE='dark'/NB_MODE='light'/" "$XDG_CONFIG_HOME/nbshell/palette.sh"
 NBSHELL_BRAVE_POLICY="$POLICY" bash "$ROOT/shell/scripts/browser-theme.sh" apply
-grep -Fq '"BrowserColorScheme":"light"' "$POLICY"
+! grep -Fq -- '--force-dark-mode' "$XDG_CONFIG_HOME/brave-flags.conf"
+grep -Fxq -- '--ozone-platform=wayland' "$XDG_CONFIG_HOME/brave-flags.conf"
 
 echo "Browser theme validation: OK"
