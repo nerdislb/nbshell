@@ -41,7 +41,8 @@ Cell {
                     pairs: [
                         { "label": "Brightness", "value": Brightness.available ? Brightness.percent + " %" : "unavailable" },
                         { "label": "Bluetooth", "value": Bt.connected.length + " connected" },
-                        { "label": "Wi-Fi", "value": Net.wifiEnabled ? "enabled" : "disabled", "color": Net.wifiEnabled ? Theme.fg : Theme.yellow }
+                        { "label": "Wi-Fi", "value": Net.wifiEnabled ? "enabled" : "disabled", "color": Net.wifiEnabled ? Theme.fg : Theme.yellow },
+                        { "label": "VPN", "value": Net.activeVpns.length ? Net.activeVpns[0].name : "disconnected", "color": Net.activeVpns.length ? Theme.green : Theme.fgDim }
                     ]
                 }
             ]
@@ -82,6 +83,7 @@ Cell {
             Component.onCompleted: {
                 Net.setScanner(true);
                 Net.setTrafficMonitoring(true);
+                Net.refreshVpns();
             }
             Component.onDestruction: {
                 Net.setScanner(false);
@@ -98,7 +100,7 @@ Cell {
             Timer {
                 interval: 150
                 repeat: true
-                running: Net.scanning || Bt.discovering
+                running: Net.scanning || Bt.discovering || Net.vpnBusyUuid !== ""
                 onTriggered: panel.spinIndex++
             }
 
@@ -403,6 +405,101 @@ Cell {
                         }
                     }
                 }
+            }
+
+            // ── VPN ──────────────────────────────────────────────────────
+
+            Rule {
+                rowWidth: panel.rowWidth
+                visible: Net.vpnAvailable
+                label: ""
+            }
+
+            Item {
+                width: panel.rowWidth
+                height: Theme.cellH
+                visible: Net.vpnAvailable
+
+                Heading {
+                    anchors.left: parent.left
+                    text: "VPN"
+                }
+
+                Row {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    Action {
+                        text: "Refresh"
+                        onTriggered: Net.refreshVpns()
+                    }
+                }
+            }
+
+            Line {
+                width: panel.rowWidth
+                visible: Net.vpnAvailable && Net.vpnProfiles.length === 0
+                text: "  no saved VPN profiles"
+                color: Theme.fgDim
+            }
+
+            Repeater {
+                model: Net.vpnAvailable ? Net.vpnProfiles : []
+
+                Rectangle {
+                    id: vpnRow
+
+                    required property var modelData
+
+                    readonly property bool busy: Net.vpnBusyUuid === modelData.uuid
+
+                    width: panel.rowWidth
+                    height: Theme.cellH * 1.4
+                    radius: Theme.radius
+                    color: modelData.active ? Theme.selectedSurface(Theme.accent)
+                        : (vpnMouse.hovered ? Theme.hover : "transparent")
+                    border.width: modelData.active ? Theme.borderWidth : 0
+                    border.color: Theme.controlBorder(false, modelData.active, false)
+
+                    Line {
+                        anchors.left: parent.left
+                        anchors.leftMargin: Theme.cellW / 2
+                        anchors.right: vpnState.left
+                        anchors.rightMargin: Theme.cellW
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: (vpnRow.modelData.active ? "▸ " : "  ") + vpnRow.modelData.name
+                        color: vpnRow.modelData.active ? Theme.selectedForeground(Theme.accent) : Theme.fg
+                        elide: Text.ElideRight
+                    }
+
+                    Line {
+                        id: vpnState
+
+                        anchors.right: parent.right
+                        anchors.rightMargin: Theme.cellW / 2
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: vpnRow.busy ? panel.spin : (vpnRow.modelData.active ? "CONNECTED" : vpnRow.modelData.type.toUpperCase())
+                        color: vpnRow.modelData.active ? Theme.green : Theme.fgDim
+                    }
+
+                    HoverHandler {
+                        id: vpnMouse
+                        cursorShape: vpnRow.busy ? Qt.BusyCursor : Qt.PointingHandCursor
+                    }
+
+                    TapHandler {
+                        enabled: !vpnRow.busy
+                        onTapped: Net.toggleVpn(vpnRow.modelData)
+                    }
+                }
+            }
+
+            Line {
+                width: panel.rowWidth
+                visible: Net.vpnError !== ""
+                text: Net.vpnError
+                color: Theme.red
+                wrapMode: Text.Wrap
             }
 
             // ── Bluetooth ─────────────────────────────────────────────────

@@ -15,8 +15,8 @@ main menu, the bar, or the `nbshell` command.
 
 ## System controls
 
-- Wi-Fi, Bluetooth pairing and removal, audio devices, brightness, batteries,
-  and power profiles
+- Wi-Fi, saved NetworkManager VPN and WireGuard profiles, Bluetooth pairing
+  and removal, audio devices, brightness, batteries, and power profiles
 - Persistent Niri display setup for resolution, scale, rotation, and position
 - Update workflow with restart recommendations for important system packages
 - Process viewer, power menu, screen saver, and session controls

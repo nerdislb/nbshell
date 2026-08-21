@@ -10,6 +10,8 @@ import Quickshell.Networking
 Singleton {
     id: root
 
+    readonly property string vpnScript: Qt.resolvedUrl("../scripts/network-vpn.py").toString().replace("file://", "")
+
     readonly property var devices: Networking.devices?.values ?? []
 
     readonly property var wifiDevice: devices.find(d => d.type === DeviceType.Wifi) ?? null
@@ -48,6 +50,64 @@ Singleton {
     }
 
     readonly property bool online: activeWifi !== null || wiredConnected
+
+    // NetworkManager VPN profiles are handled through nmcli because
+    // Quickshell's networking API currently exposes Wi-Fi and devices, but
+    // not saved VPN connections. Only profile metadata crosses this boundary;
+    // credentials remain in NetworkManager and the desktop keyring.
+    property bool vpnAvailable: false
+    property var vpnProfiles: []
+    property string vpnBusyUuid: ""
+    property string vpnError: ""
+    readonly property var activeVpns: vpnProfiles.filter(profile => profile.active)
+
+    function refreshVpns() {
+        if (!vpnList.running)
+            vpnList.running = true;
+    }
+
+    function toggleVpn(profile) {
+        if (!profile || vpnAction.running)
+            return;
+        vpnBusyUuid = profile.uuid;
+        vpnError = "";
+        vpnAction.command = ["python3", root.vpnScript, profile.active ? "down" : "up", profile.uuid];
+        vpnAction.running = true;
+    }
+
+    Process {
+        id: vpnList
+        command: ["python3", root.vpnScript, "list"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const data = JSON.parse(text || "{}");
+                    root.vpnAvailable = data.available === true;
+                    root.vpnProfiles = data.profiles || [];
+                    if (data.error)
+                        root.vpnError = data.error;
+                } catch (error) {
+                    root.vpnError = "Could not read VPN profiles";
+                }
+            }
+        }
+    }
+
+    Process {
+        id: vpnAction
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const data = JSON.parse(text || "{}");
+                    root.vpnError = data.ok === true ? "" : (data.error || "VPN action failed");
+                } catch (error) {
+                    root.vpnError = "VPN action failed";
+                }
+                root.vpnBusyUuid = "";
+                root.refreshVpns();
+            }
+        }
+    }
 
     // ── Aktuelle Datenrate ───────────────────────────────────────────────
     //

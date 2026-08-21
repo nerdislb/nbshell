@@ -10,6 +10,8 @@ configuration and plugin interfaces before `1.0.0`.
 
 - Main-menu search now includes installed desktop applications and launches
   the selected app directly.
+- The connection popout can connect and disconnect saved NetworkManager VPN
+  and WireGuard profiles without handling their credentials itself.
 
 ### Changed
 
