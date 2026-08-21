@@ -24,6 +24,7 @@ Singleton {
     property var messages: []
     property string error: ""
     property int retry: 0
+    property bool bridgeAvailable: false
 
     readonly property bool ready: online && linked && connection === "open"
 
@@ -86,7 +87,10 @@ Singleton {
     Socket {
         id: socket
         path: root.socketPath
-        connected: true
+        // Do not probe a missing optional bridge on every shell start. Apart
+        // from a noisy socket warning, the old unconditional connection also
+        // kept retrying a service that had never been installed.
+        connected: root.bridgeAvailable
         parser: SplitParser {
             splitMarker: "\n"
             onRead: line => {
@@ -99,11 +103,11 @@ Singleton {
             if (connected) {
                 root.retry = 0;
                 root.refresh();
-            } else retryTimer.restart();
+            } else if (root.bridgeAvailable) retryTimer.restart();
         }
         onError: error => {
             root.online = false;
-            retryTimer.restart();
+            if (root.bridgeAvailable) retryTimer.restart();
         }
     }
 
@@ -111,6 +115,7 @@ Singleton {
         id: retryTimer
         interval: Math.min(8000, 1200 + root.retry * 800)
         onTriggered: {
+            if (!root.bridgeAvailable) return;
             root.retry += 1;
             if (root.retry === 2) starter.running = true;
             socket.connected = false;
@@ -118,7 +123,20 @@ Singleton {
         }
     }
     Timer { interval: 20000; repeat: true; running: true; onTriggered: root.send({ "t": "ping" }) }
+    Process {
+        command: ["systemctl", "--user", "cat", "nbshell-whatsapp.service"]
+        running: true
+        onExited: code => root.bridgeAvailable = Number(code) === 0
+    }
     Process { id: starter; command: ["systemctl", "--user", "start", "nbshell-whatsapp.service"] }
-    Process { id: setupProc; command: [root.helper, "setup"]; onExited: starter.running = true }
+    Process {
+        id: setupProc
+        command: [root.helper, "setup"]
+        onExited: code => {
+            if (Number(code) !== 0) return;
+            root.bridgeAvailable = true;
+            starter.running = true;
+        }
+    }
     Process { id: opener; command: [root.helper, "open"] }
 }

@@ -207,9 +207,10 @@ Scope {
         }
 
         function list(): string {
+            const idWidth = Math.max(16, ...Plugins.catalog.map(e => e.id.length + 2));
             const rows = Plugins.catalog.map(e => {
                 const kind = e.entry ? "plugin" : "built-in";
-                return e.id.padEnd(16) + kind.padEnd(11) + e.name;
+                return e.id.padEnd(idWidth) + kind.padEnd(11) + e.name;
             });
             return rows.join("\n") + "\n\n" + Plugins.plugins.length + " external — " + Plugins.dir;
         }

@@ -270,7 +270,10 @@ PanelWindow {
             readonly property real rowHeight: Theme.menuRowHeight
 
             clip: true
-            model: root.results
+            // Hidden layer-shell windows keep their QML tree alive. Avoid
+            // resolving and rasterizing a screenful of desktop SVG icons at
+            // startup; populate delegates only while the launcher is open.
+            model: root.visible ? root.results : []
             currentIndex: root.selected
             boundsBehavior: Flickable.StopAtBounds
 

@@ -22,6 +22,20 @@ configuration and plugin interfaces before `1.0.0`.
 
 - Fresh installations now start with the full-width bar, plain unboxed
   widgets, and a neutral core-module layout.
+- Full-screen wallpapers decode at the active output size, and hidden launcher
+  rows no longer rasterize application icons at startup, reducing the tested
+  idle shell PSS by roughly 60 MiB.
+- Battery health falls back to Linux power-supply design capacity when the
+  Quickshell UPower API does not provide it.
+- Optional WhatsApp IPC remains dormant until its local bridge is installed.
+- Built-in module names and descriptions are consistently English, and the
+  plugin CLI sizes its columns for long identifiers.
+
+### Fixed
+
+- Clipboard decoding no longer uses Qt's deprecated string `atob` overload.
+- Hidden launcher SVG rendering no longer emits oversized-buffer warnings at
+  shell startup.
 
 ## [0.1.0-beta.1] - 2026-08-21
 

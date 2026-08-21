@@ -12,9 +12,9 @@ import qs.Common
 // ist ohnehin da, sobald man unter Wayland etwas kopieren will.
 //
 // Der Wachhund schickt jeden Eintrag base64-kodiert und in EINER Zeile --
-// sonst zerfiele ein mehrzeiliger Text in lauter Einzelmeldungen. Zurueck
-// kommt er ueber den Umweg ueber `escape`, weil Qt.atob byteweise dekodiert
-// und Umlaute sonst zerbroeseln.
+// sonst zerfiele ein mehrzeiliger Text in lauter Einzelmeldungen. Decoding
+// stays in JavaScript: Qt's string atob overload is deprecated and behaves
+// differently from the browser API for non-ASCII clipboard contents.
 //
 // Passwoerter kommen hier NICHT an: wer ein Geheimnis in die Zwischenablage
 // legt, haengt dem Angebot den Mime-Typ `x-kde-passwordManagerHint` an
@@ -40,11 +40,27 @@ Singleton {
     readonly property string imageScript: Qt.resolvedUrl("../scripts/clipboard-images.py").toString().replace("file://", "")
 
     function decode(base64) {
-        try {
-            return decodeURIComponent(escape(Qt.atob(base64)));
-        } catch (e) {
-            return Qt.atob(base64);
+        const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        const input = String(base64 || "").replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
+        const bytes = [];
+        var bits = 0;
+        var value = 0;
+        for (var i = 0; i < input.length; i++) {
+            if (input[i] === "=") break;
+            const digit = alphabet.indexOf(input[i]);
+            if (digit < 0) continue;
+            value = (value << 6) | digit;
+            bits += 6;
+            if (bits >= 8) {
+                bits -= 8;
+                bytes.push((value >> bits) & 0xff);
+            }
         }
+        var encoded = "";
+        for (var j = 0; j < bytes.length; j++)
+            encoded += "%" + bytes[j].toString(16).padStart(2, "0");
+        try { return decodeURIComponent(encoded); }
+        catch (e) { return bytes.map(b => String.fromCharCode(b)).join(""); }
     }
 
     function add(text) {

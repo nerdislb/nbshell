@@ -66,6 +66,8 @@ Scope {
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 cache: false
+                sourceSize.width: Math.max(1, Math.ceil(win.width * win.screen.devicePixelRatio))
+                sourceSize.height: Math.max(1, Math.ceil(win.height * win.screen.devicePixelRatio))
                 visible: opacity > 0
                 opacity: win.showA ? 1 : 0
 
@@ -82,6 +84,8 @@ Scope {
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 cache: false
+                sourceSize.width: Math.max(1, Math.ceil(win.width * win.screen.devicePixelRatio))
+                sourceSize.height: Math.max(1, Math.ceil(win.height * win.screen.devicePixelRatio))
                 visible: opacity > 0
                 opacity: win.showA ? 0 : 1
 
@@ -193,6 +197,8 @@ Scope {
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 cache: false
+                sourceSize.width: Math.max(1, Math.ceil(blurWin.width * blurWin.screen.devicePixelRatio))
+                sourceSize.height: Math.max(1, Math.ceil(blurWin.height * blurWin.screen.devicePixelRatio))
                 // Nur die Vorlage fuer den Effekt -- selbst gezeichnet wird sie
                 // nicht.
                 visible: false

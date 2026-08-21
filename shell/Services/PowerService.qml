@@ -35,7 +35,19 @@ Singleton {
     }
 
     readonly property real rate: device?.changeRate ?? 0
-    readonly property int health: device ? Math.round(device.healthPercentage) : 0
+    readonly property int nativeHealth: device ? Math.round(device.healthPercentage) : 0
+
+    // Some UPower/Quickshell combinations expose the current percentage but
+    // leave healthPercentage at zero. Linux still publishes the design and
+    // current full charge below power_supply, so use that as a portable
+    // fallback instead of hiding battery health on supported laptops. Both
+    // charge_* and energy_* variants occur in the wild.
+    property string sysfsBattery: ""
+    property real sysfsFull: 0
+    property real sysfsDesign: 0
+    readonly property int sysfsHealth: sysfsFull > 0 && sysfsDesign > 0
+        ? Math.round(100 * sysfsFull / sysfsDesign) : 0
+    readonly property int health: nativeHealth > 0 ? nativeHealth : sysfsHealth
 
     // "2 h 15 min", "45 min" -- und ehrlich, wenn nichts bekannt ist.
     readonly property string timeText: {
@@ -137,5 +149,41 @@ Singleton {
     Process {
         id: setProc
         onExited: root.refreshProfile()
+    }
+
+    Process {
+        command: ["sh", "-c", "for d in /sys/class/power_supply/*; do [ \"$(cat \"$d/type\" 2>/dev/null)\" = Battery ] && { printf %s \"$d\"; break; }; done"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: root.sysfsBattery = text.trim()
+        }
+    }
+
+    FileView {
+        path: root.sysfsBattery ? root.sysfsBattery + "/charge_full" : ""
+        printErrors: false
+        onLoaded: root.sysfsFull = parseFloat(text().trim()) || 0
+        onLoadFailed: energyFull.reload()
+    }
+
+    FileView {
+        path: root.sysfsBattery ? root.sysfsBattery + "/charge_full_design" : ""
+        printErrors: false
+        onLoaded: root.sysfsDesign = parseFloat(text().trim()) || 0
+        onLoadFailed: energyDesign.reload()
+    }
+
+    FileView {
+        id: energyFull
+        path: root.sysfsBattery ? root.sysfsBattery + "/energy_full" : ""
+        printErrors: false
+        onLoaded: root.sysfsFull = parseFloat(text().trim()) || 0
+    }
+
+    FileView {
+        id: energyDesign
+        path: root.sysfsBattery ? root.sysfsBattery + "/energy_full_design" : ""
+        printErrors: false
+        onLoaded: root.sysfsDesign = parseFloat(text().trim()) || 0
     }
 }

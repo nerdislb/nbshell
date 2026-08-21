@@ -48,7 +48,7 @@ Singleton {
         {
             "id": "workspaces",
             "name": "Workspaces",
-            "description": "die Flaechen von niri",
+            "description": "niri workspaces",
             "category": "niri"
         },
         {
@@ -61,7 +61,7 @@ Singleton {
             "id": "clock",
             "name": "Clock",
             "description": "date and time; click opens the calendar",
-            "category": "Zeit"
+            "category": "Time"
         },
         {
             "id": "media",
@@ -85,7 +85,7 @@ Singleton {
             "id": "bongo",
             "name": "Bongo Cat",
             "description": "typing cat using session input",
-            "category": "Spass"
+            "category": "Fun"
         },
         {
             "id": "sys",
@@ -101,8 +101,8 @@ Singleton {
         },
         {
             "id": "layout",
-            "name": "Tastaturbelegung",
-            "description": "zwei Buchstaben",
+            "name": "Keyboard layout",
+            "description": "two-letter layout indicator",
             "category": "niri"
         },
         {
@@ -173,13 +173,13 @@ Singleton {
         },
         {
             "id": "nearby",
-            "name": "In der Naehe",
-            "description": "Clipboard und Bilder ans Telefon (LocalSend)",
+            "name": "Nearby Share",
+            "description": "send clipboard content and images via LocalSend",
             "category": "System"
         },
         {
             "id": "caffeine",
-            "name": "Wachhalten",
+            "name": "Keep awake",
             "description": "prevents dimming, screen-off, and locking",
             "category": "System"
         },
@@ -187,19 +187,19 @@ Singleton {
             "id": "tailscale",
             "name": "Tailscale",
             "description": "Tailnet status, online devices, and addresses",
-            "category": "Netz"
+            "category": "Network"
         },
         {
             "id": "whatsapp",
             "name": "WhatsApp",
             "description": "unread messages, chat history, and direct replies",
-            "category": "Netz"
+            "category": "Network"
         },
         {
             "id": "sep",
             "name": "Separator",
-            "description": "senkrechter Strich",
-            "category": "Aussehen"
+            "description": "vertical divider",
+            "category": "Appearance"
         }
     ]
 
