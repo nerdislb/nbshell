@@ -39,11 +39,12 @@ printf '%s\n' '--ozone-platform=wayland' > "$XDG_CONFIG_HOME/brave-flags.conf"
 NBSHELL_BRAVE_POLICY="$POLICY" bash "$ROOT/shell/scripts/browser-theme.sh" apply
 grep -Fxq -- '--force-dark-mode' "$XDG_CONFIG_HOME/brave-flags.conf"
 grep -Fxq -- '--ozone-platform=wayland' "$XDG_CONFIG_HOME/brave-flags.conf"
-grep -Fq '"BrowserThemeColor":"#42a5f5"' "$POLICY"
+grep -Fq '"BrowserThemeColor":"#101820"' "$POLICY"
 ! grep -Fq 'BrowserColorScheme' "$POLICY"
 sed -i "s/NB_MODE='dark'/NB_MODE='light'/" "$XDG_CONFIG_HOME/nbshell/palette.sh"
 NBSHELL_BRAVE_POLICY="$POLICY" bash "$ROOT/shell/scripts/browser-theme.sh" apply
 ! grep -Fq -- '--force-dark-mode' "$XDG_CONFIG_HOME/brave-flags.conf"
 grep -Fxq -- '--ozone-platform=wayland' "$XDG_CONFIG_HOME/brave-flags.conf"
+grep -Fq '"BrowserThemeColor":"#263746"' "$POLICY"
 
 echo "Browser theme validation: OK"

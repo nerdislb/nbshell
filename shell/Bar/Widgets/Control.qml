@@ -48,6 +48,7 @@ Cell {
             // Welches Netz gerade nach einem Passwort fragt. Leer heisst: kein
             // Eingabefeld open.
             property var pendingNetwork: null
+            property string pendingBtRemoval: ""
 
             readonly property real rowWidth: 44 * Theme.cellW
 
@@ -448,11 +449,31 @@ Cell {
                     Line {
                         anchors.left: parent.left
                         anchors.leftMargin: Theme.cellW / 2
-                        anchors.right: parent.right
+                        anchors.right: removeButton.visible ? removeButton.left : parent.right
+                        anchors.rightMargin: removeButton.visible ? Theme.cellW / 2 : 0
                         anchors.verticalCenter: parent.verticalCenter
                         text: (btRow.modelData.connected ? "▸ " : "  ") + Bt.label(btRow.modelData) + (btRow.modelData.batteryAvailable ? ("  " + Math.round(btRow.modelData.battery * 100) + "%") : "") + (btRow.modelData.pairing ? "  ·pairing" : (btRow.modelData.paired || btRow.modelData.connected ? "" : "  ·new"))
                         color: btRow.modelData.connected ? Theme.selectedForeground(Theme.accent) : Theme.fg
                         elide: Text.ElideRight
+                    }
+
+                    Action {
+                        id: removeButton
+
+                        anchors.right: parent.right
+                        anchors.rightMargin: Theme.cellW / 2
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: btRow.modelData.paired || btRow.modelData.bonded || btRow.modelData.connected
+                        text: panel.pendingBtRemoval === btRow.modelData.address ? "Confirm" : "Remove"
+                        tone: panel.pendingBtRemoval === btRow.modelData.address ? "danger" : "secondary"
+                        onTriggered: {
+                            if (panel.pendingBtRemoval === btRow.modelData.address) {
+                                panel.pendingBtRemoval = "";
+                                Bt.forgetDevice(btRow.modelData);
+                            } else {
+                                panel.pendingBtRemoval = btRow.modelData.address;
+                            }
+                        }
                     }
 
                     HoverHandler {

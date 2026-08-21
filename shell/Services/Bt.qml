@@ -101,6 +101,14 @@ Singleton {
             device.pair();
     }
 
+    function forgetDevice(device) {
+        if (!device || (!device.paired && !device.bonded && !device.connected))
+            return;
+        const name = root.label(device);
+        device.forget();
+        Quickshell.execDetached(["notify-send", "--app-name=nbshell", "Bluetooth device removed", name]);
+    }
+
     // ── Suchen ────────────────────────────────────────────────────────────
     //
     // Anders als beim WLAN gibt es hier einen echten Zustand: `discovering`
