@@ -561,7 +561,7 @@ Item {
       command("browse", { view: "liked" }, "", function(ok, result) {
         if (ok && result) root.liked = result.items || []
       })
-      loadPlaylists()
+      if (playlists.length === 0 && !playlistsLoading) loadPlaylists()
     }
   }
 
@@ -586,6 +586,7 @@ Item {
   }
 
   function loadPlaylists() {
+    if (playlistsLoading) return
     playlistsLoading = true
     command("browse", { view: "playlists" }, "", function(ok, result) {
       root.playlistsLoading = false
@@ -605,8 +606,11 @@ Item {
   }
 
   function refreshLibrary() {
-    loadHome(true)
+    // Put the most visible navigation data first. The backend processes one
+    // client stream in order, so loading Home before playlists made the
+    // sidebar look empty while several slower requests completed.
     loadPlaylists()
+    loadHome(true)
     loadLibrary(libraryType, false, true)
   }
 
@@ -629,7 +633,10 @@ Item {
       fail("That page is not available")
       return
     }
-    command(commandName, { id: ident }, "", function(ok, result) {
+    // `id` is reserved for the request/response correlation in BackendClient.
+    // Using it for a media ID overwrote the callback key and left Details in
+    // an endless loading state even though the backend had already replied.
+    command(commandName, { item_id: ident }, "", function(ok, result) {
       root.detailLoading = false
       if (!ok || !result) return
       root.detailItem = result

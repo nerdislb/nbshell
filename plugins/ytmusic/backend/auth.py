@@ -339,7 +339,10 @@ def read_youtube_cookies(db_path: Path, password: bytes) -> list[tuple[str, str]
         if "youtube.com" not in host_text:
             continue
         name_text = str(name or "").strip()
-        if not name_text:
+        # YouTube creates many large, short-lived ST-* experiment cookies.
+        # Browsers prune these per request, but a raw SQLite export does not;
+        # sending all of them can exceed YouTube's header limit (HTTP 413).
+        if not name_text or name_text.startswith("ST-"):
             continue
         decoded = str(value or "")
         blob = encrypted if isinstance(encrypted, (bytes, bytearray)) else b""
@@ -376,7 +379,7 @@ def read_firefox_youtube_cookies(db_path: Path) -> list[tuple[str, str]]:
         host_text = str(host or "")
         name_text = str(name or "").strip()
         value_text = str(value or "")
-        if not name_text or not value_text:
+        if not name_text or name_text.startswith("ST-") or not value_text:
             continue
         preference = _host_preference(host_text)
         previous = by_name.get(name_text)

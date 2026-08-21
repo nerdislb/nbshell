@@ -303,9 +303,9 @@ nbshell gaming remove steam
   Install `mpv` and `yt-dlp`, enable it with `nbshell plugin enable ytmusic`,
   restart nbshell, then press `Mod+Ctrl+Shift+M`. First launch creates an
   unprivileged Python venv and a systemd user service that is not enabled at
-  login. Chromium, Chrome, and Brave sessions can be imported; Zen users can
-  use the built-in request-header paste flow. Authentication files are stored
-  with mode `0600`.
+  login. Zen, Chromium, Chrome, and Brave sessions can be imported directly;
+  the built-in request-header paste flow remains a fallback. Authentication
+  files are stored with mode `0600`.
 
 ## Updating
 

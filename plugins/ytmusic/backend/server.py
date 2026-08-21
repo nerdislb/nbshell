@@ -257,11 +257,11 @@ class Backend:
         if command == "browse":
             return self.browse(str(message.get("view") or "home"))
         if command == "get_playlist":
-            return self.require_catalog().playlist(str(message.get("id") or ""))
+            return self.require_catalog().playlist(str(message.get("item_id") or ""))
         if command == "get_album":
-            return self.require_catalog().album(str(message.get("id") or ""))
+            return self.require_catalog().album(str(message.get("item_id") or ""))
         if command == "get_artist":
-            return self.require_catalog().artist(str(message.get("id") or ""))
+            return self.require_catalog().artist(str(message.get("item_id") or ""))
         if command == "get_queue":
             return {"items": list(self.player.queue), "index": self.player.index}
         if command == "like":

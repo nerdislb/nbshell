@@ -213,6 +213,23 @@ else
     echo "Plugins -> $DATA_DIR/plugins ($(find "$DATA_DIR/plugins" -maxdepth 2 -name manifest.json 2>/dev/null | wc -l) installed, existing files kept)"
 fi
 
+# Managed plugin updates must also refresh an already installed backend copy.
+# The YouTube Music service deliberately runs outside the plugin tree, so merely
+# replacing its QML/plugin files would otherwise leave old authentication and
+# playback code active indefinitely.
+YTMUSIC_RUNTIME="$HOME/.local/lib/omarchy-ytmusic"
+YTMUSIC_VENV="${XDG_DATA_HOME:-$HOME/.local/share}/omarchy-ytmusic/venv/bin/python"
+if [ -d "$YTMUSIC_RUNTIME" ] && [ -x "$YTMUSIC_VENV" ] \
+        && [ -d "$DATA_DIR/plugins/ytmusic/backend" ]; then
+    install -m 644 -- "$DATA_DIR/plugins/ytmusic/backend/"*.py "$YTMUSIC_RUNTIME/"
+    chmod 755 -- "$YTMUSIC_RUNTIME/server.py"
+    "$YTMUSIC_VENV" "$YTMUSIC_RUNTIME/server.py" --self-test >/dev/null
+    if systemctl --user is-active --quiet omarchy-ytmusic.service 2>/dev/null; then
+        systemctl --user restart omarchy-ytmusic.service
+    fi
+    green "YT Music -> refreshed installed backend"
+fi
+
 # ── systemd-Unit ─────────────────────────────────────────────────────────
 # Nur ablegen, nicht einschalten -- das macht `nbshell switch on`.
 UNIT_DIR="$CONFIG_HOME/systemd/user"

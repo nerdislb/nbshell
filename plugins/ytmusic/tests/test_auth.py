@@ -147,6 +147,7 @@ class AuthTests(unittest.TestCase):
                 [
                     (".youtube.com", "__Secure-3PAPISID", "zen-papisid"),
                     ("music.youtube.com", "PREF", "music-pref"),
+                    (".youtube.com", "ST-large-experiment", "x" * 50000),
                     (".google.com", "SID", "not-youtube"),
                 ],
             )
@@ -157,6 +158,7 @@ class AuthTests(unittest.TestCase):
             self.assertEqual(cookies["__Secure-3PAPISID"], "zen-papisid")
             self.assertEqual(cookies["PREF"], "music-pref")
             self.assertNotIn("SID", cookies)
+            self.assertNotIn("ST-large-experiment", cookies)
 
     def test_extract_requires_cookie_database(self):
         with self.assertRaises(BrowserAuthError):
