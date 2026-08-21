@@ -47,9 +47,11 @@ test "$(find "$XDG_CONFIG_HOME/nbshell/plugins" -name manifest.json | wc -l)" -e
 
 jq -e '
     .theme == "tokyo-night" and
-    .mode == "island" and
+    .mode == "bar" and
     .font == "JetBrainsMono Nerd Font" and
-    .fontSize == 13 and
+    .fontSize == 14 and
+    .radius == 2 and
+    .widgetStyle == "plain" and
     .enabledPlugins == []
 ' "$XDG_CONFIG_HOME/nbshell/config.json" >/dev/null
 

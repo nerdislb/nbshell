@@ -6,6 +6,11 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+### Changed
+
+- Fresh installations now start with the full-width bar, plain unboxed
+  widgets, and a neutral core-module layout.
+
 ## [0.1.0-beta.1] - 2026-08-21
 
 First public beta candidate.

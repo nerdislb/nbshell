@@ -45,6 +45,9 @@ Log out and back in. To try the shell immediately instead, run:
 nbshell start -d
 ```
 
+Fresh installations start with the full-width bar and plain, unboxed widgets.
+Island and pill modes remain available from Settings or the `nbshell` command.
+
 ## Verify the installation
 
 ```bash

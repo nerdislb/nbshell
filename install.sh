@@ -173,20 +173,20 @@ if [ ! -f "$DATA_DIR/config.json" ]; then
     cat > "$DATA_DIR/config.json" <<'JSON'
 {
   "theme": "tokyo-night",
-  "mode": "island",
+  "mode": "bar",
   "edge": "top",
   "font": "JetBrainsMono Nerd Font",
-  "fontSize": 13,
+  "fontSize": 14,
   "gap": 6,
-  "radius": 0,
+  "radius": 2,
   "borderWidth": 1,
   "opacity": 1.0,
-  "widgetStyle": "box",
+  "widgetStyle": "plain",
   "enabledPlugins": [],
   "collapsedWidgets": ["clock"],
-  "leftWidgets": ["workspaces", "whatsapp", "sep", "window"],
+  "leftWidgets": ["workspaces", "sep", "window"],
   "centerWidgets": ["clock"],
-  "rightWidgets": ["sys", "sep", "layout", "battery"]
+  "rightWidgets": ["sys", "sep", "tray", "notifications", "volume", "control", "themes", "battery"]
 }
 JSON
     green "Config  -> $DATA_DIR/config.json (created)"

@@ -30,7 +30,7 @@ Singleton {
     property string theme: "tokyo-night"
 
     readonly property string fontFamily: value("font", "JetBrainsMono Nerd Font")
-    readonly property int fontSize: value("fontSize", 13)
+    readonly property int fontSize: value("fontSize", 14)
 
     // Drei Formen, zwei Geometrien:
     //
@@ -40,7 +40,7 @@ Singleton {
     //           freistehend, reserviert aber wie die Insel ihren Platz.
     //   bar     durchgehender Balken ueber die volle Breite, der den Fenstern
     //           ihren Platz wegnimmt.
-    readonly property string mode: value("mode", "island")
+    readonly property string mode: value("mode", "bar")
     readonly property string edge: value("edge", "top")
     readonly property int gap: value("gap", 6)
     readonly property int lines: value("lines", 1)
@@ -52,7 +52,7 @@ Singleton {
     // liegen padX + widgetGap + padX Zeichen.
     readonly property real widgetGap: value("widgetGap", 1)
     readonly property int padY: value("padY", 4)
-    readonly property int radius: value("radius", 0)
+    readonly property int radius: value("radius", 2)
     readonly property int borderWidth: value("borderWidth", 1)
 
     // Nur der Rahmen UM die Leiste -- Zellen, Popouts und Menues behalten
@@ -63,7 +63,7 @@ Singleton {
     // waehrend ein Doppelklick den Bar-Hintergrund komplett ausblendet.
     readonly property bool barTransparent: value("barTransparent", false)
     readonly property real barOpacity: barTransparent ? 0.0 : opacity
-    readonly property string widgetStyle: value("widgetStyle", "box")
+    readonly property string widgetStyle: value("widgetStyle", "plain")
 
     // Stil der Meter-Balken in den Popouts (AI-Usage/CPU/RAM/Lautstaerke ...):
     // nur "blocks" = TUI-Bloecke (Vorgabe) oder "line" = duenne Linie.
@@ -138,9 +138,9 @@ Singleton {
     readonly property int collapseDelay: value("collapseDelay", 1400)
 
     readonly property var collapsedWidgets: value("collapsedWidgets", ["clock"])
-    readonly property var leftWidgets: value("leftWidgets", ["workspaces", "whatsapp", "sep", "window"])
+    readonly property var leftWidgets: value("leftWidgets", ["workspaces", "sep", "window"])
     readonly property var centerWidgets: value("centerWidgets", ["clock"])
-    readonly property var rightWidgets: value("rightWidgets", ["sys", "sep", "layout", "battery"])
+    readonly property var rightWidgets: value("rightWidgets", ["sys", "sep", "tray", "notifications", "volume", "control", "themes", "battery"])
 
     function value(key, fallback) {
         const v = data[key];
