@@ -210,7 +210,7 @@ PanelWindow {
             ]
         },
         {
-            "key": "c", "label": "Capture", "description": "Screenshots, OCR, QR, and recording", "icon": Icons.camera,
+            "key": "c", "label": "Capture", "description": "Screenshots, recording, and trimming", "icon": Icons.camera,
             "sub": [
                 { "key": "r", "label": "Region", "icon": Icons.camera, "run": () => CaptureService.shoot("region") },
                 { "key": "b", "label": "Screen", "icon": Icons.cp(0xF0379), "run": () => CaptureService.shoot("screen") },
@@ -221,6 +221,7 @@ PanelWindow {
                 { "key": "o", "label": "Recognize text (OCR)", "icon": Icons.cp(0xF0219), "run": () => CaptureService.ocr() },
                 { "key": "q", "label": "Scan QR code", "icon": Icons.cp(0xF0432), "run": () => CaptureService.qr() },
                 { "key": "a", "label": "Start/stop recording", "icon": Icons.record, "run": () => CaptureService.toggleRecording() },
+                { "key": "t", "label": "Trim latest recording", "icon": Icons.cp(0xF03B7), "run": () => CaptureService.trimLastRecording() },
                 { "key": "s", "label": "Open streaming studio", "icon": Icons.cp(0xF0502), "run": () => CaptureService.openStreamingStudio() }
             ]
         },

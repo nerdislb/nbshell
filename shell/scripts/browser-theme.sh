@@ -3,7 +3,7 @@ set -uo pipefail
 
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 PALETTE="$CONFIG_HOME/nbshell/palette.sh"
-BRAVE_POLICY=/etc/brave/policies/managed/nbshell-color.json
+BRAVE_POLICY="${NBSHELL_BRAVE_POLICY:-/etc/brave/policies/managed/nbshell-color.json}"
 IMPORT='@import url("nbshell-theme.css"); /* managed by nbshell */'
 
 die() { printf 'nbshell browser theme: %s\n' "$1" >&2; exit 1; }
@@ -90,7 +90,7 @@ setup_brave() {
 	owner=$(id -un)
 	group=$(id -gn)
 	temporary=$(mktemp)
-	printf '%s\n' '{"BrowserThemeColor":"#1c2027","BrowserColorScheme":"device"}' > "$temporary"
+	printf '%s\n' '{"BrowserThemeColor":"#1c2027","BrowserColorScheme":"dark"}' > "$temporary"
 	sudo install -d -m 0755 /etc/brave/policies/managed
 	sudo install -o "$owner" -g "$group" -m 0644 "$temporary" "$BRAVE_POLICY"
 	rm -f "$temporary"
@@ -100,9 +100,13 @@ setup_brave() {
 
 apply_brave() {
 	[[ -r $PALETTE && -w $BRAVE_POLICY ]] || return 0
-	local accent
+	local accent mode
 	accent=$(palette_value NB_ACCENT '#1c2027')
-	printf '{"BrowserThemeColor":"%s","BrowserColorScheme":"device"}\n' "$accent" > "$BRAVE_POLICY"
+	mode=$(palette_value NB_MODE 'dark')
+	# Dark is the safe default. Brave switches to its light chrome only when a
+	# theme explicitly declares itself as light.
+	[[ $mode == light ]] || mode=dark
+	printf '{"BrowserThemeColor":"%s","BrowserColorScheme":"%s"}\n' "$accent" "$mode" > "$BRAVE_POLICY"
 	if command -v brave >/dev/null 2>&1 && pgrep -x brave >/dev/null 2>&1; then
 		brave --refresh-platform-policy --no-startup-window >/dev/null 2>&1 &
 	fi

@@ -12,6 +12,7 @@ mkdir -p "$PROFILE" "$XDG_CONFIG_HOME/nbshell"
 touch "$PROFILE/prefs.js"
 cat > "$XDG_CONFIG_HOME/nbshell/palette.sh" <<'EOF'
 NB_BG='#101820'
+NB_MODE='dark'
 NB_BG_LIGHT='#263746'
 NB_FG='#f0f4f8'
 NB_FG_DIM='#8b9aaa'
@@ -30,5 +31,14 @@ grep -Fq -- '--toolbar-bgcolor: #101820' "$PROFILE/chrome/nbshell-theme.css"
 bash "$ROOT/shell/scripts/browser-theme.sh" setup-zen >/dev/null
 test "$(grep -Fc 'managed by nbshell' "$PROFILE/chrome/userChrome.css")" -eq 1
 test "$(grep -Fc 'toolkit.legacyUserProfileCustomizations.stylesheets' "$PROFILE/user.js")" -eq 1
+
+# Brave follows the theme's explicit mode, never the desktop mode by default.
+POLICY="$TEST_DIR/brave-policy.json"
+touch "$POLICY"
+NBSHELL_BRAVE_POLICY="$POLICY" bash "$ROOT/shell/scripts/browser-theme.sh" apply
+grep -Fq '"BrowserColorScheme":"dark"' "$POLICY"
+sed -i "s/NB_MODE='dark'/NB_MODE='light'/" "$XDG_CONFIG_HOME/nbshell/palette.sh"
+NBSHELL_BRAVE_POLICY="$POLICY" bash "$ROOT/shell/scripts/browser-theme.sh" apply
+grep -Fq '"BrowserColorScheme":"light"' "$POLICY"
 
 echo "Browser theme validation: OK"

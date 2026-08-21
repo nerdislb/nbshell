@@ -24,8 +24,8 @@ live during development, but a normal browser restart remains the reliable
 fallback.
 
 Brave reloads its platform policy while running. Its toolbar follows the
-nbshell accent, and `BrowserColorScheme=device` follows the system light/dark
-preference.
+nbshell accent. The browser chrome stays dark by default and changes to light
+only when the selected theme explicitly declares `mode = "light"`.
 
 ## Commands
 
