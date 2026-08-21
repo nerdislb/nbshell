@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Widgets
 import qs.Common
 import qs.Services
 import qs.Widgets
@@ -43,7 +44,21 @@ PanelWindow {
     readonly property var items: {
         const needle = filterText.trim().toLowerCase();
         if (needle === "") return levelItems;
-        return levelItems.filter(e => (e.label + " " + (e.description || "")).toLowerCase().indexOf(needle) >= 0);
+
+        const menuMatches = levelItems.filter(e => (e.label + " " + (e.description || "")).toLowerCase().indexOf(needle) >= 0);
+        if (trail.length)
+            return menuMatches;
+
+        // The root menu doubles as a lightweight app search. Keep submenu
+        // filtering unchanged, but put installed applications first when the
+        // user starts typing. A cap keeps short queries from growing beyond
+        // the screen; the dedicated launcher remains available for browsing.
+        const appMatches = Apps.rank(needle).slice(0, 8).map(match => ({
+            "label": match.entry.name,
+            "description": match.entry.genericName || match.entry.comment || "Application",
+            "appEntry": match.entry
+        }));
+        return appMatches.concat(menuMatches);
     }
 
     // Etwas groesser als die Leiste -- das Menue soll bequem lesbar sein.
@@ -75,7 +90,10 @@ PanelWindow {
         const it = root.items[i];
         if (!it)
             return;
-        if (it.sub) {
+        if (it.appEntry) {
+            root.close();
+            Apps.launch(it.appEntry);
+        } else if (it.sub) {
             root.trail = root.trail.concat([it]);
             root.selected = 0;
             root.filterText = "";
@@ -391,14 +409,31 @@ PanelWindow {
                             visible: rowItem.active
                         }
 
-                        Line {
+                        Item {
                             id: rowIcon
                             anchors.left: parent.left
                             anchors.leftMargin: Theme.cellW
                             anchors.verticalCenter: parent.verticalCenter
-                            text: rowItem.modelData.icon || ""
-                            color: rowItem.active ? Theme.selectedForeground(Theme.accent) : Theme.accent
-                            font.pixelSize: root.fs + 1
+                            width: Math.round(Theme.cellH * 1.5)
+                            height: width
+
+                            readonly property string appIcon: rowItem.modelData.appEntry ? Apps.iconFor(rowItem.modelData.appEntry) : ""
+
+                            IconImage {
+                                anchors.fill: parent
+                                visible: rowIcon.appIcon !== ""
+                                source: rowIcon.appIcon
+                            }
+
+                            Line {
+                                anchors.centerIn: parent
+                                visible: rowIcon.appIcon === ""
+                                text: rowItem.modelData.appEntry
+                                    ? (rowItem.modelData.label || "?").charAt(0).toUpperCase()
+                                    : (rowItem.modelData.icon || "")
+                                color: rowItem.active ? Theme.selectedForeground(Theme.accent) : Theme.accent
+                                font.pixelSize: root.fs + 1
+                            }
                         }
 
                         Column {
@@ -434,7 +469,7 @@ PanelWindow {
                 }
 
                 Line {
-                    text: root.filterText !== "" ? "Type to search · Backspace deletes · Enter selects" : (root.trail.length ? "Esc/← back · type to search" : "Esc closes · type to search")
+                    text: root.filterText !== "" ? "Search menus and apps · Backspace deletes · Enter launches" : (root.trail.length ? "Esc/← back · type to search" : "Esc closes · type to search")
                     color: Theme.muted
                     topPadding: Theme.cellH * 0.4
                 }
