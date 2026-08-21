@@ -18,7 +18,9 @@ changelog = (root / "CHANGELOG.md").read_text(encoding="utf-8")
 if f"## [{version}]" not in changelog:
     raise SystemExit(f"CHANGELOG.md has no {version} section")
 
-tracked = subprocess.check_output(["git", "ls-files", "-z"]).decode().split("\0")
+tracked = subprocess.check_output(
+    ["git", "-c", f"safe.directory={root}", "ls-files", "-z"]
+).decode().split("\0")
 tracked = [name for name in tracked if name]
 sensitive_names = re.compile(
     r"(^|/)(?:\.env(?:\..+)?|credentials?\.(?:json|toml|ya?ml)|cookies?\.txt|secrets?\.(?:json|toml|ya?ml))$",
