@@ -31,12 +31,14 @@ PopupWindow {
     // anfassen. Das Schliessen macht es trotzdem selbst (siehe unten): der
     // Griff wird zwar erteilt, aber beim Klick daneben nicht beendet.
     property bool takesKeyboard: true
+    property int leaveDelayOverride: -1
 
     // Zeit, bis ein Popout von selbst zugeht, nachdem die Maus es und seine
     // Zelle verlassen hat. Der Kompositor meldet uns keinen Klick daneben --
     // ohne diesen Nachlauf bliebe es stehen, bis man dieselbe Zelle noch
     // einmal trifft.
-    readonly property int leaveDelay: Config.value("popoutLeaveDelay", 2500)
+    readonly property int leaveDelay: leaveDelayOverride >= 0
+        ? leaveDelayOverride : Config.value("popoutLeaveDelay", 2500)
 
     readonly property bool pointerInside: hover.hovered || (root.anchorItem?.hovered ?? false)
 

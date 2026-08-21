@@ -23,6 +23,30 @@ Cell {
     onClicked: AiUsage.refresh()
     onRightClicked: Runtime.agentCenterOpen = true
 
+    preview: Component {
+        BarPreview {
+            id: card
+            readonly property var highest: AiUsage.list.reduce((best, entry) =>
+                !best || (entry.percent ?? 0) > (best.percent ?? 0) ? entry : best, null)
+
+            icon: Icons.agent
+            title: "AI agents"
+            subtitle: root.agentActive ? "Work in progress" : "No active session"
+            badge: root.agentActive ? "ACTIVE" : "IDLE"
+            badgeColor: root.limitWarning ? Theme.red : (root.agentActive ? Theme.green : Theme.fgDim)
+            content: [
+                Facts {
+                    rowWidth: parent.width
+                    pairs: [
+                        { "label": "Running", "value": String(Agents.workingCount), "color": Agents.workingCount > 0 ? Theme.green : Theme.fgDim },
+                        { "label": "Waiting", "value": String(Agents.waitingCount), "color": Agents.waitingCount > 0 ? Theme.yellow : Theme.fgDim },
+                        { "label": "Highest limit", "value": card.highest ? (card.highest.id + "  " + card.highest.percent + " %") : "unavailable", "color": root.limitWarning ? Theme.red : Theme.fg }
+                    ]
+                }
+            ]
+        }
+    }
+
     popout: Component {
         Column {
             id: panel

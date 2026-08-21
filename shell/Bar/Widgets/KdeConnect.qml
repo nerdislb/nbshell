@@ -29,6 +29,28 @@ Cell {
     color: root.linked ? (root.dev.capabilities.battery && root.dev.charge >= 0 && root.dev.charge <= 15 ? Theme.red : Theme.barAccent) : Theme.textDim
 
     onClicked: Kdeconnect.refresh()
+
+    preview: Component {
+        BarPreview {
+            icon: String.fromCodePoint(0xF011C)
+            title: root.dev ? root.dev.name : "KDE Connect"
+            subtitle: root.linked ? "Paired and reachable" : "Phone unavailable"
+            badge: root.dev && root.dev.capabilities.battery && root.dev.charge >= 0 ? root.dev.charge + " %" : ""
+            badgeColor: root.linked ? Theme.green : Theme.fgDim
+            content: [
+                Facts {
+                    rowWidth: parent.width
+                    pairs: [
+                        { "label": "Connection", "value": root.linked ? "online" : "offline", "color": root.linked ? Theme.green : Theme.fgDim },
+                        { "label": "Battery", "value": root.dev && root.dev.charge >= 0 ? root.dev.charge + " %" : "unavailable" },
+                        { "label": "Phone mirror", "value": Phone.mirroring ? "running" : "stopped", "color": Phone.mirroring ? Theme.green : Theme.fgDim },
+                        { "label": "Webcam", "value": Phone.cameraActive ? "running" : "stopped", "color": Phone.cameraActive ? Theme.green : Theme.fgDim }
+                    ]
+                }
+            ]
+        }
+    }
+
     onPopoutVisibleChanged: {
         Nearby.wanted = root.popoutVisible;
         if (root.popoutVisible)

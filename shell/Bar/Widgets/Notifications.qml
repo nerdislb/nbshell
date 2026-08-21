@@ -35,6 +35,35 @@ Cell {
 
     onRightClicked: Notify.setDnd(!Notify.dnd)
 
+    preview: Component {
+        BarPreview {
+            icon: Notify.dnd ? Icons.bellOff : Icons.bell
+            title: "Activity"
+            subtitle: Notify.dnd ? "Do not disturb" : "Notifications and clipboard"
+            badge: String(Notify.count)
+            badgeColor: Notify.count > 0 ? Theme.accent : Theme.fgDim
+            content: [
+                Facts {
+                    rowWidth: parent.width
+                    pairs: [
+                        { "label": "Notifications", "value": String(Notify.count) },
+                        { "label": "Clipboard", "value": String(Clipboard.entries.length + Clipboard.images.length) }
+                    ]
+                },
+                Repeater {
+                    model: Notify.history.slice(0, 2)
+                    Line {
+                        required property var modelData
+                        width: parent.width
+                        text: (modelData.appName || "Message") + "  ·  " + (modelData.summary || modelData.body || "")
+                        color: Theme.fg
+                        elide: Text.ElideRight
+                    }
+                }
+            ]
+        }
+    }
+
     onPopoutVisibleChanged: {
         if (root.popoutVisible) {
             if (Runtime.activityTab === "clipboard")

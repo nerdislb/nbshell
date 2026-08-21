@@ -41,6 +41,31 @@ Cell {
         }
     }
 
+    preview: Component {
+        BarPreview {
+            icon: Icons.cpu
+            title: "System"
+            subtitle: "Current load"
+            badge: SysInfo.cpuPercent + "% CPU"
+            badgeColor: SysInfo.cpuPercent >= 90 ? Theme.red : Theme.accent
+            content: [
+                Facts {
+                    rowWidth: parent.width
+                    pairs: [
+                        { "label": "Processor", "value": SysInfo.cpuPercent + " %", "color": SysInfo.cpuPercent >= 90 ? Theme.red : Theme.fg },
+                        { "label": "Memory", "value": SysInfo.memPercent + " %", "color": SysInfo.memPercent >= 90 ? Theme.red : Theme.fg }
+                    ]
+                },
+                Line {
+                    width: parent.width
+                    text: "Click for temperatures, disks and processes"
+                    color: Theme.muted
+                    font.pixelSize: Theme.fontCaption
+                }
+            ]
+        }
+    }
+
     popout: Component {
         Column {
             id: panel

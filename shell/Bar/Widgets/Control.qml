@@ -28,6 +28,26 @@ Cell {
     text: Config.widgetIcons ? "" : (Net.summary.length > 12 ? (Net.summary.substring(0, 11) + "…") : Net.summary)
     color: Net.online ? Theme.text : Theme.textDim
 
+    preview: Component {
+        BarPreview {
+            icon: root.icon
+            title: Net.summary
+            subtitle: Net.activeWifi ? "Wi-Fi" : (Net.wiredConnected ? "Wired network" : "Offline")
+            badge: Net.activeWifi ? Net.percentOf(Net.activeWifi.signalStrength) + " %" : (Net.wiredConnected ? "LAN" : "")
+            badgeColor: Net.online ? Theme.green : Theme.fgDim
+            content: [
+                Facts {
+                    rowWidth: parent.width
+                    pairs: [
+                        { "label": "Brightness", "value": Brightness.available ? Brightness.percent + " %" : "unavailable" },
+                        { "label": "Bluetooth", "value": Bt.connected.length + " connected" },
+                        { "label": "Wi-Fi", "value": Net.wifiEnabled ? "enabled" : "disabled", "color": Net.wifiEnabled ? Theme.fg : Theme.yellow }
+                    ]
+                }
+            ]
+        }
+    }
+
     // Zurueckmelden, wenn der Kompositor das Popout geschlossen hat.
     onPopoutVisibleChanged: Runtime.controlOpen = root.popoutVisible
 

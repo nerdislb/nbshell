@@ -24,6 +24,31 @@ Cell {
 
     onClicked: PowerService.refreshProfile()
 
+    preview: Component {
+        BarPreview {
+            icon: PowerService.charging ? Icons.batteryCharge(PowerService.percent) : Icons.battery(PowerService.percent)
+            title: "Battery"
+            subtitle: PowerService.charging ? "Charging" : "On battery"
+            badge: PowerService.percent + " %"
+            badgeColor: PowerService.percent <= 20 && !PowerService.charging ? Theme.red : (PowerService.charging ? Theme.green : Theme.accent)
+            content: [
+                LevelBar {
+                    cells: 32
+                    value: PowerService.percent
+                    interactive: false
+                    fillColor: PowerService.percent <= 20 && !PowerService.charging ? Theme.red : (PowerService.charging ? Theme.green : Theme.accent)
+                },
+                Facts {
+                    rowWidth: parent.width
+                    pairs: [
+                        { "label": PowerService.charging ? "Full in" : "Remaining", "value": PowerService.timeText },
+                        { "label": "Power profile", "value": PowerService.activeProfile }
+                    ]
+                }
+            ]
+        }
+    }
+
     popout: Component {
         Column {
             id: panel

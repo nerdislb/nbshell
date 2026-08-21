@@ -30,6 +30,32 @@ Cell {
     }
     onRightClicked: Audio.toggleMute()
 
+    preview: Component {
+        BarPreview {
+            icon: Audio.muted ? Icons.volumeMuted : Icons.volumeHigh
+            title: Audio.label(Audio.sink)
+            subtitle: "Audio output"
+            badge: Audio.muted ? "MUTED" : Audio.volume + " %"
+            badgeColor: Audio.muted ? Theme.red : Theme.accent
+            content: [
+                LevelBar {
+                    cells: 32
+                    value: Audio.volume
+                    maximum: Audio.maxVolume
+                    fillColor: Audio.muted ? Theme.muted : Theme.accent
+                    onMoved: value => Audio.setVolume(value)
+                },
+                Facts {
+                    rowWidth: parent.width
+                    pairs: [
+                        { "label": "Playing apps", "value": String(Audio.appStreams.length) },
+                        { "label": "Microphone", "value": Audio.micMuted ? "muted" : Audio.micVolume + " %", "color": Audio.micMuted ? Theme.red : Theme.fg }
+                    ]
+                }
+            ]
+        }
+    }
+
     // Auch per Tastenkuerzel aufklappbar -- nicht als Bindung, sonst
     // ueberschriebe sie den Klick auf die Zelle.
     // Zurueckmelden, wenn der Kompositor das Popout geschlossen hat.

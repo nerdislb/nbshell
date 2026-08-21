@@ -27,6 +27,27 @@ Cell {
 
     onRightClicked: Updates.update()
 
+    preview: Component {
+        BarPreview {
+            icon: Updates.checking ? Icons.refresh : Icons.download
+            title: "System updates"
+            subtitle: Updates.checking ? "Checking repositories" : "Available packages"
+            badge: Updates.checking ? "…" : String(Updates.count)
+            badgeColor: Updates.rebootRecommended ? Theme.red : (Updates.count > 0 ? Theme.yellow : Theme.green)
+            content: [
+                Facts {
+                    rowWidth: parent.width
+                    pairs: [
+                        { "label": "Repositories", "value": String(Updates.repo.length) },
+                        { "label": "AUR", "value": String(Updates.aur.length) },
+                        { "label": "Flatpak", "value": String(Updates.flatpak.length) },
+                        { "label": "Restart", "value": Updates.rebootRecommended ? "recommended" : "not required", "color": Updates.rebootRecommended ? Theme.red : Theme.fg }
+                    ]
+                }
+            ]
+        }
+    }
+
     popout: Component {
         Column {
             id: panel

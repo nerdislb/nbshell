@@ -52,6 +52,12 @@ Item {
     // Klappt beim Klick auf. Der Inhalt bekommt `closePopout` gesetzt.
     property Component popout: null
 
+    // Kleine, einheitliche Vorschau nach kurzem Hover. Sie ist bewusst vom
+    // Klick-Popout getrennt: ein Blick darf leicht sein, ein Klick darf die
+    // vollstaendige Bedienoberflaeche zeigen.
+    property Component preview: null
+    property int previewDelay: 420
+
     // Popouts gehen sonst erst auf Klick auf. Fuer Bausteine, die nur etwas
     // ZEIGEN und nichts zu bedienen haben, ist das eine Bedienung zu viel.
     property bool popoutOnHover: false
@@ -71,7 +77,7 @@ Item {
     signal rightClicked
     signal wheel(int delta)
 
-    readonly property bool clickable: interactive || popout !== null
+    readonly property bool clickable: interactive || popout !== null || preview !== null
 
     // Nimmt die Zelle SELBST Klicks an?
     //
@@ -87,8 +93,10 @@ Item {
     // aus geschlossen hat -- sonst denkt ein Tastenkuerzel, es sei noch offen,
     // und der naechste Druck taete scheinbar nichts.
     readonly property bool popoutVisible: popoutLoader.item ? popoutLoader.item.visible : false
+    readonly property bool previewVisible: previewLoader.item ? previewLoader.item.visible : false
 
     onPopoutVisibleChanged: Runtime.popoutCount = Math.max(0, Runtime.popoutCount + (popoutVisible ? 1 : -1))
+    onPreviewVisibleChanged: Runtime.popoutCount = Math.max(0, Runtime.popoutCount + (previewVisible ? 1 : -1))
 
     // Verschwindet eine Zelle mit offenem Popout -- weil die Bausteinliste
     // sich geaendert hat oder die Shell neu laedt --, bliebe der Zaehler oben
@@ -96,15 +104,23 @@ Item {
     Component.onDestruction: {
         if (root.popoutVisible)
             Runtime.popoutCount = Math.max(0, Runtime.popoutCount - 1);
-        if (root.hovered && root.popout)
+        if (root.previewVisible)
+            Runtime.popoutCount = Math.max(0, Runtime.popoutCount - 1);
+        if (root.hovered && (root.popout || root.preview))
             Runtime.popoutHover = Math.max(0, Runtime.popoutHover - 1);
     }
 
     // Nur Zellen mit Popout melden sich: sonst zoege ein Klick auf die
     // Arbeitsflaechen dem Fenster darunter die Tastatur weg.
     onHoveredChanged: {
-        if (root.popout)
+        if (root.popout || root.preview)
             Runtime.popoutHover = Math.max(0, Runtime.popoutHover + (hovered ? 1 : -1));
+        if (root.preview) {
+            if (root.hovered && !root.popoutVisible)
+                previewTimer.restart();
+            else
+                previewTimer.stop();
+        }
         // Beim Ueberfahren aufgehen, wenn der Baustein das will. Nur oeffnen,
         // nicht schliessen: das Popout hat dafuer seinen eigenen Nachlauf und
         // weiss auch, ob der Zeiger inzwischen IN ihm steht -- ein Schliessen
@@ -206,7 +222,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: Theme.radius
-        color: root.active || popoutLoader.item?.visible ? Theme.mix(Theme.barSurface, root.shownColor, 0.15) : (mouse.containsMouse && root.clickable ? Theme.barHover : "transparent")
+        color: root.active || root.popoutVisible || root.previewVisible ? Theme.mix(Theme.barSurface, root.shownColor, 0.15) : (mouse.containsMouse && root.clickable ? Theme.barHover : "transparent")
         border.width: root.boxed ? Theme.borderWidth : 0
         border.color: root.active || popoutLoader.item?.visible ? root.shownColor : Theme.muted
     }
@@ -235,6 +251,7 @@ Item {
 
         function onCloseTokenChanged() {
             root.setPopout(false);
+            root.setPreview(false);
         }
 
         function onPopoutTokenChanged() {
@@ -270,8 +287,24 @@ Item {
         // werden ueberblendet, nicht geschaltet.
         if (open && !root.enabled)
             return;
+        if (open)
+            root.setPreview(false);
         if (popoutLoader.item)
             popoutLoader.item.visible = open;
+    }
+
+    function setPreview(open) {
+        if (open && (!root.enabled || root.popoutVisible))
+            return;
+        if (previewLoader.item)
+            previewLoader.item.visible = open;
+    }
+
+    Timer {
+        id: previewTimer
+        interval: root.previewDelay
+        onTriggered: if (root.hovered && !root.popoutVisible)
+            root.setPreview(true)
     }
 
     // Erst wenn ein Baustein wirklich eines hat, entsteht das Popupfenster.
@@ -291,6 +324,23 @@ Item {
         }
     }
 
+    Loader {
+        id: previewLoader
+        active: root.preview !== null
+        sourceComponent: previewComponent
+    }
+
+    Component {
+        id: previewComponent
+
+        Popout {
+            anchorItem: root
+            contentComponent: root.preview
+            takesKeyboard: false
+            leaveDelayOverride: 700
+        }
+    }
+
     MouseArea {
         id: mouse
         anchors.fill: parent
@@ -303,6 +353,7 @@ Item {
                 root.rightClicked();
                 return;
             }
+            root.setPreview(false);
             if (popoutLoader.item)
                 popoutLoader.item.toggle();
             root.clicked();
