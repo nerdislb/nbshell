@@ -268,6 +268,22 @@ PanelWindow {
             "max": 20000
         },
         {
+            "key": "notifyKeepDays",
+            "def": 7,
+            "label": "Notification history (days)",
+            "step": 1,
+            "min": 1,
+            "max": 30
+        },
+        {
+            "key": "notifyKeep",
+            "def": 200,
+            "label": "Notification history limit",
+            "step": 50,
+            "min": 50,
+            "max": 1000
+        },
+        {
             "head": "IDLE"
         },
         {

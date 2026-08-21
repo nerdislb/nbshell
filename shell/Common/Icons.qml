@@ -51,6 +51,7 @@ Singleton {
     readonly property string bluetoothOff: "󰂲"
     readonly property string monitor: "󰍹"
     readonly property string monitors: "󰍺"
+    readonly property string phone: cp(0xF011C)
 
     function wifiSignal(strength) {
         // Quickshell currently exposes Wi-Fi strength as 0..1, while some

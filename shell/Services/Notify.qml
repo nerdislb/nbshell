@@ -47,7 +47,8 @@ Singleton {
 
     readonly property bool dnd: Config.value("dnd", false)
     readonly property int popupTimeout: Config.value("notifyTimeout", 6000)
-    readonly property int keep: Config.value("notifyKeep", 50)
+    readonly property int keep: Config.value("notifyKeep", 200)
+    readonly property int keepDays: Config.value("notifyKeepDays", 7)
 
     // Wie alt eine Karte hoechstens sein darf, um einen Neustart der Shell zu
     // ueberleben. Ohne Grenze staende nach einer Nacht im Standby der ganze
@@ -59,12 +60,38 @@ Singleton {
 
     // Was gerade als Karte am Rand steht.
     property var popups: []
+    property double lastSeen: 0
+    property double readMark: 0
 
     // Wiederholte identische Meldungen (Sync- und Build-Werkzeuge sind hier
     // besonders laut) werden zu einer Karte zusammengefasst.
     readonly property int dedupeWindow: Config.value("notifyDedupeMs", 120000)
 
     readonly property int count: history.length
+    readonly property int unreadCount: history.filter(e => e.time.getTime() > lastSeen).length
+
+    function retained(items, nowMs) {
+        const cutoff = Number(nowMs || Date.now()) - Math.max(1, keepDays) * 86400000;
+        return items.filter(e => e.time.getTime() >= cutoff).slice(0, keep);
+    }
+
+    function markSeen() {
+        readMark = lastSeen;
+        lastSeen = Date.now();
+        seenStore.setText(String(lastSeen));
+        secureState.restart();
+    }
+
+    function dayLabel(date) {
+        const value = new Date(date);
+        const today = new Date();
+        const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+        const startValue = new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
+        const days = Math.round((startToday - startValue) / 86400000);
+        if (days === 0) return "TODAY";
+        if (days === 1) return "YESTERDAY";
+        return Qt.formatDateTime(value, "dddd · dd MMMM").toUpperCase();
+    }
 
     readonly property var webSources: ({
         "reddit.com": { "name": "Reddit", "icon": "reddit" },
@@ -111,6 +138,16 @@ Singleton {
 
     function sourceIcon(entry) {
         return webSource(entry)?.icon || entry?.appIcon || "";
+    }
+
+    function sourceGlyph(entry) {
+        const app = String(entry?.appName || "").toLowerCase();
+        const desktop = String(entry?.desktopEntry || "").toLowerCase();
+        if (app.indexOf("nbshell agent") >= 0)
+            return Icons.agent;
+        if (app.indexOf("kde connect") >= 0 || desktop.indexOf("kdeconnect") >= 0)
+            return Icons.phone;
+        return "";
     }
 
     function focus(entry) {
@@ -178,21 +215,23 @@ Singleton {
         dismissPopup(key);
     }
 
-    // Zeit als "vor 3 min", nicht als Uhrzeit: bei einer Benachrichtigung
+    // Relative time for recent entries, clock time for older ones.
     // interessiert der Abstand, nicht der Zeitpunkt.
     function ago(date) {
         const secs = Math.max(0, Math.round((Date.now() - date.getTime()) / 1000));
         if (secs < 60)
-            return "gerade";
+            return "now";
         if (secs < 3600)
-            return "vor " + Math.floor(secs / 60) + " min";
+            return Math.floor(secs / 60) + "m ago";
         if (secs < 86400)
-            return "vor " + Math.floor(secs / 3600) + " h";
-        return "vor " + Math.floor(secs / 86400) + " d";
+            return Math.floor(secs / 3600) + "h ago";
+        return Qt.formatDateTime(date, "HH:mm");
     }
 
     // ── Archiv auf der Platte ────────────────────────────────────────────
-    readonly property string statePath: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/nbshell/notifications.json"
+    readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/nbshell"
+    readonly property string statePath: stateDir + "/notifications.json"
+    readonly property string seenPath: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/nbshell/notifications-seen"
 
     // Geschrieben wird die Kopie ohne `notification`: das lebende Objekt
     // gehoert Quickshell und liesse sich ohnehin nicht in JSON fassen.
@@ -212,6 +251,16 @@ Singleton {
                     "pending": pending.some(p => p.key === e.key)
                 }));
         store.setText(JSON.stringify(out));
+        secureState.restart();
+    }
+
+    Timer {
+        id: secureState
+        interval: 150
+        onTriggered: {
+            Quickshell.execDetached(["/usr/bin/chmod", "700", root.stateDir]);
+            Quickshell.execDetached(["/usr/bin/chmod", "600", root.statePath, root.seenPath]);
+        }
     }
 
     FileView {
@@ -245,9 +294,10 @@ Singleton {
                         "time": new Date(e.time),
                         "pending": e.pending === true,
                         "notification": null
-                    })).slice(0, root.keep);
+                    }));
 
-            root.history = restored;
+            root.history = root.retained(restored, now);
+            secureState.restart();
             // Nur was beim Beenden noch am Rand stand und nicht laengst
             // veraltet ist, kommt zurueck auf den Bildschirm.
             root.popups = restored.filter(e => e.pending && (now - e.time.getTime()) < root.popupRevive);
@@ -255,6 +305,22 @@ Singleton {
         onLoadFailed: {
             root.history = [];
             root.popups = [];
+        }
+    }
+
+    FileView {
+        id: seenStore
+        path: root.seenPath
+        atomicWrites: true
+        printErrors: false
+        onLoaded: {
+            root.lastSeen = Number(text() || 0) || 0;
+            root.readMark = root.lastSeen;
+            secureState.restart();
+        }
+        onLoadFailed: {
+            root.lastSeen = 0;
+            root.readMark = 0;
         }
     }
 
@@ -305,7 +371,7 @@ Singleton {
                     "notification": notification
                 };
 
-                root.history = [entry].concat(root.history.filter(e => !duplicate || e.key !== duplicate.key)).slice(0, root.keep);
+                root.history = root.retained([entry].concat(root.history.filter(e => !duplicate || e.key !== duplicate.key)), now.getTime());
 
                 // Bei "Nicht stoeren" landet sie nur in der Liste. `transient`
                 // heisst: das Programm will sie zeigen, aber nicht aufbewahren --

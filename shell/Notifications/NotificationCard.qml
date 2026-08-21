@@ -12,21 +12,63 @@ Rectangle {
     property bool selected: false
     property bool detailed: true
     property bool showActions: true
+    property bool unread: false
 
     signal opened()
     signal removed()
 
     readonly property bool urgent: entry.urgency === NotificationUrgency.Critical || entry.urgency === 2
     readonly property string iconName: Notify.sourceIcon(entry)
-    readonly property string iconPath: iconName !== "" ? Quickshell.iconPath(iconName, true) : ""
+    readonly property string iconPath: resolveIcon(iconName)
+    readonly property bool iconAvailable: iconPath !== "" && appIcon.status !== Image.Error
+    readonly property string fallbackIcon: Notify.sourceGlyph(entry)
     readonly property var liveActions: entry.notification?.actions ?? []
 
-    implicitHeight: content.implicitHeight + Theme.cellH * 0.7
-    radius: Theme.radius
+    function resolveIcon(value) {
+        const raw = String(value || "");
+        if (raw === "")
+            return "";
+        if (raw.startsWith("file://") || raw.startsWith("image://"))
+            return raw;
+        if (raw.startsWith("/"))
+            return "file://" + raw;
+        // Notifications may contain remote URLs. Loading those here would
+        // make merely opening the center contact a third-party server.
+        if (raw.indexOf("://") >= 0)
+            return "";
+        return Quickshell.iconPath(raw, true);
+    }
+
+    implicitHeight: content.implicitHeight + Theme.cellH * 0.9
+    radius: Math.max(Theme.radius, Theme.cellH * 0.58)
     color: selected ? Theme.selectedSurface(urgent ? Theme.red : Theme.accent)
-        : (hover.hovered ? Theme.hover : Theme.panelSurfaceRaised)
-    border.width: Theme.borderWidth
-    border.color: urgent ? Theme.red : (selected ? Theme.focusBorder : Theme.panelBorder)
+        : Theme.alpha(Theme.fg, hover.hovered ? 0.11 : 0.06)
+    border.width: selected ? Theme.borderWidth : 0
+    border.color: selected ? Theme.focusBorder : "transparent"
+
+    Behavior on color { ColorAnimation { duration: 90 } }
+
+    Rectangle {
+        visible: root.urgent
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.margins: Theme.cellH * 0.35
+        width: Math.max(3, Theme.borderWidth * 2)
+        radius: width / 2
+        color: Theme.red
+    }
+
+    Rectangle {
+        visible: root.unread && !root.urgent
+        anchors.left: parent.left
+        anchors.leftMargin: Theme.cellW * 0.45
+        anchors.verticalCenter: parent.verticalCenter
+        width: Math.max(4, Theme.borderWidth * 3)
+        height: width
+        radius: width / 2
+        color: Theme.accent
+    }
 
     Row {
         id: content
@@ -37,42 +79,46 @@ Rectangle {
         spacing: Theme.cellW
 
         Item {
-            width: Theme.cellH * 2
-            height: Theme.cellH * 2
+            width: Math.round(Theme.cellH * 2.15)
+            height: width
             anchors.verticalCenter: parent.verticalCenter
 
             Rectangle {
                 anchors.fill: parent
-                radius: Theme.radius
-                color: Theme.alpha(root.urgent ? Theme.red : Theme.accent, 0.13)
-                border.width: Theme.borderWidth
-                border.color: root.urgent ? Theme.red : Theme.accent
+                radius: Math.max(Theme.radius, Theme.cellH * 0.45)
+                color: Theme.alpha(root.urgent ? Theme.red : Theme.fg, 0.11)
+                visible: !root.iconAvailable
             }
 
             Image {
+                id: appIcon
                 anchors.centerIn: parent
-                width: parent.width * 0.68
+                width: parent.width * 0.88
                 height: width
-                sourceSize.width: Math.ceil(Theme.cellH * 1.36)
-                sourceSize.height: Math.ceil(Theme.cellH * 1.36)
+                sourceSize.width: Math.ceil(parent.width * 1.5)
+                sourceSize.height: Math.ceil(parent.width * 1.5)
                 source: root.iconPath
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
-                visible: status !== Image.Error && source !== ""
+                mipmap: true
+                visible: root.iconAvailable
             }
 
             Line {
                 anchors.centerIn: parent
-                visible: root.iconPath === ""
-                text: Notify.sourceName(root.entry).slice(0, 1).toUpperCase()
+                visible: !root.iconAvailable
+                text: root.fallbackIcon !== ""
+                    ? root.fallbackIcon
+                    : Notify.sourceName(root.entry).slice(0, 1).toUpperCase()
                 color: root.selected ? Theme.selectedForeground(root.urgent ? Theme.red : Theme.accent)
-                    : (root.urgent ? Theme.red : Theme.accent)
+                    : Theme.fgDim
+                font.pixelSize: root.fallbackIcon !== "" ? Theme.fontTitle : Theme.fontSubtitle
                 font.bold: true
             }
         }
 
         Column {
-            width: parent.width - Theme.cellH * 2 - parent.spacing
+            width: parent.width - Math.round(Theme.cellH * 2.15) - parent.spacing
             spacing: Math.round(Theme.cellH * 0.12)
 
             Row {
@@ -83,7 +129,7 @@ Rectangle {
                     text: Notify.sourceName(root.entry).toUpperCase()
                         + ((root.entry.repeat ?? 1) > 1 ? "  ×" + root.entry.repeat : "")
                     color: root.selected ? Theme.selectedForeground(root.urgent ? Theme.red : Theme.accent)
-                        : (root.urgent ? Theme.red : Theme.accent)
+                        : Theme.fgDim
                     font.pixelSize: Theme.fontCaption
                     font.bold: true
                     elide: Text.ElideRight
@@ -91,6 +137,7 @@ Rectangle {
 
                 Line {
                     id: age
+                    visible: !hover.hovered || root.showActions
                     text: Notify.ago(root.entry.time)
                     color: Theme.fgDim
                 }
@@ -152,6 +199,29 @@ Rectangle {
 
     HoverHandler {
         id: hover
+    }
+
+    Rectangle {
+        visible: hover.hovered && !root.showActions
+        anchors.right: parent.right
+        anchors.rightMargin: Theme.cellW * 0.7
+        anchors.top: parent.top
+        anchors.topMargin: Theme.cellH * 0.45
+        width: Theme.cellH * 1.05
+        height: width
+        radius: width / 2
+        color: dismissHover.hovered ? Theme.alpha(Theme.fg, 0.24) : Theme.alpha(Theme.fg, 0.13)
+        z: 3
+
+        Line {
+            anchors.centerIn: parent
+            text: "×"
+            color: Theme.fg
+            font.pixelSize: Theme.fontBody
+        }
+
+        HoverHandler { id: dismissHover; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: root.removeRequested() }
     }
 
     MouseArea {
