@@ -13,7 +13,8 @@ testing, and the direction of the project remain human-led.
 
 ## Documentation
 
-- [Start here](docs/README.md) — the manual and its current chapters
+- [Online manual](https://nerdislb.github.io/nbshell/) — the published guide
+- [Manual source](docs/index.md) — the same guide inside this repository
 - [Getting started](docs/getting-started.md) — install, first login, and checks
 - [Feature guide](docs/features.md) — what each part of nbshell does
 - [Phone webcam](docs/phone-webcam.md) — use an Android camera in OBS or calls

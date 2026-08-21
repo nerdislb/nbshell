@@ -60,6 +60,7 @@ missing_optional="$(
     optional_check satty         "screenshot editing"         "satty"
     optional_check tesseract     "OCR"                        "tesseract tesseract-data-eng"
     optional_check swappy        "screenshot editing"         "swappy"
+    optional_check omacut        "video trimming"              "github.com/nerdislb/omacut"
     optional_check checkupdates  "fast update checks"         "pacman-contrib"
     optional_check jq            "helper scripts"             "jq"
     optional_check syncthing     "task sync"                  "syncthing"

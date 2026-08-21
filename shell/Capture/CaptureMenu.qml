@@ -26,6 +26,7 @@ PanelWindow {
         { "id": "qr", "label": "Scan QR code", "key": "q" },
         { "id": "dictate", "label": "Toggle dictation", "key": "d" },
         { "id": "record", "label": CaptureService.recording ? "Stop recording" : "Start recording", "key": "v" },
+        { "id": "trim", "label": "Trim latest recording", "key": "c" },
         { "id": "stream", "label": "Open streaming studio", "key": "s" },
         { "id": "edit", "label": "Edit latest", "key": "e" },
         { "id": "open", "label": "Open folder", "key": "o" }
@@ -108,6 +109,9 @@ PanelWindow {
                 break;
             case "stream":
                 CaptureService.openStreamingStudio();
+                break;
+            case "trim":
+                CaptureService.trimLastRecording();
                 break;
             case "edit":
                 CaptureService.editLast();

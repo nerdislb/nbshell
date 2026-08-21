@@ -15,6 +15,7 @@
 #   capture.sh ocr       <pfad> <sprachen> <melden 0|1>
 #   capture.sh qr        <pfad> <melden 0|1>
 #   capture.sh edit-last <ordner> <editor>
+#   capture.sh trim-last <video-ordner>
 #   capture.sh open-dir  <ordner>
 #   capture.sh rec-start <ordner> <ton off|mic|desktop> <bereich 0|1> [args...]
 #   capture.sh rec-stop  <melden 0|1>
@@ -164,6 +165,26 @@ cmd_edit_last() {
 	open_editor "$file" "$editor"
 }
 
+open_trimmer() {
+	local file="$1" trimmer
+	trimmer=$(command -v omacut 2>/dev/null || true)
+	[[ -n $trimmer ]] || trimmer="$HOME/.local/bin/omacut"
+	if [[ ! -x $trimmer ]]; then
+		fail "Omacut is not installed. See docs/video-trimming.md."
+	fi
+	# A transient unit keeps the editor alive after this short helper exits and
+	# prevents several trim windows from being opened accidentally.
+	systemctl --user stop nbshell-omacut.service >/dev/null 2>&1 || true
+	systemd-run --user --unit=nbshell-omacut --collect "$trimmer" "$file" >/dev/null
+}
+
+cmd_trim_last() {
+	local dir="$1" file
+	file=$(find "$dir" -maxdepth 1 -type f \( -iname '*.mp4' -o -iname '*.mkv' -o -iname '*.webm' -o -iname '*.mov' \) -printf '%T@\t%p\n' 2>/dev/null | sort -nr | cut -f2- | head -1)
+	[[ -n $file ]] || fail "No video recording found in $dir."
+	open_trimmer "$file"
+}
+
 cmd_open_dir() {
 	local dir="$1"
 	mkdir -p "$dir"
@@ -271,9 +292,12 @@ cmd_rec_stop() {
 
 	local action
 	action=$(timeout 20 notify-send -a "$APP" \
-		"Recording saved" "$(basename "$file") · click to play" \
-		-t 10000 -A "open=Open" 2>/dev/null)
-	[[ $action == open ]] && xdg-open "$file" >/dev/null 2>&1 &
+		"Recording saved" "$(basename "$file")" \
+		-t 12000 -A "open=Play" -A "trim=Trim" 2>/dev/null)
+	case "$action" in
+	open) xdg-open "$file" >/dev/null 2>&1 & ;;
+	trim) open_trimmer "$file" ;;
+	esac
 	return 0
 }
 
@@ -282,12 +306,13 @@ post) shift && cmd_post "$@" ;;
 ocr) shift && cmd_ocr "$@" ;;
 qr) shift && cmd_qr "$@" ;;
 edit-last) shift && cmd_edit_last "$@" ;;
+trim-last) shift && cmd_trim_last "$@" ;;
 open-dir) shift && cmd_open_dir "$@" ;;
 rec-start) shift && cmd_rec_start "$@" ;;
 rec-stop) shift && cmd_rec_stop "$@" ;;
 rec-active) pgrep -x wf-recorder >/dev/null ;;
 *)
-	echo "Usage: $(basename "$0") post|ocr|qr|edit-last|open-dir|rec-start|rec-stop|rec-active ..." >&2
+	echo "Usage: $(basename "$0") post|ocr|qr|edit-last|trim-last|open-dir|rec-start|rec-stop|rec-active ..." >&2
 	exit 2
 	;;
 esac

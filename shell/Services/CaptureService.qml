@@ -95,6 +95,10 @@ Singleton {
         run(["edit-last", shotDir, editor]);
     }
 
+    function trimLastRecording() {
+        run(["trim-last", videoDir]);
+    }
+
     function openDir() {
         run(["open-dir", shotDir]);
     }

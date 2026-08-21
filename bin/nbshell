@@ -102,6 +102,8 @@ PIP_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/zen-pip.p
 AGENT_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/agents.py"
 GAMING_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/gaming.sh"
 GRID_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/grid-layout.py"
+BROWSER_THEME_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/browser-theme.sh"
+OMACUT_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/omacut.sh"
 
 cursor_status() {
     local jetzt
@@ -487,6 +489,10 @@ nbshell -- an independent Quickshell desktop shell for niri
   nbshell dictate           toggle local voice dictation
   nbshell pip status|apply|size|corner|focus|close
                             control Zen's native Picture-in-Picture
+  nbshell browser-theme status|setup|apply
+                            sync nbshell colors to Zen and Brave
+  nbshell video-trimmer status|install|update|remove
+                            manage the optional Omacut integration
 
   nbshell tray              list system-tray entries
   nbshell tray toggle       expand or collapse tray icons
@@ -945,6 +951,12 @@ for b in d["binds"]:
         ;;
     pip)
         "$PIP_TOOL" "${1:-status}"
+        ;;
+    browser-theme)
+        "$BROWSER_THEME_TOOL" "${1:-status}"
+        ;;
+    video-trimmer|trim-video)
+        "$OMACUT_TOOL" "${1:-status}"
         ;;
     notify)
         case "${1:-status}" in

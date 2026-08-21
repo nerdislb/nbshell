@@ -125,8 +125,8 @@ PKG_KALENDER=(khal vdirsyncer)
 # Ohne Syncthing funktioniert die Liste trotzdem -- dann eben nur hier.
 PKG_ABGLEICH=(syncthing)
 
-# Aufnehmen, zuschneiden, Text erkennen.
-PKG_AUFNAHME=(wf-recorder slurp satty swappy tesseract tesseract-data-deu tesseract-data-eng)
+# Recording, trimming, and text recognition.
+PKG_AUFNAHME=(wf-recorder slurp satty swappy tesseract tesseract-data-deu tesseract-data-eng ffmpeg qt6-base qt6-declarative qt6-multimedia)
 
 ALLE=("${PKG_BASIS[@]}" "${PKG_SYSTEM[@]}" "${PKG_BAUSTEINE[@]}" "${PKG_KALENDER[@]}" "${PKG_ABGLEICH[@]}" "${PKG_AUFNAHME[@]}")
 

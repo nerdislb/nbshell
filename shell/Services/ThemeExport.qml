@@ -21,6 +21,7 @@ Singleton {
     readonly property string niriPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/niri/nbshell-colors.kdl"
     readonly property string palettePath: Config.configDir + "/palette.sh"
     readonly property string hookPath: Config.configDir + "/theme-hook.sh"
+    readonly property string browserThemePath: Qt.resolvedUrl("../scripts/browser-theme.sh").toString().replace("file://", "")
 
     // Die 16 ANSI-Farben. Omarchys colors.toml hat genau diese Vorstellung von
     // Farbe -- deshalb ist das hier eine Zuordnung und keine Umrechnung.
@@ -133,6 +134,7 @@ Singleton {
         onTriggered: {
             reload.running = true;
             hook.running = true;
+            browserTheme.running = true;
         }
     }
 
@@ -182,5 +184,10 @@ Singleton {
 
     Process {
         id: hook
+    }
+
+    Process {
+        id: browserTheme
+        command: [root.browserThemePath, "apply"]
     }
 }

@@ -165,6 +165,6 @@ fi
 #                   waehlt hier per `sed` ein anderes in seiner LazyVim-Config
 #                   und ruft `nvim --server … --remote-send` -- das ist aber
 #                   Geschmackssache und keine Farbzuweisung.
-#   Browser         Zen und Brave folgen der GTK-Hell/Dunkel-Vorliebe oben,
-#                   mehr geht ohne Erweiterung nicht.
+#   Browser         nbshells browser-theme.sh synchronisiert Zen und Brave
+#                   direkt aus palette.sh; der Hook muss nichts duplizieren.
 exit 0

@@ -12,6 +12,8 @@ things needed for a first installation and will grow alongside the project.
 1. [Getting started](getting-started.md)
 2. [Features](features.md)
 3. [Phone webcam](phone-webcam.md)
+4. [Video trimming](video-trimming.md)
+5. [Browser themes](browser-themes.md)
 
 ## Planned chapters
 
@@ -27,4 +29,4 @@ things needed for a first installation and will grow alongside the project.
 - Troubleshooting and FAQ
 
 The repository README remains the short project overview. This directory is
-the long-form source for a future documentation website.
+the long-form source for the documentation website.

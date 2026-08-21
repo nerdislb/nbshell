@@ -10,6 +10,7 @@ main menu, the bar, or the `nbshell` command.
 - Searchable application launcher and main menu
 - Dashboard for media, calendar, tasks, habits, system information, and tools
 - Theme and wallpaper selection based on Omarchy-compatible color files
+- Automatic palette synchronization for Zen Browser and Brave
 - Notification center, clipboard history, system tray, and on-screen displays
 
 ## System controls
@@ -30,6 +31,7 @@ main menu, the bar, or the `nbshell` command.
 
 - Screenshots by area, output, or selected window
 - Screen recording and OBS launcher
+- Fast start/end trimming through the nbshell-themed Omacut fork
 - OCR, QR scanning, and optional local dictation
 - Browser and application media controls through MPRIS
 
