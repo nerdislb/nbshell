@@ -252,6 +252,11 @@ Gaming, Xbox controller support, Battle.net support through Lutris, Lutris,
 Heroic, and Moonlight. A RetroArch game can also be added to the application
 launcher.
 
+Minecraft installation also creates a regular `Minecraft` app entry. It
+launches the instance last selected in Prism directly. On a fresh setup Prism
+opens once so you can sign in and create or import an instance; subsequent
+launches go straight into the game.
+
 Every setup action opens a terminal, shows what it will change, and asks for
 confirmation. Package installs use the Arch repositories first and `paru` or
 `yay` only when an AUR package is required. Personal game data is kept during

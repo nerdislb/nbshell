@@ -19,6 +19,57 @@ ask() {
 have_pkg() { pacman -Qq "$1" >/dev/null 2>&1; }
 have_flatpak() { command -v flatpak >/dev/null 2>&1 && flatpak info "$1" >/dev/null 2>&1; }
 
+minecraft_instance() {
+    local root="${XDG_DATA_HOME:-$HOME/.local/share}/PrismLauncher"
+    local selected=""
+    if [[ -f "$root/prismlauncher.cfg" ]]; then
+        selected="$(sed -n 's/^SelectedInstance=//p' "$root/prismlauncher.cfg" | tail -n 1)"
+        [[ -n "$selected" && -f "$root/instances/$selected/instance.cfg" ]] && {
+            printf '%s\n' "$selected"
+            return 0
+        }
+    fi
+    local cfg
+    cfg="$(find "$root/instances" -mindepth 2 -maxdepth 2 -name instance.cfg -print 2>/dev/null | head -n 1)"
+    [[ -n "$cfg" ]] || return 1
+    basename "$(dirname "$cfg")"
+}
+
+write_minecraft_desktop() {
+    local instance icon="org.prismlauncher.PrismLauncher"
+    mkdir -p "$APP_DIR"
+    instance="$(minecraft_instance 2>/dev/null || true)"
+    if [[ -n "$instance" ]]; then
+        local candidate="${XDG_DATA_HOME:-$HOME/.local/share}/PrismLauncher/instances/$instance/minecraft/icon.png"
+        [[ -f "$candidate" ]] && icon="$candidate"
+    fi
+    cat >"$APP_DIR/nbshell-minecraft.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=Minecraft
+Comment=Launch the selected Minecraft instance directly
+Exec=nbshell gaming launch minecraft
+Icon=$icon
+Terminal=false
+Categories=Game;
+Keywords=minecraft;game;prism;
+StartupNotify=true
+EOF
+    command -v update-desktop-database >/dev/null && update-desktop-database "$APP_DIR" || true
+}
+
+launch_minecraft() {
+    command -v prismlauncher >/dev/null 2>&1 || die "Install Minecraft from the nbshell Gaming menu first."
+    local instance
+    instance="$(minecraft_instance 2>/dev/null || true)"
+    write_minecraft_desktop
+    if [[ -z "$instance" ]]; then
+        note "Create or import a Minecraft instance once. Future launches will start it directly."
+        exec prismlauncher
+    fi
+    exec prismlauncher --launch "$instance"
+}
+
 aur_helper() {
     if command -v paru >/dev/null 2>&1; then printf paru
     elif command -v yay >/dev/null 2>&1; then printf yay
@@ -117,6 +168,12 @@ install_item() {
             # Prism is open source and maintained on Arch; it supports Microsoft
             # accounts and avoids depending on Mojang's AUR-only legacy launcher.
             install_packages prismlauncher jre21-openjdk
+            write_minecraft_desktop
+            note "Minecraft now appears in the app search and launches the selected instance directly."
+            if ! minecraft_instance >/dev/null 2>&1; then
+                note "Prism will open once so you can sign in and create or import your Minecraft instance."
+                setsid -f prismlauncher >/dev/null 2>&1 || true
+            fi
             ;;
         lutris)
             read -r -a gpu <<<"$(gpu_lib32_packages)"
@@ -175,7 +232,11 @@ remove_item() {
     case "$ITEM" in
         steam) remove_packages steam ;;
         retroarch) remove_packages retroarch retroarch-assets-xmb libretro-core-info libretro-database libretro-overlays libretro-shaders-slang ;;
-        minecraft) remove_packages minecraft-launcher prismlauncher jre21-openjdk ;;
+        minecraft)
+            remove_packages minecraft-launcher prismlauncher jre21-openjdk
+            rm -f -- "$APP_DIR/nbshell-minecraft.desktop"
+            command -v update-desktop-database >/dev/null && update-desktop-database "$APP_DIR" || true
+            ;;
         lutris) remove_packages lutris wine-staging wine-mono wine-gecko winetricks umu-launcher ;;
         heroic) remove_packages heroic-games-launcher-bin heroic-games-launcher ;;
         moonlight) remove_packages moonlight-qt ;;
@@ -215,11 +276,21 @@ case "$ACTION" in
     install) [[ -n "$ITEM" ]] || die "Missing item."; install_item ;;
     remove) [[ -n "$ITEM" ]] || die "Missing item."; remove_item ;;
     retro-launcher) retro_launcher ;;
+    desktop)
+        [[ "$ITEM" == "minecraft" ]] || die "Desktop launcher is only available for Minecraft."
+        installed minecraft || die "Install Minecraft first."
+        write_minecraft_desktop
+        note "Minecraft app launcher created."
+        ;;
+    launch)
+        [[ "$ITEM" == "minecraft" ]] || die "Direct launch is only available for Minecraft."
+        launch_minecraft
+        ;;
     status)
         for ITEM in steam retroarch minecraft geforce-now xbox-cloud xbox-controllers battlenet lutris heroic moonlight; do
             if installed "$ITEM"; then state=installed; else state=available; fi
             printf '%-24s %s\n' "$(label "$ITEM")" "$state"
         done
         ;;
-    *) die "Usage: gaming.sh status|install ITEM|remove ITEM|retro-launcher" ;;
+    *) die "Usage: gaming.sh status|install ITEM|remove ITEM|launch minecraft|retro-launcher" ;;
 esac
