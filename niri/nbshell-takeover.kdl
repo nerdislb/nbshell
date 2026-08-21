@@ -18,6 +18,7 @@ binds {
     // Verbindungen, Extras), wie Omarchys Menue. Die Befehlspalette lebt weiter
     // im Starter (Mod+Space, dann ">"), sie brauchte kein eigenes Kuerzel mehr.
     Mod+Shift+Space hotkey-overlay-title="nbshell: Menu" { spawn "sh" "-c" "$HOME/.local/bin/nbshell menu"; }
+    Mod+BackSpace hotkey-overlay-title="nbshell: Toggle grid-scroll layout" { spawn "sh" "-c" "$HOME/.local/bin/nbshell grid toggle"; }
 
     // Omarchys Super+Ctrl-E/C/H/A-Schema: eigenstaendige Shell-Oberflaechen
     // liegen gemeinsam auf der Ctrl-Ebene und sind dadurch leicht merkbar.

@@ -127,6 +127,24 @@ nbshell display set DP-1 transform 90
 nbshell display place DP-1 right eDP-1
 ```
 
+## Grid-scroll layout
+
+Press `Mod+Backspace` to toggle a workspace-local grid on top of Niri's
+scrolling layout. One or two tiled windows keep the normal Niri layout. The
+third window creates a vertically split column beside one full-height column;
+the fourth completes a 2x2 grid. The same progression repeats to the right in
+groups of four. Floating windows and other workspaces are left alone.
+
+Press `Mod+Backspace` again to return every tiled window on that workspace to
+its own 50% column. The mode is intentionally session-local and does not alter
+application data or Niri itself.
+
+```bash
+nbshell grid status
+nbshell grid on
+nbshell grid off
+```
+
 ## AI agents and local models
 
 Press `Mod+Shift+A` to open the default agent immediately in a focused floating

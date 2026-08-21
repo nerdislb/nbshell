@@ -101,6 +101,7 @@ KEYS_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/keys.py"
 PIP_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/zen-pip.py"
 AGENT_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/agents.py"
 GAMING_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/gaming.sh"
+GRID_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/grid-layout.py"
 
 cursor_status() {
     local jetzt
@@ -450,6 +451,8 @@ nbshell -- an independent Quickshell desktop shell for niri
   nbshell gaming install <item>
   nbshell gaming remove <item>
                             explicit, confirmed gaming setup actions
+  nbshell grid toggle       toggle the workspace-local 2x2 scrolling layout
+  nbshell grid on|off|status
 
   nbshell todo              list tasks
   nbshell todo <text>       add a task (also: todo add <text>)
@@ -799,6 +802,9 @@ for b in d["binds"]:
         ;;
     gaming|games)
         bash "$GAMING_TOOL" "${1:-status}" "${2:-}"
+        ;;
+    grid)
+        python3 "$GRID_TOOL" "${1:-toggle}"
         ;;
     bongo|cat)
         case "${1:-status}" in
