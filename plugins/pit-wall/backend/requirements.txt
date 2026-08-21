@@ -1,0 +1,2 @@
+requests>=2.32,<3
+signalrcore>=1.0.2,<2

@@ -248,9 +248,10 @@ function gapText(intervalRow, isLeader) {
 
 // Ordered leaderboard rows from accumulated state maps:
 // [{pos, num, acronym, team, gap}], truncated to limit (0 = all).
-function boardRows(posMap, gapsMap, driversMap, limit) {
+function boardRows(posMap, gapsMap, driversMap, limit, detailsMap) {
   var drivers = driversMap || {}
   var gaps = gapsMap || {}
+  var details = detailsMap || {}
   var rows = []
   for (var num in posMap) {
     var p = posMap[num]
@@ -260,7 +261,8 @@ function boardRows(posMap, gapsMap, driversMap, limit) {
       num: num,
       acronym: d.acronym,
       team: d.team,
-      gap: ""
+      gap: "",
+      details: details[num] || ({})
     })
   }
   rows.sort(function(a, b) { return a.pos - b.pos })

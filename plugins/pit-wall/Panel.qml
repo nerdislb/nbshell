@@ -43,6 +43,28 @@ Item {
         return Qt.formatDateTime(new Date(ms), "ddd dd MMM  HH:mm");
     }
 
+    function sectorColor(state) {
+        if (state === "overall") return Theme.magenta;
+        if (state === "personal") return Theme.green;
+        if (state === "complete") return Theme.yellow;
+        return Theme.muted;
+    }
+
+    function tyreColor(compound) {
+        const value = String(compound || "").toUpperCase();
+        if (value === "SOFT") return Theme.red;
+        if (value === "MEDIUM") return Theme.yellow;
+        if (value === "INTERMEDIATE") return Theme.green;
+        if (value === "WET") return Theme.blue;
+        return Theme.fg;
+    }
+
+    function tyreLabel(details) {
+        const value = String(details && details.compound ? details.compound : "").toUpperCase();
+        const shortName = value === "INTERMEDIATE" ? "INT" : (value ? value.slice(0, 4) : "—");
+        return shortName + (details && details.tyreLaps ? " " + details.tyreLaps : "");
+    }
+
     FloatingWindow {
         id: window
 
@@ -140,6 +162,35 @@ Item {
                     }
 
                     Rectangle {
+                        visible: service && service.isLive && service.errorText !== ""
+                        width: content.width
+                        height: Theme.cellH * 4
+                        color: Theme.mix(Theme.bg, Theme.yellow, 0.08)
+                        border.width: Theme.borderWidth
+                        border.color: Theme.yellow
+
+                        Column {
+                            anchors.centerIn: parent
+                            width: parent.width - Theme.cellW * 4
+                            spacing: Theme.cellH * 0.35
+
+                            Heading {
+                                width: parent.width
+                                text: "LIVE TIMING UNAVAILABLE"
+                                color: Theme.yellow
+                                horizontalAlignment: Text.AlignHCenter
+                            }
+                            Label {
+                                width: parent.width
+                                text: service ? service.errorText : ""
+                                color: Theme.fgDim
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.Wrap
+                            }
+                        }
+                    }
+
+                    Rectangle {
                         width: content.width
                         height: Theme.borderWidth
                         color: Theme.muted
@@ -165,7 +216,7 @@ Item {
                         Label {
                             width: parent.width - Theme.cellW * 32 - parent.spacing * 2
                             text: service && service.isLive
-                                ? "AUTO REFRESH · 20 S"
+                                ? "AUTO REFRESH · " + (service.bridgeAvailable ? "2 S" : "20 S")
                                 : (root.session ? root.session.label.toUpperCase() + "  ·  " + root.localTime(root.session.startMs) : "SEASON COMPLETE")
                             color: Theme.fgDim
                             horizontalAlignment: Text.AlignRight
@@ -177,9 +228,13 @@ Item {
                         spacing: Theme.cellW
 
                         Label { width: Theme.cellW * 4; text: "POS"; color: Theme.muted }
-                        Label { width: Theme.cellW * 10; text: "DRIVER"; color: Theme.muted }
-                        Label { width: content.width - Theme.cellW * 38; text: "TEAM"; color: Theme.muted }
-                        Label { width: Theme.cellW * 21; text: "INTERVAL"; color: Theme.muted; horizontalAlignment: Text.AlignRight }
+                        Label { width: Theme.cellW * 9; text: "DRIVER"; color: Theme.muted }
+                        Label { width: Theme.cellW * 8; text: "TYRE"; color: Theme.muted }
+                        Label { width: Theme.cellW * 9; text: "S1"; color: Theme.muted; horizontalAlignment: Text.AlignRight }
+                        Label { width: Theme.cellW * 9; text: "S2"; color: Theme.muted; horizontalAlignment: Text.AlignRight }
+                        Label { width: Theme.cellW * 9; text: "S3"; color: Theme.muted; horizontalAlignment: Text.AlignRight }
+                        Label { width: Theme.cellW * 12; text: "BEST"; color: Theme.muted; horizontalAlignment: Text.AlignRight }
+                        Label { width: content.width - Theme.cellW * 60 - parent.spacing * 7; text: "GAP"; color: Theme.muted; horizontalAlignment: Text.AlignRight }
                     }
 
                     Rectangle {
@@ -212,7 +267,7 @@ Item {
                     }
 
                     Repeater {
-                        model: service && service.isLive ? service.liveRows : []
+                        model: service && service.isLive && service.errorText === "" ? service.liveRows : []
 
                         Rectangle {
                             required property var modelData
@@ -231,9 +286,37 @@ Item {
                                 spacing: Theme.cellW
 
                                 Label { width: Theme.cellW * 3; text: String(modelData.pos).padStart(2, " "); font.bold: index === 0 }
-                                Label { width: Theme.cellW * 10; text: modelData.acronym; color: index === 0 ? Theme.green : Theme.fg; font.bold: true }
-                                Label { width: parent.width - Theme.cellW * 38; text: modelData.team; color: Theme.fgDim; elide: Text.ElideRight }
-                                Label { width: Theme.cellW * 20; text: modelData.gap; horizontalAlignment: Text.AlignRight }
+                                Label { width: Theme.cellW * 9; text: modelData.acronym; color: index === 0 ? Theme.green : Theme.fg; font.bold: true }
+                                Label {
+                                    width: Theme.cellW * 8
+                                    text: root.tyreLabel(modelData.details)
+                                    color: root.tyreColor(modelData.details ? modelData.details.compound : "")
+                                    font.bold: true
+                                }
+                                Repeater {
+                                    model: modelData.details && modelData.details.sectors
+                                        ? modelData.details.sectors : [{}, {}, {}]
+                                    Label {
+                                        required property var modelData
+                                        width: Theme.cellW * 9
+                                        text: modelData.value || "—"
+                                        color: root.sectorColor(modelData.state || "")
+                                        horizontalAlignment: Text.AlignRight
+                                        font.bold: modelData.state === "overall"
+                                    }
+                                }
+                                Label {
+                                    width: Theme.cellW * 12
+                                    text: modelData.details && modelData.details.bestLap
+                                        ? modelData.details.bestLap : "—"
+                                    horizontalAlignment: Text.AlignRight
+                                }
+                                Label {
+                                    width: parent.width - Theme.cellW * 59 - parent.spacing * 7
+                                    text: modelData.details && modelData.details.inPit ? "PIT" : modelData.gap
+                                    color: modelData.details && modelData.details.inPit ? Theme.yellow : Theme.fg
+                                    horizontalAlignment: Text.AlignRight
+                                }
                             }
                         }
                     }
@@ -246,7 +329,7 @@ Item {
 
                         Label {
                             width: parent.width * 0.55
-                            text: "DATA · JOLPICA F1 + OPENF1"
+                            text: "DATA · JOLPICA F1 + F1 LIVE TIMING"
                             color: Theme.muted
                         }
 
