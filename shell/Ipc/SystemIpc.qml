@@ -101,16 +101,16 @@ Scope {
         function dump(): string {
             return JSON.stringify({
                 "popouts": Runtime.popoutCount,
-                "insel": Runtime.islandOpen,
-                "starter": Runtime.launcherOpen,
-                "einstellungen": Runtime.settingsOpen,
-                "bausteine": Runtime.modulesOpen,
-                "hintergrund": Runtime.wallpaperOpen,
-                "aufgaben": Runtime.todoOpen,
+                "island": Runtime.islandOpen,
+                "launcher": Runtime.launcherOpen,
+                "settings": Runtime.settingsOpen,
+                "modules": Runtime.modulesOpen,
+                "wallpaper": Runtime.wallpaperOpen,
+                "tasks": Runtime.todoOpen,
                 "qr": Runtime.qrOpen,
                 "speedtest": Runtime.speedOpen,
-                "prozesse": Runtime.procsOpen,
-                "aufnahme": Runtime.captureOpen,
+                "processes": Runtime.procsOpen,
+                "capture": Runtime.captureOpen,
                 "power": Runtime.powerOpen,
                 "displays": Runtime.displayOpen,
                 "uiGallery": Runtime.uiGalleryOpen
@@ -153,14 +153,14 @@ Scope {
 
         function status(): string {
             return JSON.stringify({
-                "anzahl": Updates.count,
+                "count": Updates.count,
                 "repo": Updates.repo.length,
                 "aur": Updates.aur.length,
                 "flatpak": Updates.flatpak.length,
-                "prueft": Updates.checking,
+                "checking": Updates.checking,
                 "rebootRecommended": Updates.rebootRecommended,
                 "rebootPackages": Updates.rebootPackages,
-                "befehl": Updates.updateCommand(),
+                "command": Updates.updateCommand(),
                 "terminal": Updates.terminal
             });
         }

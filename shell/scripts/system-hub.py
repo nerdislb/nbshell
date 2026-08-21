@@ -107,18 +107,18 @@ def collect():
             "state": "warn" if a.get("agent_status") in ("waiting", "permission") else "ok",
             "command": "detached:python3 " + str(Path(__file__).resolve()) + " herdr-focus " + str(a.get("pane_id", ""))
         } for a in agent_data]
-        agents.append(item("herdr", "Herdr", f"{len(agent_data)} Agenten" if code == 0 else (err or "unreachable"), "ok" if code == 0 else "warn", f"{herdr} agent list", agent_rows))
+        agents.append(item("herdr", "Herdr", f"{len(agent_data)} agents" if code == 0 else (err or "unreachable"), "ok" if code == 0 else "warn", f"{herdr} agent list", agent_rows))
     else:
         agents.append(item("herdr", "Herdr", "not installed", "off"))
     hook_tool = Path(__file__).with_name("codex-hooks.py")
     hook_script = Path(__file__).with_name("codex-notify.sh")
     code, out, _ = run("python3", str(hook_tool), "status")
-    agents.append(item("codex", "Codex Notifications", "Hooks aktiv" if out == "installed" else "Hooks inactive", "ok" if out == "installed" else "warn", f"python3 {hook_tool} install {hook_script}" if out != "installed" else ""))
-    groups.append({"title": "AGENTEN", "items": agents})
+    agents.append(item("codex", "Codex Notifications", "Hooks active" if out == "installed" else "Hooks inactive", "ok" if out == "installed" else "warn", f"python3 {hook_tool} install {hook_script}" if out != "installed" else ""))
+    groups.append({"title": "AGENTS", "items": agents})
 
     sync = []
     syncthing = unit("syncthing.service")
-    sync.append(item("syncthing", "Syncthing", "Dienst aktiv" if syncthing else "Service inactive", "ok" if syncthing else "warn", "xdg-open http://127.0.0.1:8384", syncthing_details() if syncthing else []))
+    sync.append(item("syncthing", "Syncthing", "Service active" if syncthing else "Service inactive", "ok" if syncthing else "warn", "xdg-open http://127.0.0.1:8384", syncthing_details() if syncthing else []))
     if shutil.which("gh"):
         code, out, err = run("gh", "api", "notifications", timeout=10)
         try:
@@ -128,20 +128,20 @@ def collect():
         rows = [{"label": str(n.get("repository", {}).get("full_name", "GitHub")),
                  "detail": str(n.get("subject", {}).get("title", "")), "state": "warn"}
                 for n in notices[:15]]
-        sync.append(item("github", "GitHub Inbox", f"{len(notices)} ungelesen" if code == 0 else (err or "Check login"), "ok" if code == 0 and not notices else "warn", "xdg-open https://github.com/notifications", rows))
+        sync.append(item("github", "GitHub Inbox", f"{len(notices)} unread" if code == 0 else (err or "Check login"), "ok" if code == 0 and not notices else "warn", "xdg-open https://github.com/notifications", rows))
     else:
         sync.append(item("github", "GitHub Inbox", "gh not installed", "off"))
     groups.append({"title": "SYNC & INBOX", "items": sync})
 
     system = []
     news = arch_news()
-    system.append(item("arch-news", "Arch News", f"{len(news)} aktuelle Hinweise", "warn" if news else "ok", "xdg-open https://archlinux.org/news/", news))
+    system.append(item("arch-news", "Arch News", f"{len(news)} recent notices", "warn" if news else "ok", "xdg-open https://archlinux.org/news/", news))
     if shutil.which("checkupdates"):
         code, out, _ = run("checkupdates", timeout=20)
         updates = count_lines(out)
         rows = [{"label": line.split()[0], "detail": " ".join(line.split()[1:]), "state": "warn"}
                 for line in out.splitlines() if line.strip()][:20]
-        system.append(item("updates", "Arch Updates", f"{updates} Pakete" if code in (0, 2) else "Check failed", "warn" if updates else "ok", "nbshell update list", rows))
+        system.append(item("updates", "Arch Updates", f"{updates} packages" if code in (0, 2) else "Check failed", "warn" if updates else "ok", "nbshell update list", rows))
     pacnew = []
     for base in (Path("/etc"),):
         try:
@@ -153,12 +153,12 @@ def collect():
     cups = unit("cups.service", user=False)
     code, out, _ = run("lpstat", "-o") if shutil.which("lpstat") else (127, "", "")
     _, printers, _ = run("lpstat", "-p") if shutil.which("lpstat") else (127, "", "")
-    print_rows = [{"label": line.split()[1] if len(line.split()) > 1 else "Drucker",
+    print_rows = [{"label": line.split()[1] if len(line.split()) > 1 else "Printer",
                    "detail": " ".join(line.split()[2:]), "state": "ok" if "idle" in line else "warn"}
                   for line in printers.splitlines() if line.strip()]
-    print_rows += [{"label": line.split()[0], "detail": "Druckauftrag", "state": "warn"}
+    print_rows += [{"label": line.split()[0], "detail": "Print job", "state": "warn"}
                    for line in out.splitlines() if line.strip()]
-    system.append(item("cups", "Drucker", (f"{count_lines(out)} Auftraege" if cups else "CUPS inactive"), "ok" if cups and not out else "warn", "xdg-open http://localhost:631", print_rows))
+    system.append(item("cups", "Printers", (f"{count_lines(out)} jobs" if cups else "CUPS inactive"), "ok" if cups and not out else "warn", "xdg-open http://localhost:631", print_rows))
     groups.append({"title": "SYSTEM", "items": system})
 
     dev = []
@@ -168,22 +168,22 @@ def collect():
         fields = line.split()
         endpoint = fields[3] if len(fields) > 3 else "?"
         process = re.search(r'\(\("([^\"]+)",pid=(\d+)', line)
-        detail = (process.group(1) + " · PID " + process.group(2)) if process else "System/anderer Benutzer"
+        detail = (process.group(1) + " · PID " + process.group(2)) if process else "System/other user"
         port_rows.append({"label": endpoint, "detail": detail, "state": "ok"})
-    dev.append(item("ports", "Portboard", f"{count_lines(out)} offene TCP-Listener", "ok" if code == 0 else "warn", "ss -tlnp", port_rows))
+    dev.append(item("ports", "Portboard", f"{count_lines(out)} open TCP listeners", "ok" if code == 0 else "warn", "ss -tlnp", port_rows))
     dev.append(item("equalizer", "Equalizer", "EasyEffects ready" if shutil.which("easyeffects") else "EasyEffects not installed", "ok" if shutil.which("easyeffects") else "off", "easyeffects" if shutil.which("easyeffects") else ""))
-    groups.append({"title": "ENTWICKLUNG & AUDIO", "items": dev})
+    groups.append({"title": "DEVELOPMENT & AUDIO", "items": dev})
 
     hardware = []
     if shutil.which("ddcutil"):
         code, out, err = run("ddcutil", "detect", "--brief", timeout=8)
         detected = code == 0 and "Display" in out
-        detail = "DDC-Monitor erkannt" if detected else ((err or out).splitlines()[0] if (err or out) else "no DDC monitor")
+        detail = "DDC monitor detected" if detected else ((err or out).splitlines()[0] if (err or out) else "no DDC monitor")
         hardware.append(item("ddc", "External brightness", detail, "ok" if detected else "warn", "ddcutil detect"))
     else:
-        hardware.append(item("ddc", "External brightness", "ddcutil not installed / nur eDP-1", "off"))
+        hardware.append(item("ddc", "External brightness", "ddcutil not installed / internal display only", "off"))
     decoder = shutil.which("zbarimg") or shutil.which("zxing")
-    hardware.append(item("qr", "QR aus Screenshot", "Decoder ready" if decoder else "zbarimg/ZXing not installed", "ok" if decoder else "off"))
+    hardware.append(item("qr", "QR from screenshot", "Decoder ready" if decoder else "zbarimg/ZXing not installed", "ok" if decoder else "off"))
     groups.append({"title": "HARDWARE", "items": hardware})
 
     return {"groups": groups}
@@ -195,7 +195,7 @@ if __name__ == "__main__":
     elif sys.argv[1] == "herdr-focus" and len(sys.argv) == 3:
         herdr = executable("herdr")
         if not herdr:
-            raise SystemExit("Herdr fehlt")
+            raise SystemExit("Herdr is missing")
         run(herdr, "agent", "focus", sys.argv[2])
         code, windows, _ = run("niri", "msg", "-j", "windows")
         try:

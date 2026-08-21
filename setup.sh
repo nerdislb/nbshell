@@ -9,6 +9,7 @@
 #
 #   setup.sh                  der ganze Weg
 #   setup.sh --no-packages    nur die Files (dasselbe wie install.sh)
+#   setup.sh --full           auch alle optionalen Desktop-Werkzeuge
 #   setup.sh --with-legacy-dotfiles  alte DMS-Dotfiles zusaetzlich uebernehmen
 #   setup.sh --no-aur         den AUR helper nicht bauen
 #   setup.sh --with-hardware  auch die Hardware-Packages der Paketliste
@@ -25,6 +26,7 @@ WITH_PACKAGES=1
 WITH_DOTFILES=0
 WITH_AUR=1
 WITH_HARDWARE=0
+WITH_OPTIONAL=0
 ASSUME_YES=0
 
 # Optionaler Migrationspfad fuer den bisherigen Rechner. Eine normale
@@ -40,6 +42,7 @@ while [ $# -gt 0 ]; do
 	--no-dotfiles) WITH_DOTFILES=0 && shift ;;
 	--no-aur) WITH_AUR=0 && shift ;;
 	--with-hardware) WITH_HARDWARE=1 && shift ;;
+	--full) WITH_OPTIONAL=1 && shift ;;
 	-y | --yes) ASSUME_YES=1 && shift ;;
 	-h | --help)
 		cat <<'USAGE'
@@ -47,6 +50,7 @@ setup.sh -- install nbshell packages, files, and services.
 
   setup.sh                  install nbshell without DMS
   setup.sh --no-packages    install files only (same as install.sh)
+  setup.sh --full           install all optional desktop tools
   setup.sh --with-legacy-dotfiles
                             optionally migrate old DMS dotfiles
   setup.sh --no-aur         do not offer to install an AUR helper
@@ -128,7 +132,12 @@ PKG_ABGLEICH=(syncthing)
 # Recording, trimming, and text recognition.
 PKG_AUFNAHME=(wf-recorder slurp satty swappy tesseract tesseract-data-deu tesseract-data-eng ffmpeg qt6-base qt6-declarative qt6-multimedia)
 
-ALLE=("${PKG_BASIS[@]}" "${PKG_SYSTEM[@]}" "${PKG_BAUSTEINE[@]}" "${PKG_KALENDER[@]}" "${PKG_ABGLEICH[@]}" "${PKG_AUFNAHME[@]}")
+PKG_CORE=(wl-clipboard libnotify xdg-utils hyprpolkitagent)
+if [ $WITH_OPTIONAL -eq 1 ]; then
+	ALLE=("${PKG_BASIS[@]}" "${PKG_SYSTEM[@]}" "${PKG_BAUSTEINE[@]}" "${PKG_KALENDER[@]}" "${PKG_ABGLEICH[@]}" "${PKG_AUFNAHME[@]}")
+else
+	ALLE=("${PKG_BASIS[@]}" "${PKG_SYSTEM[@]}" "${PKG_CORE[@]}")
+fi
 
 if [ $WITH_PACKAGES -eq 1 ]; then
 	command -v pacman >/dev/null || die "pacman was not found. This installer targets Arch Linux. On other systems, use --no-packages and install the listed dependencies manually."
@@ -169,7 +178,7 @@ if [ $WITH_PACKAGES -eq 1 ]; then
 	#
 	# Das ist der einzige Schritt, der Fremdcode uebersetzt -- deshalb wird
 	# gefragt, auch mit --yes nicht uebergangen, und die Adresse steht dabei.
-	if [ $WITH_AUR -eq 1 ] && ! command -v paru >/dev/null 2>&1 && ! command -v yay >/dev/null 2>&1; then
+	if [ $WITH_OPTIONAL -eq 1 ] && [ $WITH_AUR -eq 1 ] && ! command -v paru >/dev/null 2>&1 && ! command -v yay >/dev/null 2>&1; then
 		head2 "AUR helper"
 		echo "paru or yay is required to include AUR updates."
 		echo "Build from https://aur.archlinux.org/paru-bin.git (uses your sudo and makepkg)."
@@ -383,9 +392,12 @@ if [ $WITH_PACKAGES -eq 1 ]; then
 	# Befehl im PATH.
 	head2 "Final check"
 	fehlt=0
-	for c in qs niri python3 jq git curl wl-copy wl-paste notify-send xdg-open \
-		hyprlock tuned-adm khal vdirsyncer wf-recorder slurp satty swappy \
-		tesseract pactl checkupdates fakeroot; do
+	check_commands=(qs niri python3 jq git curl wl-copy wl-paste notify-send xdg-open pactl)
+	if [ $WITH_OPTIONAL -eq 1 ]; then
+		check_commands+=(hyprlock tuned-adm khal vdirsyncer wf-recorder slurp satty
+			swappy tesseract checkupdates fakeroot)
+	fi
+	for c in "${check_commands[@]}"; do
 		command -v "$c" >/dev/null 2>&1 || {
 			warn "  $c is still missing"
 			fehlt=1

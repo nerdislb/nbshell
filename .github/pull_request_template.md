@@ -6,6 +6,8 @@
 - [ ] `bash -n` for changed shell scripts
 - [ ] `./tests/plugin-validation.sh`
 - [ ] `./tests/fresh-install.sh`
+- [ ] `python3 ./tests/grid-layout.py`
+- [ ] `./tests/release-audit.sh`
 - [ ] No credentials or personal configuration included
 
 ## AI assistance

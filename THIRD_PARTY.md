@@ -33,6 +33,14 @@ from or were adapted from other MIT-licensed projects:
   nbshell replaces the Omarchy host integration and leaves its optional
   Omasing installer disabled. The upstream license is stored in
   `plugins/ytmusic/LICENSE`.
+- The bundled Pit Wall data model and API integration are adapted from Jeremy
+  Longshore's MIT-licensed
+  [Omarchy Pit Wall Entry](https://github.com/jeremylongshore/omarchy-pit-wall-entry).
+  Its license is stored in `plugins/pit-wall/LICENSE`.
+- The combined activity center's card hierarchy and icon treatment are
+  visually inspired by jankeesvw's MIT-licensed
+  [Omarchy Notification Center](https://github.com/jankeesvw/omarchy-notification-center).
+  nbshell retains its independent notification and clipboard services.
 - Compatibility controls under `shell/Ui/` are adapted from the MIT-licensed
   [Omarchy](https://github.com/basecamp/omarchy) Quickshell UI kit and map its
   public visual tokens onto the nbshell theme system.

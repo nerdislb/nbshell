@@ -28,6 +28,12 @@ jobs:
       - name: Validate bundled plugins
         run: ./tests/plugin-validation.sh
 
+      - name: Test grid layout policy
+        run: python3 ./tests/grid-layout.py
+
+      - name: Audit release metadata and privacy
+        run: ./tests/release-audit.sh
+
       - name: Test a clean installation and update
         run: |
           useradd --create-home nbshell-ci

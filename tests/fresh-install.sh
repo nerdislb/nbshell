@@ -34,6 +34,7 @@ export PATH="$FAKE_BIN:/usr/bin:/bin"
 "$ROOT/install.sh" >/dev/null
 
 test -f "$XDG_CONFIG_HOME/quickshell/nbshell/shell.qml"
+test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/VERSION")" = "$(cat "$ROOT/VERSION")"
 test -f "$XDG_CONFIG_HOME/nbshell/config.json"
 test -f "$XDG_CONFIG_HOME/systemd/user/nbshell.service"
 test -f "$XDG_CONFIG_HOME/niri/config.kdl"
@@ -48,8 +49,11 @@ jq -e '
     .theme == "tokyo-night" and
     .mode == "island" and
     .font == "JetBrainsMono Nerd Font" and
-    .fontSize == 13
+    .fontSize == 13 and
+    .enabledPlugins == []
 ' "$XDG_CONFIG_HOME/nbshell/config.json" >/dev/null
+
+test "$("$XDG_BIN_HOME/nbshell" --version)" = "nbshell $(cat "$ROOT/VERSION")"
 
 for harness in .agents .claude .codex; do
     test -L "$TEST_HOME/$harness/skills/nbshell"

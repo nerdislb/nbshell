@@ -14,8 +14,10 @@ things needed for a first installation and will grow alongside the project.
 3. [Phone webcam](phone-webcam.md)
 4. [Video trimming](video-trimming.md)
 5. [Browser themes](browser-themes.md)
+6. [Compatibility and limitations](compatibility.md)
+7. [Troubleshooting and recovery](troubleshooting.md)
 
-## Planned chapters
+## More guides
 
 - Navigation and key bindings
 - The bar, island, pill, and modules
@@ -24,9 +26,9 @@ things needed for a first installation and will grow alongside the project.
 - Niri window management and the grid-scroll mode
 - AI agents and local models
 - Gaming and optional applications
-- Plugins and customization
-- Updating, backup, and recovery
-- Troubleshooting and FAQ
+- [Plugins and customization](plugin-development.md)
+- [Plugin store](plugin-store.md)
+- [Updating, backup, and recovery](troubleshooting.md)
 
 The repository README remains the short project overview. This directory is
 the long-form source for the documentation website.

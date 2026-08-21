@@ -7,6 +7,7 @@ import fcntl
 import json
 import os
 from pathlib import Path
+import selectors
 import signal
 import subprocess
 import sys
@@ -105,16 +106,24 @@ def separate_all(workspace_id: int) -> None:
 
 
 def desired_column_sizes(window_count: int) -> list[int]:
-    """Return a Hyprland-like progression for every four-window page.
+    """Return the preferred layout when building a grid from single columns."""
+    if window_count < 3:
+        return [1] * window_count
+    return [2] * (window_count // 2) + ([1] if window_count % 2 else [])
 
-    1 -> [1], 2 -> [1, 1], 3 -> [2, 1], 4 -> [2, 2].
-    The same progression repeats to the right for windows 5 through 8.
+
+def stable_column_sizes(sizes: list[int], window_count: int) -> bool:
+    """Accept mirrored partial pages so closing a window never causes a rebuild.
+
+    Three windows may be [2, 1] or [1, 2]. Both are the same useful grid and
+    preserving the existing orientation avoids a distracting expel/reconsume
+    animation.
     """
-    sizes: list[int] = []
-    complete, remainder = divmod(window_count, 4)
-    sizes.extend([2, 2] * complete)
-    sizes.extend({0: [], 1: [1], 2: [1, 1], 3: [2, 1]}[remainder])
-    return sizes
+    if sum(sizes) != window_count or any(size < 1 or size > 2 for size in sizes):
+        return False
+    if window_count < 3:
+        return sizes == [1] * window_count
+    return len(sizes) == (window_count + 1) // 2
 
 
 def merge_only(workspace_id: int, windows: list[dict], desired: list[int]) -> bool:
@@ -156,7 +165,7 @@ def arrange(workspace_id: int) -> None:
     windows = tiled_windows(workspace_id)
     desired = desired_column_sizes(len(windows))
     current = [len(column) for column in columns(workspace_id)]
-    if current == desired:
+    if stable_column_sizes(current, len(windows)):
         return
 
     if merge_only(workspace_id, windows, desired):
@@ -222,6 +231,17 @@ def stop_watcher() -> None:
         pass
 
 
+def restart_watcher() -> None:
+    stop_watcher()
+    for _ in range(20):
+        if not watcher_running():
+            break
+        time.sleep(0.05)
+    PID_FILE.unlink(missing_ok=True)
+    if load_state():
+        start_watcher()
+
+
 def locked(callback) -> None:
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     with LOCK_FILE.open("w", encoding="utf-8") as lock:
@@ -253,6 +273,8 @@ def toggle() -> None:
 
 def status() -> None:
     workspace_id = focused_workspace()
+    if load_state() and not watcher_running():
+        start_watcher()
     print("on" if workspace_id in load_state() else "off")
 
 
@@ -262,13 +284,25 @@ def watch() -> None:
     try:
         process = subprocess.Popen(
             ["niri", "msg", "-j", "event-stream"],
-            text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
+            bufsize=0,
         )
         assert process.stdout is not None
-        for _line in process.stdout:
-            time.sleep(0.08)
+        poller = selectors.DefaultSelector()
+        poller.register(process.stdout, selectors.EVENT_READ)
+        while True:
+            # Wait for one compositor event, then drain the burst. Window
+            # creation and our own consume actions emit several events; doing
+            # layout work for every intermediate state caused visible jumping.
+            ready = poller.select()
+            if not ready:
+                continue
+            if not os.read(process.stdout.fileno(), 65536):
+                break
+            while poller.select(timeout=0.14):
+                if not os.read(process.stdout.fileno(), 65536):
+                    break
 
             def reconcile() -> None:
                 enabled = load_state()
@@ -287,6 +321,7 @@ def watch() -> None:
                 time.sleep(0.2)
             if not load_state():
                 break
+        poller.close()
     finally:
         PID_FILE.unlink(missing_ok=True)
 
@@ -306,8 +341,10 @@ def main() -> int:
             status()
         elif command == "watch":
             watch()
+        elif command == "restart-watcher":
+            restart_watcher()
         else:
-            print("usage: grid-layout.py toggle|on|off|status", file=sys.stderr)
+            print("usage: grid-layout.py toggle|on|off|status|restart-watcher", file=sys.stderr)
             return 2
     except (OSError, RuntimeError, subprocess.CalledProcessError, json.JSONDecodeError) as error:
         print(f"nbshell grid: {error}", file=sys.stderr)

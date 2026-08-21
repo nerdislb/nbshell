@@ -11,10 +11,16 @@ testing, and the direction of the project remain human-led.
 > nbshell is still under active development. It already works as a daily
 > desktop, but commands, configuration, and features may still change.
 
+Current release candidate: **0.1.0-beta.1**. See the
+[changelog](CHANGELOG.md) for user-facing changes.
+
 ## Documentation
 
 - [Manual](docs/index.md) — setup, features, browser themes, and video trimming
 - [Getting started](docs/getting-started.md) — install, first login, and checks
+- [Compatibility](docs/compatibility.md) — supported baseline and beta limitations
+- [Beta testing](docs/beta-testing.md) — clean-machine and hardware checklist
+- [Troubleshooting](docs/troubleshooting.md) — health checks and recovery
 - [Plugin development](docs/plugin-development.md) — manifest, lifecycle, safety, and publishing
 - [Plugin store](docs/plugin-store.md) — catalog format and review policy
 - [Feature guide](docs/features.md) — what each part of nbshell does
@@ -65,9 +71,10 @@ cd nbshell
 ./setup.sh
 ```
 
-The script shows the missing packages before installing them. It may ask for
-your `sudo` password and whether services such as Bluetooth or Syncthing should
-be enabled.
+The script installs the small desktop baseline and shows every package before
+calling `sudo`. Optional tools remain discoverable but disabled. Use
+`./setup.sh --full` when you want the complete capture, calendar, sync, power,
+and hardware tool set in one pass.
 
 When setup has finished, enable nbshell:
 

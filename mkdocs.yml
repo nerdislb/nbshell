@@ -36,9 +36,16 @@ nav:
   - Welcome: index.md
   - Getting started: getting-started.md
   - Features: features.md
+  - Compatibility: compatibility.md
+  - Beta testing: beta-testing.md
+  - Troubleshooting: troubleshooting.md
   - Phone webcam: phone-webcam.md
   - Video trimming: video-trimming.md
   - Browser themes: browser-themes.md
+  - Plugin store: plugin-store.md
+  - Plugin development: plugin-development.md
+  - Releasing: releasing.md
+  - Project media: project-media.md
 
 markdown_extensions:
   - admonition

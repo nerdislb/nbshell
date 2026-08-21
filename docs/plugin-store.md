@@ -9,6 +9,10 @@ The catalog is stored in `shell/Catalog/plugins.json` and versioned with the
 shell. This makes a fresh installation useful without requiring a marketplace
 account or trusting a mutable remote index.
 
+Bundled optional plugins are installed as source but start disabled in a fresh
+configuration. They consume no panel or service runtime until enabled. Their
+external programs are not part of the minimal setup profile.
+
 ## Catalog entries
 
 Each entry contains:
@@ -66,4 +70,3 @@ checkout.
 Removing an external plugin also removes its runtime enable flag, bar
 placement, and plugin settings. Bundled plugins are disabled instead of
 deleted.
-

@@ -7,6 +7,8 @@ set -euo pipefail
 
 CONFIG_NAME="nbshell"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/nbshell"
+RUNTIME_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell"
+VERSION_FILE="$RUNTIME_DIR/VERSION"
 THEME_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/theme-install.sh"
 PLUGIN_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/plugins.sh"
 DISPLAY_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/displays.py"
@@ -547,6 +549,9 @@ cmd="${1:-}"
 case "$cmd" in
     ""|-h|--help|help)
         usage
+        ;;
+    -V|--version|version)
+        printf 'nbshell %s\n' "$(cat "$VERSION_FILE" 2>/dev/null || printf 'development')"
         ;;
     start)
         exec "$QS" -c "$CONFIG_NAME" "$@"

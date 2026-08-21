@@ -143,6 +143,10 @@ trap zurueckholen EXIT
 mkdir -p "$SHELL_DIR"
 rm -rf "${SHELL_DIR:?}"/*
 cp -a "$SRC/shell/." "$SHELL_DIR/"
+install -m 644 "$SRC/VERSION" "$SHELL_DIR/VERSION"
+# A running grid watcher has imported the previous Python file already. Restart
+# it after replacement so layout fixes take effect without logging out.
+python3 "$SHELL_DIR/scripts/grid-layout.py" restart-watcher >/dev/null 2>&1 || true
 green "Shell   -> $SHELL_DIR"
 
 # ── Themes ───────────────────────────────────────────────────────────────
@@ -178,6 +182,7 @@ if [ ! -f "$DATA_DIR/config.json" ]; then
   "borderWidth": 1,
   "opacity": 1.0,
   "widgetStyle": "box",
+  "enabledPlugins": [],
   "collapsedWidgets": ["clock"],
   "leftWidgets": ["workspaces", "whatsapp", "sep", "window"],
   "centerWidgets": ["clock"],

@@ -13,6 +13,8 @@ focused pull requests are the easiest to review.
    ```bash
    ./tests/plugin-validation.sh
    ./tests/fresh-install.sh
+   ./tests/release-audit.sh
+   python3 ./tests/grid-layout.py
    find shell -type f -name '*.py' -exec python3 -m py_compile {} +
    ```
 

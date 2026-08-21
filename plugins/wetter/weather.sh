@@ -49,7 +49,7 @@ resolve() {
 	raw="$(curl -sS --max-time 10 --get \
 		--data-urlencode "name=$place" \
 		--data-urlencode "count=1" \
-		--data-urlencode "language=de" \
+		--data-urlencode "language=en" \
 		--data-urlencode "format=json" \
 		"$GEO_API" 2>/dev/null)" || return 1
 

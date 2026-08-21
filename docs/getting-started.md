@@ -24,8 +24,14 @@ cd nbshell
 ./setup.sh
 ```
 
-The script lists missing packages before installing them. It may ask for your
-sudo password and whether optional services should be enabled.
+The default profile installs the shell baseline and lists missing packages
+before calling sudo. Optional modules remain visible but disabled when their
+tools are unavailable. To install the full capture, calendar, sync, power, and
+hardware tool set, use:
+
+```bash
+./setup.sh --full
+```
 
 Enable the shell and its Niri integration:
 

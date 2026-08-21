@@ -151,17 +151,17 @@ Scope {
         function sync(): string {
             Todo.foldConflicts();
             Todo.reload();
-            return "gelesen: " + Todo.file;
+            return "reloaded: " + Todo.file;
         }
 
         function status(): string {
             return JSON.stringify({
-                "an": Todo.enabled,
+                "enabled": Todo.enabled,
                 "open": Todo.count,
                 "done": Todo.doneCount,
-                "gesamt": Todo.items.length,
+                "total": Todo.items.length,
                 "file": Todo.file,
-                "grabsteine": Todo.keepDays
+                "retentionDays": Todo.keepDays
             });
         }
     }

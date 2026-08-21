@@ -1,0 +1,33 @@
+name: Feature request
+description: Suggest a focused improvement to nbshell
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: Explain the workflow problem first. A small, optional solution is easier to maintain than a new always-running service.
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Workflow problem
+      description: What are you trying to do, and what is difficult today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the smallest useful interaction, including a key binding only when one is necessary.
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Best fit
+      options:
+        - Core shell
+        - Optional plugin
+        - Documentation
+        - Not sure
+    validations:
+      required: true
