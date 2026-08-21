@@ -130,7 +130,7 @@ PKG_KALENDER=(khal vdirsyncer)
 PKG_ABGLEICH=(syncthing)
 
 # Recording, trimming, and text recognition.
-PKG_AUFNAHME=(wf-recorder slurp satty swappy tesseract tesseract-data-deu tesseract-data-eng ffmpeg qt6-base qt6-declarative qt6-multimedia)
+PKG_AUFNAHME=(grim wf-recorder slurp satty swappy tesseract tesseract-data-deu tesseract-data-eng ffmpeg qt6-base qt6-declarative qt6-multimedia)
 
 PKG_CORE=(wl-clipboard libnotify xdg-utils hyprpolkitagent)
 if [ $WITH_OPTIONAL -eq 1 ]; then
@@ -394,7 +394,7 @@ if [ $WITH_PACKAGES -eq 1 ]; then
 	fehlt=0
 	check_commands=(qs niri python3 jq git curl wl-copy wl-paste notify-send xdg-open pactl)
 	if [ $WITH_OPTIONAL -eq 1 ]; then
-		check_commands+=(hyprlock tuned-adm khal vdirsyncer wf-recorder slurp satty
+		check_commands+=(hyprlock tuned-adm khal vdirsyncer grim wf-recorder slurp satty
 			swappy tesseract checkupdates fakeroot)
 	fi
 	for c in "${check_commands[@]}"; do

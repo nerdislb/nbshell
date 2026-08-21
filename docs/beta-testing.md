@@ -12,6 +12,8 @@ capture, and animation testing.
 - Confirm that the bar, launcher, dashboard, settings, and power menu open.
 - Confirm that optional modules fail quietly when their programs are absent.
 - Run `nbshell --version`, `nbshell status`, and `niri validate`.
+- With the full capture profile installed, use `grim` for reproducible visual
+  comparison screenshots without changing nbshell's native capture workflow.
 
 ## Desktop behavior
 
