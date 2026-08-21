@@ -1,11 +1,18 @@
 import QtQuick
 import qs.Commons
 import qs.Ui
-import "../Model.js" as Model
+import "../account/Model.js" as Model
 
 // The message list. A Repeater in a Column rather than a ListView because the
 // panel already owns one Flickable and nesting a second scroller inside it
 // gives every wheel event two plausible targets.
+//
+// Hovering a row does not move the keyboard's cursor. A row reports its own
+// hover appearance (MessageRow.hot), and letting hover write `cursorId` as well
+// put the mouse and the keyboard in a fight the mouse won: pressing j scrolls
+// the list to follow the cursor, and Qt re-reports hover when content moves
+// under a pointer that has not moved — so the cursor was pulled straight back
+// to whatever the mouse happened to be resting on, and j went nowhere.
 Column {
   id: root
 
@@ -17,13 +24,25 @@ Column {
   property string cursorId: ""
 
   signal messageActivated(string id)
-  signal rowHovered(string id, bool isHovered)
   signal menuRequested(string id, real sceneX, real sceneY)
 
   width: parent ? parent.width : 0
   spacing: Style.space(2)
 
+  // Where a row sits in this column's own coordinates, so the panel's scroller
+  // can bring it into view. Found by index rather than by asking the rows which
+  // one holds the cursor: the answer must not wait on a binding to propagate.
+  function boundsFor(id) {
+    if (!root.service) return null
+    var index = Model.indexById(root.service.messages, id)
+    if (index < 0) return null
+    var item = rows.itemAt(index)
+    if (!item) return null
+    return ({ y: item.y, height: item.height })
+  }
+
   Repeater {
+    id: rows
     model: root.service.messages
 
     MessageRow {
@@ -36,15 +55,22 @@ Column {
       panelFontFamily: root.panelFontFamily
       hasCursor: root.cursorId === modelData.id
       selected: root.service.selectedId === modelData.id
+      canArchive: root.service.canArchive
       onActivated: root.messageActivated(modelData.id)
       onStarToggled: root.service.toggleStar(modelData.id)
       onArchiveRequested: root.service.act(modelData.id, "archive")
       onTrashRequested: root.service.act(modelData.id, "trash")
-      onHovered: function(isHovered) { root.rowHovered(modelData.id, isHovered) }
       onMenuRequested: function(sceneX, sceneY) {
         root.menuRequested(modelData.id, sceneX, sceneY)
       }
     }
+  }
+
+  ListSkeleton {
+    width: parent.width
+    visible: Model.showInitialListSkeleton(root.service.listLoading,
+      root.service.messages.length)
+    textColor: root.textColor
   }
 
   // Three states share this slot, and only one of them is an error: still
@@ -52,17 +78,16 @@ Column {
   Item {
     width: parent.width
     visible: root.service.messages.length === 0
+      && !Model.showInitialListSkeleton(root.service.listLoading, 0)
     implicitHeight: Style.space(70)
 
     Text {
       anchors.centerIn: parent
       width: parent.width - Style.space(20)
       horizontalAlignment: Text.AlignHCenter
-      text: root.service.listLoading
-        ? "Loading…"
-        : (root.service.listLoaded
+      text: root.service.listLoaded
           ? (root.service.searchQuery !== "" ? "Nothing matches that search" : "Nothing here")
-          : "")
+          : ""
       color: root.dimColor
       font.family: root.panelFontFamily
       font.pixelSize: Style.font.bodySmall
@@ -72,7 +97,7 @@ Column {
 
   Item {
     width: parent.width
-    visible: root.service.hasMore || root.service.messages.length > 0
+    visible: Model.showListFooter(root.service.messages.length)
     implicitHeight: Style.space(30)
 
     Text {

@@ -1,30 +1,10 @@
 const assert = require("assert")
 const { load, deepEqual } = require("./load")
 
-const model = load("Model.js")
+const model = load("account/Model.js")
 
-// ------------------------------------------------------------- mailboxes
-
-assert.strictEqual(model.mailbox("inbox").query, "in:inbox")
-assert.strictEqual(model.mailbox("unread").query, "in:inbox is:unread category:primary")
-assert.strictEqual(model.mailbox("nonsense").key, "inbox", "an unknown key falls back to the inbox")
-assert.strictEqual(model.mailboxIndex("starred"), 2)
-
-// The sidebar is icon-first, so every mailbox needs a glyph that ActionIcon
-// actually draws. A missing one renders as nothing at all.
-const DRAWN = ["inbox", "unread", "star", "send", "archive", "trash"]
-for (const box of model.MAILBOXES) {
-  assert.ok(DRAWN.indexOf(box.icon) >= 0, box.key + " has no drawable icon: " + box.icon)
-  assert.ok(box.label.length > 0, box.key + " needs a label for its tooltip")
-}
-assert.strictEqual(model.mailboxIndex(""), 0)
-
-// A typed search replaces the mailbox query outright rather than being ANDed
-// onto it: searching from the Trash view should search all mail, the way
-// Gmail's own search box does.
-assert.strictEqual(model.mailboxQuery("inbox", ""), "in:inbox")
-assert.strictEqual(model.mailboxQuery("trash", "from:jane"), "from:jane")
-assert.strictEqual(model.mailboxQuery("inbox", "   "), "in:inbox")
+// The mailboxes moved to Provider.js along with everything else that differs
+// between mail services; tests/test_provider.js covers them there.
 
 // ------------------------------------------------------------ setup state
 
@@ -38,10 +18,31 @@ assert.strictEqual(model.setupState(null), "tools_missing")
 // Missing tools have to be named. "Something is missing" is not actionable.
 assert.ok(model.setupDetail("tools_missing", ["socat", "secret-tool"]).indexOf("socat, secret-tool") > 0)
 assert.strictEqual(model.setupHeadline("ready"), "")
+assert.strictEqual(model.setupHeadline("signed_out"), "Sign in to Gmail",
+  "an account with no provider recorded is a Gmail account")
+assert.strictEqual(model.setupHeadline("signed_out", "IMAP"), "Sign in to IMAP")
+assert.strictEqual(model.setupHeadline("no_credentials", "IMAP", "password"),
+  "Add this mailbox", "only one of the two sends anyone to a Cloud console")
+assert.strictEqual(model.setupHeadline("no_credentials", "Gmail", "oauth"),
+  "Connect a Google Cloud project")
+// The unavailable detail comes from the provider, because only it knows why.
+assert.strictEqual(model.setupDetail("unavailable", [], "no API yet", "HEY"), "no API yet")
+assert.strictEqual(model.setupActionLabel("unavailable", "HEY"), "",
+  "there is no button that would help")
 assert.strictEqual(model.setupActionLabel("ready"), "")
 // The label opens a multi-step page, which is what the trailing ellipsis says.
 assert.ok(model.setupActionLabel("no_credentials").endsWith("..."))
 assert.strictEqual(model.setupActionLabel("signing_in"), "Cancel")
+assert.ok(model.setupActionLabel("no_credentials", "IMAP", "password").endsWith("..."))
+
+// Rebuilding an account briefly leaves the service with no current host. The
+// edit page keeps the provider it opened for instead of following the
+// service's temporary Gmail fallback.
+assert.strictEqual(model.setupProvider("imap", "gmail"), "imap")
+assert.strictEqual(model.setupProvider("", "imap"), "imap")
+// An IMAP sign-in never opens a browser, so it must not say it will.
+assert.ok(model.setupDetail("signing_in", [], "", "IMAP", "password").indexOf("browser") < 0)
+assert.ok(model.setupDetail("signing_in", [], "", "Gmail", "oauth").indexOf("browser") > 0)
 
 // ------------------------------------------------------- list consistency
 //
@@ -82,6 +83,17 @@ assert.strictEqual(model.applyLabelChange(null, "star"), null)
 
 // ------------------------------------------------------------ list edits
 
+assert.strictEqual(model.showInitialListSkeleton(true, 0), true,
+  "an empty initial fetch uses rows shaped like the list")
+assert.strictEqual(model.showInitialListSkeleton(true, 3), false,
+  "pagination keeps the messages already on screen")
+assert.strictEqual(model.showInitialListSkeleton(false, 0), false,
+  "an empty result is not still loading")
+assert.strictEqual(model.showListFooter(0), false,
+  "an empty state must not compete with pagination controls")
+assert.strictEqual(model.showListFooter(1), true,
+  "loaded messages retain their result summary and pagination")
+
 const list = [{ id: "a", unread: true }, { id: "b", unread: false }, { id: "c", unread: true }]
 deepEqual(model.removeById(list, "b").map(entry => entry.id), ["a", "c"])
 deepEqual(model.removeById(list, "zzz").map(entry => entry.id), ["a", "b", "c"])
@@ -106,6 +118,9 @@ assert.strictEqual(model.barTooltip("ready", "me@example.com", 1), "me@example.c
 assert.strictEqual(model.barTooltip("ready", "me@example.com", 4), "me@example.com · 4 unread messages")
 assert.strictEqual(model.barTooltip("ready", "", 2), "Gmail · 2 unread messages")
 assert.strictEqual(model.barTooltip("signed_out", "me@example.com", 9), "Gmail · Sign in to Gmail")
+assert.strictEqual(model.barTooltip("signed_out", "me@example.com", 9, "IMAP"),
+  "IMAP · Sign in to IMAP")
+assert.strictEqual(model.barTooltip("ready", "", 2, "IMAP"), "IMAP · 2 unread messages")
 
 // --------------------------------------------------------------- new mail
 //
@@ -165,5 +180,162 @@ assert.strictEqual(model.pluralize(0, "message"), "0 messages")
   assert.strictEqual(model.notificationTitle({ from: { display: "" } }), "New message")
   assert.strictEqual(model.notificationTitle(null), "New message")
 }
+
+// ------------------------------------------------------------- list cursor
+
+// The cursor moves relative to itself. It used to be anchored to `selectedId`
+// — the message the reader has open — which pinned it: nothing is open in list
+// view, so every step resolved to row 0, and in the reader the anchor never
+// advanced, so the cursor moved once and then stopped.
+{
+  const rows = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }]
+
+  assert.strictEqual(model.cursorAfterOffset(rows, "", 1), "a",
+    "with no cursor yet, j starts at the top")
+  assert.strictEqual(model.cursorAfterOffset(rows, "", -1), "d",
+    "with no cursor yet, k starts at the bottom")
+
+  // The regression this exists for: pressing j repeatedly keeps moving.
+  assert.strictEqual(model.cursorAfterOffset(rows, "a", 1), "b")
+  assert.strictEqual(model.cursorAfterOffset(rows, "b", 1), "c")
+  assert.strictEqual(model.cursorAfterOffset(rows, "c", 1), "d")
+  assert.strictEqual(model.cursorAfterOffset(rows, "d", 1), "d",
+    "the last row is where moving down stops")
+
+  assert.strictEqual(model.cursorAfterOffset(rows, "c", -1), "b")
+  assert.strictEqual(model.cursorAfterOffset(rows, "a", -1), "a",
+    "the first row is where moving up stops")
+
+  assert.strictEqual(model.cursorAfterOffset([], "a", 1), "",
+    "an empty list has nowhere to go")
+  assert.strictEqual(model.cursorAfterOffset(rows, "gone", 1), "a",
+    "a cursor whose message left the list starts over rather than sticking")
+  assert.strictEqual(model.cursorAfterOffset(rows, "a", 0), "a",
+    "a zero step is a no-op, not a jump to the top")
+}
+
+// --------------------------------------------------- keeping the cursor seen
+
+// The list is a Column in a Flickable rather than a ListView — the panel
+// already owns a scroller — so there is no positionViewAtIndex, and keyboard
+// movement has to say where the scroller goes itself.
+{
+  // A 100-tall viewport over 500 of content, rows 20 tall, 4px of margin.
+  const view = 100
+  const content = 500
+  const pad = 4
+
+  assert.strictEqual(
+    model.contentYToReveal(0, view, 40, 20, content, pad), 0,
+    "a row already on screen does not move the list under the reader")
+
+  assert.strictEqual(
+    model.contentYToReveal(0, view, 90, 20, content, pad), 14,
+    "a row off the bottom scrolls just far enough, plus the margin")
+
+  assert.strictEqual(
+    model.contentYToReveal(200, view, 180, 20, content, pad), 176,
+    "a row off the top scrolls back to it, plus the margin")
+
+  assert.strictEqual(
+    model.contentYToReveal(10, view, 0, 20, content, pad), 0,
+    "the top of the list is as far up as it goes: no negative offset")
+
+  assert.strictEqual(
+    model.contentYToReveal(380, view, 480, 20, content, pad), 400,
+    "the bottom clamps to the last screenful rather than scrolling past it")
+
+  assert.strictEqual(
+    model.contentYToReveal(0, view, 40, 300, content, pad), 36,
+    "a row taller than the viewport shows its top rather than its bottom")
+
+  assert.strictEqual(
+    model.contentYToReveal(0, 500, 40, 20, 400, pad), 0,
+    "content shorter than the viewport never scrolls")
+}
+
+
+// ------------------------------------------- the cursor outliving its message
+
+// Two ways a cursor stops pointing at anything: the row it is on is acted on
+// and leaves, or the whole list is replaced under it by a mailbox switch, a
+// search, or a refresh. Both used to leave the cursor on a message that is no
+// longer there, and cursorAfterOffset restarts at the top from that — so one
+// archive sent the next j back to the first row.
+{
+  const rows = [{ id: "a" }, { id: "b" }, { id: "c" }]
+
+  // Acting on a row: the cursor takes the row's place, which is the one below.
+  assert.strictEqual(model.cursorAfterRemoval(rows, "a"), "b")
+  assert.strictEqual(model.cursorAfterRemoval(rows, "b"), "c")
+  // Except at the end, where there is nothing below and the one above is where
+  // the eye already is.
+  assert.strictEqual(model.cursorAfterRemoval(rows, "c"), "b")
+  assert.strictEqual(model.cursorAfterRemoval([{ id: "only" }], "only"), "",
+    "emptying the list leaves no cursor to hold")
+  assert.strictEqual(model.cursorAfterRemoval(rows, "gone"), "",
+    "a cursor that is already adrift has no neighbour to inherit")
+  assert.strictEqual(model.cursorAfterRemoval([], "a"), "")
+
+  // A list replaced underneath: keep the cursor if its message survived the
+  // reload, otherwise start at the top.
+  assert.strictEqual(model.cursorAfterReload(rows, "b"), "b",
+    "a refresh that kept the message keeps the cursor")
+  assert.strictEqual(model.cursorAfterReload(rows, "gone"), "a",
+    "a mailbox switch lands on the first row rather than nowhere")
+  assert.strictEqual(model.cursorAfterReload(rows, ""), "a",
+    "and so does a list arriving for the first time")
+  assert.strictEqual(model.cursorAfterReload([], "b"), "",
+    "an empty mailbox has no row to sit on")
+}
+
+// One numbered list over the rail: mailboxes first, then the labels the server
+// reported, and no number at all past the tenth row.
+{
+  const boxes = [
+    { key: "inbox", label: "Inbox" },
+    { key: "unread", label: "Unread" },
+    { key: "sent", label: "Sent" }
+  ]
+  const labels = [
+    { id: "SYS", name: "Category", rawName: "Category", system: true },
+    { id: "L1", name: "Work", rawName: "Work" },
+    { id: "L2", name: "Bills", rawName: "Bills" }
+  ]
+  const slots = model.sidebarSlots(boxes, labels, 10)
+  assert.strictEqual(slots.length, 5, "system labels are not rows and get no number")
+  assert.strictEqual(slots[0].kind, "mailbox")
+  assert.strictEqual(slots[0].key, "inbox")
+  assert.strictEqual(slots[3].kind, "label")
+  assert.strictEqual(slots[3].id, "L1")
+  assert.strictEqual(slots[3].name, "Work", "the name a provider selects a label by")
+
+  assert.strictEqual(model.slotNumberOf(slots, "mailbox", "inbox"), 1)
+  assert.strictEqual(model.slotNumberOf(slots, "mailbox", "sent"), 3)
+  assert.strictEqual(model.slotNumberOf(slots, "label", "L2"), 5)
+  assert.strictEqual(model.slotNumberOf(slots, "label", "SYS"), 0)
+  assert.strictEqual(model.slotNumberOf(slots, "mailbox", "L1"), 0,
+    "a key and an id are not the same handle")
+  assert.strictEqual(model.slotNumberOf([], "mailbox", "inbox"), 0)
+
+  // The ceiling is where a row stops having a key, not where the rail stops.
+  const many = []
+  for (let i = 0; i < 14; i++) many.push({ id: "L" + i, name: "n" + i, rawName: "n" + i })
+  assert.strictEqual(model.sidebarSlots(boxes, many, 10).length, 10)
+  assert.strictEqual(model.slotNumberOf(model.sidebarSlots(boxes, many, 10), "label", "L7"), 0,
+    "past the tenth row there is no digit left to offer")
+  assert.strictEqual(model.sidebarSlots(null, null, 10).length, 0)
+}
+
+// The switcher's cursor wraps where the message list clamps: a menu of two or
+// three rows that stopped at the bottom would make `j` do nothing on the row
+// you use most.
+assert.strictEqual(model.wrappedIndex(0, 1, 3), 1)
+assert.strictEqual(model.wrappedIndex(2, 1, 3), 0, "past the last row comes back to the first")
+assert.strictEqual(model.wrappedIndex(0, -1, 3), 2, "and backwards off the top wraps too")
+assert.strictEqual(model.wrappedIndex(1, 0, 3), 1)
+assert.strictEqual(model.wrappedIndex(0, 1, 1), 0, "one mailbox has nowhere to go")
+assert.strictEqual(model.wrappedIndex(0, 1, 0), 0, "and no mailboxes must not divide by zero")
+assert.strictEqual(model.wrappedIndex(-1, 1, 3), 0)
 
 console.log("test_model.js ok")

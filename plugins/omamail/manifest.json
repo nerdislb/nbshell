@@ -2,10 +2,10 @@
   "schemaVersion": 2,
   "id": "omamail",
   "name": "Omamail",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "author": "Jason Lee <huacnlee@gmail.com>",
   "license": "MIT",
-  "description": "Read, triage, and reply to Gmail in a native nbshell window using the official Gmail API.",
+  "description": "Read, triage, and reply to Gmail and IMAP mail in a native nbshell window.",
   "kinds": [
     "service",
     "bar-widget",
@@ -19,12 +19,13 @@
   },
   "barWidget": {
     "displayName": "Omamail",
-    "description": "Unread count in the bar; the mailbox itself opens as its own window.",
+    "description": "Unread mail count in the bar; Gmail and IMAP mailboxes open in a native window.",
     "category": "Communication",
-    "aliases": [
-      "gmail",
+      "aliases": [
       "mail",
       "email",
+      "gmail",
+      "imap",
       "inbox"
     ],
     "allowMultiple": false,
@@ -62,7 +63,7 @@
         "type": "string",
         "label": "Default search",
         "defaultValue": "in:inbox",
-        "description": "Any Gmail search operator, for example `in:inbox -category:promotions`."
+        "description": "Gmail accounts accept Gmail search operators; IMAP accounts accept IMAP SEARCH criteria."
       },
       {
         "key": "notifyNewMail",
@@ -83,7 +84,7 @@
         "max": 65535,
         "step": 1,
         "defaultValue": 9481,
-        "description": "Loopback port used once during Google sign-in. Change it only if something else already listens there."
+        "description": "Loopback port used once during Google sign-in. IMAP accounts do not use it."
       },
       {
         "key": "openOnClick",

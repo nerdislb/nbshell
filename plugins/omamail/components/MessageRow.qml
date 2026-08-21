@@ -13,6 +13,9 @@ Rectangle {
   required property color accentColor
   required property color dimColor
   required property string panelFontFamily
+  // Passed down rather than read off a service: a row draws one message and
+  // has no other use for one.
+  property bool canArchive: true
   property bool hasCursor: false
   property bool selected: false
 
@@ -21,7 +24,6 @@ Rectangle {
   signal archiveRequested()
   signal trashRequested()
   signal menuRequested(real sceneX, real sceneY)
-  signal hovered(bool isHovered)
 
   readonly property bool hot: mouse.containsMouse || hasCursor
 
@@ -37,8 +39,6 @@ Rectangle {
     anchors.fill: parent
     hoverEnabled: true
     acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
-    onEntered: root.hovered(true)
-    onExited: root.hovered(false)
     onClicked: function(event) {
       if (event.button === Qt.RightButton) {
         var scene = mapToGlobal(event.x, event.y)
@@ -159,7 +159,10 @@ Rectangle {
     }
 
     IconButton {
-      visible: root.hot
+      // No archive button where the account has nowhere to archive to. On IMAP
+      // that is a move to a folder, and a server without one would have this
+      // quietly do nothing.
+      visible: root.hot && root.canArchive
       iconName: "archive"
       tooltipText: "Archive · e"
       foreground: root.dimColor

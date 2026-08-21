@@ -24,9 +24,10 @@ from or were adapted from other MIT-licensed projects:
   uses an independent Niri-native backend and does not use its Hyprland/Lua
   implementation.
 - The bundled Omamail port comes from Jason Lee's MIT-licensed
-  [Omamail](https://github.com/huacnlee/omamail). Its Gmail/OAuth implementation
-  and security tests are retained; nbshell supplies the host lifecycle and
-  theme adapter. The upstream license is stored in `plugins/omamail/LICENSE`.
+  [Omamail](https://github.com/huacnlee/omamail). Its Gmail, IMAP/SMTP,
+  credential-storage, and message-sanitization implementations and tests are
+  retained; nbshell supplies the host lifecycle, bar widget, and theme adapter.
+  The upstream license is stored in `plugins/omamail/LICENSE`.
 - The bundled YouTube Music port comes from rlimberger's MIT-licensed
   [Omarchy YouTube Music](https://github.com/rlimberger/omarchy-ytmusic).
   nbshell replaces the Omarchy host integration and leaves its optional

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls as QQC
 import qs.Commons
 import qs.Ui
+import "../account/Model.js" as Model
 
 // The list of mailboxes, opened from the user bar.
 //
@@ -24,9 +25,14 @@ Item {
 
   readonly property bool opened: menu.opened
 
+  // Where the keyboard is standing, which is not where the mouse is: hover is
+  // drawn by the row itself and never written here. Qt re-reports hover when
+  // content moves under a still pointer, and a hover that moved this would drag
+  // the cursor back to whatever the pointer happened to rest on.
+  property int cursorIndex: 0
+
   signal accountChosen(int index)
   signal addAccountRequested()
-  signal removeAccountRequested(int index)
   signal manageRequested()
 
   anchors.fill: parent
@@ -76,6 +82,29 @@ Item {
 
   function close() { menu.close() }
 
+  function moveCursor(delta) {
+    var count = root.accounts ? root.accounts.length : 0
+    if (count === 0) return
+    cursorIndex = Model.wrappedIndex(cursorIndex, delta, count)
+  }
+
+  function chooseCursor() {
+    var count = root.accounts ? root.accounts.length : 0
+    if (cursorIndex < 0 || cursorIndex >= count) return
+    menu.close()
+    root.accountChosen(cursorIndex)
+  }
+
+  // Opening puts the keyboard on the mailbox you are already in, so the first
+  // `j` is one step away from it rather than back at the top of the list.
+  function restCursorOnActive() {
+    var accounts = root.accounts || []
+    for (var i = 0; i < accounts.length; i++) {
+      if (accounts[i].active) { cursorIndex = i; return }
+    }
+    cursorIndex = 0
+  }
+
   QQC.Popup {
     id: menu
     width: Style.space(250)
@@ -85,7 +114,10 @@ Item {
     focus: true
     closePolicy: QQC.Popup.CloseOnEscape | QQC.Popup.CloseOnPressOutside
     onHeightChanged: root.place()
-    onOpened: root.place()
+    onOpened: {
+      root.restCursorOnActive()
+      root.place()
+    }
     background: Rectangle {
       radius: Style.cornerRadius
       color: Color.popups.background
@@ -93,9 +125,35 @@ Item {
       border.color: Color.popups.border
     }
 
+    // The one place in this window that answers keys itself, and the reason is
+    // the opposite of the rule it breaks. `Keys` handlers are banned everywhere
+    // else because a window `Shortcut` beats them, so a local one looks live
+    // and never runs. Inside an open `QQC.Popup` it is the other way round: the
+    // popup takes every key before the shortcut map sees it — with `focus` true
+    // or false, bare or modified — so a `KeyRouter` binding is the thing that
+    // would look live and never run. `tst_account_switcher.qml` holds both
+    // halves of that, so the next person to reach for `survivesOverlay` finds
+    // out from a test rather than from a menu that does not move.
     contentItem: Column {
       id: rows
+      focus: true
       spacing: Style.space(2)
+
+      Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_J || event.key === Qt.Key_Down) {
+          root.moveCursor(1)
+          event.accepted = true
+        } else if (event.key === Qt.Key_K || event.key === Qt.Key_Up) {
+          root.moveCursor(-1)
+          event.accepted = true
+        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
+            || event.key === Qt.Key_O) {
+          root.chooseCursor()
+          event.accepted = true
+        }
+        // Escape is not here: the popup's own CloseOnEscape is already the one
+        // mechanism that closes it, and a second would be one too many.
+      }
 
       Repeater {
         model: root.accounts
@@ -105,12 +163,20 @@ Item {
           required property var modelData
           required property int index
 
+          readonly property bool hasCursor: root.cursorIndex === row.index
+
           width: menu.width - menu.leftPadding - menu.rightPadding
           implicitHeight: Style.space(40)
           radius: Style.cornerRadius
           color: modelData.active
             ? Style.selectedFillFor(root.textColor, root.accentColor)
-            : (rowHover.hovered ? Style.hoverFillFor(root.textColor, root.accentColor) : "transparent")
+            : (rowHover.hovered || hasCursor
+              ? Style.hoverFillFor(root.textColor, root.accentColor) : "transparent")
+          // A border rather than a third fill: the mailbox you are in already
+          // owns the selected one, and the keyboard has to be visible standing
+          // on that row too.
+          border.width: hasCursor ? Style.normalBorderWidth : 0
+          border.color: Style.hoverBorderFor(root.textColor, root.accentColor)
 
           Rectangle {
             id: rowAvatar
@@ -181,8 +247,8 @@ Item {
 
           Text {
             id: rowCount
-            anchors.right: rowRemove.left
-            anchors.rightMargin: Style.space(4)
+            anchors.right: parent.right
+            anchors.rightMargin: Style.space(10)
             anchors.verticalCenter: parent.verticalCenter
             visible: row.modelData.unread > 0
             text: row.modelData.unread > 999 ? "999+" : row.modelData.unread
@@ -190,25 +256,6 @@ Item {
             font.family: root.panelFontFamily
             font.pixelSize: Style.font.caption
             font.bold: true
-          }
-
-          IconButton {
-            id: rowRemove
-            anchors.right: parent.right
-            anchors.rightMargin: Style.space(4)
-            anchors.verticalCenter: parent.verticalCenter
-            visible: rowHover.hovered && root.accounts.length > 1
-            iconName: "close"
-            tooltipText: "Remove this account"
-            foreground: root.dimColor
-            hoverColor: root.urgentColor
-            iconSize: Style.font.iconSmall
-            size: Style.space(20)
-            fontFamily: root.panelFontFamily
-            onClicked: {
-              menu.close()
-              root.removeAccountRequested(row.index)
-            }
           }
 
           HoverHandler { id: rowHover; cursorShape: Qt.PointingHandCursor }
@@ -237,6 +284,14 @@ Item {
         onActivated: {
           menu.close()
           root.addAccountRequested()
+        }
+      }
+
+      MenuRow {
+        text: "Manage accounts..."
+        onActivated: {
+          menu.close()
+          root.manageRequested()
         }
       }
     }

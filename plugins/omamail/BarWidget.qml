@@ -7,12 +7,13 @@ Cell {
   id: root
   readonly property var mail: Plugins.serviceFor("omamail")
   shown: true
-  quiet: mail && mail.ready && mail.unreadCount === 0
+  quiet: mail && mail.anyAccountReady && mail.unreadTotal === 0
+  active: !!mail && mail.windowOpen
   slotChars: 2
   interactive: true
   label: "Mail"
   icon: String.fromCodePoint(0xf0e0)
-  text: mail && mail.unreadCount > 0 ? String(mail.unreadCount) : ""
-  color: mail && mail.unreadCount > 0 ? Theme.accent : Theme.textDim
+  text: mail && mail.unreadTotal > 0 ? String(mail.unreadTotal) : ""
+  color: mail && mail.unreadTotal > 0 ? Theme.accent : Theme.textDim
   onClicked: Plugins.toggle("omamail", "{}")
 }

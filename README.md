@@ -294,10 +294,11 @@ nbshell gaming remove steam
   control, so Voxtype's evdev hotkey can remain disabled.
 - Omamail is bundled but disabled by default. Enable it with
   `nbshell plugin enable omamail`, restart nbshell, and open it with
-  `Mod+Ctrl+Shift+G`. Its setup page guides you through creating your own Google
-  OAuth client; refresh tokens stay in the desktop keyring. It currently
-  supports Gmail through the official Gmail API, not generic IMAP accounts.
-  The optional runtime tools are `socat`, `openssl`, `xdg-open`, and
+  `Mod+Ctrl+Shift+G`. Gmail uses the official Gmail API and its setup page
+  guides you through creating your own Google OAuth client. IMAP/SMTP accounts
+  work with Fastmail, iCloud, Outlook, Yahoo, Zoho, GMX, Proton Bridge, and
+  custom servers. Refresh tokens and mail passwords stay in the desktop
+  keyring. Runtime tools are `curl`, `socat`, `openssl`, `xdg-open`, and
   `secret-tool` from `libsecret`.
 - The native YouTube Music player is also bundled and disabled by default.
   Install `mpv` and `yt-dlp`, enable it with `nbshell plugin enable ytmusic`,
