@@ -100,6 +100,7 @@ CURSOR_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/cursor
 KEYS_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/keys.py"
 PIP_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/zen-pip.py"
 AGENT_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/agents.py"
+GAMING_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/gaming.sh"
 
 cursor_status() {
     local jetzt
@@ -445,6 +446,10 @@ nbshell -- an independent Quickshell desktop shell for niri
   nbshell bongo             Bongo Cat: status, test, on, off, allow, revoke
   nbshell clip              clipboard history (toggle, list, clear)
   nbshell cal               calendar (also: next, sync, status)
+  nbshell gaming status     show installed and available gaming tools
+  nbshell gaming install <item>
+  nbshell gaming remove <item>
+                            explicit, confirmed gaming setup actions
 
   nbshell todo              list tasks
   nbshell todo <text>       add a task (also: todo add <text>)
@@ -791,6 +796,9 @@ for b in d["binds"]:
         else
             ipc dashboard "${1:-toggle}"
         fi
+        ;;
+    gaming|games)
+        bash "$GAMING_TOOL" "${1:-status}" "${2:-}"
         ;;
     bongo|cat)
         case "${1:-status}" in

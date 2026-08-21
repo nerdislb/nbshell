@@ -108,6 +108,16 @@ window-rule {
     shadow { off; }
 }
 
+// Gaming setup is deliberately visible in a terminal. Keep that confirmation
+// window compact and above the desktop while package managers are running.
+window-rule {
+    match title="nbshell-gaming"
+    open-floating true
+    open-focused true
+    default-column-width { proportion 0.64; }
+    default-window-height { proportion 0.72; }
+}
+
 // Zens natives Videofenster soll sofort ueber dem Tiling schweben. Die
 // Feingeometrie uebernimmt zen-pip.py, sobald das Fenster erscheint.
 window-rule {

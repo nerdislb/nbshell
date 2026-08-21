@@ -216,6 +216,25 @@ the shell source.
 
 ## Optional features
 
+### Gaming setup
+
+Open `Gaming` from the main menu (`Mod+Space`) to install or remove Steam,
+RetroArch, Prism Launcher for Minecraft, NVIDIA GeForce NOW, Xbox Cloud
+Gaming, Xbox controller support, Battle.net support through Lutris, Lutris,
+Heroic, and Moonlight. A RetroArch game can also be added to the application
+launcher.
+
+Every setup action opens a terminal, shows what it will change, and asks for
+confirmation. Package installs use the Arch repositories first and `paru` or
+`yay` only when an AUR package is required. Personal game data is kept during
+normal removal unless the terminal asks about a specific directory.
+
+```bash
+nbshell gaming status
+nbshell gaming install steam
+nbshell gaming remove steam
+```
+
 - Calendar data requires `khal`. Online calendar synchronization can be added
   with `vdirsyncer`.
 - Task and wallpaper files can be synchronized with Syncthing.

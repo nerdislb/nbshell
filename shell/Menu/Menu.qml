@@ -161,6 +161,37 @@ PanelWindow {
             ]
         },
         {
+            "key": "g", "label": "Gaming", "description": "Install and remove game launchers and streaming tools", "icon": Icons.cp(0xF11B),
+            "sub": [
+                { "key": "i", "label": "Install", "icon": Icons.download, "sub": [
+                    { "key": "s", "label": "Steam", "icon": "", "run": () => root.term("nbshell gaming install steam") },
+                    { "key": "r", "label": "RetroArch", "icon": "󰯉", "run": () => root.term("nbshell gaming install retroarch") },
+                    { "key": "m", "label": "Minecraft", "icon": "󰍳", "run": () => root.term("nbshell gaming install minecraft") },
+                    { "key": "n", "label": "NVIDIA GeForce NOW", "icon": "󰢹", "run": () => root.term("nbshell gaming install geforce-now") },
+                    { "key": "x", "label": "Xbox Cloud Gaming", "icon": "", "run": () => root.term("nbshell gaming install xbox-cloud") },
+                    { "key": "c", "label": "Xbox Controllers", "icon": "󰂯", "run": () => root.term("nbshell gaming install xbox-controllers") },
+                    { "key": "b", "label": "Battle.net", "icon": "", "run": () => root.term("nbshell gaming install battlenet") },
+                    { "key": "l", "label": "Lutris", "icon": "", "run": () => root.term("nbshell gaming install lutris") },
+                    { "key": "h", "label": "Heroic (Epic Games)", "icon": "󱓟", "run": () => root.term("nbshell gaming install heroic") },
+                    { "key": "o", "label": "Moonlight", "icon": Icons.play, "run": () => root.term("nbshell gaming install moonlight") },
+                    { "key": "a", "label": "RetroArch game launcher", "icon": "󰯉", "run": () => root.term("nbshell gaming retro-launcher") }
+                ] },
+                { "key": "r", "label": "Remove", "icon": Icons.cp(0xF01B4), "sub": [
+                    { "key": "s", "label": "Steam", "icon": "", "run": () => root.term("nbshell gaming remove steam") },
+                    { "key": "r", "label": "RetroArch", "icon": "󰯉", "run": () => root.term("nbshell gaming remove retroarch") },
+                    { "key": "m", "label": "Minecraft", "icon": "󰍳", "run": () => root.term("nbshell gaming remove minecraft") },
+                    { "key": "n", "label": "NVIDIA GeForce NOW", "icon": "󰢹", "run": () => root.term("nbshell gaming remove geforce-now") },
+                    { "key": "x", "label": "Xbox Cloud Gaming", "icon": "", "run": () => root.term("nbshell gaming remove xbox-cloud") },
+                    { "key": "c", "label": "Xbox Controllers", "icon": "󰂯", "run": () => root.term("nbshell gaming remove xbox-controllers") },
+                    { "key": "b", "label": "Battle.net", "icon": "", "run": () => root.term("nbshell gaming remove battlenet") },
+                    { "key": "l", "label": "Lutris", "icon": "", "run": () => root.term("nbshell gaming remove lutris") },
+                    { "key": "h", "label": "Heroic (Epic Games)", "icon": "󱓟", "run": () => root.term("nbshell gaming remove heroic") },
+                    { "key": "o", "label": "Moonlight", "icon": Icons.play, "run": () => root.term("nbshell gaming remove moonlight") }
+                ] },
+                { "key": "s", "label": "Status", "description": "Show installed and available tools", "icon": Icons.cp(0xF035C), "run": () => root.term("nbshell gaming status") }
+            ]
+        },
+        {
             "key": "l", "label": "Look & Feel", "description": "Themes, wallpaper, bar, and settings", "icon": Icons.palette,
             "sub": [
                 { "key": "t", "label": "Choose theme", "icon": Icons.palette, "run": () => Runtime.themePickerOpen = true },
