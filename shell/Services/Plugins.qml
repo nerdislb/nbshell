@@ -172,12 +172,6 @@ Singleton {
             "category": "System"
         },
         {
-            "id": "devices",
-            "name": "Device batteries",
-            "description": "mouse and headphones; only appears when battery is low",
-            "category": "System"
-        },
-        {
             "id": "nearby",
             "name": "In der Naehe",
             "description": "Clipboard und Bilder ans Telefon (LocalSend)",

@@ -79,8 +79,6 @@ Item {
             return clockComponent;
         case "caffeine":
             return caffeineComponent;
-        case "devices":
-            return devicesComponent;
         case "nearby":
             return nearbyComponent;
         case "workspaces":
@@ -149,12 +147,6 @@ Item {
         id: caffeineComponent
 
         Caffeine {}
-    }
-
-    Component {
-        id: devicesComponent
-
-        Devices {}
     }
 
     Component {
