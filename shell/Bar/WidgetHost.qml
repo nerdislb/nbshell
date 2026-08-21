@@ -20,6 +20,11 @@ Item {
     property string screenName: ""
 
     readonly property var item: loader.item
+    readonly property bool hasActivityWidget: Config.collapsedWidgets.indexOf("notifications") >= 0
+        || Config.leftWidgets.indexOf("notifications") >= 0
+        || Config.centerWidgets.indexOf("notifications") >= 0
+        || Config.rightWidgets.indexOf("notifications") >= 0
+    readonly property bool redundantClipboard: root.widgetName === "clipboard" && root.hasActivityWidget
 
     width: item ? item.width : 0
     height: item ? item.height : 0
@@ -28,7 +33,7 @@ Item {
     // immer die des Elternteils. Die Huelle wuerde also ihre eigene Antwort
     // lesen -- beide blieben fuer immer unsichtbar. Bausteine, die sich
     // ausblenden wollen, setzen deshalb `shown`.
-    visible: !!item && item.shown && width > 0
+    visible: !!item && item.shown && !root.redundantClipboard && width > 0
 
     // Leer heisst: eingebaut. Sonst der Pfad zur QML-Datei des Plugins.
     readonly property string pluginSource: Plugins.source(root.widgetName)
@@ -37,6 +42,7 @@ Item {
         id: loader
 
         anchors.verticalCenter: parent.verticalCenter
+        active: !root.redundantClipboard
 
         // Nur eines von beiden -- wer `source` setzt, loescht `sourceComponent`
         // und umgekehrt.
@@ -108,7 +114,9 @@ Item {
         case "bongo":
             return bongoComponent;
         case "clipboard":
-            return clipComponent;
+            // Compatibility alias for configurations created before the
+            // notification and clipboard panels were combined.
+            return notificationsComponent;
         case "capture":
             return captureComponent;
         case "ai":
@@ -236,11 +244,6 @@ Item {
     Component {
         id: mediaComponent
         Media {}
-    }
-
-    Component {
-        id: clipComponent
-        Clip {}
     }
 
     Component {

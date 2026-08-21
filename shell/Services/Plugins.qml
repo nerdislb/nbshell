@@ -113,14 +113,8 @@ Singleton {
         },
         {
             "id": "notifications",
-            "name": "Notifications",
-            "description": "count and archive",
-            "category": "System"
-        },
-        {
-            "id": "clipboard",
-            "name": "Clipboard",
-            "description": "Verlauf",
+            "name": "Notifications & Clipboard",
+            "description": "messages and clipboard history",
             "category": "System"
         },
         {

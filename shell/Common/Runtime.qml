@@ -43,6 +43,9 @@ Singleton {
     // Praefix nicht jedes Mal tippt.
     property string launcherPrefill: ""
     property bool notifyOpen: false
+    // Shared bar panel for notifications and clipboard history. The separate
+    // booleans remain stable IPC entry points and select the matching tab.
+    property string activityTab: "notifications"
     property bool notificationCenterOpen: false
     property bool powerOpen: false
     property bool clipOpen: false
