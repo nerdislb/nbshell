@@ -1,0 +1,30 @@
+# The nbshell manual
+
+nbshell is an independent Quickshell desktop for the Niri compositor. This
+manual explains the system in small, practical chapters. It starts with the
+things needed for a first installation and will grow alongside the project.
+
+> nbshell is still in active development. Test it before relying on it on a
+> production machine, and keep a copy of your existing configuration.
+
+## Start here
+
+1. [Getting started](getting-started.md)
+2. [Features](features.md)
+3. [Phone webcam](phone-webcam.md)
+
+## Planned chapters
+
+- Navigation and key bindings
+- The bar, island, pill, and modules
+- Dashboard and system controls
+- Themes and wallpapers
+- Niri window management and the grid-scroll mode
+- AI agents and local models
+- Gaming and optional applications
+- Plugins and customization
+- Updating, backup, and recovery
+- Troubleshooting and FAQ
+
+The repository README remains the short project overview. This directory is
+the long-form source for a future documentation website.

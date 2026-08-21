@@ -11,6 +11,16 @@ testing, and the direction of the project remain human-led.
 > nbshell is still under active development. It already works as a daily
 > desktop, but commands, configuration, and features may still change.
 
+## Documentation
+
+- [Start here](docs/README.md) — the manual and its current chapters
+- [Getting started](docs/getting-started.md) — install, first login, and checks
+- [Feature guide](docs/features.md) — what each part of nbshell does
+- [Phone webcam](docs/phone-webcam.md) — use an Android camera in OBS or calls
+
+The manual is intentionally split into short pages so it can grow into a clear
+online guide without turning this README into a wall of text.
+
 ## What does it include?
 
 - Island, pill, or full-width bar with freely arranged modules
