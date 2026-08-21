@@ -136,6 +136,16 @@ window-rule {
     default-floating-position x=16 y=16 relative-to="bottom-right"
 }
 
+// Low-latency preview for the phone webcam. It reads the same V4L2 device as
+// OBS and stays floating so framing can be checked without changing layouts.
+window-rule {
+    match app-id="mpv" title="^Phone Camera Preview$"
+    open-floating true
+    open-focused true
+    default-column-width { proportion 0.48; }
+    default-floating-position x=16 y=16 relative-to="bottom-right"
+}
+
 // All agents launched through `nbshell agent` share a predictable prefix.
 // They remain tiled like normal development terminals; the rule only makes
 // them recognizable to Niri and future session/focus integrations.

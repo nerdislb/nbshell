@@ -321,6 +321,67 @@ Cell {
                 font.pixelSize: Theme.fontSize - 1
             }
 
+            // ── PHONE CAMERA ──────────────────────────────────────────────
+            Rule {
+                rowWidth: panel.rowWidth
+                label: "PHONE CAMERA · WEBCAM"
+            }
+
+            Line {
+                width: panel.rowWidth
+                text: {
+                    if (!Phone.available)
+                        return "Install nbphone to use the phone camera";
+                    if (!Phone.webcamReady)
+                        return "One-time setup required for Phone Camera";
+                    if (Phone.cameraActive)
+                        return Phone.cameraMode.toUpperCase() + " CAMERA  •  LIVE  •  " + Phone.cameraDevice;
+                    if (!Phone.connected)
+                        return "Connect the phone through USB or wireless ADB";
+                    return "Phone Camera  •  " + Phone.cameraDevice + "  •  ready for OBS";
+                }
+                color: Phone.cameraActive ? Theme.green : (Phone.webcamReady && Phone.connected ? Theme.fg : Theme.yellow)
+                wrapMode: Text.WordWrap
+            }
+
+            Row {
+                spacing: Theme.cellW
+                visible: Phone.available
+
+                ActionButton {
+                    text: "Back"
+                    busy: Phone.busy
+                    enabled: Phone.connected && Phone.webcamReady && (!Phone.cameraActive || Phone.cameraMode !== "back")
+                    onTriggered: Phone.camera("back")
+                }
+
+                ActionButton {
+                    text: "Front"
+                    busy: Phone.busy
+                    enabled: Phone.connected && Phone.webcamReady && (!Phone.cameraActive || Phone.cameraMode !== "front")
+                    onTriggered: Phone.camera("front")
+                }
+
+                ActionButton {
+                    text: "Stop"
+                    busy: Phone.busy
+                    enabled: Phone.cameraActive
+                    onTriggered: Phone.camera("off")
+                }
+
+                ActionButton {
+                    text: "Preview"
+                    enabled: Phone.cameraActive && !Phone.busy
+                    onTriggered: Phone.previewCamera()
+                }
+
+                ActionButton {
+                    text: Phone.webcamReady ? "OBS" : "Setup"
+                    enabled: !Phone.busy
+                    onTriggered: Phone.webcamReady ? Phone.openObs() : Phone.setupCamera()
+                }
+            }
+
             // Composer (Text/Link teilen bzw. Ping mit Text)
             Line {
                 visible: panel.composer !== "" && panel.dev

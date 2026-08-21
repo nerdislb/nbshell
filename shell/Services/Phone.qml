@@ -3,10 +3,10 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.Common
 
-// Android-Spiegelung ueber das eigenstaendige `nbphone`-Werkzeug.
-// Die Shell kennt nur dessen stabile JSON-Schnittstelle; ADB- und scrcpy-
-// Details bleiben damit ausserhalb der Oberflaeche testbar.
+// Android mirroring and phone-camera streaming through the standalone
+// `nbphone` tool. The shell only consumes its stable JSON interface.
 Singleton {
     id: root
 
@@ -18,6 +18,10 @@ Singleton {
     property bool connected: false
     property bool wireless: false
     property bool mirroring: false
+    property bool webcamReady: false
+    property bool cameraActive: false
+    property string cameraMode: "off"
+    property string cameraDevice: "/dev/video10"
     property string serial: ""
     property string model: ""
     property string status: ""
@@ -51,13 +55,49 @@ Singleton {
         root.run("wireless", []);
     }
 
+    function camera(mode) {
+        // A camera restart invalidates the current V4L2 reader. Close the
+        // managed preview first; the user can reopen it after the new stream
+        // reports active.
+        Quickshell.execDetached(["systemctl", "--user", "stop", "nbphone-preview.service"]);
+        root.run("camera", [mode]);
+    }
+
+    function setupCamera() {
+        Quickshell.execDetached([Apps.terminal, "-e", "sh", "-lc",
+            root.tool + " camera setup; printf '\nPress Enter to close… '; read -r _"]);
+    }
+
+    function openObs() {
+        Quickshell.execDetached(["obs"]);
+    }
+
+    function previewCamera() {
+        if (!root.cameraActive)
+            return;
+        Quickshell.execDetached([
+            "systemd-run",
+            "--user",
+            "--unit=nbphone-preview",
+            "--collect",
+            "--property=TimeoutStopSec=2s",
+            "mpv",
+            "--title=Phone Camera Preview",
+            "--profile=low-latency",
+            "--untimed",
+            "--no-audio",
+            "--autofit=48%x48%",
+            "av://v4l2:" + root.cameraDevice
+        ]);
+    }
+
     Component.onCompleted: refresh()
 
     Timer {
         // Keep active mirroring responsive. Merely having nbphone installed
         // must not run a Python/ADB status check every five seconds forever.
-        interval: root.connected || root.mirroring ? 5000 : 60000
-        running: root.available || root.connected || root.mirroring
+        interval: root.connected || root.mirroring || root.cameraActive ? 5000 : 60000
+        running: root.available || root.connected || root.mirroring || root.cameraActive
         repeat: true
         onTriggered: root.refresh()
     }
@@ -74,6 +114,11 @@ Singleton {
                     root.connected = Boolean(data.connected);
                     root.wireless = Boolean(data.wireless);
                     root.mirroring = Boolean(data.mirroring);
+                    const camera = data.camera || {};
+                    root.webcamReady = Boolean(camera.ready);
+                    root.cameraActive = Boolean(camera.active);
+                    root.cameraMode = String(camera.mode || "off");
+                    root.cameraDevice = String(camera.device || "/dev/video10");
                     const selected = data.selected || null;
                     root.serial = selected ? String(selected.serial || "") : "";
                     root.model = selected ? String(selected.model || "") : "";
@@ -82,6 +127,9 @@ Singleton {
                     root.connected = false;
                     root.wireless = false;
                     root.mirroring = false;
+                    root.webcamReady = false;
+                    root.cameraActive = false;
+                    root.cameraMode = "off";
                 }
             }
         }

@@ -19,7 +19,7 @@ testing, and the direction of the project remain human-led.
 - Audio mixer, media controls, Bluetooth, Wi-Fi, batteries, power profiles,
   and persistent Niri display management
 - Floating Picture-in-Picture controls for Zen Browser
-- Calendar, tasks, habits, KDE Connect, and Android screen mirroring
+- Calendar, tasks, habits, KDE Connect, Android mirroring, and a phone webcam
 - Screenshots, screen recording, OCR, QR scanning, and a screen saver
 - AI usage for Codex, Claude, Antigravity, and other providers
 - Agent Center with a default-agent launcher, explicit approval profiles,
@@ -256,8 +256,12 @@ nbshell gaming remove steam
 - Calendar data requires `khal`. Online calendar synchronization can be added
   with `vdirsyncer`.
 - Task and wallpaper files can be synchronized with Syncthing.
-- Phone features require KDE Connect. Android mirroring also requires ADB,
-  `scrcpy`, and the separate `nbphone` tool.
+- Phone features require KDE Connect. Android mirroring and the optional phone
+  webcam require ADB, `scrcpy`, and the separate `nbphone` tool. Webcam setup
+  additionally installs `v4l2loopback-dkms`, matching kernel headers, and
+  exposes the phone as `/dev/video10` for OBS and conferencing apps. The Phone
+  panel can open a low-latency floating preview through `mpv` while capture is
+  active.
 - Live streaming opens OBS Studio from the Capture menu and therefore requires
   the optional `obs-studio` package. Stream credentials stay in OBS, not nbshell.
 - The herdr panel requires a separately configured read-only bridge. The shell
