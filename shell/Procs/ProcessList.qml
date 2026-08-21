@@ -72,7 +72,7 @@ PanelWindow {
         width: Math.round(Theme.cellW * 76)
         height: header.height + list.height + footer.height + Theme.cellH
 
-        accentBorder: false
+        accentBorder: true
 
         MouseArea {
             anchors.fill: parent

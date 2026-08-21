@@ -15,5 +15,5 @@ PanelSurface {
     width: Math.max(1, Math.min(preferredWidth, (parent?.width ?? preferredWidth) - edgeMarginX * 2))
     height: Math.max(1, Math.min(preferredHeight, (parent?.height ?? preferredHeight) - edgeMarginY * 2))
     anchors.centerIn: parent
-    accentBorder: false
+    accentBorder: true
 }

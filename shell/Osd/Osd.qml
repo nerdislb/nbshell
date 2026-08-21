@@ -47,7 +47,7 @@ Variants {
 
         PanelSurface {
             id: box
-            accentBorder: false
+            accentBorder: true
 
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: Config.edge === "bottom" ? parent.top : undefined

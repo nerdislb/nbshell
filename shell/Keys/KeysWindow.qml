@@ -171,7 +171,7 @@ PanelWindow {
             width: root.boxW
             height: root.boxH
 
-            accentBorder: false
+            accentBorder: true
 
             // Klicks im Kasten fallen nicht zum Schliessen durch.
             MouseArea {

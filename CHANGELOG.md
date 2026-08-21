@@ -12,6 +12,11 @@ configuration and plugin interfaces before `1.0.0`.
   the selected app directly.
 - The connection popout can connect and disconnect saved NetworkManager VPN
   and WireGuard profiles without handling their credentials itself.
+- The main menu now starts with eight focused categories, while root search
+  finds actions at every nested level alongside installed applications.
+- Menus, overlays, bar popouts, notifications, OSD surfaces, plugin popups,
+  and tooltips now share the active theme's accent frame; inner cards retain
+  neutral borders for visual hierarchy.
 
 ### Changed
 

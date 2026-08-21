@@ -120,7 +120,7 @@ PanelWindow {
 
     PanelSurface {
         id: box
-        accentBorder: false
+        accentBorder: true
 
         x: Math.round((parent.width - width) / 2)
         y: Math.round(parent.height * 0.10)

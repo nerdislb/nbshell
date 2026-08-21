@@ -10,11 +10,11 @@ QtObject {
   readonly property color urgent: Theme.red
   readonly property QtObject popups: QtObject {
     readonly property color background: Theme.panelSurface
-    readonly property color border: Theme.panelBorder
+    readonly property color border: Theme.focusBorder
   }
   readonly property QtObject tooltip: QtObject {
     readonly property color text: Theme.fg
     readonly property color background: Theme.panelSurfaceRaised
-    readonly property color border: Theme.panelBorder
+    readonly property color border: Theme.focusBorder
   }
 }

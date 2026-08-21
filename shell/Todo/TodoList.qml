@@ -136,7 +136,7 @@ PanelWindow {
 
     PanelSurface {
         id: box
-        accentBorder: false
+        accentBorder: true
 
         // Mittig oben -- bis jemand ihn wegzieht. niri kann dieses Fenster
         // nicht verschieben: es ist eine Layer-Shell-Flaeche und liegt

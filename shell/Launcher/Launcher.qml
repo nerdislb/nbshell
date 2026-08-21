@@ -157,7 +157,7 @@ PanelWindow {
         width: Math.min(parent.width - Theme.spaceXl * 4, Math.round(Theme.cellW * 92))
         height: header.height + list.height + footer.height + Theme.cellH
 
-        accentBorder: false
+        accentBorder: true
 
         // Klicks im Kasten sollen ihn nicht schliessen.
         MouseArea {

@@ -7,9 +7,11 @@ main menu, the bar, or the `nbshell` command.
 
 - Island, expanding pill, or full-width bar
 - Freely arranged and optional bar modules
-- Searchable application launcher and main menu
+- Searchable application launcher and an eight-category main menu whose root
+  search reaches nested actions and installed applications
 - Dashboard for media, calendar, tasks, habits, system information, and tools
 - Theme and wallpaper selection based on Omarchy-compatible color files
+- Theme-accent frames shared by menus, overlays, popouts, and notifications
 - Automatic palette synchronization for Zen Browser and Brave
 - Notification center, clipboard history, system tray, and on-screen displays
 

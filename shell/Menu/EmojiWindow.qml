@@ -57,7 +57,7 @@ PanelWindow {
             width: Theme.cellW * 55
             height: Theme.cellH * 28
             anchors.centerIn: parent
-            accentBorder: false
+            accentBorder: true
             MouseArea { anchors.fill: parent; onClicked: {} }
 
             Column {

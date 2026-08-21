@@ -104,7 +104,7 @@ PopupWindow {
 
     PanelSurface {
         anchors.fill: parent
-        accentBorder: false
+        accentBorder: true
 
         HoverHandler {
             id: hover

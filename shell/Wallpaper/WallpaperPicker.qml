@@ -114,7 +114,7 @@ PanelWindow {
 
         PanelSurface {
             id: box
-            accentBorder: false
+            accentBorder: true
 
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom

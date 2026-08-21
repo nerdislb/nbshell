@@ -110,8 +110,8 @@ Variants {
                     width: Theme.cellW * 48
                     height: body.implicitHeight + Theme.cellH
 
-                    accentBorder: false
-                    border.color: card.urgent ? Theme.red : Theme.panelBorder
+                    accentBorder: true
+                    border.color: card.urgent ? Theme.red : Theme.focusBorder
 
                     // Dringendes bleibt stehen, bis es jemand wegklickt.
                     Timer {

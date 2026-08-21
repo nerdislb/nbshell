@@ -116,7 +116,7 @@ PanelWindow {
         width: card.implicitWidth + Theme.cellW * 4
         height: card.implicitHeight + Theme.cellH * 2
 
-        accentBorder: false
+        accentBorder: true
 
         MouseArea {
             anchors.fill: parent

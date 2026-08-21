@@ -41,23 +41,42 @@ PanelWindow {
     property int selected: 0
     property string filterText: ""
     readonly property var levelItems: trail.length ? trail[trail.length - 1].sub : root.tree
+
+    function searchTree(entries, needle, parents, inheritedText) {
+        var matches = [];
+        for (var i = 0; i < entries.length; i++) {
+            const entry = entries[i];
+            const path = parents.concat([entry.label]);
+            const searchable = (inheritedText + " " + entry.label + " " + (entry.description || "")).toLowerCase();
+            if (entry.sub) {
+                matches = matches.concat(root.searchTree(entry.sub, needle, path, searchable));
+            } else if (searchable.indexOf(needle) >= 0) {
+                matches.push({
+                    "label": entry.label,
+                    "description": path.slice(0, -1).join(" › ") || entry.description || "Menu action",
+                    "icon": entry.icon,
+                    "run": entry.run
+                });
+            }
+        }
+        return matches;
+    }
+
     readonly property var items: {
         const needle = filterText.trim().toLowerCase();
         if (needle === "") return levelItems;
 
-        const menuMatches = levelItems.filter(e => (e.label + " " + (e.description || "")).toLowerCase().indexOf(needle) >= 0);
         if (trail.length)
-            return menuMatches;
+            return levelItems.filter(e => (e.label + " " + (e.description || "")).toLowerCase().indexOf(needle) >= 0);
 
-        // The root menu doubles as a lightweight app search. Keep submenu
-        // filtering unchanged, but put installed applications first when the
-        // user starts typing. A cap keeps short queries from growing beyond
-        // the screen; the dedicated launcher remains available for browsing.
-        const appMatches = Apps.rank(needle).slice(0, 8).map(match => ({
+        // Root search spans the complete nested menu as well as installed
+        // desktop applications. Caps keep one-letter queries on screen.
+        const appMatches = Apps.rank(needle).slice(0, 5).map(match => ({
             "label": match.entry.name,
             "description": match.entry.genericName || match.entry.comment || "Application",
             "appEntry": match.entry
         }));
+        const menuMatches = root.searchTree(root.tree, needle, [], "").slice(0, 7);
         return appMatches.concat(menuMatches);
     }
 
@@ -147,35 +166,44 @@ PanelWindow {
             "run": () => Runtime.dashboardOpen = true
         },
         {
+            "key": "w", "label": "Work & Tools", "description": "Notifications, clipboard, tasks, translation, and web apps", "icon": Icons.clipboard,
+            "sub": [
+                { "key": "n", "label": "Notifications", "description": "Search, DND, and archive", "icon": Icons.bell, "run": () => Runtime.notificationCenterOpen = true },
+                { "key": "c", "label": "Clipboard", "icon": Icons.clipboard, "run": () => Runtime.clipOpen = true },
+                { "key": "t", "label": "Todo", "icon": Icons.todo, "run": () => Runtime.todoOpen = true },
+                { "key": "h", "label": "Habits", "icon": Icons.habit, "run": () => Runtime.habitsOpen = true },
+                { "key": "e", "label": "Emoji", "description": "Search and copy locally", "icon": "😀", "run": () => Runtime.emojiOpen = true },
+                { "key": "r", "label": "Translate", "icon": "文", "run": () => Plugins.invoke("shaun.quick-translate", "toggle", "{}") },
+                { "key": "w", "label": "Web apps", "icon": Icons.cp(0xF059F), "sub": [
+                    { "key": "a", "label": "Create web app", "icon": Icons.cp(0xF0704), "run": () => root.term("$HOME/.local/bin/webapp add") },
+                    { "key": "e", "label": "Remove web app", "icon": Icons.cp(0xF01B4), "run": () => root.term("$HOME/.local/bin/webapp remove") },
+                    { "key": "l", "label": "List web apps", "icon": Icons.cp(0xF035C), "run": () => root.term("$HOME/.local/bin/webapp list") }
+                ] },
+                { "key": "k", "label": "Keyboard shortcuts", "icon": Icons.keyboard, "run": () => Runtime.keysOpen = true }
+            ]
+        },
+        {
             "key": "i", "label": "AI & Agents", "description": "Agents, models, projects, sessions, and usage", "icon": Icons.cp(0xF1218),
             "run": () => Runtime.agentCenterOpen = true
         },
         {
-            "key": "h", "label": "System & Plugins", "description": "Agents, sync, updates, printing, ports, and hardware", "icon": Icons.matrix,
-            "run": () => Runtime.hubOpen = true
-        },
-        {
-            "key": "o", "label": "Displays", "description": "Resolution, scale, orientation, and position", "icon": Icons.cp(0xF0379),
-            "run": () => Runtime.displayOpen = true
-        },
-        {
-            "key": "n", "label": "Notifications", "description": "search, DND, and archive", "icon": Icons.bell,
-            "run": () => Runtime.notificationCenterOpen = true
-        },
-        {
-            "key": "e", "label": "Emoji", "description": "search and copy locally", "icon": "😀",
-            "run": () => Runtime.emojiOpen = true
-        },
-        {
-            "key": "m", "label": "Modules", "description": "Arrange bar modules", "icon": Icons.cp(0xF12E),
-            "run": () => Runtime.modulesOpen = true
-        },
-        {
-            "key": "w", "label": "Webapps", "icon": Icons.cp(0xF059F),
+            "key": "m", "label": "Media & Capture", "description": "Media controls, screenshots, recording, OCR, and audio tools", "icon": Icons.camera,
             "sub": [
-                { "key": "a", "label": "Create web app", "icon": Icons.cp(0xF0704), "run": () => root.term("$HOME/.local/bin/webapp add") },
-                { "key": "e", "label": "Remove web app", "icon": Icons.cp(0xF01B4), "run": () => root.term("$HOME/.local/bin/webapp remove") },
-                { "key": "l", "label": "List web apps", "icon": Icons.cp(0xF035C), "run": () => root.term("$HOME/.local/bin/webapp list") }
+                { "key": "m", "label": "Media", "icon": Icons.play, "run": () => { Runtime.dashboardPage = 1; Runtime.dashboardOpen = true; } },
+                { "key": "c", "label": "Capture", "description": "Screenshots, recording, and trimming", "icon": Icons.camera, "sub": [
+                    { "key": "r", "label": "Region", "icon": Icons.camera, "run": () => CaptureService.shoot("region") },
+                    { "key": "b", "label": "Screen", "icon": Icons.cp(0xF0379), "run": () => CaptureService.shoot("screen") },
+                    { "key": "f", "label": "Window", "icon": Icons.cp(0xF04A1), "run": () => {
+                        Runtime.captureWindowSelect = true;
+                        Runtime.captureOpen = true;
+                    } },
+                    { "key": "o", "label": "Recognize text (OCR)", "icon": Icons.cp(0xF0219), "run": () => CaptureService.ocr() },
+                    { "key": "q", "label": "Scan QR code", "icon": Icons.cp(0xF0432), "run": () => CaptureService.qr() },
+                    { "key": "a", "label": "Start/stop recording", "icon": Icons.record, "run": () => CaptureService.toggleRecording() },
+                    { "key": "t", "label": "Trim latest recording", "icon": Icons.cp(0xF03B7), "run": () => CaptureService.trimLastRecording() },
+                    { "key": "s", "label": "Open streaming studio", "icon": Icons.cp(0xF0502), "run": () => CaptureService.openStreamingStudio() }
+                ] },
+                { "key": "a", "label": "Focus & equalizer", "icon": Icons.volumeHigh, "run": () => Runtime.audioToolsOpen = true }
             ]
         },
         {
@@ -210,77 +238,52 @@ PanelWindow {
             ]
         },
         {
-            "key": "l", "label": "Look & Feel", "description": "Themes, wallpaper, bar, and settings", "icon": Icons.palette,
+            "key": "s", "label": "System", "description": "Connections, displays, status, processes, and session controls", "icon": Icons.cpu,
             "sub": [
-                { "key": "t", "label": "Choose theme", "icon": Icons.palette, "run": () => Runtime.themePickerOpen = true },
-                { "key": "n", "label": "Next theme", "icon": Icons.cp(0xF0142), "run": () => ThemeIndex.step(1) },
-                { "key": "v", "label": "Previous theme", "icon": Icons.cp(0xF0141), "run": () => ThemeIndex.step(-1) },
-                { "key": "w", "label": "Wallpaper", "icon": Icons.cp(0xF02E9), "run": () => Runtime.wallpaperOpen = true },
-                { "key": "b", "label": "Change bar shape", "icon": Icons.cp(0xF0379), "run": () => {
-                    const order = ["island", "pill", "bar"];
-                    Config.set("mode", order[(order.indexOf(Config.mode) + 1) % order.length]);
-                } },
-                { "key": "e", "label": "Settings", "icon": Icons.cp(0xF0493), "run": () => Runtime.settingsOpen = true },
-                { "key": "g", "label": "UI gallery", "icon": Icons.cp(0xF03D9), "run": () => Runtime.uiGalleryOpen = true },
-                { "key": "a", "label": "Open Aether", "icon": Icons.palette, "run": () => Quickshell.execDetached(["aether"]) },
-                { "key": "i", "label": "Import Aether theme", "icon": Icons.download, "run": () => root.term("$HOME/.local/bin/nb-aether-import") },
-                { "key": "x", "label": "Remove theme", "icon": Icons.cp(0xF01B4), "run": () => root.term("$HOME/.local/bin/nbshell theme remove") }
+                { "key": "h", "label": "System & Plugins", "description": "Sync, updates, printing, ports, and hardware", "icon": Icons.matrix, "run": () => Runtime.hubOpen = true },
+                { "key": "c", "label": "Connections", "description": "Network, VPN, Bluetooth, Tailscale, and QR", "icon": Icons.wifi, "sub": [
+                    { "key": "c", "label": "Control center", "icon": Icons.wifi, "run": () => Runtime.controlOpen = true },
+                    { "key": "t", "label": "Tailscale", "icon": "󰖂", "run": () => root.term("tailscale status") },
+                    { "key": "q", "label": "Wi-Fi QR code", "icon": Icons.cp(0xF0432), "run": () => Runtime.qrOpen = true },
+                    { "key": "s", "label": "Speedtest", "icon": Icons.cpu, "run": () => Runtime.speedOpen = true }
+                ] },
+                { "key": "d", "label": "Displays", "description": "Resolution, scale, orientation, and position", "icon": Icons.cp(0xF0379), "run": () => Runtime.displayOpen = true },
+                { "key": "p", "label": "Processes", "icon": Icons.cpu, "run": () => Runtime.procsOpen = true },
+                { "key": "s", "label": "Session", "description": "Lock, sleep, restart, or power off", "icon": Icons.cp(0xF0425), "sub": [
+                    { "key": "s", "label": "Lock", "icon": Icons.cp(0xF033E), "run": () => Session.run("lock") },
+                    { "key": "a", "label": "Log out", "icon": Icons.cp(0xF0343), "run": () => Session.run("logout") },
+                    { "key": "b", "label": "Suspend", "icon": Icons.sleep, "run": () => Session.run("suspend") },
+                    { "key": "u", "label": "Hibernate", "icon": Icons.sleep, "run": () => Session.run("hibernate") },
+                    { "key": "n", "label": "Restart", "icon": Icons.refresh, "run": () => Session.run("reboot") },
+                    { "key": "x", "label": "Power off", "icon": Icons.cp(0xF0425), "run": () => Session.run("poweroff") }
+                ] }
             ]
         },
         {
-            "key": "c", "label": "Capture", "description": "Screenshots, recording, and trimming", "icon": Icons.camera,
+            "key": "p", "label": "Personalize", "description": "Themes, wallpaper, bar, modules, plugins, and settings", "icon": Icons.palette,
             "sub": [
-                { "key": "r", "label": "Region", "icon": Icons.camera, "run": () => CaptureService.shoot("region") },
-                { "key": "b", "label": "Screen", "icon": Icons.cp(0xF0379), "run": () => CaptureService.shoot("screen") },
-                { "key": "f", "label": "Window", "icon": Icons.cp(0xF04A1), "run": () => {
-                    Runtime.captureWindowSelect = true;
-                    Runtime.captureOpen = true;
-                } },
-                { "key": "o", "label": "Recognize text (OCR)", "icon": Icons.cp(0xF0219), "run": () => CaptureService.ocr() },
-                { "key": "q", "label": "Scan QR code", "icon": Icons.cp(0xF0432), "run": () => CaptureService.qr() },
-                { "key": "a", "label": "Start/stop recording", "icon": Icons.record, "run": () => CaptureService.toggleRecording() },
-                { "key": "t", "label": "Trim latest recording", "icon": Icons.cp(0xF03B7), "run": () => CaptureService.trimLastRecording() },
-                { "key": "s", "label": "Open streaming studio", "icon": Icons.cp(0xF0502), "run": () => CaptureService.openStreamingStudio() }
-            ]
-        },
-        {
-            "key": "y", "label": "Session", "description": "Lock, sleep, restart, or power off", "icon": Icons.cp(0xF0425),
-            "sub": [
-                { "key": "s", "label": "Lock", "icon": Icons.cp(0xF033E), "run": () => Session.run("lock") },
-                { "key": "a", "label": "Log out", "icon": Icons.cp(0xF0343), "run": () => Session.run("logout") },
-                { "key": "b", "label": "Suspend", "icon": Icons.sleep, "run": () => Session.run("suspend") },
-                { "key": "u", "label": "Hibernate", "icon": Icons.sleep, "run": () => Session.run("hibernate") },
-                { "key": "n", "label": "Restart", "icon": Icons.refresh, "run": () => Session.run("reboot") },
-                { "key": "x", "label": "Power off", "icon": Icons.cp(0xF0425), "run": () => Session.run("poweroff") }
-            ]
-        },
-        {
-            "key": "v", "label": "Connections", "description": "Network, Bluetooth, Tailscale, and QR", "icon": Icons.wifi,
-            "sub": [
-                { "key": "c", "label": "Control center", "icon": Icons.wifi, "run": () => Runtime.controlOpen = true },
-                { "key": "t", "label": "Tailscale", "icon": "󰖂", "run": () => root.term("tailscale status") },
-                { "key": "q", "label": "Wi-Fi QR code", "icon": Icons.cp(0xF0432), "run": () => Runtime.qrOpen = true },
-                { "key": "s", "label": "Speedtest", "icon": Icons.cpu, "run": () => Runtime.speedOpen = true }
-            ]
-        },
-        {
-            "key": "e", "label": "Extras", "icon": Icons.cp(0xF035C),
-            "sub": [
+                { "key": "l", "label": "Look & Feel", "description": "Themes, wallpaper, bar, and settings", "icon": Icons.palette, "sub": [
+                    { "key": "t", "label": "Choose theme", "icon": Icons.palette, "run": () => Runtime.themePickerOpen = true },
+                    { "key": "n", "label": "Next theme", "icon": Icons.cp(0xF0142), "run": () => ThemeIndex.step(1) },
+                    { "key": "v", "label": "Previous theme", "icon": Icons.cp(0xF0141), "run": () => ThemeIndex.step(-1) },
+                    { "key": "w", "label": "Wallpaper", "icon": Icons.cp(0xF02E9), "run": () => Runtime.wallpaperOpen = true },
+                    { "key": "b", "label": "Change bar shape", "icon": Icons.cp(0xF0379), "run": () => {
+                        const order = ["island", "pill", "bar"];
+                        Config.set("mode", order[(order.indexOf(Config.mode) + 1) % order.length]);
+                    } },
+                    { "key": "e", "label": "Settings", "icon": Icons.cp(0xF0493), "run": () => Runtime.settingsOpen = true },
+                    { "key": "g", "label": "UI gallery", "icon": Icons.cp(0xF03D9), "run": () => Runtime.uiGalleryOpen = true },
+                    { "key": "a", "label": "Open Aether", "icon": Icons.palette, "run": () => Quickshell.execDetached(["aether"]) },
+                    { "key": "i", "label": "Import Aether theme", "icon": Icons.download, "run": () => root.term("$HOME/.local/bin/nb-aether-import") },
+                    { "key": "x", "label": "Remove theme", "icon": Icons.cp(0xF01B4), "run": () => root.term("$HOME/.local/bin/nbshell theme remove") }
+                ] },
+                { "key": "m", "label": "Arrange modules", "icon": Icons.matrix, "run": () => Runtime.modulesOpen = true },
                 { "key": "p", "label": "Plugin management", "icon": Icons.cp(0xF12E), "sub": [
-                    { "key": "a", "label": "Arrange modules", "icon": Icons.matrix, "run": () => Runtime.modulesOpen = true },
                     { "key": "s", "label": "Plugin manager & store", "icon": Icons.cp(0xF12E), "run": () => { Runtime.pluginManagerTab = "installed"; Runtime.pluginDeveloperOpen = true; } },
                     { "key": "l", "label": "List plugins", "icon": Icons.cp(0xF035C), "run": () => root.term("nbshell plugins") },
                     { "key": "u", "label": "Update plugins", "icon": Icons.refresh, "run": () => root.term("nbshell plugin update") },
                     { "key": "o", "label": "Open plugin folder", "icon": Icons.cp(0xF024B), "run": () => Quickshell.execDetached(["xdg-open", Quickshell.env("HOME") + "/.config/nbshell/plugins"]) }
-                ] },
-                { "key": "z", "label": "Clipboard", "icon": Icons.clipboard, "run": () => Runtime.clipOpen = true },
-                { "key": "g", "label": "Translate", "icon": "文", "run": () => Plugins.invoke("shaun.quick-translate", "toggle", "{}") },
-                { "key": "r", "label": "Processes", "icon": Icons.cpu, "run": () => Runtime.procsOpen = true },
-                { "key": "m", "label": "Media", "icon": Icons.play, "run": () => { Runtime.dashboardPage = 1; Runtime.dashboardOpen = true; } },
-                { "key": "a", "label": "Focus & equalizer", "icon": Icons.volumeHigh, "run": () => Runtime.audioToolsOpen = true },
-                { "key": "t", "label": "Todo", "icon": Icons.todo, "run": () => Runtime.todoOpen = true },
-                { "key": "h", "label": "Habits", "icon": Icons.habit, "run": () => Runtime.habitsOpen = true },
-                { "key": "k", "label": "Keyboard shortcuts", "icon": Icons.keyboard, "run": () => Runtime.keysOpen = true }
+                ] }
             ]
         }
     ]
@@ -342,7 +345,7 @@ PanelWindow {
             width: Theme.cellW * 48
             height: column.implicitHeight + Theme.cellH * 2
 
-            accentBorder: false
+            accentBorder: true
 
             // Klick im Kasten NICHT durchreichen (sonst schliesst der Backdrop).
             MouseArea {

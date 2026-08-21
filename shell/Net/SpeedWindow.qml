@@ -136,7 +136,7 @@ PanelWindow {
         width: inhalt.implicitWidth + Theme.cellW * 4
         height: inhalt.implicitHeight + Theme.cellH * 2
 
-        accentBorder: false
+        accentBorder: true
 
         MouseArea {
             anchors.fill: parent
