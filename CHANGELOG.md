@@ -6,6 +6,11 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+### Added
+
+- Main-menu search now includes installed desktop applications and launches
+  the selected app directly.
+
 ### Changed
 
 - Fresh installations now start with the full-width bar, plain unboxed
