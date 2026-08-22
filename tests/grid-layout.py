@@ -44,5 +44,8 @@ assert grid.ipc_action("ConsumeOrExpelWindowLeft", 42) == {
     "ConsumeOrExpelWindowLeft": {"id": 42}
 }
 assert grid.CLI_ACTION_NAMES["ConsumeOrExpelWindowLeft"] == "consume-or-expel-window-left"
+assert grid.compositor_override_text(Path("/tmp/niri-atomic")) == (
+    "[Service]\nExecStart=\nExecStart=/tmp/niri-atomic --session\n"
+)
 
 print("Grid layout policy: OK")

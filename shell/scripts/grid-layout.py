@@ -20,6 +20,11 @@ STATE_FILE = STATE_DIR / "grid-layout.json"
 LOCK_FILE = STATE_DIR / "grid-layout.lock"
 PID_FILE = STATE_DIR / "grid-layout.pid"
 BACKEND_FILE = STATE_DIR / "grid-layout-backend"
+NIRI_OVERRIDE = (
+    Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+    / "systemd/user/niri.service.d/nbshell-grid-atomic.conf"
+)
+ATOMIC_NIRI = Path.home() / ".local/lib/nbshell/niri-atomic"
 SESSION = os.environ.get("NIRI_SOCKET", "")
 LAYOUT_EVENT_NAMES = {"WindowsChanged", "WorkspacesChanged"}
 ACTION_SETTLE_TIMEOUT = 0.35
@@ -433,6 +438,31 @@ def backend(command: str | None) -> None:
     print(command)
 
 
+def compositor(command: str | None) -> None:
+    if command in (None, "status"):
+        selected = "atomic" if NIRI_OVERRIDE.exists() else "stable"
+        availability = "installed" if ATOMIC_NIRI.is_file() else "not installed"
+        print(f"{selected} (atomic binary {availability}; applies at next login)")
+        return
+    if command not in {"stable", "atomic"}:
+        raise RuntimeError("compositor must be stable or atomic")
+    if command == "atomic":
+        if not ATOMIC_NIRI.is_file() or not os.access(ATOMIC_NIRI, os.X_OK):
+            raise RuntimeError(f"experimental compositor is missing: {ATOMIC_NIRI}")
+        NIRI_OVERRIDE.parent.mkdir(parents=True, exist_ok=True)
+        temporary = NIRI_OVERRIDE.with_suffix(".tmp")
+        temporary.write_text(compositor_override_text(ATOMIC_NIRI), encoding="utf-8")
+        temporary.replace(NIRI_OVERRIDE)
+    else:
+        NIRI_OVERRIDE.unlink(missing_ok=True)
+    subprocess.run(["systemctl", "--user", "daemon-reload"], check=True)
+    print(f"{command} (applies at next login)")
+
+
+def compositor_override_text(binary: Path) -> str:
+    return f"[Service]\nExecStart=\nExecStart={binary} --session\n"
+
+
 def watch() -> None:
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     PID_FILE.write_text(f"{os.getpid()}\n", encoding="utf-8")
@@ -510,8 +540,13 @@ def main() -> int:
             restart_watcher()
         elif command == "backend":
             backend(sys.argv[2] if len(sys.argv) > 2 else "status")
+        elif command == "compositor":
+            compositor(sys.argv[2] if len(sys.argv) > 2 else "status")
         else:
-            print("usage: grid-layout.py toggle|on|off|status|backend|restart-watcher", file=sys.stderr)
+            print(
+                "usage: grid-layout.py toggle|on|off|status|backend|compositor|restart-watcher",
+                file=sys.stderr,
+            )
             return 2
     except (OSError, RuntimeError, subprocess.CalledProcessError, json.JSONDecodeError) as error:
         print(f"nbshell grid: {error}", file=sys.stderr)

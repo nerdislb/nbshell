@@ -458,6 +458,7 @@ nbshell -- an independent Quickshell desktop shell for niri
   nbshell grid toggle       toggle the workspace-local 2x2 scrolling layout
   nbshell grid on|off|status
   nbshell grid backend stable|atomic|status
+  nbshell grid compositor stable|atomic|status
 
   nbshell todo              list tasks
   nbshell todo <text>       add a task (also: todo add <text>)

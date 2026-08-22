@@ -36,6 +36,29 @@ on against stock Niri. Return to the supported path at any time with:
 nbshell grid backend stable
 ```
 
+When the separate prototype binary is installed, the compositor used for the
+next login can also be selected without replacing `/usr/bin/niri`:
+
+```bash
+nbshell grid compositor status
+nbshell grid compositor atomic
+```
+
+Log out and back in, confirm `atomic available`, then enable the backend:
+
+```bash
+nbshell grid backend status
+nbshell grid backend atomic
+```
+
+The recovery path only changes the next login and leaves the current session
+running:
+
+```bash
+nbshell grid backend stable
+nbshell grid compositor stable
+```
+
 ## Prototype design
 
 The compositor patch is intentionally small and generic. It adds an
