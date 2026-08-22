@@ -8,6 +8,9 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Added
 
+- Complete third-party MIT notices, an explicit independent-project and
+  non-endorsement statement, release-media branding guidance, and automated
+  release checks that prevent those notices from being dropped.
 - Main-menu search now includes installed desktop applications and launches
   the selected app directly.
 - The connection popout can connect and disconnect saved NetworkManager VPN

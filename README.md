@@ -5,6 +5,10 @@ nbshell is an independent desktop shell for the
 [Quickshell](https://quickshell.org) and takes visual inspiration from
 [Omarchy](https://omarchy.org). It does not require a full desktop environment.
 
+> nbshell is an independent project. It is not affiliated with, endorsed by,
+> or an official part of Omarchy, niri, or Quickshell. Project names are used
+> only to describe inspiration and compatibility.
+
 The project was created with AI-assisted development. Product decisions,
 testing, and the direction of the project remain human-led.
 
@@ -350,6 +354,7 @@ Report security problems privately as described in [SECURITY.md](SECURITY.md).
 nbshell takes visual and workflow inspiration from Omarchy, but it is an
 independent implementation for niri and Quickshell. Theme sources are listed in
 [themes/ATTRIBUTION.md](themes/ATTRIBUTION.md). Reused or adapted components
-are documented in [THIRD_PARTY.md](THIRD_PARTY.md).
+are documented in [THIRD_PARTY.md](THIRD_PARTY.md), with retained license texts
+under [`LICENSES/`](LICENSES/THIRD_PARTY_MIT.md).
 
 The remaining project is licensed under the [MIT License](LICENSE).

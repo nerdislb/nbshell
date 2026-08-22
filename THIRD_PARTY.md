@@ -3,6 +3,11 @@
 nbshell is an independent implementation. Some included components originate
 from or were adapted from other MIT-licensed projects:
 
+The complete MIT notices for Omarchy, OmaConnect, Herald Notification Center,
+Better Displays, and Omarchy Notification Center are retained in
+[`LICENSES/THIRD_PARTY_MIT.md`](LICENSES/THIRD_PARTY_MIT.md). Components with
+their own bundled license files are linked below.
+
 - Color definitions under `themes/` come from
   [Omarchy](https://github.com/basecamp/omarchy). See
   [themes/ATTRIBUTION.md](themes/ATTRIBUTION.md).
@@ -45,5 +50,8 @@ from or were adapted from other MIT-licensed projects:
   [Omarchy](https://github.com/basecamp/omarchy) Quickshell UI kit and map its
   public visual tokens onto the nbshell theme system.
 
-Omarchy, niri, Quickshell, and the other named projects are independent. Their
-mention does not imply endorsement or an official relationship.
+Omarchy, niri, Quickshell, and the other named projects are independent from
+nbshell. Their names are used only to identify compatibility, provenance, or
+inspiration. nbshell is not affiliated with, endorsed by, or an official part
+of any of those projects. Their names and logos remain the property of their
+respective owners; the software licenses do not grant trademark rights.

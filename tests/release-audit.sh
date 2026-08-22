@@ -18,6 +18,31 @@ changelog = (root / "CHANGELOG.md").read_text(encoding="utf-8")
 if f"## [{version}]" not in changelog:
     raise SystemExit(f"CHANGELOG.md has no {version} section")
 
+required_release_files = (
+    "LICENSE",
+    "THIRD_PARTY.md",
+    "LICENSES/THIRD_PARTY_MIT.md",
+    "themes/ATTRIBUTION.md",
+)
+for name in required_release_files:
+    if not (root / name).is_file():
+        raise SystemExit(f"required release file is missing: {name}")
+
+readme = (root / "README.md").read_text(encoding="utf-8")
+if "not affiliated with, endorsed by" not in readme:
+    raise SystemExit("README.md is missing the independent-project disclaimer")
+
+third_party_license = (root / "LICENSES/THIRD_PARTY_MIT.md").read_text(encoding="utf-8")
+for notice in (
+    "Copyright (c) David Heinemeier Hansson",
+    "Copyright (c) 2026 OmaConnect contributors",
+    "Copyright (c) 2026 jesseburlamaque",
+    "Copyright (c) 2026 nightdevil00",
+    "Copyright (c) 2026 Jankees van Woezik",
+):
+    if notice not in third_party_license:
+        raise SystemExit(f"third-party license notice is missing: {notice}")
+
 tracked = subprocess.check_output(
     ["git", "-c", f"safe.directory={root}", "ls-files", "-z"]
 ).decode().split("\0")
