@@ -65,6 +65,16 @@ def load_theme(config: dict) -> tuple[dict, Path]:
 
 
 def find_wallpaper(config: dict, theme_dir: Path) -> Path | None:
+    # The running shell passes the exact image currently rendered on screen.
+    # This avoids racing Config's atomic file write when the user selects a
+    # wallpaper and locks immediately afterwards. CLI calls still use the
+    # persisted override and theme fallback below.
+    active = os.environ.get("NBSHELL_LOCK_WALLPAPER", "")
+    if active:
+        candidate = Path(os.path.expandvars(os.path.expanduser(active)))
+        if candidate.is_file():
+            return candidate.resolve()
+
     override = config.get("wallpaperOverride")
     if isinstance(override, str) and override:
         candidate = Path(os.path.expandvars(os.path.expanduser(override)))

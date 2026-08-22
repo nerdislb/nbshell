@@ -18,6 +18,14 @@ Singleton {
     id: root
 
     readonly property string lockScript: Qt.resolvedUrl("../scripts/lockscreen.py").toString().replace("file://", "")
+    // Use the exact source currently displayed by Wallpaper.qml. Passing it
+    // to the lock process also covers the short interval before an atomic
+    // config write becomes visible to a separate process.
+    readonly property string activeWallpaper: Config.value("wallpaperOverride", "") || (ThemeIndex.current?.wallpaper ?? "")
+
+    function lockArgs(action) {
+        return ["env", "NBSHELL_LOCK_WALLPAPER=" + root.activeWallpaper, root.lockScript, action];
+    }
 
     readonly property var actions: [
         {
@@ -55,7 +63,7 @@ Singleton {
     function run(id) {
         switch (id) {
         case "lock":
-            Quickshell.execDetached([root.lockScript, "lock"]);
+            Quickshell.execDetached(root.lockArgs("lock"));
             return true;
         case "logout":
             Quickshell.execDetached(["niri", "msg", "action", "quit", "--skip-confirmation"]);
@@ -63,7 +71,7 @@ Singleton {
         case "suspend":
             // Der Wrapper startet zuerst den echten Wayland-Locker und bricht
             // ab, falls dieser vor dem Suspend wieder stirbt.
-            Quickshell.execDetached([root.lockScript, "suspend"]);
+            Quickshell.execDetached(root.lockArgs("suspend"));
             return true;
         case "hibernate":
             Quickshell.execDetached(["systemctl", "hibernate"]);

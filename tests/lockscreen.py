@@ -42,6 +42,21 @@ def check_named_theme(root: Path) -> None:
     assert output.stat().st_mode & 0o777 == 0o600
 
 
+def check_live_wallpaper_wins(root: Path) -> None:
+    theme_dir = root / "theme"
+    theme_dir.mkdir()
+    configured = root / "configured.jpg"
+    active = root / "active.jpg"
+    configured.write_bytes(b"configured")
+    active.write_bytes(b"active")
+    with mock.patch.dict(
+        LOCKSCREEN.os.environ, {"NBSHELL_LOCK_WALLPAPER": str(active)}
+    ):
+        assert LOCKSCREEN.find_wallpaper(
+            {"wallpaperOverride": str(configured)}, theme_dir
+        ) == active.resolve()
+
+
 def check_ansi_and_solid(root: Path) -> None:
     config_dir = root / "nbshell-ansi"
     theme_dir = config_dir / "themes" / "ansi"
@@ -113,6 +128,7 @@ def check_suspend_guard() -> None:
 with tempfile.TemporaryDirectory(prefix="nbshell-lock-test-") as temporary:
     root = Path(temporary)
     check_named_theme(root)
+    check_live_wallpaper_wins(root)
     check_ansi_and_solid(root)
     check_custom_command()
     check_suspend_guard()
