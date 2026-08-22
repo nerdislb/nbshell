@@ -34,6 +34,9 @@ jobs:
       - name: Test lock screen generation
         run: python3 ./tests/lockscreen.py
 
+      - name: Test shell release updater
+        run: python3 ./tests/shell-update.py
+
       - name: Audit release metadata and privacy
         run: ./tests/release-audit.sh
 

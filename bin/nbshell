@@ -106,6 +106,7 @@ GAMING_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/gaming
 GRID_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/grid-layout.py"
 BROWSER_THEME_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/browser-theme.sh"
 OMACUT_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/omacut.sh"
+SHELL_UPDATE_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/nbshell-update.py"
 
 cursor_status() {
     local jetzt
@@ -422,7 +423,9 @@ nbshell -- an independent Quickshell desktop shell for niri
   nbshell display set <output> mode|scale|transform|enabled <value>
   nbshell display place <output> left|right|above|below <reference>
   nbshell ui-gallery        preview the shared nbshell component language
-  nbshell updates           Updates: status, check, list, run
+  nbshell update            check nbshell's published releases
+  nbshell update install    verify and install the latest release
+  nbshell updates           system packages: status, check, list, run
   nbshell ai                open the Agent Center (also: usage, refresh)
   nbshell agent list [--json]
                             list installed and supported coding agents
@@ -791,6 +794,14 @@ for b in d["binds"]:
         ;;
     updates)
         ipc updates "${1:-status}"
+        ;;
+    update|self-update)
+        case "${1:-check}" in
+            check|status|"") python3 "$SHELL_UPDATE_TOOL" check --channel "${2:-beta}" ;;
+            install|run)     python3 "$SHELL_UPDATE_TOOL" install --channel "${2:-beta}" ;;
+            notes)           ipc shellUpdate notes ;;
+            *) echo "Usage: nbshell update [check|install|notes] [beta|stable]" >&2; exit 2 ;;
+        esac
         ;;
     ai)
         case "${1:-center}" in

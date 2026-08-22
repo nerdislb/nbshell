@@ -167,6 +167,38 @@ Scope {
     }
 
     IpcHandler {
+        target: "shellUpdate"
+
+        function check(): string {
+            ShellUpdates.refresh();
+            return "checking published releases";
+        }
+
+        function install(): string {
+            ShellUpdates.install();
+            return "terminal opened";
+        }
+
+        function notes(): string {
+            ShellUpdates.openNotes();
+            return ShellUpdates.releaseUrl !== "" ? "release notes opened" : "no release available";
+        }
+
+        function status(): string {
+            return JSON.stringify({
+                "channel": ShellUpdates.channel,
+                "current": ShellUpdates.current,
+                "latest": ShellUpdates.latest,
+                "available": ShellUpdates.updateAvailable,
+                "installable": ShellUpdates.installable,
+                "checking": ShellUpdates.checking,
+                "error": ShellUpdates.error,
+                "url": ShellUpdates.releaseUrl
+            });
+        }
+    }
+
+    IpcHandler {
         target: "ai"
 
         function status(): string {

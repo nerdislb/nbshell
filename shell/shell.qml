@@ -64,6 +64,7 @@ ShellRoot {
         void Dictation.state;
         void BongoCat.active;
         void Updates.enabled;
+        void ShellUpdates.current;
         void PowerService.available;
         void Calendar.enabled;
         void Plugins.scanned;

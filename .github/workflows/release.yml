@@ -30,12 +30,21 @@ jobs:
           mkdocs build --strict
           (cd site && zip -qr ../nbshell-manual.zip .)
 
+      - name: Build verified installer artifact
+        run: |
+          version="$(cat VERSION)"
+          archive="nbshell-${version}.tar.gz"
+          git archive --format=tar --prefix="nbshell-${version}/" "${GITHUB_SHA}" | gzip -9 > "${archive}"
+          sha256sum "${archive}" > "${archive}.sha256"
+
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           prerelease=()
           [[ "$(cat VERSION)" == *-* ]] && prerelease+=(--prerelease)
+          version="$(cat VERSION)"
           gh release create "${GITHUB_REF_NAME}" nbshell-manual.zip \
+            "nbshell-${version}.tar.gz" "nbshell-${version}.tar.gz.sha256" \
             --title "nbshell $(cat VERSION)" \
             --generate-notes "${prerelease[@]}"

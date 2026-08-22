@@ -18,6 +18,8 @@ terminal. Commands and configuration may still change before version 1.0.
 - Theme switching, compatible Omarchy theme import, terminal colors, lock
   screen, and wallpapers selected independently from the active theme.
 - NetworkManager VPN, PipeWire audio, display, capture, and power controls.
+- Published-release checks, checksum verification, and the distinction between
+  nbshell, system-package, and plugin updates.
 - Optional plugins and phone integrations on systems where their dependencies
   already exist.
 
@@ -52,7 +54,8 @@ calendar entries, network addresses, or private file paths.
 > public beta brings a searchable keyboard-first UI, workspace-local
 > grid-scroll, coherent desktop theming with compatible Omarchy theme import,
 > a wallpaper library, system controls, capture tools, and optional phone and
-> plugin integrations. It keeps Niri and the normal Linux tools underneath
+> plugin integrations, plus a checksum-verified updater for published shell
+> releases. It keeps Niri and the normal Linux tools underneath
 > instead of becoming another full desktop environment. If you use Arch and
 > Niri and enjoy testing early desktop software, I would value your feedback.
 

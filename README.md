@@ -36,6 +36,9 @@ Current release candidate: **0.1.0-beta.1**. See the
   notes are available without making a phone mandatory.
 - **Inspectable extensions:** bundled and third-party plugins expose their
   source, license, dependencies, and permissions; new plugins start disabled.
+- **Safe shell updates:** the dashboard checks published nbshell releases,
+  shows their notes, and verifies the release checksum before the normal,
+  data-preserving installer runs in a visible terminal.
 - **Keyboard first, mouse friendly:** the searchable menu reaches nested
   actions and installed applications, while every major surface remains
   directly addressable from a shortcut or CLI command.
@@ -78,6 +81,7 @@ online guide without turning this README into a wall of text.
   project selection, Herdr sessions, and optional Ollama/OpenCode routing
 - niri key bindings, terminal colors, and systemd autostart
 - Optional herdr status inside the System & Plugins dashboard
+- A release-based nbshell updater, kept separate from system and plugin updates
 
 ## Requirements
 

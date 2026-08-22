@@ -81,15 +81,30 @@ nbshell start
 
 ## Update later
 
-From the repository checkout:
+Open Dashboard → Tools → `nbshell update`. The shell checks only published
+GitHub releases, links their release notes, and opens a terminal for explicit
+confirmation. Before installation it verifies the release archive against its
+published SHA-256 checksum. Personal configuration, themes, plugins, and data
+remain in place.
+
+The same flow is available from a terminal:
+
+```bash
+nbshell update
+nbshell update install
+```
+
+To follow stable releases instead of beta releases, use `stable` as the final
+argument. From a repository checkout, developers can still update manually:
 
 ```bash
 git pull --ff-only
 ./install.sh
 ```
 
-The Dashboard update action can update system packages. It shows `Restart
-recommended` when a kernel or another important system component changed.
+The separate `System updates` action handles distribution packages. It shows
+`Restart recommended` when a kernel or another important component changed.
+Plugin updates remain in the plugin manager.
 
 ## If something goes wrong
 

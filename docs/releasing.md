@@ -16,6 +16,7 @@ change before version 1.0.
    ./tests/fresh-install.sh
    python3 ./tests/grid-layout.py
    python3 ./tests/lockscreen.py
+   python3 ./tests/shell-update.py
    mkdocs build --strict
    ```
 
@@ -31,11 +32,14 @@ change before version 1.0.
 
 The release workflow rejects tags that do not match `VERSION`. It creates a
 GitHub prerelease for versions containing a hyphen and attaches the built
-manual as a ZIP archive. Do not tag a commit until its live desktop test has
-passed.
+manual, a versioned installation archive, and that archive's SHA-256 checksum.
+The dashboard updater requires both archive assets and refuses to install when
+the checksum does not match. Do not tag a commit until its live desktop test
+has passed.
 
 ## After publishing
 
-- Verify the release archive and installation instructions from a clean user.
+- Verify the release archive, checksum, dashboard update check, and installation
+  instructions from a clean user.
 - Keep known limitations visible in the documentation.
 - Triage regressions before adding large features to the beta branch.

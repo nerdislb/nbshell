@@ -17,6 +17,7 @@ PanelWindow {
     property var weather: ({})
     property bool weatherLoading: false
     property bool updatesOpen: false
+    property bool shellUpdatesOpen: false
     readonly property date now: clock.date
     readonly property real cardGap: Theme.cellW * 1.5
     readonly property var nextEvents: Calendar.events.filter(e => e.end >= new Date()).slice(0, 7)
@@ -32,6 +33,7 @@ PanelWindow {
 
     function close() {
         updatesOpen = false;
+        shellUpdatesOpen = false;
         Runtime.calendarOpen = false;
         Runtime.dashboardOpen = false;
     }
@@ -196,7 +198,9 @@ PanelWindow {
         anchors.fill: parent
         focus: root.visible
         Keys.onEscapePressed: {
-            if (root.updatesOpen)
+            if (root.shellUpdatesOpen)
+                root.shellUpdatesOpen = false;
+            else if (root.updatesOpen)
                 root.updatesOpen = false;
             else
                 root.close();
@@ -434,7 +438,7 @@ PanelWindow {
                         Action { label: "Notes"; detail: Notes.count + " saved"; glyph: "󰎞"; run: () => root.openSurface(() => Runtime.notesOpen = true) }
                         Action { label: "Habits"; detail: Habits.doneCount + "/" + Habits.count + " today"; glyph: Icons.habit; run: () => root.openSurface(() => Runtime.habitsOpen = true) }
                         Action {
-                            label: "Updates"
+                            label: "System updates"
                             detail: Updates.rebootRecommended ? "restart recommended" : (Updates.checking ? "checking …" : Updates.count + " available")
                             glyph: Icons.download
                             tone: Updates.count > 0 ? Theme.yellow : Theme.green
@@ -444,6 +448,21 @@ PanelWindow {
                                     Updates.refresh();
                             }
                             rightRun: () => root.openSurface(() => Updates.update())
+                        }
+                        Action {
+                            label: "nbshell update"
+                            detail: ShellUpdates.checking ? "checking releases …"
+                                : (ShellUpdates.updateAvailable ? ShellUpdates.latest + " available"
+                                : (ShellUpdates.ready ? ShellUpdates.current + " current" : "published releases"))
+                            glyph: Icons.refresh
+                            tone: ShellUpdates.updateAvailable ? Theme.yellow : Theme.green
+                            run: () => {
+                                root.shellUpdatesOpen = true;
+                                if (!ShellUpdates.ready)
+                                    ShellUpdates.refresh();
+                            }
+                            rightRun: ShellUpdates.updateAvailable && ShellUpdates.installable
+                                ? () => root.openSurface(() => ShellUpdates.install()) : null
                         }
                         Action { label: "Capture"; detail: CaptureService.recording ? "running" : "Screenshot, OCR, QR"; glyph: CaptureService.recording ? Icons.record : Icons.camera; tone: CaptureService.recording ? Theme.red : Theme.accent; run: () => root.openSurface(() => Runtime.captureOpen = true); rightRun: () => CaptureService.toggleRecording() }
                         Action { label: "Theme"; detail: Config.theme; glyph: Icons.palette; run: () => root.openSurface(() => Runtime.themePickerOpen = true); rightRun: () => ThemeIndex.step(1) }
@@ -620,6 +639,63 @@ PanelWindow {
                             horizontalAlignment: Text.AlignHCenter
                             color: Theme.muted
                         }
+                    }
+                }
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                visible: root.shellUpdatesOpen
+                z: 21
+                color: Theme.alpha(Theme.bg, 0.82)
+                radius: parent.radius
+
+                MouseArea { anchors.fill: parent; onClicked: root.shellUpdatesOpen = false }
+
+                PanelSurface {
+                    width: Math.min(parent.width - root.cardGap * 4, Theme.cellW * 70)
+                    height: Math.min(parent.height - root.cardGap * 4, Theme.cellH * 24)
+                    anchors.centerIn: parent
+                    MouseArea { anchors.fill: parent; onClicked: {} }
+
+                    Column {
+                        anchors.fill: parent
+                        anchors.margins: Theme.cellW * 2
+                        spacing: Theme.cellH * 0.8
+
+                        Item {
+                            width: parent.width; height: Theme.cellH * 2
+                            Line { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "NBSHELL UPDATE"; color: Theme.fgBright; font.pixelSize: Theme.fontHeading }
+                            ActionButton { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: "Close"; compact: true; onTriggered: root.shellUpdatesOpen = false }
+                        }
+                        Rule { rowWidth: parent.width; label: ShellUpdates.channel.toUpperCase() + " CHANNEL" }
+                        Line { width: parent.width; text: "Installed"; color: Theme.fgDim }
+                        Line { width: parent.width; text: ShellUpdates.current || "unknown"; color: Theme.fgBright; font.pixelSize: Theme.fontHeading }
+                        Line { width: parent.width; text: "Latest published release"; color: Theme.fgDim }
+                        Line { width: parent.width; text: ShellUpdates.checking ? "checking …" : (ShellUpdates.latest || "not checked yet"); color: ShellUpdates.updateAvailable ? Theme.yellow : Theme.fgBright; font.pixelSize: Theme.fontHeading }
+                        Line {
+                            width: parent.width
+                            wrapMode: Text.Wrap
+                            text: ShellUpdates.error !== "" ? ShellUpdates.error
+                                : (ShellUpdates.updateAvailable ? "A new nbshell release is ready."
+                                : (ShellUpdates.ready ? "nbshell is up to date." : "Check for a published release."))
+                            color: ShellUpdates.error !== "" ? Theme.yellow : Theme.fg
+                        }
+                        Item { width: 1; height: Theme.cellH * 0.2 }
+                        Row {
+                            spacing: Theme.cellW * 2
+                            ActionButton { text: ShellUpdates.checking ? "Checking …" : "Check again"; busy: ShellUpdates.checking; compact: true; onTriggered: ShellUpdates.refresh() }
+                            ActionButton { visible: ShellUpdates.releaseUrl !== ""; text: "Release notes"; compact: true; onTriggered: ShellUpdates.openNotes() }
+                            ActionButton {
+                                visible: ShellUpdates.updateAvailable && ShellUpdates.installable
+                                text: "Install in terminal"
+                                tone: "primary"
+                                accentColor: Theme.green
+                                compact: true
+                                onTriggered: root.openSurface(() => ShellUpdates.install())
+                            }
+                        }
+                        Line { width: parent.width; text: "Published releases only  ·  SHA-256 verified  ·  personal data preserved"; color: Theme.muted; horizontalAlignment: Text.AlignHCenter }
                     }
                 }
             }
