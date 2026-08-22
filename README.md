@@ -172,6 +172,13 @@ nbshell grid on
 nbshell grid off
 ```
 
+The controller follows Niri's event stream and only reacts to window or
+workspace changes. It waits for every compositor-confirmed layout transition,
+so opening and closing windows remains deterministic on slower systems too.
+Niri currently exposes these layout operations as individual IPC actions; a
+future atomic batch API would let nbshell remove the last intermediate frame
+from uncommon full regrouping operations.
+
 ## AI agents and local models
 
 Press `Mod+Shift+A` to open the default agent immediately in a focused floating

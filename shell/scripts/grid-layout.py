@@ -19,6 +19,8 @@ STATE_FILE = STATE_DIR / "grid-layout.json"
 LOCK_FILE = STATE_DIR / "grid-layout.lock"
 PID_FILE = STATE_DIR / "grid-layout.pid"
 SESSION = os.environ.get("NIRI_SOCKET", "")
+LAYOUT_EVENT_NAMES = {"WindowsChanged", "WorkspacesChanged"}
+ACTION_SETTLE_TIMEOUT = 0.35
 
 
 def niri_json(command: str) -> list[dict]:
@@ -87,6 +89,31 @@ def columns(workspace_id: int) -> list[list[dict]]:
     return [grouped[key] for key in sorted(grouped)]
 
 
+def layout_signature(workspace_id: int) -> tuple[tuple[int, ...], ...]:
+    """Return the observable tiled layout without focus or geometry noise."""
+    return tuple(
+        tuple(int(window["id"]) for window in column)
+        for column in columns(workspace_id)
+    )
+
+
+def action_and_wait(workspace_id: int, name: str, *args: str) -> None:
+    """Run one niri action and wait for its layout result instead of guessing.
+
+    Niri currently exposes individual IPC actions, not an atomic action batch.
+    Waiting for the actual layout change keeps following actions from racing the
+    compositor on slower machines while adding no fixed delay on fast ones.
+    """
+    previous = layout_signature(workspace_id)
+    action(name, *args)
+    deadline = time.monotonic() + ACTION_SETTLE_TIMEOUT
+    while time.monotonic() < deadline:
+        if layout_signature(workspace_id) != previous:
+            return
+        time.sleep(0.01)
+    raise RuntimeError(f"Niri did not settle after {name}")
+
+
 def separate_all(workspace_id: int) -> None:
     # Expelling stacked tiles to the right preserves their top-to-bottom order
     # as left-to-right columns when grid mode is disabled again.
@@ -100,8 +127,12 @@ def separate_all(workspace_id: int) -> None:
         ]
         if not stacked:
             return
-        action("consume-or-expel-window-right", "--id", str(stacked[-1]["id"]))
-        time.sleep(0.04)
+        action_and_wait(
+            workspace_id,
+            "consume-or-expel-window-right",
+            "--id",
+            str(stacked[-1]["id"]),
+        )
     raise RuntimeError("Could not separate every stacked window")
 
 
@@ -156,8 +187,12 @@ def merge_only(workspace_id: int, windows: list[dict], desired: list[int]) -> bo
             or len(current_groups[containing[1]]) != 1
         ):
             return False
-        action("consume-or-expel-window-left", "--id", str(group[1]))
-        time.sleep(0.04)
+        action_and_wait(
+            workspace_id,
+            "consume-or-expel-window-left",
+            "--id",
+            str(group[1]),
+        )
     return True
 
 
@@ -178,8 +213,12 @@ def arrange(workspace_id: int) -> None:
     cursor = 0
     for size in desired:
         if size == 2:
-            action("consume-or-expel-window-left", "--id", str(order[cursor + 1]))
-            time.sleep(0.04)
+            action_and_wait(
+                workspace_id,
+                "consume-or-expel-window-left",
+                "--id",
+                str(order[cursor + 1]),
+            )
         cursor += size
 
 
@@ -198,6 +237,15 @@ def notify(message: str) -> None:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
+
+
+def event_affects_layout(line: bytes | str) -> bool:
+    """Return whether an event can change a managed workspace layout."""
+    try:
+        event = json.loads(line)
+    except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
+        return False
+    return isinstance(event, dict) and any(name in event for name in LAYOUT_EVENT_NAMES)
 
 
 def watcher_running() -> bool:
@@ -291,6 +339,7 @@ def watch() -> None:
         assert process.stdout is not None
         poller = selectors.DefaultSelector()
         poller.register(process.stdout, selectors.EVENT_READ)
+        pending = b""
         while True:
             # Wait for one compositor event, then drain the burst. Window
             # creation and our own consume actions emit several events; doing
@@ -298,11 +347,20 @@ def watch() -> None:
             ready = poller.select()
             if not ready:
                 continue
-            if not os.read(process.stdout.fileno(), 65536):
+            chunk = os.read(process.stdout.fileno(), 65536)
+            if not chunk:
                 break
+            pending += chunk
             while poller.select(timeout=0.14):
-                if not os.read(process.stdout.fileno(), 65536):
+                chunk = os.read(process.stdout.fileno(), 65536)
+                if not chunk:
                     break
+                pending += chunk
+
+            lines = pending.split(b"\n")
+            pending = lines.pop()
+            if not any(event_affects_layout(line) for line in lines if line):
+                continue
 
             def reconcile() -> None:
                 enabled = load_state()

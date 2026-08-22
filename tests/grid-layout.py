@@ -25,4 +25,19 @@ assert not grid.stable_column_sizes([1, 1, 1], 3)
 assert not grid.stable_column_sizes([1, 2, 1], 4)
 assert not grid.stable_column_sizes([3], 3)
 
+# The policy remains predictable beyond the first 2x2 page.
+for count in range(13):
+    desired = grid.desired_column_sizes(count)
+    assert sum(desired) == count
+    assert all(size in (1, 2) for size in desired)
+    assert grid.stable_column_sizes(desired, count)
+
+# Focus, keyboard, overview and configuration events must not wake the layout
+# controller. Niri can emit many of these while no window arrangement changed.
+assert grid.event_affects_layout('{"WindowsChanged":{"windows":[]}}')
+assert grid.event_affects_layout('{"WorkspacesChanged":{"workspaces":[]}}')
+assert not grid.event_affects_layout('{"OverviewOpenedOrClosed":{"is_open":true}}')
+assert not grid.event_affects_layout('{"KeyboardLayoutsChanged":{"current_idx":0}}')
+assert not grid.event_affects_layout('not json')
+
 print("Grid layout policy: OK")
