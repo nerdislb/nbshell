@@ -67,8 +67,10 @@ changes, advances animations once, and executes the list in one event-loop
 turn. It does not add a Hyprland layout tree or change Niri's normal behavior.
 
 The prototype also accepts a workspace-local `SetColumnPairing` request. When
-grid mode is active, a normal tiled window that completes pair 2, 3, 4, and so
-on is inserted into its final column before Niri starts the opening animation.
+grid mode is active, the third normal tiled window starts the first pair and
+each following even window completes the next pair before Niri starts the
+opening animation. Windows 5, 7, and so on remain the first tile of a new
+column.
 This removes the brief 50% column that an external event watcher cannot avoid.
 Dialogs, floating, maximized, and full-width windows remain on Niri's normal
 mapping path.
