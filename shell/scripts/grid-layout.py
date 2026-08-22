@@ -57,6 +57,8 @@ LAYOUT_EVENT_NAMES = {
     "WorkspacesChanged",
 }
 ACTION_SETTLE_TIMEOUT = 0.35
+STABLE_EVENT_DEBOUNCE = 0.14
+ATOMIC_EVENT_DEBOUNCE = 0.008
 CLI_ACTION_NAMES = {
     "ConsumeOrExpelWindowLeft": "consume-or-expel-window-left",
     "ConsumeOrExpelWindowRight": "consume-or-expel-window-right",
@@ -529,7 +531,16 @@ def watch() -> None:
             if not chunk:
                 break
             pending += chunk
-            while poller.select(timeout=0.14):
+            # Stock Niri needs a short debounce because a multi-step rebuild
+            # arrives as several layout events. The atomic compositor applies
+            # the complete operation list in one event-loop turn, so waiting
+            # 140 ms only leaves a newly mapped 50% column visibly on screen.
+            debounce = (
+                ATOMIC_EVENT_DEBOUNCE
+                if load_backend() == "atomic"
+                else STABLE_EVENT_DEBOUNCE
+            )
+            while poller.select(timeout=debounce):
                 chunk = os.read(process.stdout.fileno(), 65536)
                 if not chunk:
                     break
