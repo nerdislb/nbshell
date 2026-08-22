@@ -5,7 +5,7 @@ import qs.Common
 import qs.Services
 import qs.Widgets
 
-// Wallpaper-Karussell -- die Bilder des aktuellen Themes als Streifen.
+// Wallpaper-Karussell -- alle Theme-Sammlungen in einem Streifen.
 //
 // Vorbild ist das eigene `themeWallpaper` aus omarchy2dms: gross genug, um zu
 // erkennen, was man waehlt, Pfeiltasten zum Blaettern, Enter uebernimmt, Esc
@@ -50,7 +50,7 @@ PanelWindow {
         if (i < 0 || i >= list.length)
             return;
         selected = i;
-        Wallpapers.apply(list[i]);
+        Wallpapers.apply(Wallpapers.pathOf(list[i]));
         // Kein positionViewAtIndex mehr: das setzt `contentX` hart und
         // ueberfaehrt damit genau die Bewegung, die man sehen soll. Der
         // Streifen folgt jetzt ueber `currentIndex` und den Vorzugsbereich.
@@ -79,7 +79,7 @@ PanelWindow {
             if (!root.jumpPending)
                 return;
             root.jumpPending = false;
-            const i = root.list.indexOf(root.previous);
+            const i = root.list.findIndex(item => Wallpapers.pathOf(item) === root.previous);
             root.selected = i >= 0 ? i : 0;
             // Beim Oeffnen ohne Bewegung dorthin -- eine Animation aus dem
             // Nichts sieht aus, als haette man schon etwas verstellt.
@@ -138,8 +138,9 @@ PanelWindow {
                     if (Wallpapers.loading)
                         return "WALLPAPER  ·  searching …";
                     if (root.list.length === 0)
-                        return "WALLPAPER  ·  no images for " + Config.theme;
-                    return "WALLPAPER  ·  " + Config.theme + "  ·  " + (root.selected + 1) + "/" + root.list.length + "  ·  " + Wallpapers.nameOf(root.list[root.selected] ?? "");
+                        return "WALLPAPER  ·  no images found";
+                    const item = root.list[root.selected] ?? {};
+                    return "WALLPAPERS  ·  " + Wallpapers.themeOf(item) + "  ·  " + Wallpapers.nameOf(item) + "  ·  " + (root.selected + 1) + "/" + root.list.length;
                 }
                 color: Theme.fgDim
             }
@@ -218,7 +219,7 @@ PanelWindow {
                         Image {
                             anchors.fill: parent
                             anchors.margins: parent.border.width
-                            source: "file://" + tile.modelData
+                            source: "file://" + Wallpapers.pathOf(tile.modelData)
                             fillMode: Image.PreserveAspectCrop
                             asynchronous: true
                             cache: true
@@ -243,7 +244,7 @@ PanelWindow {
                 anchors.bottom: parent.bottom
                 anchors.right: parent.right
                 anchors.margins: Theme.cellW
-                text: "←→ browse · Enter apply · r theme image · Esc back"
+                text: "←→ browse all themes · Enter apply · r theme default · Esc back"
                 color: Theme.muted
             }
         }

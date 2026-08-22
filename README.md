@@ -137,6 +137,24 @@ nbshell makes that window floating and remembers its size and corner. Use the
 `PIP` module or `Mod+Alt+P` to change its size. Use `Mod+Alt+Shift+P` to move it
 to another corner.
 
+## Wallpapers
+
+Fresh installs include an original nbshell starter collection and enable the
+Tokyo Night default wallpaper. The picker searches every theme collection,
+so choosing a Gruvbox, Nord, or custom image never changes the active color
+theme:
+
+```bash
+nbshell wallpaper pick
+```
+
+Collections live below `~/.local/share/nbshell/wallpapers/<theme>/`; synced
+personal collections may use `~/Sync/nbshell/wallpapers/<theme>/`. An existing
+Omarchy installation is not copied automatically. To reuse its images without
+redistributing them, copy the desired files from `/usr/share/omarchy/themes/`
+or `~/.config/omarchy/themes/` into an nbshell collection directory. The
+picker discovers them the next time it opens.
+
 ## Displays
 
 Open `Displays` from the main menu, the Control Center, or run

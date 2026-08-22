@@ -8,6 +8,10 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Added
 
+- Fourteen original 1920×1080 nbshell wallpapers across seven theme
+  collections, spanning moody landscapes, bright scenes, and abstract patterns.
+- A global wallpaper picker that browses every installed and synchronized
+  theme collection without changing the active color theme.
 - A theme-synchronized Hyprlock screen with an accent-framed nbshell layout,
   privacy-safe defaults, configurable wallpaper treatment, lock-before-suspend,
   and a Niri recovery binding that remains available while locked.

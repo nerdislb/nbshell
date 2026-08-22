@@ -217,7 +217,7 @@ Scope {
             Wallpapers.refresh();
             if (Wallpapers.list.length === 0)
                 return "not loaded yet — run the command again";
-            return Wallpapers.list.map(w => Wallpapers.nameOf(w)).join("\n");
+            return Wallpapers.list.map(w => Wallpapers.themeOf(w) + "/" + Wallpapers.nameOf(w)).join("\n");
         }
 
         function current(): string {

@@ -13,6 +13,8 @@ main menu, the bar, or the `nbshell` command.
   and Back navigation; the direct shortcut and CLI entry remain available
 - Dashboard for media, calendar, tasks, habits, system information, and tools
 - Theme and wallpaper selection based on Omarchy-compatible color files
+- A bundled original wallpaper collection and a global picker that can use an
+  image from any theme collection without changing the active color theme
 - Theme-accent frames shared by menus, overlays, popouts, and notifications
 - Automatic palette synchronization for Zen Browser and Brave
 - Notification center, clipboard history, system tray, and on-screen displays

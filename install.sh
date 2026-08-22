@@ -161,11 +161,12 @@ green "Themes  -> $DATA_DIR/themes ($(find "$DATA_DIR/themes" -name colors.toml 
 # danach samt DMS geloescht werden.
 OLD_WALLPAPERS="${XDG_DATA_HOME:-$HOME/.local/share}/omarchy2dms/wallpapers"
 NEW_WALLPAPERS="${XDG_DATA_HOME:-$HOME/.local/share}/nbshell/wallpapers"
+mkdir -p "$NEW_WALLPAPERS"
+cp -a "$SRC/wallpapers/." "$NEW_WALLPAPERS/"
 if [ -d "$OLD_WALLPAPERS" ]; then
-    mkdir -p "$NEW_WALLPAPERS"
     cp -an "$OLD_WALLPAPERS/." "$NEW_WALLPAPERS/"
-    green "Images  -> $NEW_WALLPAPERS (migrated from the old location)"
 fi
+green "Images  -> $NEW_WALLPAPERS ($(find "$NEW_WALLPAPERS" -type f | wc -l) available)"
 
 # ── Config ───────────────────────────────────────────────────────────────
 # Nur anlegen, nie ueberschreiben: sie gehoert dem Benutzer.
@@ -181,6 +182,7 @@ if [ ! -f "$DATA_DIR/config.json" ]; then
   "radius": 2,
   "borderWidth": 1,
   "opacity": 1.0,
+  "wallpaper": true,
   "widgetStyle": "plain",
   "enabledPlugins": [],
   "collapsedWidgets": ["clock"],

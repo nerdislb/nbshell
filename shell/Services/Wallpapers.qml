@@ -5,7 +5,7 @@ import Quickshell
 import Quickshell.Io
 import qs.Common
 
-// Die Bilder des aktuellen Themes.
+// Alle bekannten Bilder, ueber Theme-Grenzen hinweg.
 //
 // Gesucht wird beim Theme selbst, im eigenen nbshell-Datenbereich und im
 // zwischen Rechnern synchronisierten ~/Sync/nbshell/wallpapers.
@@ -31,19 +31,17 @@ Singleton {
     function findCommand(theme) {
         const home = Quickshell.env("HOME");
         const data = Quickshell.env("XDG_DATA_HOME") || (home + "/.local/share");
-        const dirs = [
-            Config.themeDir + "/" + theme + "/backgrounds",
-            data + "/nbshell/wallpapers/" + theme,
-            home + "/Sync/nbshell/wallpapers/" + theme
-        ];
-        // `find` statt `ls`: es kennt mehrere Endungen in einem Aufruf und
-        // stolpert nicht ueber Leerzeichen in Namen.
-        // Pro Quelle sortieren und danach gleiche Dateinamen aus spaeteren
-        // Quellen ausblenden. Auf dem Hauptrechner liegen dieselben Bilder
-        // oft beim Theme UND in Syncthing; ohne Deduplizierung erschiene jedes
-        // davon zweimal im Karussell.
-        return "for d in " + dirs.map(d => JSON.stringify(d)).join(" ") +
-            "; do find \"$d\" -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \\) 2>/dev/null | sort; done | awk -F/ '!seen[$NF]++'";
+        const roots = [Config.themeDir, data + "/nbshell/wallpapers", home + "/Sync/nbshell/wallpapers"];
+        // Every immediate child is a theme collection. Config themes keep
+        // their images one level deeper in `backgrounds`; the two wallpaper
+        // roots store them directly below the theme name. Emit metadata with
+        // every path so identical numbered names such as `1.webp` remain
+        // distinguishable in the global picker.
+        return "for root in " + roots.map(d => JSON.stringify(d)).join(" ") +
+            "; do for d in \"$root\"/*; do [ -d \"$d\" ] || continue; " +
+            "theme=$(basename \"$d\"); [ -d \"$d/backgrounds\" ] && d=\"$d/backgrounds\"; " +
+            "find \"$d\" -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \\) 2>/dev/null | sort | " +
+            "while IFS= read -r f; do printf '%s\\t%s\\n' \"$theme\" \"$f\"; done; done; done";
     }
 
     // Die Wahl gilt FUER DAS THEME, nicht fuer immer.
@@ -71,8 +69,17 @@ Singleton {
         Config.set("wallpaperOverride", "");
     }
 
-    function nameOf(path) {
+    function nameOf(item) {
+        const path = item?.path ?? item ?? "";
         return String(path).split("/").pop();
+    }
+
+    function themeOf(item) {
+        return item?.theme ?? "unknown";
+    }
+
+    function pathOf(item) {
+        return item?.path ?? item ?? "";
     }
 
     Process {
@@ -80,18 +87,29 @@ Singleton {
 
         stdout: StdioCollector {
             onStreamFinished: {
-                root.list = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+                const seen = ({});
+                root.list = text.split("\n").map(line => {
+                    const tab = line.indexOf("\t");
+                    if (tab < 1)
+                        return null;
+                    const item = { "theme": line.slice(0, tab), "path": line.slice(tab + 1).trim() };
+                    const key = item.theme + "/" + root.nameOf(item);
+                    if (!item.path || seen[key])
+                        return null;
+                    seen[key] = true;
+                    return item;
+                }).filter(item => item !== null);
                 root.loading = false;
                 // Dotfiles speichern absolute Wallpaper-Pfade. Auf einem
                 // zweiten Rechner kann derselbe Dateiname aus Syncthing an
                 // einem anderen der drei Orte liegen. Dann den alten Pfad
                 // automatisch auf das gefundene Bild desselben Namens heilen.
                 const selected = root.current;
-                if (selected && root.list.indexOf(selected) < 0) {
+                if (selected && !root.list.some(item => item.path === selected)) {
                     const wanted = root.nameOf(selected);
-                    const replacement = root.list.find(path => root.nameOf(path) === wanted);
+                    const replacement = root.list.find(item => root.nameOf(item) === wanted);
                     if (replacement)
-                        root.apply(replacement);
+                        root.apply(replacement.path);
                     else
                         root.reset();
                 }
