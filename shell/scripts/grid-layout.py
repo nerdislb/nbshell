@@ -177,10 +177,10 @@ def ipc_action(name: str, window_id: int) -> dict:
     return {name: {"id": window_id}}
 
 
-def atomic_request(actions: list[dict]) -> None:
+def ipc_request(request_value: dict) -> None:
     if not SESSION:
         raise RuntimeError("NIRI_SOCKET is not set")
-    request = json.dumps({"Actions": actions}, separators=(",", ":")) + "\n"
+    request = json.dumps(request_value, separators=(",", ":")) + "\n"
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
         connection.settimeout(1.0)
         connection.connect(SESSION)
@@ -197,6 +197,25 @@ def atomic_request(actions: list[dict]) -> None:
         raise RuntimeError("Niri does not support atomic action batches") from error
     if not isinstance(value, dict) or "Ok" not in value:
         raise RuntimeError(f"Niri rejected the atomic action batch: {value}")
+
+
+def atomic_request(actions: list[dict]) -> None:
+    ipc_request({"Actions": actions})
+
+
+def set_column_pairing(workspace_id: int, enabled: bool) -> bool:
+    try:
+        ipc_request(
+            {
+                "SetColumnPairing": {
+                    "workspace_id": workspace_id,
+                    "enabled": enabled,
+                }
+            }
+        )
+        return True
+    except (OSError, RuntimeError):
+        return False
 
 
 def atomic_supported() -> bool:
@@ -357,10 +376,14 @@ def arrange(workspace_id: int) -> None:
 
 
 def enable(workspace_id: int) -> None:
+    if load_backend() == "atomic":
+        set_column_pairing(workspace_id, True)
     arrange(workspace_id)
 
 
 def disable(workspace_id: int) -> None:
+    if load_backend() == "atomic":
+        set_column_pairing(workspace_id, False)
     separate_all(workspace_id)
 
 
@@ -507,6 +530,9 @@ def watch() -> None:
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     PID_FILE.write_text(f"{os.getpid()}\n", encoding="utf-8")
     try:
+        if load_backend() == "atomic":
+            for workspace_id in load_state():
+                set_column_pairing(workspace_id, True)
         environment = os.environ.copy()
         environment["NIRI_SOCKET"] = SESSION
         process = subprocess.Popen(

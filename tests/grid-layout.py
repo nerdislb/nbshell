@@ -53,5 +53,8 @@ assert grid.compositor_override_text(Path("/tmp/niri-atomic")) == (
 assert grid.SESSION
 assert grid.ATOMIC_EVENT_DEBOUNCE <= 0.001
 assert grid.STABLE_EVENT_DEBOUNCE > grid.ATOMIC_EVENT_DEBOUNCE
+assert grid.ipc_action("ConsumeOrExpelWindowRight", 7) == {
+    "ConsumeOrExpelWindowRight": {"id": 7}
+}
 
 print("Grid layout policy: OK")

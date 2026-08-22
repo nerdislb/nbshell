@@ -66,6 +66,13 @@ The compositor patch is intentionally small and generic. It adds an
 changes, advances animations once, and executes the list in one event-loop
 turn. It does not add a Hyprland layout tree or change Niri's normal behavior.
 
+The prototype also accepts a workspace-local `SetColumnPairing` request. When
+grid mode is active, a normal tiled window that completes pair 2, 3, 4, and so
+on is inserted into its final column before Niri starts the opening animation.
+This removes the brief 50% column that an external event watcher cannot avoid.
+Dialogs, floating, maximized, and full-width windows remain on Niri's normal
+mapping path.
+
 This separation keeps three useful layers:
 
 1. Niri owns window layout, rendering, focus, and animation.
