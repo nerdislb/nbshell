@@ -31,6 +31,7 @@ binds {
     Mod+Ctrl+P hotkey-overlay-title="nbshell: Plugin diagnostics" { spawn "sh" "-c" "$HOME/.local/bin/nbshell plugin-dev"; }
     Mod+Ctrl+A hotkey-overlay-title="nbshell: Audio" { spawn "sh" "-c" "$HOME/.local/bin/nbshell audio panel"; }
     Mod+Shift+A hotkey-overlay-title="nbshell: Quick Agent" { spawn "sh" "-c" "$HOME/.local/bin/nbshell agent quick"; }
+    Mod+Shift+N hotkey-overlay-title="nbshell: New note" { spawn "sh" "-c" "$HOME/.local/bin/nbshell notes new"; }
     Mod+Ctrl+Shift+A hotkey-overlay-title="nbshell: Agent Center" { spawn "sh" "-c" "$HOME/.local/bin/nbshell agent center"; }
     Mod+Alt+A hotkey-overlay-title="nbshell: Focus & Equalizer" { spawn "sh" "-c" "$HOME/.local/bin/nbshell audio tools"; }
     Mod+Escape hotkey-overlay-title="nbshell: Session" { spawn "sh" "-c" "$HOME/.local/bin/nbshell power menu"; }
@@ -97,6 +98,14 @@ binds {
     XF86AudioPause allow-when-locked=true { spawn "sh" "-c" "$HOME/.local/bin/nbshell media playpause"; }
     XF86AudioNext  allow-when-locked=true { spawn "sh" "-c" "$HOME/.local/bin/nbshell media next"; }
     XF86AudioPrev  allow-when-locked=true { spawn "sh" "-c" "$HOME/.local/bin/nbshell media previous"; }
+}
+
+window-rule {
+    match title="^nbshell Notes$"
+    open-floating true
+    open-focused true
+    default-column-width { proportion 0.64; }
+    default-window-height { proportion 0.68; }
 }
 
 // Der Bildschirmschoner: bildschirmfuellend, ohne Rahmen, ohne Schatten.

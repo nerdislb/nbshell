@@ -42,7 +42,7 @@ online guide without turning this README into a wall of text.
   and persistent Niri display management
 - Floating Picture-in-Picture controls for Zen Browser
 - Theme-synchronized Hyprlock screen with PAM authentication and lock-before-suspend
-- Calendar, tasks, habits, KDE Connect, Android mirroring, and a phone webcam
+- Calendar, tasks, quick notes, habits, KDE Connect, Android mirroring, and a phone webcam
 - Screenshots, screen recording, OCR, QR scanning, and a screen saver
 - AI usage for Codex, Claude, Antigravity, and other providers
 - Curated plugin manager with optional modules, dependency details, update
@@ -322,7 +322,12 @@ nbshell gaming remove steam
 
 - Calendar data requires `khal`. Online calendar synchronization can be added
   with `vdirsyncer`.
-- Task and wallpaper files can be synchronized with Syncthing.
+- Task, quick-note, and wallpaper files can be synchronized with Syncthing.
+  `Mod+Shift+N` opens the floating notes editor; `Alt+S` saves and closes it.
+  Point `notesFile` at a synchronized directory with
+  `nbshell set notesFile '~/Sync/nbshell/notes.json'`. nbOS reads the same
+  `notes.json` from its existing shared data folder and merges entries by ID
+  and update time, including deletion tombstones for offline-safe sync.
 - Phone features require KDE Connect. Android mirroring and the optional phone
   webcam require ADB, `scrcpy`, and the separate `nbphone` tool. Webcam setup
   additionally installs `v4l2loopback-dkms`, matching kernel headers, and

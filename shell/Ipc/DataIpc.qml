@@ -167,6 +167,38 @@ Scope {
     }
 
     IpcHandler {
+        target: "notes"
+
+        function toggle(): string {
+            Runtime.notesOpen = !Runtime.notesOpen;
+            return Runtime.notesOpen ? "open" : "closed";
+        }
+        function newNote(): string {
+            Runtime.notesRequestedId = "";
+            Runtime.notesOpen = true;
+            return "open";
+        }
+        function open(which: string): string {
+            const note = Notes.list[parseInt(which, 10) - 1];
+            if (!note) return "no note " + which;
+            Runtime.notesRequestedId = String(note.id);
+            Runtime.notesOpen = true;
+            return "open: " + note.title;
+        }
+        function list(): string {
+            if (Notes.list.length === 0) return "no notes";
+            return Notes.list.map((e, i) => String(i + 1).padStart(3, " ") + "  " + e.title).join("\n");
+        }
+        function sync(): string {
+            Notes.foldConflicts(); Notes.reload();
+            return "reloaded: " + Notes.file;
+        }
+        function status(): string {
+            return JSON.stringify({"enabled": Notes.enabled, "count": Notes.count, "file": Notes.file, "retentionDays": Notes.keepDays});
+        }
+    }
+
+    IpcHandler {
         target: "habits"
 
         function toggle(): string {

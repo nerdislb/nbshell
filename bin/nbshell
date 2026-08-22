@@ -468,6 +468,11 @@ nbshell -- an independent Quickshell desktop shell for niri
   nbshell todo clear        remove completed tasks
   nbshell todo sync         merge conflict copies and reload
 
+  nbshell notes             open a new floating note
+  nbshell notes list        list saved notes
+  nbshell notes open <n>    edit a saved note
+  nbshell notes sync        merge conflict copies and reload
+
   nbshell habits            list habits
   nbshell habits toggle <n> toggle completion
   nbshell habits done <n>   mark as completed
@@ -906,6 +911,16 @@ for b in d["binds"]:
                 text="${text//]/%5D}"
                 ipc todo add "$text"
                 ;;
+        esac
+        ;;
+    notes|note|notizen)
+        case "${1:-new}" in
+            new|toggle|"") ipc notes newNote ;;
+            list)          ipc notes list ;;
+            open|edit)     ipc notes open "${2:?number is required}" ;;
+            sync)          ipc notes sync ;;
+            status)        ipc notes status ;;
+            *)             echo "Usage: nbshell notes [new|list|open <n>|sync|status]" >&2; exit 2 ;;
         esac
         ;;
     habits|gewohnheiten)

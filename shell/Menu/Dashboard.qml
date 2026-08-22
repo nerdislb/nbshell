@@ -431,6 +431,7 @@ PanelWindow {
                         spacing: root.cardGap
 
                         Action { label: "Tasks"; detail: Todo.count + " open"; glyph: Icons.todo; run: () => root.openSurface(() => Runtime.todoOpen = true) }
+                        Action { label: "Notes"; detail: Notes.count + " saved"; glyph: "󰎞"; run: () => root.openSurface(() => Runtime.notesOpen = true) }
                         Action { label: "Habits"; detail: Habits.doneCount + "/" + Habits.count + " today"; glyph: Icons.habit; run: () => root.openSurface(() => Runtime.habitsOpen = true) }
                         Action {
                             label: "Updates"

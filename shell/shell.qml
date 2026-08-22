@@ -17,6 +17,7 @@ import qs.Capture
 import qs.Settings
 import qs.Wallpaper
 import qs.Todo
+import qs.Notes
 import qs.Habits
 import qs.Net
 import qs.Music
@@ -72,6 +73,7 @@ ShellRoot {
         // Datei drei offene Punkte liegen -- und ein Abgleich vom Telefon
         // faende beim Schreiben eine leere eigene Seite vor.
         void Todo.count;
+        void Notes.count;
         void Habits.count;
         // Die Leerlaufuhren muessen von Anfang an laufen, nicht erst beim ersten
         // Blick auf die Zelle: sonst begaenne die Frist erst, wenn jemand die
@@ -116,6 +118,8 @@ ShellRoot {
     WallpaperPicker {}
 
     TodoList {}
+
+    NotesWindow {}
 
     HabitsList {}
 
