@@ -50,7 +50,10 @@ assert grid.CLI_ACTION_NAMES["ConsumeOrExpelWindowLeft"] == "consume-or-expel-wi
 assert grid.compositor_override_text(Path("/tmp/niri-atomic")) == (
     "[Service]\nExecStart=\nExecStart=/tmp/niri-atomic --session\n"
 )
-assert grid.SESSION
+# Policy tests also run in headless CI where no Niri socket exists. Runtime
+# commands validate the live session when they are actually invoked; importing
+# the pure layout helpers must remain possible without a compositor.
+assert isinstance(grid.SESSION, str)
 assert grid.ATOMIC_EVENT_DEBOUNCE <= 0.001
 assert grid.STABLE_EVENT_DEBOUNCE > grid.ATOMIC_EVENT_DEBOUNCE
 assert grid.ipc_action("ConsumeOrExpelWindowRight", 7) == {

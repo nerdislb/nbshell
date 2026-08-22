@@ -6,6 +6,12 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+No changes yet.
+
+## [0.1.0-beta.1] - 2026-08-22
+
+First public beta candidate.
+
 ### Added
 
 - Fourteen original 1920×1080 nbshell wallpapers across seven theme
@@ -29,6 +35,10 @@ configuration and plugin interfaces before `1.0.0`.
 - Menus, overlays, bar popouts, notifications, OSD surfaces, plugin popups,
   and tooltips now share the active theme's accent frame; inner cards retain
   neutral borders for visual hierarchy.
+- Synced floating quick notes with `Mod+Shift+N`, `Alt+S`, per-note conflict
+  merging, deletion tombstones, and an optional nbOS companion view.
+- Workspace-local grid pairing keeps the first two windows stacked when a
+  third window opens in the next scrolling column.
 
 ### Changed
 
@@ -56,11 +66,7 @@ configuration and plugin interfaces before `1.0.0`.
 - Hidden launcher SVG rendering no longer emits oversized-buffer warnings at
   shell startup.
 
-## [0.1.0-beta.1] - 2026-08-21
-
-First public beta candidate.
-
-### Added
+### Foundation
 
 - Collapsible island, pill, and full-width bar layouts for Niri.
 - Launcher, dashboard, notifications, clipboard, calendar, capture, display,

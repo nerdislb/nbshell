@@ -18,12 +18,39 @@ testing, and the direction of the project remain human-led.
 Current release candidate: **0.1.0-beta.1**. See the
 [changelog](CHANGELOG.md) for user-facing changes.
 
+![nbshell menu over a three-window grid-scroll workspace](docs/screenshots/01-menu-grid.png)
+
+## Why nbshell?
+
+- **Grid-scroll without leaving Niri:** turn one workspace into compact
+  two-window columns while other workspaces keep Niri's normal scrolling
+  layout. A third window forms the next column instead of disturbing the first.
+- **One theme across the desktop:** import compatible Omarchy themes or use the
+  bundled independent collection; nbshell keeps the bar, menus, terminal,
+  browser accents, lock screen, and wallpaper language coherent.
+- **Linux tools remain Linux tools:** nbshell coordinates NetworkManager,
+  PipeWire, systemd, grim, OBS, KDE Connect, and other existing components
+  instead of replacing them with a closed desktop stack.
+- **Desktop and phone can work together:** optional Android mirroring, phone
+  webcam, nearby sharing, synchronized tasks, wallpapers, habits, and quick
+  notes are available without making a phone mandatory.
+- **Inspectable extensions:** bundled and third-party plugins expose their
+  source, license, dependencies, and permissions; new plugins start disabled.
+- **Keyboard first, mouse friendly:** the searchable menu reaches nested
+  actions and installed applications, while every major surface remains
+  directly addressable from a shortcut or CLI command.
+
+| Wallpaper library | Theme picker | Floating quick notes |
+| --- | --- | --- |
+| ![Wallpaper picker](docs/screenshots/02-wallpaper-picker.png) | ![Theme picker](docs/screenshots/04-theme-picker.png) | ![Quick notes](docs/screenshots/05-quick-notes.png) |
+
 ## Documentation
 
 - [Manual](docs/index.md) — setup, features, browser themes, and video trimming
 - [Getting started](docs/getting-started.md) — install, first login, and checks
 - [Compatibility](docs/compatibility.md) — supported baseline and beta limitations
 - [Beta testing](docs/beta-testing.md) — clean-machine and hardware checklist
+- [Join the public beta](docs/beta-invitation.md) — tester profile, feedback, and media plan
 - [Troubleshooting](docs/troubleshooting.md) — health checks and recovery
 - [Plugin development](docs/plugin-development.md) — manifest, lifecycle, safety, and publishing
 - [Plugin store](docs/plugin-store.md) — catalog format and review policy
