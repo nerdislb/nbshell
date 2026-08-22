@@ -53,10 +53,6 @@ Singleton {
     property bool captureOpen: false
     property bool captureWindowSelect: false
     property bool settingsOpen: false
-    // Settings can be entered as a page of the main menu or directly through
-    // IPC/Mod+Comma. Only the first path returns to Personalize on Back.
-    property bool settingsReturnToMenu: false
-    property var menuResumePath: []
     property bool modulesOpen: false
     property bool wallpaperOpen: false
     property bool calendarOpen: false

@@ -103,7 +103,7 @@ ShellRoot {
 
     CaptureMenu {}
 
-    SettingsMenu {}
+    SettingsWindow {}
 
     ModulesMenu {}
 

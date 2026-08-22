@@ -453,7 +453,7 @@ PanelWindow {
                         Action { label: "Clipboard"; detail: Clipboard.entries.length + " entries"; glyph: Icons.clipboard; run: () => root.openSurface(() => Runtime.clipOpen = true) }
                         Action { label: "Audio"; detail: "Mixer and equalizer"; glyph: Icons.volumeHigh; run: () => root.openSurface(() => Runtime.audioToolsOpen = true) }
                         Action { label: "Displays"; detail: Displays.outputs.length + " connected"; glyph: Displays.outputs.length > 1 ? Icons.monitors : Icons.monitor; run: () => root.openSurface(() => Runtime.displayOpen = true) }
-                        Action { label: "Settings"; detail: "Appearance and behavior"; glyph: Icons.cp(0xF0493); run: () => root.openSurface(() => { Runtime.settingsReturnToMenu = false; Runtime.settingsOpen = true; }) }
+                        Action { label: "Settings"; detail: "Appearance and behavior"; glyph: Icons.cp(0xF0493); run: () => root.openSurface(() => Runtime.settingsOpen = true) }
                     }
                 }
 

@@ -122,8 +122,6 @@ Scope {
         target: "settings"
 
         function toggle(): string {
-            if (!Runtime.settingsOpen)
-                Runtime.settingsReturnToMenu = false;
             Runtime.settingsOpen = !Runtime.settingsOpen;
             return Runtime.settingsOpen ? "open" : "closed";
         }

@@ -1,6 +1,4 @@
 import QtQuick
-import Quickshell
-import Quickshell.Wayland
 import qs.Common
 import qs.Services
 import qs.Widgets
@@ -20,8 +18,12 @@ import qs.Widgets
 // Gruppen, rechts ihre Zeilen. Tab wechselt die Seite. Eine Wurst aus
 // Ueberschriften und Zeilen liest sich ab einer gewissen Laenge nicht mehr --
 // man scrollt an der Ueberschrift vorbei und weiss nicht mehr, wo man ist.
-PanelWindow {
+Item {
     id: root
+
+    property bool embedded: false
+    signal backRequested()
+    signal closeRequested()
 
     // Welche Seite die Tasten bekommt: 0 = Gruppen links, 1 = Zeilen rechts.
     property int pane: 1
@@ -481,32 +483,18 @@ PanelWindow {
         return n;
     }
 
-    visible: Runtime.settingsOpen
-
-    screen: Quickshell.screens[0] ?? null
-    color: "transparent"
-
-    WlrLayershell.namespace: "nbshell:settings"
-    WlrLayershell.layer: WlrLayershell.Overlay
-    WlrLayershell.keyboardFocus: Runtime.settingsOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-    exclusionMode: ExclusionMode.Ignore
-
-    anchors.left: true
-    anchors.right: true
-    anchors.top: true
-    anchors.bottom: true
-
     function close() {
-        Runtime.settingsReturnToMenu = false;
-        Runtime.settingsOpen = false;
+        if (root.embedded)
+            root.closeRequested();
+        else
+            Runtime.settingsOpen = false;
     }
 
     function back() {
-        const returnToMenu = Runtime.settingsReturnToMenu;
-        Runtime.settingsReturnToMenu = false;
-        Runtime.settingsOpen = false;
-        if (returnToMenu)
-            Runtime.menuOpen = true;
+        if (root.embedded)
+            root.backRequested();
+        else
+            root.close();
     }
 
     // Der Rueckfallwert muss derselbe sein wie in Common/Config.qml -- steht
@@ -663,15 +651,15 @@ PanelWindow {
                     anchors.leftMargin: Theme.cellW
                     anchors.rightMargin: Theme.cellW
                     anchors.verticalCenter: parent.verticalCenter
-                    text: (Runtime.settingsReturnToMenu ? "‹  MAIN MENU  ›  PERSONALIZE  ›  " : "") + "SETTINGS"
-                    color: Runtime.settingsReturnToMenu ? Theme.fg : Theme.fgDim
+                    text: (root.embedded ? "‹  MAIN MENU  ›  PERSONALIZE  ›  " : "") + "SETTINGS"
+                    color: root.embedded ? Theme.fg : Theme.fgDim
                     font.pixelSize: Theme.fontTitle
                     elide: Text.ElideRight
                 }
 
                 MouseArea {
                     anchors.fill: parent
-                    enabled: Runtime.settingsReturnToMenu
+                    enabled: root.embedded
                     cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: root.back()
                 }
@@ -820,7 +808,7 @@ PanelWindow {
                 // Muss in EINE Zeile passen: die Hoehe des Kastens rechnet mit
                 // `footer.implicitHeight`, ein Umbruch schoebe den Fusstext in
                 // die letzte Zeile der Liste.
-                text: Runtime.settingsReturnToMenu
+                text: root.embedded
                     ? "Tab: page · ↑↓ select · ←→ change · Esc/← back"
                     : "Tab: page · ↑↓ select · ←→ change · Esc closes"
                 color: Theme.muted

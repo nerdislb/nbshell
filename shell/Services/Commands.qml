@@ -45,7 +45,7 @@ Singleton {
         const out = [];
 
         // ── Windows ──────────────────────────────────────────────────────
-        out.push(entry("Settings", "Shell options", "Windows", () => { Runtime.settingsReturnToMenu = false; Runtime.settingsOpen = true; }));
+        out.push(entry("Settings", "Shell options", "Windows", () => Runtime.settingsOpen = true));
         out.push(entry("Main menu", "Omarchy-style command center (Mod+Space)", "Windows", () => Runtime.menuOpen = true));
         out.push(entry("System & Plugins", "Herdr, sync, updates, printing, ports, and hardware (Mod+Ctrl+H)", "Windows", () => Runtime.hubOpen = true));
         out.push(entry("Modules", "choose the modules shown in the bar", "Windows", () => Runtime.modulesOpen = true));

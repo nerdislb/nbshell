@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import Quickshell.Widgets
 import qs.Common
 import qs.Services
+import qs.Settings
 import qs.Widgets
 
 // Das Menue -- ein Omarchy-artiger Sammelpunkt fuer alles, was nbshell kann.
@@ -40,6 +41,7 @@ PanelWindow {
     property var trail: []
     property int selected: 0
     property string filterText: ""
+    property bool settingsPage: false
     readonly property var levelItems: trail.length ? trail[trail.length - 1].sub : root.tree
 
     function searchTree(entries, needle, parents, inheritedText) {
@@ -89,30 +91,18 @@ PanelWindow {
         root.filterText = "";
         Runtime.menuOpen = true;
     }
-    function resumePath(labels) {
-        var entries = root.tree;
-        var nextTrail = [];
-        for (var i = 0; i < labels.length; i++) {
-            const wanted = labels[i];
-            const entry = entries.find(item => item.label === wanted && item.sub);
-            if (!entry)
-                break;
-            nextTrail.push(entry);
-            entries = entry.sub;
-        }
-        root.trail = nextTrail;
-        root.selected = 0;
-        root.filterText = "";
-    }
     function openSettings() {
-        Runtime.settingsReturnToMenu = true;
-        Runtime.menuResumePath = ["Personalize"];
-        Runtime.settingsOpen = true;
+        root.settingsPage = true;
     }
     function close() {
+        root.settingsPage = false;
         Runtime.menuOpen = false;
     }
     function back() {
+        if (root.settingsPage) {
+            root.settingsPage = false;
+            return;
+        }
         if (root.filterText !== "") {
             root.filterText = "";
             root.selected = 0;
@@ -137,7 +127,8 @@ PanelWindow {
             root.selected = 0;
             root.filterText = "";
         } else {
-            root.close();
+            if (!it.inline)
+                root.close();
             if (it.run)
                 it.run();
         }
@@ -156,6 +147,7 @@ PanelWindow {
             root.trail = [];
             root.selected = 0;
             root.filterText = "";
+            root.settingsPage = false;
             keys.forceActiveFocus();
         }
     }
@@ -168,11 +160,6 @@ PanelWindow {
                 root.trail = [];
                 root.selected = 0;
                 root.filterText = "";
-                if (Runtime.menuResumePath.length) {
-                    const path = Runtime.menuResumePath.slice();
-                    Runtime.menuResumePath = [];
-                    Qt.callLater(() => root.resumePath(path));
-                }
             }
         }
     }
@@ -287,7 +274,7 @@ PanelWindow {
         {
             "key": "p", "label": "Personalize", "description": "Themes, wallpaper, bar, modules, plugins, and settings", "icon": Icons.palette,
             "sub": [
-                { "key": "s", "label": "Settings", "description": "Appearance, behavior, idle, lock screen, and services", "icon": Icons.cp(0xF0493), "run": () => root.openSettings() },
+                { "key": "s", "label": "Settings", "description": "Appearance, behavior, idle, lock screen, and services", "icon": Icons.cp(0xF0493), "inline": true, "run": () => root.openSettings() },
                 { "key": "l", "label": "Look & Feel", "description": "Themes, wallpaper, bar, and settings", "icon": Icons.palette, "sub": [
                     { "key": "t", "label": "Choose theme", "icon": Icons.palette, "run": () => Runtime.themePickerOpen = true },
                     { "key": "n", "label": "Next theme", "icon": Icons.cp(0xF0142), "run": () => ThemeIndex.step(1) },
@@ -336,6 +323,8 @@ PanelWindow {
         id: keys
 
         anchors.fill: parent
+        // This scope must remain active while the embedded settings page owns
+        // focus; otherwise its child FocusScope cannot receive key events.
         focus: root.visible
 
         Keys.onEscapePressed: root.back()
@@ -365,6 +354,8 @@ PanelWindow {
 
         PanelSurface {
             id: box
+
+            visible: !root.settingsPage
 
             anchors.centerIn: parent
             width: Theme.cellW * 48
@@ -502,6 +493,14 @@ PanelWindow {
                     topPadding: Theme.cellH * 0.4
                 }
             }
+        }
+
+        SettingsMenu {
+            anchors.fill: parent
+            visible: root.settingsPage
+            embedded: true
+            onBackRequested: root.settingsPage = false
+            onCloseRequested: root.close()
         }
     }
 }
