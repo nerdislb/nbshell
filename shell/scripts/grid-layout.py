@@ -58,7 +58,7 @@ LAYOUT_EVENT_NAMES = {
 }
 ACTION_SETTLE_TIMEOUT = 0.35
 STABLE_EVENT_DEBOUNCE = 0.14
-ATOMIC_EVENT_DEBOUNCE = 0.008
+ATOMIC_EVENT_DEBOUNCE = 0.001
 CLI_ACTION_NAMES = {
     "ConsumeOrExpelWindowLeft": "consume-or-expel-window-left",
     "ConsumeOrExpelWindowRight": "consume-or-expel-window-right",

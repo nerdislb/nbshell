@@ -51,7 +51,7 @@ assert grid.compositor_override_text(Path("/tmp/niri-atomic")) == (
     "[Service]\nExecStart=\nExecStart=/tmp/niri-atomic --session\n"
 )
 assert grid.SESSION
-assert grid.ATOMIC_EVENT_DEBOUNCE < 0.016
+assert grid.ATOMIC_EVENT_DEBOUNCE <= 0.001
 assert grid.STABLE_EVENT_DEBOUNCE > grid.ATOMIC_EVENT_DEBOUNCE
 
 print("Grid layout policy: OK")
