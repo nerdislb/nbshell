@@ -497,7 +497,16 @@ PanelWindow {
     anchors.bottom: true
 
     function close() {
+        Runtime.settingsReturnToMenu = false;
         Runtime.settingsOpen = false;
+    }
+
+    function back() {
+        const returnToMenu = Runtime.settingsReturnToMenu;
+        Runtime.settingsReturnToMenu = false;
+        Runtime.settingsOpen = false;
+        if (returnToMenu)
+            Runtime.menuOpen = true;
     }
 
     // Der Rueckfallwert muss derselbe sein wie in Common/Config.qml -- steht
@@ -575,6 +584,11 @@ PanelWindow {
         }
     }
 
+    Rectangle {
+        anchors.fill: parent
+        color: Theme.scrim
+    }
+
     MouseArea {
         anchors.fill: parent
         onClicked: root.close()
@@ -586,7 +600,7 @@ PanelWindow {
         anchors.fill: parent
         focus: root.visible
 
-        Keys.onEscapePressed: root.close()
+        Keys.onEscapePressed: root.back()
         Keys.onUpPressed: root.move(-1)
         Keys.onDownPressed: root.move(1)
         Keys.onTabPressed: root.switchPane()
@@ -597,6 +611,8 @@ PanelWindow {
         Keys.onLeftPressed: {
             if (root.pane === 1)
                 root.step(root.items[root.selected], -1);
+            else
+                root.back();
         }
         Keys.onRightPressed: {
             if (root.pane === 0)
@@ -627,15 +643,38 @@ PanelWindow {
                 anchors.fill: parent
             }
 
-            Line {
+            Rectangle {
                 id: header
 
                 anchors.left: parent.left
+                anchors.right: parent.right
                 anchors.top: parent.top
                 anchors.margins: Theme.cellH * 0.6
-                anchors.leftMargin: Theme.cellW
-                text: "SETTINGS"
-                color: Theme.fgDim
+                height: Theme.cellH * 3
+                implicitHeight: height
+                radius: Theme.radius
+                color: Theme.panelSurfaceRaised
+                border.width: Theme.borderWidth
+                border.color: Theme.panelBorder
+
+                Line {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.leftMargin: Theme.cellW
+                    anchors.rightMargin: Theme.cellW
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: (Runtime.settingsReturnToMenu ? "‹  MAIN MENU  ›  PERSONALIZE  ›  " : "") + "SETTINGS"
+                    color: Runtime.settingsReturnToMenu ? Theme.fg : Theme.fgDim
+                    font.pixelSize: Theme.fontTitle
+                    elide: Text.ElideRight
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    enabled: Runtime.settingsReturnToMenu
+                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    onClicked: root.back()
+                }
             }
 
             // ── Links: die Gruppen ───────────────────────────────────────
@@ -781,7 +820,9 @@ PanelWindow {
                 // Muss in EINE Zeile passen: die Hoehe des Kastens rechnet mit
                 // `footer.implicitHeight`, ein Umbruch schoebe den Fusstext in
                 // die letzte Zeile der Liste.
-                text: "Tab: page · ↑↓ select · ←→ change · Esc closes"
+                text: Runtime.settingsReturnToMenu
+                    ? "Tab: page · ↑↓ select · ←→ change · Esc/← back"
+                    : "Tab: page · ↑↓ select · ←→ change · Esc closes"
                 color: Theme.muted
                 elide: Text.ElideRight
             }

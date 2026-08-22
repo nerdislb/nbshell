@@ -26,6 +26,9 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Changed
 
+- Settings now opens as a Personalize view in the main-menu flow, sharing its
+  breadcrumb header, scrim, accent frame, and Back navigation. Direct shortcut
+  and CLI entry points remain available.
 - Fresh installations now start with the full-width bar, plain unboxed
   widgets, and a neutral core-module layout.
 - Full-screen wallpapers decode at the active output size, and hidden launcher

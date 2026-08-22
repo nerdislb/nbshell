@@ -9,6 +9,8 @@ main menu, the bar, or the `nbshell` command.
 - Freely arranged and optional bar modules
 - Searchable application launcher and an eight-category main menu whose root
   search reaches nested actions and installed applications
+- Settings integrated into the Personalize menu flow, with breadcrumb and
+  Back navigation; the direct shortcut and CLI entry remain available
 - Dashboard for media, calendar, tasks, habits, system information, and tools
 - Theme and wallpaper selection based on Omarchy-compatible color files
 - Theme-accent frames shared by menus, overlays, popouts, and notifications

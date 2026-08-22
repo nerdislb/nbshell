@@ -89,6 +89,26 @@ PanelWindow {
         root.filterText = "";
         Runtime.menuOpen = true;
     }
+    function resumePath(labels) {
+        var entries = root.tree;
+        var nextTrail = [];
+        for (var i = 0; i < labels.length; i++) {
+            const wanted = labels[i];
+            const entry = entries.find(item => item.label === wanted && item.sub);
+            if (!entry)
+                break;
+            nextTrail.push(entry);
+            entries = entry.sub;
+        }
+        root.trail = nextTrail;
+        root.selected = 0;
+        root.filterText = "";
+    }
+    function openSettings() {
+        Runtime.settingsReturnToMenu = true;
+        Runtime.menuResumePath = ["Personalize"];
+        Runtime.settingsOpen = true;
+    }
     function close() {
         Runtime.menuOpen = false;
     }
@@ -148,6 +168,11 @@ PanelWindow {
                 root.trail = [];
                 root.selected = 0;
                 root.filterText = "";
+                if (Runtime.menuResumePath.length) {
+                    const path = Runtime.menuResumePath.slice();
+                    Runtime.menuResumePath = [];
+                    Qt.callLater(() => root.resumePath(path));
+                }
             }
         }
     }
@@ -262,6 +287,7 @@ PanelWindow {
         {
             "key": "p", "label": "Personalize", "description": "Themes, wallpaper, bar, modules, plugins, and settings", "icon": Icons.palette,
             "sub": [
+                { "key": "s", "label": "Settings", "description": "Appearance, behavior, idle, lock screen, and services", "icon": Icons.cp(0xF0493), "run": () => root.openSettings() },
                 { "key": "l", "label": "Look & Feel", "description": "Themes, wallpaper, bar, and settings", "icon": Icons.palette, "sub": [
                     { "key": "t", "label": "Choose theme", "icon": Icons.palette, "run": () => Runtime.themePickerOpen = true },
                     { "key": "n", "label": "Next theme", "icon": Icons.cp(0xF0142), "run": () => ThemeIndex.step(1) },
@@ -271,7 +297,6 @@ PanelWindow {
                         const order = ["island", "pill", "bar"];
                         Config.set("mode", order[(order.indexOf(Config.mode) + 1) % order.length]);
                     } },
-                    { "key": "e", "label": "Settings", "icon": Icons.cp(0xF0493), "run": () => Runtime.settingsOpen = true },
                     { "key": "g", "label": "UI gallery", "icon": Icons.cp(0xF03D9), "run": () => Runtime.uiGalleryOpen = true },
                     { "key": "a", "label": "Open Aether", "icon": Icons.palette, "run": () => Quickshell.execDetached(["aether"]) },
                     { "key": "i", "label": "Import Aether theme", "icon": Icons.download, "run": () => root.term("$HOME/.local/bin/nb-aether-import") },
