@@ -36,6 +36,26 @@ Run `./install.sh` to see missing optional programs. The Plugin Manager shows
 declared dependencies for bundled and external plugins. Installing a plugin
 does not install packages or enable the plugin automatically.
 
+## Recover from a failed screen locker
+
+Hyprlock uses Niri's secure session-lock protocol. If the locker exits while
+the session is locked, Niri deliberately shows a red security screen instead
+of exposing the desktop. Press `Mod+Alt+L` to start the locker again; this
+binding remains enabled while locked.
+
+If the binding itself is unavailable, switch to a TTY with `Ctrl+Alt+F3`, log
+in, and restart the locker on the active Wayland display. Do not terminate
+Niri to bypass the red screen. After returning, inspect:
+
+```bash
+journalctl --user --since "10 minutes ago" | grep -i hyprlock
+```
+
+The generated configuration is
+`~/.config/nbshell/generated/hyprlock.conf`. It is replaced on every lock, so
+put persistent choices in nbshell Settings or `~/.config/nbshell/config.json`
+rather than editing that file.
+
 ## The shell fails after enabling a plugin
 
 Disable it from a terminal, then restart:

@@ -9,7 +9,7 @@ import qs.Common
 //
 // Alles ueber logind bzw. den Kompositor -- kein eigener Mechanismus:
 //
-//   sperren     der Sperrbildschirm aus der Config (Vorgabe hyprlock).
+//   sperren     Hyprlock/PAM, gestaltet durch nbshells sicheren Wrapper.
 //               nbshell baut BEWUSST keinen eigenen: ein Fehler darin sperrt
 //               einen aus dem eigenen Rechner aus.
 //   abmelden    `niri msg action quit`, damit niri sauber herunterfaehrt.
@@ -17,7 +17,7 @@ import qs.Common
 Singleton {
     id: root
 
-    readonly property string lockCommand: Config.value("lockCommand", "hyprlock")
+    readonly property string lockScript: Qt.resolvedUrl("../scripts/lockscreen.py").toString().replace("file://", "")
 
     readonly property var actions: [
         {
@@ -55,15 +55,15 @@ Singleton {
     function run(id) {
         switch (id) {
         case "lock":
-            // Ist keiner installiert, sagt es das -- sonst drueckt man
-            // "Lock" und es passiert schlicht nichts.
-            Quickshell.execDetached(["sh", "-c", "command -v " + root.lockCommand.split(" ")[0] + " >/dev/null && exec " + root.lockCommand + " || notify-send 'nbshell' 'No lock screen installed: " + root.lockCommand + "'"]);
+            Quickshell.execDetached([root.lockScript, "lock"]);
             return true;
         case "logout":
             Quickshell.execDetached(["niri", "msg", "action", "quit", "--skip-confirmation"]);
             return true;
         case "suspend":
-            Quickshell.execDetached(["systemctl", "suspend"]);
+            // Der Wrapper startet zuerst den echten Wayland-Locker und bricht
+            // ab, falls dieser vor dem Suspend wieder stirbt.
+            Quickshell.execDetached([root.lockScript, "suspend"]);
             return true;
         case "hibernate":
             Quickshell.execDetached(["systemctl", "hibernate"]);

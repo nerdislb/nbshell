@@ -7,6 +7,7 @@
 - [ ] `./tests/plugin-validation.sh`
 - [ ] `./tests/fresh-install.sh`
 - [ ] `python3 ./tests/grid-layout.py`
+- [ ] `python3 ./tests/lockscreen.py`
 - [ ] `./tests/release-audit.sh`
 - [ ] No credentials or personal configuration included
 

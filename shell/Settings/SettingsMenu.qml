@@ -329,6 +329,43 @@ PanelWindow {
             "max": 7200
         },
         {
+            "head": "LOCK SCREEN"
+        },
+        {
+            "key": "lockBackground",
+            "def": "wallpaper",
+            "label": "Background",
+            "values": ["wallpaper", "solid"]
+        },
+        {
+            "key": "lockBlur",
+            "def": 3,
+            "label": "Wallpaper blur",
+            "step": 1,
+            "min": 0,
+            "max": 8
+        },
+        {
+            "key": "lockDim",
+            "def": 48,
+            "label": "Wallpaper dim (%)",
+            "step": 5,
+            "min": 0,
+            "max": 85
+        },
+        {
+            "key": "lockShowDate",
+            "def": true,
+            "label": "Show date",
+            "values": [true, false]
+        },
+        {
+            "key": "lockShowHost",
+            "def": true,
+            "label": "Show user and host",
+            "values": [true, false]
+        },
+        {
             "head": "SERVICES"
         },
         {

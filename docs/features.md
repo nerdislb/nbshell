@@ -22,6 +22,22 @@ main menu, the bar, or the `nbshell` command.
 - Persistent Niri display setup for resolution, scale, rotation, and position
 - Update workflow with restart recommendations for important system packages
 - Process viewer, power menu, screen saver, and session controls
+- Theme-synchronized Hyprlock screen using PAM authentication, the current
+  palette, and either the current wallpaper or a private solid background
+- Lock-before-suspend and configurable idle locking
+
+## Lock screen
+
+`Mod+Alt+L`, the session menu, and idle automation all use the same lock path.
+nbshell generates the visual configuration immediately before locking, while
+Hyprlock owns authentication and the compositor's secure session-lock
+protocol. nbshell never reads or stores the password.
+
+Settings → Lock Screen controls the background mode, wallpaper blur and dim
+strength, date, and user/host label. Notification text, clipboard contents,
+calendar entries, and agent data are intentionally never rendered. A custom
+`lockCommand` remains available in `config.json` for advanced users, but the
+default and supported path is Hyprlock.
 
 ## Window workflow
 

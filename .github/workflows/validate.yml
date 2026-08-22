@@ -31,6 +31,9 @@ jobs:
       - name: Test grid layout policy
         run: python3 ./tests/grid-layout.py
 
+      - name: Test lock screen generation
+        run: python3 ./tests/lockscreen.py
+
       - name: Audit release metadata and privacy
         run: ./tests/release-audit.sh
 

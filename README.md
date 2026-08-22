@@ -41,6 +41,7 @@ online guide without turning this README into a wall of text.
 - Audio mixer, media controls, Bluetooth, Wi-Fi, batteries, power profiles,
   and persistent Niri display management
 - Floating Picture-in-Picture controls for Zen Browser
+- Theme-synchronized Hyprlock screen with PAM authentication and lock-before-suspend
 - Calendar, tasks, habits, KDE Connect, Android mirroring, and a phone webcam
 - Screenshots, screen recording, OCR, QR scanning, and a screen saver
 - AI usage for Codex, Claude, Antigravity, and other providers

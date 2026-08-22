@@ -2,9 +2,10 @@
 // Datei in niris config.kdl ein; `switch off` entfernt den Include wieder.
 include "nbshell-outputs.kdl"
 //
-// Der Sperrbildschirm (Mod+Alt+L) zeigt auf `nbshell power lock` und damit auf
-// `lockCommand` aus der Config -- Vorgabe hyprlock. Ist keiner installiert,
-// sagt nbshell das per Benachrichtigung, statt still nichts zu tun.
+// Der Sperrbildschirm (Mod+Alt+L) zeigt auf `nbshell power lock`. nbshell
+// erzeugt dafuer eine Theme-Konfiguration; Hyprlock/PAM bleibt der eigentliche
+// Sicherheitsmechanismus. Ein eigener `lockCommand` bleibt als Override
+// moeglich.
 // Aufgerufen wird ueber `sh -c "$HOME/.local/bin/nbshell …"`: niri startet
 // spawn-Befehle mit dem PATH des systemd-User-Managers, in dem ~/.local/bin
 // nicht steht. Ein blosses `spawn "nbshell"` laeuft still ins Leere.
@@ -82,8 +83,10 @@ binds {
     Print hotkey-overlay-title="nbshell: Capture" { spawn "sh" "-c" "$HOME/.local/bin/nbshell capture"; }
     F9 hotkey-overlay-title="nbshell: Toggle dictation" { spawn "sh" "-c" "$HOME/.local/bin/nbshell dictate"; }
 
-    // Sperrbildschirm aus lockCommand (Vorgabe hyprlock).
-    Mod+Alt+L hotkey-overlay-title="nbshell: Lock" { spawn "sh" "-c" "$HOME/.local/bin/nbshell power lock"; }
+    // Theme-synchroner Hyprlock-Sperrbildschirm.
+    // Auch auf niris rotem Sicherheitsbildschirm erneut ausloesbar, falls der
+    // Locker unerwartet beendet wurde. Die Sitzung selbst bleibt dabei zu.
+    Mod+Alt+L allow-when-locked=true hotkey-overlay-title="nbshell: Lock" { spawn "sh" "-c" "$HOME/.local/bin/nbshell power lock"; }
 
     // Helligkeitsdienst.
     XF86MonBrightnessUp   allow-when-locked=true { spawn "sh" "-c" "$HOME/.local/bin/nbshell brightness up"; }

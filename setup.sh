@@ -105,7 +105,7 @@ PKG_SYSTEM=(networkmanager bluez bluez-utils pipewire pipewire-pulse wireplumber
 
 # Einzelne Bausteine und Knoepfe.
 #   wl-clipboard   Ablage (`wl-paste --watch`, `wl-copy`)
-#   hyprlock       Sperren im Power-Menue
+#   hyprlock       PAM-authenticated session lock and lock-before-suspend
 #   tuned          power profiles beim Akku
 #   libnotify      `notify-send` aus den Skripten
 #   xdg-utils      `xdg-open` nach einer Aufnahme

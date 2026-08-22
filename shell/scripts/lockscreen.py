@@ -1,0 +1,326 @@
+#!/usr/bin/env python3
+"""Generate and launch nbshell's Hyprlock-based session lock."""
+
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+import shlex
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+import tomllib
+
+
+CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+NB_DIR = CONFIG_HOME / "nbshell"
+CONFIG_PATH = NB_DIR / "config.json"
+OUTPUT_PATH = NB_DIR / "generated" / "hyprlock.conf"
+
+
+def load_json(path: Path) -> dict:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+        return value if isinstance(value, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def load_theme(config: dict) -> tuple[dict, Path]:
+    name = str(config.get("theme") or "tokyo-night")
+    theme_dir = NB_DIR / "themes" / name
+    try:
+        raw = tomllib.loads((theme_dir / "colors.toml").read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        raw = {}
+
+    def pick(*names: str, fallback: str) -> str:
+        for key in names:
+            value = raw.get(key)
+            if isinstance(value, str) and value.startswith("#") and len(value) in (7, 9):
+                return value[:7]
+        return fallback
+
+    colors = {
+        "background": pick("background", "color0", fallback="#11111b"),
+        "foreground": pick("foreground", "color7", fallback="#cdd6f4"),
+        "bright": pick("bright_foreground", "color15", "foreground", fallback="#ffffff"),
+        "muted": pick("muted", "color8", "dark_foreground", fallback="#6c7086"),
+        "red": pick("red", "color1", fallback="#f38ba8"),
+        "green": pick("green", "color2", fallback="#a6e3a1"),
+        "yellow": pick("yellow", "color3", fallback="#f9e2af"),
+        "blue": pick("blue", "color4", fallback="#89b4fa"),
+        "magenta": pick("magenta", "color5", fallback="#cba6f7"),
+        "cyan": pick("cyan", "color6", fallback="#94e2d5"),
+    }
+    accent_role = str(config.get("accent") or "theme")
+    if accent_role == "theme":
+        colors["accent"] = pick("accent", "color4", "blue", fallback=colors["blue"])
+    else:
+        colors["accent"] = colors.get(accent_role, colors["blue"])
+    return colors, theme_dir
+
+
+def find_wallpaper(config: dict, theme_dir: Path) -> Path | None:
+    override = config.get("wallpaperOverride")
+    if isinstance(override, str) and override:
+        candidate = Path(os.path.expandvars(os.path.expanduser(override)))
+        if candidate.is_file():
+            return candidate.resolve()
+
+    roots = (
+        theme_dir / "backgrounds",
+        Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share"))
+        / "nbshell" / "wallpapers" / theme_dir.name,
+        Path.home() / "Sync" / "nbshell" / "wallpapers" / theme_dir.name,
+    )
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for pattern in ("*.jpg", "*.jpeg", "*.png", "*.webp"):
+            found = sorted(root.glob(pattern))
+            if found:
+                return found[0].resolve()
+    return None
+
+
+def rgba(color: str, alpha: int = 255) -> str:
+    value = color.lstrip("#")[:6]
+    if len(value) != 6 or any(ch not in "0123456789abcdefABCDEF" for ch in value):
+        value = "000000"
+    return f"rgba({value}{max(0, min(255, alpha)):02x})"
+
+
+def bounded_int(config: dict, key: str, default: int, low: int, high: int) -> int:
+    try:
+        return max(low, min(high, int(config.get(key, default))))
+    except (TypeError, ValueError):
+        return default
+
+
+def render(config_path: Path = CONFIG_PATH, output_path: Path = OUTPUT_PATH) -> Path:
+    config = load_json(config_path)
+    colors, theme_dir = load_theme(config)
+    wallpaper = find_wallpaper(config, theme_dir)
+    font = str(config.get("font") or "JetBrainsMono Nerd Font").replace("\n", " ")
+    radius = bounded_int(config, "radius", 2, 0, 40)
+    rounding = radius * 6
+    blur = bounded_int(config, "lockBlur", 3, 0, 8)
+    dim = bounded_int(config, "lockDim", 48, 0, 85)
+    show_date = config.get("lockShowDate", True) is not False
+    show_host = config.get("lockShowHost", True) is not False
+    background_mode = str(config.get("lockBackground") or "wallpaper")
+    use_wallpaper = background_mode == "wallpaper" and wallpaper is not None
+
+    background_path = str(wallpaper).replace("\n", "") if use_wallpaper else ""
+    background = f"""background {{
+    monitor =
+    color = {rgba(colors['background'])}
+    path = {background_path}
+    blur_passes = {blur if use_wallpaper else 0}
+    blur_size = 7
+    brightness = {(100 - dim) / 100:.2f}
+}}
+"""
+
+    date_widget = ""
+    if show_date:
+        date_widget = f"""
+label {{
+    monitor =
+    text = cmd[update:60000] date +\"%A  ·  %d %B %Y\"
+    color = {rgba(colors['foreground'])}
+    font_size = 17
+    font_family = {font}
+    position = 0, 105
+    halign = center
+    valign = center
+}}
+"""
+
+    host_widget = ""
+    if show_host:
+        host_widget = f"""
+label {{
+    monitor =
+    text = $USER  @  $HOSTNAME
+    color = {rgba(colors['muted'])}
+    font_size = 13
+    font_family = {font}
+    position = 0, -132
+    halign = center
+    valign = center
+}}
+"""
+
+    content = f"""# Generated by nbshell. Do not edit manually.
+# Authentication is handled by Hyprlock and PAM.
+
+general {{
+    hide_cursor = true
+    ignore_empty_input = true
+    immediate_render = true
+}}
+
+animations {{
+    enabled = true
+    bezier = nbshell, 0.22, 1, 0.36, 1
+    animation = fadeIn, 1, 3, nbshell
+    animation = fadeOut, 1, 2, nbshell
+    animation = inputFieldDots, 1, 2, nbshell
+}}
+
+{background}
+shape {{
+    monitor =
+    size = 660, 390
+    color = {rgba(colors['background'], 238)}
+    rounding = {rounding}
+    border_size = 2
+    border_color = {rgba(colors['accent'])}
+    position = 0, 0
+    halign = center
+    valign = center
+}}
+
+shape {{
+    monitor =
+    size = 620, 2
+    color = {rgba(colors['accent'])}
+    rounding = 0
+    position = 0, 148
+    halign = center
+    valign = center
+}}
+
+label {{
+    monitor =
+    text = SESSION LOCKED
+    color = {rgba(colors['accent'])}
+    font_size = 13
+    font_family = {font}
+    position = 0, 165
+    halign = center
+    valign = center
+}}
+
+label {{
+    monitor =
+    text = $TIME
+    color = {rgba(colors['bright'])}
+    font_size = 68
+    font_family = {font}
+    position = 0, 48
+    halign = center
+    valign = center
+}}
+{date_widget}
+input-field {{
+    monitor =
+    size = 520, 54
+    outline_thickness = 2
+    inner_color = {rgba(colors['background'], 245)}
+    outer_color = {rgba(colors['accent'])}
+    check_color = {rgba(colors['green'])}
+    fail_color = {rgba(colors['red'])}
+    font_color = {rgba(colors['foreground'])}
+    fade_on_empty = false
+    rounding = {rounding}
+    font_family = {font}
+    placeholder_text = ENTER PASSWORD
+    check_text = AUTHENTICATING
+    fail_text = ACCESS DENIED  ·  $PAMFAIL
+    dots_size = 0.25
+    dots_spacing = 0.35
+    position = 0, -55
+    halign = center
+    valign = center
+}}
+{host_widget}
+label {{
+    monitor =
+    text = KEYBOARD  $LAYOUT
+    color = {rgba(colors['muted'])}
+    font_size = 11
+    font_family = {font}
+    position = 0, -166
+    halign = center
+    valign = center
+}}
+"""
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        "w", encoding="utf-8", dir=output_path.parent, delete=False
+    ) as handle:
+        handle.write(content)
+        temporary = Path(handle.name)
+    temporary.chmod(0o600)
+    os.replace(temporary, output_path)
+    return output_path
+
+
+def lock_command(config: dict, generated: Path) -> list[str]:
+    custom = config.get("lockCommand")
+    if isinstance(custom, str) and custom.strip():
+        command = shlex.split(custom)
+        if command:
+            return command
+    return ["hyprlock", "--config", str(generated), "--immediate-render"]
+
+
+def locker_running(command: list[str] | None = None) -> bool:
+    process_name = Path((command or ["hyprlock"])[0]).name
+    result = subprocess.run(
+        ["pgrep", "-x", process_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    )
+    return result.returncode == 0
+
+
+def start_lock(suspend: bool = False) -> int:
+    generated = render()
+    command = lock_command(load_json(CONFIG_PATH), generated)
+    if not shutil.which(command[0]):
+        print(f"nbshell: screen locker is not installed: {command[0]}", file=sys.stderr)
+        return 127
+    if not suspend:
+        if locker_running(command):
+            return 0
+        os.execvp(command[0], command)
+
+    locker = None
+    if not locker_running(command):
+        locker = subprocess.Popen(command)
+        deadline = time.monotonic() + 1.5
+        while time.monotonic() < deadline:
+            code = locker.poll()
+            if code is not None:
+                print(f"nbshell: screen locker exited before suspend ({code})", file=sys.stderr)
+                return code or 1
+            time.sleep(0.05)
+    return subprocess.run(["systemctl", "suspend"]).returncode
+
+
+def main() -> int:
+    action = sys.argv[1] if len(sys.argv) > 1 else "lock"
+    if action == "render":
+        print(render())
+        return 0
+    if action == "status":
+        generated = render()
+        command = lock_command(load_json(CONFIG_PATH), generated)
+        print("locked" if locker_running(command) else "unlocked")
+        return 0
+    if action == "lock":
+        return start_lock()
+    if action == "suspend":
+        return start_lock(suspend=True)
+    print("usage: lockscreen.py lock|suspend|render|status", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -15,6 +15,7 @@ change before version 1.0.
    ./tests/plugin-validation.sh
    ./tests/fresh-install.sh
    python3 ./tests/grid-layout.py
+   python3 ./tests/lockscreen.py
    mkdocs build --strict
    ```
 

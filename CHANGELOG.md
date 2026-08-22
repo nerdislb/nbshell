@@ -8,6 +8,9 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Added
 
+- A theme-synchronized Hyprlock screen with an accent-framed nbshell layout,
+  privacy-safe defaults, configurable wallpaper treatment, lock-before-suspend,
+  and a Niri recovery binding that remains available while locked.
 - Complete third-party MIT notices, an explicit independent-project and
   non-endorsement statement, release-media branding guidance, and automated
   release checks that prevent those notices from being dropped.
