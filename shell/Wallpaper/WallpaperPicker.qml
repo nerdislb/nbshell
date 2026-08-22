@@ -25,7 +25,10 @@ PanelWindow {
     // Liste sie wieder auf den Ausgangswert.
     property bool jumpPending: false
 
-    readonly property var list: Wallpapers.list
+    readonly property string scope: Config.value("wallpaperPickerScope", "theme")
+    readonly property var list: scope === "all"
+        ? Wallpapers.list
+        : Wallpapers.list.filter(item => Wallpapers.themeOf(item) === Config.theme)
 
     visible: Runtime.wallpaperOpen
 
@@ -44,6 +47,24 @@ PanelWindow {
 
     function close() {
         Runtime.wallpaperOpen = false;
+    }
+
+    function syncSelection() {
+        const current = Config.value("wallpaperOverride", "");
+        const i = root.list.findIndex(item => Wallpapers.pathOf(item) === current);
+        root.selected = i >= 0 ? i : 0;
+        Qt.callLater(() => strip.positionViewAtIndex(root.selected, ListView.Center));
+    }
+
+    function setScope(next) {
+        if (next !== "theme" && next !== "all")
+            return;
+        Config.set("wallpaperPickerScope", next);
+        Qt.callLater(() => root.syncSelection());
+    }
+
+    function toggleScope() {
+        root.setScope(root.scope === "all" ? "theme" : "all");
     }
 
     function preview(i) {
@@ -79,8 +100,7 @@ PanelWindow {
             if (!root.jumpPending)
                 return;
             root.jumpPending = false;
-            const i = root.list.findIndex(item => Wallpapers.pathOf(item) === root.previous);
-            root.selected = i >= 0 ? i : 0;
+            root.syncSelection();
             // Beim Oeffnen ohne Bewegung dorthin -- eine Animation aus dem
             // Nichts sieht aus, als haette man schon etwas verstellt.
             strip.positionViewAtIndex(root.selected, ListView.Center);
@@ -103,6 +123,7 @@ PanelWindow {
         Keys.onRightPressed: root.preview(root.selected + 1)
         Keys.onReturnPressed: root.close()
         Keys.onEnterPressed: root.close()
+        Keys.onTabPressed: root.toggleScope()
         Keys.onPressed: event => {
             // `r` zurueck auf das Bild, das das Theme selbst mitbringt.
             if (event.key === Qt.Key_R) {
@@ -132,6 +153,8 @@ PanelWindow {
 
                 anchors.top: parent.top
                 anchors.left: parent.left
+                anchors.right: scopeButtons.left
+                anchors.rightMargin: Theme.cellW
                 anchors.margins: Theme.cellW
                 height: Theme.cellH * 1.6
                 text: {
@@ -143,6 +166,52 @@ PanelWindow {
                     return "WALLPAPERS  ·  " + Wallpapers.themeOf(item) + "  ·  " + Wallpapers.nameOf(item) + "  ·  " + (root.selected + 1) + "/" + root.list.length;
                 }
                 color: Theme.fgDim
+                elide: Text.ElideRight
+            }
+
+            Row {
+                id: scopeButtons
+
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.margins: Theme.cellW
+                height: header.height
+                spacing: Theme.spaceXs
+
+                Repeater {
+                    model: [
+                        { "value": "theme", "label": "CURRENT THEME" },
+                        { "value": "all", "label": "ALL" }
+                    ]
+
+                    Rectangle {
+                        id: scopeButton
+
+                        required property var modelData
+                        readonly property bool active: root.scope === modelData.value
+
+                        width: scopeLabel.implicitWidth + Theme.cellW * 1.5
+                        height: scopeButtons.height
+                        radius: Theme.radius
+                        color: active ? Theme.selectedSurface(Theme.accent) : Theme.panelSurfaceRaised
+                        border.width: Theme.borderWidth
+                        border.color: active ? Theme.focusBorder : Theme.panelBorder
+
+                        Line {
+                            id: scopeLabel
+                            anchors.centerIn: parent
+                            text: scopeButton.modelData.label
+                            color: scopeButton.active ? Theme.selectedForeground(Theme.accent) : Theme.fgDim
+                            font.pixelSize: Theme.fontCaption
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.setScope(scopeButton.modelData.value)
+                        }
+                    }
+                }
             }
 
             ListView {
@@ -244,7 +313,7 @@ PanelWindow {
                 anchors.bottom: parent.bottom
                 anchors.right: parent.right
                 anchors.margins: Theme.cellW
-                text: "←→ browse all themes · Enter apply · r theme default · Esc back"
+                text: "←→ browse · Tab scope · Enter apply · r theme default · Esc back"
                 color: Theme.muted
             }
         }

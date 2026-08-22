@@ -12,6 +12,8 @@ configuration and plugin interfaces before `1.0.0`.
   collections, spanning moody landscapes, bright scenes, and abstract patterns.
 - A global wallpaper picker that browses every installed and synchronized
   theme collection without changing the active color theme.
+- A persistent `CURRENT THEME` / `ALL` scope switch in the wallpaper picker,
+  also available from the keyboard with `Tab`.
 - A theme-synchronized Hyprlock screen with an accent-framed nbshell layout,
   privacy-safe defaults, configurable wallpaper treatment, lock-before-suspend,
   and a Niri recovery binding that remains available while locked.

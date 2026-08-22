@@ -155,6 +155,10 @@ redistributing them, copy the desired files from `/usr/share/omarchy/themes/`
 or `~/.config/omarchy/themes/` into an nbshell collection directory. The
 picker discovers them the next time it opens.
 
+Use the visible `CURRENT THEME` / `ALL` switch, or press `Tab`, to alternate
+between the active theme's collection and the complete library. The picker
+remembers the selected scope.
+
 ## Displays
 
 Open `Displays` from the main menu, the Control Center, or run
