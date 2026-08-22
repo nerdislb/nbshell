@@ -170,6 +170,7 @@ application data or Niri itself.
 nbshell grid status
 nbshell grid on
 nbshell grid off
+nbshell grid backend status
 ```
 
 The controller follows Niri's event stream and only reacts to window or
@@ -178,6 +179,10 @@ so opening and closing windows remains deterministic on slower systems too.
 Niri currently exposes these layout operations as individual IPC actions; a
 future atomic batch API would let nbshell remove the last intermediate frame
 from uncommon full regrouping operations.
+
+An opt-in atomic backend and its compositor prototype are documented in
+[Grid-scroll development](docs/grid-scroll.md). Stock Niri and the stable
+backend remain the default and recovery path.
 
 ## AI agents and local models
 

@@ -40,4 +40,9 @@ assert not grid.event_affects_layout('{"OverviewOpenedOrClosed":{"is_open":true}
 assert not grid.event_affects_layout('{"KeyboardLayoutsChanged":{"current_idx":0}}')
 assert not grid.event_affects_layout('not json')
 
+assert grid.ipc_action("ConsumeOrExpelWindowLeft", 42) == {
+    "ConsumeOrExpelWindowLeft": {"id": 42}
+}
+assert grid.CLI_ACTION_NAMES["ConsumeOrExpelWindowLeft"] == "consume-or-expel-window-left"
+
 print("Grid layout policy: OK")

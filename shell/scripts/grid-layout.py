@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import selectors
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -18,9 +19,14 @@ STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state"))
 STATE_FILE = STATE_DIR / "grid-layout.json"
 LOCK_FILE = STATE_DIR / "grid-layout.lock"
 PID_FILE = STATE_DIR / "grid-layout.pid"
+BACKEND_FILE = STATE_DIR / "grid-layout-backend"
 SESSION = os.environ.get("NIRI_SOCKET", "")
 LAYOUT_EVENT_NAMES = {"WindowsChanged", "WorkspacesChanged"}
 ACTION_SETTLE_TIMEOUT = 0.35
+CLI_ACTION_NAMES = {
+    "ConsumeOrExpelWindowLeft": "consume-or-expel-window-left",
+    "ConsumeOrExpelWindowRight": "consume-or-expel-window-right",
+}
 
 
 def niri_json(command: str) -> list[dict]:
@@ -114,10 +120,85 @@ def action_and_wait(workspace_id: int, name: str, *args: str) -> None:
     raise RuntimeError(f"Niri did not settle after {name}")
 
 
+def load_backend() -> str:
+    try:
+        value = BACKEND_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
+        value = "stable"
+    return value if value in {"stable", "atomic"} else "stable"
+
+
+def ipc_action(name: str, window_id: int) -> dict:
+    return {name: {"id": window_id}}
+
+
+def atomic_request(actions: list[dict]) -> None:
+    if not SESSION:
+        raise RuntimeError("NIRI_SOCKET is not set")
+    request = json.dumps({"Actions": actions}, separators=(",", ":")) + "\n"
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
+        connection.settimeout(1.0)
+        connection.connect(SESSION)
+        connection.sendall(request.encode())
+        reply = b""
+        while b"\n" not in reply:
+            chunk = connection.recv(65536)
+            if not chunk:
+                break
+            reply += chunk
+    try:
+        value = json.loads(reply.splitlines()[0])
+    except (IndexError, json.JSONDecodeError) as error:
+        raise RuntimeError("Niri does not support atomic action batches") from error
+    if not isinstance(value, dict) or "Ok" not in value:
+        raise RuntimeError(f"Niri rejected the atomic action batch: {value}")
+
+
+def atomic_supported() -> bool:
+    try:
+        atomic_request([])
+        return True
+    except (OSError, RuntimeError):
+        return False
+
+
+def run_operations(workspace_id: int, operations: list[tuple[str, int]]) -> None:
+    if not operations:
+        return
+    if load_backend() == "atomic":
+        previous = layout_signature(workspace_id)
+        atomic_request([ipc_action(name, window_id) for name, window_id in operations])
+        deadline = time.monotonic() + ACTION_SETTLE_TIMEOUT
+        while time.monotonic() < deadline:
+            if layout_signature(workspace_id) != previous:
+                return
+            time.sleep(0.01)
+        raise RuntimeError("Niri did not settle after the atomic action batch")
+    for name, window_id in operations:
+        action_and_wait(
+            workspace_id,
+            CLI_ACTION_NAMES[name],
+            "--id",
+            str(window_id),
+        )
+
+
 def separate_all(workspace_id: int) -> None:
     # Expelling stacked tiles to the right preserves their top-to-bottom order
     # as left-to-right columns when grid mode is disabled again.
     # Re-query after every change because column and tile indices shift.
+    if load_backend() == "atomic":
+        stacked = [
+            window
+            for window in tiled_windows(workspace_id)
+            if int(window["layout"]["pos_in_scrolling_layout"][1]) > 1
+        ]
+        run_operations(
+            workspace_id,
+            [("ConsumeOrExpelWindowRight", int(window["id"])) for window in reversed(stacked)],
+        )
+        return
+
     limit = max(4, len(tiled_windows(workspace_id)) * 3)
     for _ in range(limit):
         stacked = [
@@ -127,12 +208,7 @@ def separate_all(workspace_id: int) -> None:
         ]
         if not stacked:
             return
-        action_and_wait(
-            workspace_id,
-            "consume-or-expel-window-right",
-            "--id",
-            str(stacked[-1]["id"]),
-        )
+        action_and_wait(workspace_id, "consume-or-expel-window-right", "--id", str(stacked[-1]["id"]))
     raise RuntimeError("Could not separate every stacked window")
 
 
@@ -174,6 +250,7 @@ def merge_only(workspace_id: int, windows: list[dict], desired: list[int]) -> bo
         if not any(set(current).issubset(set(group)) for group in desired_groups):
             return False
 
+    operations: list[tuple[str, int]] = []
     for group in desired_groups:
         if len(group) != 2:
             continue
@@ -187,12 +264,8 @@ def merge_only(workspace_id: int, windows: list[dict], desired: list[int]) -> bo
             or len(current_groups[containing[1]]) != 1
         ):
             return False
-        action_and_wait(
-            workspace_id,
-            "consume-or-expel-window-left",
-            "--id",
-            str(group[1]),
-        )
+        operations.append(("ConsumeOrExpelWindowLeft", group[1]))
+    run_operations(workspace_id, operations)
     return True
 
 
@@ -209,15 +282,31 @@ def arrange(workspace_id: int) -> None:
     # Manual rearranging or closing a window from the middle can leave stacks
     # crossing the new group boundaries. Rebuild only for that uncommon case.
     order = [int(window["id"]) for window in windows]
+    if load_backend() == "atomic":
+        stacked = [
+            window
+            for window in windows
+            if int(window["layout"]["pos_in_scrolling_layout"][1]) > 1
+        ]
+        operations = [
+            ("ConsumeOrExpelWindowRight", int(window["id"]))
+            for window in reversed(stacked)
+        ]
+        cursor = 0
+        for size in desired:
+            if size == 2:
+                operations.append(("ConsumeOrExpelWindowLeft", order[cursor + 1]))
+            cursor += size
+        run_operations(workspace_id, operations)
+        return
+
     separate_all(workspace_id)
     cursor = 0
     for size in desired:
         if size == 2:
-            action_and_wait(
+            run_operations(
                 workspace_id,
-                "consume-or-expel-window-left",
-                "--id",
-                str(order[cursor + 1]),
+                [("ConsumeOrExpelWindowLeft", order[cursor + 1])],
             )
         cursor += size
 
@@ -326,6 +415,24 @@ def status() -> None:
     print("on" if workspace_id in load_state() else "off")
 
 
+def backend(command: str | None) -> None:
+    if command in (None, "status"):
+        selected = load_backend()
+        support = "available" if atomic_supported() else "unavailable"
+        print(f"{selected} (atomic {support})")
+        return
+    if command not in {"stable", "atomic"}:
+        raise RuntimeError("backend must be stable or atomic")
+    if command == "atomic" and not atomic_supported():
+        raise RuntimeError(
+            "atomic backend requires the experimental nbshell Niri build"
+        )
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    BACKEND_FILE.write_text(command + "\n", encoding="utf-8")
+    restart_watcher()
+    print(command)
+
+
 def watch() -> None:
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     PID_FILE.write_text(f"{os.getpid()}\n", encoding="utf-8")
@@ -401,8 +508,10 @@ def main() -> int:
             watch()
         elif command == "restart-watcher":
             restart_watcher()
+        elif command == "backend":
+            backend(sys.argv[2] if len(sys.argv) > 2 else "status")
         else:
-            print("usage: grid-layout.py toggle|on|off|status|restart-watcher", file=sys.stderr)
+            print("usage: grid-layout.py toggle|on|off|status|backend|restart-watcher", file=sys.stderr)
             return 2
     except (OSError, RuntimeError, subprocess.CalledProcessError, json.JSONDecodeError) as error:
         print(f"nbshell grid: {error}", file=sys.stderr)

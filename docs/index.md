@@ -24,6 +24,7 @@ things needed for a first installation and will grow alongside the project.
 - Dashboard and system controls
 - Themes and wallpapers
 - Niri window management and the grid-scroll mode
+- [Grid-scroll architecture and experimental atomic backend](grid-scroll.md)
 - AI agents and local models
 - Gaming and optional applications
 - [Plugins and customization](plugin-development.md)

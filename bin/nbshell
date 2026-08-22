@@ -457,6 +457,7 @@ nbshell -- an independent Quickshell desktop shell for niri
                             explicit, confirmed gaming setup actions
   nbshell grid toggle       toggle the workspace-local 2x2 scrolling layout
   nbshell grid on|off|status
+  nbshell grid backend stable|atomic|status
 
   nbshell todo              list tasks
   nbshell todo <text>       add a task (also: todo add <text>)
@@ -820,7 +821,7 @@ for b in d["binds"]:
         bash "$GAMING_TOOL" "${1:-status}" "${2:-}"
         ;;
     grid)
-        python3 "$GRID_TOOL" "${1:-toggle}"
+        python3 "$GRID_TOOL" "${1:-toggle}" "${2:-}"
         ;;
     bongo|cat)
         case "${1:-status}" in
