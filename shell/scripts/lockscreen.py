@@ -116,8 +116,9 @@ def render(config_path: Path = CONFIG_PATH, output_path: Path = OUTPUT_PATH) -> 
     colors, theme_dir = load_theme(config)
     wallpaper = find_wallpaper(config, theme_dir)
     font = str(config.get("font") or "JetBrainsMono Nerd Font").replace("\n", " ")
+    font_size = bounded_int(config, "fontSize", 14, 8, 24)
     radius = bounded_int(config, "radius", 2, 0, 40)
-    rounding = radius * 6
+    border_width = bounded_int(config, "borderWidth", 1, 0, 4)
     blur = bounded_int(config, "lockBlur", 3, 0, 8)
     dim = bounded_int(config, "lockDim", 48, 0, 85)
     show_date = config.get("lockShowDate", True) is not False
@@ -143,7 +144,7 @@ label {{
     monitor =
     text = cmd[update:60000] date +\"%A  ·  %d %B %Y\"
     color = {rgba(colors['foreground'])}
-    font_size = 17
+    font_size = {font_size + 3}
     font_family = {font}
     position = 0, 105
     halign = center
@@ -158,7 +159,7 @@ label {{
     monitor =
     text = $USER  @  $HOSTNAME
     color = {rgba(colors['muted'])}
-    font_size = 13
+    font_size = {max(9, font_size - 1)}
     font_family = {font}
     position = 0, -132
     halign = center
@@ -187,9 +188,9 @@ animations {{
 shape {{
     monitor =
     size = 660, 390
-    color = {rgba(colors['background'], 238)}
-    rounding = {rounding}
-    border_size = 2
+    color = {rgba(colors['background'])}
+    rounding = {radius}
+    border_size = {border_width}
     border_color = {rgba(colors['accent'])}
     position = 0, 0
     halign = center
@@ -198,7 +199,7 @@ shape {{
 
 shape {{
     monitor =
-    size = 620, 2
+    size = 620, {max(1, border_width)}
     color = {rgba(colors['accent'])}
     rounding = 0
     position = 0, 148
@@ -210,7 +211,7 @@ label {{
     monitor =
     text = SESSION LOCKED
     color = {rgba(colors['accent'])}
-    font_size = 13
+    font_size = {font_size}
     font_family = {font}
     position = 0, 165
     halign = center
@@ -231,15 +232,16 @@ label {{
 input-field {{
     monitor =
     size = 520, 54
-    outline_thickness = 2
-    inner_color = {rgba(colors['background'], 245)}
+    outline_thickness = {border_width}
+    inner_color = {rgba(colors['background'])}
     outer_color = {rgba(colors['accent'])}
     check_color = {rgba(colors['green'])}
     fail_color = {rgba(colors['red'])}
     font_color = {rgba(colors['foreground'])}
     fade_on_empty = false
-    rounding = {rounding}
+    rounding = {radius}
     font_family = {font}
+    font_size = {font_size + 1}
     placeholder_text = ENTER PASSWORD
     check_text = AUTHENTICATING
     fail_text = ACCESS DENIED  ·  $PAMFAIL
@@ -254,7 +256,7 @@ label {{
     monitor =
     text = KEYBOARD  $LAYOUT
     color = {rgba(colors['muted'])}
-    font_size = 11
+    font_size = {max(9, font_size - 3)}
     font_family = {font}
     position = 0, -166
     halign = center

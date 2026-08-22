@@ -44,6 +44,8 @@ configuration and plugin interfaces before `1.0.0`.
 
 - The lock screen now receives the wallpaper currently rendered by the live
   shell, avoiding a stale image when locking immediately after a selection.
+- Lock-screen panels, password field, borders, and supporting typography now
+  use the shell's configured corner radius, border width, font, and text scale.
 - Clipboard decoding no longer uses Qt's deprecated string `atob` overload.
 - Hidden launcher SVG rendering no longer emits oversized-buffer warnings at
   shell startup.

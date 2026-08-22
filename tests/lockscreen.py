@@ -30,7 +30,19 @@ def check_named_theme(root: Path) -> None:
         encoding="utf-8",
     )
     config = config_dir / "config.json"
-    config.write_text(json.dumps({"theme": "test", "lockDim": 40}), encoding="utf-8")
+    config.write_text(
+        json.dumps(
+            {
+                "theme": "test",
+                "lockDim": 40,
+                "font": "Test Mono",
+                "fontSize": 16,
+                "radius": 7,
+                "borderWidth": 3,
+            }
+        ),
+        encoding="utf-8",
+    )
     output = root / "generated.conf"
     LOCKSCREEN.NB_DIR = config_dir
     LOCKSCREEN.render(config, output)
@@ -38,6 +50,11 @@ def check_named_theme(root: Path) -> None:
     assert "rgba(ff8800ff)" in text
     assert "brightness = 0.60" in text
     assert str(wallpaper) in text
+    assert "font_family = Test Mono" in text
+    assert "font_size = 19" in text
+    assert "rounding = 7" in text
+    assert "border_size = 3" in text
+    assert "outline_thickness = 3" in text
     assert "SESSION LOCKED" in text
     assert output.stat().st_mode & 0o777 == 0o600
 
