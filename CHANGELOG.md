@@ -6,18 +6,7 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
-### Added
-
-- A dashboard and CLI updater for published nbshell releases, with release
-  notes, an explicit terminal confirmation, SHA-256 verification, beta/stable
-  channels, and preservation of personal configuration and extensions.
-- Versioned installer archives and checksums are now generated automatically by
-  the release workflow.
-
-### Changed
-
-- Shell releases, distribution packages, and plugin updates are presented as
-  three distinct update paths.
+No changes yet.
 
 ## [0.1.0-beta.1] - 2026-08-22
 
@@ -25,6 +14,11 @@ First public beta candidate.
 
 ### Added
 
+- A dashboard and CLI updater for published nbshell releases, with release
+  notes, an explicit terminal confirmation, SHA-256 verification, beta/stable
+  channels, and preservation of personal configuration and extensions.
+- Versioned installer archives and checksums generated automatically by the
+  release workflow.
 - Fourteen original 1920×1080 nbshell wallpapers across seven theme
   collections, spanning moody landscapes, bright scenes, and abstract patterns.
 - A global wallpaper picker that browses every installed and synchronized
@@ -53,6 +47,8 @@ First public beta candidate.
 
 ### Changed
 
+- Shell releases, distribution packages, and plugin updates are presented as
+  three distinct update paths.
 - Settings is now rendered directly inside the Personalize menu flow instead
   of opening a second overlay window. Direct shortcut and CLI entry points
   remain available as a standalone view.

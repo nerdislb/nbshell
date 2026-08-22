@@ -15,7 +15,7 @@ testing, and the direction of the project remain human-led.
 > nbshell is still under active development. It already works as a daily
 > desktop, but commands, configuration, and features may still change.
 
-Current release candidate: **0.1.0-beta.1**. See the
+Current prerelease: **0.1.0-beta.1**. See the
 [changelog](CHANGELOG.md) for user-facing changes.
 
 ![nbshell menu over a three-window grid-scroll workspace](docs/screenshots/01-menu-grid.png)
