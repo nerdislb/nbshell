@@ -25,7 +25,30 @@ NIRI_OVERRIDE = (
     / "systemd/user/niri.service.d/nbshell-grid-atomic.conf"
 )
 ATOMIC_NIRI = Path.home() / ".local/lib/nbshell/niri-atomic"
-SESSION = os.environ.get("NIRI_SOCKET", "")
+
+
+def current_niri_socket() -> str:
+    inherited = os.environ.get("NIRI_SOCKET", "")
+    if inherited and Path(inherited).exists():
+        return inherited
+    try:
+        result = subprocess.run(
+            ["systemctl", "--user", "show-environment"],
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+        for line in result.stdout.splitlines():
+            if line.startswith("NIRI_SOCKET="):
+                candidate = line.partition("=")[2]
+                if candidate and Path(candidate).exists():
+                    return candidate
+    except (OSError, subprocess.CalledProcessError):
+        pass
+    return inherited
+
+
+SESSION = current_niri_socket()
 LAYOUT_EVENT_NAMES = {"WindowsChanged", "WorkspacesChanged"}
 ACTION_SETTLE_TIMEOUT = 0.35
 CLI_ACTION_NAMES = {
@@ -35,18 +58,27 @@ CLI_ACTION_NAMES = {
 
 
 def niri_json(command: str) -> list[dict]:
+    environment = os.environ.copy()
+    environment["NIRI_SOCKET"] = SESSION
     result = subprocess.run(
-        ["niri", "msg", "-j", command], check=True, text=True, capture_output=True
+        ["niri", "msg", "-j", command],
+        check=True,
+        text=True,
+        capture_output=True,
+        env=environment,
     )
     value = json.loads(result.stdout)
     return value if isinstance(value, list) else []
 
 
 def action(name: str, *args: str) -> None:
+    environment = os.environ.copy()
+    environment["NIRI_SOCKET"] = SESSION
     subprocess.run(
         ["niri", "msg", "action", name, *args],
         check=True,
         stdout=subprocess.DEVNULL,
+        env=environment,
     )
 
 
@@ -467,11 +499,14 @@ def watch() -> None:
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     PID_FILE.write_text(f"{os.getpid()}\n", encoding="utf-8")
     try:
+        environment = os.environ.copy()
+        environment["NIRI_SOCKET"] = SESSION
         process = subprocess.Popen(
             ["niri", "msg", "-j", "event-stream"],
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             bufsize=0,
+            env=environment,
         )
         assert process.stdout is not None
         poller = selectors.DefaultSelector()

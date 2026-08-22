@@ -47,5 +47,6 @@ assert grid.CLI_ACTION_NAMES["ConsumeOrExpelWindowLeft"] == "consume-or-expel-wi
 assert grid.compositor_override_text(Path("/tmp/niri-atomic")) == (
     "[Service]\nExecStart=\nExecStart=/tmp/niri-atomic --session\n"
 )
+assert grid.SESSION
 
 print("Grid layout policy: OK")
