@@ -35,6 +35,9 @@ for count in range(13):
 # Focus, keyboard, overview and configuration events must not wake the layout
 # controller. Niri can emit many of these while no window arrangement changed.
 assert grid.event_affects_layout('{"WindowsChanged":{"windows":[]}}')
+assert grid.event_affects_layout('{"WindowOpenedOrChanged":{"window":{}}}')
+assert grid.event_affects_layout('{"WindowClosed":{"id":42}}')
+assert grid.event_affects_layout('{"WindowLayoutsChanged":{"changes":[]}}')
 assert grid.event_affects_layout('{"WorkspacesChanged":{"workspaces":[]}}')
 assert not grid.event_affects_layout('{"OverviewOpenedOrClosed":{"is_open":true}}')
 assert not grid.event_affects_layout('{"KeyboardLayoutsChanged":{"current_idx":0}}')

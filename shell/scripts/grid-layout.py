@@ -49,7 +49,13 @@ def current_niri_socket() -> str:
 
 
 SESSION = current_niri_socket()
-LAYOUT_EVENT_NAMES = {"WindowsChanged", "WorkspacesChanged"}
+LAYOUT_EVENT_NAMES = {
+    "WindowsChanged",
+    "WindowOpenedOrChanged",
+    "WindowClosed",
+    "WindowLayoutsChanged",
+    "WorkspacesChanged",
+}
 ACTION_SETTLE_TIMEOUT = 0.35
 CLI_ACTION_NAMES = {
     "ConsumeOrExpelWindowLeft": "consume-or-expel-window-left",
