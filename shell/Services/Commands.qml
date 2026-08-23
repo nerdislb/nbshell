@@ -91,7 +91,7 @@ Singleton {
         out.push(entry(Notify.dnd ? "Disable do not disturb" : "Enable do not disturb", "suppress notification cards", "Services", () => Notify.setDnd(!Notify.dnd)));
         out.push(entry(Audio.muted ? "Unmute audio" : "Mute audio", "mute the speakers", "Services", () => Audio.toggleMute()));
         out.push(entry(Audio.micMuted ? "Unmute microphone" : "Mute microphone", "mute audio capture", "Services", () => Audio.setMicMuted(!Audio.micMuted)));
-        out.push(entry("Agent Console", "persistent sessions and new agent commands (Mod+F12)", "Windows", () => Runtime.agentQuakeOpen = true));
+        out.push(entry("Agent Console", "persistent sessions and new agent commands (Mod+F1)", "Windows", () => Runtime.agentQuakeOpen = true));
         out.push(entry("Check for updates", "refresh package list", "Services", () => Updates.refresh()));
         out.push(entry(Idle.caffeine ? "Disable keep awake" : "Enable keep awake", "prevent dimming, screen-off, and locking", "Services", () => Idle.toggleCaffeine()));
         out.push(entry(Idle.enabled ? "Disable idle automation" : "Enable idle automation", "dim, turn off, and lock", "Services", () => Config.set("idle", !Idle.enabled)));

@@ -8,7 +8,7 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Added
 
-- Agent Console, a dedicated full-width top drop-down module on `Mod+F12`, with
+- Agent Console, a dedicated full-width top drop-down module on `Mod+F1`, with
   live persistent-session status, recent terminal output, agent-aware prompt
   submission, project selection, and new Codex, Claude, or Antigravity
   sessions in an isolated nbshell-owned tmux namespace. Existing Herdr sessions

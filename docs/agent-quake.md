@@ -1,7 +1,7 @@
 # Agent Console
 
 Agent Console is nbshell's drop-down control surface for persistent coding-agent
-sessions. Press the layout-independent `Mod+F12` shortcut or run:
+sessions. Press the layout-independent `Mod+F1` shortcut or run:
 
 ```bash
 nbshell quake

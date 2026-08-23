@@ -240,7 +240,7 @@ backend remain the default and recovery path.
 
 ## AI agents and local models
 
-Press `Mod+F12` to drop down the **Agent Console**. It lists live persistent sessions,
+Press `Mod+F1` to drop down the **Agent Console**. It lists live persistent sessions,
 shows recent terminal output, sends a next command to Codex, Claude, or
 Antigravity, and starts a new project session using nbshell's own tmux-backed
 session namespace.
