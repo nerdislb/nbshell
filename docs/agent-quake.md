@@ -1,7 +1,8 @@
 # Agent Quake
 
 Agent Quake is nbshell's drop-down control surface for persistent coding-agent
-sessions. Press the physical `^/°` key beside `1` on a German keyboard, or run:
+sessions. Press `Mod+^` — Mod plus the physical `^/°` key beside `1` on a
+German keyboard — or run:
 
 ```bash
 nbshell quake

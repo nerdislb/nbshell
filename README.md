@@ -240,7 +240,8 @@ backend remain the default and recovery path.
 
 ## AI agents and local models
 
-Press the physical `^/°` key beside `1` to drop down **Agent Quake**. It lists
+Press `Mod+^` — Mod plus the physical `^/°` key beside `1` — to drop down
+**Agent Quake**. It lists
 live persistent sessions, shows recent terminal output, sends a next command to
 an idle Codex, Claude, or Antigravity session, and starts a new project session.
 Press the same key or `Esc` to hide it without stopping any work. The terminal

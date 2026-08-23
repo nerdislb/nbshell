@@ -8,7 +8,7 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Added
 
-- Agent Quake, a dedicated drop-down module on the physical `^/°` key, with
+- Agent Quake, a dedicated drop-down module on `Mod+^`, with
   live persistent-session status, recent terminal output, agent-aware prompt
   submission, project selection, and new Codex, Claude, or Antigravity
   sessions backed by Herdr.
