@@ -1,6 +1,6 @@
-# Agent Quake
+# Agent Console
 
-Agent Quake is nbshell's drop-down control surface for persistent coding-agent
+Agent Console is nbshell's drop-down control surface for persistent coding-agent
 sessions. Press the layout-independent `Mod+F12` shortcut or run:
 
 ```bash
@@ -15,7 +15,7 @@ or focus the full terminal. `+ NEW` starts Codex, Claude Code, or Antigravity in
 a new nbshell session for the selected project and optionally submits the first
 task.
 
-Agent Quake deliberately does not implement a terminal emulator or store chat
+Agent Console deliberately does not implement a terminal emulator or store chat
 history. New sessions use an isolated `nbshell-agents` tmux server: tmux keeps
 the PTYs alive while the dropdown and shell are closed, captures their rendered
 terminal screen, and accepts literal prompts through a temporary tmux buffer.
@@ -44,6 +44,6 @@ Requirements:
 - at least one supported agent CLI installed;
 - the nbshell Niri bindings enabled through `nbshell switch on`.
 
-Agent Quake is also searchable from the main menu. The existing Agent Center
+Agent Console is also searchable from the main menu. The existing Agent Center
 remains the place for default-agent, model-route, approval-profile, optional
 installation, Ollama, and workspace-template configuration.

@@ -145,7 +145,7 @@ PanelWindow {
 
                 Item {
                     width: parent.width; height: Theme.cellH * 2
-                    Line { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: Icons.cp(0xF1218) + "  AGENT QUAKE"; color: Theme.fgBright; font.pixelSize: Theme.fontHeading; font.bold: true }
+                    Line { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: Icons.cp(0xF1218) + "  AGENT CONSOLE"; color: Theme.fgBright; font.pixelSize: Theme.fontHeading; font.bold: true }
                     Line { anchors.centerIn: parent; text: Agents.workingCount + " WORKING  ·  " + Agents.waitingCount + " BLOCKED  ·  " + Agents.sessions.length + " SESSIONS  ·  " + String(Agents.sessionBackend.name).toUpperCase(); color: Agents.waitingCount > 0 ? Theme.yellow : Theme.fgDim }
                     Line { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: "MOD+F12 / ESC  CLOSE"; color: Theme.muted }
                 }

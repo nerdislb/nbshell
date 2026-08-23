@@ -78,7 +78,7 @@ missing_optional="$(
     optional_check nbphone       "phone mirror control"       "github.com/nerdislb/nbphone"
     optional_check opencode      "local/cloud agent frontend" "opencode"
     optional_check ollama        "local AI models"            "ollama (optional)"
-    optional_check tmux          "native Agent Quake sessions" "tmux"
+    optional_check tmux          "native Agent Console sessions" "tmux"
     optional_check voxtype       "local voice dictation"      "voxtype-bin (AUR, optional)"
     optional_check mpv           "native YouTube Music playback" "mpv"
     optional_check yt-dlp        "native YouTube Music playback" "yt-dlp"

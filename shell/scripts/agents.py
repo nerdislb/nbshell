@@ -86,7 +86,7 @@ def save_native_state(data: dict) -> None:
 
 def tmux(*args: str, input_text: str | None = None, timeout: float = 5, check: bool = True) -> subprocess.CompletedProcess:
     if not shutil.which("tmux"):
-        raise SystemExit("Agent Quake's native backend needs tmux. Install it with: sudo pacman -S tmux")
+        raise SystemExit("The native Agent Console backend needs tmux. Install it with: sudo pacman -S tmux")
     result = subprocess.run(
         ["tmux", "-L", TMUX_SOCKET, *args], input=input_text, text=True,
         capture_output=True, timeout=timeout, check=False,
@@ -363,7 +363,8 @@ def herdr_quake_start(agent_id: str, project: str | None, prompt: str) -> None:
 
 def projects(config: dict) -> list[dict]:
     base = Path(config.get("projectsDir") or Path.home() / "projects").expanduser()
-    rows = []
+    home = Path.home()
+    rows = [{"name": "Home", "path": str(home), "git": (home / ".git").exists()}]
     if base.is_dir():
         for path in sorted((p for p in base.iterdir() if p.is_dir()), key=lambda p: p.name.lower()):
             rows.append({"name": path.name, "path": str(path), "git": (path / ".git").exists()})
@@ -418,11 +419,11 @@ def native_focus(target: str) -> None:
     command = ["tmux", "-L", TMUX_SOCKET, "attach-session", "-t", f"{TMUX_SESSION}:{name}"]
     base = Path(terminal[0]).name
     if base == "ghostty":
-        terminal += ["--gtk-single-instance=false", "--class=dev.nerdi.nbshell.agent.native", "--title=Agent Quake Session", "-e", *command]
+        terminal += ["--gtk-single-instance=false", "--class=dev.nerdi.nbshell.agent.native", "--title=Agent Console Session", "-e", *command]
     elif base in {"foot", "kitty"}:
-        terminal += ["--app-id=dev.nerdi.nbshell.agent.native", "-T", "Agent Quake Session", *command]
+        terminal += ["--app-id=dev.nerdi.nbshell.agent.native", "-T", "Agent Console Session", *command]
     elif base == "alacritty":
-        terminal += ["--class", "dev.nerdi.nbshell.agent.native", "--title", "Agent Quake Session", "-e", *command]
+        terminal += ["--class", "dev.nerdi.nbshell.agent.native", "--title", "Agent Console Session", "-e", *command]
     else:
         terminal += ["-e", *command]
     subprocess.Popen(terminal, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
