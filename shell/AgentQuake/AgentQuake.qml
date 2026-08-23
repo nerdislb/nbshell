@@ -17,6 +17,8 @@ PanelWindow {
     property string selectedAgent: Agents.defaultAgent
     property string selectedProject: String(Agents.config.lastProject ?? "")
     property bool newSession: false
+    property real reveal: 0
+    property bool closing: false
 
     visible: Runtime.agentQuakeOpen
     screen: Quickshell.screens[0] ?? null
@@ -27,7 +29,12 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    function close() { Runtime.agentQuakeOpen = false; }
+    function close() {
+        if (!visible || closing)
+            return;
+        closing = true;
+        closeAnimation.restart();
+    }
     function selectSession(id) {
         selectedSession = String(id);
         newSession = false;
@@ -57,33 +64,48 @@ PanelWindow {
 
     IpcHandler {
         target: "agentQuake"
-        function toggle(): void { Runtime.agentQuakeOpen = !Runtime.agentQuakeOpen; }
-        function open(): void { Runtime.agentQuakeOpen = true; }
-        function close(): void { Runtime.agentQuakeOpen = false; }
+        function toggle(): void { if (root.visible) root.close(); else Runtime.agentQuakeOpen = true; }
+        function open(): void { if (!root.visible) Runtime.agentQuakeOpen = true; }
+        function close(): void { root.close(); }
         function status(): string { return Runtime.agentQuakeOpen ? "open" : "closed"; }
     }
 
-    onVisibleChanged: if (visible) {
-        Agents.refresh();
-        selectedProject = String(Agents.config.lastProject ?? "");
-        if (selectedSession === "" && Agents.sessions.length > 0)
-            selectSession(Agents.sessions[0].id);
-        Qt.callLater(() => composer.forceActiveFocus());
+    onVisibleChanged: {
+        if (visible) {
+            reveal = 0;
+            closing = false;
+            Agents.refresh();
+            selectedProject = String(Agents.config.lastProject ?? "");
+            if (selectedSession === "" && Agents.sessions.length > 0)
+                selectSession(Agents.sessions[Agents.sessions.length - 1].id);
+            Qt.callLater(() => {
+                openAnimation.restart();
+                composer.forceActiveFocus();
+                outputView.scrollToEnd();
+            });
+        }
     }
 
     Connections {
         target: Agents
         function onSessionsChanged() {
             if (root.visible && !root.newSession && root.selectedSession === "" && Agents.sessions.length > 0)
-                root.selectSession(Agents.sessions[0].id);
+                root.selectSession(Agents.sessions[Agents.sessions.length - 1].id);
         }
+    }
+
+    NumberAnimation { id: openAnimation; target: root; property: "reveal"; from: 0; to: 1; duration: 230; easing.type: Easing.OutCubic }
+    NumberAnimation {
+        id: closeAnimation
+        target: root; property: "reveal"; to: 0; duration: 160; easing.type: Easing.InCubic
+        onStopped: { Runtime.agentQuakeOpen = false; root.closing = false; }
     }
 
     Timer { id: outputRefresh; interval: 1200; repeat: false; onTriggered: Agents.readSession(root.selectedSession) }
     Timer { id: refreshAfterStart; interval: 2200; repeat: false; onTriggered: Agents.refresh() }
     Timer { interval: 5000; running: root.visible && root.selectedSession !== ""; repeat: true; onTriggered: { Agents.refresh(); Agents.readSession(root.selectedSession); } }
 
-    Rectangle { anchors.fill: parent; color: Theme.alpha(Theme.bg, 0.52) }
+    Rectangle { anchors.fill: parent; color: Theme.alpha(Theme.bg, 0.52 * root.reveal) }
     MouseArea { anchors.fill: parent; onClicked: root.close() }
 
     FocusScope {
@@ -100,11 +122,11 @@ PanelWindow {
 
         PanelSurface {
             id: surface
-            width: Math.min(parent.width - Theme.overlayMarginX * 2, Theme.cellW * 132)
-            height: Math.min(parent.height - Theme.cellH * 5, Theme.cellH * 40)
-            anchors.top: parent.top
-            anchors.topMargin: Theme.cellH * 1.4
-            anchors.horizontalCenter: parent.horizontalCenter
+            width: parent.width
+            height: Math.min(parent.height * 0.68, Theme.cellH * 42)
+            x: 0
+            y: -height + root.reveal * height
+            radius: 0
             accentBorder: true
             raised: true
             MouseArea { anchors.fill: parent; onClicked: {} }
@@ -118,7 +140,7 @@ PanelWindow {
                     width: parent.width; height: Theme.cellH * 2
                     Line { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: Icons.cp(0xF1218) + "  AGENT QUAKE"; color: Theme.fgBright; font.pixelSize: Theme.fontHeading; font.bold: true }
                     Line { anchors.centerIn: parent; text: Agents.workingCount + " WORKING  ·  " + Agents.waitingCount + " BLOCKED  ·  " + Agents.sessions.length + " LIVE"; color: Agents.waitingCount > 0 ? Theme.yellow : Theme.fgDim }
-                    Line { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: "MOD+^ / ESC  CLOSE"; color: Theme.muted }
+                    Line { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: "MOD+F12 / ESC  CLOSE"; color: Theme.muted }
                 }
                 Rule { rowWidth: parent.width; label: "PERSISTENT AGENT SESSIONS" }
 
@@ -179,6 +201,7 @@ PanelWindow {
                                 ActionButton { visible: !root.newSession && root.selectedSession !== ""; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: "FOCUS"; compact: true; onTriggered: { const id = root.selectedSession; root.close(); Qt.callLater(() => Agents.focusSession(id)); } }
                             }
                             Flickable {
+                                id: outputView
                                 visible: !root.newSession
                                 width: parent.width
                                 height: parent.height - Theme.cellH * 2.5
@@ -186,7 +209,9 @@ PanelWindow {
                                 contentWidth: width
                                 contentHeight: outputText.implicitHeight
                                 boundsBehavior: Flickable.StopAtBounds
-                                Line { id: outputText; width: parent.width; text: Agents.readingSession ? "Reading session …" : (Agents.sessionOutput || "Select a session to inspect its live output."); color: Theme.fg; wrapMode: Text.WrapAnywhere; font.pixelSize: Theme.fontCaption }
+                                function scrollToEnd() { contentY = Math.max(0, contentHeight - height); }
+                                onContentHeightChanged: Qt.callLater(scrollToEnd)
+                                Line { id: outputText; width: parent.width; text: Agents.sessionOutput || (Agents.readingSession ? "Reading session …" : "Select a session to inspect its live output."); color: Theme.fg; wrapMode: Text.WrapAnywhere; font.pixelSize: Theme.fontCaption }
                             }
                             Column {
                                 visible: root.newSession
