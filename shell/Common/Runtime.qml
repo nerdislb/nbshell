@@ -68,6 +68,7 @@ Singleton {
     property bool hubOpen: false
     property bool dashboardOpen: false
     property bool agentCenterOpen: false
+    property bool agentQuakeOpen: false
     property int dashboardPage: 0
     property bool pluginDeveloperOpen: false
     property string pluginManagerTab: "installed"

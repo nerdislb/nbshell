@@ -295,8 +295,8 @@ PanelWindow {
                                     radius: Theme.radius
                                     color: sessionHover.hovered ? Theme.hover : "transparent"
                                     border.width: Theme.borderWidth
-                                    border.color: sessionRow.modelData.status === "waiting" || sessionRow.modelData.status === "permission" ? Theme.yellow : Theme.muted
-                                    Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: sessionRow.modelData.name.toUpperCase() + "  " + sessionRow.modelData.status.toUpperCase(); color: sessionRow.modelData.status === "waiting" || sessionRow.modelData.status === "permission" ? Theme.yellow : Theme.fg }
+                                    border.color: ["waiting", "permission", "blocked"].indexOf(String(sessionRow.modelData.status)) >= 0 ? Theme.yellow : Theme.muted
+                                    Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: sessionRow.modelData.name.toUpperCase() + "  " + sessionRow.modelData.status.toUpperCase(); color: ["waiting", "permission", "blocked"].indexOf(String(sessionRow.modelData.status)) >= 0 ? Theme.yellow : Theme.fg }
                                     Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.58; horizontalAlignment: Text.AlignRight; elide: Text.ElideMiddle; text: sessionRow.modelData.title || sessionRow.modelData.project; color: Theme.fgDim }
                                     HoverHandler { id: sessionHover; cursorShape: Qt.PointingHandCursor }
                                     TapHandler { onTapped: Agents.focusSession(sessionRow.modelData.id) }

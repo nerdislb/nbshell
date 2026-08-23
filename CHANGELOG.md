@@ -6,7 +6,12 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
-No changes yet.
+### Added
+
+- Agent Quake, a dedicated drop-down module on the physical `^/°` key, with
+  live persistent-session status, recent terminal output, agent-aware prompt
+  submission, project selection, and new Codex, Claude, or Antigravity
+  sessions backed by Herdr.
 
 ## [0.1.0-beta.1] - 2026-08-22
 

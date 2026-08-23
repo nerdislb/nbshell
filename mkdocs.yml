@@ -36,6 +36,7 @@ nav:
   - Welcome: index.md
   - Getting started: getting-started.md
   - Features: features.md
+  - Agent Quake: agent-quake.md
   - Compatibility: compatibility.md
   - Join the beta: beta-invitation.md
   - Beta testing: beta-testing.md

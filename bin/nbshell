@@ -435,6 +435,7 @@ nbshell -- an independent Quickshell desktop shell for niri
                             start an agent in a project terminal
   nbshell agent quick [--project <path>]
                             open the default agent in a floating terminal
+  nbshell quake             toggle the persistent Agent Quake console
   nbshell agent prompt <text>
                             start the default agent with a prompt
   nbshell agent profile [safe|balanced|autonomous]
@@ -833,6 +834,9 @@ for b in d["binds"]:
         else
             ipc dashboard "${1:-toggle}"
         fi
+        ;;
+    quake|agent-quake)
+        ipc agentQuake "${1:-toggle}"
         ;;
     gaming|games)
         bash "$GAMING_TOOL" "${1:-status}" "${2:-}"

@@ -11,6 +11,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -24,6 +25,7 @@ OLLAMA_PID = STATE_DIR / "ollama.pid"
 AGENTS = {
     "codex": {"name": "Codex", "binary": "codex", "kind": "cloud", "prompt": "positional", "glyph": "code", "install": "npm install -g @openai/codex"},
     "claude": {"name": "Claude Code", "binary": "claude", "kind": "cloud", "prompt": "positional", "glyph": "claude", "install": "npm install -g @anthropic-ai/claude-code"},
+    "agy": {"name": "Antigravity", "binary": "agy", "kind": "cloud", "prompt": "positional", "glyph": "spark", "install": ""},
     "opencode": {"name": "OpenCode", "binary": "opencode", "kind": "hybrid", "prompt": "opencode", "glyph": "terminal", "install": "paru -S opencode"},
     "gemini": {"name": "Gemini CLI", "binary": "gemini", "kind": "cloud", "prompt": "gemini", "glyph": "spark", "install": "npm install -g @google/gemini-cli"},
     "copilot": {"name": "GitHub Copilot", "binary": "copilot", "kind": "cloud", "prompt": "copilot", "glyph": "code", "install": "npm install -g @github/copilot"},
@@ -105,6 +107,72 @@ def herdr_sessions() -> list[dict]:
         except (ValueError, AttributeError):
             return []
     return []
+
+
+def herdr_result(*args: str, timeout: float = 8) -> dict:
+    if not shutil.which("herdr"):
+        raise SystemExit("Herdr is not installed.")
+    result = subprocess.run(["herdr", *args], text=True, capture_output=True, timeout=timeout, check=False)
+    if result.returncode:
+        try:
+            message = json.loads(result.stderr).get("error", {}).get("message", "")
+        except (ValueError, AttributeError):
+            message = result.stderr.strip()
+        raise SystemExit(message or f"Herdr command failed: {' '.join(args[:2])}")
+    try:
+        return json.loads(result.stdout) if result.stdout.strip() else {}
+    except ValueError:
+        return {"text": result.stdout.strip()}
+
+
+def herdr_session_read(target: str) -> None:
+    data = herdr_result("agent", "read", target, "--source", "recent-unwrapped", "--lines", "100")
+    result = data.get("result", {})
+    print(str(result.get("text") or result.get("output") or data.get("text") or ""))
+
+
+def herdr_session_prompt(target: str, prompt: str) -> None:
+    if not prompt.strip():
+        raise SystemExit("Prompt text is required.")
+    herdr_result("agent", "prompt", target, prompt, timeout=10)
+    print("Prompt sent.")
+
+
+def herdr_quake_start(agent_id: str, project: str | None, prompt: str) -> None:
+    if agent_id not in AGENTS:
+        raise SystemExit(f"Unknown agent: {agent_id}")
+    if not shutil.which(AGENTS[agent_id]["binary"]):
+        raise SystemExit(f"{AGENTS[agent_id]['name']} is not installed.")
+    config = load_config()
+    cwd = Path(project or config.get("lastProject") or Path.cwd()).expanduser().resolve()
+    if not cwd.is_dir():
+        raise SystemExit(f"Project directory does not exist: {cwd}")
+    sessions = herdr_sessions()
+    workspace = str((next((row for row in sessions if row.get("focused")), None) or (sessions[0] if sessions else {})).get("workspace") or "")
+    if not workspace:
+        workspaces = herdr_result("workspace", "list").get("result", {}).get("workspaces", [])
+        if workspaces:
+            workspace = str(workspaces[0].get("workspace_id") or workspaces[0].get("id") or "")
+    if not workspace:
+        created = herdr_result("workspace", "create", "--cwd", str(cwd), "--label", "agents", "--no-focus")
+        workspace = str(created.get("result", {}).get("workspace", {}).get("workspace_id", ""))
+        pane = str(created.get("result", {}).get("root_pane", {}).get("pane_id", ""))
+    else:
+        created = herdr_result("tab", "create", "--workspace", workspace, "--cwd", str(cwd), "--label", f"{agent_id} · {cwd.name}", "--no-focus")
+        pane = str(created.get("result", {}).get("root_pane", {}).get("pane_id", ""))
+    if not pane:
+        raise SystemExit("Herdr did not return a new terminal pane.")
+    name = f"quake_{agent_id}_{int(time.time()) & 0xfffff:x}"
+    command = ["agent", "start", name, "--kind", agent_id, "--pane", pane, "--timeout", "60000"]
+    native = profile_args(agent_id, str(config.get("profile", "balanced")))
+    if native:
+        command += ["--", *native]
+    herdr_result(*command, timeout=65)
+    config["lastProject"] = str(cwd)
+    save_config(config)
+    if prompt.strip():
+        herdr_result("agent", "prompt", name, prompt, timeout=10)
+    print(f"Started {AGENTS[agent_id]['name']} in {cwd.name}.")
 
 
 def projects(config: dict) -> list[dict]:
@@ -403,6 +471,9 @@ def main() -> int:
     prompt_p = sub.add_parser("prompt"); prompt_p.add_argument("prompt", nargs="+"); prompt_p.add_argument("--agent"); prompt_p.add_argument("--project")
     ollama = sub.add_parser("ollama"); ollama.add_argument("action", nargs="?", default="status", choices=["status", "start", "stop"])
     workspace = sub.add_parser("workspace"); workspace.add_argument("template", choices=["dev", "review", "pair"]); workspace.add_argument("--project"); workspace.add_argument("--new-tab", action="store_true")
+    session_read = sub.add_parser("session-read"); session_read.add_argument("target")
+    session_prompt = sub.add_parser("session-prompt"); session_prompt.add_argument("target"); session_prompt.add_argument("prompt")
+    quake_start = sub.add_parser("quake-start"); quake_start.add_argument("agent", choices=sorted(AGENTS)); quake_start.add_argument("--project"); quake_start.add_argument("--prompt", default="")
     args = parser.parse_args()
     config = load_config()
     command = args.command or "status"
@@ -443,6 +514,9 @@ def main() -> int:
     if command == "prompt": launch(args.agent, args.project, " ".join(args.prompt)); return 0
     if command == "ollama": ollama_control(args.action); return 0
     if command == "workspace": herdr_workspace(args.template, args.project, args.new_tab); return 0
+    if command == "session-read": herdr_session_read(args.target); return 0
+    if command == "session-prompt": herdr_session_prompt(args.target, args.prompt); return 0
+    if command == "quake-start": herdr_quake_start(args.agent, args.project, args.prompt); return 0
     return 2
 
 

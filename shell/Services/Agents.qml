@@ -17,12 +17,15 @@ Singleton {
     property bool loading: false
     property string message: ""
     property bool sessionsReady: false
+    property string sessionOutput: ""
+    property string selectedSession: ""
+    property bool readingSession: false
 
     readonly property string defaultAgent: String(config.defaultAgent ?? "codex")
     readonly property string approvalProfile: String(config.profile ?? "balanced")
     readonly property string modelProfile: String(config.modelProfile ?? "cloud")
     readonly property int workingCount: sessions.filter(row => String(row.status) === "working").length
-    readonly property int waitingCount: sessions.filter(row => String(row.status) === "waiting" || String(row.status) === "permission").length
+    readonly property int waitingCount: sessions.filter(row => ["waiting", "permission", "blocked"].indexOf(String(row.status)) >= 0).length
 
     function refresh() {
         if (status.running)
@@ -57,6 +60,24 @@ Singleton {
     function focusSession(id) {
         if (id) Quickshell.execDetached(["herdr", "agent", "focus", id]);
     }
+    function readSession(id) {
+        if (!id || readProc.running)
+            return;
+        selectedSession = String(id);
+        readingSession = true;
+        readProc.command = ["python3", root.tool, "session-read", String(id)];
+        readProc.running = true;
+    }
+    function promptSession(id, prompt) {
+        if (id && String(prompt).trim() !== "")
+            action(["session-prompt", String(id), String(prompt)]);
+    }
+    function quakeStart(id, project, prompt) {
+        var args = ["quake-start", String(id)];
+        if (project) args = args.concat(["--project", String(project)]);
+        if (String(prompt).trim() !== "") args = args.concat(["--prompt", String(prompt)]);
+        action(args);
+    }
 
     function sessionNotifications(next) {
         if (!sessionsReady) {
@@ -72,7 +93,7 @@ Singleton {
                 continue;
             const wasWorking = String(before.status) === "working";
             const now = String(row.status);
-            const decision = now === "waiting" || now === "permission";
+            const decision = now === "waiting" || now === "permission" || now === "blocked";
             if ((wasWorking && now === "idle") || decision) {
                 const label = String(row.name || "Agent");
                 const project = String(row.project || row.title || "Agent session");
@@ -143,5 +164,12 @@ Singleton {
             clearMessage.restart();
             root.refresh();
         }
+    }
+
+    Process {
+        id: readProc
+        stdout: StdioCollector { onStreamFinished: root.sessionOutput = String(text).trim() }
+        stderr: StdioCollector { onStreamFinished: if (String(text).trim()) root.message = String(text).trim().split("\n")[0] }
+        onExited: root.readingSession = false
     }
 }

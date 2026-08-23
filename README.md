@@ -240,6 +240,13 @@ backend remain the default and recovery path.
 
 ## AI agents and local models
 
+Press the physical `^/°` key beside `1` to drop down **Agent Quake**. It lists
+live persistent sessions, shows recent terminal output, sends a next command to
+an idle Codex, Claude, or Antigravity session, and starts a new project session.
+Press the same key or `Esc` to hide it without stopping any work. The terminal
+and process lifecycle remains in Herdr; nbshell does not copy prompts or
+conversation history into shell state. See the [Agent Quake guide](docs/agent-quake.md).
+
 Press `Mod+Shift+A` to open the default agent immediately in a focused floating
 terminal. It starts in `~/projects/nbshell` when that checkout exists, so the
 installed nbshell skill can guide customization. The full Agent Center remains
@@ -258,7 +265,7 @@ nbshell commands --json
 ```
 
 The Agent Center discovers supported tools instead of requiring all of them.
-It currently recognizes Codex, Claude Code, OpenCode, Gemini CLI, GitHub
+It currently recognizes Codex, Claude Code, Antigravity, OpenCode, Gemini CLI, GitHub
 Copilot, and Pi. `safe`, `balanced`, and `autonomous` approval profiles map to
 each tool's native controls. The explicitly selected `autonomous` profile uses
 Codex's full approval-and-sandbox bypass; fresh installations therefore
