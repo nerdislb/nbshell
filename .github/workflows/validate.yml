@@ -37,6 +37,9 @@ jobs:
       - name: Test shell release updater
         run: python3 ./tests/shell-update.py
 
+      - name: Test native agent sessions
+        run: python3 ./tests/native-agent-sessions.py
+
       - name: Audit release metadata and privacy
         run: ./tests/release-audit.sh
 

@@ -7,9 +7,9 @@ import qs.Common
 import qs.Services
 import qs.Widgets
 
-// A drop-down command surface for persistent coding-agent sessions. Herdr
-// remains the terminal/session backend; nbshell owns discovery, selection,
-// prompting and the visual workflow. No conversations are persisted here.
+// A drop-down command surface for persistent coding-agent sessions. An isolated
+// tmux namespace owns the PTYs; nbshell owns discovery, selection, prompting
+// and the visual workflow. No conversations are persisted in shell config.
 PanelWindow {
     id: root
 
@@ -38,7 +38,11 @@ PanelWindow {
     function selectSession(id) {
         selectedSession = String(id);
         newSession = false;
-        Agents.readSession(selectedSession);
+        const row = selectedRow();
+        if (String(row.status) === "stopped")
+            Agents.sessionOutput = "This nbshell session is stopped. Select RESTORE to continue the latest conversation in its project.";
+        else
+            Agents.readSession(selectedSession);
     }
     function submit() {
         const prompt = composer.text.trim();
@@ -60,6 +64,9 @@ PanelWindow {
         if (["blocked", "waiting", "permission"].indexOf(value) >= 0) return Theme.yellow;
         if (value === "done") return Theme.cyan;
         return Theme.fgDim;
+    }
+    function selectedRow() {
+        return Agents.sessions.find(row => String(row.id) === selectedSession) ?? ({});
     }
 
     IpcHandler {
@@ -103,7 +110,7 @@ PanelWindow {
 
     Timer { id: outputRefresh; interval: 1200; repeat: false; onTriggered: Agents.readSession(root.selectedSession) }
     Timer { id: refreshAfterStart; interval: 2200; repeat: false; onTriggered: Agents.refresh() }
-    Timer { interval: 5000; running: root.visible && root.selectedSession !== ""; repeat: true; onTriggered: { Agents.refresh(); Agents.readSession(root.selectedSession); } }
+    Timer { interval: 5000; running: root.visible && root.selectedSession !== ""; repeat: true; onTriggered: { Agents.refresh(); if (String(root.selectedRow().status) !== "stopped") Agents.readSession(root.selectedSession); } }
 
     Rectangle { anchors.fill: parent; color: Theme.alpha(Theme.bg, 0.52 * root.reveal) }
     MouseArea { anchors.fill: parent; onClicked: root.close() }
@@ -139,7 +146,7 @@ PanelWindow {
                 Item {
                     width: parent.width; height: Theme.cellH * 2
                     Line { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: Icons.cp(0xF1218) + "  AGENT QUAKE"; color: Theme.fgBright; font.pixelSize: Theme.fontHeading; font.bold: true }
-                    Line { anchors.centerIn: parent; text: Agents.workingCount + " WORKING  ·  " + Agents.waitingCount + " BLOCKED  ·  " + Agents.sessions.length + " LIVE"; color: Agents.waitingCount > 0 ? Theme.yellow : Theme.fgDim }
+                    Line { anchors.centerIn: parent; text: Agents.workingCount + " WORKING  ·  " + Agents.waitingCount + " BLOCKED  ·  " + Agents.sessions.length + " SESSIONS  ·  " + String(Agents.sessionBackend.name).toUpperCase(); color: Agents.waitingCount > 0 ? Theme.yellow : Theme.fgDim }
                     Line { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: "MOD+F12 / ESC  CLOSE"; color: Theme.muted }
                 }
                 Rule { rowWidth: parent.width; label: "PERSISTENT AGENT SESSIONS" }
@@ -165,7 +172,7 @@ PanelWindow {
                                 Line { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "SESSIONS"; color: Theme.fgDim; font.bold: true }
                                 ActionButton { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: "+ NEW"; compact: true; onTriggered: { root.newSession = true; root.selectedSession = ""; composer.forceActiveFocus(); } }
                             }
-                            Line { visible: Agents.sessions.length === 0; width: parent.width; text: "No Herdr agents detected"; color: Theme.muted; horizontalAlignment: Text.AlignHCenter }
+                            Line { visible: Agents.sessions.length === 0; width: parent.width; text: "No agent sessions yet"; color: Theme.muted; horizontalAlignment: Text.AlignHCenter }
                             Repeater {
                                 model: Agents.sessions
                                 Rectangle {
@@ -178,7 +185,7 @@ PanelWindow {
                                     border.width: Theme.borderWidth
                                     border.color: root.selectedSession === String(modelData.id) ? Theme.focusBorder : root.statusColor(modelData.status)
                                     Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.top: parent.top; anchors.topMargin: Theme.cellH * 0.45; text: String(sessionRow.modelData.name).toUpperCase() + "  " + String(sessionRow.modelData.status).toUpperCase(); color: root.statusColor(sessionRow.modelData.status); font.bold: true }
-                                    Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.bottom: parent.bottom; anchors.bottomMargin: Theme.cellH * 0.45; text: sessionRow.modelData.title || sessionRow.modelData.project || sessionRow.modelData.id; color: Theme.fgDim; elide: Text.ElideMiddle }
+                                    Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.bottom: parent.bottom; anchors.bottomMargin: Theme.cellH * 0.45; text: String(sessionRow.modelData.backend || "") + "  ·  " + (sessionRow.modelData.title || sessionRow.modelData.project || sessionRow.modelData.id); color: Theme.fgDim; elide: Text.ElideMiddle }
                                     HoverHandler { id: sessionHover; cursorShape: Qt.PointingHandCursor }
                                     TapHandler { onTapped: root.selectSession(sessionRow.modelData.id) }
                                 }
@@ -198,7 +205,7 @@ PanelWindow {
                             Item {
                                 width: parent.width; height: Theme.cellH * 2
                                 Line { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: root.newSession ? "NEW SESSION" : "RECENT TERMINAL OUTPUT"; color: Theme.fgDim; font.bold: true }
-                                ActionButton { visible: !root.newSession && root.selectedSession !== ""; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: "FOCUS"; compact: true; onTriggered: { const id = root.selectedSession; root.close(); Qt.callLater(() => Agents.focusSession(id)); } }
+                                ActionButton { visible: !root.newSession && root.selectedSession !== ""; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: String(root.selectedRow().status) === "stopped" ? "RESTORE" : "FOCUS"; compact: true; onTriggered: { const id = root.selectedSession; if (String(root.selectedRow().status) === "stopped") Agents.restoreSession(id); else { root.close(); Qt.callLater(() => Agents.focusSession(id)); } } }
                             }
                             Flickable {
                                 id: outputView

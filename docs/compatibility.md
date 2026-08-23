@@ -13,6 +13,7 @@ The first beta targets:
 - PipeWire/WirePlumber for audio;
 - NetworkManager for the full network panel;
 - a standard systemd user session.
+- tmux for nbshell-native Agent Quake session persistence.
 
 Intel and AMD graphics use only normal Wayland interfaces. NVIDIA should work
 with a correctly configured modern Wayland driver, but still needs wider beta

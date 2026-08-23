@@ -14,6 +14,7 @@ Singleton {
     property var sessions: []
     property var ollama: ({ "installed": false, "running": false, "models": [] })
     property var config: ({ "defaultAgent": "codex", "profile": "balanced", "modelProfile": "cloud" })
+    property var sessionBackend: ({ "native": false, "name": "herdr fallback", "migration": false })
     property bool loading: false
     property string message: ""
     property bool sessionsReady: false
@@ -58,7 +59,7 @@ Singleton {
     }
     function ollamaAction(name) { action(["ollama", name]); }
     function focusSession(id) {
-        if (id) Quickshell.execDetached(["herdr", "agent", "focus", id]);
+        if (id) action(["session-focus", String(id)]);
     }
     function readSession(id) {
         if (!id || readProc.running)
@@ -78,6 +79,7 @@ Singleton {
         if (String(prompt).trim() !== "") args = args.concat(["--prompt", String(prompt)]);
         action(args);
     }
+    function restoreSession(id) { if (id) action(["session-restore", String(id)]); }
 
     function sessionNotifications(next) {
         if (!sessionsReady) {
@@ -135,6 +137,7 @@ Singleton {
                     root.sessions = nextSessions;
                     root.ollama = data.ollama ?? ({ "installed": false, "running": false, "models": [] });
                     root.config = data.config ?? root.config;
+                    root.sessionBackend = data.sessionBackend ?? root.sessionBackend;
                 } catch (e) {
                     root.message = "Could not read agent status";
                 }

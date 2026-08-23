@@ -21,6 +21,9 @@ CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / 
 STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "nbshell"
 CONFIG_FILE = CONFIG_DIR / "agents.json"
 OLLAMA_PID = STATE_DIR / "ollama.pid"
+NATIVE_FILE = STATE_DIR / "agent-sessions.json"
+TMUX_SOCKET = "nbshell-agents"
+TMUX_SESSION = "nbshell-agents"
 
 AGENTS = {
     "codex": {"name": "Codex", "binary": "codex", "kind": "cloud", "prompt": "positional", "glyph": "code", "install": "npm install -g @openai/codex"},
@@ -65,6 +68,186 @@ def save_config(data: dict) -> None:
     tmp.replace(CONFIG_FILE)
 
 
+def load_native_state() -> dict:
+    try:
+        data = json.loads(NATIVE_FILE.read_text())
+        return data if isinstance(data, dict) else {"sessions": []}
+    except (OSError, ValueError):
+        return {"sessions": []}
+
+
+def save_native_state(data: dict) -> None:
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = NATIVE_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, indent=2) + "\n")
+    os.chmod(tmp, 0o600)
+    tmp.replace(NATIVE_FILE)
+
+
+def tmux(*args: str, input_text: str | None = None, timeout: float = 5, check: bool = True) -> subprocess.CompletedProcess:
+    if not shutil.which("tmux"):
+        raise SystemExit("Agent Quake's native backend needs tmux. Install it with: sudo pacman -S tmux")
+    result = subprocess.run(
+        ["tmux", "-L", TMUX_SOCKET, *args], input=input_text, text=True,
+        capture_output=True, timeout=timeout, check=False,
+    )
+    if check and result.returncode:
+        raise SystemExit(result.stderr.strip() or "tmux command failed")
+    return result
+
+
+def native_sessions() -> list[dict]:
+    if not shutil.which("tmux"):
+        return []
+    live = tmux("list-windows", "-t", TMUX_SESSION, "-F", "#{window_name}\t#{window_id}", check=False)
+    if live.returncode:
+        return [{
+            "id": "nbshell:" + str(item.get("name", "")), "name": str(item.get("agent", "agent")),
+            "status": "stopped", "project": str(item.get("project", "")),
+            "title": str(item.get("label", item.get("name", ""))), "focused": False,
+            "workspace": TMUX_SESSION, "backend": "nbshell",
+        } for item in load_native_state().get("sessions", []) if item.get("name")]
+    windows = {line.split("\t", 1)[0]: line.split("\t", 1)[1] for line in live.stdout.splitlines() if "\t" in line}
+    state = load_native_state()
+    rows = []
+    kept = []
+    for item in state.get("sessions", []):
+        name = str(item.get("name", ""))
+        if name not in windows:
+            kept.append(item)
+            rows.append({
+                "id": "nbshell:" + name, "name": str(item.get("agent", "agent")),
+                "status": "stopped", "project": str(item.get("project", "")),
+                "title": str(item.get("label", name)), "focused": False,
+                "workspace": TMUX_SESSION, "backend": "nbshell",
+            })
+            continue
+        output = tmux("capture-pane", "-p", "-S", "-120", "-t", f"{TMUX_SESSION}:{name}").stdout
+        digest = __import__("hashlib").sha256(output.encode()).hexdigest()
+        old_digest = str(item.get("outputHash", ""))
+        stable = int(item.get("stableChecks", 0)) + 1 if digest == old_digest else 0
+        status = str(item.get("status", "idle"))
+        if status == "working" and stable >= 2:
+            status = "done"
+        if status == "done" and digest != old_digest:
+            status = "working"
+        item.update(outputHash=digest, stableChecks=stable, status=status, window=windows[name])
+        kept.append(item)
+        rows.append({
+            "id": "nbshell:" + name,
+            "name": str(item.get("agent", "agent")),
+            "status": status,
+            "project": str(item.get("project", "")),
+            "title": str(item.get("label", name)),
+            "focused": False,
+            "workspace": TMUX_SESSION,
+            "backend": "nbshell",
+        })
+    state["sessions"] = kept
+    save_native_state(state)
+    return rows
+
+
+def native_target(target: str) -> str:
+    if not target.startswith("nbshell:"):
+        raise SystemExit("Not an nbshell-native session.")
+    return target.split(":", 1)[1]
+
+
+def native_read(target: str) -> None:
+    name = native_target(target)
+    print(tmux("capture-pane", "-p", "-S", "-200", "-t", f"{TMUX_SESSION}:{name}").stdout.rstrip())
+
+
+def native_prompt(target: str, prompt: str) -> None:
+    if not prompt.strip():
+        raise SystemExit("Prompt text is required.")
+    name = native_target(target)
+    buffer_name = "nbshell-prompt"
+    tmux("load-buffer", "-b", buffer_name, "-", input_text=prompt)
+    tmux("paste-buffer", "-b", buffer_name, "-d", "-t", f"{TMUX_SESSION}:{name}")
+    time.sleep(0.08)
+    tmux("send-keys", "-t", f"{TMUX_SESSION}:{name}", "Enter")
+    state = load_native_state()
+    for item in state.get("sessions", []):
+        if item.get("name") == name:
+            item.update(status="working", stableChecks=0, outputHash="")
+    save_native_state(state)
+    print("Prompt sent.")
+
+
+def native_start(agent_id: str, project: str | None, prompt: str) -> None:
+    if agent_id not in AGENTS or not shutil.which(AGENTS[agent_id]["binary"]):
+        raise SystemExit(f"{AGENTS.get(agent_id, {}).get('name', agent_id)} is not installed.")
+    config = load_config()
+    cwd = Path(project or config.get("lastProject") or Path.cwd()).expanduser().resolve()
+    if not cwd.is_dir():
+        raise SystemExit(f"Project directory does not exist: {cwd}")
+    name = f"{agent_id}-{int(time.time()):x}"[-28:]
+    command = [AGENTS[agent_id]["binary"], *profile_args(agent_id, str(config.get("profile", "balanced")))]
+    route = config.get("modelProfiles", {}).get(str(config.get("modelProfile", "cloud")), {})
+    if agent_id == "opencode" and route.get("model"):
+        command += ["--model", str(route["model"])]
+    shell_command = "exec " + " ".join(shlex.quote(part) for part in command)
+    server = tmux("has-session", "-t", TMUX_SESSION, check=False)
+    if server.returncode:
+        tmux("new-session", "-d", "-x", "180", "-y", "52", "-s", TMUX_SESSION, "-n", name, "-c", str(cwd), shell_command, timeout=15)
+        tmux("set-option", "-t", TMUX_SESSION, "remain-on-exit", "on")
+        tmux("set-option", "-t", TMUX_SESSION, "status", "off")
+    else:
+        tmux("new-window", "-d", "-t", TMUX_SESSION, "-n", name, "-c", str(cwd), shell_command, timeout=15)
+    state = load_native_state()
+    state.setdefault("sessions", []).append({
+        "name": name, "agent": agent_id, "project": str(cwd),
+        "label": f"{AGENTS[agent_id]['name']} · {cwd.name}", "status": "working",
+        "createdAt": int(time.time()), "stableChecks": 0, "outputHash": "",
+    })
+    save_native_state(state)
+    config["lastProject"] = str(cwd)
+    save_config(config)
+    if prompt.strip():
+        time.sleep(3)
+        native_prompt("nbshell:" + name, prompt)
+    print(f"Started {AGENTS[agent_id]['name']} in {cwd.name} with the nbshell backend.")
+
+
+def native_restore(target: str) -> None:
+    name = native_target(target)
+    state = load_native_state()
+    item = next((row for row in state.get("sessions", []) if row.get("name") == name), None)
+    if not item:
+        raise SystemExit("Native session metadata was not found.")
+    agent_id = str(item.get("agent", ""))
+    if agent_id not in AGENTS or not shutil.which(AGENTS[agent_id]["binary"]):
+        raise SystemExit(f"{AGENTS.get(agent_id, {}).get('name', agent_id)} is not installed.")
+    cwd = Path(str(item.get("project") or Path.home())).expanduser()
+    resume = {"codex": ["resume", "--last"], "claude": ["--continue"], "agy": ["--continue"]}.get(agent_id, [])
+    command = [AGENTS[agent_id]["binary"], *profile_args(agent_id, str(load_config().get("profile", "balanced"))), *resume]
+    shell_command = "exec " + " ".join(shlex.quote(part) for part in command)
+    server = tmux("has-session", "-t", TMUX_SESSION, check=False)
+    if server.returncode:
+        tmux("new-session", "-d", "-x", "180", "-y", "52", "-s", TMUX_SESSION, "-n", name, "-c", str(cwd), shell_command, timeout=15)
+        tmux("set-option", "-t", TMUX_SESSION, "remain-on-exit", "on")
+        tmux("set-option", "-t", TMUX_SESSION, "status", "off")
+    else:
+        tmux("new-window", "-d", "-t", TMUX_SESSION, "-n", name, "-c", str(cwd), shell_command, timeout=15)
+    item.update(status="working", stableChecks=0, outputHash="")
+    save_native_state(state)
+    print(f"Restored {AGENTS[agent_id]['name']} in {cwd.name}.")
+
+
+def native_close(target: str) -> None:
+    name = native_target(target)
+    tmux("kill-window", "-t", f"{TMUX_SESSION}:{name}", check=False)
+    state = load_native_state()
+    before = len(state.get("sessions", []))
+    state["sessions"] = [item for item in state.get("sessions", []) if item.get("name") != name]
+    save_native_state(state)
+    if len(state["sessions"]) == before:
+        raise SystemExit("Native session metadata was not found.")
+    print("Session closed and removed.")
+
+
 def agent_rows() -> list[dict]:
     rows = []
     for agent_id, spec in AGENTS.items():
@@ -96,13 +279,14 @@ def herdr_sessions() -> list[dict]:
             data = json.loads(result.stdout)
             raw = data.get("result", {}).get("agents", data.get("agents", []))
             return [{
-                "id": str(row.get("agent_id") or row.get("id") or row.get("pane_id") or ""),
+                "id": "herdr:" + str(row.get("agent_id") or row.get("id") or row.get("pane_id") or ""),
                 "name": str(row.get("agent") or row.get("name") or "Agent"),
                 "status": str(row.get("agent_status") or row.get("status") or "unknown"),
                 "project": str(row.get("cwd") or ""),
                 "title": str(row.get("terminal_title_stripped") or row.get("title") or ""),
                 "focused": bool(row.get("focused", False)),
                 "workspace": str(row.get("workspace_id") or ""),
+                "backend": "herdr",
             } for row in raw]
         except (ValueError, AttributeError):
             return []
@@ -126,12 +310,14 @@ def herdr_result(*args: str, timeout: float = 8) -> dict:
 
 
 def herdr_session_read(target: str) -> None:
+    target = target.removeprefix("herdr:")
     data = herdr_result("agent", "read", target, "--source", "recent-unwrapped", "--lines", "100")
     result = data.get("result", {})
     print(str(result.get("text") or result.get("output") or data.get("text") or ""))
 
 
 def herdr_session_prompt(target: str, prompt: str) -> None:
+    target = target.removeprefix("herdr:")
     if not prompt.strip():
         raise SystemExit("Prompt text is required.")
     herdr_result("agent", "prompt", target, prompt, timeout=10)
@@ -192,6 +378,8 @@ def projects(config: dict) -> list[dict]:
 def full_status() -> dict:
     config = load_config()
     rows = agent_rows()
+    native = native_sessions()
+    legacy = herdr_sessions()
     installed = {row["id"] for row in rows if row["installed"]}
     if config["defaultAgent"] not in installed and installed:
         config["defaultAgent"] = next(row["id"] for row in rows if row["installed"])
@@ -199,7 +387,12 @@ def full_status() -> dict:
         "config": config,
         "agents": rows,
         "ollama": ollama_status(),
-        "sessions": herdr_sessions(),
+        "sessions": native + legacy,
+        "sessionBackend": {
+            "native": bool(shutil.which("tmux")),
+            "name": "nbshell" if shutil.which("tmux") else "herdr fallback",
+            "migration": bool(legacy),
+        },
         "projects": projects(config),
     }
 
@@ -216,6 +409,23 @@ def terminal_command(config: dict) -> list[str]:
         if binary:
             return [binary]
     raise SystemExit("No supported terminal found. Set terminal in ~/.config/nbshell/agents.json.")
+
+
+def native_focus(target: str) -> None:
+    name = native_target(target)
+    config = load_config()
+    terminal = terminal_command(config)
+    command = ["tmux", "-L", TMUX_SOCKET, "attach-session", "-t", f"{TMUX_SESSION}:{name}"]
+    base = Path(terminal[0]).name
+    if base == "ghostty":
+        terminal += ["--gtk-single-instance=false", "--class=dev.nerdi.nbshell.agent.native", "--title=Agent Quake Session", "-e", *command]
+    elif base in {"foot", "kitty"}:
+        terminal += ["--app-id=dev.nerdi.nbshell.agent.native", "-T", "Agent Quake Session", *command]
+    elif base == "alacritty":
+        terminal += ["--class", "dev.nerdi.nbshell.agent.native", "--title", "Agent Quake Session", "-e", *command]
+    else:
+        terminal += ["-e", *command]
+    subprocess.Popen(terminal, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 def profile_args(agent_id: str, profile: str) -> list[str]:
@@ -381,7 +591,12 @@ def doctor() -> int:
     print(f"\nPROFILE  {state['config']['profile']} / {state['config']['modelProfile']}")
     ollama = state["ollama"]
     print(f"OLLAMA   {'running' if ollama['running'] else ('stopped' if ollama['installed'] else 'not installed')}")
-    print(f"HERDR    {len(state['sessions'])} agent session(s)")
+    backend = state["sessionBackend"]
+    native_count = sum(row.get("backend") == "nbshell" for row in state["sessions"])
+    legacy_count = sum(row.get("backend") == "herdr" for row in state["sessions"])
+    print(f"BACKEND  {backend['name']} ({native_count} native session(s))")
+    if legacy_count:
+        print(f"LEGACY   {legacy_count} Herdr session(s) available for migration")
     print(f"PROJECTS {len(state['projects'])} found")
     return problems
 
@@ -473,6 +688,9 @@ def main() -> int:
     workspace = sub.add_parser("workspace"); workspace.add_argument("template", choices=["dev", "review", "pair"]); workspace.add_argument("--project"); workspace.add_argument("--new-tab", action="store_true")
     session_read = sub.add_parser("session-read"); session_read.add_argument("target")
     session_prompt = sub.add_parser("session-prompt"); session_prompt.add_argument("target"); session_prompt.add_argument("prompt")
+    session_focus = sub.add_parser("session-focus"); session_focus.add_argument("target")
+    session_restore = sub.add_parser("session-restore"); session_restore.add_argument("target")
+    session_close = sub.add_parser("session-close"); session_close.add_argument("target")
     quake_start = sub.add_parser("quake-start"); quake_start.add_argument("agent", choices=sorted(AGENTS)); quake_start.add_argument("--project"); quake_start.add_argument("--prompt", default="")
     args = parser.parse_args()
     config = load_config()
@@ -491,7 +709,7 @@ def main() -> int:
             for row in rows: print(row["path"])
         return 0
     if command == "sessions":
-        rows = herdr_sessions()
+        rows = native_sessions() + herdr_sessions()
         if args.json: print(json.dumps(rows))
         else:
             for row in rows: print(f"{row['id']:<12} {row['name']:<10} {row['status']:<12} {row['project']}")
@@ -514,9 +732,20 @@ def main() -> int:
     if command == "prompt": launch(args.agent, args.project, " ".join(args.prompt)); return 0
     if command == "ollama": ollama_control(args.action); return 0
     if command == "workspace": herdr_workspace(args.template, args.project, args.new_tab); return 0
-    if command == "session-read": herdr_session_read(args.target); return 0
-    if command == "session-prompt": herdr_session_prompt(args.target, args.prompt); return 0
-    if command == "quake-start": herdr_quake_start(args.agent, args.project, args.prompt); return 0
+    if command == "session-read":
+        native_read(args.target) if args.target.startswith("nbshell:") else herdr_session_read(args.target)
+        return 0
+    if command == "session-prompt":
+        native_prompt(args.target, args.prompt) if args.target.startswith("nbshell:") else herdr_session_prompt(args.target, args.prompt)
+        return 0
+    if command == "session-focus":
+        native_focus(args.target) if args.target.startswith("nbshell:") else herdr_result("agent", "focus", args.target.removeprefix("herdr:"))
+        return 0
+    if command == "session-restore": native_restore(args.target); return 0
+    if command == "session-close": native_close(args.target); return 0
+    if command == "quake-start":
+        native_start(args.agent, args.project, args.prompt) if shutil.which("tmux") else herdr_quake_start(args.agent, args.project, args.prompt)
+        return 0
     return 2
 
 

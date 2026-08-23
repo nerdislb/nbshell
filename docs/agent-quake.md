@@ -9,16 +9,30 @@ nbshell quake
 
 Press the same key or `Esc` to hide the console. Hiding it never stops an agent.
 
-The left column lists detected sessions and their live lifecycle state. Select
+The left column lists detected sessions and their lifecycle state. Select
 one to inspect recent terminal output, send its next command with `Ctrl+Enter`,
 or focus the full terminal. `+ NEW` starts Codex, Claude Code, or Antigravity in
-a new Herdr tab for the selected project and optionally submits the first task.
+a new nbshell session for the selected project and optionally submits the first
+task.
 
 Agent Quake deliberately does not implement a terminal emulator or store chat
-history. Herdr owns persistent terminals, resume state, and agent-aware prompt
-delivery; nbshell owns the themed overview and command workflow. This avoids
-simulated keystrokes and keeps provider credentials and conversations outside
-the shell configuration.
+history. New sessions use an isolated `nbshell-agents` tmux server: tmux keeps
+the PTYs alive while the dropdown and shell are closed, captures their rendered
+terminal screen, and accepts literal prompts through a temporary tmux buffer.
+nbshell owns session metadata, projects, commands, status inference, and the
+themed workflow. Provider credentials and conversations stay outside the shell
+configuration.
+
+Existing Herdr sessions are listed with a `herdr` backend badge and continue to
+use Herdr until they are finished. New sessions use the `nbshell` backend as
+soon as tmux is installed. They can be opened in a full terminal through
+`FOCUS`, but normal work no longer requires the Herdr interface.
+
+If the isolated tmux server is stopped or the computer restarts, its metadata
+remains visible as `STOPPED`. Select `RESTORE` to continue the most recent
+conversation for that agent and project through the provider's native resume
+command. This is deliberately visible rather than silently starting paid or
+autonomous agents during login.
 
 The selected nbshell approval profile still applies to newly started agents.
 Fresh installations use `balanced`; `autonomous` must remain an explicit user
@@ -26,7 +40,7 @@ choice. Existing sessions retain the mode with which they were started.
 
 Requirements:
 
-- Herdr running with a reachable local session;
+- tmux, installed automatically by the standard nbshell setup;
 - at least one supported agent CLI installed;
 - the nbshell Niri bindings enabled through `nbshell switch on`.
 
