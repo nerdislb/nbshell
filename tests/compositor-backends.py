@@ -94,5 +94,6 @@ assert (ROOT / "native/umbriel-workspaces.c").is_file()
 assert (ROOT / "setup-umbriel.sh").stat().st_mode & 0o111
 setup = (ROOT / "setup-umbriel.sh").read_text()
 assert '"Exec=$PREFIX/bin/start-umbriel"' in setup
+assert "ConditionEnvironment=!XDG_CURRENT_DESKTOP=umbriel" in setup
 
 print("Compositor backend contracts: OK")

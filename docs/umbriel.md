@@ -105,6 +105,11 @@ Niri-specific **Blur overview** setting is presented as **Overview backdrop**
 on Umbriel and controls the native overview tint and workspace-card background;
 Umbriel does not need nbshell's additional blurred wallpaper layer.
 
+Umbriel supervises its own Xwayland Satellite process. The setup installs a
+systemd condition that keeps Arch's separately enabled
+`xwayland-satellite.service` available for Niri without starting a duplicate
+inside Umbriel sessions.
+
 If no Umbriel configuration exists, nbshell creates this minimal entry point:
 
 ```toml

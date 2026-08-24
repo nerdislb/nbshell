@@ -44,7 +44,8 @@ checkout "$UMBRIEL_REPO" "$SOURCE_ROOT/umbriel"
 checkout "$PORTAL_REPO" "$SOURCE_ROOT/xdg-desktop-portal-umbriel"
 
 build_install() {
-    local source="$1" build="$source/build-nbshell"
+    local source="$1"
+    local build="$source/build-nbshell"
     if [ -d "$build" ]; then
         meson setup "$build" "$source" --reconfigure --buildtype=release --prefix="$PREFIX"
     else
@@ -89,6 +90,16 @@ for unit in "$PREFIX"/lib/systemd/user/umbriel.service \
     "$PREFIX"/lib/systemd/user/xdg-desktop-portal-umbriel.service; do
     [ -f "$unit" ] && install -m 644 "$unit" "$PREFIX/share/systemd/user/$(basename "$unit")"
 done
+systemctl --user daemon-reload
+
+# Umbriel supervises its own xwayland-satellite. Arch's separately enabled
+# user unit is still needed by Niri, but must not start a second copy inside an
+# Umbriel session and race for the X11 display socket.
+XWAYLAND_DROPIN="$HOME/.config/systemd/user/xwayland-satellite.service.d/nbshell-umbriel.conf"
+mkdir -p "$(dirname "$XWAYLAND_DROPIN")"
+printf '%s\n' \
+    '[Unit]' \
+    'ConditionEnvironment=!XDG_CURRENT_DESKTOP=umbriel' > "$XWAYLAND_DROPIN"
 systemctl --user daemon-reload
 
 "$ROOT/install.sh"
