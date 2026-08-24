@@ -3,9 +3,9 @@ index dfca8d4..89d1211 100644
 --- a/src/view/maximize.h
 +++ b/src/view/maximize.h
 @@ -4,4 +4,11 @@ namespace umbriel {
- 
+
    [[nodiscard]] constexpr bool maximizeRequestTargetsEdges(bool edgesActive) { return edgesActive; }
- 
+
 +  // Column maximize and fullscreen are mutually exclusive compositor states.
 +  // A maximize key pressed while fullscreen means "return to the layout",
 +  // not "mark the hidden fullscreen column maximized as well".
@@ -28,7 +28,7 @@ index 98ea2b2..35704e1 100644
  // clang-format off
 @@ -712,6 +713,16 @@ namespace umbriel {
    }
- 
+
    bool Workspace::toggleFocusedFullWidth() {
 +    if (m_focusedView == nullptr || !m_focusedView->mapped()) {
 +      return false;
@@ -48,16 +48,16 @@ index 46d91f2..3a33902 100644
 --- a/tests/unit/maximize.cpp
 +++ b/tests/unit/maximize.cpp
 @@ -2,10 +2,17 @@
- 
+
  #include "check.h"
- 
+
 +using umbriel::fullWidthActionLeavesFullscreen;
  using umbriel::maximizeRequestTargetsEdges;
- 
+
  UMBRIEL_TEST(freshClientMaximizeTargetsColumn) { CHECK(!maximizeRequestTargetsEdges(false)); }
- 
+
  UMBRIEL_TEST(clientCanLeaveEdgesMaximize) { CHECK(maximizeRequestTargetsEdges(true)); }
- 
+
 +UMBRIEL_TEST(fullWidthActsNormallyOutsideFullscreen) { CHECK(!fullWidthActionLeavesFullscreen(false, false)); }
 +
 +UMBRIEL_TEST(fullWidthLeavesScheduledFullscreen) { CHECK(fullWidthActionLeavesFullscreen(true, false)); }
