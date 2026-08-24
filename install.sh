@@ -329,6 +329,12 @@ install -m 644 "$SRC/umbriel/nbshell-nested.toml" "$CONFIG_HOME/umbriel/nbshell-
 if [ ! -f "$CONFIG_HOME/umbriel/nbshell-outputs.toml" ]; then
     printf '# Managed by nbshell display; intentionally empty until a setting is saved.\n' > "$CONFIG_HOME/umbriel/nbshell-outputs.toml"
 fi
+if [ ! -f "$CONFIG_HOME/umbriel/nbshell-cursor.toml" ]; then
+    install -m 644 "$SRC/umbriel/nbshell-cursor.toml" "$CONFIG_HOME/umbriel/nbshell-cursor.toml"
+fi
+if [ ! -f "$CONFIG_HOME/umbriel/nbshell-overview.toml" ]; then
+    install -m 644 "$SRC/umbriel/nbshell-overview.toml" "$CONFIG_HOME/umbriel/nbshell-overview.toml"
+fi
 if [ ! -f "$CONFIG_HOME/umbriel/nbshell-colors.toml" ]; then
     install -m 644 "$SRC/umbriel/nbshell-colors.toml" "$CONFIG_HOME/umbriel/nbshell-colors.toml"
 fi

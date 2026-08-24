@@ -166,7 +166,9 @@ Scope {
     // ── Die verwischte Kopie fuer die Uebersicht ──────────────────────────
 
     Variants {
-        model: (Config.wallpaperEnabled && Config.wallpaperBlur) ? Quickshell.screens : []
+        // Niri needs a dedicated blurred backdrop layer. Umbriel has native
+        // overview styling, exported by ThemeExport instead.
+        model: (Config.wallpaperEnabled && Config.wallpaperBlur && !Compositor.isUmbriel) ? Quickshell.screens : []
 
         delegate: PanelWindow {
             id: blurWin

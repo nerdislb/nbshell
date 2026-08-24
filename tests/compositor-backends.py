@@ -11,6 +11,8 @@ for relative in (
     "umbriel/nbshell.toml",
     "umbriel/nbshell-colors.toml",
     "umbriel/nbshell-nested.toml",
+    "umbriel/nbshell-cursor.toml",
+    "umbriel/nbshell-overview.toml",
 ):
     with (ROOT / relative).open("rb") as handle:
         tomllib.load(handle)
@@ -19,7 +21,9 @@ integration = tomllib.loads((ROOT / "umbriel/nbshell.toml").read_text())
 assert integration["keybinds"]["Mod+Space"].endswith("nbshell menu")
 assert integration["keybinds"]["Mod+BackSpace"] == "workspace-set-layout:toggle"
 assert integration["keybinds"]["Mod+Return"] == "spawn:ghostty"
-assert integration["include"]["files"] == ["nbshell-outputs.toml"]
+assert integration["include"]["files"] == [
+    "nbshell-outputs.toml", "nbshell-cursor.toml", "nbshell-overview.toml"
+]
 assert integration["input"]["keyboard"]["layout"] == "de"
 assert integration["input"]["focus"] == {"follows_mouse": True, "follows_mouse_max_scroll": 0.5}
 assert integration["hot_corners"]["top_left"]["action"] == "overview-open"
@@ -29,6 +33,15 @@ clear_layer_rules = [rule for rule in integration["layer_rule"]
                      if rule.get("match", {}).get("namespace") in clear_layer_namespaces]
 assert {rule["match"]["namespace"] for rule in clear_layer_rules} == clear_layer_namespaces
 assert all(rule.get("blur") is False for rule in clear_layer_rules)
+
+cursor_script = (ROOT / "shell/scripts/cursors.sh").read_text()
+assert "nbshell-cursor.toml" in cursor_script
+assert "umbriel msg config-reload" in cursor_script
+
+theme_export = (ROOT / "shell/Services/ThemeExport.qml").read_text()
+assert "nbshell-overview.toml" in theme_export
+assert 'background_tint = \\"' in theme_export
+assert "onWallpaperBlurChanged" in theme_export
 
 service = (ROOT / "shell/Services/Compositor.qml").read_text()
 for contract in (

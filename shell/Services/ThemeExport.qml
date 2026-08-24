@@ -20,6 +20,7 @@ Singleton {
     readonly property string ghosttyPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ghostty/themes/nbcolors"
     readonly property string niriPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/niri/nbshell-colors.kdl"
     readonly property string umbrielPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/umbriel/nbshell-colors.toml"
+    readonly property string umbrielOverviewPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/umbriel/nbshell-overview.toml"
     readonly property string palettePath: Config.configDir + "/palette.sh"
     readonly property string hookPath: Config.configDir + "/theme-hook.sh"
     readonly property string browserThemePath: Qt.resolvedUrl("../scripts/browser-theme.sh").toString().replace("file://", "")
@@ -131,8 +132,23 @@ Singleton {
         return out;
     }
 
+    function umbrielOverview() {
+        const background = String(Theme.c.background ?? "#000000").substring(0, 7);
+        const enabled = Config.wallpaperBlur;
+        var out = "# Managed by nbshell appearance settings.\n[overview]\n";
+        out += "background_tint = \"" + background + (enabled ? "80" : "00") + "\"\n";
+        out += "workspace_background = \"" + background + (enabled ? "48" : "00") + "\"\n";
+        return out;
+    }
+
     function exportNow() {
-        if (!enabled || Object.keys(Theme.c).length < 5)
+        if (Object.keys(Theme.c).length < 5)
+            return;
+        // Compositor appearance is a shell setting, not part of the optional
+        // terminal/theme export switch.
+        umbrielOverviewFile.setText(umbrielOverview());
+        umbrielReloadTimer.restart();
+        if (!enabled)
             return;
         ghostty.setText(ghosttyTheme());
         niri.setText(niriColors());
@@ -169,12 +185,23 @@ Singleton {
         }
     }
 
+    Timer {
+        id: umbrielReloadTimer
+        interval: 250
+        onTriggered: umbrielReload.running = true
+    }
+
     Process {
         id: reload
 
         // `-x`: nur der Prozess, der genau so heisst. Ohne das traefe es auch
         // jede Shell, in deren Befehlszeile "ghostty" vorkommt.
         command: ["sh", "-c", "pkill -USR2 -x ghostty || true"]
+    }
+
+    Process {
+        id: umbrielReload
+        command: ["sh", "-c", "if [ -n \"${UMBRIEL_SOCKET:-}\" ] || [ \"${XDG_CURRENT_DESKTOP:-}\" = Umbriel ]; then umbriel msg config-reload >/dev/null 2>&1 || true; fi"]
     }
 
     // Nach jedem Themewechsel -- Theme.c wechselt, sobald die neue colors.toml
@@ -188,6 +215,14 @@ Singleton {
         }
 
         function onAccentRoleChanged() {
+            root.exportNow();
+        }
+    }
+
+    Connections {
+        target: Config
+
+        function onWallpaperBlurChanged() {
             root.exportNow();
         }
     }
@@ -209,6 +244,14 @@ Singleton {
     FileView {
         id: umbriel
         path: root.umbrielPath
+        watchChanges: false
+        printErrors: true
+        atomicWrites: true
+    }
+
+    FileView {
+        id: umbrielOverviewFile
+        path: root.umbrielOverviewPath
         watchChanges: false
         printErrors: true
         atomicWrites: true

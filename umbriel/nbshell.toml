@@ -2,7 +2,7 @@
 # ~/.config/umbriel/config.toml; it contains only shell-owned binds and rules.
 
 [include]
-files = ["nbshell-outputs.toml"]
+files = ["nbshell-outputs.toml", "nbshell-cursor.toml", "nbshell-overview.toml"]
 
 [input.keyboard]
 layout = "de"

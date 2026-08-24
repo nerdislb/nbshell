@@ -89,6 +89,14 @@ The installer places the integration files in `~/.config/umbriel/`:
 - `nbshell.toml` — shell bindings and window/layer rules;
 - `nbshell-nested.toml` — isolated development profile.
 - `nbshell-outputs.toml` — display settings managed by the shell.
+- `nbshell-cursor.toml` — live cursor theme and size from Settings.
+- `nbshell-overview.toml` — theme-aware native overview backdrop styling.
+
+The Settings entries for cursor theme and size update Umbriel and GTK live.
+Niri keeps its own generated cursor include for fallback sessions. The
+Niri-specific **Blur overview** setting is presented as **Overview backdrop**
+on Umbriel and controls the native overview tint and workspace-card background;
+Umbriel does not need nbshell's additional blurred wallpaper layer.
 
 If no Umbriel configuration exists, nbshell creates this minimal entry point:
 

@@ -21,6 +21,7 @@
 set -uo pipefail
 
 NIRI_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/niri"
+UMBRIEL_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/umbriel"
 CURSOR_FILE="nbshell-cursor.kdl"
 CURSOR_LINE="include \"$CURSOR_FILE\""
 
@@ -89,6 +90,23 @@ KDL
 	if command -v gsettings >/dev/null 2>&1; then
 		gsettings set org.gnome.desktop.interface cursor-theme "$theme" 2>/dev/null || true
 		gsettings set org.gnome.desktop.interface cursor-size "$size" 2>/dev/null || true
+	fi
+
+	# Umbriel owns the compositor cursor in an Umbriel session. Keep this in a
+	# small generated include so the repository-owned integration stays intact.
+	mkdir -p "$UMBRIEL_DIR"
+	python3 - "$theme" "$size" "$UMBRIEL_DIR/nbshell-cursor.toml" <<'PY'
+import json
+import pathlib
+import sys
+
+theme, size, destination = sys.argv[1:]
+text = "# Managed by nbshell cursor settings.\n[input.cursor]\n"
+text += f"theme = {json.dumps(theme)}\nsize = {int(size)}\n"
+pathlib.Path(destination).write_text(text)
+PY
+	if [ -n "${UMBRIEL_SOCKET:-}" ] || [[ "${XDG_CURRENT_DESKTOP:-}" == *[Uu]mbriel* ]]; then
+		umbriel msg config-reload >/dev/null 2>&1 || true
 	fi
 
 	printf '%s %s\n' "$theme" "$size"
