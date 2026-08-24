@@ -81,17 +81,21 @@ nbshell start
 
 ## Update later
 
-Open Dashboard → Tools → `nbshell update`. The shell checks only published
-GitHub releases, links their release notes, and opens a terminal for explicit
-confirmation. Before installation it verifies the release archive against its
-published SHA-256 checksum. Personal configuration, themes, plugins, and data
-remain in place.
+Open Dashboard → Tools → `Desktop updates`. nbshell itself still updates only
+from published GitHub release archives and verifies their SHA-256 checksums.
+When the optional Umbriel backend is installed, the same panel also compares
+Umbriel and its desktop portal with their official Git repositories. Their
+updates are built and tested locally before installation; they become active
+after the next login. Personal configuration, themes, plugins, and data remain
+in place.
 
 The same flow is available from a terminal:
 
 ```bash
 nbshell update
 nbshell update install
+nbshell update umbriel
+nbshell update all
 ```
 
 To follow stable releases instead of beta releases, use `stable` as the final
@@ -102,7 +106,10 @@ git pull --ff-only
 ./install.sh
 ```
 
-The separate `System updates` action handles distribution packages. It shows
+Umbriel is deliberately not treated as an AUR package: the optional stack was
+installed from its official source repositories, and dirty or unexpected
+checkouts are refused. The separate `System updates` action handles
+distribution packages. It shows
 `Restart recommended` when a kernel or another important component changed.
 Plugin updates remain in the plugin manager.
 

@@ -394,6 +394,10 @@ nbshell gaming remove steam
 - The herdr panel requires a separately configured read-only bridge. The shell
   works normally without it.
 - AUR update counts require `paru` or `yay`.
+- Umbriel and `xdg-desktop-portal-umbriel` are tracked separately from AUR
+  packages. The Desktop updates panel compares clean local checkouts with the
+  official noctalia-dev Git repositories, then builds, tests, and installs both
+  below `~/.local`. A compositor update takes effect after the next login.
 - After a successful dashboard update, nbshell recommends a restart only when
   core components such as the kernel, systemd, glibc, firmware, or graphics
   drivers changed. The dashboard keeps the English `Restart recommended`

@@ -44,6 +44,26 @@ The script refuses to overwrite a source checkout with local changes. It adds
 only the Umbriel session entry to `/usr/share/wayland-sessions`; it does not
 remove or modify the Niri entry.
 
+## Updates
+
+Dashboard → Tools → **Desktop updates** checks the installed Umbriel and portal
+commits against the official noctalia-dev repositories. An update is offered
+only when both source trees are clean and still point to the expected origins.
+The updater fast-forwards, builds, runs each project's Meson tests, and installs
+to `~/.local`; it never restarts the compositor underneath the current session.
+Log out and back in when the update finishes.
+
+The equivalent terminal commands are:
+
+```bash
+nbshell update                 # check nbshell, Umbriel, and the portal
+nbshell update umbriel         # update only the compositor stack
+nbshell update all             # install every available desktop update
+```
+
+These two projects are source builds, not AUR-managed packages. Distribution
+and AUR packages remain under the separate **System updates** action.
+
 ## Safe nested test
 
 After installing the stack, run:

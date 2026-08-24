@@ -179,6 +179,16 @@ Scope {
             return "terminal opened";
         }
 
+        function installCompositor(): string {
+            ShellUpdates.installCompositor();
+            return "terminal opened";
+        }
+
+        function installAll(): string {
+            ShellUpdates.installAll();
+            return "terminal opened";
+        }
+
         function notes(): string {
             ShellUpdates.openNotes();
             return ShellUpdates.releaseUrl !== "" ? "release notes opened" : "no release available";
@@ -193,7 +203,15 @@ Scope {
                 "installable": ShellUpdates.installable,
                 "checking": ShellUpdates.checking,
                 "error": ShellUpdates.error,
-                "url": ShellUpdates.releaseUrl
+                "url": ShellUpdates.releaseUrl,
+                "umbriel": {
+                    "installed": ShellUpdates.compositorInstalled,
+                    "available": ShellUpdates.compositorUpdateAvailable,
+                    "installable": ShellUpdates.compositorInstallable,
+                    "checking": ShellUpdates.compositorChecking,
+                    "error": ShellUpdates.compositorError,
+                    "projects": ShellUpdates.compositorProjects
+                }
             });
         }
     }

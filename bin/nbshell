@@ -117,6 +117,7 @@ GRID_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/grid-lay
 BROWSER_THEME_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/browser-theme.sh"
 OMACUT_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/omacut.sh"
 SHELL_UPDATE_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/nbshell-update.py"
+UMBRIEL_UPDATE_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/umbriel-update.py"
 UMBRIEL_NESTED_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/umbriel-nested.sh"
 
 cursor_status() {
@@ -449,8 +450,10 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell display set <output> mode|scale|transform|enabled <value>
   nbshell display place <output> left|right|above|below <reference>
   nbshell ui-gallery        preview the shared nbshell component language
-  nbshell update            check nbshell's published releases
-  nbshell update install    verify and install the latest release
+  nbshell update            check nbshell and the Umbriel stack
+  nbshell update install    verify and install the latest nbshell release
+  nbshell update umbriel    build, test and install the Umbriel stack
+  nbshell update all        install all available desktop updates
   nbshell updates           system packages: status, check, list, run
   nbshell ai                open the Agent Center (also: usage, refresh)
   nbshell agent list [--json]
@@ -826,10 +829,18 @@ for b in d["binds"]:
         ;;
     update|self-update)
         case "${1:-check}" in
-            check|status|"") python3 "$SHELL_UPDATE_TOOL" check --channel "${2:-beta}" ;;
+            check|status|"")
+                python3 "$SHELL_UPDATE_TOOL" check --channel "${2:-beta}"
+                python3 "$UMBRIEL_UPDATE_TOOL" check
+                ;;
             install|run)     python3 "$SHELL_UPDATE_TOOL" install --channel "${2:-beta}" ;;
+            umbriel|compositor) python3 "$UMBRIEL_UPDATE_TOOL" install ;;
+            all)
+                python3 "$SHELL_UPDATE_TOOL" install --channel "${2:-beta}"
+                python3 "$UMBRIEL_UPDATE_TOOL" install
+                ;;
             notes)           ipc shellUpdate notes ;;
-            *) echo "Usage: nbshell update [check|install|notes] [beta|stable]" >&2; exit 2 ;;
+            *) echo "Usage: nbshell update [check|install|umbriel|all|notes] [beta|stable]" >&2; exit 2 ;;
         esac
         ;;
     ai)

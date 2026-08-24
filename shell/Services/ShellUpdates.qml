@@ -13,6 +13,7 @@ Singleton {
     id: root
 
     readonly property string script: Qt.resolvedUrl("../scripts/nbshell-update.py").toString().replace("file://", "")
+    readonly property string compositorScript: Qt.resolvedUrl("../scripts/umbriel-update.py").toString().replace("file://", "")
     readonly property string channel: Config.value("shellUpdateChannel", "beta")
     readonly property string terminal: Config.value("terminal", "") || Quickshell.env("TERMINAL") || "xterm"
     property string current: ""
@@ -25,6 +26,15 @@ Singleton {
     property bool updateAvailable: false
     property bool installable: false
     property bool prerelease: false
+    property bool compositorChecking: false
+    property bool compositorReady: false
+    property bool compositorInstalled: false
+    property bool compositorUpdateAvailable: false
+    property bool compositorInstallable: false
+    property string compositorError: ""
+    property var compositorProjects: ({})
+
+    readonly property bool anyUpdateAvailable: updateAvailable || compositorUpdateAvailable
 
     function refresh() {
         if (checking)
@@ -32,12 +42,35 @@ Singleton {
         checking = true;
         checkProc.command = ["python3", root.script, "check", "--channel", root.channel];
         checkProc.running = true;
+        if (!compositorChecking) {
+            compositorChecking = true;
+            compositorCheck.running = true;
+        }
     }
 
     function install() {
         const line = "python3 '" + root.script + "' install --channel '" + root.channel
             + "'; code=$?; echo; read -n1 -r -p 'done — press any key to close the window'; exit $code";
         Quickshell.execDetached([root.terminal, "-e", "sh", "-c", line]);
+    }
+
+    function installCompositor() {
+        const line = "python3 '" + root.compositorScript
+            + "' install; code=$?; echo; read -n1 -r -p 'done — press any key to close the window'; exit $code";
+        Quickshell.execDetached([root.terminal, "-e", "sh", "-c", line]);
+    }
+
+    function installAll() {
+        if (root.updateAvailable && root.installable && root.compositorUpdateAvailable && root.compositorInstallable) {
+            const line = "python3 '" + root.script + "' install --channel '" + root.channel
+                + "' && python3 '" + root.compositorScript
+                + "' install; code=$?; echo; read -n1 -r -p 'done — press any key to close the window'; exit $code";
+            Quickshell.execDetached([root.terminal, "-e", "sh", "-c", line]);
+        } else if (root.updateAvailable && root.installable) {
+            root.install();
+        } else if (root.compositorUpdateAvailable && root.compositorInstallable) {
+            root.installCompositor();
+        }
     }
 
     function openNotes() {
@@ -70,6 +103,32 @@ Singleton {
             if (code !== 0 && root.error === "")
                 root.error = "Release check could not be started";
             root.checking = false;
+        }
+    }
+
+    Process {
+        id: compositorCheck
+        command: ["python3", root.compositorScript, "check"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const data = JSON.parse(text);
+                    root.compositorInstalled = data.installed === true;
+                    root.compositorUpdateAvailable = data.available === true;
+                    root.compositorInstallable = data.installable === true;
+                    root.compositorProjects = data.projects ?? ({});
+                    root.compositorError = data.error ?? "";
+                    root.compositorReady = true;
+                } catch (e) {
+                    root.compositorError = "Umbriel update check returned unreadable data";
+                }
+                root.compositorChecking = false;
+            }
+        }
+        onExited: code => {
+            if (code !== 0 && root.compositorError === "")
+                root.compositorError = "Umbriel update check could not be started";
+            root.compositorChecking = false;
         }
     }
 

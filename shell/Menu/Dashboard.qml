@@ -57,6 +57,11 @@ PanelWindow {
             ? entry.name + "   " + entry.to + "  (new build)"
             : entry.name + "   " + entry.from + " → " + entry.to;
     }
+    function compositorRevision(project, field) {
+        const projects = ShellUpdates.compositorProjects || ({});
+        const row = projects[project];
+        return row && row[field] !== undefined ? row[field] : "unknown";
+    }
     function weatherGlyph(code, day) {
         if (code === 0) return String.fromCodePoint(day ? 0xE30D : 0xE32B);
         if (code <= 2) return String.fromCodePoint(0xE302);
@@ -450,19 +455,20 @@ PanelWindow {
                             rightRun: () => root.openSurface(() => Updates.update())
                         }
                         Action {
-                            label: "nbshell update"
-                            detail: ShellUpdates.checking ? "checking releases …"
-                                : (ShellUpdates.updateAvailable ? ShellUpdates.latest + " available"
-                                : (ShellUpdates.ready ? ShellUpdates.current + " current" : "published releases"))
+                            label: "Desktop updates"
+                            detail: ShellUpdates.checking || ShellUpdates.compositorChecking ? "checking releases …"
+                                : (ShellUpdates.anyUpdateAvailable ? "updates available"
+                                : (ShellUpdates.ready && ShellUpdates.compositorReady ? "nbshell and Umbriel current" : "published releases"))
                             glyph: Icons.refresh
-                            tone: ShellUpdates.updateAvailable ? Theme.yellow : Theme.green
+                            tone: ShellUpdates.anyUpdateAvailable ? Theme.yellow : Theme.green
                             run: () => {
                                 root.shellUpdatesOpen = true;
-                                if (!ShellUpdates.ready)
+                                if (!ShellUpdates.ready || !ShellUpdates.compositorReady)
                                     ShellUpdates.refresh();
                             }
-                            rightRun: ShellUpdates.updateAvailable && ShellUpdates.installable
-                                ? () => root.openSurface(() => ShellUpdates.install()) : null
+                            rightRun: (ShellUpdates.updateAvailable && ShellUpdates.installable)
+                                || (ShellUpdates.compositorUpdateAvailable && ShellUpdates.compositorInstallable)
+                                ? () => root.openSurface(() => ShellUpdates.installAll()) : null
                         }
                         Action { label: "Capture"; detail: CaptureService.recording ? "running" : "Screenshot, OCR, QR"; glyph: CaptureService.recording ? Icons.record : Icons.camera; tone: CaptureService.recording ? Theme.red : Theme.accent; run: () => root.openSurface(() => Runtime.captureOpen = true); rightRun: () => CaptureService.toggleRecording() }
                         Action { label: "Theme"; detail: Config.theme; glyph: Icons.palette; run: () => root.openSurface(() => Runtime.themePickerOpen = true); rightRun: () => ThemeIndex.step(1) }
@@ -654,7 +660,7 @@ PanelWindow {
 
                 PanelSurface {
                     width: Math.min(parent.width - root.cardGap * 4, Theme.cellW * 70)
-                    height: Math.min(parent.height - root.cardGap * 4, Theme.cellH * 24)
+                    height: Math.min(parent.height - root.cardGap * 4, Theme.cellH * 31)
                     anchors.centerIn: parent
                     MouseArea { anchors.fill: parent; onClicked: {} }
 
@@ -665,7 +671,7 @@ PanelWindow {
 
                         Item {
                             width: parent.width; height: Theme.cellH * 2
-                            Line { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "NBSHELL UPDATE"; color: Theme.fgBright; font.pixelSize: Theme.fontHeading }
+                            Line { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "DESKTOP UPDATES"; color: Theme.fgBright; font.pixelSize: Theme.fontHeading }
                             ActionButton { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: "Close"; compact: true; onTriggered: root.shellUpdatesOpen = false }
                         }
                         Rule { rowWidth: parent.width; label: ShellUpdates.channel.toUpperCase() + " CHANNEL" }
@@ -695,7 +701,51 @@ PanelWindow {
                                 onTriggered: root.openSurface(() => ShellUpdates.install())
                             }
                         }
-                        Line { width: parent.width; text: "Published releases only  ·  SHA-256 verified  ·  personal data preserved"; color: Theme.muted; horizontalAlignment: Text.AlignHCenter }
+                        Rule { rowWidth: parent.width; label: "UMBRIEL STACK" }
+                        Line {
+                            width: parent.width
+                            text: "Umbriel  " + root.compositorRevision("umbriel", "current")
+                                + (root.compositorRevision("umbriel", "available") === true ? " → " + root.compositorRevision("umbriel", "latest") : "")
+                            color: root.compositorRevision("umbriel", "available") === true ? Theme.yellow : Theme.fgBright
+                            font.pixelSize: Theme.fontBody
+                        }
+                        Line {
+                            width: parent.width
+                            text: "Portal    " + root.compositorRevision("xdg-desktop-portal-umbriel", "current")
+                                + (root.compositorRevision("xdg-desktop-portal-umbriel", "available") === true ? " → " + root.compositorRevision("xdg-desktop-portal-umbriel", "latest") : "")
+                            color: root.compositorRevision("xdg-desktop-portal-umbriel", "available") === true ? Theme.yellow : Theme.fgBright
+                            font.pixelSize: Theme.fontBody
+                        }
+                        Line {
+                            width: parent.width
+                            wrapMode: Text.Wrap
+                            text: ShellUpdates.compositorChecking ? "checking official Git repositories …"
+                                : (ShellUpdates.compositorError !== "" ? ShellUpdates.compositorError
+                                : (ShellUpdates.compositorUpdateAvailable ? "A compositor stack update is ready. It takes effect after the next login."
+                                : (ShellUpdates.compositorReady ? "Umbriel and its portal are up to date." : "Check the installed compositor stack.")))
+                            color: ShellUpdates.compositorError !== "" ? Theme.yellow : Theme.fg
+                        }
+                        Row {
+                            spacing: Theme.cellW * 2
+                            ActionButton { text: ShellUpdates.compositorChecking ? "Checking …" : "Check stack"; busy: ShellUpdates.compositorChecking; compact: true; onTriggered: ShellUpdates.refresh() }
+                            ActionButton {
+                                visible: ShellUpdates.compositorUpdateAvailable && ShellUpdates.compositorInstallable
+                                text: "Update stack"
+                                tone: "primary"
+                                accentColor: Theme.green
+                                compact: true
+                                onTriggered: root.openSurface(() => ShellUpdates.installCompositor())
+                            }
+                            ActionButton {
+                                visible: ShellUpdates.updateAvailable && ShellUpdates.installable && ShellUpdates.compositorUpdateAvailable && ShellUpdates.compositorInstallable
+                                text: "Update all"
+                                tone: "primary"
+                                accentColor: Theme.accent
+                                compact: true
+                                onTriggered: root.openSurface(() => ShellUpdates.installAll())
+                            }
+                        }
+                        Line { width: parent.width; text: "nbshell releases are checksum verified  ·  Umbriel builds only clean official checkouts"; color: Theme.muted; horizontalAlignment: Text.AlignHCenter }
                     }
                 }
             }
