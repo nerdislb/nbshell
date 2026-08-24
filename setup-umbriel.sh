@@ -71,8 +71,18 @@ systemctl --user daemon-reload
 "$ROOT/install.sh"
 
 # greetd and most other display managers enumerate the system session folder.
-# This is the only system file added beyond packages; Niri remains available.
-sudo install -m 644 "$PREFIX/share/wayland-sessions/umbriel.desktop" /usr/share/wayland-sessions/umbriel.desktop
+# They do not necessarily inherit ~/.local/bin in PATH, so use the absolute
+# user-prefix launcher instead of the relative Exec from upstream's desktop file.
+SESSION_FILE="$(mktemp "${TMPDIR:-/tmp}/nbshell-umbriel-session.XXXXXX")"
+trap 'rm -f -- "$SESSION_FILE"' EXIT
+printf '%s\n' \
+    '[Desktop Entry]' \
+    'Name=Umbriel' \
+    'Comment=Umbriel Wayland Compositor with nbshell' \
+    "Exec=$PREFIX/bin/start-umbriel" \
+    'Type=Application' \
+    'DesktopNames=Umbriel' > "$SESSION_FILE"
+sudo install -m 644 "$SESSION_FILE" /usr/share/wayland-sessions/umbriel.desktop
 
 green "Umbriel, its portal, and the nbshell integration are installed."
 printf '%s\n' \
