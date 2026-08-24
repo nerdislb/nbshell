@@ -23,7 +23,7 @@ Cell {
 
     property string output: ""
 
-    readonly property var list: Niri.workspacesForOutput(output)
+    readonly property var list: Compositor.workspacesForOutput(output)
     readonly property int activeIndex: list.findIndex(w => w.is_active)
 
     readonly property string style: Config.workspaceStyle
@@ -62,7 +62,7 @@ Cell {
             return;
         const next = delta > 0 ? current - 1 : current + 1;
         if (next >= 0 && next < items.length)
-            Niri.focusWorkspace(items[next].idx);
+            Compositor.focusWorkspace(items[next].name || items[next].idx);
     }
 
     // Reihum durch die Stile -- so, wie es der Vorgaenger auch machte. Es
@@ -102,7 +102,7 @@ Cell {
                         anchors.fill: parent
                         anchors.margins: -Theme.cellW / 2
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: Niri.focusWorkspace(parent.modelData.idx)
+                        onClicked: Compositor.focusWorkspace(parent.modelData.name || parent.modelData.idx)
                     }
                 }
             }
@@ -195,7 +195,7 @@ Cell {
                         width: root.stride
                         height: lane.height
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: Niri.focusWorkspace(dot.modelData.idx)
+                        onClicked: Compositor.focusWorkspace(dot.modelData.name || dot.modelData.idx)
                     }
                 }
             }

@@ -1,0 +1,106 @@
+# nbshell integration for Umbriel. Include this file from
+# ~/.config/umbriel/config.toml; it contains only shell-owned binds and rules.
+
+[keybinds]
+"Mod+F1" = "spawn:$HOME/.local/bin/nbshell quake"
+"Mod+Space" = "spawn:$HOME/.local/bin/nbshell menu"
+"Mod+Alt+Space" = "spawn:$HOME/.local/bin/nbshell launcher"
+"Mod+Shift+Space" = "spawn:$HOME/.local/bin/nbshell menu"
+"Mod+BackSpace" = "workspace-set-layout:toggle"
+"Mod+Ctrl+E" = "spawn:$HOME/.local/bin/nbshell emoji"
+"Mod+Ctrl+T" = "spawn:$HOME/.local/bin/nbshell translate"
+"Mod+Ctrl+C" = "spawn:$HOME/.local/bin/nbshell capture"
+"Mod+Ctrl+H" = "spawn:$HOME/.local/bin/nbshell hub"
+"Mod+Ctrl+M" = "spawn:$HOME/.local/bin/nbshell modules"
+"Mod+Ctrl+P" = "spawn:$HOME/.local/bin/nbshell plugin-dev"
+"Mod+Ctrl+A" = "spawn:$HOME/.local/bin/nbshell audio panel"
+"Mod+Shift+A" = "spawn:$HOME/.local/bin/nbshell agent quick"
+"Mod+Shift+N" = "spawn:$HOME/.local/bin/nbshell notes new"
+"Mod+Ctrl+Shift+A" = "spawn:$HOME/.local/bin/nbshell agent center"
+"Mod+Alt+A" = "spawn:$HOME/.local/bin/nbshell audio tools"
+"Mod+Escape" = "spawn:$HOME/.local/bin/nbshell power menu"
+"Mod+N" = "spawn:$HOME/.local/bin/nbshell notify center"
+"Mod+Y" = "spawn:$HOME/.local/bin/nbshell wallpaper pick"
+"Mod+T" = "spawn:$HOME/.local/bin/nbshell todo toggle"
+"Mod+P" = "spawn:$HOME/.local/bin/nbshell dashboard view media"
+"Mod+Ctrl+Shift+G" = "spawn:$HOME/.local/bin/nbshell extension toggle omamail"
+"Mod+Ctrl+Shift+M" = "spawn:$HOME/.local/bin/nbshell extension toggle ytmusic"
+"Mod+Alt+P" = "spawn:$HOME/.local/bin/nbshell pip size"
+"Mod+Alt+Shift+P" = "spawn:$HOME/.local/bin/nbshell pip corner"
+"Mod+Z" = "spawn:$HOME/.local/bin/nbshell audio-restore"
+"Mod+K" = "spawn:$HOME/.local/bin/nbshell keys"
+"Mod+Comma" = "spawn:$HOME/.local/bin/nbshell settings"
+"Mod+V" = "spawn:$HOME/.local/bin/nbshell clip toggle"
+"Super+X" = "spawn:$HOME/.local/bin/nbshell power menu"
+"Mod+M" = "spawn:$HOME/.local/bin/nbshell procs"
+"Ctrl+Alt+Delete" = "spawn:$HOME/.local/bin/nbshell procs"
+"Print" = "spawn:$HOME/.local/bin/nbshell capture"
+"F9" = "spawn:$HOME/.local/bin/nbshell dictate"
+"Mod+Alt+L" = "spawn:$HOME/.local/bin/nbshell power lock"
+"XF86MonBrightnessUp" = "spawn:$HOME/.local/bin/nbshell brightness up"
+"XF86MonBrightnessDown" = "spawn:$HOME/.local/bin/nbshell brightness down"
+"XF86AudioPlay" = "spawn:$HOME/.local/bin/nbshell media playpause"
+"XF86AudioPause" = "spawn:$HOME/.local/bin/nbshell media playpause"
+"XF86AudioNext" = "spawn:$HOME/.local/bin/nbshell media next"
+"XF86AudioPrev" = "spawn:$HOME/.local/bin/nbshell media previous"
+
+[[window_rule]]
+match.title = "^nbshell Notes$"
+default_floating = true
+default_focused = true
+default_size = [1100, 760]
+
+[[window_rule]]
+match.title = "^nbshell-screensaver$"
+default_fullscreen = true
+default_focused = true
+
+[[window_rule]]
+match.title = "^nbshell-gaming$"
+default_floating = true
+default_focused = true
+default_size = [1100, 780]
+
+[[window_rule]]
+match.app_id = "^zen"
+match.title = "^(Picture-in-Picture|Bild-im-Bild)$"
+default_floating = true
+default_position = { x = 16, y = 16, anchor = "bottom_right" }
+
+[[window_rule]]
+match.app_id = "^scrcpy$"
+match.title = "^Pixel 9 Pro · nbphone$"
+default_floating = true
+default_position = { x = 16, y = 16, anchor = "bottom_right" }
+
+[[window_rule]]
+match.app_id = "^omacut$"
+default_floating = true
+default_focused = true
+default_size = [1100, 780]
+
+[[window_rule]]
+match.app_id = "^mpv$"
+match.title = "^Phone Camera Preview$"
+default_floating = true
+default_focused = true
+default_size = [900, 520]
+default_position = { x = 16, y = 16, anchor = "bottom_right" }
+
+[[window_rule]]
+match.app_id = "^dev[.]nerdi[.]nbshell[.]agent[.]quick[.].*$"
+default_floating = true
+default_focused = true
+default_size = [1100, 780]
+
+[[window_rule]]
+match.title = "^(Omamail|YouTube Music|Pit Wall)$"
+default_floating = true
+default_focused = true
+default_size = [1240, 840]
+
+[[layer_rule]]
+match.namespace = "^nbshell:.*$"
+blur = true
+blur_ignore_alpha = 0.45
+blur_popups = true

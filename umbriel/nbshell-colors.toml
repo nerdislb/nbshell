@@ -1,0 +1,20 @@
+# Generated-compatible starter palette. A running nbshell replaces this file
+# with the active theme without changing the rest of the Umbriel config.
+[colors]
+background = "#1A1B26F0"
+text_primary = "#C0CAF5FF"
+text_muted = "#565F89FF"
+accent_primary = "#7AA2F7FF"
+accent_secondary = "#E0AF68FF"
+warning = "#E0AF68FF"
+error = "#F7768EFF"
+
+[appearance]
+corner_radius = 2
+border_width = 2
+outer_border_width = 1
+border_focused = "#7AA2F7FF"
+border_unfocused = "#565F89FF"
+outer_border_color = "#7AA2F780"
+insert_hint_color = "#7AA2F780"
+backdrop_color = "#1A1B26FF"

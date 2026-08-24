@@ -11,6 +11,7 @@
 # Absichtlich KEIN `set -e`: mehrere Funktionen enden mit einem Test, und
 # unter `set -e` wuerde das Skript dort still aussteigen.
 #
+#   capture.sh shot      <region|screen|window> <path> [geometry]
 #   capture.sh post      <pfad> <editor> <auto 0|1> <melden 0|1>
 #   capture.sh ocr       <pfad> <sprachen> <melden 0|1>
 #   capture.sh qr        <pfad> <melden 0|1>
@@ -43,6 +44,30 @@ need() {
 }
 
 stamp() { date +'%Y-%m-%d_%H-%M-%S'; }
+
+cmd_shot() {
+	local kind="$1" file="$2" geometry="${3:-}"
+	need grim grim
+	mkdir -p "$(dirname "$file")"
+	case "$kind" in
+	region)
+		need slurp slurp
+		geometry=$(slurp 2>/dev/null) || exit 0
+		[[ -n $geometry ]] && grim -g "$geometry" "$file"
+		;;
+	window)
+		[[ -n $geometry ]] || { echo "Window geometry is required." >&2; exit 2; }
+		grim -g "$geometry" "$file"
+		;;
+	screen)
+		grim "$file"
+		;;
+	*)
+		echo "Expected region, screen, or window." >&2
+		exit 2
+		;;
+	esac
+}
 
 open_editor() {
 	local file="$1" editor="${2:-satty}"
@@ -302,6 +327,7 @@ cmd_rec_stop() {
 }
 
 case "${1:-}" in
+shot) shift && cmd_shot "$@" ;;
 post) shift && cmd_post "$@" ;;
 ocr) shift && cmd_ocr "$@" ;;
 qr) shift && cmd_qr "$@" ;;
@@ -312,7 +338,7 @@ rec-start) shift && cmd_rec_start "$@" ;;
 rec-stop) shift && cmd_rec_stop "$@" ;;
 rec-active) pgrep -x wf-recorder >/dev/null ;;
 *)
-	echo "Usage: $(basename "$0") post|ocr|qr|edit-last|trim-last|open-dir|rec-start|rec-stop|rec-active ..." >&2
+	echo "Usage: $(basename "$0") shot|post|ocr|qr|edit-last|trim-last|open-dir|rec-start|rec-stop|rec-active ..." >&2
 	exit 2
 	;;
 esac

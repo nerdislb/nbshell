@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Controls Zen's native Picture-in-Picture window through niri."""
+"""Controls Zen's native Picture-in-Picture window through the compositor."""
 
 import json
 import os
@@ -13,12 +13,26 @@ CORNERS = ("unten-rechts", "unten-links", "oben-links", "oben-rechts")
 MARGIN = 16
 
 
+def backend():
+    desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
+    return "umbriel" if os.environ.get("UMBRIEL_SOCKET") or "umbriel" in desktop else "niri"
+
+
 def niri(*args):
     return subprocess.run(["niri", "msg", *args], text=True, capture_output=True, check=True).stdout
 
 
 def data(kind):
+    if backend() == "umbriel":
+        if kind != "windows":
+            raise RuntimeError(f"Umbriel does not expose {kind} through this helper")
+        result = subprocess.run(["umbriel", "windows", "--json"], text=True, capture_output=True, check=True)
+        return json.loads(result.stdout)
     return json.loads(niri("--json", kind))
+
+
+def umbriel_action(action):
+    subprocess.run(["umbriel", "msg", action], check=True)
 
 
 def pip_window():
@@ -52,7 +66,7 @@ def status():
     print(json.dumps({
         "active": win is not None,
         "id": win.get("id") if win else None,
-        "floating": bool(win and win.get("is_floating")),
+        "floating": bool(win and (win.get("is_floating") or win.get("floating"))),
         "size": state["size"],
         "sizeName": ("klein", "mittel", "gross")[state["size"]],
         "corner": state["corner"],
@@ -61,6 +75,8 @@ def status():
 
 
 def geometry(win, state):
+    if backend() == "umbriel":
+        raise RuntimeError("Exact PiP size and corner placement are not available on the experimental Umbriel backend yet")
     workspaces = {w["id"]: w for w in data("workspaces")}
     workspace = workspaces.get(win["workspace_id"])
     outputs = data("outputs")
@@ -104,12 +120,22 @@ def main():
     elif command == "corner":
         state["corner"] = (state["corner"] + 1) % len(CORNERS)
     elif command == "apply":
-        pass
+        if backend() == "umbriel":
+            if not win.get("floating"):
+                umbriel_action("window-focus:" + str(win["id"]))
+                umbriel_action("window-toggle-floating")
+            return
     elif command == "focus":
-        niri("action", "focus-window", "--id", str(win["id"]))
+        if backend() == "umbriel":
+            umbriel_action("window-focus:" + str(win["id"]))
+        else:
+            niri("action", "focus-window", "--id", str(win["id"]))
         return
     elif command == "close":
-        niri("action", "close-window", "--id", str(win["id"]))
+        if backend() == "umbriel":
+            umbriel_action("window-close:" + str(win["id"]))
+        else:
+            niri("action", "close-window", "--id", str(win["id"]))
         return
     else:
         raise RuntimeError("Erwartet: status | apply | size | corner | focus | close")

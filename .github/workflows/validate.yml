@@ -40,6 +40,9 @@ jobs:
       - name: Test native agent sessions
         run: python3 ./tests/native-agent-sessions.py
 
+      - name: Test compositor backend contracts
+        run: python3 ./tests/compositor-backends.py
+
       - name: Audit release metadata and privacy
         run: ./tests/release-audit.sh
 

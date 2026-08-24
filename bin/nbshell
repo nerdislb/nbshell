@@ -35,6 +35,16 @@ COLORS="nbshell-colors.kdl"
 INCLUDE_LINE="include \"$TAKEOVER\""
 COLORS_LINE="include \"$COLORS\""
 
+compositor_name() {
+    if [ -n "${NBSHELL_COMPOSITOR:-}" ]; then
+        printf '%s\n' "${NBSHELL_COMPOSITOR,,}"
+    elif [ -n "${UMBRIEL_SOCKET:-}" ] || [[ "${XDG_CURRENT_DESKTOP:-}" == *[Uu]mbriel* ]]; then
+        echo umbriel
+    else
+        echo niri
+    fi
+}
+
 niri_include() {
     local cfg="$NIRI_DIR/config.kdl"
     mkdir -p "$NIRI_DIR"
@@ -107,6 +117,7 @@ GRID_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/grid-lay
 BROWSER_THEME_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/browser-theme.sh"
 OMACUT_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/omacut.sh"
 SHELL_UPDATE_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/nbshell-update.py"
+UMBRIEL_NESTED_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/umbriel-nested.sh"
 
 cursor_status() {
     local jetzt
@@ -246,8 +257,10 @@ print(round(max(1.0, round(base * want / ref) / base), 3))
 # benutzt: ein Drop-in an niri.service, das die Unit mitzieht. Eine EIGENE
 # Datei -- dms.conf bleibt unangetastet, damit der Rueckweg frei bleibt.
 autostart_on() {
-    mkdir -p "$(dirname "$UNIT_DROPIN")"
-    printf '[Unit]\nWants=nbshell.service\n' > "$UNIT_DROPIN"
+    if [ "$(compositor_name)" = "niri" ]; then
+        mkdir -p "$(dirname "$UNIT_DROPIN")"
+        printf '[Unit]\nWants=nbshell.service\n' > "$UNIT_DROPIN"
+    fi
     systemctl --user daemon-reload 2>/dev/null
     systemctl --user enable nbshell.service >/dev/null 2>&1
     # Laeuft schon eine von Hand gestartete Instanz, uebernimmt sie die Unit
@@ -317,7 +330,9 @@ polkit_status() {
 
 switch_on() {
     echo "Enabling nbshell:"
-    if [ ! -f "$NIRI_DIR/$TAKEOVER" ]; then
+    local compositor
+    compositor="$(compositor_name)"
+    if [ "$compositor" = "niri" ] && [ ! -f "$NIRI_DIR/$TAKEOVER" ]; then
         echo "  $TAKEOVER is missing -- run ./install.sh first." >&2
         return 1
     fi
@@ -328,7 +343,11 @@ switch_on() {
         systemctl --user reset-failed dms.service 2>/dev/null || true
         systemctl --user mask dms.service >/dev/null 2>&1 && echo "  Old DMS: masked"
     fi
-    niri_include || true
+    if [ "$compositor" = "niri" ]; then
+        niri_include || true
+    else
+        echo "  umbriel: include \"nbshell.toml\" from ~/.config/umbriel/config.toml"
+    fi
     ipc notify server on >/dev/null && echo "  nbshell: notification server enabled"
     ipc wallpaper on >/dev/null && echo "  nbshell: wallpaper enabled"
     ghostty_theme nbcolors
@@ -347,19 +366,26 @@ switch_off() {
 }
 
 switch_status() {
+    local compositor
+    compositor="$(compositor_name)"
+    printf 'Compositor         %s\n' "$compositor"
     if systemctl --user cat dms.service >/dev/null 2>&1; then
         printf 'Legacy DMS          %s\n' "$(systemctl --user is-active dms.service 2>/dev/null; systemctl --user is-enabled dms.service 2>/dev/null | tr '\n' ' ')"
     fi
     printf 'Notification server %s\n' "$(busctl --user list 2>/dev/null | awk '/^org.freedesktop.Notifications/ {print $2" ("$3")"}')"
-    printf 'niri bindings       %s\n' "$([ -f "$NIRI_DIR/config.kdl" ] && grep -qF "$INCLUDE_LINE" "$NIRI_DIR/config.kdl" && echo "nbshell" || echo "not included")"
-    printf 'Window borders    %s\n' "$([ -f "$NIRI_DIR/config.kdl" ] && grep -qF "$COLORS_LINE" "$NIRI_DIR/config.kdl" && echo "nbshell" || echo "not included")"
-    printf 'nbshell autostart    %s\n' "$([ -f "$UNIT_DROPIN" ] && echo "on ($(systemctl --user is-active nbshell.service))" || echo "off")"
+    if [ "$compositor" = "umbriel" ]; then
+        printf 'Umbriel assets     %s\n' "$([ -f "${XDG_CONFIG_HOME:-$HOME/.config}/umbriel/nbshell.toml" ] && echo installed || echo missing)"
+    else
+        printf 'Niri bindings      %s\n' "$([ -f "$NIRI_DIR/config.kdl" ] && grep -qF "$INCLUDE_LINE" "$NIRI_DIR/config.kdl" && echo "nbshell" || echo "not included")"
+        printf 'Window borders     %s\n' "$([ -f "$NIRI_DIR/config.kdl" ] && grep -qF "$COLORS_LINE" "$NIRI_DIR/config.kdl" && echo "nbshell" || echo "not included")"
+    fi
+    printf 'nbshell autostart  %s (%s)\n' "$(systemctl --user is-enabled nbshell.service 2>/dev/null || echo off)" "$(systemctl --user is-active nbshell.service 2>/dev/null || true)"
     polkit_status
 }
 
 usage() {
     cat <<'USAGE'
-nbshell -- an independent Quickshell desktop shell for niri
+nbshell -- an independent Quickshell desktop shell for Wayland compositors
 
   nbshell start [-d]        start the shell (-d runs in the background)
   nbshell stop              stop the shell
@@ -418,7 +444,7 @@ nbshell -- an independent Quickshell desktop shell for niri
 
   nbshell modules           arrange bar modules
   nbshell settings          open appearance and behavior settings
-  nbshell display           open Niri display management
+  nbshell display           open display management (Niri-first)
   nbshell display status    list connected outputs as JSON
   nbshell display set <output> mode|scale|transform|enabled <value>
   nbshell display place <output> left|right|above|below <reference>
@@ -463,6 +489,8 @@ nbshell -- an independent Quickshell desktop shell for niri
   nbshell grid on|off|status
   nbshell grid backend stable|atomic|status
   nbshell grid compositor stable|atomic|status
+  nbshell compositor status show the detected compositor backend
+  nbshell compositor nested run the isolated Umbriel development profile
 
   nbshell todo              list tasks
   nbshell todo <text>       add a task (also: todo add <text>)
@@ -842,7 +870,21 @@ for b in d["binds"]:
         bash "$GAMING_TOOL" "${1:-status}" "${2:-}"
         ;;
     grid)
-        python3 "$GRID_TOOL" "${1:-toggle}" "${2:-}"
+        if [ "$(compositor_name)" = "umbriel" ]; then
+            case "${1:-toggle}" in
+                toggle) umbriel msg workspace-set-layout:toggle ;;
+                *) echo "Umbriel currently supports: nbshell grid toggle" >&2; exit 2 ;;
+            esac
+        else
+            python3 "$GRID_TOOL" "${1:-toggle}" "${2:-}"
+        fi
+        ;;
+    compositor)
+        case "${1:-status}" in
+            status) printf '%s\n' "$(compositor_name)" ;;
+            nested|test-umbriel) "$UMBRIEL_NESTED_TOOL" ;;
+            *) echo "Usage: nbshell compositor [status|nested]" >&2; exit 2 ;;
+        esac
         ;;
     bongo|cat)
         case "${1:-status}" in

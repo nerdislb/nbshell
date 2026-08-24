@@ -321,6 +321,16 @@ if [ ! -f "$CONFIG_HOME/niri/config.kdl" ]; then
 fi
 green "Binds   -> $CONFIG_HOME/niri/nbshell-takeover.kdl"
 
+# Umbriel is an optional compositor backend. Installing its include does not
+# alter the user's active compositor or existing Umbriel configuration.
+mkdir -p "$CONFIG_HOME/umbriel"
+install -m 644 "$SRC/umbriel/nbshell.toml" "$CONFIG_HOME/umbriel/nbshell.toml"
+install -m 644 "$SRC/umbriel/nbshell-nested.toml" "$CONFIG_HOME/umbriel/nbshell-nested.toml"
+if [ ! -f "$CONFIG_HOME/umbriel/nbshell-colors.toml" ]; then
+    install -m 644 "$SRC/umbriel/nbshell-colors.toml" "$CONFIG_HOME/umbriel/nbshell-colors.toml"
+fi
+green "Umbriel -> $CONFIG_HOME/umbriel/nbshell.toml (optional include)"
+
 # ── Befehl ───────────────────────────────────────────────────────────────
 mkdir -p "$BIN_DIR"
 install -m 755 "$SRC/bin/nbshell" "$BIN_DIR/nbshell"

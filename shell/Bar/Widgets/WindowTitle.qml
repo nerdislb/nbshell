@@ -12,7 +12,7 @@ Cell {
     id: root
 
     readonly property int maxChars: Config.value("titleLength", 40)
-    readonly property string title: Niri.focusedTitle
+    readonly property string title: Compositor.focusedTitle
 
     shown: title !== ""
     color: Theme.textDim

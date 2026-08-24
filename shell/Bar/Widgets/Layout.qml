@@ -7,8 +7,8 @@ import qs.Widgets
 Cell {
     id: root
 
-    shown: Niri.keyboardLayout !== ""
+    shown: Compositor.keyboardLayout !== ""
     icon: Icons.keyboard
-    text: Niri.keyboardLayout.substring(0, 2).toUpperCase()
+    text: Compositor.keyboardLayout.substring(0, 2).toUpperCase()
     color: Theme.textDim
 }

@@ -5,6 +5,11 @@ nbshell is an independent desktop shell for the
 [Quickshell](https://quickshell.org) and takes visual inspiration from
 [Omarchy](https://omarchy.org). It does not require a full desktop environment.
 
+Niri remains the supported daily baseline. An experimental dual-backend layer
+can also run nbshell on [Umbriel](https://github.com/noctalia-dev/umbriel)
+without replacing the Niri integration; see the
+[Umbriel test guide](docs/umbriel.md).
+
 > nbshell is an independent project. It is not affiliated with, endorsed by,
 > or an official part of Omarchy, niri, or Quickshell. Project names are used
 > only to describe inspiration and compatibility.

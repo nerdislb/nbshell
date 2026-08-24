@@ -58,6 +58,9 @@ test -f "$XDG_CONFIG_HOME/systemd/user/nbshell-agent-host.service"
 test -f "$XDG_CONFIG_HOME/niri/config.kdl"
 test -f "$XDG_CONFIG_HOME/niri/nbshell-takeover.kdl"
 test -f "$XDG_CONFIG_HOME/niri/nbshell-outputs.kdl"
+test -f "$XDG_CONFIG_HOME/umbriel/nbshell.toml"
+test -f "$XDG_CONFIG_HOME/umbriel/nbshell-colors.toml"
+test -f "$XDG_CONFIG_HOME/umbriel/nbshell-nested.toml"
 test -x "$XDG_BIN_HOME/nbshell"
 test -x "$XDG_BIN_HOME/nbshell-install-recover"
 test -f "$XDG_DATA_HOME/applications/dev.nerdi.nbshell.desktop"
@@ -89,6 +92,7 @@ printf '%s\n' keep >"$XDG_CONFIG_HOME/nbshell/plugins/custom/marker"
 "$ROOT/install.sh" >/dev/null
 jq -e '.testMarker == "keep"' "$XDG_CONFIG_HOME/nbshell/config.json" >/dev/null
 test "$(cat "$XDG_CONFIG_HOME/nbshell/plugins/custom/marker")" = keep
+test -f "$XDG_CONFIG_HOME/umbriel/nbshell.toml"
 
 # The package-free setup path must remain a valid equivalent entry point.
 "$ROOT/setup.sh" --no-packages --yes >/dev/null

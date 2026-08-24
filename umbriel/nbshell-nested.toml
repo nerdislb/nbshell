@@ -1,0 +1,32 @@
+# Safe development profile for running Umbriel inside the current desktop.
+[include]
+files = ["nbshell-colors.toml", "nbshell.toml"]
+
+[general]
+mod_key = "Alt"
+xwayland = true
+show_cheatsheet = false
+focus_on_activate = false
+
+[layout]
+mode = "scrolling"
+gap = 8
+width_presets = [0.333, 0.5, 0.667]
+
+[layout.scrolling]
+default_width_fraction = 0.5
+center_underfull_strip = true
+
+[keybinds]
+"Mod+Return" = "spawn:ghostty"
+"Mod+Q" = "window-close"
+"Mod+H" = "window-focus-left"
+"Mod+J" = "window-focus-down"
+"Mod+K" = "window-focus-up"
+"Mod+L" = "window-focus-right"
+"Mod+Shift+H" = "column-move-left"
+"Mod+Shift+L" = "column-move-right"
+"Mod+R" = "window-cycle-width"
+"Mod+F" = "window-toggle-fullscreen"
+"Mod+O" = "overview-toggle"
+"Mod+Escape" = "session-quit"

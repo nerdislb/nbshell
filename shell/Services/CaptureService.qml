@@ -49,7 +49,7 @@ Singleton {
     function shoot(kind) {
         const path = shotDir + "/screenshot-" + stamp() + ".png";
         Quickshell.execDetached(["sh", "-c", "mkdir -p " + JSON.stringify(shotDir)]);
-        if (!niriShot(kind, path))
+        if (!compositorShot(kind, path))
             return false;
         run(["post", path, editor, autoEdit ? "1" : "0", notifyOn ? "1" : "0"]);
         return true;
@@ -58,16 +58,23 @@ Singleton {
     function shootWindow(windowId) {
         const path = shotDir + "/screenshot-" + stamp() + ".png";
         Quickshell.execDetached(["sh", "-c", "mkdir -p " + JSON.stringify(shotDir)]);
-        if (!Niri.available)
+        if (!Compositor.available)
             return false;
-        Niri.action(["screenshot-window", "--id", String(windowId), "--path", path]);
+        if (Compositor.isNiri) {
+            Compositor.action(["screenshot-window", "--id", String(windowId), "--path", path]);
+        } else {
+            const win = Compositor.windows.find(candidate => String(candidate.id) === String(windowId));
+            if (!win)
+                return false;
+            run(["shot", "window", path, String(win.x) + "," + String(win.y) + " " + String(win.w) + "x" + String(win.h)]);
+        }
         run(["post", path, editor, autoEdit ? "1" : "0", notifyOn ? "1" : "0"]);
         return true;
     }
 
     function ocr() {
         const path = "/tmp/nbshell-ocr-" + Date.now() + ".png";
-        if (!niriShot("region", path))
+        if (!compositorShot("region", path))
             return false;
         run(["ocr", path, ocrLangs, notifyOn ? "1" : "0"]);
         return true;
@@ -75,7 +82,7 @@ Singleton {
 
     function qr() {
         const path = "/tmp/nbshell-qr-" + Date.now() + ".png";
-        if (!niriShot("region", path))
+        if (!compositorShot("region", path))
             return false;
         run(["qr", path, notifyOn ? "1" : "0"]);
         return true;
@@ -118,17 +125,21 @@ Singleton {
     }
 
     // `niri msg action` statt IPC von Hand: siehe die Erklaerung in
-    // Services/Niri.qml -- ein dauerhaft offener Befehls-Socket funktioniert
-    // bei niri nur ein einziges Mal.
-    function niriShot(kind, path) {
-        if (!Niri.available)
+    // The compositor service owns command transport; callers only select the
+    // semantic capture action here.
+    function compositorShot(kind, path) {
+        if (!Compositor.available)
             return false;
+        if (Compositor.isUmbriel) {
+            run(["shot", kind, path]);
+            return true;
+        }
         var verb = "screenshot";        // die Auswahl-Oberflaeche
         if (kind === "window")
             verb = "screenshot-window";
         else if (kind === "screen")
             verb = "screenshot-screen";
-        Niri.action([verb, "--path", path]);
+        Compositor.action([verb, "--path", path]);
         return true;
     }
 

@@ -1,7 +1,7 @@
 # Compatibility and limitations
 
-nbshell is an application shell for an existing Niri session. It is not a
-Linux distribution, login manager, compositor, or security boundary.
+nbshell is an application shell for an existing Wayland compositor session. It
+is not a Linux distribution, login manager, compositor, or security boundary.
 
 ## Supported baseline
 
@@ -14,6 +14,11 @@ The first beta targets:
 - NetworkManager for the full network panel;
 - a standard systemd user session;
 - tmux for nbshell-native Agent Console session persistence.
+
+Umbriel support is an experimental second backend. The supported daily baseline
+remains Niri while workspace discovery, display management, portal behavior,
+PiP placement, and hardware coverage are completed. See
+[Experimental Umbriel backend](umbriel.md).
 
 Intel and AMD graphics use only normal Wayland interfaces. NVIDIA should work
 with a correctly configured modern Wayland driver, but still needs wider beta

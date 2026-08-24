@@ -31,7 +31,7 @@ PanelWindow {
         { "id": "edit", "label": "Edit latest", "key": "e" },
         { "id": "open", "label": "Open folder", "key": "o" }
     ]
-    readonly property var windowActions: Niri.windows
+    readonly property var windowActions: Compositor.windows
         .filter(window => window.title || window.app_id)
         .sort((a, b) => String(a.title || a.app_id).localeCompare(String(b.title || b.app_id)))
         .map(window => ({

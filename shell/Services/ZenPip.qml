@@ -10,7 +10,7 @@ Singleton {
     readonly property string helper: Quickshell.shellDir + "/scripts/zen-pip.py"
     property bool active: false
     property bool floating: false
-    property int windowId: -1
+    property string windowId: ""
     property string sizeName: "small"
     property string cornerName: "bottom-right"
 
@@ -19,21 +19,21 @@ Singleton {
             statusProc.running = true;
     }
 
-    function updateFromNiri() {
-        const win = Niri.windows.find(candidate => {
+    function updateFromCompositor() {
+        const win = Compositor.windows.find(candidate => {
             const title = String(candidate.title || "").toLowerCase();
             const appId = String(candidate.app_id || "").toLowerCase();
             return (appId.startsWith("zen") || appId === "firefox")
                 && (title.indexOf("picture-in-picture") >= 0 || title.indexOf("bild-im-bild") >= 0);
         });
-        const nextId = win ? Number(win.id) : -1;
-        root.active = nextId >= 0;
+        const nextId = win ? String(win.id) : "";
+        root.active = nextId !== "";
         root.floating = Boolean(win && win.is_floating);
-        if (nextId >= 0 && nextId !== root.windowId) {
+        if (nextId !== "" && nextId !== root.windowId) {
             root.windowId = nextId;
             root.run("apply");
-        } else if (nextId < 0) {
-            root.windowId = -1;
+        } else if (nextId === "") {
+            root.windowId = "";
         }
     }
 
@@ -53,16 +53,16 @@ Singleton {
                     root.floating = value.floating === true;
                     root.sizeName = value.sizeName || "small";
                     root.cornerName = value.cornerName || "bottom-right";
-                    const newId = value.id === null ? -1 : Number(value.id);
-                    if (newId >= 0 && newId !== root.windowId) {
+                    const newId = value.id === null ? "" : String(value.id);
+                    if (newId !== "" && newId !== root.windowId) {
                         root.windowId = newId;
                         root.run("apply");
-                    } else if (newId < 0) {
-                        root.windowId = -1;
+                    } else if (newId === "") {
+                        root.windowId = "";
                     }
                 } catch (e) {
                     root.active = false;
-                    root.windowId = -1;
+                    root.windowId = "";
                 }
             }
         }
@@ -76,8 +76,8 @@ Singleton {
     Component.onCompleted: root.refresh()
 
     Connections {
-        target: Niri
-        function onWindowsChanged() { root.updateFromNiri(); }
+        target: Compositor
+        function onWindowsChanged() { root.updateFromCompositor(); }
     }
 
     Timer {

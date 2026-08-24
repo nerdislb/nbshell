@@ -153,7 +153,7 @@ Singleton {
     function focus(entry) {
         const app = String(entry?.desktopEntry || entry?.appName || "").toLowerCase();
         if (!app) return false;
-        const candidates = Niri.windows.filter(w => {
+        const candidates = Compositor.windows.filter(w => {
             const id = String(w.app_id || "").toLowerCase();
             const title = String(w.title || "").toLowerCase();
             const words = app.split(/[^a-z0-9]+/).filter(x => x.length > 2);
@@ -161,7 +161,7 @@ Singleton {
             return words.some(word => id.indexOf(word) >= 0 || title.indexOf(word) >= 0);
         });
         if (candidates.length === 0) return false;
-        Niri.action(["focus-window", "--id", String(candidates[0].id)]);
+        Compositor.focusWindow(candidates[0].id);
         return true;
     }
 

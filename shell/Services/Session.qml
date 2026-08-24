@@ -66,7 +66,7 @@ Singleton {
             Quickshell.execDetached(root.lockArgs("lock"));
             return true;
         case "logout":
-            Quickshell.execDetached(["niri", "msg", "action", "quit", "--skip-confirmation"]);
+            Compositor.logout();
             return true;
         case "suspend":
             // Der Wrapper startet zuerst den echten Wayland-Locker und bricht

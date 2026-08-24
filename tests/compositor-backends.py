@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+"""Static contract checks for Niri/Umbriel dual-backend support."""
+
+from pathlib import Path
+import tomllib
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+for relative in (
+    "umbriel/nbshell.toml",
+    "umbriel/nbshell-colors.toml",
+    "umbriel/nbshell-nested.toml",
+):
+    with (ROOT / relative).open("rb") as handle:
+        tomllib.load(handle)
+
+integration = tomllib.loads((ROOT / "umbriel/nbshell.toml").read_text())
+assert integration["keybinds"]["Mod+Space"].endswith("nbshell menu")
+assert integration["keybinds"]["Mod+BackSpace"] == "workspace-set-layout:toggle"
+assert integration["window_rule"] and integration["layer_rule"]
+
+service = (ROOT / "shell/Services/Compositor.qml").read_text()
+for contract in (
+    'readonly property string backend',
+    '"cmd": "subscribe"',
+    '"windows", "keyboard_layout"',
+    'function focusWorkspace',
+    'function focusWindow',
+    'function logout',
+):
+    assert contract in service, contract
+
+for path in (ROOT / "shell").rglob("*.qml"):
+    if path.name == "Niri.qml":
+        continue
+    text = path.read_text()
+    assert "Niri." not in text, f"direct Niri dependency outside compatibility service: {path}"
+
+print("Compositor backend contracts: OK")
