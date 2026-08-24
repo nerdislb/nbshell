@@ -3,6 +3,9 @@
 
 from pathlib import Path
 import tomllib
+import json
+import os
+import subprocess
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,6 +25,15 @@ assert integration["keybinds"]["Mod+Space"].endswith("nbshell menu")
 assert integration["keybinds"]["Mod+BackSpace"] == "workspace-set-layout:toggle"
 assert integration["keybinds"]["Mod+Return"] == "spawn:ghostty"
 assert integration["keybinds"]["Mod+Shift+M"] == "spawn:prettyzap --show"
+assert integration["keybinds"]["Mod+F"] == "window-toggle-maximize"
+assert integration["keybinds"]["Mod+Shift+F"] == "window-toggle-fullscreen"
+assert integration["keybinds"]["Mod+Shift+V"] == "window-toggle-floating"
+assert integration["keybinds"]["Mod+Tab"] == "overview-toggle"
+assert integration["keybinds"]["Mod+O"].endswith("nbshell toggle")
+for media_key in (
+    "XF86AudioRaiseVolume", "XF86AudioLowerVolume", "XF86AudioMute", "XF86AudioMicMute"
+):
+    assert integration["keybinds"][media_key].startswith("spawn:$HOME/.local/bin/nbshell audio ")
 assert integration["include"]["files"] == [
     "nbshell-outputs.toml", "nbshell-cursor.toml", "nbshell-overview.toml"
 ]
@@ -34,6 +46,16 @@ clear_layer_rules = [rule for rule in integration["layer_rule"]
                      if rule.get("match", {}).get("namespace") in clear_layer_namespaces]
 assert {rule["match"]["namespace"] for rule in clear_layer_rules} == clear_layer_namespaces
 assert all(rule.get("blur") is False for rule in clear_layer_rules)
+
+keys_env = os.environ.copy()
+keys_env["NBSHELL_COMPOSITOR"] = "umbriel"
+keys_env["NBSHELL_UMBRIEL_CONFIG"] = str(ROOT / "umbriel/nbshell.toml")
+key_data = json.loads(subprocess.check_output(
+    ["python3", str(ROOT / "shell/scripts/keys.py")], text=True, env=keys_env
+))
+assert key_data["backend"] == "umbriel"
+assert len(key_data["binds"]) == len(integration["keybinds"])
+assert any(row["roh"] == "Mod+Tab" and row["text"] == "overview" for row in key_data["binds"])
 
 cursor_script = (ROOT / "shell/scripts/cursors.sh").read_text()
 assert "nbshell-cursor.toml" in cursor_script

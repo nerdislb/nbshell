@@ -197,7 +197,7 @@ PanelWindow {
                     rowWidth: kasten.width - Theme.cellW * 2
                     icon: Icons.keyboard
                     title: root.query !== "" ? "Search: " + root.query : "Keyboard shortcuts"
-                    subtitle: "Niri"
+                    subtitle: Compositor.isUmbriel ? "Umbriel" : "Niri"
                     badge: Binds.loading ? "…" : String(Binds.list.length)
 
                     // Ziehen an der Kopfzeile, wie bei der Mediathek.

@@ -25,9 +25,13 @@ import json
 import os
 import re
 import sys
+import tomllib
 
 KONFIG = os.path.expanduser(
     os.environ.get("NBSHELL_NIRI_CONFIG", "~/.config/niri/config.kdl")
+)
+UMBRIEL_KONFIG = os.path.expanduser(
+    os.environ.get("NBSHELL_UMBRIEL_CONFIG", "~/.config/umbriel/nbshell.toml")
 )
 
 # Was die Aktionen bedeuten. Nur die, die niri wirklich hat -- ein Eintrag, den
@@ -97,6 +101,42 @@ AKTIONEN = {
     "clear-dynamic-cast-target": "clear casting target",
 }
 
+UMBRIEL_AKTIONEN = {
+    "window-close": "close window",
+    "window-toggle-fullscreen": "fullscreen",
+    "window-toggle-maximize": "maximize/restore column",
+    "window-toggle-floating": "toggle floating",
+    "window-center": "center window",
+    "window-cycle-width": "cycle column width",
+    "window-focus-left": "focus column left",
+    "window-focus-right": "focus column right",
+    "window-focus-up": "focus window above",
+    "window-focus-down": "focus window below",
+    "window-focus-next": "next window",
+    "column-move-left": "move column left",
+    "column-move-right": "move column right",
+    "window-move-up": "move window up",
+    "window-move-down": "move window down",
+    "window-consume-left": "move window into left column",
+    "window-expel-right": "move window out to right column",
+    "workspace-next": "next workspace",
+    "workspace-previous": "previous workspace",
+    "window-move-to-workspace-next": "move window to next workspace",
+    "window-move-to-workspace-previous": "move window to previous workspace",
+    "output-focus-left": "focus display left",
+    "output-focus-right": "focus display right",
+    "output-focus-up": "focus display above",
+    "output-focus-down": "focus display below",
+    "column-move-to-output-left": "move column to display left",
+    "column-move-to-output-right": "move column to display right",
+    "column-move-to-output-up": "move column to display above",
+    "column-move-to-output-down": "move column to display below",
+    "overview-toggle": "overview",
+    "cheatsheet-toggle": "show Umbriel key bindings",
+    "dpms-off": "turn displays off",
+    "session-quit": "log out",
+}
+
 # Womit die Zeile anfaengt, sagt die Gruppe. Die Reihenfolge ist die der
 # Pruefung: die erste passende gewinnt.
 GRUPPEN = [
@@ -106,6 +146,7 @@ GRUPPEN = [
     ("focus-workspace", "Workspaces"),
     ("move-workspace", "Workspaces"),
     ("move-column-to-workspace", "Workspaces"),
+    ("output", "Displays"),
     ("monitor", "Displays"),
     ("column", "Windows"),
     ("window", "Windows"),
@@ -113,6 +154,7 @@ GRUPPEN = [
     ("quit", "Session"),
     ("suspend", "Session"),
     ("power-off", "Session"),
+    ("dpms", "Session"),
 ]
 
 
@@ -268,6 +310,8 @@ def gruppe(taste, aktion):
     if "XF86Audio" in taste or "XF86MonBrightness" in taste or "XF86Kbd" in taste:
         return "Audio and display"
     a = aktion.strip()
+    if " capture " in (" " + a + " ") or "Print" in taste or "XF86Launch1" in taste:
+        return "Capture"
     for stueck, name in GRUPPEN:
         if stueck in a:
             return name
@@ -292,6 +336,10 @@ def taste_lesbar(taste):
         "WheelScrollUp": "Rad hoch",
         "WheelScrollLeft": "Rad links",
         "WheelScrollRight": "Rad rechts",
+        "WheelDown": "Rad runter",
+        "WheelUp": "Rad hoch",
+        "WheelLeft": "Rad links",
+        "WheelRight": "Rad rechts",
     }
     # Gross- und Kleinschreibung sind niri egal: die eine Datei schreibt
     # `Mod+comma`, die naechste `Mod+Comma`. Ohne diesen Abgleich stuende in der
@@ -300,7 +348,46 @@ def taste_lesbar(taste):
     return "+".join(klein.get(t.lower(), t) for t in taste.split("+"))
 
 
+def umbriel_beschreibung(aktion):
+    if aktion.startswith("spawn:"):
+        befehl = aktion[6:].replace("$HOME/.local/bin/", "")
+        if " --app=" in befehl:
+            return "Webapp " + befehl.split(" --app=", 1)[1].replace("https://", "").replace("www.", "").rstrip("/")
+        return befehl
+    if aktion.startswith("workspace-switch:"):
+        return "focus workspace " + aktion.split(":", 1)[1]
+    if aktion.startswith("window-move-to-workspace:"):
+        return "move window to workspace " + aktion.split(":", 1)[1]
+    if aktion.startswith("window-modify-width:"):
+        amount = aktion.split(":", 1)[1]
+        return "column wider " + amount if not amount.startswith("-") else "column narrower " + amount[1:]
+    if aktion.startswith("workspace-set-layout:"):
+        return "toggle scrolling/dwindle layout"
+    return UMBRIEL_AKTIONEN.get(aktion, aktion)
+
+
+def umbriel_main():
+    with open(UMBRIEL_KONFIG, "rb") as handle:
+        data = tomllib.load(handle)
+    liste = []
+    for taste, aktion in data.get("keybinds", {}).items():
+        liste.append({
+            "taste": taste_lesbar(taste),
+            "roh": taste,
+            "text": umbriel_beschreibung(aktion),
+            "aktion": aktion,
+            "gruppe": gruppe(taste, aktion),
+            "quelle": os.path.basename(UMBRIEL_KONFIG),
+        })
+    print(json.dumps({"ok": True, "backend": "umbriel", "binds": liste, "datei": UMBRIEL_KONFIG}, ensure_ascii=False))
+
+
 def main():
+    desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
+    forced = os.environ.get("NBSHELL_COMPOSITOR", "").lower()
+    if forced == "umbriel" or (not forced and (os.environ.get("UMBRIEL_SOCKET") or "umbriel" in desktop)):
+        umbriel_main()
+        return
     eintraege = {}
     reihenfolge = []
 

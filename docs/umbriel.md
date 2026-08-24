@@ -22,7 +22,7 @@ service to its UI. The first Umbriel adapter supports:
 - live multi-display mode, scale, transform, placement, and enable controls;
 - screenshots and screen sharing through xdg-desktop-portal-umbriel;
 - native idle DPMS and focused-output selection for screen recordings;
-- top-left hot corner, `Mod+O`, and four-finger swipe for Umbriel's overview;
+- top-left hot corner, `Mod+Tab`, and four-finger swipe for Umbriel's overview;
 - theme-synchronized Umbriel colors, borders, and corner radius.
 
 Umbriel's native dwindle layout is used as the compositor equivalent of the
@@ -30,6 +30,12 @@ nbshell grid toggle. Exact runtime resizing and corner cycling of an already
 open PiP window remains Niri-only because Umbriel currently exposes no floating
 window geometry action; the opening rule still makes PiP floating and places it
 in the lower-right corner.
+
+The primary keyboard vocabulary matches the Niri profile: `Mod+F` maximizes,
+`Mod+Shift+F` toggles fullscreen, `Mod+Shift+V` toggles floating, `Mod+Tab`
+opens the overview, and `Mod+O` pins the shell island. Launcher, theme, bar,
+audio, workspace, output, width, wheel-navigation, DPMS, and session bindings
+use their established Niri chords where Umbriel provides an equivalent action.
 
 ## Install the complete stack
 
