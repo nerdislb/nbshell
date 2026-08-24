@@ -18,7 +18,7 @@ Cell {
     label: "AI"
     icon: Icons.agent
     text: ""
-    color: root.limitWarning ? Theme.red : (Agents.completionAttention ? Theme.cyan : (root.agentActive ? Theme.green : Theme.textDim))
+    color: root.limitWarning ? Theme.red : (Agents.completionAttention ? (Agents.attentionKind === "decision" ? Theme.yellow : Theme.cyan) : (root.agentActive ? Theme.green : Theme.textDim))
 
     SequentialAnimation on contentOpacity {
         running: Agents.completionAttention
@@ -45,9 +45,9 @@ Cell {
 
             icon: Icons.agent
             title: "AI agents"
-            subtitle: Agents.completionAttention ? "Agent task completed" : (root.agentActive ? "Work in progress" : "No active session")
-            badge: Agents.completionAttention ? "NEW" : (root.agentActive ? "ACTIVE" : "IDLE")
-            badgeColor: root.limitWarning ? Theme.red : (Agents.completionAttention ? Theme.cyan : (root.agentActive ? Theme.green : Theme.fgDim))
+            subtitle: Agents.completionAttention ? (Agents.attentionKind === "decision" ? "Agent needs your input" : "Agent task completed") : (root.agentActive ? "Work in progress" : "No active session")
+            badge: Agents.completionAttention ? (Agents.attentionKind === "decision" ? "INPUT" : "NEW") : (root.agentActive ? "ACTIVE" : "IDLE")
+            badgeColor: root.limitWarning ? Theme.red : (Agents.completionAttention ? (Agents.attentionKind === "decision" ? Theme.yellow : Theme.cyan) : (root.agentActive ? Theme.green : Theme.fgDim))
             content: [
                 Facts {
                     rowWidth: parent.width

@@ -153,10 +153,11 @@ def native_sessions() -> list[dict]:
         old_digest = str(item.get("outputHash", ""))
         stable = int(item.get("stableChecks", 0)) + 1 if digest == old_digest else 0
         status = str(item.get("status", "idle"))
-        if status == "working" and stable >= 2:
-            status = "done"
-        if status == "done" and digest != old_digest:
-            status = "working"
+        if item.get("statusMode") != "hook":
+            if status == "working" and stable >= 2:
+                status = "done"
+            if status == "done" and digest != old_digest:
+                status = "working"
         item.update(outputHash=digest, stableChecks=stable, status=status, window=windows[name])
         kept.append(item)
         rows.append({
@@ -202,6 +203,18 @@ def native_prompt(target: str, prompt: str) -> None:
     print("Prompt sent.")
 
 
+def native_event(target: str, kind: str) -> None:
+    name = native_target(target)
+    status = "waiting" if kind == "decision" else "done"
+    state = load_native_state()
+    item = next((row for row in state.get("sessions", []) if row.get("name") == name), None)
+    if not item:
+        raise SystemExit("Native session metadata was not found.")
+    item.update(status=status, statusMode="hook", stableChecks=0)
+    save_native_state(state)
+    print(f"Session marked {status}.")
+
+
 def native_start(agent_id: str, project: str | None, prompt: str) -> None:
     if agent_id not in AGENTS or not shutil.which(AGENTS[agent_id]["binary"]):
         raise SystemExit(f"{AGENTS.get(agent_id, {}).get('name', agent_id)} is not installed.")
@@ -214,7 +227,7 @@ def native_start(agent_id: str, project: str | None, prompt: str) -> None:
     route = config.get("modelProfiles", {}).get(str(config.get("modelProfile", "cloud")), {})
     if agent_id == "opencode" and route.get("model"):
         command += ["--model", str(route["model"])]
-    shell_command = "exec " + " ".join(shlex.quote(part) for part in command)
+    shell_command = "exec env " + shlex.quote("NBSHELL_AGENT_SESSION=" + name) + " " + " ".join(shlex.quote(part) for part in command)
     ensure_native_host()
     server = tmux("has-session", "-t", TMUX_SESSION, check=False)
     if server.returncode:
@@ -227,6 +240,7 @@ def native_start(agent_id: str, project: str | None, prompt: str) -> None:
     state.setdefault("sessions", []).append({
         "name": name, "agent": agent_id, "project": str(cwd),
         "label": f"{AGENTS[agent_id]['name']} · {cwd.name}", "status": "working",
+        "statusMode": "hook" if agent_id == "codex" else "heuristic",
         "createdAt": int(time.time()), "stableChecks": 0, "outputHash": "",
     })
     save_native_state(state)
@@ -250,7 +264,7 @@ def native_restore(target: str) -> None:
     cwd = Path(str(item.get("project") or Path.home())).expanduser()
     resume = {"codex": ["resume", "--last"], "claude": ["--continue"], "agy": ["--continue"]}.get(agent_id, [])
     command = [AGENTS[agent_id]["binary"], *profile_args(agent_id, str(load_config().get("profile", "balanced"))), *resume]
-    shell_command = "exec " + " ".join(shlex.quote(part) for part in command)
+    shell_command = "exec env " + shlex.quote("NBSHELL_AGENT_SESSION=" + name) + " " + " ".join(shlex.quote(part) for part in command)
     ensure_native_host()
     server = tmux("has-session", "-t", TMUX_SESSION, check=False)
     if server.returncode:
@@ -259,7 +273,7 @@ def native_restore(target: str) -> None:
         tmux("set-option", "-t", TMUX_SESSION, "status", "off")
     else:
         tmux("new-window", "-d", "-t", TMUX_SESSION, "-n", name, "-c", str(cwd), shell_command, timeout=15)
-    item.update(status="working", stableChecks=0, outputHash="")
+    item.update(status="working", statusMode="hook" if agent_id == "codex" else "heuristic", stableChecks=0, outputHash="")
     save_native_state(state)
     print(f"Restored {AGENTS[agent_id]['name']} in {cwd.name}.")
 
@@ -717,6 +731,7 @@ def main() -> int:
     workspace = sub.add_parser("workspace"); workspace.add_argument("template", choices=["dev", "review", "pair"]); workspace.add_argument("--project"); workspace.add_argument("--new-tab", action="store_true")
     session_read = sub.add_parser("session-read"); session_read.add_argument("target")
     session_prompt = sub.add_parser("session-prompt"); session_prompt.add_argument("target"); session_prompt.add_argument("prompt")
+    session_event = sub.add_parser("session-event"); session_event.add_argument("target"); session_event.add_argument("kind", choices=["finished", "decision"])
     session_focus = sub.add_parser("session-focus"); session_focus.add_argument("target")
     session_restore = sub.add_parser("session-restore"); session_restore.add_argument("target")
     session_close = sub.add_parser("session-close"); session_close.add_argument("target")
@@ -767,6 +782,7 @@ def main() -> int:
     if command == "session-prompt":
         native_prompt(args.target, args.prompt) if args.target.startswith("nbshell:") else herdr_session_prompt(args.target, args.prompt)
         return 0
+    if command == "session-event": native_event(args.target, args.kind); return 0
     if command == "session-focus":
         native_focus(args.target) if args.target.startswith("nbshell:") else herdr_result("agent", "focus", args.target.removeprefix("herdr:"))
         return 0

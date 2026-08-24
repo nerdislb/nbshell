@@ -35,11 +35,14 @@ with tempfile.TemporaryDirectory() as name:
         session = state["sessions"][0]
         assert session["agent"] == "codex" and session["project"] == str(temp)
         assert any(call[0][0] == "new-session" for call in calls)
+        assert session["statusMode"] == "hook"
         target = "nbshell:" + session["name"]
         AGENTS.native_prompt(target, "Review this safely")
         assert any(call[0][0] == "load-buffer" and call[1] == "Review this safely" for call in calls)
         assert any(call[0][0] == "send-keys" and call[0][-1] == "Enter" for call in calls)
         assert AGENTS.load_native_state()["sessions"][0]["status"] == "working"
+        AGENTS.native_event(target, "finished")
+        assert AGENTS.load_native_state()["sessions"][0]["status"] == "done"
     finally:
         AGENTS.tmux = real_tmux
         AGENTS.shutil.which = real_which

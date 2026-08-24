@@ -15,6 +15,13 @@ or focus the full terminal. `+ NEW` starts Codex, Claude Code, or Antigravity in
 a new nbshell session for the selected project and optionally submits the first
 task.
 
+Output deliberately uses one simple path. Selecting a session or opening the
+console reads an immediate plain-text `capture-pane` snapshot; while visible,
+the selected pane is refreshed every 2.5 seconds. Closing the console stops the
+timer. There is no persistent control-mode client, ANSI terminal renderer, or
+second writer competing for the displayed output. Use `FOCUS` whenever the
+full interactive and colored terminal interface is needed.
+
 Agent Console deliberately does not implement a terminal emulator or store chat
 history. New sessions use an isolated `nbshell-agents` tmux server: tmux keeps
 the PTYs alive while the dropdown and shell are closed, captures their rendered
@@ -29,9 +36,11 @@ therefore keep running while nbshell is installed, restarted, or temporarily
 stopped. The host ends with the graphical user session or through an explicit
 stop; it is never restarted merely to refresh the UI.
 
-When a native agent changes from working to done, the AI symbol in the bar
-pulses softly and shows the completion color. Opening Agent Console, including
-by clicking the pulsing symbol, acknowledges the completed work.
+When an agent finishes, the AI symbol in the bar pulses softly in cyan. If an
+agent needs a decision or permission, it pulses in yellow instead. Native Codex
+hooks forward both events directly to the shell, while shared session polling
+covers the waiting states reported by other backends. Opening Agent Console,
+including by clicking the pulsing symbol, acknowledges the event.
 
 Existing Herdr sessions are listed with a `herdr` backend badge and continue to
 use Herdr until they are finished. New sessions use the `nbshell` backend as

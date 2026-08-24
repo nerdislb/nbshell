@@ -15,6 +15,8 @@ configuration and plugin interfaces before `1.0.0`.
   remain available as a migration fallback.
 - An independent systemd user host keeps native agents alive while the shell is
   updated or restarted, and completed work triggers a soft AI-symbol pulse.
+- Agent Console output uses one plain-text tmux snapshot path while visible,
+  avoiding competing stream clients and terminal-renderer state.
 - Transactional shell installation with a single-writer lock, preflight
   validation, atomic runtime switching, restart watchdog, and automatic
   rollback when the new shell does not stay active.

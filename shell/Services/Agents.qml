@@ -22,6 +22,7 @@ Singleton {
     property string selectedSession: ""
     property bool readingSession: false
     property bool completionAttention: false
+    property string attentionKind: ""
 
     readonly property string defaultAgent: String(config.defaultAgent ?? "codex")
     readonly property string approvalProfile: String(config.profile ?? "balanced")
@@ -81,7 +82,11 @@ Singleton {
         action(args);
     }
     function restoreSession(id) { if (id) action(["session-restore", String(id)]); }
-    function acknowledgeCompletions() { completionAttention = false; }
+    function requestAttention(kind) {
+        attentionKind = String(kind) === "decision" ? "decision" : "finished";
+        completionAttention = true;
+    }
+    function acknowledgeCompletions() { completionAttention = false; attentionKind = ""; }
 
     function sessionNotifications(next) {
         if (!sessionsReady) {
@@ -98,10 +103,12 @@ Singleton {
             const wasWorking = String(before.status) === "working";
             const now = String(row.status);
             if (wasWorking && now === "done")
-                completionAttention = true;
+                requestAttention("finished");
             if (row.focused || String(row.name).toLowerCase() === "codex")
                 continue;
             const decision = now === "waiting" || now === "permission" || now === "blocked";
+            if (decision && !["waiting", "permission", "blocked"].includes(String(before.status)))
+                requestAttention("decision");
             if ((wasWorking && now === "idle") || decision) {
                 const label = String(row.name || "Agent");
                 const project = String(row.project || row.title || "Agent session");
@@ -181,4 +188,5 @@ Singleton {
         stderr: StdioCollector { onStreamFinished: if (String(text).trim()) root.message = String(text).trim().split("\n")[0] }
         onExited: root.readingSession = false
     }
+
 }

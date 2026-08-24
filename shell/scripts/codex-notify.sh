@@ -16,6 +16,15 @@ Stop) kind="finished" ;;
 *) kind="finished" ;;
 esac
 helper="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/agent-notify.sh"
+# Tell the running shell as well as the desktop notification. This makes both
+# Stop and PermissionRequest visible on the bar even for native tmux sessions.
+if [[ -n ${NBSHELL_AGENT_SESSION:-} ]]; then
+	python3 "$(dirname "$helper")/agents.py" session-event \
+		"nbshell:$NBSHELL_AGENT_SESSION" "$kind" >/dev/null 2>&1 || true
+fi
+if command -v nbshell >/dev/null 2>&1; then
+	nohup nbshell quake attention "$kind" >/dev/null 2>&1 </dev/null &
+fi
 if [[ -n ${HERDR_PANE_ID:-} && -x $helper ]]; then
 	nohup "$helper" "$HERDR_PANE_ID" "Codex" "$kind" "${cwd:-Agent session}" \
 		>/dev/null 2>&1 </dev/null &

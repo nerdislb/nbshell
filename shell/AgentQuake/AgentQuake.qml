@@ -19,7 +19,6 @@ PanelWindow {
     property bool newSession: false
     property real reveal: 0
     property bool closing: false
-
     visible: Runtime.agentQuakeOpen
     screen: Quickshell.screens[0] ?? null
     color: "transparent"
@@ -68,13 +67,14 @@ PanelWindow {
     function selectedRow() {
         return Agents.sessions.find(row => String(row.id) === selectedSession) ?? ({});
     }
-
     IpcHandler {
         target: "agentQuake"
         function toggle(): void { if (root.visible) root.close(); else Runtime.agentQuakeOpen = true; }
         function open(): void { if (!root.visible) Runtime.agentQuakeOpen = true; }
         function close(): void { root.close(); }
         function status(): string { return Runtime.agentQuakeOpen ? "open" : "closed"; }
+        function attention(kind: string): void { Agents.requestAttention(kind); }
+        function select(id: string): void { if (root.visible) root.selectSession(id); }
     }
 
     onVisibleChanged: {
@@ -84,7 +84,9 @@ PanelWindow {
             Agents.acknowledgeCompletions();
             Agents.refresh();
             selectedProject = String(Agents.config.lastProject ?? "");
-            if (selectedSession === "" && Agents.sessions.length > 0)
+            if (selectedSession !== "")
+                selectSession(selectedSession);
+            else if (Agents.sessions.length > 0)
                 selectSession(Agents.sessions[Agents.sessions.length - 1].id);
             Qt.callLater(() => {
                 openAnimation.restart();
@@ -97,8 +99,15 @@ PanelWindow {
     Connections {
         target: Agents
         function onSessionsChanged() {
-            if (root.visible && !root.newSession && root.selectedSession === "" && Agents.sessions.length > 0)
-                root.selectSession(Agents.sessions[Agents.sessions.length - 1].id);
+            if (!root.visible || root.newSession)
+                return;
+            const selectionExists = Agents.sessions.some(row => String(row.id) === root.selectedSession);
+            if (!selectionExists) {
+                root.selectedSession = "";
+                Agents.sessionOutput = "";
+                if (Agents.sessions.length > 0)
+                    root.selectSession(Agents.sessions[Agents.sessions.length - 1].id);
+            }
         }
     }
 
@@ -111,7 +120,11 @@ PanelWindow {
 
     Timer { id: outputRefresh; interval: 1200; repeat: false; onTriggered: Agents.readSession(root.selectedSession) }
     Timer { id: refreshAfterStart; interval: 2200; repeat: false; onTriggered: Agents.refresh() }
-    Timer { interval: 5000; running: root.visible && root.selectedSession !== ""; repeat: true; onTriggered: { Agents.refresh(); if (String(root.selectedRow().status) !== "stopped") Agents.readSession(root.selectedSession); } }
+    // One deliberately boring output path: while the console is visible, read
+    // the selected pane as a complete plain-text snapshot. There is no control
+    // client, terminal parser, or competing writer that can lose ownership.
+    Timer { interval: 2500; running: root.visible && root.selectedSession !== ""; repeat: true; onTriggered: { if (String(root.selectedRow().status) !== "stopped") Agents.readSession(root.selectedSession); } }
+    Timer { interval: 5000; running: root.visible; repeat: true; onTriggered: Agents.refresh() }
 
     Rectangle { anchors.fill: parent; color: Theme.alpha(Theme.bg, 0.52 * root.reveal) }
     MouseArea { anchors.fill: parent; onClicked: root.close() }
@@ -147,7 +160,7 @@ PanelWindow {
                 Item {
                     width: parent.width; height: Theme.cellH * 2
                     Line { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: Icons.cp(0xF1218) + "  AGENT CONSOLE"; color: Theme.fgBright; font.pixelSize: Theme.fontHeading; font.bold: true }
-                    Line { anchors.centerIn: parent; text: Agents.workingCount + " WORKING  ·  " + Agents.waitingCount + " BLOCKED  ·  " + Agents.sessions.length + " SESSIONS  ·  " + String(Agents.sessionBackend.name).toUpperCase(); color: Agents.waitingCount > 0 ? Theme.yellow : Theme.fgDim }
+                    Line { anchors.centerIn: parent; text: Agents.workingCount + " WORKING  ·  " + Agents.waitingCount + " WAITING  ·  " + Agents.sessions.length + " SESSIONS  ·  " + String(Agents.sessionBackend.name).toUpperCase(); color: Agents.waitingCount > 0 ? Theme.yellow : (Agents.workingCount > 0 ? Theme.green : Theme.fgDim) }
                     Line { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: "MOD+F1 / ESC  CLOSE"; color: Theme.muted }
                 }
                 Rule { rowWidth: parent.width; label: "PERSISTENT AGENT SESSIONS" }
@@ -157,7 +170,6 @@ PanelWindow {
                     width: parent.width
                     height: parent.height - Theme.cellH * 5.4
                     spacing: Theme.cellW * 1.2
-
                     PanelSurface {
                         id: sessionsPanel
                         width: parent.width * 0.28
