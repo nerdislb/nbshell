@@ -52,6 +52,7 @@ binds {
     // Der jeweils aktive MPRIS-Player: Browser, PrettyZap, mpv oder eine
     // andere Medien-App. P wie Player; Mod+M ist bereits die Prozessliste.
     Mod+P hotkey-overlay-title="nbshell: Media" { spawn "sh" "-c" "$HOME/.local/bin/nbshell dashboard view media"; }
+    Mod+Shift+M hotkey-overlay-title="nbshell: WhatsApp" { spawn "prettyzap" "--show"; }
     Mod+Ctrl+Shift+G hotkey-overlay-title="nbshell: Mail" { spawn "sh" "-c" "$HOME/.local/bin/nbshell extension toggle omamail"; }
     Mod+Ctrl+Shift+M hotkey-overlay-title="nbshell: YouTube Music" { spawn "sh" "-c" "$HOME/.local/bin/nbshell extension toggle ytmusic"; }
 
