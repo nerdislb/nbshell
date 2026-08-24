@@ -1,6 +1,7 @@
 # The nbshell manual
 
-nbshell is an independent Quickshell desktop for the Niri compositor. This
+nbshell is an independent Quickshell desktop for the Umbriel compositor, with
+Niri retained as a recovery fallback. This
 manual explains the system in small, practical chapters. It starts with the
 things needed for a first installation and will grow alongside the project.
 
@@ -23,7 +24,7 @@ things needed for a first installation and will grow alongside the project.
 - The bar, island, pill, and modules
 - Dashboard and system controls
 - Themes and wallpapers
-- Niri window management and the grid-scroll mode
+- Umbriel window management and Niri's fallback grid-scroll mode
 - [Grid-scroll architecture and experimental atomic backend](grid-scroll.md)
 - AI agents and local models
 - Gaming and optional applications

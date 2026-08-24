@@ -1,17 +1,17 @@
 # nbshell
 
 nbshell is an independent desktop shell for the
-[niri](https://github.com/YaLTeR/niri) Wayland compositor. It is built with
+[Umbriel](https://github.com/noctalia-dev/umbriel) Wayland compositor, with
+[Niri](https://github.com/YaLTeR/niri) retained as a recovery fallback. It is built with
 [Quickshell](https://quickshell.org) and takes visual inspiration from
 [Omarchy](https://omarchy.org). It does not require a full desktop environment.
 
-Niri remains the supported daily baseline. An experimental dual-backend layer
-can also run nbshell on [Umbriel](https://github.com/noctalia-dev/umbriel)
-without replacing the Niri integration; see the
-[Umbriel test guide](docs/umbriel.md).
+Umbriel is the recommended daily session. The compositor-neutral backend keeps
+the mature Niri integration installable and selectable from the greeter when a
+young Umbriel release needs recovery; see the [compositor guide](docs/umbriel.md).
 
 > nbshell is an independent project. It is not affiliated with, endorsed by,
-> or an official part of Omarchy, niri, or Quickshell. Project names are used
+> or an official part of Omarchy, Umbriel, Niri, or Quickshell. Project names are used
 > only to describe inspiration and compatibility.
 
 The project was created with AI-assisted development. Product decisions,
@@ -27,9 +27,9 @@ Current prerelease: **0.1.0-beta.1**. See the
 
 ## Why nbshell?
 
-- **Grid-scroll without leaving Niri:** turn one workspace into compact
-  two-window columns while other workspaces keep Niri's normal scrolling
-  layout. A third window forms the next column instead of disturbing the first.
+- **Two compositor workflows:** use Umbriel's fast native scrolling/dwindle
+  layouts for daily work, or select the Niri fallback for nbshell's specialized
+  workspace-local two-window grid-scroll mode.
 - **One theme across the desktop:** import compatible Omarchy themes or use the
   bundled independent collection; nbshell keeps the bar, menus, terminal,
   browser accents, lock screen, and wallpaper language coherent.
@@ -74,7 +74,7 @@ online guide without turning this README into a wall of text.
 - Searchable menu, application launcher, dashboard, themes, and wallpapers
 - Clipboard history, notification center, and system tray
 - Audio mixer, media controls, Bluetooth, Wi-Fi, batteries, power profiles,
-  and persistent Niri display management
+  and persistent Umbriel/Niri display management
 - Floating Picture-in-Picture controls for Zen Browser
 - Theme-synchronized Hyprlock screen with PAM authentication and lock-before-suspend
 - Calendar, tasks, quick notes, habits, KDE Connect, Android mirroring, and a phone webcam
@@ -84,7 +84,7 @@ online guide without turning this README into a wall of text.
   previews, and safe cleanup of external plugins
 - Agent Center with a default-agent launcher, explicit approval profiles,
   project selection, Herdr sessions, and optional Ollama/OpenCode routing
-- niri key bindings, terminal colors, and systemd autostart
+- Umbriel-first key bindings, Niri fallback integration, terminal colors, and systemd autostart
 - Optional herdr status inside the System & Plugins dashboard
 - A release-based nbshell updater, kept separate from system and plugin updates
 
@@ -93,7 +93,7 @@ online guide without turning this README into a wall of text.
 You need:
 
 - Arch Linux or an Arch-based distribution
-- A working niri Wayland session
+- A working Arch Wayland session or TTY from which Umbriel can be installed
 - Git and an internet connection
 - A normal user account with `sudo` access for package installation
 
@@ -103,8 +103,8 @@ matching services or devices are available.
 
 ## Simple installation on Arch Linux
 
-Open a terminal inside your running niri session. Do not run the script as
-root.
+Open a terminal as your normal user. Starting from an existing Wayland session
+is convenient but not required. Do not run the script as root.
 
 ```bash
 git clone https://github.com/nerdislb/nbshell.git
@@ -112,16 +112,20 @@ cd nbshell
 ./setup.sh
 ```
 
-The script installs the small desktop baseline and shows every package before
-calling `sudo`. Optional tools remain discoverable but disabled. Use
+The script installs Umbriel and its screenshot/screencast portal from their
+official source repositories, deploys nbshell, and keeps Niri installed as a
+recovery session. It shows packages before calling `sudo`. Optional tools
+remain discoverable but disabled. Use
 `./setup.sh --full` when you want the complete capture, calendar, sync, power,
 and hardware tool set in one pass.
 
-To add the optional Umbriel compositor, portal, and login session while
-keeping Niri available, run `./setup-umbriel.sh`. See the
-[Umbriel guide](docs/umbriel.md) before the first native login.
+Use `./setup.sh --niri-only` when you deliberately want the lighter Niri-only
+fallback installation. `./setup-umbriel.sh` remains available for adding the
+recommended compositor to an existing files-only or Niri installation.
 
-When setup has finished, enable nbshell:
+When setup has finished, log out and choose **Umbriel** in the greeter. The
+Niri entry remains available for recovery. Refresh both shell autostart and the
+fallback integration with:
 
 ```bash
 nbshell switch on
@@ -155,7 +159,7 @@ keep an existing desktop usable if installation is interrupted or the new
 shell does not stay active. It reports missing programs but does not install
 packages.
 
-The installer keeps an existing niri configuration. If none exists, it creates
+The installer keeps an existing Niri configuration. If none exists, it creates
 a small valid `~/.config/niri/config.kdl`. Existing personal nbshell settings
 are not overwritten during later installations.
 

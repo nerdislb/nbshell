@@ -30,6 +30,7 @@ assert integration["keybinds"]["Mod+Shift+F"] == "window-toggle-fullscreen"
 assert integration["keybinds"]["Mod+Shift+V"] == "window-toggle-floating"
 assert integration["keybinds"]["Mod+Tab"] == "overview-toggle"
 assert integration["keybinds"]["Mod+O"].endswith("nbshell toggle")
+assert integration["keybinds"]["Mod+Shift+P"].endswith("nbshell power display-off")
 for media_key in (
     "XF86AudioRaiseVolume", "XF86AudioLowerVolume", "XF86AudioMute", "XF86AudioMicMute"
 ):
@@ -95,5 +96,9 @@ assert (ROOT / "setup-umbriel.sh").stat().st_mode & 0o111
 setup = (ROOT / "setup-umbriel.sh").read_text()
 assert '"Exec=$PREFIX/bin/start-umbriel"' in setup
 assert "ConditionEnvironment=!XDG_CURRENT_DESKTOP=umbriel" in setup
+main_setup = (ROOT / "setup.sh").read_text()
+assert "WITH_UMBRIEL=1" in main_setup
+assert "--niri-only) WITH_UMBRIEL=0" in main_setup
+assert '"$SRC/setup-umbriel.sh" --skip-shell-install' in main_setup
 
 print("Compositor backend contracts: OK")

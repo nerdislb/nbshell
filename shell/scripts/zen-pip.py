@@ -76,7 +76,7 @@ def status():
 
 def geometry(win, state):
     if backend() == "umbriel":
-        raise RuntimeError("Exact PiP size and corner placement are not available on the experimental Umbriel backend yet")
+        raise RuntimeError("Exact PiP size and corner placement are not available on Umbriel yet; use the Niri fallback for these controls")
     workspaces = {w["id"]: w for w in data("workspaces")}
     workspace = workspaces.get(win["workspace_id"])
     outputs = data("outputs")

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build and install the optional Umbriel compositor stack for nbshell.
+# Build and install the primary Umbriel compositor stack for nbshell.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,6 +11,22 @@ UMBRIEL_PATCH="$ROOT/shell/patches/umbriel-fullscreen-maximize.patch"
 PACKAGES=(gcc git meson ninja pkgconf just wlroots0.20 wayland wayland-protocols
     libxkbcommon libinput pixman libdrm cairo pango tomlplusplus nlohmann-json jemalloc
     sdbus-cpp pipewire gtk4 wlr-randr xwayland-satellite xdg-desktop-portal)
+INSTALL_SHELL=1
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --skip-shell-install) INSTALL_SHELL=0 ;;
+        -h|--help)
+            printf '%s\n' \
+                'setup-umbriel.sh -- build Umbriel, its portal, and the nbshell session' \
+                '' \
+                '  --skip-shell-install  internal: keep an already deployed nbshell runtime'
+            exit 0
+            ;;
+        *) printf 'Unknown option: %s\n' "$1" >&2; exit 2 ;;
+    esac
+    shift
+done
 
 green() { printf '\033[32m%s\033[0m\n' "$*"; }
 die() { printf '\033[31m%s\033[0m\n' "$*" >&2; exit 1; }
@@ -102,7 +118,9 @@ printf '%s\n' \
     'ConditionEnvironment=!XDG_CURRENT_DESKTOP=umbriel' > "$XWAYLAND_DROPIN"
 systemctl --user daemon-reload
 
-"$ROOT/install.sh"
+if [ "$INSTALL_SHELL" = "1" ]; then
+    "$ROOT/install.sh"
+fi
 
 # greetd and most other display managers enumerate the system session folder.
 # They do not necessarily inherit ~/.local/bin in PATH, so use the absolute
@@ -121,4 +139,4 @@ sudo install -m 644 "$SESSION_FILE" /usr/share/wayland-sessions/umbriel.desktop
 green "Umbriel, its portal, and the nbshell integration are installed."
 printf '%s\n' \
     "Nested test: nbshell compositor nested" \
-    "Native test: log out and choose Umbriel; choose Niri again at any time."
+    "Next login: choose Umbriel (recommended); Niri remains available as recovery fallback."

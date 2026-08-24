@@ -321,7 +321,7 @@ if [ ! -f "$CONFIG_HOME/niri/config.kdl" ]; then
 fi
 green "Binds   -> $CONFIG_HOME/niri/nbshell-takeover.kdl"
 
-# Umbriel is an optional compositor backend. Installing its include does not
+# Umbriel is the recommended compositor backend. Installing its include does not
 # alter the user's active compositor or existing Umbriel configuration.
 mkdir -p "$CONFIG_HOME/umbriel"
 install -m 644 "$SRC/umbriel/nbshell.toml" "$CONFIG_HOME/umbriel/nbshell.toml"
@@ -342,7 +342,7 @@ if [ ! -f "$CONFIG_HOME/umbriel/config.toml" ]; then
     printf '# Standalone Umbriel configuration created by nbshell\n[include]\nfiles = ["nbshell-colors.toml", "nbshell.toml"]\n' > "$CONFIG_HOME/umbriel/config.toml"
     green "Umbriel -> $CONFIG_HOME/umbriel/config.toml (created)"
 fi
-green "Umbriel -> $CONFIG_HOME/umbriel/nbshell.toml (optional include)"
+green "Umbriel -> $CONFIG_HOME/umbriel/nbshell.toml (recommended backend config)"
 
 # Keep the tiny protocol helper outside the QML runtime so atomic shell swaps
 # cannot interrupt it. Missing compiler headers only disable empty-workspace
@@ -406,7 +406,7 @@ Change the layout:
   nbshell island         floating island
   nbshell theme gruvbox
 
-Enable autostart and niri integration:
+Enable autostart and refresh the Niri fallback integration:
   nbshell switch on
   nbshell switch status
 

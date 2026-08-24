@@ -20,7 +20,8 @@ change before version 1.0.
    mkdocs build --strict
    ```
 
-3. Install and test the candidate inside a real Niri session using the
+3. Install and test the candidate inside a real Umbriel session, then verify
+   that the Niri recovery session still starts, using the
    [beta checklist](beta-testing.md).
 4. Push the commit and wait for the validation workflow.
 5. Create and push the matching tag, for example:

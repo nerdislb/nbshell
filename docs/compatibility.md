@@ -8,17 +8,19 @@ is not a Linux distribution, login manager, compositor, or security boundary.
 The first beta targets:
 
 - current Arch Linux or an Arch-based system;
-- Niri 25.11 or newer with its JSON IPC available;
+- current Umbriel built from its official repository;
+- Niri 25.11 or newer retained as the recovery fallback;
 - current Quickshell from the Arch repositories;
 - PipeWire/WirePlumber for audio;
 - NetworkManager for the full network panel;
 - a standard systemd user session;
 
-Umbriel support is an experimental second backend with workspace discovery,
-display management, and its native screenshot/screencast portal integrated.
-The supported daily baseline remains Niri while native hardware coverage grows.
-Exact runtime PiP geometry remains Niri-only. See
-[Experimental Umbriel backend](umbriel.md).
+Umbriel is the recommended daily backend, with workspace discovery, display
+management, and its native screenshot/screencast portal integrated. It is young
+software and can change rapidly, so the installer deliberately preserves Niri
+as a selectable recovery session. Exact runtime PiP geometry and nbshell's
+specialized paired grid-scroll remain Niri-only. See the
+[Umbriel compositor guide](umbriel.md).
 
 Intel and AMD graphics use only normal Wayland interfaces. NVIDIA should work
 with a correctly configured modern Wayland driver, but still needs wider beta
@@ -40,12 +42,12 @@ only when the dependency is installed or the service is available:
 ## Known beta limitations
 
 - Third-party QML plugins run unsandboxed with the current user's permissions.
-- The grid-scroll mode builds paired Niri columns; it does not replace Niri's
-  layout engine or provide Hyprland's binary tree.
+- Umbriel uses its native scrolling/dwindle layouts. The paired grid-scroll
+  mode remains available in the Niri fallback session.
 - Theme synchronization cannot force already-open websites to repaint.
 - Some provider integrations depend on unofficial or rate-limited services.
 - There is no stable configuration-migration guarantee before version 1.0.
 - Only English UI and documentation are supported for the first public beta.
 
-Test nbshell before relying on it on a production machine and keep a backup of
-the Niri and nbshell configuration directories.
+Test nbshell before relying on it on a production machine and keep the Niri
+session plus backups of both compositor and nbshell configuration directories.

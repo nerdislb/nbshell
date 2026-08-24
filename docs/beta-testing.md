@@ -30,7 +30,8 @@ capture, and animation testing.
 - Change a theme, module arrangement, and plugin setting.
 - Pull the next revision and run `./install.sh`; personal state must remain.
 - Disable one bundled plugin and install one reviewed external plugin.
-- Run `nbshell switch off` and verify that Niri remains usable.
+- Verify the Umbriel login first, then choose Niri in the greeter and confirm
+  the recovery session, shell startup, and `nbshell switch off` remain usable.
 - Re-enable nbshell and confirm that the previous settings return.
 
 ## Report

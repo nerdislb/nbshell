@@ -14,9 +14,10 @@ configuration and plugin interfaces before `1.0.0`.
   content and providers can be switched by tab, keyboard, wheel, or middle click.
 - Completed agent work triggers a soft AI-symbol pulse and opens the affected
   Herdr task directly; visiting that task acknowledges its indicator.
-- Experimental Umbriel compositor backend with isolated nested testing,
-  compositor-neutral window/workspace actions, TOML rules, and theme export;
-  Niri remains the supported daily baseline.
+- Umbriel is now the recommended compositor and default full-setup path, with
+  compositor-neutral window/workspace actions, native portal integration,
+  TOML rules, theme export, source-based updates, and Niri retained as the
+  selectable recovery fallback.
 - Transactional shell installation with a single-writer lock, preflight
   validation, atomic runtime switching, restart watchdog, and automatic
   rollback when the new shell does not stay active.
@@ -78,6 +79,9 @@ First public beta candidate.
 
 ### Fixed
 
+- Umbriel's display-off shortcut now waits for its triggering keys to be
+  released before sending DPMS-off, preventing the release event from waking
+  the display immediately.
 - The lock screen now receives the wallpaper currently rendered by the live
   shell, avoiding a stale image when locking immediately after a selection.
 - Lock-screen panels, password field, borders, and supporting typography now

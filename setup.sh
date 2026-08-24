@@ -13,6 +13,7 @@
 #   setup.sh --with-legacy-dotfiles  alte DMS-Dotfiles zusaetzlich uebernehmen
 #   setup.sh --no-aur         den AUR helper nicht bauen
 #   setup.sh --with-hardware  auch die Hardware-Packages der Paketliste
+#   setup.sh --niri-only      Umbriel nicht bauen; Niri-Fallback direkt nutzen
 #   setup.sh --yes            nichts fragen, alles ja
 #
 # Absichtlich NICHT als root aufzurufen: die Files gehoeren in $HOME, und ein
@@ -28,6 +29,7 @@ WITH_AUR=1
 WITH_HARDWARE=0
 WITH_OPTIONAL=0
 ASSUME_YES=0
+WITH_UMBRIEL=1
 
 # Optionaler Migrationspfad fuer den bisherigen Rechner. Eine normale
 # Neuinstallation braucht dieses Repo nicht und installiert insbesondere DMS
@@ -42,19 +44,21 @@ while [ $# -gt 0 ]; do
 	--no-dotfiles) WITH_DOTFILES=0 && shift ;;
 	--no-aur) WITH_AUR=0 && shift ;;
 	--with-hardware) WITH_HARDWARE=1 && shift ;;
+	--niri-only) WITH_UMBRIEL=0 && shift ;;
 	--full) WITH_OPTIONAL=1 && shift ;;
 	-y | --yes) ASSUME_YES=1 && shift ;;
 	-h | --help)
 		cat <<'USAGE'
 setup.sh -- install nbshell packages, files, and services.
 
-  setup.sh                  install nbshell without DMS
+  setup.sh                  install Umbriel + nbshell, with Niri fallback
   setup.sh --no-packages    install files only (same as install.sh)
   setup.sh --full           install all optional desktop tools
   setup.sh --with-legacy-dotfiles
                             optionally migrate old DMS dotfiles
   setup.sh --no-aur         do not offer to install an AUR helper
   setup.sh --with-hardware  include hardware-specific legacy packages
+  setup.sh --niri-only      skip Umbriel and install the Niri fallback only
   setup.sh --yes            accept normal package and service prompts
 USAGE
 		exit 0
@@ -386,6 +390,19 @@ fi
 head2 "Files"
 NBSHELL_FROM_SETUP=1 "$SRC/install.sh"
 
+# Umbriel is nbshell's recommended compositor. Niri stays installed and keeps
+# its generated integration as a recovery session. Files-only installs cannot
+# build a compositor, so they retain both configs and leave that choice to the
+# system administrator.
+if [ "$WITH_UMBRIEL" = "1" ]; then
+	if [ "$WITH_PACKAGES" = "1" ]; then
+		head2 "Umbriel (recommended compositor)"
+		"$SRC/setup-umbriel.sh" --skip-shell-install
+	else
+		warn "Umbriel build skipped by --no-packages; run ./setup-umbriel.sh when its dependencies are available."
+	fi
+fi
+
 if [ $WITH_PACKAGES -eq 1 ]; then
 	# Zum Schluss die Final check: was of den Befehlen, die die Skripte
 	# aufrufen, ist jetzt WIRKLICH da? Ein installiertes Paket ist noch kein
@@ -393,6 +410,7 @@ if [ $WITH_PACKAGES -eq 1 ]; then
 	head2 "Final check"
 	fehlt=0
 	check_commands=(qs niri python3 jq git curl wl-copy wl-paste notify-send xdg-open pactl)
+	[ "$WITH_UMBRIEL" = "1" ] && check_commands+=(umbriel start-umbriel)
 	if [ $WITH_OPTIONAL -eq 1 ]; then
 		check_commands+=(hyprlock tuned-adm khal vdirsyncer grim wf-recorder slurp satty
 			swappy tesseract checkupdates fakeroot)
@@ -406,12 +424,14 @@ if [ $WITH_PACKAGES -eq 1 ]; then
 	[ $fehlt -eq 0 ] && green "All required commands are available."
 fi
 
-cat <<'EOF'
-
-Next steps:
-  nbshell start -d       start in the background
-  nbshell switch on      enable autostart, notifications, niri integration,
-                         window borders, and terminal colors
-
-Calendar accounts require separate khal/vdirsyncer configuration; see README.md.
-EOF
+echo
+echo "Next steps:"
+if [ "$WITH_UMBRIEL" = "1" ] && [ "$WITH_PACKAGES" = "1" ]; then
+	echo "  Log out and choose Umbriel for the recommended session."
+	echo "  Choose Niri from the greeter whenever the primary session needs recovery."
+else
+	echo "  This run did not build Umbriel; use Niri now or run ./setup-umbriel.sh."
+fi
+echo "  nbshell switch on      refresh autostart and the Niri fallback integration"
+echo
+echo "Calendar accounts require separate khal/vdirsyncer configuration; see README.md."

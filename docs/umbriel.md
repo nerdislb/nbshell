@@ -1,11 +1,12 @@
-# Experimental Umbriel backend
+# Umbriel compositor
 
-nbshell can keep Niri as the daily compositor while testing
-[Umbriel](https://github.com/noctalia-dev/umbriel) as a second backend. Umbriel
-replaces the compositor, not Quickshell or the nbshell interface.
+nbshell uses [Umbriel](https://github.com/noctalia-dev/umbriel) as its
+recommended daily compositor. Umbriel replaces the compositor, not Quickshell
+or the nbshell interface; Niri remains installed as a recovery fallback.
 
-This backend is experimental. Umbriel describes its configuration and behavior
-as actively evolving. Niri remains installed as the safe fallback.
+Umbriel describes its configuration and behavior as actively evolving. That is
+why nbshell keeps its Niri backend, configuration, and greeter entry working
+instead of treating the main-compositor decision as irreversible.
 
 ## Current milestone
 
@@ -39,13 +40,16 @@ use their established Niri chords where Umbriel provides an equivalent action.
 
 ## Install the complete stack
 
-On Arch Linux, the optional setup script installs build dependencies, builds
-Umbriel and its portal from their official repositories, installs them below
-`~/.local`, adds the login-session entry, and then deploys nbshell:
+On Arch Linux, the normal setup installs build dependencies, builds Umbriel and
+its portal from their official repositories, installs them below `~/.local`,
+adds the login-session entry, deploys nbshell, and retains Niri:
 
 ```bash
-./setup-umbriel.sh
+./setup.sh
 ```
+
+Use `./setup-umbriel.sh` to add Umbriel to an existing files-only/Niri setup,
+or `./setup.sh --niri-only` to deliberately skip the recommended compositor.
 
 The script refuses to overwrite a source checkout with local changes. It adds
 only the Umbriel session entry to `/usr/share/wayland-sessions`; it does not
@@ -117,10 +121,11 @@ If no Umbriel configuration exists, nbshell creates this minimal entry point:
 files = ["nbshell-colors.toml", "nbshell.toml"]
 ```
 
-Log out and choose **Umbriel** in the greeter for the native test. The session
+Log out and choose **Umbriel** in the greeter for normal use. The session
 starts the normal `graphical-session.target`, so the enabled nbshell service and
 portal start with the compositor. Choose **Niri** in the greeter to return to
 the established session. Nested validation covers rendering, IPC, outputs,
 workspaces, Xwayland startup, and portal screenshots; a native session is still
 required to validate DRM, suspend, locking, and the complete streaming workflow
-on each machine.
+on each new hardware configuration. Choose **Niri** if an Umbriel update blocks
+login or a compositor-specific workflow.

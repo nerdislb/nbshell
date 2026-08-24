@@ -1,11 +1,12 @@
 ---
 name: nbshell
-description: Use when maintaining or customizing an nbshell desktop on Niri, including its bar, menus, themes, plugins, IPC, key bindings, and installation.
+description: Use when maintaining or customizing an Umbriel-first nbshell desktop with a Niri fallback, including its bar, menus, themes, plugins, IPC, key bindings, and installation.
 ---
 
 # nbshell system skill
 
-nbshell is a Quickshell desktop shell for Niri on Arch Linux. It is not an
+nbshell is a Quickshell desktop shell for Umbriel on Arch Linux, with Niri
+retained as a recovery fallback. It is not an
 Omarchy or DankMaterialShell fork. Its public repository is normally checked
 out under `~/projects/nbshell`; installed runtime files live under
 `~/.config/quickshell/nbshell` and user state under `~/.config/nbshell`.
@@ -19,7 +20,8 @@ out under `~/projects/nbshell`; installed runtime files live under
 4. Use `./install.sh` to deploy and validate source changes.
 5. Keep public UI, CLI help, examples, and documentation in English.
 6. Validate shell scripts with `bash -n`, Python with `python -m py_compile`,
-   plugins with `tests/plugin-validation.sh`, and Niri with `niri validate`.
+   plugins with `tests/plugin-validation.sh`, Umbriel with `umbriel validate`,
+   and the Niri fallback with `niri validate`.
 7. Never store API keys, stream keys, prompts, or credentials in Git.
 
 ## Stable interfaces
@@ -40,13 +42,14 @@ Quickshell IPC is split by topic under `shell/Ipc/`. Volatile shared UI state
 lives in `shell/Common/Runtime.qml`; persistent user configuration belongs in
 `~/.config/nbshell/config.json` and is accessed through `Common/Config.qml`.
 
-## Niri rules
+## Compositor rules
 
-Repository-owned bindings and window rules live in
-`niri/nbshell-takeover.kdl`. `nbshell switch on` installs and includes the
-runtime copy. Do not introduce Hyprland commands or assumptions. Niri's event
-stream may stay open, but each command socket handles one request only; use
-`niri msg action` for commands.
+Repository-owned Umbriel bindings and rules live in `umbriel/nbshell.toml`;
+Niri recovery bindings live in `niri/nbshell-takeover.kdl`. Keep both backends
+working and route runtime behavior through `Services/Compositor.qml` or an
+explicit backend branch. Do not introduce Hyprland commands or assumptions.
+Umbriel uses its JSON IPC and `ext-workspace-v1`; Niri's event stream may stay
+open, but each command socket handles one request only.
 
 ## Quickshell safety
 

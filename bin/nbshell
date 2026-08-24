@@ -529,7 +529,7 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell emoji             search emoji and copy the selection
   nbshell hub               system, plugin, and integration status
   nbshell battery           battery and power profile
-  nbshell power             power menu (also: lock, logout, suspend)
+  nbshell power             power menu (also: lock, logout, suspend, display-off)
   nbshell media playpause|next|previous|status
   nbshell dictate           toggle local voice dictation
   nbshell pip status|apply|size|corner|focus|close
@@ -1028,6 +1028,18 @@ for b in d["binds"]:
     power)
         case "${1:-menu}" in
             menu|lock|logout|suspend) ipc power "${1:-menu}" ;;
+            display-off)
+                # A compositor-native keybind fires before its keys are
+                # released. Umbriel treats those release events as activity
+                # and immediately wakes a freshly powered-off output, so let
+                # the chord settle before sending the DPMS action.
+                sleep 0.35
+                if [ "$(compositor_name)" = "umbriel" ]; then
+                    umbriel msg dpms-off
+                else
+                    niri msg action power-off-monitors
+                fi
+                ;;
             *) ipc power menu ;;
         esac
         ;;
