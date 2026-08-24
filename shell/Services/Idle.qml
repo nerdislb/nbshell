@@ -198,8 +198,12 @@ Singleton {
         // der naechsten Eingabe selbst. Ein `power-on-monitors` von uns kaeme
         // entweder zu frueh (waehrend noch niemand etwas tut) oder zu spaet.
         onIsIdleChanged: {
-            if (offMonitor.isIdle)
-                Quickshell.execDetached(["niri", "msg", "action", "power-off-monitors"]);
+            if (!offMonitor.isIdle)
+                return;
+            if (Compositor.isUmbriel)
+                Quickshell.execDetached(["umbriel", "msg", "dpms-off"]);
+            else
+                Compositor.action(["power-off-monitors"]);
         }
     }
 

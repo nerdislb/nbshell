@@ -252,7 +252,16 @@ cmd_rec_start() {
 		# Ohne -o nimmt wf-recorder irgendeinen Ausgang; wir wollen den,
 		# auf dem der Nutzer gerade arbeitet.
 		local out
-		out=$(niri msg -j focused-output 2>/dev/null | jq -r '.name // empty' 2>/dev/null)
+		if [[ -n ${UMBRIEL_SOCKET:-} || ${XDG_CURRENT_DESKTOP,,} == *umbriel* ]]; then
+			out=$(umbriel windows --json 2>/dev/null |
+				jq -r '[.[] | select(.focused == true)][0].workspace // empty | split(":")[:-1] | join(":")' 2>/dev/null)
+			if [[ -z $out ]]; then
+				out=$(wlr-randr --json 2>/dev/null |
+					jq -r '[.[] | select(.enabled == true)][0].name // empty' 2>/dev/null)
+			fi
+		else
+			out=$(niri msg -j focused-output 2>/dev/null | jq -r '.name // empty' 2>/dev/null)
+		fi
 		[[ -n $out ]] && args+=(-o "$out")
 	fi
 

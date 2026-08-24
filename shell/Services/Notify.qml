@@ -233,6 +233,13 @@ Singleton {
     readonly property string statePath: stateDir + "/notifications.json"
     readonly property string seenPath: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/nbshell/notifications-seen"
 
+    // Temporary file icons are useful while a notification is alive, but
+    // restoring them days later only produces broken-image warnings.
+    function persistentIcon(value) {
+        const icon = String(value || "");
+        return icon.startsWith("/") || icon.startsWith("file://") ? "" : icon;
+    }
+
     // Geschrieben wird die Kopie ohne `notification`: das lebende Objekt
     // gehoert Quickshell und liesse sich ohnehin nicht in JSON fassen.
     function save() {
@@ -243,7 +250,7 @@ Singleton {
                     "appName": e.appName,
                     "summary": e.summary,
                     "body": e.body,
-                    "appIcon": e.appIcon ?? "",
+                    "appIcon": root.persistentIcon(e.appIcon),
                     "desktopEntry": e.desktopEntry ?? "",
                     "urgency": e.urgency,
                     "repeat": e.repeat ?? 1,
@@ -287,7 +294,7 @@ Singleton {
                         "appName": e.appName,
                         "summary": e.summary,
                         "body": e.body,
-                        "appIcon": e.appIcon ?? "",
+                        "appIcon": root.persistentIcon(e.appIcon),
                         "desktopEntry": e.desktopEntry ?? "",
                         "urgency": e.urgency,
                         "repeat": e.repeat ?? 1,

@@ -20,6 +20,8 @@ service to its UI. The first Umbriel adapter supports:
 - native scrolling/dwindle switching through `Mod+Backspace`;
 - live multi-display mode, scale, transform, placement, and enable controls;
 - screenshots and screen sharing through xdg-desktop-portal-umbriel;
+- native idle DPMS and focused-output selection for screen recordings;
+- top-left hot corner, `Mod+O`, and four-finger swipe for Umbriel's overview;
 - theme-synchronized Umbriel colors, borders, and corner radius.
 
 Umbriel's native dwindle layout is used as the compositor equivalent of the

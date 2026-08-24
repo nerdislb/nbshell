@@ -21,6 +21,7 @@ assert integration["keybinds"]["Mod+BackSpace"] == "workspace-set-layout:toggle"
 assert integration["keybinds"]["Mod+Return"] == "spawn:ghostty"
 assert integration["include"]["files"] == ["nbshell-outputs.toml"]
 assert integration["input"]["keyboard"]["layout"] == "de"
+assert integration["hot_corners"]["top_left"]["action"] == "overview-open"
 assert integration["window_rule"] and integration["layer_rule"]
 
 service = (ROOT / "shell/Services/Compositor.qml").read_text()
@@ -45,6 +46,8 @@ for path in (ROOT / "shell").rglob("*.qml"):
 display_tool = (ROOT / "shell/scripts/displays.py").read_text()
 assert '"wlr-randr", "--json"' in display_tool
 assert "render_toml" in display_tool
+assert "umbriel windows --json" in (ROOT / "shell/scripts/capture.sh").read_text()
+assert 'Quickshell.execDetached(["umbriel", "msg", "dpms-off"])' in (ROOT / "shell/Services/Idle.qml").read_text()
 assert (ROOT / "native/umbriel-workspaces.c").is_file()
 assert (ROOT / "setup-umbriel.sh").stat().st_mode & 0o111
 setup = (ROOT / "setup-umbriel.sh").read_text()

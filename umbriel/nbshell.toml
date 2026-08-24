@@ -7,6 +7,11 @@ files = ["nbshell-outputs.toml"]
 [input.keyboard]
 layout = "de"
 
+[hot_corners.top_left]
+enabled = true
+delay_ms = 350
+action = "overview-open"
+
 [keybinds]
 "Mod+Return" = "spawn:ghostty"
 "Mod+Q" = "window-close"
