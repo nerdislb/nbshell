@@ -76,6 +76,7 @@ Item {
 
     signal clicked
     signal rightClicked
+    signal middleClicked
     signal wheel(int delta)
 
     readonly property bool clickable: interactive || popout !== null || preview !== null
@@ -357,11 +358,15 @@ Item {
         anchors.fill: parent
         enabled: root.clickable
         hoverEnabled: true
-        acceptedButtons: root.nimmtKlicks ? (Qt.LeftButton | Qt.RightButton) : Qt.NoButton
+        acceptedButtons: root.nimmtKlicks ? (Qt.LeftButton | Qt.RightButton | Qt.MiddleButton) : Qt.NoButton
         cursorShape: root.nimmtKlicks ? Qt.PointingHandCursor : Qt.ArrowCursor
         onClicked: mouseEvent => {
             if (mouseEvent.button === Qt.RightButton) {
                 root.rightClicked();
+                return;
+            }
+            if (mouseEvent.button === Qt.MiddleButton) {
+                root.middleClicked();
                 return;
             }
             root.setPreview(false);

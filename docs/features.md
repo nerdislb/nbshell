@@ -73,7 +73,8 @@ See the [phone webcam guide](phone-webcam.md) for setup and daily use.
 - Explicit safe, balanced, and autonomous approval profiles
 - Local-model routing through OpenCode and Ollama
 - Quick floating agent, project selection, pair workspaces, and Herdr sessions
-- AI usage status in the bar and Dashboard
+- Provider-focused AI dashboard with subscription limits, reset times, local
+  seven-day/model token summaries, agent state, and launch controls
 
 ## Optional tools
 

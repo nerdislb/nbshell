@@ -270,6 +270,13 @@ nbshell agent install copilot
 nbshell commands --json
 ```
 
+Clicking the AI bar module opens a provider-focused dashboard for Codex, Claude,
+and configured Antigravity usage. It combines subscription windows and reset
+times with local seven-day and per-model token summaries. The local scanner
+reads token metadata from installed CLI session logs but never renders or
+exports prompt content. Switch providers with the tabs, arrow keys, mouse wheel,
+or middle click; right click launches the configured default agent.
+
 The Agent Center discovers supported tools instead of requiring all of them.
 It currently recognizes Codex, Claude Code, Antigravity, OpenCode, Gemini CLI, GitHub
 Copilot, and Pi. `safe`, `balanced`, and `autonomous` approval profiles map to

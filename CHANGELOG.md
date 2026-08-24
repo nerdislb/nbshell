@@ -8,6 +8,10 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Added
 
+- The AI bar module now opens a provider dashboard with subscription windows,
+  reset times, seven-day token history, model totals, agent state, and direct
+  launch controls. Token summaries are derived locally without exposing prompt
+  content and providers can be switched by tab, keyboard, wheel, or middle click.
 - Completed agent work triggers a soft AI-symbol pulse and opens the affected
   Herdr task directly; visiting that task acknowledges its indicator.
 - Experimental Umbriel compositor backend with isolated nested testing,

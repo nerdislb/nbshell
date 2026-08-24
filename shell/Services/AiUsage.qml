@@ -15,6 +15,7 @@ Singleton {
     id: root
 
     readonly property string bundledHelper: Qt.resolvedUrl("../scripts/ai-usage/providers/get-provider-usage").toString().replace("file://", "")
+    readonly property string statsHelper: Qt.resolvedUrl("../scripts/ai-local-stats.py").toString().replace("file://", "")
     readonly property var candidates: [Config.value("aiHelper", ""), bundledHelper]
 
     property string helper: ""
@@ -25,15 +26,41 @@ Singleton {
     readonly property string providers: Config.value("aiProviders", "codex,claude")
 
     property var list: []
+    property var localStats: ({})
 
     readonly property var primary: list[0] ?? null
 
     function refresh() {
-        if (!available || fetch.running)
-            return;
-        const provs = root.providers.replace(/\bagy\b/g, "antigravity");
-        fetch.command = ["bash", root.helper, provs];
-        fetch.running = true;
+        if (available && !fetch.running) {
+            const provs = root.providers.replace(/\bagy\b/g, "antigravity");
+            fetch.command = ["bash", root.helper, provs];
+            fetch.running = true;
+        }
+        if (!statsFetch.running) {
+            statsFetch.command = ["python3", root.statsHelper];
+            statsFetch.running = true;
+        }
+    }
+
+    function providerName(id) {
+        if (id === "codex") return "OpenAI Codex";
+        if (id === "claude") return "Claude Code";
+        if (id === "agy") return "Antigravity";
+        return id.charAt(0).toUpperCase() + id.slice(1);
+    }
+
+    function planName(raw) {
+        const text = String(raw ?? "").replace(/^default_/, "").replace(/_/g, " ").trim();
+        if (text === "" || text === "unknown") return "Subscription";
+        return text.split(" ").map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
+    }
+
+    function formatTokens(value) {
+        const n = Math.max(0, Number(value ?? 0));
+        if (n >= 1000000000) return (n / 1000000000).toFixed(n >= 10000000000 ? 0 : 1) + "B";
+        if (n >= 1000000) return (n / 1000000).toFixed(n >= 10000000 ? 0 : 1) + "M";
+        if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1) + "K";
+        return String(Math.round(n));
     }
 
     // "in 2 h 15 min" ist beim normalen Verbrauch die nuetzlichere Angabe als eine
@@ -126,16 +153,43 @@ Singleton {
                                 "label": "",
                                 "resetsAt": ""
                             });
+                        const stats = root.localStats[dispId] ?? ({ "recentDays": [], "models": [], "todayTokens": 0, "totalTokens": 0, "sessions": 0 });
                         return {
                             "id": dispId,
+                            "name": root.providerName(dispId),
+                            "plan": root.planName(u.identity?.loginMethod ?? item.credits?.remaining),
                             "percent": erst.percent,
                             "window": erst.label,
                             "resetsAt": erst.resetsAt,
-                            "more": weitere
+                            "more": weitere,
+                            "limits": [erst].concat(weitere),
+                            "stats": stats,
+                            "updatedAt": u.updatedAt ?? ""
                         };
                     });
                 } catch (e) {
                     console.warn("nbshell/ai: unreadable response —", e);
+                }
+            }
+        }
+    }
+
+    Process {
+        id: statsFetch
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    root.localStats = JSON.parse(text);
+                    // Rebuild the provider rows so their stats bindings receive
+                    // a new immutable snapshot even when limits did not change.
+                    root.list = root.list.map(entry => {
+                        const copy = Object.assign({}, entry);
+                        copy.stats = root.localStats[entry.id] ?? ({ "recentDays": [], "models": [], "todayTokens": 0, "totalTokens": 0, "sessions": 0 });
+                        return copy;
+                    });
+                } catch (e) {
+                    console.warn("nbshell/ai: unreadable local statistics —", e);
                 }
             }
         }
