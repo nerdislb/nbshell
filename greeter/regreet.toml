@@ -1,0 +1,29 @@
+skip_selection = false
+
+[background]
+path = "/usr/local/share/nbshell/greeter-wallpaper.jpg"
+fit = "Cover"
+
+[env]
+XDG_SESSION_TYPE = "wayland"
+
+[GTK]
+application_prefer_dark_theme = true
+cursor_theme_name = "Adwaita"
+cursor_blink = true
+font_name = "JetBrainsMono Nerd Font 14"
+icon_theme_name = "Adwaita"
+theme_name = "Adwaita"
+
+[commands]
+reboot = ["systemctl", "reboot"]
+poweroff = ["systemctl", "poweroff"]
+
+[appearance]
+greeting_msg = "NBSHELL"
+
+[widget.clock]
+format = "%A  %d %B   %H:%M"
+resolution = "1s"
+locale = "en_GB"
+label_width = 300

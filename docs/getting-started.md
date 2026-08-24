@@ -113,6 +113,21 @@ distribution packages. It shows
 `Restart recommended` when a kernel or another important component changed.
 Plugin updates remain in the plugin manager.
 
+## Optional login screen
+
+nbshell can replace an existing greetd frontend with the established ReGreet
+authentication client and an nbshell-styled interface. PAM and session startup
+remain owned by greetd; nbshell does not implement password handling. Niri and
+Umbriel remain available in the session selector.
+
+```bash
+./setup-greeter.sh
+```
+
+The installer uses the current nbshell wallpaper, keeps a recovery copy at
+`/etc/greetd/config.toml.before-nbshell-greeter`, and does not interrupt the
+current session. The new login screen appears after logout or reboot.
+
 ## If something goes wrong
 
 ```bash

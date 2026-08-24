@@ -1,0 +1,78 @@
+/* nbshell styling for the established ReGreet authentication frontend. */
+* {
+  font-family: "JetBrainsMono Nerd Font", monospace;
+  color: #c0caf5;
+}
+
+window,
+overlay {
+  background-color: #1a1b26;
+}
+
+picture {
+  filter: brightness(0.52) saturate(0.82);
+}
+
+frame.background {
+  background-color: rgba(26, 27, 38, 0.94);
+  border: 1px solid #7aa2f7;
+  border-radius: 2px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+  padding: 12px;
+}
+
+entry,
+combobox button {
+  min-height: 38px;
+  background: #16161e;
+  color: #c0caf5;
+  border: 1px solid #565f89;
+  border-radius: 2px;
+  box-shadow: none;
+}
+
+entry:focus,
+combobox button:focus {
+  border-color: #7aa2f7;
+  outline-color: #7aa2f7;
+}
+
+button {
+  min-height: 34px;
+  background: #24283b;
+  color: #c0caf5;
+  border: 1px solid #565f89;
+  border-radius: 2px;
+  box-shadow: none;
+}
+
+button:hover,
+button:focus {
+  background: #292e42;
+  border-color: #7aa2f7;
+}
+
+button.suggested-action {
+  background: #7aa2f7;
+  color: #1a1b26;
+  border-color: #7aa2f7;
+}
+
+button.destructive-action {
+  background: #24283b;
+  color: #f7768e;
+  border-color: #f7768e;
+}
+
+popover,
+menu {
+  background: #1a1b26;
+  color: #c0caf5;
+  border: 1px solid #7aa2f7;
+  border-radius: 2px;
+}
+
+selection {
+  background: #7aa2f7;
+  color: #1a1b26;
+}

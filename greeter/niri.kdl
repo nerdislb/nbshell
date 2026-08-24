@@ -1,0 +1,41 @@
+// Minimal compositor session for ReGreet. Authentication remains in greetd.
+spawn-sh-at-startup "regreet; niri msg action quit --skip-confirmation"
+
+hotkey-overlay {
+    skip-at-startup
+}
+
+environment {
+    XDG_SESSION_TYPE "wayland"
+    XDG_CURRENT_DESKTOP "nbshell-greeter"
+}
+
+input {
+    keyboard {
+        xkb {
+            layout "de"
+        }
+        numlock
+    }
+    touchpad {
+        tap
+    }
+}
+
+cursor {
+    xcursor-theme "Adwaita"
+    xcursor-size 24
+}
+
+layout {
+    background-color "#1a1b26"
+}
+
+window-rule {
+    match app-id="regreet"
+    open-maximized true
+}
+
+debug {
+    honor-xdg-activation-with-invalid-serial
+}
