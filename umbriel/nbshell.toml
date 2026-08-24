@@ -166,3 +166,8 @@ blur_popups = true
 match.namespace = "^nbshell:menu$"
 blur = false
 blur_popups = false
+
+[[layer_rule]]
+match.namespace = "^nbshell:settings$"
+blur = false
+blur_popups = false
