@@ -882,7 +882,7 @@ for b in d["binds"]:
     compositor)
         case "${1:-status}" in
             status) printf '%s\n' "$(compositor_name)" ;;
-            nested|test-umbriel) "$UMBRIEL_NESTED_TOOL" ;;
+            nested|test-umbriel) bash "$UMBRIEL_NESTED_TOOL" ;;
             *) echo "Usage: nbshell compositor [status|nested]" >&2; exit 2 ;;
         esac
         ;;

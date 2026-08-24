@@ -15,15 +15,16 @@ The first beta targets:
 - a standard systemd user session;
 - tmux for nbshell-native Agent Console session persistence.
 
-Umbriel support is an experimental second backend. The supported daily baseline
-remains Niri while workspace discovery, display management, portal behavior,
-PiP placement, and hardware coverage are completed. See
+Umbriel support is an experimental second backend with workspace discovery,
+display management, and its native screenshot/screencast portal integrated.
+The supported daily baseline remains Niri while native hardware coverage grows.
+Exact runtime PiP geometry remains Niri-only. See
 [Experimental Umbriel backend](umbriel.md).
 
 Intel and AMD graphics use only normal Wayland interfaces. NVIDIA should work
 with a correctly configured modern Wayland driver, but still needs wider beta
 testing. Multi-monitor layout, fractional scale, rotation, and disabled outputs
-are supported through Niri's native output commands.
+are supported through Niri or Umbriel's native output facilities.
 
 ## Optional hardware and services
 

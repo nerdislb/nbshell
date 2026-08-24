@@ -18,6 +18,8 @@ for relative in (
 integration = tomllib.loads((ROOT / "umbriel/nbshell.toml").read_text())
 assert integration["keybinds"]["Mod+Space"].endswith("nbshell menu")
 assert integration["keybinds"]["Mod+BackSpace"] == "workspace-set-layout:toggle"
+assert integration["keybinds"]["Mod+Return"] == "spawn:ghostty"
+assert integration["include"]["files"] == ["nbshell-outputs.toml"]
 assert integration["window_rule"] and integration["layer_rule"]
 
 service = (ROOT / "shell/Services/Compositor.qml").read_text()
@@ -28,6 +30,8 @@ for contract in (
     'function focusWorkspace',
     'function focusWindow',
     'function logout',
+    'umbriel-workspaces',
+    'fullWorkspaceModel',
 ):
     assert contract in service, contract
 
@@ -36,5 +40,11 @@ for path in (ROOT / "shell").rglob("*.qml"):
         continue
     text = path.read_text()
     assert "Niri." not in text, f"direct Niri dependency outside compatibility service: {path}"
+
+display_tool = (ROOT / "shell/scripts/displays.py").read_text()
+assert '"wlr-randr", "--json"' in display_tool
+assert "render_toml" in display_tool
+assert (ROOT / "native/umbriel-workspaces.c").is_file()
+assert (ROOT / "setup-umbriel.sh").stat().st_mode & 0o111
 
 print("Compositor backend contracts: OK")

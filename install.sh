@@ -326,10 +326,25 @@ green "Binds   -> $CONFIG_HOME/niri/nbshell-takeover.kdl"
 mkdir -p "$CONFIG_HOME/umbriel"
 install -m 644 "$SRC/umbriel/nbshell.toml" "$CONFIG_HOME/umbriel/nbshell.toml"
 install -m 644 "$SRC/umbriel/nbshell-nested.toml" "$CONFIG_HOME/umbriel/nbshell-nested.toml"
+if [ ! -f "$CONFIG_HOME/umbriel/nbshell-outputs.toml" ]; then
+    printf '# Managed by nbshell display; intentionally empty until a setting is saved.\n' > "$CONFIG_HOME/umbriel/nbshell-outputs.toml"
+fi
 if [ ! -f "$CONFIG_HOME/umbriel/nbshell-colors.toml" ]; then
     install -m 644 "$SRC/umbriel/nbshell-colors.toml" "$CONFIG_HOME/umbriel/nbshell-colors.toml"
 fi
+if [ ! -f "$CONFIG_HOME/umbriel/config.toml" ]; then
+    printf '# Standalone Umbriel configuration created by nbshell\n[include]\nfiles = ["nbshell-colors.toml", "nbshell.toml"]\n' > "$CONFIG_HOME/umbriel/config.toml"
+    green "Umbriel -> $CONFIG_HOME/umbriel/config.toml (created)"
+fi
 green "Umbriel -> $CONFIG_HOME/umbriel/nbshell.toml (optional include)"
+
+# Keep the tiny protocol helper outside the QML runtime so atomic shell swaps
+# cannot interrupt it. Missing compiler headers only disable empty-workspace
+# discovery; the Umbriel window IPC fallback remains available.
+NATIVE_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/nbshell/native"
+mkdir -p "$NATIVE_DATA"
+install -m 644 "$SRC/native/umbriel-workspaces.c" "$NATIVE_DATA/umbriel-workspaces.c"
+bash "$SRC/shell/scripts/build-native.sh" || warn "Umbriel workspace helper could not be built."
 
 # ── Befehl ───────────────────────────────────────────────────────────────
 mkdir -p "$BIN_DIR"

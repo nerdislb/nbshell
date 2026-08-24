@@ -14,6 +14,7 @@ Singleton {
     readonly property string desktop: String(Quickshell.env("XDG_CURRENT_DESKTOP") ?? "").toLowerCase()
     readonly property string umbrielSocket: String(Quickshell.env("UMBRIEL_SOCKET") ?? "")
     readonly property string niriSocket: String(Quickshell.env("NIRI_SOCKET") ?? "")
+    readonly property string workspaceHelper: (Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") + "/.local/share")) + "/nbshell/bin/umbriel-workspaces"
     readonly property string backend: forcedBackend || (umbrielSocket !== "" || desktop.indexOf("umbriel") >= 0 ? "umbriel" : "niri")
     readonly property string socketPath: backend === "umbriel" ? umbrielSocket : niriSocket
     readonly property bool available: socketPath !== ""
@@ -25,6 +26,7 @@ Singleton {
     property var focusedWindowId: ""
     property string keyboardLayout: ""
     property var _layoutNames: []
+    property bool fullWorkspaceModel: false
 
     readonly property var focusedWindow: windows.find(w => String(w.id) === String(focusedWindowId)) ?? null
     readonly property string focusedTitle: focusedWindow?.title ?? ""
@@ -86,6 +88,8 @@ Singleton {
             const an = Number(a), bn = Number(b);
             return Number.isFinite(an) && Number.isFinite(bn) ? an - bn : a.localeCompare(b);
         });
+        if (fullWorkspaceModel)
+            return;
         workspaces = ids.map((name, index) => ({
             "id": name,
             "idx": Number.isFinite(Number(name)) ? Number(name) : index + 1,
@@ -135,7 +139,10 @@ Singleton {
     }
 
     function handleUmbriel(event) {
-        if (event.event === "windows") {
+        if (event.event === "workspaces") {
+            fullWorkspaceModel = true;
+            workspaces = event.data ?? [];
+        } else if (event.event === "windows") {
             const oldFocus = focusedWindowId;
             normalizeUmbrielWindows(event.data);
             if (oldFocus !== "" && oldFocus !== focusedWindowId && Runtime.popoutCount > 0 && !focusGuard.running)
@@ -143,6 +150,19 @@ Singleton {
         } else if (event.event === "keyboard_layout") {
             _layoutNames = event.data?.names ?? [];
             keyboardLayout = _layoutNames[event.data?.current_index ?? 0] ?? "";
+        }
+    }
+
+    Process {
+        id: workspaceReader
+        running: root.isUmbriel && root.available
+        command: [root.workspaceHelper]
+        onExited: code => root.fullWorkspaceModel = false
+        stdout: SplitParser {
+            onRead: line => {
+                try { root.handleUmbriel(JSON.parse(line)); }
+                catch (error) { console.warn("nbshell/compositor: unreadable workspace event:", error); }
+            }
         }
     }
 

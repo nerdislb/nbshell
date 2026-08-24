@@ -117,6 +117,10 @@ calling `sudo`. Optional tools remain discoverable but disabled. Use
 `./setup.sh --full` when you want the complete capture, calendar, sync, power,
 and hardware tool set in one pass.
 
+To add the optional Umbriel compositor, portal, and login session while
+keeping Niri available, run `./setup-umbriel.sh`. See the
+[Umbriel guide](docs/umbriel.md) before the first native login.
+
 When setup has finished, enable nbshell:
 
 ```bash
@@ -201,11 +205,12 @@ remembers the selected scope.
 ## Displays
 
 Open `Displays` from the main menu, the Control Center, or run
-`nbshell display`. The panel uses modes reported by Niri and can change each
+`nbshell display`. The panel uses modes reported by the active compositor and can change each
 output's resolution, scale, orientation, enabled state, and position relative
-to another display. Changes apply live through `niri msg output` and are saved
-in `~/.config/niri/nbshell-outputs.kdl`; nbshell never rewrites the rest of
-your Niri configuration. It refuses to turn off the only active output.
+to another display. Changes apply live through Niri or `wlr-randr` and are
+saved in compositor-specific generated includes; nbshell never rewrites the
+rest of your compositor configuration. It refuses to turn off the only active
+output.
 
 The same backend is available without the shell UI:
 
