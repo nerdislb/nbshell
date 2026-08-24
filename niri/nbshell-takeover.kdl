@@ -10,9 +10,6 @@ include "nbshell-outputs.kdl"
 // spawn-Befehle mit dem PATH des systemd-User-Managers, in dem ~/.local/bin
 // nicht steht. Ein blosses `spawn "nbshell"` laeuft still ins Leere.
 binds {
-    // Layout-independent drop-down agent console. Pressing it again closes
-    // the surface without stopping any session.
-    Mod+F1 hotkey-overlay-title="nbshell: Agent Console" { spawn "sh" "-c" "$HOME/.local/bin/nbshell quake"; }
     // Wie Omarchy 4: Super+Space ist der zentrale Einstieg. Apps liegen eine
     // Alt-Ebene daneben; Mod+Shift+Space bleibt als vertrauter Alias erhalten.
     Mod+Space hotkey-overlay-title="nbshell: Menu" { spawn "sh" "-c" "$HOME/.local/bin/nbshell menu"; }

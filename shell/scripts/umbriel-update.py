@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import pathlib
@@ -16,6 +17,7 @@ PROJECTS = (
     ("xdg-desktop-portal-umbriel", "https://github.com/noctalia-dev/xdg-desktop-portal-umbriel.git"),
 )
 PREFIX = pathlib.Path(os.environ.get("NBSHELL_UMBRIEL_PREFIX", pathlib.Path.home() / ".local"))
+UMBRIEL_PATCH = pathlib.Path(__file__).resolve().parent.parent / "patches/umbriel-fullscreen-maximize.patch"
 
 
 def source_root() -> pathlib.Path | None:
@@ -40,6 +42,26 @@ def canonical_remote(value: str) -> str:
     if value.startswith("git@github.com:"):
         value = "https://github.com/" + value.split(":", 1)[1]
     return value
+
+
+@contextlib.contextmanager
+def downstream_patch(source: pathlib.Path, patch: pathlib.Path = UMBRIEL_PATCH):
+    """Apply an nbshell compatibility patch only for the duration of a build."""
+    if not patch.is_file():
+        raise FileNotFoundError(f"Umbriel compatibility patch not found: {patch}")
+    apply = ["git", "-C", str(source), "apply"]
+    if subprocess.run([*apply, "--check", str(patch)], capture_output=True).returncode == 0:
+        subprocess.run([*apply, str(patch)], check=True)
+        try:
+            yield
+        finally:
+            subprocess.run([*apply, "--reverse", str(patch)], check=True)
+        return
+    if subprocess.run([*apply, "--reverse", "--check", str(patch)], capture_output=True).returncode == 0:
+        # Upstream already contains the change, so no downstream patch is needed.
+        yield
+        return
+    raise RuntimeError("The nbshell Umbriel compatibility patch no longer applies; review it before updating")
 
 
 def project_status(path: pathlib.Path, expected_remote: str, fetch: bool = True) -> dict:
@@ -89,7 +111,7 @@ def status(fetch: bool = True) -> dict:
     return result
 
 
-def build_install(source: pathlib.Path) -> None:
+def build_install_unpatched(source: pathlib.Path) -> None:
     build = source / "build-nbshell"
     setup = ["meson", "setup", str(build), str(source), "--buildtype=release", f"--prefix={PREFIX}"]
     if build.is_dir():
@@ -98,6 +120,14 @@ def build_install(source: pathlib.Path) -> None:
     subprocess.run(["meson", "compile", "-C", str(build)], check=True)
     subprocess.run(["meson", "test", "-C", str(build), "--print-errorlogs"], check=True)
     subprocess.run(["meson", "install", "-C", str(build)], check=True)
+
+
+def build_install(source: pathlib.Path) -> None:
+    if source.name == "umbriel":
+        with downstream_patch(source):
+            build_install_unpatched(source)
+    else:
+        build_install_unpatched(source)
 
 
 def install(assume_yes: bool) -> int:

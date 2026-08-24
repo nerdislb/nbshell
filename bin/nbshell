@@ -464,7 +464,6 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
                             start an agent in a project terminal
   nbshell agent quick [--project <path>]
                             open the default agent in a floating terminal
-  nbshell quake             toggle the persistent Agent Quake console
   nbshell agent prompt <text>
                             start the default agent with a prompt
   nbshell agent profile [safe|balanced|autonomous]
@@ -847,6 +846,7 @@ for b in d["binds"]:
         case "${1:-center}" in
             center|open|toggle) ipc agentCenter toggle ;;
             usage|status|refresh) ipc ai "${1:-status}" ;;
+            attention) ipc agentCenter attention "${2:-finished}" "${3:-}" ;;
             *) ipc agentCenter toggle ;;
         esac
         ;;
@@ -873,9 +873,6 @@ for b in d["binds"]:
         else
             ipc dashboard "${1:-toggle}"
         fi
-        ;;
-    quake|agent-quake)
-        ipc agentQuake "${1:-toggle}" "${@:2}"
         ;;
     gaming|games)
         bash "$GAMING_TOOL" "${1:-status}" "${2:-}"

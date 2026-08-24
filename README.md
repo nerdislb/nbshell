@@ -253,17 +253,6 @@ backend remain the default and recovery path.
 
 ## AI agents and local models
 
-Press `Mod+F1` to drop down the **Agent Console**. It lists live persistent sessions,
-shows recent terminal output, sends a next command to Codex, Claude, or
-Antigravity, and starts a new project session using nbshell's own tmux-backed
-session namespace.
-Press the same key or `Esc` to hide it without stopping any work. tmux remains
-invisible and supplies only PTY persistence and terminal capture; nbshell owns
-the sessions, metadata, UI, and commands. Its separate systemd user unit keeps
-agents alive across shell updates and restarts. A softly pulsing AI bar symbol
-marks newly completed work. Existing Herdr sessions remain visible during
-migration. See the [Agent Console guide](docs/agent-quake.md).
-
 Press `Mod+Shift+A` to open the default agent immediately in a focused floating
 terminal. It starts in `~/projects/nbshell` when that checkout exists, so the
 installed nbshell skill can guide customization. The full Agent Center remains

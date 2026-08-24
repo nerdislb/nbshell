@@ -1,0 +1,86 @@
+diff --git a/src/view/maximize.h b/src/view/maximize.h
+index dfca8d4..89d1211 100644
+--- a/src/view/maximize.h
++++ b/src/view/maximize.h
+@@ -4,4 +4,11 @@ namespace umbriel {
+ 
+   [[nodiscard]] constexpr bool maximizeRequestTargetsEdges(bool edgesActive) { return edgesActive; }
+ 
++  // Column maximize and fullscreen are mutually exclusive compositor states.
++  // A maximize key pressed while fullscreen means "return to the layout",
++  // not "mark the hidden fullscreen column maximized as well".
++  [[nodiscard]] constexpr bool fullWidthActionLeavesFullscreen(bool scheduledFullscreen, bool currentFullscreen) {
++    return scheduledFullscreen || currentFullscreen;
++  }
++
+ } // namespace umbriel
+diff --git a/src/workspace/workspace.cpp b/src/workspace/workspace.cpp
+index 98ea2b2..35704e1 100644
+--- a/src/workspace/workspace.cpp
++++ b/src/workspace/workspace.cpp
+@@ -9,6 +9,7 @@
+ #include "output/output.h"
+ #include "overview/overview.h"
+ #include "server/server.h"
++#include "view/maximize.h"
+ #include "view/view.h"
+ #include "view/xdg_size.h"
+ // clang-format off
+@@ -712,6 +713,16 @@ namespace umbriel {
+   }
+ 
+   bool Workspace::toggleFocusedFullWidth() {
++    if (m_focusedView == nullptr || !m_focusedView->mapped()) {
++      return false;
++    }
++    const wlr_xdg_toplevel* toplevel = m_focusedView->toplevel();
++    if (fullWidthActionLeavesFullscreen(toplevel->scheduled.fullscreen, toplevel->current.fullscreen)) {
++      if (toplevel->scheduled.fullscreen) {
++        m_focusedView->toggleFullscreen();
++      }
++      return true;
++    }
+     if (m_focusedView != nullptr && m_focusedView->maximizedToEdges()) {
+       m_focusedView->setMaximizedToEdges(false);
+     }
+diff --git a/tests/unit/maximize.cpp b/tests/unit/maximize.cpp
+index 46d91f2..3a33902 100644
+--- a/tests/unit/maximize.cpp
++++ b/tests/unit/maximize.cpp
+@@ -2,10 +2,17 @@
+ 
+ #include "check.h"
+ 
++using umbriel::fullWidthActionLeavesFullscreen;
+ using umbriel::maximizeRequestTargetsEdges;
+ 
+ UMBRIEL_TEST(freshClientMaximizeTargetsColumn) { CHECK(!maximizeRequestTargetsEdges(false)); }
+ 
+ UMBRIEL_TEST(clientCanLeaveEdgesMaximize) { CHECK(maximizeRequestTargetsEdges(true)); }
+ 
++UMBRIEL_TEST(fullWidthActsNormallyOutsideFullscreen) { CHECK(!fullWidthActionLeavesFullscreen(false, false)); }
++
++UMBRIEL_TEST(fullWidthLeavesScheduledFullscreen) { CHECK(fullWidthActionLeavesFullscreen(true, false)); }
++
++UMBRIEL_TEST(fullWidthWaitsForCurrentFullscreenToCommitOut) { CHECK(fullWidthActionLeavesFullscreen(false, true)); }
++
+ int main() { return RUN_TESTS(); }
+diff --git a/src/view/view.cpp b/src/view/view.cpp
+index 08d3501..809b2ec 100644
+--- a/src/view/view.cpp
++++ b/src/view/view.cpp
+@@ -2116,11 +2116,12 @@ namespace umbriel {
+       m_refullscreenOnTile = false;
+     }
+     // Leaving column maximize when entering real fullscreen avoids a stale
+-    // widthFrac=1.0 column after the client leaves fullscreen.
++    // widthFrac=1.0 column after the client leaves fullscreen. Toggle it off
++    // so ScrollingLayout restores the width saved when maximize was enabled.
+     if (fullscreen && m_tiled && m_workspace != nullptr) {
+       const int column = m_workspace->layout().columnOf(this);
+       if (m_workspace->layout().isFullWidth(column)) {
+-        m_workspace->layout().clearFullWidthState(column);
++        m_workspace->layout().toggleFullWidth(column);
+         wlr_xdg_toplevel_set_maximized(m_toplevel, false);
+       }
+     }

@@ -86,12 +86,12 @@ Cell {
                                 return;
                             // Dasselbe Symbol noch einmal schliesst das Menue.
                             if (menuPopout.visible && root.menuItem === item) {
-                                menuPopout.visible = false;
+                                menuPopout.close();
                                 return;
                             }
                             root.menuItem = item;
                             root.menuAnchor = entry;
-                            menuPopout.visible = true;
+                            menuPopout.open();
                             return;
                         }
                         if (mouseEvent.button === Qt.MiddleButton) {
@@ -131,7 +131,7 @@ Cell {
             MenuView {
                 handle: root.menuItem?.menu ?? null
                 dismiss: () => {
-                    menuPopout.visible = false;
+                    menuPopout.close();
                 }
             }
         }

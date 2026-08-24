@@ -14,15 +14,14 @@ Singleton {
     property var sessions: []
     property var ollama: ({ "installed": false, "running": false, "models": [] })
     property var config: ({ "defaultAgent": "codex", "profile": "balanced", "modelProfile": "cloud" })
-    property var sessionBackend: ({ "native": false, "name": "herdr fallback", "migration": false })
     property bool loading: false
     property string message: ""
     property bool sessionsReady: false
-    property string sessionOutput: ""
-    property string selectedSession: ""
-    property bool readingSession: false
-    property bool completionAttention: false
+    property var attentionSessions: []
+    property bool genericAttention: false
     property string attentionKind: ""
+
+    readonly property bool completionAttention: genericAttention || attentionSessions.length > 0
 
     readonly property string defaultAgent: String(config.defaultAgent ?? "codex")
     readonly property string approvalProfile: String(config.profile ?? "balanced")
@@ -63,30 +62,37 @@ Singleton {
     function focusSession(id) {
         if (id) action(["session-focus", String(id)]);
     }
-    function readSession(id) {
-        if (!id || readProc.running)
+    function requestAttention(kind, sessionId) {
+        const rawId = String(sessionId ?? "");
+        const id = rawId === "" ? "" : (rawId.indexOf("herdr:") === 0 ? rawId : "herdr:" + rawId);
+
+        // Codex hooks run inside the Herdr pane and can report Stop while the
+        // user is already looking at that exact task. Such an event is not
+        // unread and must never start the animation in the first place.
+        if (id !== "" && sessions.some(row => String(row.id) === id && Boolean(row.focused)))
             return;
-        selectedSession = String(id);
-        readingSession = true;
-        readProc.command = ["python3", root.tool, "session-read", String(id)];
-        readProc.running = true;
+
+        if (String(kind) === "decision" || !completionAttention)
+            attentionKind = String(kind) === "decision" ? "decision" : "finished";
+        if (id === "") {
+            genericAttention = true;
+        } else if (attentionSessions.indexOf(id) < 0) {
+            attentionSessions = attentionSessions.concat([id]);
+        }
     }
-    function promptSession(id, prompt) {
-        if (id && String(prompt).trim() !== "")
-            action(["session-prompt", String(id), String(prompt)]);
+    function acknowledgeSession(id) {
+        const target = String(id ?? "");
+        if (target === "")
+            return;
+        attentionSessions = attentionSessions.filter(entry => entry !== target);
+        if (!genericAttention && attentionSessions.length === 0)
+            attentionKind = "";
     }
-    function quakeStart(id, project, prompt) {
-        var args = ["quake-start", String(id)];
-        if (project) args = args.concat(["--project", String(project)]);
-        if (String(prompt).trim() !== "") args = args.concat(["--prompt", String(prompt)]);
-        action(args);
+    function acknowledgeCompletions() {
+        attentionSessions = [];
+        genericAttention = false;
+        attentionKind = "";
     }
-    function restoreSession(id) { if (id) action(["session-restore", String(id)]); }
-    function requestAttention(kind) {
-        attentionKind = String(kind) === "decision" ? "decision" : "finished";
-        completionAttention = true;
-    }
-    function acknowledgeCompletions() { completionAttention = false; attentionKind = ""; }
 
     function sessionNotifications(next) {
         if (!sessionsReady) {
@@ -96,19 +102,32 @@ Singleton {
         const previous = {};
         for (const row of sessions)
             previous[String(row.id)] = row;
+
+        // Visiting the actual Herdr pane acknowledges only that task. Opening
+        // Agent Center alone is not enough: the user should have seen the
+        // session that requested attention.
+        const focused = next.filter(row => Boolean(row.focused)).map(row => String(row.id));
+        if (focused.length > 0) {
+            attentionSessions = attentionSessions.filter(id => focused.indexOf(id) < 0);
+            if (genericAttention)
+                genericAttention = false;
+            if (!genericAttention && attentionSessions.length === 0)
+                attentionKind = "";
+        }
+
         for (const row of next) {
             const before = previous[String(row.id)];
             if (!before)
                 continue;
             const wasWorking = String(before.status) === "working";
             const now = String(row.status);
-            if (wasWorking && now === "done")
-                requestAttention("finished");
+            if (wasWorking && (now === "done" || now === "idle") && !row.focused)
+                requestAttention("finished", row.id);
             if (row.focused || String(row.name).toLowerCase() === "codex")
                 continue;
             const decision = now === "waiting" || now === "permission" || now === "blocked";
             if (decision && !["waiting", "permission", "blocked"].includes(String(before.status)))
-                requestAttention("decision");
+                requestAttention("decision", row.id);
             if ((wasWorking && now === "idle") || decision) {
                 const label = String(row.name || "Agent");
                 const project = String(row.project || row.title || "Agent session");
@@ -123,7 +142,10 @@ Singleton {
         // Session changes are informative, not frame-critical. The status
         // helper inspects several agent backends, so a five-second idle poll
         // spent measurable CPU even while Agent Center was closed.
-        interval: 30000
+        // While the bar is asking for attention, notice a visit to the target
+        // Herdr pane quickly. Return to the cheap background cadence once the
+        // marker has been acknowledged.
+        interval: root.completionAttention ? 2000 : 30000
         running: true
         repeat: true
         onTriggered: root.refresh()
@@ -150,7 +172,6 @@ Singleton {
                     root.sessions = nextSessions;
                     root.ollama = data.ollama ?? ({ "installed": false, "running": false, "models": [] });
                     root.config = data.config ?? root.config;
-                    root.sessionBackend = data.sessionBackend ?? root.sessionBackend;
                 } catch (e) {
                     root.message = "Could not read agent status";
                 }
@@ -182,11 +203,5 @@ Singleton {
         }
     }
 
-    Process {
-        id: readProc
-        stdout: StdioCollector { onStreamFinished: root.sessionOutput = String(text).trim() }
-        stderr: StdioCollector { onStreamFinished: if (String(text).trim()) root.message = String(text).trim().split("\n")[0] }
-        onExited: root.readingSession = false
-    }
 
 }

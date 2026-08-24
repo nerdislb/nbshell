@@ -30,9 +30,13 @@ Cell {
     }
 
     onClicked: {
-        if (Agents.completionAttention)
-            Runtime.agentQuakeOpen = true;
-        else
+        if (Agents.completionAttention) {
+            const target = Agents.attentionSessions[0] ?? "";
+            if (target !== "")
+                Agents.focusSession(target);
+            else
+                Agents.refresh();
+        } else
             AiUsage.refresh();
     }
     onRightClicked: Runtime.agentCenterOpen = true
@@ -141,7 +145,7 @@ Cell {
             }
 
             Line {
-                text: Agents.completionAttention ? "Click opens Agent Console" : "Click refreshes · right click opens Agent Center"
+                text: Agents.completionAttention ? "Click opens the task" : "Click refreshes · right click opens Agent Center"
                 color: Theme.muted
             }
         }

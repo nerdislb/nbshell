@@ -243,17 +243,19 @@ Cell {
 
             Item {
                 width: panel.rowWidth
-                height: Theme.cellH
+                height: Theme.cellH * 2.4
 
                 Heading {
                     anchors.left: parent.left
+                    anchors.top: parent.top
                     text: "WI-FI"
                 }
 
                 Row {
+                    anchors.left: parent.left
                     anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: Theme.cellW * 2
+                    anchors.bottom: parent.bottom
+                    spacing: Theme.cellW
 
                     // Beide oeffnen ein FENSTER, kein Popout: ein Popout
                     // klappt zu, sobald die Maus es verlaesst -- und genau das
@@ -317,7 +319,7 @@ Cell {
 
                     Rectangle {
                         width: panel.rowWidth
-                        height: Theme.cellH * 1.4
+                        height: Theme.denseRowHeight
                         radius: Theme.radius
                         color: entry.isCurrent ? Theme.selectedSurface(Theme.accent)
                             : (wifiMouse.hovered ? Theme.hover : "transparent")
@@ -454,7 +456,7 @@ Cell {
                     readonly property bool busy: Net.vpnBusyUuid === modelData.uuid
 
                     width: panel.rowWidth
-                    height: Theme.cellH * 1.4
+                    height: Theme.denseRowHeight
                     radius: Theme.radius
                     color: modelData.active ? Theme.selectedSurface(Theme.accent)
                         : (vpnMouse.hovered ? Theme.hover : "transparent")
@@ -556,7 +558,7 @@ Cell {
                     required property var modelData
 
                     width: panel.rowWidth
-                    height: Theme.cellH * 1.4
+                    height: Theme.denseRowHeight
                     radius: Theme.radius
                     color: btRow.modelData.connected ? Theme.selectedSurface(Theme.accent)
                         : (btMouse.hovered ? Theme.hover : "transparent")

@@ -7,6 +7,7 @@ SOURCE_ROOT="${NBSHELL_UMBRIEL_SOURCE_DIR:-$HOME/.cache/nbshell/umbriel-sources}
 PREFIX="${NBSHELL_UMBRIEL_PREFIX:-$HOME/.local}"
 UMBRIEL_REPO="https://github.com/noctalia-dev/umbriel.git"
 PORTAL_REPO="https://github.com/noctalia-dev/xdg-desktop-portal-umbriel.git"
+UMBRIEL_PATCH="$ROOT/shell/patches/umbriel-fullscreen-maximize.patch"
 PACKAGES=(gcc git meson ninja pkgconf just wlroots0.20 wayland wayland-protocols
     libxkbcommon libinput pixman libdrm cairo pango tomlplusplus nlohmann-json jemalloc
     sdbus-cpp pipewire gtk4 wlr-randr xwayland-satellite xdg-desktop-portal)
@@ -54,7 +55,29 @@ build_install() {
     meson install -C "$build"
 }
 
+apply_umbriel_patch() {
+    local source="$SOURCE_ROOT/umbriel"
+    [ -f "$UMBRIEL_PATCH" ] || die "Umbriel compatibility patch is missing: $UMBRIEL_PATCH"
+    if git -C "$source" apply --check "$UMBRIEL_PATCH" >/dev/null 2>&1; then
+        git -C "$source" apply "$UMBRIEL_PATCH"
+        return 0
+    fi
+    if git -C "$source" apply --reverse --check "$UMBRIEL_PATCH" >/dev/null 2>&1; then
+        return 1
+    fi
+    die "The nbshell Umbriel compatibility patch no longer applies; review it before updating."
+}
+
+patch_applied=false
+if apply_umbriel_patch; then
+    patch_applied=true
+    trap 'git -C "$SOURCE_ROOT/umbriel" apply --reverse "$UMBRIEL_PATCH"' EXIT
+fi
 build_install "$SOURCE_ROOT/umbriel"
+if $patch_applied; then
+    git -C "$SOURCE_ROOT/umbriel" apply --reverse "$UMBRIEL_PATCH"
+    trap - EXIT
+fi
 build_install "$SOURCE_ROOT/xdg-desktop-portal-umbriel"
 
 # Meson uses lib/systemd for a conventional /usr prefix. With a home prefix,

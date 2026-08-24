@@ -35,6 +35,10 @@ PanelWindow {
         function open(): void { Runtime.agentCenterOpen = true; }
         function close(): void { Runtime.agentCenterOpen = false; }
         function refresh(): void { Agents.refresh(); }
+        function attention(kind: string, sessionId: string): void { Agents.requestAttention(kind, sessionId); }
+        function attentionStatus(): string {
+            return JSON.stringify({ "active": Agents.completionAttention, "sessions": Agents.attentionSessions });
+        }
     }
 
     Rectangle { anchors.fill: parent; color: Theme.scrim }

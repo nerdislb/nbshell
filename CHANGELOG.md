@@ -8,15 +8,8 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Added
 
-- Agent Console, a dedicated full-width top drop-down module on `Mod+F1`, with
-  live persistent-session status, recent terminal output, agent-aware prompt
-  submission, project selection, and new Codex, Claude, or Antigravity
-  sessions in an isolated nbshell-owned tmux namespace. Existing Herdr sessions
-  remain available as a migration fallback.
-- An independent systemd user host keeps native agents alive while the shell is
-  updated or restarted, and completed work triggers a soft AI-symbol pulse.
-- Agent Console output uses one plain-text tmux snapshot path while visible,
-  avoiding competing stream clients and terminal-renderer state.
+- Completed agent work triggers a soft AI-symbol pulse and opens the affected
+  Herdr task directly; visiting that task acknowledges its indicator.
 - Experimental Umbriel compositor backend with isolated nested testing,
   compositor-neutral window/workspace actions, TOML rules, and theme export;
   Niri remains the supported daily baseline.

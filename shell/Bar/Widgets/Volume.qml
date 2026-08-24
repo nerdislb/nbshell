@@ -264,7 +264,7 @@ Cell {
                         readonly property bool aktiv: codec.modelData.profil === Audio.btAktiv
 
                         width: name.implicitWidth + Theme.cellW * 2
-                        height: Theme.cellH * 1.4
+                        height: Theme.denseRowHeight
                         radius: Theme.radius
                         color: codec.aktiv ? Theme.selectedSurface(Theme.accent) : (hover.hovered ? Theme.hover : "transparent")
                         border.width: codec.aktiv ? Theme.borderWidth : 0
@@ -326,7 +326,7 @@ Cell {
                     readonly property bool isCurrent: modelData === Audio.sink
 
                     width: panel.rowWidth
-                    height: Theme.cellH * 1.4
+                    height: Theme.denseRowHeight
                     radius: Theme.radius
                     color: device.isCurrent ? Theme.selectedSurface(Theme.accent)
                         : (mouse.hovered ? Theme.hover : "transparent")

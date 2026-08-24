@@ -13,7 +13,6 @@ The first beta targets:
 - PipeWire/WirePlumber for audio;
 - NetworkManager for the full network panel;
 - a standard systemd user session;
-- tmux for nbshell-native Agent Console session persistence.
 
 Umbriel support is an experimental second backend with workspace discovery,
 display management, and its native screenshot/screencast portal integrated.

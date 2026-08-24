@@ -25,7 +25,6 @@ import qs.Keys
 import qs.Menu
 import qs.Ipc
 import qs.Extensions
-import qs.AgentQuake
 
 // nbshell -- Einstiegspunkt.
 //
@@ -142,8 +141,6 @@ ShellRoot {
     Dashboard {}
 
     AgentCenter {}
-
-    AgentQuake {}
 
     // Nachinstallierte Dienste, Panels und Overlays. Nur explizit aktivierte
     // Plugin-IDs werden geladen; reine Bar-Widgets entstehen in WidgetHost.

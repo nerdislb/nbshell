@@ -73,8 +73,6 @@ See the [phone webcam guide](phone-webcam.md) for setup and daily use.
 - Explicit safe, balanced, and autonomous approval profiles
 - Local-model routing through OpenCode and Ollama
 - Quick floating agent, project selection, pair workspaces, and Herdr sessions
-- Drop-down Agent Console on `Mod+F1` with live status, recent output, new
-  prompts, and new Codex, Claude, or Antigravity project sessions
 - AI usage status in the bar and Dashboard
 
 ## Optional tools

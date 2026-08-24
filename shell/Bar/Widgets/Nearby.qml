@@ -64,7 +64,7 @@ Cell {
 
                     Item {
                         width: panel.rowWidth
-                        height: Theme.cellH * 1.4
+                        height: Theme.denseRowHeight
 
                         Line {
                             anchors.left: parent.left

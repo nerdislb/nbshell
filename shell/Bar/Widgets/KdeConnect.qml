@@ -58,22 +58,40 @@ Cell {
     }
 
     popout: Component {
-        Column {
-            id: panel
+        Item {
+            id: viewport
 
             property var closePopout: null
             readonly property real rowWidth: 56 * Theme.cellW
+            implicitWidth: rowWidth
+            implicitHeight: Theme.cellH * 28
 
-            // Welcher Composer offen ist: "text" (Text/Link teilen) oder
-            // "ping" (Ping mit Text). Leer = noneer.
-            property string composer: ""
-            property string draft: ""
-            property bool cmdsOpen: false
-            property string confirmUnpair: ""
+            Flickable {
+                id: scroll
 
-            readonly property var dev: Kdeconnect.selectedDevice
+                anchors.fill: parent
+                contentWidth: width
+                contentHeight: panel.implicitHeight
+                flickableDirection: Flickable.VerticalFlick
+                boundsBehavior: Flickable.StopAtBounds
+                clip: true
 
-            spacing: Theme.cellH * 0.2
+                Column {
+                    id: panel
+
+                    readonly property var closePopout: viewport.closePopout
+                    readonly property real rowWidth: viewport.rowWidth
+
+                    // Welcher Composer offen ist: "text" (Text/Link teilen) oder
+                    // "ping" (Ping mit Text). Leer = noneer.
+                    property string composer: ""
+                    property string draft: ""
+                    property bool cmdsOpen: false
+                    property string confirmUnpair: ""
+
+                    readonly property var dev: Kdeconnect.selectedDevice
+
+                    spacing: Theme.cellH * 0.2
 
             // ── Kopf ───────────────────────────────────────────────────────
             Item {
@@ -243,7 +261,7 @@ Cell {
                         readonly property bool active: panel.composer === modelData.id
 
                         width: actLabel.implicitWidth + Theme.cellW * 2
-                        height: Theme.cellH * 1.4
+                        height: Theme.denseRowHeight
                         radius: Theme.radius
                         color: actBtn.active ? Theme.selectedSurface() : (actMouse.containsMouse ? Theme.hover : "transparent")
                         border.width: Theme.borderWidth
@@ -518,7 +536,7 @@ Cell {
                 Rectangle {
                     required property var modelData
                     width: panel.rowWidth
-                    height: Theme.cellH * 1.4
+                    height: Theme.denseRowHeight
                     radius: Theme.radius
                     color: cmdRowMouse.containsMouse ? Theme.hover : "transparent"
 
@@ -637,11 +655,24 @@ Cell {
             }
 
             // ── Rueckmeldung ───────────────────────────────────────────────
-            Line {
-                visible: Kdeconnect.status !== ""
-                text: "✓ " + Kdeconnect.status
-                color: Theme.green
-                font.pixelSize: Theme.fontSize - 1
+                    Line {
+                        visible: Kdeconnect.status !== ""
+                        text: "✓ " + Kdeconnect.status
+                        color: Theme.green
+                        font.pixelSize: Theme.fontSize - 1
+                    }
+                }
+            }
+
+            Rectangle {
+                anchors.right: parent.right
+                anchors.rightMargin: Theme.borderWidth
+                y: scroll.visibleArea.yPosition * viewport.height
+                width: Math.max(2, Theme.borderWidth * 2)
+                height: Math.max(Theme.cellH, scroll.visibleArea.heightRatio * viewport.height)
+                radius: width / 2
+                color: Theme.alpha(Theme.accent, 0.7)
+                visible: scroll.contentHeight > scroll.height
             }
         }
     }

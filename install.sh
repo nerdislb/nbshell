@@ -88,7 +88,6 @@ missing_optional="$(
     optional_check nbphone       "phone mirror control"       "github.com/nerdislb/nbphone"
     optional_check opencode      "local/cloud agent frontend" "opencode"
     optional_check ollama        "local AI models"            "ollama (optional)"
-    optional_check tmux          "native Agent Console sessions" "tmux"
     optional_check voxtype       "local voice dictation"      "voxtype-bin (AUR, optional)"
     optional_check mpv           "native YouTube Music playback" "mpv"
     optional_check yt-dlp        "native YouTube Music playback" "yt-dlp"
@@ -119,11 +118,12 @@ if [ -z "$polkit_found" ]; then
 fi
 
 # ── Shell ────────────────────────────────────────────────────────────────
-# Install lifecycle units before touching the running shell. Agent sessions
-# live in their own cgroup and therefore survive nbshell.service restarts.
+# Install the shell lifecycle unit before touching the running shell.
 mkdir -p "$UNIT_DIR"
 install -m 644 "$SRC/systemd/nbshell.service" "$UNIT_DIR/nbshell.service"
-install -m 644 "$SRC/systemd/nbshell-agent-host.service" "$UNIT_DIR/nbshell-agent-host.service"
+# Remove the retired Agent Console host from installations that tested it.
+systemctl --user disable --now nbshell-agent-host.service >/dev/null 2>&1 || true
+rm -f "$UNIT_DIR/nbshell-agent-host.service"
 mkdir -p "$BIN_DIR"
 install -m 755 "$SRC/bin/nbshell-install-recover" "$BIN_DIR/nbshell-install-recover"
 systemctl --user daemon-reload 2>/dev/null || true
@@ -307,7 +307,7 @@ fi
 
 # ── systemd-Unit ─────────────────────────────────────────────────────────
 # Nur ablegen, nicht einschalten -- das macht `nbshell switch on`.
-green "Units   -> $UNIT_DIR (shell + isolated agent host)"
+green "Units   -> $UNIT_DIR (shell lifecycle)"
 
 # ── niri-Tastenkuerzel ───────────────────────────────────────────────────
 mkdir -p "$CONFIG_HOME/niri"

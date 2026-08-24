@@ -25,8 +25,10 @@ Rectangle {
         ? Theme.readable(Theme.red, idleSurface, 4.5)
         : (tone === "primary" ? Theme.selectedForeground(accentColor) : Theme.fg)
 
-    implicitWidth: label.implicitWidth + Theme.cellW * (compact ? 1.5 : 2.5)
-    implicitHeight: Theme.cellH * (compact ? 1.35 : 1.65)
+    // Compact actions live in dense popout rows. Keep their hit target clear,
+    // but do not let the surrounding surface dominate the terminal-like text.
+    implicitWidth: label.implicitWidth + Theme.cellW * (compact ? 1.0 : 2.2)
+    implicitHeight: Theme.cellH * (compact ? 1.1 : 1.55)
     radius: Theme.radius
     color: !enabled ? Theme.alpha(Theme.panelSurfaceRaised, 0.45) : (hover.hovered || tap.pressed ? activeSurface : idleSurface)
     border.width: root.tone === "primary" ? 0 : Theme.borderWidth

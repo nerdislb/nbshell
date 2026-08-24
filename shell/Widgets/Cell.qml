@@ -292,15 +292,23 @@ Item {
             return;
         if (open)
             root.setPreview(false);
-        if (popoutLoader.item)
-            popoutLoader.item.visible = open;
+        if (popoutLoader.item) {
+            if (open)
+                popoutLoader.item.open();
+            else
+                popoutLoader.item.close();
+        }
     }
 
     function setPreview(open) {
         if (open && (!root.enabled || root.popoutVisible))
             return;
-        if (previewLoader.item)
-            previewLoader.item.visible = open;
+        if (previewLoader.item) {
+            if (open)
+                previewLoader.item.open();
+            else
+                previewLoader.item.close();
+        }
     }
 
     Timer {

@@ -21,6 +21,29 @@ def run(*args, cwd):
 
 
 with tempfile.TemporaryDirectory() as name:
+    checkout = pathlib.Path(name)
+    run("git", "init", "-q", cwd=checkout)
+    target = checkout / "value.txt"
+    target.write_text("before\n")
+    patch = checkout / "change.patch"
+    patch.write_text("""diff --git a/value.txt b/value.txt
+--- a/value.txt
++++ b/value.txt
+@@ -1 +1 @@
+-before
++during
+""")
+    with UPDATE.downstream_patch(checkout, patch):
+        assert target.read_text() == "during\n"
+    assert target.read_text() == "before\n"
+
+    target.write_text("during\n")
+    with UPDATE.downstream_patch(checkout, patch):
+        assert target.read_text() == "during\n"
+    assert target.read_text() == "during\n"
+
+
+with tempfile.TemporaryDirectory() as name:
     source_root = pathlib.Path(name)
     for project, remote in UPDATE.PROJECTS:
         checkout = source_root / project

@@ -80,7 +80,7 @@ Cell {
                     required property var modelData
 
                     width: panel.rowWidth
-                    height: Theme.cellH * 1.4
+                    height: Theme.denseRowHeight
                     radius: Theme.radius
                     color: mouse.hovered ? Theme.hover : "transparent"
 

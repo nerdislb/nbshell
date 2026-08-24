@@ -186,10 +186,14 @@ Singleton {
     readonly property real spaceMd: Math.max(4, Math.round(cellW))
     readonly property real spaceLg: Math.max(6, Math.round(cellW * 1.5))
     readonly property real spaceXl: Math.max(8, Math.round(cellW * 2))
-    readonly property real panelScale: fontBody / Math.max(1, fontSize)
-    readonly property real controlHeight: Math.round(cellH * 1.65 * panelScale)
-    readonly property real rowHeight: Math.round(cellH * 2.1 * panelScale)
-    readonly property real panelPadding: Math.round(cellW * 2 * panelScale)
+    // Typography may be one step larger than the bar, but geometry already
+    // derives from the configured font metrics. Scaling it a second time made
+    // every popup control roughly 7% larger at the default 14 px font.
+    readonly property real panelScale: 1
+    readonly property real controlHeight: Math.round(cellH * 1.55)
+    readonly property real rowHeight: Math.round(cellH * 1.9)
+    readonly property real denseRowHeight: Math.round(cellH * 1.25)
+    readonly property real panelPadding: Math.round(cellW * 2)
     readonly property real overlayMarginX: Math.round(spaceXl * 2)
     readonly property real overlayMarginY: Math.round(cellH * 3)
     readonly property real overlayWidthMedium: Math.round(cellW * 84)

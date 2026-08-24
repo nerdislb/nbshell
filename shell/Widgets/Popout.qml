@@ -17,6 +17,9 @@ PopupWindow {
 
     property Item anchorItem: null
     property Component contentComponent: null
+    property bool requestedVisible: false
+    property real lockedContentWidth: 0
+    property real lockedContentHeight: 0
 
     // Der Griff ist der ganze Trick beim Schliessen: erst damit weiss der
     // Kompositor, dass hier ein Menue offen ist. Er beendet den Griff, sobald
@@ -46,6 +49,9 @@ PopupWindow {
     readonly property real padding: Theme.panelPadding
 
     color: "transparent"
+    // Load and lay out the content before mapping the Wayland popup. Mapping
+    // a 1x1 window and resizing it one frame later is mostly hidden by Niri,
+    // but Umbriel visibly re-anchors that intermediate surface.
     visible: false
     // Muss schon VOR dem Mapping des PopupWindow wahr sein. Mit
     // `takesKeyboard && visible` wechselten Sichtbarkeit und Grab im selben
@@ -55,8 +61,8 @@ PopupWindow {
     // zusaetzliche visible-Bedingung weder noetig noch hilfreich.
     grabFocus: takesKeyboard
 
-    implicitWidth: loader.item ? loader.item.implicitWidth + padding * 2 + Theme.borderWidth * 2 : 1
-    implicitHeight: loader.item ? loader.item.implicitHeight + padding * 2 + Theme.borderWidth * 2 : 1
+    implicitWidth: lockedContentWidth > 0 ? lockedContentWidth + padding * 2 + Theme.borderWidth * 2 : 1
+    implicitHeight: lockedContentHeight > 0 ? lockedContentHeight + padding * 2 + Theme.borderWidth * 2 : 1
 
     anchor.item: root.anchorItem
     anchor.rect.y: Config.edge === "bottom" ? -Config.gap : (root.anchorItem?.height ?? 0) + Config.gap
@@ -64,11 +70,38 @@ PopupWindow {
     anchor.adjustment: PopupAdjustment.SlideX
 
     function toggle() {
-        visible = !visible;
+        if (requestedVisible)
+            close();
+        else
+            open();
+    }
+
+    function open() {
+        requestedVisible = true;
+        // Loader creation is synchronous by default. Assigning the component
+        // before mapping gives the popup its final initial geometry while we
+        // are still in the input/IPC activation cycle required by Wayland.
+        loader.sourceComponent = contentComponent;
+        mapWhenReady();
+    }
+
+    function mapWhenReady() {
+        if (!requestedVisible || loader.status !== Loader.Ready || !loader.item)
+            return;
+        // Freeze only the outer Wayland geometry. Live service data may still
+        // grow the content; the viewport below makes that overflow scrollable
+        // instead of asking the compositor to resize and re-anchor the popup.
+        lockedContentWidth = Math.max(1, loader.item.implicitWidth);
+        lockedContentHeight = Math.max(1, loader.item.implicitHeight);
+        visible = true;
     }
 
     function close() {
+        requestedVisible = false;
         visible = false;
+        loader.sourceComponent = null;
+        lockedContentWidth = 0;
+        lockedContentHeight = 0;
     }
 
     onPointerInsideChanged: {
@@ -92,6 +125,14 @@ PopupWindow {
             leaveTimer.stop();
             if (Runtime.activePopout === root)
                 Runtime.activePopout = null;
+            // A compositor may dismiss a popup grab itself. Mirror that
+            // external close into our request state so the visibility binding
+            // cannot map the same popup again on the next evaluation.
+            if (requestedVisible && loader.status === Loader.Ready)
+                requestedVisible = false;
+            loader.sourceComponent = null;
+            lockedContentWidth = 0;
+            lockedContentHeight = 0;
         }
     }
 
@@ -109,17 +150,41 @@ PopupWindow {
         HoverHandler {
             id: hover
         }
-        Loader {
-            id: loader
+        Flickable {
+            id: contentViewport
 
             anchors.fill: parent
             anchors.margins: root.padding
-            sourceComponent: root.visible ? root.contentComponent : null
+            contentWidth: loader.width
+            contentHeight: loader.height
+            flickableDirection: Flickable.VerticalFlick
+            boundsBehavior: Flickable.StopAtBounds
+            clip: true
 
-            // Der Inhalt darf sich selbst schliessen, ohne die Kette nach oben
-            // zu kennen.
-            onLoaded: if (item && "closePopout" in item)
-                item.closePopout = root.close
+            Loader {
+                id: loader
+
+                width: item ? Math.max(contentViewport.width, item.implicitWidth) : 1
+                height: item ? item.implicitHeight : 1
+                sourceComponent: null
+
+                onStatusChanged: root.mapWhenReady()
+
+                // Der Inhalt darf sich selbst schliessen, ohne die Kette nach oben
+                // zu kennen.
+                onLoaded: if (item && "closePopout" in item)
+                    item.closePopout = root.close
+            }
+
+            Rectangle {
+                anchors.right: parent.right
+                y: contentViewport.visibleArea.yPosition * contentViewport.height
+                width: Math.max(2, Theme.borderWidth * 2)
+                height: Math.max(Theme.cellH, contentViewport.visibleArea.heightRatio * contentViewport.height)
+                radius: width / 2
+                color: Theme.alpha(Theme.accent, 0.7)
+                visible: contentViewport.contentHeight > contentViewport.height
+            }
         }
 
         // Escape schliesst -- erwartet man bei allem, was sich aufklappt.

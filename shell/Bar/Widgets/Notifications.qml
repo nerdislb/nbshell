@@ -208,9 +208,25 @@ Cell {
                 }
             }
 
-            Loader {
+            // Keep both pages alive inside one stable geometry. Replacing a
+            // Loader's sourceComponent briefly collapses its implicit height;
+            // Wayland compositors may then reposition the popup or end its
+            // grab while the user is switching tabs.
+            Item {
                 width: panel.rowWidth
-                sourceComponent: Runtime.activityTab === "clipboard" ? clipboardContent : notificationContent
+                height: Theme.cellH * 29
+
+                Loader {
+                    anchors.fill: parent
+                    sourceComponent: notificationContent
+                    visible: Runtime.activityTab === "notifications"
+                }
+
+                Loader {
+                    anchors.fill: parent
+                    sourceComponent: clipboardContent
+                    visible: Runtime.activityTab === "clipboard"
+                }
             }
 
             Component {
@@ -349,7 +365,7 @@ Cell {
                                             || Notify.dayLabel(panel.shownNotifications[parent.index - 1].time)
                                                 !== Notify.dayLabel(parent.modelData.time)
                                         width: parent.width
-                                        height: visible ? implicitHeight + Theme.cellH * 0.25 : 0
+                                        height: visible ? Theme.cellH * 1.25 : 0
                                         text: Notify.dayLabel(parent.modelData.time)
                                         color: Theme.fgDim
                                         font.pixelSize: Theme.fontCaption
@@ -455,7 +471,7 @@ Cell {
                             Line {
                                 visible: Clipboard.images.length > 0
                                 width: parent.width
-                                height: visible ? implicitHeight + Theme.cellH * 0.2 : 0
+                                height: visible ? Theme.cellH * 1.2 : 0
                                 text: "IMAGES"
                                 color: Theme.fgDim
                                 font.pixelSize: Theme.fontCaption
@@ -526,7 +542,7 @@ Cell {
                             Line {
                                 visible: Clipboard.entries.length > 0
                                 width: parent.width
-                                height: visible ? implicitHeight + Theme.cellH * 0.2 : 0
+                                height: visible ? Theme.cellH * 1.2 : 0
                                 text: "TEXT"
                                 color: Theme.fgDim
                                 font.pixelSize: Theme.fontCaption
