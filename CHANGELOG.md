@@ -13,6 +13,11 @@ configuration and plugin interfaces before `1.0.0`.
   submission, project selection, and new Codex, Claude, or Antigravity
   sessions in an isolated nbshell-owned tmux namespace. Existing Herdr sessions
   remain available as a migration fallback.
+- An independent systemd user host keeps native agents alive while the shell is
+  updated or restarted, and completed work triggers a soft AI-symbol pulse.
+- Transactional shell installation with a single-writer lock, preflight
+  validation, atomic runtime switching, restart watchdog, and automatic
+  rollback when the new shell does not stay active.
 
 ## [0.1.0-beta.1] - 2026-08-22
 

@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Independent recovery endpoint for an interrupted atomic shell switch.
+set -euo pipefail
+
+SHELL_DIR="${1:?runtime path required}"
+ROLLBACK_DIR="${2:?rollback path required}"
+PARENT_DIR="$(dirname "$SHELL_DIR")"
+
+# Refuse broad or unrelated deletion targets even if a caller is malformed.
+if [ "$(basename "$SHELL_DIR")" != "nbshell" ] \
+        || [ "$(dirname "$ROLLBACK_DIR")" != "$PARENT_DIR" ] \
+        || [[ "$(basename "$ROLLBACK_DIR")" != .nbshell-rollback.* ]] \
+        || [ "$PARENT_DIR" = "/" ]; then
+    echo "Refusing unsafe nbshell recovery paths." >&2
+    exit 2
+fi
+
+if ! systemctl --user is-active --quiet nbshell.service; then
+    systemctl --user start nbshell.service >/dev/null 2>&1 || true
+    sleep 2
+fi
+
+if systemctl --user is-active --quiet nbshell.service; then
+    [ ! -d "$ROLLBACK_DIR" ] || rm -rf -- "$ROLLBACK_DIR"
+    exit 0
+fi
+
+if [ ! -d "$ROLLBACK_DIR" ]; then
+    echo "nbshell could not restart and no rollback runtime is available." >&2
+    exit 1
+fi
+
+systemctl --user stop nbshell.service >/dev/null 2>&1 || true
+[ ! -e "$SHELL_DIR" ] || rm -rf -- "$SHELL_DIR"
+mv -- "$ROLLBACK_DIR" "$SHELL_DIR"
+systemctl --user start nbshell.service
+

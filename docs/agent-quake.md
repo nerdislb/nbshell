@@ -23,6 +23,16 @@ nbshell owns session metadata, projects, commands, status inference, and the
 themed workflow. Provider credentials and conversations stay outside the shell
 configuration.
 
+The tmux server is owned by a separate on-demand
+`nbshell-agent-host.service`, not by the visual shell service. Agent processes
+therefore keep running while nbshell is installed, restarted, or temporarily
+stopped. The host ends with the graphical user session or through an explicit
+stop; it is never restarted merely to refresh the UI.
+
+When a native agent changes from working to done, the AI symbol in the bar
+pulses softly and shows the completion color. Opening Agent Console, including
+by clicking the pulsing symbol, acknowledges the completed work.
+
 Existing Herdr sessions are listed with a `herdr` backend badge and continue to
 use Herdr until they are finished. New sessions use the `nbshell` backend as
 soon as tmux is installed. They can be opened in a full terminal through

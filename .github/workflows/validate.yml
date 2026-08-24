@@ -20,7 +20,7 @@ jobs:
       - name: Check shell syntax
         run: |
           find . -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
-          bash -n bin/nbshell
+          bash -n bin/nbshell bin/nbshell-install-recover
 
       - name: Check Python syntax
         run: find shell -type f -name '*.py' -exec python3 -m py_compile {} +

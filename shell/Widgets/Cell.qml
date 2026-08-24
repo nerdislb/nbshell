@@ -47,6 +47,7 @@ Item {
     // die Erklaerung in Bar/WidgetHost.qml.
     property bool shown: true
     property color color: Theme.barFg
+    property real contentOpacity: 1
     property bool interactive: false
 
     // Klappt beim Klick auf. Der Inhalt bekommt `closePopout` gesetzt.
@@ -231,6 +232,7 @@ Item {
         id: line
 
         visible: !root.custom
+        opacity: root.contentOpacity
         anchors.centerIn: parent
         icon: root.icon
         icons: root.wantIcon
@@ -241,6 +243,7 @@ Item {
 
     Item {
         id: contentItem
+        opacity: root.contentOpacity
         anchors.centerIn: parent
         width: childrenRect.width
         height: childrenRect.height

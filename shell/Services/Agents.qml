@@ -21,6 +21,7 @@ Singleton {
     property string sessionOutput: ""
     property string selectedSession: ""
     property bool readingSession: false
+    property bool completionAttention: false
 
     readonly property string defaultAgent: String(config.defaultAgent ?? "codex")
     readonly property string approvalProfile: String(config.profile ?? "balanced")
@@ -80,6 +81,7 @@ Singleton {
         action(args);
     }
     function restoreSession(id) { if (id) action(["session-restore", String(id)]); }
+    function acknowledgeCompletions() { completionAttention = false; }
 
     function sessionNotifications(next) {
         if (!sessionsReady) {
@@ -91,10 +93,14 @@ Singleton {
             previous[String(row.id)] = row;
         for (const row of next) {
             const before = previous[String(row.id)];
-            if (!before || row.focused || String(row.name).toLowerCase() === "codex")
+            if (!before)
                 continue;
             const wasWorking = String(before.status) === "working";
             const now = String(row.status);
+            if (wasWorking && now === "done")
+                completionAttention = true;
+            if (row.focused || String(row.name).toLowerCase() === "codex")
+                continue;
             const decision = now === "waiting" || now === "permission" || now === "blocked";
             if ((wasWorking && now === "idle") || decision) {
                 const label = String(row.name || "Agent");

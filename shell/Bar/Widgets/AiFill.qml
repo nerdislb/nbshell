@@ -12,15 +12,29 @@ Cell {
     readonly property bool limitWarning: AiUsage.list.some(entry =>
         (entry.percent ?? 0) >= 90 || (entry.more ?? []).some(window => (window.percent ?? 0) >= 90))
 
-    shown: root.agentActive || (AiUsage.available && AiUsage.list.length > 0)
+    shown: Agents.completionAttention || root.agentActive || (AiUsage.available && AiUsage.list.length > 0)
     interactive: true
     slotChars: 1
     label: "AI"
     icon: Icons.agent
     text: ""
-    color: root.limitWarning ? Theme.red : (root.agentActive ? Theme.green : Theme.textDim)
+    color: root.limitWarning ? Theme.red : (Agents.completionAttention ? Theme.cyan : (root.agentActive ? Theme.green : Theme.textDim))
 
-    onClicked: AiUsage.refresh()
+    SequentialAnimation on contentOpacity {
+        running: Agents.completionAttention
+        loops: Animation.Infinite
+        onRunningChanged: if (!running) root.contentOpacity = 1
+
+        NumberAnimation { to: 0.28; duration: 700; easing.type: Easing.InOutSine }
+        NumberAnimation { to: 1; duration: 700; easing.type: Easing.InOutSine }
+    }
+
+    onClicked: {
+        if (Agents.completionAttention)
+            Runtime.agentQuakeOpen = true;
+        else
+            AiUsage.refresh();
+    }
     onRightClicked: Runtime.agentCenterOpen = true
 
     preview: Component {
@@ -31,9 +45,9 @@ Cell {
 
             icon: Icons.agent
             title: "AI agents"
-            subtitle: root.agentActive ? "Work in progress" : "No active session"
-            badge: root.agentActive ? "ACTIVE" : "IDLE"
-            badgeColor: root.limitWarning ? Theme.red : (root.agentActive ? Theme.green : Theme.fgDim)
+            subtitle: Agents.completionAttention ? "Agent task completed" : (root.agentActive ? "Work in progress" : "No active session")
+            badge: Agents.completionAttention ? "NEW" : (root.agentActive ? "ACTIVE" : "IDLE")
+            badgeColor: root.limitWarning ? Theme.red : (Agents.completionAttention ? Theme.cyan : (root.agentActive ? Theme.green : Theme.fgDim))
             content: [
                 Facts {
                     rowWidth: parent.width
@@ -127,7 +141,7 @@ Cell {
             }
 
             Line {
-                text: "Click refreshes · right click opens Agent Center"
+                text: Agents.completionAttention ? "Click opens Agent Console" : "Click refreshes · right click opens Agent Center"
                 color: Theme.muted
             }
         }

@@ -24,6 +24,7 @@ OLLAMA_PID = STATE_DIR / "ollama.pid"
 NATIVE_FILE = STATE_DIR / "agent-sessions.json"
 TMUX_SOCKET = "nbshell-agents"
 TMUX_SESSION = "nbshell-agents"
+AGENT_HOST_UNIT = "nbshell-agent-host.service"
 
 AGENTS = {
     "codex": {"name": "Codex", "binary": "codex", "kind": "cloud", "prompt": "positional", "glyph": "code", "install": "npm install -g @openai/codex"},
@@ -94,6 +95,31 @@ def tmux(*args: str, input_text: str | None = None, timeout: float = 5, check: b
     if check and result.returncode:
         raise SystemExit(result.stderr.strip() or "tmux command failed")
     return result
+
+
+def ensure_native_host() -> bool:
+    """Start tmux in its own user unit so shell restarts cannot kill agents."""
+    unit = subprocess.run(
+        ["systemctl", "--user", "cat", AGENT_HOST_UNIT], text=True,
+        capture_output=True, timeout=5, check=False,
+    )
+    if unit.returncode:
+        # Source checkouts made before install still work, but the installed
+        # systemd unit is the supported lifecycle boundary.
+        return False
+    subprocess.run(
+        ["systemctl", "--user", "start", AGENT_HOST_UNIT], text=True,
+        capture_output=True, timeout=10, check=False,
+    )
+    if tmux("has-session", "-t", TMUX_SESSION, check=False).returncode == 0:
+        return True
+    restarted = subprocess.run(
+        ["systemctl", "--user", "restart", AGENT_HOST_UNIT], text=True,
+        capture_output=True, timeout=10, check=False,
+    )
+    if restarted.returncode or tmux("has-session", "-t", TMUX_SESSION, check=False).returncode:
+        raise SystemExit(restarted.stderr.strip() or "Could not start the nbshell agent host.")
+    return True
 
 
 def native_sessions() -> list[dict]:
@@ -189,6 +215,7 @@ def native_start(agent_id: str, project: str | None, prompt: str) -> None:
     if agent_id == "opencode" and route.get("model"):
         command += ["--model", str(route["model"])]
     shell_command = "exec " + " ".join(shlex.quote(part) for part in command)
+    ensure_native_host()
     server = tmux("has-session", "-t", TMUX_SESSION, check=False)
     if server.returncode:
         tmux("new-session", "-d", "-x", "180", "-y", "52", "-s", TMUX_SESSION, "-n", name, "-c", str(cwd), shell_command, timeout=15)
@@ -224,6 +251,7 @@ def native_restore(target: str) -> None:
     resume = {"codex": ["resume", "--last"], "claude": ["--continue"], "agy": ["--continue"]}.get(agent_id, [])
     command = [AGENTS[agent_id]["binary"], *profile_args(agent_id, str(load_config().get("profile", "balanced"))), *resume]
     shell_command = "exec " + " ".join(shlex.quote(part) for part in command)
+    ensure_native_host()
     server = tmux("has-session", "-t", TMUX_SESSION, check=False)
     if server.returncode:
         tmux("new-session", "-d", "-x", "180", "-y", "52", "-s", TMUX_SESSION, "-n", name, "-c", str(cwd), shell_command, timeout=15)

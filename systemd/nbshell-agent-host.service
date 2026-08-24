@@ -1,0 +1,17 @@
+[Unit]
+Description=nbshell persistent agent host
+Documentation=https://github.com/nerdislb/nbshell
+After=graphical-session.target
+Requisite=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/tmux -L nbshell-agents new-session -d -x 180 -y 52 -s nbshell-agents -n __host "exec sleep infinity"
+ExecStart=/usr/bin/tmux -L nbshell-agents set-option -t nbshell-agents remain-on-exit on
+ExecStart=/usr/bin/tmux -L nbshell-agents set-option -t nbshell-agents status off
+ExecStop=-/usr/bin/tmux -L nbshell-agents kill-server
+TimeoutStartSec=10
+TimeoutStopSec=5
+

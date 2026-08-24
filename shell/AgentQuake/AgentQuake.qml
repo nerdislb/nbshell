@@ -81,6 +81,7 @@ PanelWindow {
         if (visible) {
             reveal = 0;
             closing = false;
+            Agents.acknowledgeCompletions();
             Agents.refresh();
             selectedProject = String(Agents.config.lastProject ?? "");
             if (selectedSession === "" && Agents.sessions.length > 0)

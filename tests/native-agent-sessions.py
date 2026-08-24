@@ -24,8 +24,10 @@ with tempfile.TemporaryDirectory() as name:
 
     real_tmux = AGENTS.tmux
     real_which = AGENTS.shutil.which
+    real_ensure_host = AGENTS.ensure_native_host
     AGENTS.tmux = fake_tmux
     AGENTS.shutil.which = lambda binary: "/usr/bin/" + binary
+    AGENTS.ensure_native_host = lambda: False
     try:
         AGENTS.native_start("codex", str(temp), "")
         state = AGENTS.load_native_state()
@@ -41,5 +43,6 @@ with tempfile.TemporaryDirectory() as name:
     finally:
         AGENTS.tmux = real_tmux
         AGENTS.shutil.which = real_which
+        AGENTS.ensure_native_host = real_ensure_host
 
 print("Native agent session tests: OK")

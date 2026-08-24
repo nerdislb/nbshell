@@ -11,11 +11,21 @@ CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 SHELL_DIR="$CONFIG_HOME/quickshell/nbshell"   # von `qs -c nbshell` gesucht
 DATA_DIR="$CONFIG_HOME/nbshell"               # Config und Themes
 BIN_DIR="${XDG_BIN_HOME:-$HOME/.local/bin}"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/nbshell"
+UNIT_DIR="$CONFIG_HOME/systemd/user"
 
 QS_BIN="$(command -v qs || command -v quickshell || true)"
 
 green() { printf '\033[32m%s\033[0m\n' "$1"; }
 warn()  { printf '\033[33m%s\033[0m\n' "$1"; }
+
+# Serialize installs started by terminals, the dashboard, or agent sessions.
+mkdir -p "$STATE_DIR"
+exec 9>"$STATE_DIR/install.lock"
+if ! flock -n 9; then
+    warn "Another nbshell installation is already running."
+    exit 1
+fi
 
 # ── Voraussetzungen ──────────────────────────────────────────────────────
 missing=()
@@ -109,42 +119,99 @@ if [ -z "$polkit_found" ]; then
 fi
 
 # ── Shell ────────────────────────────────────────────────────────────────
-# Laeuft eine Instanz, wird sie vorher beendet: waehrend des Kopierens ist das
-# Verzeichnis kurz unvollstaendig, und Quickshell laedt bei jeder Aenderung neu
-# -- es wuerde also mitten im Austausch eine halbe Shell lesen und aufgeben.
-# Reihenfolge zaehlt: laeuft nbshell als Dienst, gehoert ihm das Anhalten und
-# das Starten. Wer stattdessen die Instanz killt, bringt die Unit auf
-# "inactive" -- und danach steht eine von Hand gestartete Kopie daneben.
+# Install lifecycle units before touching the running shell. Agent sessions
+# live in their own cgroup and therefore survive nbshell.service restarts.
+mkdir -p "$UNIT_DIR"
+install -m 644 "$SRC/systemd/nbshell.service" "$UNIT_DIR/nbshell.service"
+install -m 644 "$SRC/systemd/nbshell-agent-host.service" "$UNIT_DIR/nbshell-agent-host.service"
+mkdir -p "$BIN_DIR"
+install -m 755 "$SRC/bin/nbshell-install-recover" "$BIN_DIR/nbshell-install-recover"
+systemctl --user daemon-reload 2>/dev/null || true
+
+# Prepare and validate a complete runtime before stopping the bar. Switching
+# two directories on the same filesystem keeps the incomplete-copy window out
+# of the live path.
+mkdir -p "$CONFIG_HOME/quickshell"
+STAGED_SHELL="$(mktemp -d "$CONFIG_HOME/quickshell/.nbshell-stage.XXXXXX")"
+ROLLBACK_SHELL="$CONFIG_HOME/quickshell/.nbshell-rollback.$$"
+cp -a "$SRC/shell/." "$STAGED_SHELL/"
+install -m 644 "$SRC/VERSION" "$STAGED_SHELL/VERSION"
+bash -n "$SRC/install.sh"
+bash -n "$SRC/bin/nbshell" "$SRC/bin/nbshell-install-recover"
+while IFS= read -r -d '' script; do bash -n "$script"; done < <(find "$SRC/shell/scripts" -type f -name '*.sh' -print0)
+python3 -c 'import ast, pathlib, sys; ast.parse(pathlib.Path(sys.argv[1]).read_text())' \
+    "$STAGED_SHELL/scripts/agents.py"
+
 unit_active=0
 systemctl --user is-active --quiet nbshell.service 2>/dev/null && unit_active=1
-
 was_running=0
+if [ $unit_active -ne 1 ] && "$QS_BIN" list --all 2>/dev/null | grep -c "quickshell/nbshell/shell.qml" >/dev/null; then
+    was_running=1
+fi
+
+# This timer belongs to the user manager, not to the calling terminal. Even a
+# killed installer cannot leave a previously running desktop without its bar.
+recovery_armed=0
+if [ $unit_active -eq 1 ]; then
+    systemctl --user stop nbshell-install-recovery.timer nbshell-install-recovery.service >/dev/null 2>&1 || true
+    systemctl --user reset-failed nbshell-install-recovery.service >/dev/null 2>&1 || true
+    if systemd-run --user --quiet --unit=nbshell-install-recovery --on-active=20s \
+            --timer-property=AccuracySec=1s "$BIN_DIR/nbshell-install-recover" \
+            "$SHELL_DIR" "$ROLLBACK_SHELL"; then
+        recovery_armed=1
+    fi
+fi
+
+swapped=0
+install_ready=0
+recover_install() {
+    result=$?
+    if [ $install_ready -ne 1 ] && [ $swapped -eq 1 ] && [ -d "$ROLLBACK_SHELL" ]; then
+        systemctl --user stop nbshell.service >/dev/null 2>&1 || true
+        rm -rf -- "${SHELL_DIR:?}"
+        mv -- "$ROLLBACK_SHELL" "$SHELL_DIR"
+    fi
+    if [ -n "${STAGED_SHELL:-}" ] && [ -d "$STAGED_SHELL" ]; then
+        rm -rf -- "$STAGED_SHELL"
+    fi
+    if [ $unit_active -eq 1 ]; then
+        systemctl --user is-active --quiet nbshell.service 2>/dev/null || \
+            systemctl --user start nbshell.service >/dev/null 2>&1 || true
+    fi
+    return "$result"
+}
+trap recover_install EXIT
+
 if [ $unit_active -eq 1 ]; then
     systemctl --user stop nbshell.service
-elif "$QS_BIN" list --all 2>/dev/null | grep -c "quickshell/nbshell/shell.qml" >/dev/null; then
-    was_running=1
+elif [ "$was_running" = "1" ]; then
     "${SRC}/bin/nbshell" stop >/dev/null 2>&1 || true
     sleep 0.3
 fi
+if [ -d "$SHELL_DIR" ]; then
+    mv -- "$SHELL_DIR" "$ROLLBACK_SHELL"
+    swapped=1
+fi
+mv -- "$STAGED_SHELL" "$SHELL_DIR"
+STAGED_SHELL=""
 
-# Ab hier laeuft keine Leiste mehr. Endet das Skript vor dem regulaeren
-# Neustart -- durch einen Fehler unter `set -e`, durch Strg-C oder durch ein
-# SIGPIPE, weil jemand die Ausgabe nach `head` geschickt hat --, dann steht
-# der Benutzer ohne Leiste da und sucht den Grund woanders. Der EXIT-Trap holt
-# sie in jedem dieser Faelle zurueck; nach einem sauberen Durchlauf hat der
-# Abschnitt unten sie schon gestartet, und dann ist er wirkungslos.
-zurueckholen() {
-    if [ $unit_active -eq 1 ]; then
-        systemctl --user is-active --quiet nbshell.service 2>/dev/null || \
-            systemctl --user start nbshell.service 2>/dev/null || true
+if [ $unit_active -eq 1 ]; then
+    systemctl --user start nbshell.service
+    sleep 2
+    if ! systemctl --user is-active --quiet nbshell.service; then
+        warn "The new shell did not stay active; restoring the previous runtime."
+        exit 1
     fi
-}
-trap zurueckholen EXIT
-
-mkdir -p "$SHELL_DIR"
-rm -rf "${SHELL_DIR:?}"/*
-cp -a "$SRC/shell/." "$SHELL_DIR/"
-install -m 644 "$SRC/VERSION" "$SHELL_DIR/VERSION"
+elif [ "$was_running" = "1" ]; then
+    "$BIN_DIR/nbshell" start -d >/dev/null 2>&1 &
+fi
+install_ready=1
+if [ -d "$ROLLBACK_SHELL" ]; then
+    rm -rf -- "$ROLLBACK_SHELL"
+fi
+if [ $recovery_armed -eq 1 ]; then
+    systemctl --user stop nbshell-install-recovery.timer >/dev/null 2>&1 || true
+fi
 # A running grid watcher has imported the previous Python file already. Restart
 # it after replacement so layout fixes take effect without logging out.
 python3 "$SHELL_DIR/scripts/grid-layout.py" restart-watcher >/dev/null 2>&1 || true
@@ -240,11 +307,7 @@ fi
 
 # ── systemd-Unit ─────────────────────────────────────────────────────────
 # Nur ablegen, nicht einschalten -- das macht `nbshell switch on`.
-UNIT_DIR="$CONFIG_HOME/systemd/user"
-mkdir -p "$UNIT_DIR"
-install -m 644 "$SRC/systemd/nbshell.service" "$UNIT_DIR/nbshell.service"
-systemctl --user daemon-reload 2>/dev/null || true
-green "Unit    -> $UNIT_DIR/nbshell.service (not enabled yet)"
+green "Units   -> $UNIT_DIR (shell + isolated agent host)"
 
 # ── niri-Tastenkuerzel ───────────────────────────────────────────────────
 mkdir -p "$CONFIG_HOME/niri"
@@ -290,10 +353,8 @@ esac
 # neben der Unit-Instanz eine zweite, von Hand gestartete, und die Leiste ist
 # doppelt da.
 if [ $unit_active -eq 1 ]; then
-    systemctl --user start nbshell.service
     green "Restarted nbshell.service."
 elif [ "$was_running" = "1" ]; then
-    "$BIN_DIR/nbshell" start -d >/dev/null 2>&1 &
     green "Restarted the shell."
 fi
 

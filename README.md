@@ -140,8 +140,11 @@ If you manage packages yourself, use:
 nbshell start
 ```
 
-`install.sh` copies the shell and reports missing programs, but does not
-install packages.
+`install.sh` stages and validates the shell before an atomic runtime switch. A
+single-writer lock prevents concurrent updates; restart recovery and rollback
+keep an existing desktop usable if installation is interrupted or the new
+shell does not stay active. It reports missing programs but does not install
+packages.
 
 The installer keeps an existing niri configuration. If none exists, it creates
 a small valid `~/.config/niri/config.kdl`. Existing personal nbshell settings
@@ -246,8 +249,10 @@ Antigravity, and starts a new project session using nbshell's own tmux-backed
 session namespace.
 Press the same key or `Esc` to hide it without stopping any work. tmux remains
 invisible and supplies only PTY persistence and terminal capture; nbshell owns
-the sessions, metadata, UI, and commands. Existing Herdr sessions remain
-visible during migration. See the [Agent Console guide](docs/agent-quake.md).
+the sessions, metadata, UI, and commands. Its separate systemd user unit keeps
+agents alive across shell updates and restarts. A softly pulsing AI bar symbol
+marks newly completed work. Existing Herdr sessions remain visible during
+migration. See the [Agent Console guide](docs/agent-quake.md).
 
 Press `Mod+Shift+A` to open the default agent immediately in a focused floating
 terminal. It starts in `~/projects/nbshell` when that checkout exists, so the

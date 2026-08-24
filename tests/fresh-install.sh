@@ -11,10 +11,25 @@ mkdir -p "$TEST_HOME" "$FAKE_BIN"
 
 cat >"$FAKE_BIN/systemctl" <<'EOF'
 #!/usr/bin/env bash
+state="${FAKE_SYSTEMD_STATE:?}"
 case " $* " in
-    *" is-active "*|*" is-enabled "*|*" cat "*) exit 1 ;;
+    *" is-active "*) test -f "$state/active" ;;
+    *" is-enabled "*|*" cat "*) exit 1 ;;
+    *" stop "*) rm -f "$state/active" ;;
+    *" start "*)
+        if [ -f "$state/fail-next-start" ]; then
+            rm -f "$state/fail-next-start"
+            exit 1
+        fi
+        touch "$state/active"
+        ;;
     *) exit 0 ;;
 esac
+EOF
+
+cat >"$FAKE_BIN/systemd-run" <<'EOF'
+#!/usr/bin/env bash
+exit 0
 EOF
 
 cat >"$FAKE_BIN/qs" <<'EOF'
@@ -23,13 +38,15 @@ cat >"$FAKE_BIN/qs" <<'EOF'
 exit 0
 EOF
 
-chmod +x "$FAKE_BIN/systemctl" "$FAKE_BIN/qs"
+chmod +x "$FAKE_BIN/systemctl" "$FAKE_BIN/systemd-run" "$FAKE_BIN/qs"
 
 export HOME="$TEST_HOME"
 export XDG_CONFIG_HOME="$TEST_HOME/.config"
 export XDG_DATA_HOME="$TEST_HOME/.local/share"
 export XDG_BIN_HOME="$TEST_HOME/.local/bin"
+export FAKE_SYSTEMD_STATE="$WORK/systemd-state"
 export PATH="$FAKE_BIN:/usr/bin:/bin"
+mkdir -p "$FAKE_SYSTEMD_STATE"
 
 "$ROOT/install.sh" >/dev/null
 
@@ -37,10 +54,12 @@ test -f "$XDG_CONFIG_HOME/quickshell/nbshell/shell.qml"
 test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/VERSION")" = "$(cat "$ROOT/VERSION")"
 test -f "$XDG_CONFIG_HOME/nbshell/config.json"
 test -f "$XDG_CONFIG_HOME/systemd/user/nbshell.service"
+test -f "$XDG_CONFIG_HOME/systemd/user/nbshell-agent-host.service"
 test -f "$XDG_CONFIG_HOME/niri/config.kdl"
 test -f "$XDG_CONFIG_HOME/niri/nbshell-takeover.kdl"
 test -f "$XDG_CONFIG_HOME/niri/nbshell-outputs.kdl"
 test -x "$XDG_BIN_HOME/nbshell"
+test -x "$XDG_BIN_HOME/nbshell-install-recover"
 test -f "$XDG_DATA_HOME/applications/dev.nerdi.nbshell.desktop"
 test "$(find "$XDG_CONFIG_HOME/nbshell/themes" -name colors.toml | wc -l)" -eq "$(find "$ROOT/themes" -name colors.toml | wc -l)"
 test "$(find "$XDG_CONFIG_HOME/nbshell/plugins" -name manifest.json | wc -l)" -eq "$(find "$ROOT/plugins" -name manifest.json | wc -l)"
@@ -74,5 +93,29 @@ test "$(cat "$XDG_CONFIG_HOME/nbshell/plugins/custom/marker")" = keep
 # The package-free setup path must remain a valid equivalent entry point.
 "$ROOT/setup.sh" --no-packages --yes >/dev/null
 jq -e '.testMarker == "keep"' "$XDG_CONFIG_HOME/nbshell/config.json" >/dev/null
+
+# A failed shell restart must restore the previous runtime and bring its unit
+# back. The one-shot failure simulates a QML process that did not stay up.
+printf '%s\n' previous >"$XDG_CONFIG_HOME/quickshell/nbshell/rollback-sentinel"
+touch "$FAKE_SYSTEMD_STATE/active" "$FAKE_SYSTEMD_STATE/fail-next-start"
+if "$ROOT/install.sh" >/dev/null 2>&1; then
+    echo "Install unexpectedly succeeded after a failed shell start" >&2
+    exit 1
+fi
+test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/rollback-sentinel")" = previous
+test -f "$FAKE_SYSTEMD_STATE/active"
+
+# The independent watchdog must also recover after the installer itself is no
+# longer alive (including SIGKILL between the two runtime renames).
+RECOVERY_BACKUP="$XDG_CONFIG_HOME/quickshell/.nbshell-rollback.recovery-test"
+mkdir -p "$RECOVERY_BACKUP"
+printf '%s\n' watchdog >"$RECOVERY_BACKUP/rollback-sentinel"
+printf '%s\n' broken >"$XDG_CONFIG_HOME/quickshell/nbshell/rollback-sentinel"
+rm -f "$FAKE_SYSTEMD_STATE/active"
+touch "$FAKE_SYSTEMD_STATE/fail-next-start"
+"$XDG_BIN_HOME/nbshell-install-recover" \
+    "$XDG_CONFIG_HOME/quickshell/nbshell" "$RECOVERY_BACKUP"
+test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/rollback-sentinel")" = watchdog
+test -f "$FAKE_SYSTEMD_STATE/active"
 
 echo "Fresh install and update preservation: OK"

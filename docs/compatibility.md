@@ -12,7 +12,7 @@ The first beta targets:
 - current Quickshell from the Arch repositories;
 - PipeWire/WirePlumber for audio;
 - NetworkManager for the full network panel;
-- a standard systemd user session.
+- a standard systemd user session;
 - tmux for nbshell-native Agent Console session persistence.
 
 Intel and AMD graphics use only normal Wayland interfaces. NVIDIA should work
