@@ -21,6 +21,7 @@ assert integration["keybinds"]["Mod+BackSpace"] == "workspace-set-layout:toggle"
 assert integration["keybinds"]["Mod+Return"] == "spawn:ghostty"
 assert integration["include"]["files"] == ["nbshell-outputs.toml"]
 assert integration["input"]["keyboard"]["layout"] == "de"
+assert integration["input"]["focus"] == {"follows_mouse": True, "follows_mouse_max_scroll": 0.5}
 assert integration["hot_corners"]["top_left"]["action"] == "overview-open"
 assert integration["window_rule"] and integration["layer_rule"]
 

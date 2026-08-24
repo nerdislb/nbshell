@@ -7,6 +7,10 @@ files = ["nbshell-outputs.toml"]
 [input.keyboard]
 layout = "de"
 
+[input.focus]
+follows_mouse = true
+follows_mouse_max_scroll = 0.5
+
 [hot_corners.top_left]
 enabled = true
 delay_ms = 350
