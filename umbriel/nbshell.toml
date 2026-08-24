@@ -4,6 +4,9 @@
 [include]
 files = ["nbshell-outputs.toml"]
 
+[input.keyboard]
+layout = "de"
+
 [keybinds]
 "Mod+Return" = "spawn:ghostty"
 "Mod+Q" = "window-close"

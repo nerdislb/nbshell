@@ -20,6 +20,7 @@ assert integration["keybinds"]["Mod+Space"].endswith("nbshell menu")
 assert integration["keybinds"]["Mod+BackSpace"] == "workspace-set-layout:toggle"
 assert integration["keybinds"]["Mod+Return"] == "spawn:ghostty"
 assert integration["include"]["files"] == ["nbshell-outputs.toml"]
+assert integration["input"]["keyboard"]["layout"] == "de"
 assert integration["window_rule"] and integration["layer_rule"]
 
 service = (ROOT / "shell/Services/Compositor.qml").read_text()
