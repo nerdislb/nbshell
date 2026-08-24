@@ -158,3 +158,11 @@ match.namespace = "^nbshell:.*$"
 blur = true
 blur_ignore_alpha = 0.45
 blur_popups = true
+
+# The main menu is a full-screen layer surface. Keeping compositor blur on it
+# hides live wallpaper and theme changes while its integrated settings page is
+# open, so later rule values deliberately disable blur for this surface only.
+[[layer_rule]]
+match.namespace = "^nbshell:menu$"
+blur = false
+blur_popups = false

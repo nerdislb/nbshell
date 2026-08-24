@@ -24,6 +24,9 @@ assert integration["input"]["keyboard"]["layout"] == "de"
 assert integration["input"]["focus"] == {"follows_mouse": True, "follows_mouse_max_scroll": 0.5}
 assert integration["hot_corners"]["top_left"]["action"] == "overview-open"
 assert integration["window_rule"] and integration["layer_rule"]
+menu_rules = [rule for rule in integration["layer_rule"]
+              if rule.get("match", {}).get("namespace") == "^nbshell:menu$"]
+assert menu_rules and menu_rules[-1].get("blur") is False
 
 service = (ROOT / "shell/Services/Compositor.qml").read_text()
 for contract in (
