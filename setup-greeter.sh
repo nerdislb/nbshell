@@ -84,6 +84,7 @@ sudo test -r "$DATA/greeter-wallpaper.jpg"
 
 ok "nbshell ReGreet installed."
 printf '%s\n' \
-    "It becomes active on the next logout or reboot; the current session was not interrupted." \
+    "It becomes active after a reboot; greetd cannot reload its running configuration." \
+    "The current session was not interrupted." \
     "Recovery backup: $BACKUP" \
     "TTY recovery: Ctrl+Alt+F2, then copy the backup back to $CONFIG."

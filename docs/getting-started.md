@@ -126,7 +126,9 @@ Umbriel remain available in the session selector.
 
 The installer uses the current nbshell wallpaper, keeps a recovery copy at
 `/etc/greetd/config.toml.before-nbshell-greeter`, and does not interrupt the
-current session. The new login screen appears after logout or reboot.
+current session. greetd cannot reload its configuration while running, so the
+new login screen appears after a reboot; logging out before that still opens
+the previously loaded greeter.
 
 ## If something goes wrong
 
