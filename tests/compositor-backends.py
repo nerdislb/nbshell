@@ -100,5 +100,11 @@ main_setup = (ROOT / "setup.sh").read_text()
 assert "WITH_UMBRIEL=1" in main_setup
 assert "--niri-only) WITH_UMBRIEL=0" in main_setup
 assert '"$SRC/setup-umbriel.sh" --skip-shell-install' in main_setup
+cli = (ROOT / "bin/nbshell").read_text()
+assert 'local_runtime="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"' in cli
+assert 'local_umbriel_socket="${UMBRIEL_SOCKET:-$local_runtime/umbriel-$local_wayland.sock}"' in cli
+assert 'local_umbriel_bin="$HOME/.local/bin/umbriel"' in cli
+assert '"$local_umbriel_bin" msg dpms-off 2>/dev/null' in cli
+assert "/usr/bin/niri msg action power-off-monitors" in cli
 
 print("Compositor backend contracts: OK")

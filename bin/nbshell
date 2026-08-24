@@ -1034,10 +1034,21 @@ for b in d["binds"]:
                 # and immediately wakes a freshly powered-off output, so let
                 # the chord settle before sending the DPMS action.
                 sleep 0.35
-                if [ "$(compositor_name)" = "umbriel" ]; then
-                    umbriel msg dpms-off
+                # Umbriel intentionally gives spawned keybind commands a
+                # minimal environment. Reconstruct its documented per-display
+                # socket path when XDG_RUNTIME_DIR/UMBRIEL_SOCKET are absent.
+                local_runtime="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+                local_wayland="${WAYLAND_DISPLAY:-wayland-0}"
+                local_umbriel_socket="${UMBRIEL_SOCKET:-$local_runtime/umbriel-$local_wayland.sock}"
+                local_umbriel_bin="$(command -v umbriel 2>/dev/null || true)"
+                [ -n "$local_umbriel_bin" ] || local_umbriel_bin="$HOME/.local/bin/umbriel"
+                if [ -x "$local_umbriel_bin" ] \
+                    && [ -S "$local_umbriel_socket" ] \
+                    && XDG_RUNTIME_DIR="$local_runtime" UMBRIEL_SOCKET="$local_umbriel_socket" \
+                        "$local_umbriel_bin" msg dpms-off 2>/dev/null; then
+                    :
                 else
-                    niri msg action power-off-monitors
+                    /usr/bin/niri msg action power-off-monitors
                 fi
                 ;;
             *) ipc power menu ;;
