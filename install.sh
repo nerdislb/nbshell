@@ -121,12 +121,15 @@ fi
 # Install the shell lifecycle unit before touching the running shell.
 mkdir -p "$UNIT_DIR"
 install -m 644 "$SRC/systemd/nbshell.service" "$UNIT_DIR/nbshell.service"
+install -m 644 "$SRC/systemd/nbshell-umbriel-resume-guard.service" \
+    "$UNIT_DIR/nbshell-umbriel-resume-guard.service"
 # Remove the retired Agent Console host from installations that tested it.
 systemctl --user disable --now nbshell-agent-host.service >/dev/null 2>&1 || true
 rm -f "$UNIT_DIR/nbshell-agent-host.service"
 mkdir -p "$BIN_DIR"
 install -m 755 "$SRC/bin/nbshell-install-recover" "$BIN_DIR/nbshell-install-recover"
 systemctl --user daemon-reload 2>/dev/null || true
+systemctl --user enable nbshell-umbriel-resume-guard.service >/dev/null 2>&1 || true
 
 # Prepare and validate a complete runtime before stopping the bar. Switching
 # two directories on the same filesystem keeps the incomplete-copy window out
@@ -216,6 +219,9 @@ fi
 # A running grid watcher has imported the previous Python file already. Restart
 # it after replacement so layout fixes take effect without logging out.
 python3 "$SHELL_DIR/scripts/grid-layout.py" restart-watcher >/dev/null 2>&1 || true
+if [ -n "${UMBRIEL_SOCKET:-}" ]; then
+    systemctl --user restart nbshell-umbriel-resume-guard.service >/dev/null 2>&1 || true
+fi
 green "Shell   -> $SHELL_DIR"
 
 # ── Themes ───────────────────────────────────────────────────────────────
@@ -307,8 +313,9 @@ if [ -d "$YTMUSIC_RUNTIME" ] && [ -x "$YTMUSIC_VENV" ] \
 fi
 
 # ── systemd-Unit ─────────────────────────────────────────────────────────
-# Nur ablegen, nicht einschalten -- das macht `nbshell switch on`.
-green "Units   -> $UNIT_DIR (shell lifecycle)"
+# The shell lifecycle remains opt-in via `nbshell switch on`; the narrow
+# Umbriel recovery guard is enabled independently above.
+green "Units   -> $UNIT_DIR (shell lifecycle and Umbriel resume guard)"
 
 # ── niri-Tastenkuerzel ───────────────────────────────────────────────────
 mkdir -p "$CONFIG_HOME/niri"

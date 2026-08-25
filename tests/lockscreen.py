@@ -17,6 +17,13 @@ assert SPEC and SPEC.loader
 LOCKSCREEN = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(LOCKSCREEN)
 
+GUARD_SPEC = importlib.util.spec_from_file_location(
+    "nbshell_umbriel_resume_guard", ROOT / "shell/scripts/umbriel_resume_guard.py"
+)
+assert GUARD_SPEC and GUARD_SPEC.loader
+GUARD = importlib.util.module_from_spec(GUARD_SPEC)
+GUARD_SPEC.loader.exec_module(GUARD)
+
 
 def check_named_theme(root: Path) -> None:
     config_dir = root / "nbshell"
@@ -173,6 +180,32 @@ def check_umbriel_resume_repair() -> None:
         ]
 
 
+def check_umbriel_resume_snapshot() -> None:
+    known, focused = GUARD.update_snapshot(
+        [
+            {"id": "healthy", "workspace": "eDP-1:1", "focused": True},
+            {"id": "scratch", "workspace": "", "focused": False},
+        ],
+        {},
+        "",
+    )
+    assert known == {"healthy": "eDP-1:1"}
+    assert focused == "healthy"
+
+    # The last valid assignment must survive the empty workspace reported
+    # during output recreation. Scratchpads must never gain an assignment.
+    known, focused = GUARD.update_snapshot(
+        [
+            {"id": "healthy", "workspace": "", "focused": False},
+            {"id": "scratch", "workspace": "", "focused": True},
+        ],
+        known,
+        focused,
+    )
+    assert known == {"healthy": "eDP-1:1"}
+    assert focused == "scratch"
+
+
 with tempfile.TemporaryDirectory(prefix="nbshell-lock-test-") as temporary:
     root = Path(temporary)
     check_named_theme(root)
@@ -181,5 +214,6 @@ with tempfile.TemporaryDirectory(prefix="nbshell-lock-test-") as temporary:
     check_custom_command()
     check_suspend_guard()
     check_umbriel_resume_repair()
+    check_umbriel_resume_snapshot()
 
 print("Lockscreen generation: OK")

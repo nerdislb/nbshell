@@ -115,4 +115,9 @@ assert 'local_umbriel_bin="$HOME/.local/bin/umbriel"' in cli
 assert '"$local_umbriel_bin" msg dpms-off 2>/dev/null' in cli
 assert "/usr/bin/niri msg action power-off-monitors" in cli
 
+resume_unit = (ROOT / "systemd/nbshell-umbriel-resume-guard.service").read_text()
+assert "ConditionEnvironment=UMBRIEL_SOCKET" in resume_unit
+assert "umbriel_resume_guard.py" in resume_unit
+assert "ProtectSystem=strict" in resume_unit
+
 print("Compositor backend contracts: OK")
