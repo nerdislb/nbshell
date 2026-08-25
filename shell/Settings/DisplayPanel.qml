@@ -18,7 +18,20 @@ PanelWindow {
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     readonly property var display: Displays.selected
-    function close() { Runtime.displayOpen = false; }
+    property bool resolutionOpen: false
+    readonly property var currentDisplayMode: display?.modes?.find(mode => mode.current) ?? null
+    function modeLabel(mode) {
+        if (!mode) return "NO MODE AVAILABLE";
+        return mode.width + "×" + mode.height + "  "
+            + mode.refresh.toFixed(mode.refresh % 1 ? 3 : 0) + " Hz"
+            + (mode.preferred ? "  · PREFERRED" : "");
+    }
+    function close() {
+        resolutionOpen = false;
+        Runtime.displayOpen = false;
+    }
+
+    onDisplayChanged: resolutionOpen = false
 
     onVisibleChanged: if (visible) {
         Displays.refresh();
@@ -114,16 +127,37 @@ PanelWindow {
                         }
 
                         SectionHeader { width: parent.width; text: "Resolution"; detail: root.display?.currentMode ?? "" }
-                        Flow {
+                        Column {
                             width: parent.width
                             spacing: Theme.spaceSm
-                            Repeater {
-                                model: root.display?.modes ?? []
-                                ControlButton {
-                                    required property var modelData
-                                    text: modelData.width + "×" + modelData.height + "  " + modelData.refresh.toFixed(modelData.refresh % 1 ? 3 : 0) + " Hz" + (modelData.preferred ? "  · PREFERRED" : "")
-                                    selected: modelData.current
-                                    onTriggered: Displays.setValue(root.display.name, "mode", modelData.label)
+
+                            ControlButton {
+                                width: parent.width
+                                text: root.modeLabel(root.currentDisplayMode)
+                                    + ((root.display?.modes?.length ?? 0) > 1
+                                        ? (root.resolutionOpen ? "  ⌃" : "  ⌄") : "")
+                                selected: root.resolutionOpen
+                                enabled: (root.display?.modes?.length ?? 0) > 1
+                                onTriggered: root.resolutionOpen = !root.resolutionOpen
+                            }
+
+                            Column {
+                                width: parent.width
+                                spacing: Theme.spaceXs
+                                visible: root.resolutionOpen && (root.display?.modes?.length ?? 0) > 1
+
+                                Repeater {
+                                    model: root.resolutionOpen ? (root.display?.modes ?? []) : []
+                                    ControlButton {
+                                        required property var modelData
+                                        width: parent.width
+                                        text: root.modeLabel(modelData)
+                                        selected: modelData.current
+                                        onTriggered: {
+                                            root.resolutionOpen = false;
+                                            Displays.setValue(root.display.name, "mode", modelData.label);
+                                        }
+                                    }
                                 }
                             }
                         }
