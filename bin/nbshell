@@ -1140,7 +1140,7 @@ for b in d["binds"]:
         ;;
     wallpaper)
         case "${1:-current}" in
-            on|off|toggle|current|pick|list) ipc wallpaper "${1:-current}" ;;
+            on|off|toggle|current|pick|list|theme) ipc wallpaper "${1:-current}" ;;
             *) ipc wallpaper set "$1" ;;
         esac
         ;;

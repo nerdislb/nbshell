@@ -76,6 +76,9 @@ apply_theme() (
         echo "nbshell did not activate '$theme_name'." >&2
         exit 1
     }
+    # Repeated Aether applies update the same theme name, so no themeChanged
+    # signal is emitted. Explicitly select the freshly imported background.
+    "$HOME/.local/bin/nbshell" wallpaper theme >/dev/null
     command -v notify-send >/dev/null 2>&1 \
         && notify-send -a nbshell "Theme applied" "Aether updated nbshell." \
         || true

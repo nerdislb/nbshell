@@ -53,6 +53,10 @@ ShellRoot {
         void Bt.available;
         void Audio.ready;
         void ThemeIndex.list;
+        // Wallpaper-per-theme restoration is event-driven. Keep its singleton
+        // alive from session start; otherwise theme changes before the picker
+        // is opened leave the previous theme's override on screen.
+        void Wallpapers.current;
         void Apps.entries;
         void Osd.enabled;
         void Notify.count;

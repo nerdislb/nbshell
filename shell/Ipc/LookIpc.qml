@@ -205,6 +205,11 @@ Scope {
             return path === "" ? "wieder vom Theme" : path;
         }
 
+        function theme(): string {
+            Wallpapers.reset();
+            return ThemeIndex.current?.wallpaper ?? "";
+        }
+
         // Das Karussell: die Bilder des aktuellen Themes durchblaettern.
         function pick(): string {
             Runtime.wallpaperOpen = !Runtime.wallpaperOpen;

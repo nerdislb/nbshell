@@ -22,6 +22,22 @@ Singleton {
 
     readonly property string current: Config.value("wallpaperOverride", "")
 
+    function restoreForTheme(theme) {
+        const map = Config.value("wallpaperByTheme", {});
+        Config.set("wallpaperOverride", map[theme] ?? "");
+        root.refresh();
+    }
+
+    Component.onCompleted: {
+        // Heal stale overrides left by older sessions where this singleton
+        // was only created after opening the wallpaper picker.
+        const initialTheme = Config.theme;
+        Qt.callLater(() => {
+            if (Config.theme === initialTheme)
+                root.restoreForTheme(initialTheme);
+        });
+    }
+
     function refresh() {
         loading = true;
         proc.command = ["sh", "-c", root.findCommand(Config.theme)];
@@ -136,9 +152,7 @@ Singleton {
                 // noch ein Bild anwenden.
                 if (Config.theme !== changedTheme)
                     return;
-                const map = Config.value("wallpaperByTheme", {});
-                Config.set("wallpaperOverride", map[changedTheme] ?? "");
-                root.refresh();
+                root.restoreForTheme(changedTheme);
             });
         }
     }
