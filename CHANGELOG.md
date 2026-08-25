@@ -6,6 +6,8 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+## [0.1.0-beta.2] - 2026-08-25
+
 ### Added
 
 - The AI bar module now opens a provider dashboard with subscription windows,
@@ -29,12 +31,44 @@ configuration and plugin interfaces before `1.0.0`.
 - Rarely used full-screen surfaces now load only while open, and the service
   tunes Quickshell's jemalloc arenas and huge-page policy to reduce idle memory
   without slowing IPC calls.
+- A lazy Library brings installed themes, wallpaper collections, and reviewed
+  plugins into one surface. Theme entries preview their default wallpaper with
+  a centered terminal in the selected palette and show the wallpaper count.
+- Launcher providers find and focus open windows (`#`), reuse clipboard history
+  (`^`), evaluate calculations (`=`), and perform capped, on-demand file search
+  (`@`) without adding a resident indexer.
+- An agent-safe Markdown or JSON system report exposes stable diagnostic state
+  while excluding window titles, clipboard and notification content, network
+  addresses, and credentials.
+- A focused demo workflow records through the existing capture stack, opens
+  Omacut for trimming, and exports presets for Reddit, Discord, and GitHub.
+- A native theme-aware calculator and a reversible native WhatsApp provider,
+  with the existing PrettyZap route retained as a fallback.
+- A native nbshell greetd login session and compact, collapsible display-mode
+  selection for outputs with many available resolutions.
+
+### Changed
+
+- Umbriel animations use a slightly softer 300 ms duration while preserving
+  the compositor's efficient native transitions.
+- `Mod+Shift+Y` opens the new Library on Umbriel and the Niri fallback.
+- Theme changes now restore each theme's selected wallpaper automatically and
+  Aether's Apply action imports its generated palette through nbshell's native
+  theme path.
+- Zen Browser palettes can update live through the optional Omazen bridge.
+- AI usage follows a provider-focused dashboard with local token history and
+  clearer subscription windows.
 
 ### Fixed
 
 - Suspend through nbshell now restores Umbriel windows that lose their
   workspace while outputs are recreated, preventing a resumed application
   from remaining visually stuck above newly focused windows.
+- Capture operations survive closing the menu that started them, spawned
+  Umbriel keybindings resolve the nbshell executable reliably, and duplicate
+  Xwayland startup is avoided.
+- Theme, plugin, and resume integration paths were hardened for repeated
+  updates and normal daily use.
 
 ## [0.1.0-beta.1] - 2026-08-22
 
@@ -122,5 +156,6 @@ First public beta candidate.
   declared dependencies before activation.
 - Credentials remain outside the repository and plugin configuration.
 
-[Unreleased]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.1...HEAD
+[Unreleased]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.2...HEAD
+[0.1.0-beta.2]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.1...v0.1.0-beta.2
 [0.1.0-beta.1]: https://github.com/nerdislb/nbshell/releases/tag/v0.1.0-beta.1
