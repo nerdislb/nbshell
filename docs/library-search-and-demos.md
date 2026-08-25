@@ -5,7 +5,9 @@ with `Mod+Shift+Y`, from the main menu, or run `nbshell store`. The three tabs h
 different trust models:
 
 - **Themes** lists installed nbshell and compatible imported themes. Applying
-  one changes the palette through the normal theme service.
+  one changes the palette through the normal theme service. Every selection
+  previews its default wallpaper behind a centered terminal in that theme's
+  colors and shows how many wallpapers are available in its collection.
 - **Wallpapers** searches every discovered collection and applies an image
   without changing the active theme.
 - **Plugins** shows installed extensions and links to the reviewed plugin

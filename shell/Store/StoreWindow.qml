@@ -43,9 +43,16 @@ PanelWindow {
         return String(item?.name || item?.id || "Unknown");
     }
     function detail(item) {
-        if (tab === "themes") return String(item?.mode || "theme").toUpperCase();
+        if (tab === "themes") {
+            const count = wallpaperCount(item?.name);
+            return String(item?.mode || "theme").toUpperCase() + " · " + count + " WALLPAPER" + (count === 1 ? "" : "S");
+        }
         if (tab === "wallpapers") return String(item?.theme || "collection");
         return String(item?.description || item?.category || "Plugin");
+    }
+    function wallpaperCount(theme) {
+        const name = String(theme || "");
+        return Wallpapers.list.filter(item => Wallpapers.themeOf(item) === name).length;
     }
     function close() { Runtime.storeOpen = false; }
     function chooseTab(value) {
@@ -215,9 +222,9 @@ PanelWindow {
                                 anchors.right: parent.right
                                 anchors.rightMargin: Theme.spaceMd
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: root.tab === "themes" && row.modelData.name === Config.theme ? "ACTIVE"
-                                    : root.tab === "wallpapers" && Wallpapers.pathOf(row.modelData) === Wallpapers.current ? "ACTIVE"
-                                    : root.tab === "plugins" && Plugins.enabledIds.indexOf(row.modelData.id) >= 0 ? "ENABLED" : "INSTALLED"
+                                text: root.tab === "themes" ? (row.modelData.name === Config.theme ? "ACTIVE" : root.wallpaperCount(row.modelData.name) + " WP")
+                                    : root.tab === "wallpapers" ? (Wallpapers.pathOf(row.modelData) === Wallpapers.current ? "ACTIVE" : "")
+                                    : Plugins.enabledIds.indexOf(row.modelData.id) >= 0 ? "ENABLED" : "INSTALLED"
                                 color: row.index === root.selected ? Theme.selectedForeground(Theme.accent) : Theme.muted
                                 font.pixelSize: Theme.fontCaption
                             }
@@ -250,18 +257,89 @@ PanelWindow {
                                 Image {
                                     anchors.fill: parent
                                     anchors.margins: Theme.borderWidth
-                                    visible: root.tab === "wallpapers" && !!root.current
-                                    source: visible ? "file://" + Wallpapers.pathOf(root.current) : ""
+                                    visible: (root.tab === "wallpapers" || root.tab === "themes") && !!root.current
+                                    source: visible ? "file://" + (root.tab === "themes" ? String(root.current?.wallpaper || "") : Wallpapers.pathOf(root.current)) : ""
                                     fillMode: Image.PreserveAspectCrop
+                                    // Decode only at preview resolution. A
+                                    // 4K wallpaper would otherwise add tens
+                                    // of MiB while this small card is open.
+                                    sourceSize.width: Math.max(1, Math.ceil(width))
+                                    sourceSize.height: Math.max(1, Math.ceil(height))
                                     asynchronous: true
                                     cache: false
                                 }
                                 Line {
                                     anchors.centerIn: parent
-                                    visible: root.tab !== "wallpapers"
-                                    text: root.tab === "themes" ? "Aa  nbshell" : "󰏖"
-                                    color: root.tab === "themes" ? (root.current?.foreground || Theme.fg) : Theme.accent
+                                    visible: root.tab === "plugins"
+                                    text: "󰏖"
+                                    color: Theme.accent
                                     font.pixelSize: Theme.fontDisplay
+                                }
+
+                                // A lightweight live mockup communicates the
+                                // theme better than a palette swatch. It uses
+                                // the selected theme's own colors and default
+                                // wallpaper, so imported themes get a preview
+                                // without generating or shipping screenshots.
+                                Rectangle {
+                                    id: terminalPreview
+                                    visible: root.tab === "themes" && !!root.current
+                                    anchors.centerIn: parent
+                                    width: parent.width * 0.72
+                                    height: parent.height * 0.62
+                                    color: root.current?.background || Theme.bgDarker
+                                    opacity: 0.94
+                                    radius: Math.max(2, Theme.radius * 0.72)
+                                    border.width: Math.max(1, Theme.borderWidth)
+                                    border.color: root.current?.accent || Theme.accent
+
+                                    Column {
+                                        anchors.fill: parent
+                                        anchors.margins: Math.max(6, Theme.spaceMd)
+                                        spacing: Math.max(2, Theme.spaceXs)
+
+                                        Row {
+                                            width: parent.width
+                                            height: Theme.cellH
+                                            spacing: Math.max(3, Theme.spaceXs)
+                                            Repeater {
+                                                model: [root.current?.red, root.current?.yellow, root.current?.green]
+                                                Rectangle {
+                                                    required property var modelData
+                                                    width: Math.max(5, Theme.cellH * 0.38)
+                                                    height: width
+                                                    radius: width / 2
+                                                    color: modelData || Theme.muted
+                                                }
+                                            }
+                                            Item { width: Theme.spaceSm; height: 1 }
+                                            Line {
+                                                text: "nbshell — preview"
+                                                color: root.current?.dimForeground || root.current?.foreground || Theme.fgDim
+                                                font.pixelSize: Math.max(8, Theme.fontCaption)
+                                            }
+                                        }
+
+                                        Line {
+                                            text: "$ fastfetch"
+                                            color: root.current?.accent || Theme.accent
+                                            font.pixelSize: Math.max(8, Theme.fontCaption)
+                                        }
+                                        Line {
+                                            width: parent.width
+                                            text: "nbshell  ·  Umbriel"
+                                            color: root.current?.foreground || Theme.fg
+                                            font.pixelSize: Math.max(9, Theme.fontBody)
+                                            elide: Text.ElideRight
+                                        }
+                                        Line {
+                                            width: parent.width
+                                            text: String(root.current?.name || "theme")
+                                            color: root.current?.dimForeground || root.current?.foreground || Theme.fgDim
+                                            font.pixelSize: Math.max(8, Theme.fontCaption)
+                                            elide: Text.ElideRight
+                                        }
+                                    }
                                 }
                             }
 

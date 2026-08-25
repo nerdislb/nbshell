@@ -17,6 +17,8 @@ printf '%s' "$REPORT" | jq -e '
 grep -Fq 'fileDelay' "$ROOT/shell/Services/SearchProviders.qml"
 grep -Fq 'root.mode === "file"' "$ROOT/shell/Launcher/Launcher.qml"
 grep -Fq 'Runtime.storeOpen' "$ROOT/shell/Store/StoreWindow.qml"
+grep -Fq 'wallpaperCount' "$ROOT/shell/Store/StoreWindow.qml"
+grep -Fq 'terminalPreview' "$ROOT/shell/Store/StoreWindow.qml"
 bash -n "$ROOT/shell/scripts/demo.sh"
 
 echo "System report, launcher providers, store, and demo workflow: OK"
