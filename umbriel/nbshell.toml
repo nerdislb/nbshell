@@ -164,6 +164,12 @@ default_focused = true
 default_size = [1100, 760]
 
 [[window_rule]]
+match.title = "^nbshell Calculator$"
+default_floating = true
+default_focused = true
+default_size = [430, 650]
+
+[[window_rule]]
 match.title = "^nbshell-screensaver$"
 default_fullscreen = true
 default_focused = true

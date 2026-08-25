@@ -279,6 +279,33 @@ Scope {
     }
 
     IpcHandler {
+        target: "calculator"
+
+        function open(): string {
+            Runtime.calculatorOpen = true;
+            return "open";
+        }
+
+        function close(): string {
+            Runtime.calculatorOpen = false;
+            return "closed";
+        }
+
+        function toggle(): string {
+            Runtime.calculatorOpen = !Runtime.calculatorOpen;
+            return Runtime.calculatorOpen ? "open" : "closed";
+        }
+
+        function evaluate(expression: string): string {
+            try {
+                return CalculatorEngine.evaluate(expression);
+            } catch (error) {
+                return "error";
+            }
+        }
+    }
+
+    IpcHandler {
         target: "launcher"
 
         function open(): string {

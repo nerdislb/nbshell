@@ -367,8 +367,9 @@ install -m 644 "$SRC/greeter/regreet.toml" "$GREETER_DATA/greeter/regreet.toml"
 APP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 mkdir -p "$APP_DIR"
 install -m 644 "$SRC/data/dev.nerdi.nbshell.desktop" "$APP_DIR/dev.nerdi.nbshell.desktop"
+install -m 644 "$SRC/data/dev.nerdi.nbshell.Calculator.desktop" "$APP_DIR/dev.nerdi.nbshell.Calculator.desktop"
 command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$APP_DIR" >/dev/null 2>&1 || true
-green "App     -> $APP_DIR/dev.nerdi.nbshell.desktop"
+green "Apps    -> $APP_DIR (nbshell and Calculator)"
 
 # ── Agent skill ──────────────────────────────────────────────────────────
 # One versioned source, linked into the common Agent Skills locations. The

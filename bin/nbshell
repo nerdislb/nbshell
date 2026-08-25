@@ -479,6 +479,7 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell agent doctor      diagnose the local AI toolchain
   nbshell agent skills      check shared nbshell skill discovery
   nbshell capture           capture menu (screen, window, region, ocr, record)
+  nbshell calculator        open the theme-aware calculator
   nbshell procs             process list (also: top)
   nbshell menu              searchable main menu
   nbshell dashboard         Today, Media, and Tools
@@ -671,6 +672,13 @@ case "$cmd" in
         ;;
     launcher|run)
         ipc launcher "${1:-toggle}"
+        ;;
+    calculator|calc)
+        if [ "${1:-}" = "evaluate" ]; then
+            ipc calculator evaluate "${2:?expression is required}"
+        else
+            ipc calculator "${1:-toggle}"
+        fi
         ;;
     palette)
         ipc launcher palette

@@ -109,6 +109,14 @@ window-rule {
     default-window-height { proportion 0.68; }
 }
 
+window-rule {
+    match title="^nbshell Calculator$"
+    open-floating true
+    open-focused true
+    default-column-width { fixed 430; }
+    default-window-height { fixed 650; }
+}
+
 // Der Bildschirmschoner: bildschirmfuellend, ohne Rahmen, ohne Schatten.
 //
 // Erkannt am TITEL, nicht an der App-Kennung: ghostty vergibt die fest

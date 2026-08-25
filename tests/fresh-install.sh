@@ -71,6 +71,8 @@ test -x "$XDG_DATA_HOME/nbshell/bin/umbriel-workspaces"
 test -x "$XDG_BIN_HOME/nbshell"
 test -x "$XDG_BIN_HOME/nbshell-install-recover"
 test -f "$XDG_DATA_HOME/applications/dev.nerdi.nbshell.desktop"
+test -f "$XDG_DATA_HOME/applications/dev.nerdi.nbshell.Calculator.desktop"
+grep -Fq 'Exec=nbshell calculator open' "$XDG_DATA_HOME/applications/dev.nerdi.nbshell.Calculator.desktop"
 test "$(find "$XDG_CONFIG_HOME/nbshell/themes" -name colors.toml | wc -l)" -eq "$(find "$ROOT/themes" -name colors.toml | wc -l)"
 test "$(find "$XDG_CONFIG_HOME/nbshell/plugins" -name manifest.json | wc -l)" -eq "$(find "$ROOT/plugins" -name manifest.json | wc -l)"
 
