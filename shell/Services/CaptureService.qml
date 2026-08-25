@@ -31,6 +31,40 @@ Singleton {
     readonly property bool recRegion: Config.value("recRegion", false)
 
     property bool recording: false
+    property string pendingAction: ""
+
+    // CaptureMenu is lazy-loaded. Closing it destroys the menu immediately,
+    // so delayed work must live in this always-loaded service rather than in
+    // a Timer owned by the menu itself.
+    function schedule(action) {
+        pendingAction = action;
+        actionDelay.restart();
+    }
+
+    function runAction(action) {
+        switch (action) {
+        case "screen": shoot("screen"); break;
+        case "region": shoot("region"); break;
+        case "ocr": ocr(); break;
+        case "qr": qr(); break;
+        case "dictate": dictate(); break;
+        case "record": toggleRecording(); break;
+        case "stream": openStreamingStudio(); break;
+        case "trim": trimLastRecording(); break;
+        case "edit": editLast(); break;
+        case "open": openDir(); break;
+        }
+    }
+
+    Timer {
+        id: actionDelay
+        interval: 250
+        onTriggered: {
+            const action = root.pendingAction;
+            root.pendingAction = "";
+            root.runAction(action);
+        }
+    }
 
     function expand(path) {
         return String(path).replace(/^~/, Quickshell.env("HOME"));

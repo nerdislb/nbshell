@@ -90,6 +90,14 @@ display_tool = (ROOT / "shell/scripts/displays.py").read_text()
 assert '"wlr-randr", "--json"' in display_tool
 assert "render_toml" in display_tool
 assert "umbriel windows --json" in (ROOT / "shell/scripts/capture.sh").read_text()
+capture_service = (ROOT / "shell/Services/CaptureService.qml").read_text()
+capture_menu = (ROOT / "shell/Capture/CaptureMenu.qml").read_text()
+capture_ipc = (ROOT / "shell/Ipc/DesktopIpc.qml").read_text()
+assert 'function schedule(action)' in capture_service
+assert 'id: actionDelay' in capture_service
+assert 'CaptureService.schedule(id)' in capture_menu
+assert 'id: delay' not in capture_menu
+assert 'Runtime.captureWindowSelect = true' in capture_ipc
 assert 'Quickshell.execDetached(["umbriel", "msg", "dpms-off"])' in (ROOT / "shell/Services/Idle.qml").read_text()
 assert (ROOT / "native/umbriel-workspaces.c").is_file()
 assert (ROOT / "setup-umbriel.sh").stat().st_mode & 0o111

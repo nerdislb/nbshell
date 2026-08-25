@@ -15,7 +15,6 @@ PanelWindow {
     id: root
 
     property int selected: 0
-    property string pending: ""
     property bool windowMode: false
 
     readonly property var actions: [
@@ -65,9 +64,8 @@ PanelWindow {
     }
 
     function choose(id) {
-        root.pending = id;
+        CaptureService.schedule(id);
         close();
-        delay.restart();
     }
 
     function accept() {
@@ -82,45 +80,6 @@ PanelWindow {
             root.selected = 0;
         } else {
             choose(action.id);
-        }
-    }
-
-    // 250 ms reichen, damit das Overlay wirklich weg ist.
-    Timer {
-        id: delay
-        interval: 250
-        onTriggered: {
-            switch (root.pending) {
-            case "screen":
-            case "region":
-                CaptureService.shoot(root.pending);
-                break;
-            case "ocr":
-                CaptureService.ocr();
-                break;
-            case "qr":
-                CaptureService.qr();
-                break;
-            case "dictate":
-                CaptureService.dictate();
-                break;
-            case "record":
-                CaptureService.toggleRecording();
-                break;
-            case "stream":
-                CaptureService.openStreamingStudio();
-                break;
-            case "trim":
-                CaptureService.trimLastRecording();
-                break;
-            case "edit":
-                CaptureService.editLast();
-                break;
-            case "open":
-                CaptureService.openDir();
-                break;
-            }
-            root.pending = "";
         }
     }
 

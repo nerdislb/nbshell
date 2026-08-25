@@ -75,23 +75,28 @@ Scope {
         }
 
         function screen(): string {
-            return CaptureService.shoot("screen") ? "Screen" : "niri missing";
+            return CaptureService.shoot("screen") ? "screen" : "compositor unavailable";
         }
 
         function window(): string {
-            return CaptureService.shoot("window") ? "Window" : "niri missing";
+            if (Compositor.isUmbriel) {
+                Runtime.captureWindowSelect = true;
+                Runtime.captureOpen = true;
+                return "window selector";
+            }
+            return CaptureService.shoot("window") ? "window" : "compositor unavailable";
         }
 
         function region(): string {
-            return CaptureService.shoot("region") ? "Bereich" : "niri missing";
+            return CaptureService.shoot("region") ? "region" : "compositor unavailable";
         }
 
         function ocr(): string {
-            return CaptureService.ocr() ? "Texterkennung" : "niri missing";
+            return CaptureService.ocr() ? "text recognition" : "compositor unavailable";
         }
 
         function qr(): string {
-            return CaptureService.qr() ? "QR-Erkennung" : "niri missing";
+            return CaptureService.qr() ? "QR recognition" : "compositor unavailable";
         }
 
         function record(): string {
