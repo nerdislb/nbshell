@@ -11,6 +11,10 @@ Requisite=graphical-session.target
 Type=simple
 Environment="PATH=%h/.local/bin:%h/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/bin"
 Environment="HERDR_SOCKET_PATH=%h/.config/herdr/herdr.sock"
+# Quickshell is linked against jemalloc. Limit idle arenas and prevent small
+# allocations from being rounded into transparent huge pages; explicit user
+# overrides still win through a service drop-in.
+Environment="MALLOC_CONF=thp:never,narenas:4,dirty_decay_ms:3000"
 ExecStart=%h/.local/bin/nbshell start
 ExecReload=%h/.local/bin/nbshell restart
 Restart=on-failure

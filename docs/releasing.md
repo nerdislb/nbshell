@@ -16,6 +16,7 @@ change before version 1.0.
    ./tests/fresh-install.sh
    python3 ./tests/grid-layout.py
    python3 ./tests/lockscreen.py
+   bash ./tests/performance-smoke.sh
    python3 ./tests/shell-update.py
    mkdocs build --strict
    ```

@@ -26,6 +26,9 @@ configuration and plugin interfaces before `1.0.0`.
   discovery status command.
 - Optional Omazen integration applies nbshell palette changes to an open Zen
   Browser through its separately installed, privileged live-theme bridge.
+- Rarely used full-screen surfaces now load only while open, and the service
+  tunes Quickshell's jemalloc arenas and huge-page policy to reduce idle memory
+  without slowing IPC calls.
 
 ### Fixed
 

@@ -102,45 +102,48 @@ ShellRoot {
 
     PowerMenu {}
 
-    ProcessList {}
+    // Large, infrequently used surfaces are created only while open. Their
+    // public IPC remains permanently available through the Runtime flags
+    // below, while closing a surface releases its QML object tree and caches.
+    LazyLoader { active: Runtime.procsOpen; ProcessList {} }
 
-    CaptureMenu {}
+    LazyLoader { active: Runtime.captureOpen; CaptureMenu {} }
 
-    SettingsWindow {}
+    LazyLoader { active: Runtime.settingsOpen; SettingsWindow {} }
 
-    ModulesMenu {}
+    LazyLoader { active: Runtime.modulesOpen; ModulesMenu {} }
 
-    PluginDeveloper {}
+    LazyLoader { active: Runtime.pluginDeveloperOpen; PluginDeveloper {} }
 
-    DisplayPanel {}
+    LazyLoader { active: Runtime.displayOpen; DisplayPanel {} }
 
-    UiGallery {}
+    LazyLoader { active: Runtime.uiGalleryOpen; UiGallery {} }
 
-    WallpaperPicker {}
+    LazyLoader { active: Runtime.wallpaperOpen; WallpaperPicker {} }
 
-    TodoList {}
+    LazyLoader { active: Runtime.todoOpen; TodoList {} }
 
-    NotesWindow {}
+    LazyLoader { active: Runtime.notesOpen; NotesWindow {} }
 
-    HabitsList {}
+    LazyLoader { active: Runtime.habitsOpen; HabitsList {} }
 
-    QrWindow {}
+    LazyLoader { active: Runtime.qrOpen; QrWindow {} }
 
-    SpeedWindow {}
+    LazyLoader { active: Runtime.speedOpen; SpeedWindow {} }
 
-    AudioTools {}
+    LazyLoader { active: Runtime.audioToolsOpen; AudioTools {} }
 
-    KeysWindow {}
+    LazyLoader { active: Runtime.keysOpen; KeysWindow {} }
 
     Menu {}
 
-    EmojiWindow {}
+    LazyLoader { active: Runtime.emojiOpen; EmojiWindow {} }
 
-    SystemHub {}
+    LazyLoader { active: Runtime.hubOpen; SystemHub {} }
 
-    Dashboard {}
+    LazyLoader { active: Runtime.dashboardOpen; Dashboard {} }
 
-    AgentCenter {}
+    LazyLoader { active: Runtime.agentCenterOpen; AgentCenter {} }
 
     // Nachinstallierte Dienste, Panels und Overlays. Nur explizit aktivierte
     // Plugin-IDs werden geladen; reine Bar-Widgets entstehen in WidgetHost.
