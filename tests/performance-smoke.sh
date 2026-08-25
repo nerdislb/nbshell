@@ -16,5 +16,13 @@ grep -Fq 'Bar {}' "$SHELL_ROOT"
 grep -Fq 'Popups {}' "$SHELL_ROOT"
 grep -Fq 'DesktopIpc {}' "$SHELL_ROOT"
 grep -Fq 'MALLOC_CONF=thp:never,narenas:4,dirty_decay_ms:3000' "$ROOT/systemd/nbshell.service"
+grep -Fq 'UMask=0077' "$ROOT/systemd/nbshell.service"
+
+# Package updates may require elevation, so their execution path must use
+# fixed argv arrays and never reinterpret a display string as shell syntax.
+if grep -Eq '^[[:space:]]*eval[[:space:]]' "$ROOT/shell/scripts/updates.sh"; then
+    echo "Update execution must not use eval" >&2
+    exit 1
+fi
 
 echo "Performance structure: OK"

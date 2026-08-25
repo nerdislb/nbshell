@@ -33,6 +33,24 @@ for entry in plugins:
     assert isinstance(dependencies.get("packages"), list)
 PY
 
+# Every function a bundled plugin calls on the shared Style singleton must be
+# part of that compatibility API. QML resolves these calls lazily, so a typo
+# may otherwise remain invisible until a rarely used control is hovered.
+python3 - "$ROOT" <<'PY'
+import pathlib, re, sys
+
+root = pathlib.Path(sys.argv[1])
+style = (root / "shell/Commons/Style.qml").read_text(encoding="utf-8")
+defined = set(re.findall(r"function\s+(\w+)\s*\(", style))
+used = {}
+for path in (root / "plugins").rglob("*.qml"):
+    text = path.read_text(encoding="utf-8")
+    for name in re.findall(r"\bStyle\.(\w+)\s*\(", text):
+        used.setdefault(name, []).append(path.relative_to(root).as_posix())
+missing = {name: paths for name, paths in used.items() if name not in defined}
+assert not missing, "missing shared Style functions: %r" % missing
+PY
+
 make_fixture() {
     local name="$1" manifest="$2"
     mkdir -p "$WORK/$name"

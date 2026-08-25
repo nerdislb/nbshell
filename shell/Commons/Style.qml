@@ -53,6 +53,12 @@ QtObject {
   function selectedStateColor(foreground, accent) { return Theme.selectedForeground(accent) }
   function normalBorderFor(foreground, accent) { return Theme.panelBorder }
   function hoverBorderFor(foreground, accent) { return Theme.focusBorder }
+  // Compatibility surface for bundled/community controls that still pass
+  // enabled/hot flags instead of selecting a semantic border themselves.
+  function controlBorder(enabled, hot, foreground, accent) {
+    if (!enabled) return Theme.muted
+    return hot ? hoverBorderFor(foreground, accent) : normalBorderFor(foreground, accent)
+  }
   function controlFill(state, foreground, accent) {
     if (state === "pressed") return pressedFillFor(foreground, accent)
     if (state === "selected" || state === "active") return selectedFillFor(foreground, accent)

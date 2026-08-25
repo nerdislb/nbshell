@@ -20,6 +20,7 @@ ExecReload=%h/.local/bin/nbshell restart
 Restart=on-failure
 RestartSec=2
 TimeoutStopSec=5
+UMask=0077
 
 [Install]
 WantedBy=graphical-session.target

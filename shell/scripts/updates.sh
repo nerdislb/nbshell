@@ -120,6 +120,28 @@ flatpak_command() {
 	fi
 }
 
+# Execute fixed argument vectors instead of evaluating the human-readable
+# command above. Today all values are internal, but keeping update execution
+# free of `eval` prevents a future option from accidentally becoming shell
+# syntax in this privileged path.
+run_pkg_update() {
+	local args=(-Syu)
+	[ "$NOCONFIRM" = "1" ] && args+=(--noconfirm)
+	if have paru; then
+		paru "${args[@]}"
+	elif have yay; then
+		yay "${args[@]}"
+	else
+		sudo pacman "${args[@]}"
+	fi
+}
+
+run_flatpak_update() {
+	local args=(update)
+	[ "$NOCONFIRM" = "1" ] && args+=(-y)
+	flatpak "${args[@]}"
+}
+
 boot_id() {
 	cat /proc/sys/kernel/random/boot_id 2>/dev/null || printf 'unknown'
 }
@@ -208,7 +230,7 @@ run)
 			done
 	)"
 	echo ":: Systempakete"
-	eval "$(pkg_command)" || { pkg_rc=$?; rc=$pkg_rc; }
+	run_pkg_update || { pkg_rc=$?; rc=$pkg_rc; }
 	if [ "$pkg_rc" -eq 0 ]; then
 		write_reboot_state "$critical"
 		if [ -n "$critical" ]; then
@@ -220,7 +242,7 @@ run)
 	if have flatpak; then
 		echo
 		echo ":: Flatpak"
-		eval "$(flatpak_command)" || rc=$?
+		run_flatpak_update || rc=$?
 	fi
 	exit $rc
 	;;
