@@ -1,7 +1,7 @@
 # Library, launcher providers, and demo tools
 
 nbshell groups its existing content paths in one on-demand **Library**. Open it
-from the main menu or run `nbshell store`. The three tabs have deliberately
+with `Mod+Shift+Y`, from the main menu, or run `nbshell store`. The three tabs have deliberately
 different trust models:
 
 - **Themes** lists installed nbshell and compatible imported themes. Applying
