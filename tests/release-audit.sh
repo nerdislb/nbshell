@@ -28,6 +28,14 @@ for name in required_release_files:
     if not (root / name).is_file():
         raise SystemExit(f"required release file is missing: {name}")
 
+# A removed feature once left its deleted test referenced by CI, making every
+# otherwise healthy push fail only on GitHub. Keep workflow test paths honest.
+for workflow in (root / ".github/workflows").glob("*.yml"):
+    text = workflow.read_text(encoding="utf-8")
+    for relative in re.findall(r"\./(tests/[A-Za-z0-9._/-]+)", text):
+        if not (root / relative).is_file():
+            raise SystemExit(f"{workflow}: references missing {relative}")
+
 readme = (root / "README.md").read_text(encoding="utf-8")
 if "not affiliated with, endorsed by" not in readme:
     raise SystemExit("README.md is missing the independent-project disclaimer")
