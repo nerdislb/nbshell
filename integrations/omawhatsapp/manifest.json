@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "id": "omawhatsapp",
-  "name": "OmaWhatsApp",
+  "name": "WhatsApp",
   "version": "0.6.2-nbshell.1",
   "author": "MoizIbnYousaf; nbshell port by nerdi",
   "license": "MIT",
@@ -20,7 +20,7 @@
     "panel": "App.qml"
   },
   "barWidget": {
-    "displayName": "OmaWhatsApp",
+    "displayName": "WhatsApp",
     "description": "Local WhatsApp chats and unread messages.",
     "category": "Communication",
     "aliases": ["whatsapp", "chat", "messages"],

@@ -1,5 +1,5 @@
 [Unit]
-Description=Keep the local OmaWhatsApp index and new media in sync
+Description=Keep the local WhatsApp index and new media in sync
 Documentation=https://wacli.sh
 ConditionPathExists=%h/.local/state/wacli/session.db
 PartOf=graphical-session.target

@@ -77,6 +77,9 @@ setup() (
     old_plugin="$stage/previous-plugin"
     install -d "$staged_plugin"
     cp -a "$source/plugins/omawhatsapp/." "$staged_plugin/"
+    # Keep the upstream/internal identity stable while presenting this as a
+    # normal nbshell WhatsApp client in every user-facing QML string.
+    find "$staged_plugin" -type f -name '*.qml' -exec sed -i 's/OmaWhatsApp/WhatsApp/g' {} +
     install -Dm644 "$runtime_shell/integrations/omawhatsapp/manifest.json" "$staged_plugin/manifest.json"
     install -Dm644 "$runtime_shell/integrations/omawhatsapp/BarWidget.qml" "$staged_plugin/BarWidget.qml"
     install -Dm644 "$source/LICENSE" "$staged_plugin/LICENSE"
@@ -91,23 +94,30 @@ setup() (
     systemctl --user daemon-reload
     systemctl --user enable wacli-sync.service >/dev/null
     systemctl --user restart nbshell.service
-    echo "OmaWhatsApp installed. Run: nbshell whatsapp auth"
+    echo "WhatsApp installed. Run: nbshell whatsapp auth"
 )
 
 case "$command_name" in
     setup) setup ;;
     provider)
-        selected=${2:?expected omawhatsapp or prettyzap}
-        case "$selected" in omawhatsapp|prettyzap) ;; *) exit 2 ;; esac
+        selected=${2:?expected whatsapp or prettyzap}
+        case "$selected" in
+            whatsapp|native|omawhatsapp) selected=omawhatsapp ;;
+            prettyzap) ;;
+            *) exit 2 ;;
+        esac
         [ "$selected" != omawhatsapp ] || [ -f "$plugin_dir/manifest.json" ] || { echo "Run setup first." >&2; exit 1; }
         switch_config "$selected"
         systemctl --user restart nbshell.service
         ;;
     auth) exec "$bin_dir/omawhatsapp" auth ;;
+    current) provider ;;
     status)
-        printf 'provider=%s\n' "$(provider)"
+        selected=$(provider)
+        [ "$selected" != omawhatsapp ] || selected=whatsapp
+        printf 'provider=%s\n' "$selected"
         [ ! -x "$bin_dir/wacli" ] || "$bin_dir/wacli" --version
         [ ! -x "$bin_dir/omawhatsapp" ] || "$bin_dir/omawhatsapp" status
         ;;
-    *) echo "Usage: nbshell whatsapp setup|auth|status|provider omawhatsapp|prettyzap" >&2; exit 2 ;;
+    *) echo "Usage: nbshell whatsapp setup|auth|status|provider whatsapp|prettyzap" >&2; exit 2 ;;
 esac

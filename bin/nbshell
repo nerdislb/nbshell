@@ -481,8 +481,8 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell agent skills      check shared nbshell skill discovery
   nbshell capture           capture menu (screen, window, region, ocr, record)
   nbshell calculator        open the theme-aware calculator
-  nbshell whatsapp setup    install the reversible native OmaWhatsApp test
-  nbshell whatsapp provider omawhatsapp|prettyzap
+  nbshell whatsapp setup    install the reversible native WhatsApp client
+  nbshell whatsapp provider whatsapp|prettyzap
   nbshell procs             process list (also: top)
   nbshell menu              searchable main menu
   nbshell dashboard         Today, Media, and Tools
@@ -687,15 +687,15 @@ case "$cmd" in
         case "${1:-open}" in
             setup|auth|status) bash "$OMAWHATSAPP_TOOL" "${1:-status}" ;;
             provider) bash "$OMAWHATSAPP_TOOL" provider "${2:?provider is required}" ;;
-            demo) ipc plugin openWithPayload omawhatsapp '{"demo":true}' ;;
+            demo) ipc plugin openWithPayload omawhatsapp '{"demo":true}' | sed 's/^omawhatsapp:/whatsapp:/' ;;
             open|toggle)
-                if [ "$(bash "$OMAWHATSAPP_TOOL" status 2>/dev/null | sed -n 's/^provider=//p' | head -1)" = omawhatsapp ]; then
-                    ipc plugin toggle omawhatsapp
+                if [ "$(bash "$OMAWHATSAPP_TOOL" current 2>/dev/null)" = omawhatsapp ]; then
+                    ipc plugin toggle omawhatsapp | sed 's/^omawhatsapp:/whatsapp:/'
                 else
                     prettyzap --show
                 fi
                 ;;
-            *) echo "Usage: nbshell whatsapp setup|auth|status|demo|provider omawhatsapp|prettyzap" >&2; exit 2 ;;
+            *) echo "Usage: nbshell whatsapp setup|auth|status|demo|provider whatsapp|prettyzap" >&2; exit 2 ;;
         esac
         ;;
     palette)
