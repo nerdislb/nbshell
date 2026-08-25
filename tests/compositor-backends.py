@@ -40,6 +40,7 @@ assert integration["include"]["files"] == [
 ]
 assert integration["input"]["keyboard"]["layout"] == "de"
 assert integration["input"]["focus"] == {"follows_mouse": True, "follows_mouse_max_scroll": 0.5}
+assert integration["appearance"]["animation_ms"] == 300
 assert integration["hot_corners"]["top_left"]["action"] == "overview-open"
 assert integration["window_rule"] and integration["layer_rule"]
 clear_layer_namespaces = {"^nbshell:menu$", "^nbshell:settings$"}
