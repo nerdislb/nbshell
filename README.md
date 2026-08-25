@@ -177,6 +177,7 @@ nbshell keys             # Show key bindings
 nbshell dashboard        # Open the dashboard
 nbshell display          # Configure connected displays
 nbshell whatsapp status  # Show the selected WhatsApp provider
+nbshell aether status    # Check the native Aether Apply bridge
 nbshell ui-gallery       # Preview shared interface components
 nbshell pip status       # Check Zen Picture-in-Picture
 nbshell --help           # Show every command

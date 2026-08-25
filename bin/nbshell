@@ -119,6 +119,7 @@ OMACUT_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/omacut
 SHELL_UPDATE_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/nbshell-update.py"
 UMBRIEL_UPDATE_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/umbriel-update.py"
 OMAWHATSAPP_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/omawhatsapp.sh"
+AETHER_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/aether.sh"
 UMBRIEL_NESTED_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/umbriel-nested.sh"
 GREETER_SETUP="${XDG_DATA_HOME:-$HOME/.local/share}/nbshell/setup-greeter.sh"
 
@@ -483,6 +484,7 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell calculator        open the theme-aware calculator
   nbshell whatsapp setup    install the reversible native WhatsApp client
   nbshell whatsapp provider whatsapp|prettyzap
+  nbshell aether setup      connect Aether's Apply button to nbshell
   nbshell procs             process list (also: top)
   nbshell menu              searchable main menu
   nbshell dashboard         Today, Media, and Tools
@@ -697,6 +699,9 @@ case "$cmd" in
                 ;;
             *) echo "Usage: nbshell whatsapp setup|auth|status|demo|provider whatsapp|prettyzap" >&2; exit 2 ;;
         esac
+        ;;
+    aether)
+        bash "$AETHER_TOOL" "${1:-status}"
         ;;
     palette)
         ipc launcher palette

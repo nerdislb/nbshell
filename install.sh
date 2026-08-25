@@ -358,6 +358,14 @@ mkdir -p "$BIN_DIR"
 install -m 755 "$SRC/bin/nbshell" "$BIN_DIR/nbshell"
 green "Command -> $BIN_DIR/nbshell"
 
+# Aether supports custom applications with a post-apply hook. Register the
+# nbshell bridge when Aether is present so its own Apply button can activate
+# the generated palette without a second manual import step.
+if command -v aether >/dev/null 2>&1; then
+    bash "$SHELL_DIR/scripts/aether.sh" install-hook >/dev/null
+    green "Aether  -> Apply updates nbshell automatically"
+fi
+
 GREETER_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/nbshell"
 mkdir -p "$GREETER_DATA/greeter"
 install -m 755 "$SRC/setup-greeter.sh" "$GREETER_DATA/setup-greeter.sh"
