@@ -117,6 +117,8 @@ GRID_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/grid-lay
 BROWSER_THEME_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/browser-theme.sh"
 OMACUT_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/omacut.sh"
 SHELL_UPDATE_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/nbshell-update.py"
+SYSTEM_REPORT_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/system-report.py"
+DEMO_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/demo.sh"
 UMBRIEL_UPDATE_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/umbriel-update.py"
 OMAWHATSAPP_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/omawhatsapp.sh"
 AETHER_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/aether.sh"
@@ -433,6 +435,9 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell audio panel       open mixer and device list
 
   nbshell launcher          open the application launcher (alias: run)
+  nbshell launcher search <query>
+                            prefill a provider query (# window, ^ clipboard,
+                            @ files, = calculator)
   nbshell palette           open the command-only launcher
   nbshell find <text>       show matching launcher entries
   nbshell commands [text]   list command-palette entries
@@ -482,6 +487,11 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell agent skills      check shared nbshell skill discovery
   nbshell capture           capture menu (screen, window, region, ocr, record)
   nbshell calculator        open the theme-aware calculator
+  nbshell store             browse themes, wallpapers, and reviewed plugins
+  nbshell system-report     print an agent-safe local system map
+  nbshell system-report --write [path]
+  nbshell demo start|stop  record a focused desktop demo on demand
+  nbshell demo export reddit|discord|github
   nbshell whatsapp setup    install the reversible native WhatsApp client
   nbshell whatsapp provider whatsapp|prettyzap
   nbshell aether setup      connect Aether's Apply button to nbshell
@@ -676,7 +686,12 @@ case "$cmd" in
         esac
         ;;
     launcher|run)
-        ipc launcher "${1:-toggle}"
+        if [ "${1:-}" = "search" ]; then
+            shift
+            ipc launcher search "${*:-}"
+        else
+            ipc launcher "${1:-toggle}"
+        fi
         ;;
     calculator|calc)
         if [ "${1:-}" = "evaluate" ]; then
@@ -684,6 +699,15 @@ case "$cmd" in
         else
             ipc calculator "${1:-toggle}"
         fi
+        ;;
+    store|library)
+        ipc store "${1:-toggle}"
+        ;;
+    system-report|report)
+        python3 "$SYSTEM_REPORT_TOOL" "$@"
+        ;;
+    demo)
+        bash "$DEMO_TOOL" "$@"
         ;;
     whatsapp)
         case "${1:-open}" in

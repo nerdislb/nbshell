@@ -9,6 +9,8 @@ grep -Fq 'LazyLoader { active: Runtime.displayOpen; DisplayPanel {} }' "$SHELL_R
 grep -Fq 'LazyLoader { active: Runtime.wallpaperOpen; WallpaperPicker {} }' "$SHELL_ROOT"
 grep -Fq 'LazyLoader { active: Runtime.dashboardOpen; Dashboard {} }' "$SHELL_ROOT"
 grep -Fq 'LazyLoader { active: Runtime.agentCenterOpen; AgentCenter {} }' "$SHELL_ROOT"
+grep -Fq 'LazyLoader { active: Runtime.storeOpen; StoreWindow {} }' "$SHELL_ROOT"
+! grep -Fq 'void SearchProviders' "$SHELL_ROOT"
 
 # These surfaces and handlers must remain resident for immediate desktop
 # feedback and so lazy surfaces can still be opened through IPC.

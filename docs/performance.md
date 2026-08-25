@@ -3,7 +3,11 @@
 nbshell keeps the bar, wallpaper, notification popups, OSD, runtime services,
 and IPC handlers resident. Larger surfaces that are not useful in the
 background—such as display settings, the process list, dashboard, notes, and
-the wallpaper picker—are created only while open and destroyed after closing.
+the wallpaper picker and unified Library—are created only while open and
+destroyed after closing. Launcher window, clipboard, and calculator providers
+reuse state already held by the shell. File search starts a capped `fd` process
+only for an explicit `@` query. System reports, demo capture, and video exports
+are CLI jobs and leave no resident helper behind.
 
 The systemd service also configures jemalloc for Quickshell:
 

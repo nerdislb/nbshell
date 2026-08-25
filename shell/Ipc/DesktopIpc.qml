@@ -310,6 +310,25 @@ Scope {
     }
 
     IpcHandler {
+        target: "store"
+
+        function open(): string {
+            Runtime.storeOpen = true;
+            return "open";
+        }
+
+        function close(): string {
+            Runtime.storeOpen = false;
+            return "closed";
+        }
+
+        function toggle(): string {
+            Runtime.storeOpen = !Runtime.storeOpen;
+            return Runtime.storeOpen ? "open" : "closed";
+        }
+    }
+
+    IpcHandler {
         target: "launcher"
 
         function open(): string {
@@ -340,6 +359,21 @@ Scope {
             Runtime.launcherPrefill = "!";
             Runtime.launcherOpen = true;
             return "open";
+        }
+
+        function search(query: string): string {
+            Runtime.launcherPrefill = query;
+            Runtime.launcherOpen = true;
+            return "open";
+        }
+
+        function fileStatus(): string {
+            return JSON.stringify({
+                "query": SearchProviders.activeFileQuery,
+                "busy": SearchProviders.fileBusy,
+                "count": SearchProviders.files.length,
+                "error": SearchProviders.fileError
+            });
         }
 
         // Zum Pruefen ohne Tastatur -- und praktisch fuer Skripte. Zeigt

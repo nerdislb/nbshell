@@ -47,6 +47,9 @@ Current prerelease: **0.1.0-beta.1**. See the
 - **Keyboard first, mouse friendly:** the searchable menu reaches nested
   actions and installed applications, while every major surface remains
   directly addressable from a shortcut or CLI command.
+- **Useful without another daemon:** one lazy Library brings installed themes,
+  wallpapers, and reviewed plugins together, while launcher providers search
+  windows, clipboard history, calculations, and files on demand.
 
 | Wallpaper library | Theme picker | Floating quick notes |
 | --- | --- | --- |
@@ -63,6 +66,8 @@ Current prerelease: **0.1.0-beta.1**. See the
 - [Plugin development](docs/plugin-development.md) — manifest, lifecycle, safety, and publishing
 - [Plugin store](docs/plugin-store.md) — catalog format and review policy
 - [Feature guide](docs/features.md) — what each part of nbshell does
+- [Library, search, and demos](docs/library-search-and-demos.md) — unified content,
+  launcher prefixes, safe reports, and focused recording
 - [Phone webcam](docs/phone-webcam.md) — use an Android camera in OBS or calls
 
 The manual is intentionally split into short pages so it can grow into a clear
@@ -173,6 +178,9 @@ nbshell settings         # Change appearance and behavior
 nbshell modules          # Arrange bar modules
 nbshell plugin-manager   # Manage installed and optional plugins
 nbshell plugin-store     # Browse the curated plugin catalog
+nbshell store            # Browse themes, wallpapers, and plugins together
+nbshell system-report    # Print a privacy-conscious diagnostic map
+nbshell demo start       # Record a focused shell demo
 nbshell keys             # Show key bindings
 nbshell dashboard        # Open the dashboard
 nbshell display          # Configure connected displays

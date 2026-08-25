@@ -117,6 +117,12 @@ for field in ("commands", "packages"):
     if not isinstance(values, list) or any(not isinstance(value, str) or not value for value in values):
         raise SystemExit("dependencies.%s must be a list of strings" % field)
 
+hosts = data.get("hosts", [])
+if hosts is None:
+    hosts = []
+if not isinstance(hosts, list) or any(host not in {"bar", "panel", "overlay", "window", "service"} for host in hosts):
+    raise SystemExit("hosts must contain only bar, panel, overlay, window, or service")
+
 allowed = {"bar-widget": "barWidget", "panel": "panel", "overlay": "overlay", "service": "service"}
 if any(kind not in allowed for kind in kinds):
     raise SystemExit("unknown plugin type: %s" % ", ".join(str(k) for k in kinds if k not in allowed))
@@ -166,6 +172,7 @@ record = {
     "repository": repository,
     "dependencies": dependencies,
     "barWidget": data.get("barWidget") if isinstance(data.get("barWidget"), dict) else {},
+    "hosts": hosts,
     "managed": os.path.isfile(os.path.join(directory, ".nbshell-managed")),
     "gitManaged": git_managed,
 }

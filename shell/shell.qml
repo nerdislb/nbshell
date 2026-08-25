@@ -19,6 +19,7 @@ import qs.Wallpaper
 import qs.Todo
 import qs.Notes
 import qs.Calculator
+import qs.Store
 import qs.Habits
 import qs.Net
 import qs.Music
@@ -131,6 +132,8 @@ ShellRoot {
     LazyLoader { active: Runtime.notesOpen; NotesWindow {} }
 
     LazyLoader { active: Runtime.calculatorOpen; CalculatorWindow {} }
+
+    LazyLoader { active: Runtime.storeOpen; StoreWindow {} }
 
     LazyLoader { active: Runtime.habitsOpen; HabitsList {} }
 

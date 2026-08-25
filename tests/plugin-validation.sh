@@ -71,12 +71,18 @@ make_fixture absolute '{"schemaVersion":2,"id":"bad-absolute","name":"Bad","vers
 make_fixture wrong_schema '{"schemaVersion":1,"id":"omarchy-only","name":"Bad","version":"1","kinds":["panel"],"entryPoints":{"panel":"Main.qml"}}'
 make_fixture missing_kind '{"schemaVersion":2,"id":"missing-kind","name":"Bad","version":"1","kinds":["overlay"],"entryPoints":{"service":"Main.qml"}}'
 make_fixture bad_dependencies '{"schemaVersion":2,"id":"bad-dependencies","name":"Bad","version":"1","kinds":["service"],"entryPoints":{"service":"Main.qml"},"dependencies":{"commands":"curl"}}'
+make_fixture bad_hosts '{"schemaVersion":2,"id":"bad-hosts","name":"Bad","version":"1","kinds":["service"],"entryPoints":{"service":"Main.qml"},"hosts":["root-shell"]}'
 
 must_reject traversal
 must_reject absolute
 must_reject wrong_schema
 must_reject missing_kind
 must_reject bad_dependencies
+must_reject bad_hosts
+
+make_fixture adaptive '{"schemaVersion":2,"id":"test.adaptive","name":"Adaptive","version":"1","kinds":["panel"],"entryPoints":{"panel":"Main.qml"},"hosts":["panel","window"]}'
+XDG_CONFIG_HOME="$WORK/adaptive-config" bash "$TOOL" add "$WORK/adaptive" adaptive >/dev/null
+XDG_CONFIG_HOME="$WORK/adaptive-config" bash "$TOOL" list | python3 -c 'import json,sys; assert json.load(sys.stdin)[0]["hosts"] == ["panel", "window"]'
 
 # Managed first-party modules can be disabled but never deleted by the plugin
 # tool. External removal also cleans every config reference.

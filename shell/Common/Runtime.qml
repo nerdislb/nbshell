@@ -59,6 +59,7 @@ Singleton {
     property bool todoOpen: false
     property bool notesOpen: false
     property bool calculatorOpen: false
+    property bool storeOpen: false
     property string notesRequestedId: ""
     property bool habitsOpen: false
     property bool qrOpen: false

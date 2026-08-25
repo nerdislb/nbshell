@@ -31,6 +31,8 @@ Item {
                     item.shell = Plugins;
                 if (item && "pluginRegistry" in item)
                     item.pluginRegistry = Plugins;
+                if (item && "host" in item)
+                    item.host = modelData.kind === "bar-widget" ? "bar" : modelData.kind;
                 if (item && "service" in item)
                     item.service = Plugins.serviceFor(modelData.id);
                 if (modelData.kind === "service" && item && typeof item.applySettings === "function")

@@ -9,6 +9,10 @@ main menu, the bar, or the `nbshell` command.
 - Freely arranged and optional bar modules
 - Searchable application launcher and an eight-category main menu whose root
   search reaches nested actions and installed applications
+- Launcher providers for open windows (`#`), existing clipboard history (`^`),
+  calculator expressions (`=`), and explicitly requested file search (`@`)
+- One lazy Library for installed themes, all wallpaper collections, and the
+  reviewed plugin path
 - Settings rendered directly inside the Personalize menu flow, with breadcrumb
   and Back navigation; the direct shortcut and CLI entry remain available
 - Dashboard for media, calendar, tasks, habits, system information, and tools
@@ -55,6 +59,7 @@ default and supported path is Hyprlock.
 
 - Screenshots by area, output, or selected window
 - Screen recording and OBS launcher
+- Focused demo recording with on-demand Reddit, Discord, and GitHub exports
 - Fast start/end trimming through the nbshell-themed Omacut fork
 - OCR, QR scanning, and optional local dictation
 - Browser and application media controls through MPRIS
@@ -76,6 +81,7 @@ See the [phone webcam guide](phone-webcam.md) for setup and daily use.
 - Quick floating agent, project selection, pair workspaces, and Herdr sessions
 - Provider-focused AI dashboard with subscription limits, reset times, local
   seven-day/model token summaries, agent state, and launch controls
+- Privacy-conscious Markdown or JSON system report for agents and support
 
 ## Optional tools
 

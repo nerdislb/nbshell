@@ -39,6 +39,7 @@ enables them.
   "repository": "https://github.com/alice/nbshell-weather",
   "description": "Weather in the bar and a detailed forecast panel.",
   "kinds": ["bar-widget", "panel"],
+  "hosts": ["bar", "panel"],
   "entryPoints": {
     "barWidget": "BarWidget.qml",
     "panel": "Panel.qml"
@@ -63,6 +64,13 @@ Supported kinds are:
 | `panel` | A floating surface with `open(payloadJson)` and `close()`. |
 | `overlay` | A full-screen surface with `open(payloadJson)` and `close()`. |
 | `service` | A headless, long-lived component. |
+
+`hosts` is optional forward-compatible placement metadata. Supported values
+are `bar`, `panel`, `overlay`, `window`, and `service`; unknown values are
+rejected during validation. A plugin can use it to declare every shell context
+its design can adapt to without creating separate packages. The host exposes
+the active value through an optional `host` property when the component
+declares one. Entry-point `kinds` remain the executable contract.
 
 An entry point must stay inside the plugin directory. Symlinks that escape the
 plugin tree are rejected. `activation: "on-demand"` is recommended for panels

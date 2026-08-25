@@ -35,20 +35,41 @@ PanelWindow {
             return "cmd";
         if (t.startsWith("!"))
             return "app";
-        return "beides";
+        if (t.startsWith("#"))
+            return "window";
+        if (t.startsWith("^"))
+            return "clipboard";
+        if (t.startsWith("="))
+            return "calculator";
+        if (t.startsWith("@"))
+            return "file";
+        return "all";
     }
 
-    readonly property string query: root.mode === "beides" ? input.text : input.text.substring(1).trim()
+    readonly property string query: root.mode === "all" ? input.text : input.text.substring(1).trim()
 
+    // The explicit property reads keep this binding reactive when an
+    // asynchronous provider completes after the text itself stopped changing.
     readonly property var results: {
+        const fileRevision = SearchProviders.files;
         const q = root.query;
         if (root.mode === "cmd")
             return Commands.rank(q).map(x => x.entry);
         if (root.mode === "app")
             return Apps.rank(q).map(x => x.entry);
+        if (root.mode === "window")
+            return SearchProviders.rankWindows(q).map(x => x.entry);
+        if (root.mode === "clipboard")
+            return SearchProviders.rankClipboard(q).map(x => x.entry);
+        if (root.mode === "calculator")
+            return SearchProviders.calculator(q).map(x => x.entry);
+        if (root.mode === "file")
+            return SearchProviders.fileRows(q).map(x => x.entry);
 
         const apps = Apps.rank(q);
         const cmds = Commands.rank(q);
+        const windows = SearchProviders.rankWindows(q);
+        const calculator = SearchProviders.calculator(q);
 
         // Ohne Eingabe gibt es nichts zu vergleichen -- dann stehen die
         // Anwendungen nach Haeufigkeit oben und die Befehle darunter.
@@ -58,7 +79,7 @@ PanelWindow {
         const merged = apps.concat(cmds.map(x => ({
                     "entry": x.entry,
                     "points": x.points * root.commandBias
-                })));
+                }))).concat(windows).concat(calculator);
         merged.sort((a, b) => b.points - a.points || a.entry.name.localeCompare(b.entry.name));
         return merged.map(x => x.entry);
     }
@@ -109,8 +130,10 @@ PanelWindow {
                 return;
             }
             Commands.invoke(entry);
-        } else {
+        } else if (entry.kind === "app" || entry.command) {
             Apps.launch(entry);
+        } else {
+            SearchProviders.activate(entry);
         }
         close();
     }
@@ -135,6 +158,18 @@ PanelWindow {
             // Starter beim naechsten Mal wieder als Palette hoch, ohne dass
             // jemand danach gefragt haette.
             Runtime.launcherPrefill = "";
+        }
+    }
+
+    Connections {
+        target: Runtime
+        function onLauncherPrefillChanged() {
+            if (!root.visible || Runtime.launcherPrefill === input.text)
+                return;
+            input.text = Runtime.launcherPrefill;
+            input.cursorPosition = input.text.length;
+            root.selected = 0;
+            input.forceActiveFocus();
         }
     }
 
@@ -208,6 +243,11 @@ PanelWindow {
                     root.selected = 0;
                     root.pending = null;
                     list.positionViewAtBeginning();
+                    const typed = input.text;
+                    Qt.callLater(() => {
+                        if (input.text === typed && typed.startsWith("@"))
+                            SearchProviders.requestFiles(typed.substring(1));
+                    });
                 }
 
                 // Erst die Rueckfrage abraeumen, dann das Fenster: wer sich bei
@@ -239,7 +279,7 @@ PanelWindow {
                 Line {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: input.text === ""
-                    text: "Search applications or commands  (> commands only, ! applications only)"
+                    text: "Search apps, commands, windows, or calculate"
                     color: Theme.muted
                 }
             }
@@ -314,7 +354,8 @@ PanelWindow {
                     // vortaeuschen: sie bekommen das Prompt-Zeichen, an dem
                     // man sie auf einen Blick von einer Anwendung trennt.
                     readonly property bool isCommand: row.modelData.kind === "cmd"
-                    readonly property string iconSource: isCommand ? "" : Apps.iconFor(row.modelData)
+                    readonly property bool isApp: row.modelData.kind === "app" || !!row.modelData.command
+                    readonly property string iconSource: isApp ? Apps.iconFor(row.modelData) : ""
 
                     IconImage {
                         anchors.fill: parent
@@ -334,7 +375,9 @@ PanelWindow {
 
                         Line {
                             anchors.centerIn: parent
-                            text: appIcon.isCommand ? ">" : (row.modelData.name || "?").charAt(0).toUpperCase()
+                            text: appIcon.isCommand ? ">" : row.modelData.kind === "window" ? "#"
+                                : row.modelData.kind === "clipboard" ? "^" : row.modelData.kind === "calculator" ? "="
+                                : row.modelData.kind === "file" ? "@" : (row.modelData.name || "?").charAt(0).toUpperCase()
                             color: appIcon.isCommand ? Theme.accent : Theme.fgDim
                         }
                     }
@@ -372,7 +415,9 @@ PanelWindow {
                     anchors.right: parent.right
                     anchors.rightMargin: Theme.cellW / 2
                     anchors.verticalCenter: parent.verticalCenter
-                    text: row.modelData.kind === "cmd" ? (row.modelData.category || "COMMAND").toUpperCase() : (row.modelData.runInTerminal ? "TUI" : "APP")
+                    text: row.modelData.kind === "cmd" ? (row.modelData.category || "COMMAND").toUpperCase()
+                        : row.modelData.kind === "app" || row.modelData.command ? (row.modelData.runInTerminal ? "TUI" : "APP")
+                        : (row.modelData.category || row.modelData.kind || "RESULT").toUpperCase()
                     color: row.index === root.selected ? Theme.selectedForeground(Theme.accent)
                         : (row.modelData.kind === "cmd" ? Theme.fgDim : Theme.muted)
                     font.pixelSize: Theme.fontCaption
@@ -400,7 +445,7 @@ PanelWindow {
                 if (root.pending)
                     return "\"" + root.pending.name + "\" -- press Enter again to confirm, Esc cancels";
                 if (root.results.length > 0)
-                    return "↑↓ select · Enter launch · Esc close";
+                    return "↑↓ SELECT · ENTER OPEN/COPY · # WINDOWS · ^ CLIPBOARD · @ FILES · = CALCULATOR";
                 if (input.text === "")
                     return "nothing found";
                 return "Enter runs \"" + root.query + "\" as a command";

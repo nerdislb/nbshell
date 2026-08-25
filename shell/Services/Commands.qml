@@ -57,8 +57,10 @@ Singleton {
         out.push(entry("Notifications", "archive (Mod+N)", "Windows", () => Runtime.notifyOpen = true));
         out.push(entry("Processes", "running processes and resource usage", "Windows", () => Runtime.procsOpen = true));
         out.push(entry("Capture", "screenshots and video", "Windows", () => Runtime.captureOpen = true));
+        out.push(entry("Demo recording", "record and export a short desktop showcase", "Windows", () => Apps.run("nbshell demo start region")));
         out.push(entry("Wallpaper", "browse wallpapers (Mod+Y)", "Windows", () => Runtime.wallpaperOpen = true));
         out.push(entry("Theme picker", "browse colors", "Windows", () => Runtime.themePickerOpen = true));
+        out.push(entry("Library", "themes, wallpapers, and reviewed plugins", "Windows", () => Runtime.storeOpen = true));
         out.push(entry("Session", "lock, log out, power off", "Windows", () => Runtime.powerOpen = true));
 
         // ── Form der Leiste ──────────────────────────────────────────────
