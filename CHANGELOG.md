@@ -6,6 +6,17 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+## [0.1.0-beta.3] - 2026-08-25
+
+### Fixed
+
+- Dashboard-triggered nbshell and Umbriel updates now run their terminal in a
+  separate transient systemd user unit. Restarting `nbshell.service` during
+  installation can no longer terminate the updater and its terminal midway.
+- Ghostty updater windows use a dedicated process instead of handing the
+  window to a singleton instance whose lifecycle may be unrelated to the
+  transient update unit.
+
 ## [0.1.0-beta.2] - 2026-08-25
 
 ### Added
@@ -156,6 +167,7 @@ First public beta candidate.
   declared dependencies before activation.
 - Credentials remain outside the repository and plugin configuration.
 
-[Unreleased]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.2...HEAD
+[Unreleased]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.3...HEAD
+[0.1.0-beta.3]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.2...v0.1.0-beta.3
 [0.1.0-beta.2]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.1...v0.1.0-beta.2
 [0.1.0-beta.1]: https://github.com/nerdislb/nbshell/releases/tag/v0.1.0-beta.1

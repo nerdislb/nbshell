@@ -19,6 +19,8 @@ grep -Fq 'Popups {}' "$SHELL_ROOT"
 grep -Fq 'DesktopIpc {}' "$SHELL_ROOT"
 grep -Fq 'MALLOC_CONF=thp:never,narenas:4,dirty_decay_ms:3000' "$ROOT/systemd/nbshell.service"
 grep -Fq 'UMask=0077' "$ROOT/systemd/nbshell.service"
+grep -Fq '"systemd-run", "--user", "--quiet", "--collect"' "$ROOT/shell/Services/ShellUpdates.qml"
+grep -Fq '"--gtk-single-instance=false"' "$ROOT/shell/Services/ShellUpdates.qml"
 
 # Package updates may require elevation, so their execution path must use
 # fixed argv arrays and never reinterpret a display string as shell syntax.

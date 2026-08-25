@@ -36,6 +36,24 @@ Singleton {
 
     readonly property bool anyUpdateAvailable: updateAvailable || compositorUpdateAvailable
 
+    function launchUpdateTerminal(line, title) {
+        // The installer deliberately restarts nbshell.service. A terminal
+        // launched as a direct Quickshell child would share that cgroup and be
+        // killed halfway through the update. Give it its own transient user
+        // unit, and force a separate Ghostty process so the window remains in
+        // that unit instead of being handed to a singleton process.
+        const terminal = [root.terminal];
+        const binary = String(root.terminal).split("/").pop();
+        if (binary === "ghostty")
+            terminal.push("--gtk-single-instance=false", "--class=dev.nerdi.nbshell.updater", "--title=" + title);
+        terminal.push("-e", "sh", "-c", line);
+        const unit = "nbshell-update-" + Date.now();
+        Quickshell.execDetached([
+            "systemd-run", "--user", "--quiet", "--collect",
+            "--unit=" + unit, "--property=Type=exec", "--"
+        ].concat(terminal));
+    }
+
     function refresh() {
         if (checking)
             return;
@@ -51,13 +69,13 @@ Singleton {
     function install() {
         const line = "python3 '" + root.script + "' install --channel '" + root.channel
             + "'; code=$?; echo; read -n1 -r -p 'done — press any key to close the window'; exit $code";
-        Quickshell.execDetached([root.terminal, "-e", "sh", "-c", line]);
+        root.launchUpdateTerminal(line, "nbshell Update");
     }
 
     function installCompositor() {
         const line = "python3 '" + root.compositorScript
             + "' install; code=$?; echo; read -n1 -r -p 'done — press any key to close the window'; exit $code";
-        Quickshell.execDetached([root.terminal, "-e", "sh", "-c", line]);
+        root.launchUpdateTerminal(line, "Umbriel Update");
     }
 
     function installAll() {
@@ -65,7 +83,7 @@ Singleton {
             const line = "python3 '" + root.script + "' install --channel '" + root.channel
                 + "' && python3 '" + root.compositorScript
                 + "' install; code=$?; echo; read -n1 -r -p 'done — press any key to close the window'; exit $code";
-            Quickshell.execDetached([root.terminal, "-e", "sh", "-c", line]);
+            root.launchUpdateTerminal(line, "Desktop Update");
         } else if (root.updateAvailable && root.installable) {
             root.install();
         } else if (root.compositorUpdateAvailable && root.compositorInstallable) {
