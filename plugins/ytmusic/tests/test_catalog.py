@@ -7,9 +7,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 
+from unittest import mock
+
 from catalog import (  # noqa: E402
+    AuthRequired,
+    Catalog,
     context_item,
     duration_ms,
+    looks_unauthorized,
     map_items,
     thumbnail_url,
     track_item,
@@ -72,6 +77,37 @@ class CatalogTests(unittest.TestCase):
             ]
         })
         self.assertEqual(url, "b")
+
+    def test_looks_unauthorized_catches_ytmusicapi_401(self):
+        self.assertTrue(looks_unauthorized(
+            "Server returned HTTP 401: Unauthorized. "
+            "You must be signed in to perform this operation."))
+        self.assertFalse(looks_unauthorized("connection timed out"))
+
+    def test_home_caches_until_forced(self):
+        yt = mock.Mock()
+        yt.get_home.return_value = [{
+            "title": "That summer feeling",
+            "contents": [{"title": "Song", "videoId": "abcdefghijk"}],
+        }]
+        catalog = Catalog(yt)
+        first = catalog.home()
+        second = catalog.home()
+        self.assertEqual(len(first), 1)
+        self.assertEqual(first[0]["title"], "That summer feeling")
+        self.assertEqual(first, second)
+        yt.get_home.assert_called_once()
+        catalog.home(force=True)
+        self.assertEqual(yt.get_home.call_count, 2)
+
+    def test_rate_song_maps_401_to_sign_in(self):
+        catalog = Catalog(mock.Mock())
+        catalog.yt.rate_song.side_effect = Exception(
+            "Server returned HTTP 401: Unauthorized. "
+            "You must be signed in to perform this operation.")
+        with self.assertRaises(AuthRequired) as raised:
+            catalog.rate_song("abcdefghijk", True)
+        self.assertEqual(str(raised.exception), "Sign in to like songs")
 
 
 if __name__ == "__main__":

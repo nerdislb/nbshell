@@ -34,9 +34,12 @@ their own bundled license files are linked below.
   retained; nbshell supplies the host lifecycle, bar widget, and theme adapter.
   The upstream license is stored in `plugins/omamail/LICENSE`.
 - The bundled YouTube Music port comes from rlimberger's MIT-licensed
-  [Omarchy YouTube Music](https://github.com/rlimberger/omarchy-ytmusic).
-  nbshell replaces the Omarchy host integration and leaves its optional
-  Omasing installer disabled. The upstream license is stored in
+  [Omarchy YouTube Music](https://github.com/rlimberger/omarchy-ytmusic) and
+  incorporates selected MIT-licensed reliability, history, queue, equalizer,
+  and UI work from Luke Morrison's
+  [Wizwam fork](https://github.com/lukejmorrison/omarchy). nbshell keeps its
+  own host, Zen authentication, bar integration, and disabled optional
+  Omasing installer. The upstream notices are stored in
   `plugins/ytmusic/LICENSE`.
 - The bundled Pit Wall data model and API integration are adapted from Jeremy
   Longshore's MIT-licensed

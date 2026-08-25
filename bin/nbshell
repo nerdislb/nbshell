@@ -119,6 +119,7 @@ OMACUT_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/omacut
 SHELL_UPDATE_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/nbshell-update.py"
 UMBRIEL_UPDATE_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/umbriel-update.py"
 UMBRIEL_NESTED_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/umbriel-nested.sh"
+GREETER_SETUP="${XDG_DATA_HOME:-$HOME/.local/share}/nbshell/setup-greeter.sh"
 
 cursor_status() {
     local jetzt
@@ -531,6 +532,7 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell hub               system, plugin, and integration status
   nbshell battery           battery and power profile
   nbshell power             power menu (also: lock, logout, suspend, display-off)
+  nbshell greeter sync      match ReGreet to the current theme and wallpaper
   nbshell media playpause|next|previous|status
   nbshell dictate           toggle local voice dictation
   nbshell pip status|apply|size|corner|focus|close
@@ -1070,6 +1072,12 @@ for b in d["binds"]:
         ;;
     browser-theme)
         "$BROWSER_THEME_TOOL" "${1:-status}"
+        ;;
+    greeter)
+        case "${1:-}" in
+            sync) "$GREETER_SETUP" sync ;;
+            *) die "usage: nbshell greeter sync" ;;
+        esac
         ;;
     video-trimmer|trim-video)
         "$OMACUT_TOOL" "${1:-status}"

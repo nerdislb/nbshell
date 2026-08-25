@@ -3,9 +3,53 @@
 var SEARCH_TYPES = ["track", "artist", "album", "playlist"]
 var MUTE_THRESHOLD = 0.001
 var UNMUTE_FLOOR = 0.05
+var MAX_SOCKET_LINE = 262144
 
 function clampUnit(value) {
   return Math.max(0, Math.min(1, Number(value) || 0))
+}
+
+function unitVolume(value) {
+  if (value === undefined || value === null || value === "") return 0.8
+  var n = Number(value)
+  if (!isFinite(n)) return 0.8
+  if (n > 1) return clampUnit(n / 100)
+  return clampUnit(n)
+}
+
+function volumePercent(value) {
+  return Math.round(unitVolume(value) * 100)
+}
+
+function volumeCaption(value) {
+  var percent = volumePercent(value)
+  return percent <= 0 ? "Muted" : (percent + "%")
+}
+
+function controlTooltip(label, keys) {
+  var name = String(label || "").trim()
+  var shortcut = String(keys || "").trim()
+  if (!shortcut) return name
+  if (!name) return shortcut
+  return name + " · " + shortcut
+}
+
+function playerHintRows() {
+  return [
+    { keys: "Space", action: "Play or pause" },
+    { keys: "Ctrl+← / →", action: "Previous or next" },
+    { keys: "L", action: "Like" },
+    { keys: "Q", action: "Add to queue" },
+    { keys: "/", action: "Search" }
+  ]
+}
+
+function artworkAltText(title, artist) {
+  var name = String(title || "").trim()
+  var by = String(artist || "").trim()
+  if (name && by) return "Album artwork for " + name + " by " + by
+  if (name) return "Album artwork for " + name
+  return "Album artwork"
 }
 
 function shallowCopy(value) {
@@ -23,6 +67,16 @@ function assign(target, source) {
   return next
 }
 
+function requestPayload(name, fields, id) {
+  var payload = { v: 1, command: String(name || "") }
+  assign(payload, fields || {})
+  // Protocol metadata is reserved and must never be replaced by a media ID.
+  payload.v = 1
+  payload.id = Number(id)
+  payload.command = String(name || "")
+  return payload
+}
+
 function parseJson(text, fallback) {
   try {
     var parsed = JSON.parse(String(text || ""))
@@ -30,6 +84,29 @@ function parseJson(text, fallback) {
   } catch (e) {
     return fallback
   }
+}
+
+function splitSocketBuffer(buffer, chunk, maxBytes) {
+  var limit = Number(maxBytes)
+  if (!isFinite(limit) || limit <= 0) limit = MAX_SOCKET_LINE
+  var next = String(buffer || "") + String(chunk || "")
+  if (next.length > limit && next.indexOf("\n") < 0)
+    return { overflow: true, buffer: "", lines: [] }
+  var lines = []
+  var start = 0
+  while (true) {
+    var idx = next.indexOf("\n", start)
+    if (idx < 0) break
+    var line = next.slice(start, idx)
+    if (line.length > limit)
+      return { overflow: true, buffer: "", lines: [] }
+    lines.push(line)
+    start = idx + 1
+  }
+  var rest = next.slice(start)
+  if (rest.length > limit)
+    return { overflow: true, buffer: "", lines: [] }
+  return { overflow: false, buffer: rest, lines: lines }
 }
 
 function barTrackText(title, artist, showTitle, showArtist) {
@@ -132,6 +209,60 @@ function redact(value) {
   text = text.replace(/(authorization\s*:\s*)[^\s]+/ig, "$1<redacted>")
   text = text.replace(/(SAPISIDHASH\s+)[^\s]+/ig, "$1<redacted>")
   return text
+}
+
+function isSignInError(value) {
+  var text = String(value || "").toLowerCase()
+  if (text === "") return false
+  return text.indexOf("401") >= 0
+    || text.indexOf("unauthorized") >= 0
+    || text.indexOf("must be signed in") >= 0
+    || text.indexOf("sign in to ") >= 0
+    || text.indexOf("not logged in") >= 0
+}
+
+function signInErrorMessage(value, action) {
+  if (!isSignInError(value)) return String(value || "")
+  var task = String(action || "like songs").trim() || "like songs"
+  return "Sign in to " + task
+}
+
+function trackVideoId(item) {
+  if (!item || typeof item !== "object") return ""
+  return String(item.videoId || item.id || "").trim()
+}
+
+function watchUrl(videoId) {
+  var id = String(videoId || "").trim()
+  return id ? "https://music.youtube.com/watch?v=" + id : ""
+}
+
+function trackShareUrl(item) {
+  if (!item || typeof item !== "object") return ""
+  var url = String(item.externalUrl || "").trim()
+  if (url) return url
+  return watchUrl(trackVideoId(item))
+}
+
+function isPlaybackState(result) {
+  return !!result && typeof result === "object"
+    && result.home === undefined
+    && (result.lifecycle !== undefined || result.position_ms !== undefined)
+}
+
+function mergeHistory(local, remote) {
+  var seen = {}
+  var out = []
+  var rows = arrayValues(local).concat(arrayValues(remote))
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i]
+    var id = trackVideoId(row)
+    if (!id || seen[id]) continue
+    seen[id] = true
+    out.push(row)
+    if (out.length >= 80) break
+  }
+  return out
 }
 
 function millisecondsToClock(milliseconds) {
@@ -298,6 +429,37 @@ function qualityLabel(kbps) {
   if (Number(kbps) <= 96) return "96 kbps"
   if (Number(kbps) <= 160) return "160 kbps"
   return "320 kbps"
+}
+
+var EQ_PRESET_NAMES = [
+  "Flat", "Rock", "Pop", "Jazz", "Classical", "Bass Boost",
+  "Treble Boost", "Vocal", "Electronic", "Acoustic"
+]
+var EQ_FLAT_BANDS = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+function eqPresetName(value) {
+  var name = String(value || "Flat")
+  if (name === "Custom") return "Custom"
+  for (var i = 0; i < EQ_PRESET_NAMES.length; i++)
+    if (EQ_PRESET_NAMES[i] === name) return name
+  return "Flat"
+}
+
+function eqBandsList(value) {
+  var source = value
+  if (typeof source === "string") source = parseJson(source, EQ_FLAT_BANDS)
+  if (!Array.isArray(source)) source = EQ_FLAT_BANDS
+  var out = []
+  for (var i = 0; i < 10; i++) {
+    var n = Number(source[i])
+    if (!isFinite(n)) n = 0
+    out.push(Math.max(-12, Math.min(12, Math.round(n * 2) / 2)))
+  }
+  return out
+}
+
+function eqBandsText(value) {
+  return JSON.stringify(eqBandsList(value))
 }
 
 function typeLabel(type, plural) {

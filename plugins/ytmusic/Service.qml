@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.Commons
 
 import "Api.js" as Api
 
@@ -17,8 +18,13 @@ Item {
 
   readonly property string pluginId: manifest && manifest.id
     ? String(manifest.id) : "ytmusic"
-  readonly property string pluginDir: manifest && manifest.__sourceDir
-    ? String(manifest.__sourceDir) : ""
+  readonly property string pluginDir: {
+    var root = manifest && manifest.__sourceDir ? String(manifest.__sourceDir) : ""
+    var sub = manifest && manifest.pluginRoot ? String(manifest.pluginRoot) : ""
+    if (!root) return ""
+    if (!sub || sub.indexOf("..") >= 0 || sub.charAt(0) === "/") return root
+    return root + "/" + sub
+  }
 
   readonly property var defaultSettingValues: ({
     idleShutdownMinutes: 15,
@@ -26,7 +32,9 @@ Item {
     shortcutPlayer: "Full player",
     audioQuality: "320 kbps",
     searchHistory: "[]",
-    sessionState: "{}"
+    sessionState: "{}",
+    eqPreset: "Flat",
+    eqBands: "[0,0,0,0,0,0,0,0,0,0]"
   })
   property var settings: Api.shallowCopy(defaultSettingValues)
 
@@ -52,9 +60,15 @@ Item {
   readonly property bool sessionPending: !daemonManager.requirementsChecked
   readonly property bool fullyConnected: daemonManager.playbackReady && backendClient.ready
   property bool authBusy: false
+  property int backendRecoveries: 0
+  property bool loginStalled: false
+  readonly property bool waitingOnBackend: uiVisible
+    && daemonManager.playbackReady && !backendClient.ready
+    && !daemonManager.setupBusy
+  onWaitingOnBackendChanged: if (!waitingOnBackend) loginStalled = false
   readonly property bool loginBusy: daemonManager.setupBusy || daemonManager.busy
     || authBusy || !daemonManager.requirementsChecked
-    || (uiVisible && daemonManager.playbackReady && !backendClient.ready)
+    || (waitingOnBackend && !loginStalled)
   readonly property string loginProgress: loginProgressText()
 
   property var backendState: null
@@ -70,6 +84,9 @@ Item {
   readonly property bool hasPlayer: backendClient.ready || daemonManager.running
   readonly property bool hasMedia: !!currentTrackItem
   readonly property bool playing: backendState && backendState.playing === true
+  // True while the backend waits on yt-dlp. The first resolve against a new
+  // YouTube player build is slow, so the UI says so instead of looking stuck.
+  readonly property bool resolving: backendState && backendState.resolving === true
   readonly property string title: currentTrackItem ? String(currentTrackItem.name || "") : ""
   readonly property string artist: currentTrackItem ? String(currentTrackItem.subtitle || "") : ""
   readonly property string album: currentTrackItem ? String(currentTrackItem.album || "") : ""
@@ -82,8 +99,8 @@ Item {
   readonly property bool currentArtistContextAvailable: currentArtists.length > 0
     && !!(currentArtists[0] && currentArtists[0].id)
   readonly property var currentAlbumItem: currentTrackItem ? currentTrackItem.albumItem : null
-  readonly property real volume: backendState
-    ? Math.max(0, Math.min(1, (Number(backendState.volume) || 0) / 100)) : 0.8
+  readonly property real volume: Api.unitVolume(backendState
+    ? backendState.volume : undefined)
   readonly property bool volumeSupported: hasPlayer
   readonly property bool shuffle: backendState && backendState.shuffle === true
   readonly property string repeatMode: backendState
@@ -133,6 +150,7 @@ Item {
   property string lastError: ""
   property string statusMessage: ""
   property var homeShelves: []
+  readonly property int homeShelfCount: Array.isArray(homeShelves) ? homeShelves.length : 0
   property var history: []
   property var liked: []
   property var playlists: []
@@ -156,6 +174,7 @@ Item {
   property bool sleepActive: backendState && backendState.sleep_active === true
 
   signal operationFailed(string reason)
+  signal signInRequested(string reason)
   signal lyricsPluginPromptRequested(string surface, string availability)
   signal lyricsPluginOpened(string surface)
 
@@ -163,6 +182,7 @@ Item {
     if (daemonManager.setupBusy) return "Installing playback"
     if (!daemonManager.playbackReady) return "Preparing YouTube Music"
     if (daemonManager.busy) return "Starting playback"
+    if (loginStalled) return "Could not connect"
     if (!backendClient.ready) return "Connecting"
     if (!accountConnected) return "Sign in to YouTube Music"
     return "Connected"
@@ -176,6 +196,7 @@ Item {
     if (backendClient.ready) {
       backendClient.sendCommand("set_idle_minutes", { minutes: idleShutdownMinutes })
       backendClient.sendCommand("set_quality", { kbps: bitrateKbps })
+      root.pushSavedEq()
     }
   }
 
@@ -194,6 +215,8 @@ Item {
       next.searchHistory = JSON.stringify(Api.parseStringList(next.searchHistory, 12))
     if (typeof next.sessionState !== "string")
       next.sessionState = JSON.stringify(next.sessionState || ({}))
+    next.eqPreset = Api.eqPresetName(next.eqPreset)
+    next.eqBands = Api.eqBandsText(next.eqBands)
     return next
   }
 
@@ -238,9 +261,11 @@ Item {
 
   function fail(reason) {
     statusClearTimer.stop()
-    lastError = Api.redact(String(reason || "YouTube Music operation failed"))
+    var text = Api.redact(String(reason || "YouTube Music operation failed"))
+    lastError = Api.isSignInError(text) ? Api.signInErrorMessage(text) : text
     statusMessage = ""
     operationFailed(lastError)
+    if (Api.isSignInError(lastError)) signInRequested(lastError)
   }
 
   function succeed(message) {
@@ -256,6 +281,10 @@ Item {
     interpolatedPosition = Math.max(0, Number(state.position_ms) || 0) / 1000
     positionStamp = Date.now()
     if (state.error) lastError = Api.redact(String(state.error))
+    // A new resolve is under way, so a previous failure is no longer current.
+    else if (state.resolving === true) lastError = ""
+    if (Array.isArray(state.play_history))
+      history = Api.mergeHistory(state.play_history, history)
     pendingSeek = null
   }
 
@@ -269,6 +298,14 @@ Item {
     readyWaiters = []
     for (var i = 0; i < waiters.length; i++)
       if (typeof waiters[i] === "function") waiters[i](ok === true)
+  }
+
+  function markDisconnected() {
+    homeLoading = false
+    searchLoading = false
+    libraryLoading = false
+    playlistsLoading = false
+    detailLoading = false
   }
 
   function ensureBackend(callback) {
@@ -306,7 +343,9 @@ Item {
           return
         }
         lastError = ""
-        if (result && typeof result === "object") root.applyBackendState(result)
+        // Catalog payloads (home, history, like) must not replace playback state.
+        // Doing that wipes the current track and can leave Home empty.
+        if (Api.isPlaybackState(result)) root.applyBackendState(result)
         if (successMessage) root.succeed(successMessage)
         if (typeof done === "function") done(true, result)
       })
@@ -321,9 +360,9 @@ Item {
     if (value) next[name] = true
     visibleSurfaces = next
     if (value) {
+      backendClient.wanted = true
       ensureBackend()
-      if (idleShutdownMinutes === 0 && daemonManager.playbackReady)
-        daemonManager.start()
+      if (daemonManager.playbackReady) daemonManager.start()
     }
   }
 
@@ -373,7 +412,6 @@ Item {
 
   function clearData() {
     homeShelves = []
-    history = []
     liked = []
     playlists = []
     librarySongs = []
@@ -464,6 +502,61 @@ Item {
     command("add_to_queue", { item: item }, "Added to queue")
   }
 
+  function reorderQueue(sourceIndex, destinationIndex) {
+    command("reorder_queue", {
+      source_index: Math.max(0, Math.floor(Number(sourceIndex) || 0)),
+      destination_index: Math.max(0, Math.floor(Number(destinationIndex) || 0))
+    })
+  }
+
+  readonly property var eqBands: backendState && backendState.eq
+    && Array.isArray(backendState.eq.bands) && backendState.eq.bands.length
+    ? backendState.eq.bands : Api.eqBandsList(settings.eqBands)
+  readonly property string eqPreset: backendState && backendState.eq
+    ? Api.eqPresetName(backendState.eq.preset) : Api.eqPresetName(settings.eqPreset)
+  readonly property var eqLabels: backendState && backendState.eq
+    ? (backendState.eq.labels || []) : ["70", "180", "320", "600", "1k", "3k", "6k", "12k", "14k", "16k"]
+  property var pendingEqPersist: null
+
+  function pushSavedEq() {
+    if (!backendClient.ready) return
+    backendClient.sendCommand("restore_eq", {
+      preset: Api.eqPresetName(settings.eqPreset),
+      bands: Api.eqBandsList(settings.eqBands)
+    })
+  }
+
+  function persistEqFromSnapshot(snapshot) {
+    if (!snapshot || typeof snapshot !== "object") return
+    pendingEqPersist = {
+      eqPreset: Api.eqPresetName(snapshot.preset),
+      eqBands: Api.eqBandsText(snapshot.bands)
+    }
+    eqPersistTimer.restart()
+  }
+
+  function setEqBand(index, gain) {
+    command("set_eq_band", {
+      index: Math.max(0, Math.min(9, Math.floor(Number(index) || 0))),
+      gain: Math.max(-12, Math.min(12, Number(gain) || 0))
+    }, "", function(ok, result) {
+      if (ok) root.persistEqFromSnapshot(result)
+    })
+  }
+
+  function setEqPreset(name) {
+    command("set_eq_preset", { name: String(name || "Flat") }, "EQ: " + name,
+      function(ok, result) {
+        if (ok) root.persistEqFromSnapshot(result)
+      })
+  }
+
+  function cycleEqPreset() {
+    command("cycle_eq_preset", {}, "", function(ok, result) {
+      if (ok) root.persistEqFromSnapshot(result)
+    })
+  }
+
   function isSaved(item) {
     if (!item || item.type !== "track") return false
     if (item.liked === true) return true
@@ -475,6 +568,11 @@ Item {
   function toggleSaved(item) {
     var videoId = Api.videoIdOf(item) || currentTrackId
     if (!videoId) return
+    if (!accountConnected) {
+      fail("Sign in to like songs")
+      login()
+      return
+    }
     var liked = !(item && item.liked === true)
     if (!item && currentTrackItem) liked = !currentTrackSaved
     currentTrackSaveBusy = true
@@ -512,17 +610,39 @@ Item {
     var term = String(query || "").trim()
     searchQuery = term
     if (!term) {
+      searchLoading = false
       searchResults = []
       searchSections = []
       return
     }
     searchLoading = true
     rememberSearch(term)
-    command("search", { query: term }, "", function(ok, result) {
-      root.searchLoading = false
-      if (!ok || !result) return
-      root.searchResults = result.items || []
-      root.searchSections = result.sections || []
+    // Do not go through command(): that applies the catalog payload as
+    // playback state. Songs-only keeps the response small enough for QML.
+    ensureBackend(function(ok) {
+      if (!ok || !backendClient.ready) {
+        root.searchLoading = false
+        root.fail(root.lastError || "YouTube Music is not ready")
+        return
+      }
+      backendClient.sendCommand("search", {
+        query: term,
+        filter: "songs",
+        limit: 16
+      }, function(succeeded, result, error) {
+        if (term !== root.searchQuery) return
+        root.searchLoading = false
+        if (!succeeded) {
+          root.searchResults = []
+          root.searchSections = []
+          root.fail(error)
+          return
+        }
+        var items = result && result.items ? result.items : []
+        root.searchResults = items
+        root.searchSections = result && result.sections ? result.sections : []
+        root.succeed(items.length ? (items.length + " songs") : "No matching songs")
+      })
     })
   }
 
@@ -534,25 +654,57 @@ Item {
 
   function cancelSearch() {}
 
+  function homeShelfAt(index) {
+    var rows = homeShelves || []
+    var i = Math.floor(Number(index) || 0)
+    if (i < 0 || i >= rows.length) return null
+    return rows[i]
+  }
+
   function openView(view, force) {
-    if (view === "home") loadHome(force)
+    if (view === "home") loadHome(!!force || homeShelfCount === 0, !!force)
+    else if (view === "history") loadHistory()
     else if (view === "library") loadLibrary(libraryType, false, force)
     else if (view === "playlists") loadPlaylists()
     else if (view === "search" && searchQuery) search(searchQuery)
     else if (view === "queue") {}
   }
 
-  function refreshView(view) {
-    openView(view, true)
+  function loadHistory() {
+    command("browse", { view: "history" }, "", function(ok, result) {
+      if (ok && result) root.history = result.items || root.history
+    })
   }
 
-  function loadHome(force) {
+  function currentTrackUrl() {
+    return Api.trackShareUrl(currentTrackItem) || Api.watchUrl(currentTrackId)
+  }
+
+  function copyTrackLink(item) {
+    var url = Api.trackShareUrl(item) || currentTrackUrl()
+    if (!url) {
+      fail("Nothing to share")
+      return
+    }
+    Quickshell.execDetached(["wl-copy", "--", url])
+    succeed("Copied link")
+  }
+
+  function refreshView(view) {
+    if (view === "home") loadHome(true, true)
+    else openView(view, true)
+  }
+
+  function loadHome(force, bypassCache) {
     if (homeLoading && !force) return
     homeLoading = true
-    command("browse", { view: "home" }, "", function(ok, result) {
+    command("browse", { view: "home", force: !!bypassCache }, "", function(ok, result) {
       root.homeLoading = false
-      if (!ok || !result) return
-      root.homeShelves = result.home || []
+      if (!ok || !result) {
+        if (force) root.homeShelves = []
+        return
+      }
+      root.homeShelves = Api.arrayValues(result.home)
     })
     command("browse", { view: "history" }, "", function(ok, result) {
       if (ok && result) root.history = result.items || []
@@ -561,7 +713,7 @@ Item {
       command("browse", { view: "liked" }, "", function(ok, result) {
         if (ok && result) root.liked = result.items || []
       })
-      if (playlists.length === 0 && !playlistsLoading) loadPlaylists()
+      loadPlaylists()
     }
   }
 
@@ -606,9 +758,6 @@ Item {
   }
 
   function refreshLibrary() {
-    // Put the most visible navigation data first. The backend processes one
-    // client stream in order, so loading Home before playlists made the
-    // sidebar look empty while several slower requests completed.
     loadPlaylists()
     loadHome(true)
     loadLibrary(libraryType, false, true)
@@ -633,9 +782,8 @@ Item {
       fail("That page is not available")
       return
     }
-    // `id` is reserved for the request/response correlation in BackendClient.
-    // Using it for a media ID overwrote the callback key and left Details in
-    // an endless loading state even though the backend had already replied.
+    // `id` belongs to BackendClient's request correlation. Keep media IDs in
+    // their own field or the response callback can never be matched.
     command(commandName, { item_id: ident }, "", function(ok, result) {
       root.detailLoading = false
       if (!ok || !result) return
@@ -673,7 +821,7 @@ Item {
   }
 
   function confirmLyricsPlugin(surface) {
-    lyricsPluginError = "Lyrics integration is not available in the nbshell port yet."
+    lyricsPluginError = "Lyrics are an optional external plugin and are not installed by nbshell."
     return false
   }
 
@@ -717,11 +865,22 @@ Item {
     id: backendClient
     wanted: daemonManager.running || root.uiVisible
     onStateReceived: function(state) { root.applyBackendState(state) }
+    onConnectedChanged: {
+      if (connected) return
+      root.markDisconnected()
+      if (root.uiVisible) daemonManager.start()
+    }
     onReadyChanged: {
       if (ready) {
         root.flushReadyWaiters(true)
+        if (root.lastError === "YouTube Music is not ready"
+            || root.lastError === "Installing playback on this computer…")
+          root.succeed("")
         sendCommand("set_idle_minutes", { minutes: root.idleShutdownMinutes })
         sendCommand("set_quality", { kbps: root.bitrateKbps })
+        root.pushSavedEq()
+        root.backendRecoveries = 0
+        root.loginStalled = false
         if (root.uiVisible) root.loadHome(true)
       }
     }
@@ -734,22 +893,73 @@ Item {
     idleMinutes: root.idleShutdownMinutes
     onStarted: backendClient.wanted = true
     onStopped: if (!root.uiVisible) backendClient.wanted = false
+    onRestarted: {
+      backendClient.wanted = true
+      daemonManager.refreshStatus()
+    }
+    onRestartFailed: function(reason) {
+      root.fail(reason)
+    }
     onSetupSucceeded: start()
   }
 
   Timer {
+    id: backendRecoverTimer
+    interval: 3500
+    running: root.waitingOnBackend && root.backendRecoveries < 2
+      && !daemonManager.busy
+    onTriggered: {
+      root.backendRecoveries += 1
+      daemonManager.restart()
+    }
+  }
+
+  Timer {
+    id: loginStallTimer
+    interval: 12000
+    running: root.waitingOnBackend
+    onTriggered: {
+      root.loginStalled = true
+      if (!root.lastError)
+        root.fail("Playback did not connect. Try Use Chromium session again.")
+    }
+  }
+
+  Timer {
+    id: eqPersistTimer
+    interval: 400
+    repeat: false
+    onTriggered: {
+      if (!root.pendingEqPersist) return
+      var next = root.pendingEqPersist
+      root.pendingEqPersist = null
+      if (Api.eqPresetName(root.settings.eqPreset) === next.eqPreset
+          && String(root.settings.eqBands) === String(next.eqBands))
+        return
+      root.persistSettings(next)
+    }
+  }
+
+  Timer {
     id: readyWaitTimer
-    interval: 120
+    interval: 200
     repeat: true
     onTriggered: {
       root.readyWaitTicks++
       if (backendClient.ready) {
         root.flushReadyWaiters(true)
-      } else if (root.readyWaitTicks >= 40) {
+      } else if (root.readyWaitTicks >= 150) {
         root.fail("YouTube Music is not ready")
         root.flushReadyWaiters(false)
       }
     }
+  }
+
+  Timer {
+    interval: 2000
+    running: root.uiVisible && !backendClient.ready && daemonManager.playbackReady
+    repeat: true
+    onTriggered: daemonManager.start()
   }
 
   Timer {

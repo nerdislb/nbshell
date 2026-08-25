@@ -34,7 +34,14 @@ Singleton {
         return charging ? device.timeToFull : device.timeToEmpty;
     }
 
-    readonly property real rate: device?.changeRate ?? 0
+    // UPower reports the battery-side energy flow in watts. It is discharge
+    // power on battery and charge power while plugged in; it is not a whole-
+    // system wall-meter reading. Keep zero visible as a valid idle/full value.
+    readonly property real rate: Math.max(0, Number(device?.changeRate ?? 0))
+    readonly property string powerText: rate.toFixed(1) + " W"
+    readonly property string powerCompactText: rate.toFixed(1) + "W"
+    readonly property string powerLabel: full ? "Battery flow"
+        : (charging ? "Charge power" : "Power draw")
     readonly property int nativeHealth: device ? Math.round(device.healthPercentage) : 0
 
     // Some UPower/Quickshell combinations expose the current percentage but

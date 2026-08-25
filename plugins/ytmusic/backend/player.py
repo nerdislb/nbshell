@@ -20,9 +20,62 @@ class PlayerError(RuntimeError):
     pass
 
 
+# yt-dlp has to fetch and solve YouTube's player JS challenge the first time it
+# sees a new player build, which is far slower than a normal resolve. Failing
+# that inside the warm budget is what makes the very first play after an install
+# report "Playback failed", so a cold cache gets a much larger budget.
+RESOLVE_TIMEOUT_WARM = 40
+RESOLVE_TIMEOUT_COLD = 150
+YT_DLP_SIGFUNC_CACHE = (
+    Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
+    / "yt-dlp" / "youtube-sigfuncs"
+)
+
+
+def yt_dlp_cache_warm(path: Path | None = None) -> bool:
+    """True when yt-dlp has already solved a player JS challenge."""
+    target = Path(path) if path is not None else YT_DLP_SIGFUNC_CACHE
+    try:
+        return target.is_dir() and any(target.iterdir())
+    except OSError:
+        return False
+
+
+def resolve_timeout(warm: bool) -> int:
+    return RESOLVE_TIMEOUT_WARM if warm else RESOLVE_TIMEOUT_COLD
+
+
 def quality_format(kbps: int) -> str:
     rate = 96 if kbps <= 96 else (160 if kbps <= 160 else 320)
-    return f"bestaudio[abr<={rate}]/bestaudio"
+    return f"bestaudio[abr<={rate}]/bestaudio/best"
+
+
+# Ten-band EQ matching cliamp center frequencies (Hz).
+EQ_FREQS = (70, 180, 320, 600, 1000, 3000, 6000, 12000, 14000, 16000)
+EQ_LABELS = ("70", "180", "320", "600", "1k", "3k", "6k", "12k", "14k", "16k")
+EQ_PRESETS: dict[str, tuple[float, ...]] = {
+    "Flat": (0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+    "Rock": (5, 4, 2, -1, -2, 2, 4, 5, 5, 5),
+    "Pop": (-1, 2, 4, 5, 4, 1, -1, -1, 1, 2),
+    "Jazz": (3, 4, 2, 1, -1, -1, 1, 2, 3, 4),
+    "Classical": (3, 2, 1, 0, -1, -1, 0, 2, 3, 4),
+    "Bass Boost": (8, 6, 4, 2, 0, 0, 0, 0, 0, 0),
+    "Treble Boost": (0, 0, 0, 0, 0, 1, 3, 5, 6, 7),
+    "Vocal": (-2, -1, 1, 4, 5, 4, 2, 0, -1, -2),
+    "Electronic": (6, 4, 1, -1, -2, 1, 3, 4, 5, 6),
+    "Acoustic": (3, 3, 2, 0, 1, 2, 3, 3, 2, 1),
+}
+
+
+def eq_filter_chain(bands: list[float]) -> str:
+    """Stable 10-band lavfi graph. Always emit every band so mpv does not
+    rebuild a different filter topology (that restarts the YouTube stream)."""
+    parts: list[str] = []
+    values = list(bands) + [0.0] * 10
+    for freq, gain in zip(EQ_FREQS, values):
+        clamped = max(-12.0, min(12.0, float(gain)))
+        parts.append(f"equalizer=f={freq}:t=o:w=1:g={clamped:.1f}")
+    return "lavfi=[" + ",".join(parts) + "]"
 
 
 def media_title(item: dict | None) -> str:
@@ -92,7 +145,7 @@ def mpv_command_line(binary: str, ipc_path: Path, mpris: str = "") -> list[str]:
         "--clipboard-backends-clr",
         "--no-input-default-bindings",
         "--volume=80",
-        "--title=Omarchy YouTube Music",
+        "--title=YouTube Music",
         "--audio-client-name=omarchy-ytmusic",
         f"--input-ipc-server={ipc_path}",
         "--msg-level=cplayer=info,ao=info,ffmpeg=warn",
@@ -307,6 +360,7 @@ class StreamResolver:
         url = watch_url(video_id)
         command = [
             binary,
+            "--extractor-args", "youtube:player_client=android",
             "-f", quality_format(self.kbps),
             "-g",
             "--no-playlist",
@@ -314,15 +368,26 @@ class StreamResolver:
             "--no-progress",
             url,
         ]
-        if self.cookies_path and self.cookies_path.is_file():
-            command[1:1] = ["--cookies", str(self.cookies_path)]
-        result = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            timeout=40,
-            check=False,
-        )
+        # Do not pass cookies here: they push yt-dlp onto web_music, which
+        # needs a GVS PO token we cannot mint. android URLs work unsigned.
+        warm = yt_dlp_cache_warm()
+        try:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=resolve_timeout(warm),
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            if warm:
+                raise PlayerError(
+                    "YouTube took too long to answer. Try that track again."
+                ) from exc
+            raise PlayerError(
+                "Preparing YouTube playback took too long the first time. "
+                "Try that track again; the next one is much faster."
+            ) from exc
         stream = (result.stdout or "").strip().splitlines()
         if result.returncode != 0 or not stream:
             detail = (result.stderr or "").strip().splitlines()
@@ -337,10 +402,12 @@ class QueuePlayer:
         runtime_dir: Path,
         on_change: Callable[[], None] | None = None,
         catalog_radio: Callable[[str], list[dict]] | None = None,
+        on_played: Callable[[dict], None] | None = None,
     ):
         self.mpv = Mpv(runtime_dir / "mpv.sock")
         self.resolver = StreamResolver()
         self.on_change = on_change or (lambda: None)
+        self.on_played = on_played or (lambda _item: None)
         self.catalog_radio = catalog_radio
         self.queue: list[dict] = []
         self.index = -1
@@ -361,7 +428,13 @@ class QueuePlayer:
         self._sleep_deadline = 0.0
         self._sleep_after = ""
         self._display_title = ""
+        self.resolving = False
         self.last_activity = time.time()
+        self.eq_bands: list[float] = list(EQ_PRESETS["Flat"])
+        self.eq_preset = "Flat"
+        self._eq_timer: threading.Timer | None = None
+        self._eq_guard_until = 0.0
+        self._eq_last_chain = ""
 
     @property
     def current(self) -> dict | None:
@@ -381,6 +454,7 @@ class QueuePlayer:
                 self._thread = threading.Thread(target=self._loop, daemon=True)
                 self._thread.start()
             self.mpv.command(["set_property", "volume", self.volume])
+            self.apply_eq(immediate=True)
 
     def shutdown(self) -> None:
         self._stop.set()
@@ -408,6 +482,115 @@ class QueuePlayer:
             if nxt:
                 self.resolver.prefetch(nxt)
         self.on_change()
+
+    def reorder_queue(self, source_index: int, destination_index: int) -> None:
+        if not self.queue:
+            return
+        source = max(0, min(int(source_index), len(self.queue) - 1))
+        destination = max(0, min(int(destination_index), len(self.queue) - 1))
+        if source == destination:
+            return
+        with self._lock:
+            current = self.index
+            item = self.queue.pop(source)
+            self.queue.insert(destination, item)
+            if current == source:
+                self.index = destination
+            elif source < destination and source < current <= destination:
+                self.index -= 1
+            elif destination < source and destination <= current < source:
+                self.index += 1
+        self.note_activity()
+        self.on_change()
+
+    def eq_snapshot(self) -> dict[str, Any]:
+        return {
+            "bands": [float(value) for value in self.eq_bands],
+            "preset": self.eq_preset,
+            "labels": list(EQ_LABELS),
+        }
+
+    def apply_eq(self, immediate: bool = False) -> None:
+        if not self.mpv.running:
+            return
+        with self._lock:
+            if self._eq_timer:
+                self._eq_timer.cancel()
+                self._eq_timer = None
+            if immediate:
+                self._flush_eq_locked()
+                return
+            timer = threading.Timer(0.08, self._flush_eq)
+            timer.daemon = True
+            self._eq_timer = timer
+            timer.start()
+
+    def _flush_eq(self) -> None:
+        with self._lock:
+            self._eq_timer = None
+            self._flush_eq_locked()
+
+    def _flush_eq_locked(self) -> None:
+        if not self.mpv.running:
+            return
+        chain = eq_filter_chain(self.eq_bands)
+        if chain == self._eq_last_chain:
+            return
+        self._eq_last_chain = chain
+        self._eq_guard_until = time.time() + 1.5
+        try:
+            self.mpv.command(["set_property", "af", chain])
+        except PlayerError:
+            pass
+
+    def set_eq_band(self, index: int, gain: float) -> None:
+        band = max(0, min(int(index), len(self.eq_bands) - 1))
+        self.eq_bands[band] = max(-12.0, min(12.0, float(gain)))
+        self.eq_preset = "Custom"
+        self.apply_eq()
+        self.on_change()
+
+    def set_eq_preset(self, name: str) -> None:
+        preset = EQ_PRESETS.get(str(name or "").strip())
+        if not preset:
+            raise PlayerError("Unknown EQ preset")
+        self.eq_bands = list(preset)
+        self.eq_preset = str(name)
+        self.apply_eq()
+        self.on_change()
+
+    def restore_eq(self, preset: str, bands: list | None = None) -> None:
+        name = str(preset or "").strip() or "Flat"
+        if name == "Custom":
+            values = list(bands or [])
+            cleaned: list[float] = []
+            for index in range(10):
+                try:
+                    gain = float(values[index]) if index < len(values) else 0.0
+                except (TypeError, ValueError):
+                    gain = 0.0
+                cleaned.append(max(-12.0, min(12.0, round(gain * 2) / 2)))
+            self.eq_bands = cleaned
+            self.eq_preset = "Custom"
+            self.apply_eq(immediate=True)
+            self.on_change()
+            return
+        if name not in EQ_PRESETS:
+            name = "Flat"
+        preset = EQ_PRESETS[name]
+        self.eq_bands = list(preset)
+        self.eq_preset = name
+        self.apply_eq(immediate=True)
+        self.on_change()
+
+    def cycle_eq_preset(self) -> str:
+        names = list(EQ_PRESETS.keys())
+        if self.eq_preset in names:
+            nxt = (names.index(self.eq_preset) + 1) % len(names)
+        else:
+            nxt = 0
+        self.set_eq_preset(names[nxt])
+        return names[nxt]
 
     def play(self) -> None:
         if not self.current:
@@ -550,6 +733,10 @@ class QueuePlayer:
         self.error = ""
         self.ensure_started()
         self._publish_title(item)
+        # A cold resolve can take a while. Tell the UI before blocking on it so
+        # it can show progress instead of looking stalled.
+        self.resolving = True
+        self.on_change()
         try:
             url = self.resolver.resolve(video_id)
             self._publish_title(item)
@@ -561,14 +748,21 @@ class QueuePlayer:
         except Exception as exc:
             self.error = str(exc)
             self.playing = False
+            self.resolving = False
             self.on_change()
             raise PlayerError(str(exc)) from exc
+        finally:
+            self.resolving = False
         nxt = self._upcoming_video_id()
         if nxt:
             self.resolver.prefetch(nxt)
         elif self.catalog_radio and len(self.queue) - self.index <= 2:
             self._fill_radio(video_id)
         self._generation += 1
+        try:
+            self.on_played(item)
+        except Exception:
+            pass
         self.on_change()
 
     def _fill_radio(self, video_id: str) -> None:
@@ -672,6 +866,8 @@ class QueuePlayer:
                     if reason in ("eof", "0"):
                         eof = True
                     elif reason == "error":
+                        if time.time() < self._eq_guard_until:
+                            continue
                         self.playing = False
                         self.error = self.error or "Playback failed"
                         changed = True

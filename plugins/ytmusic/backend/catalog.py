@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import time
 from typing import Any
 
 WATCH_BASE = "https://music.youtube.com/watch?v="
@@ -350,6 +351,9 @@ def shelf_from_home(raw: Any, track_limit: int = 12) -> dict | None:
 class Catalog:
     def __init__(self, ytmusic):
         self.yt = ytmusic
+        self._home: list[dict] | None = None
+        self._home_at = 0.0
+        self._home_ttl = 120.0
 
     def account(self) -> dict:
         try:
@@ -363,7 +367,14 @@ class Catalog:
         )
         return {"name": name, "raw": info}
 
-    def home(self, limit: int = 6) -> list[dict]:
+    def home(self, limit: int = 6, force: bool = False) -> list[dict]:
+        now = time.time()
+        if (
+            not force
+            and self._home is not None
+            and (now - self._home_at) < self._home_ttl
+        ):
+            return self._home
         try:
             shelves = self.yt.get_home(limit=limit)
         except Exception:
@@ -375,6 +386,8 @@ class Catalog:
                 out.append(mapped)
             if len(out) >= limit:
                 break
+        self._home = out
+        self._home_at = now
         return out
 
     def history(self, limit: int = 40) -> list[dict]:
@@ -558,11 +571,17 @@ class Catalog:
 
     def rate_song(self, video_id: str, liked: bool) -> None:
         rating = "LIKE" if liked else "INDIFFERENT"
-        self.yt.rate_song(video_id, rating)
+        try:
+            self.yt.rate_song(video_id, rating)
+        except Exception as exc:
+            raise_auth_or_catalog(exc, "like songs")
 
     def create_playlist(self, name: str) -> dict:
         name = _text(name) or "New playlist"
-        playlist_id = self.yt.create_playlist(name, "")
+        try:
+            playlist_id = self.yt.create_playlist(name, "")
+        except Exception as exc:
+            raise_auth_or_catalog(exc, "create playlists")
         playlist_id = _text(playlist_id)
         return {
             "kind": "context",
@@ -576,8 +595,32 @@ class Catalog:
         }
 
     def add_to_playlist(self, playlist_id: str, video_id: str) -> None:
-        self.yt.add_playlist_items(playlist_id, [video_id])
+        try:
+            self.yt.add_playlist_items(playlist_id, [video_id])
+        except Exception as exc:
+            raise_auth_or_catalog(exc, "save to playlists")
 
 
 class CatalogError(RuntimeError):
     pass
+
+
+class AuthRequired(CatalogError):
+    """The YouTube Music session is missing or expired."""
+
+
+def looks_unauthorized(exc: BaseException | str) -> bool:
+    text = str(exc or "").lower()
+    return (
+        "401" in text
+        or "unauthorized" in text
+        or "must be signed in" in text
+        or "please sign in" in text
+        or "not logged in" in text
+    )
+
+
+def raise_auth_or_catalog(exc: BaseException, action: str) -> None:
+    if looks_unauthorized(exc):
+        raise AuthRequired("Sign in to " + action) from exc
+    raise CatalogError(str(exc)) from exc

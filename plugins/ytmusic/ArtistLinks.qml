@@ -1,4 +1,5 @@
 import QtQuick
+import qs.Ui
 
 import "Api.js" as Api
 
@@ -110,5 +111,13 @@ Item {
       if (link) root.activateLink(link)
       else mouse.accepted = false
     }
+  }
+
+  Accessible.role: Accessible.StaticText
+  Accessible.name: root.displayText()
+
+  PanelToolTip {
+    visible: linkMouseArea.containsMouse && root.displayText() !== ""
+    text: root.displayText()
   }
 }

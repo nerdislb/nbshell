@@ -69,6 +69,8 @@ Scope {
                 "prozent": PowerService.percent,
                 "zustand": PowerService.stateText,
                 "restzeit": PowerService.timeText,
+                "leistung_watt": Number(PowerService.rate.toFixed(1)),
+                "leistung_typ": PowerService.powerLabel,
                 "gesundheit": PowerService.health,
                 "profil": PowerService.activeProfile
             });

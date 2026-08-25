@@ -154,6 +154,16 @@ Umbriel remain available in the session selector.
 ./setup-greeter.sh
 ```
 
+After changing the theme or choosing a different wallpaper, synchronize the
+logout greeter with the same appearance used by the suspend lock screen:
+
+```bash
+nbshell greeter sync
+```
+
+The sync updates only ReGreet's public CSS, compositor color, and wallpaper;
+it does not rewrite PAM or restart the active login session.
+
 The installer uses the current nbshell wallpaper, keeps a recovery copy at
 `/etc/greetd/config.toml.before-nbshell-greeter`, and does not interrupt the
 current session. greetd cannot reload its configuration while running, so the

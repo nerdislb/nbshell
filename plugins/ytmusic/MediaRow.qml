@@ -12,6 +12,8 @@ BorderSurface {
   property color accent: Color.accent
   property string fontFamily: Style.font.family
   property bool selected: false
+  property bool playing: false
+  property real areaRadius: Math.max(Style.space(14), Style.cornerRadius)
   property bool showPlay: true
   property bool showQueue: false
   property bool showPlaylist: true
@@ -19,7 +21,9 @@ BorderSurface {
   property bool saved: false
   property bool browseOnActivate: false
   property bool reorderEnabled: false
+  property bool trackDragEnabled: false
   property bool reorderDragging: false
+  property bool trackDragging: false
   property int reorderDropIndicator: 0
   property bool hovered: hoverHandler.hovered
   property bool actionsExpanded: false
@@ -62,6 +66,10 @@ BorderSurface {
   signal reorderDragMoved(real sceneY)
   signal reorderDragFinished(real sceneY)
   signal reorderDragCanceled()
+  signal trackDragStarted(real sceneY)
+  signal trackDragMoved(real sceneY)
+  signal trackDragFinished(real sceneY)
+  signal trackDragCanceled()
 
   function triggerPrimary() {
     if (browseOnActivate) openRequested(itemData)
@@ -77,18 +85,25 @@ BorderSurface {
   implicitWidth: Style.space(420)
   implicitHeight: Style.space(66)
   height: implicitHeight
-  radius: Style.cornerRadius
-  color: selected || reorderDragging
-    ? Style.selectedFillFor(foreground, accent)
-    : (reorderDropIndicator !== 0 ? Style.hoverFillFor(foreground, accent)
-    : (hovered ? Style.hoverFillFor(foreground, accent) : "transparent"))
-  borderSpec: selected || reorderDragging
-    ? Border.controlSpec("selected", foreground, accent)
-    : Border.none()
-  opacity: reorderDragging ? 0.55 : 1
+  radius: root.areaRadius
+  Accessible.role: Accessible.ListItem
+  Accessible.name: root.itemData ? String(root.itemData.name || "Untitled") : "Untitled"
+  Accessible.description: root.itemData ? String(root.itemData.subtitle || "") : ""
+  Accessible.onPressAction: root.triggerPrimary()
+  color: root.playing || reorderDragging
+    ? Style.normalFillFor(foreground, accent)
+    : (root.selected || reorderDropIndicator !== 0 || hovered
+      ? Style.hoverFillFor(foreground, accent) : "transparent")
+  borderSpec: Border.none()
+  opacity: reorderDragging || trackDragging ? 0.55 : 1
   clip: true
 
   HoverHandler { id: hoverHandler }
+
+  PanelToolTip {
+    visible: titleHover.hovered && titleText.text !== ""
+    text: titleText.text
+  }
 
   TextMetrics {
     id: titleMetrics
@@ -102,13 +117,14 @@ BorderSurface {
     id: rowMouseArea
     anchors.fill: parent
     acceptedButtons: Qt.LeftButton | Qt.RightButton
-    preventStealing: root.reorderEnabled
-    cursorShape: root.reorderEnabled
-      ? (reorderGesture ? Qt.ClosedHandCursor : Qt.OpenHandCursor)
+    preventStealing: root.reorderEnabled || root.trackDragEnabled
+    cursorShape: root.reorderEnabled || root.trackDragEnabled
+      ? (dragGesture ? Qt.ClosedHandCursor : Qt.OpenHandCursor)
       : Qt.PointingHandCursor
 
-    property bool reorderCandidate: false
-    property bool reorderGesture: false
+    property bool dragCandidate: false
+    property bool dragGesture: false
+    property bool dragUsesTrack: false
     property bool suppressActivation: false
     property real pressSceneY: 0
 
@@ -118,33 +134,48 @@ BorderSurface {
 
     onPressed: function(mouse) {
       suppressActivation = false
-      reorderCandidate = mouse.button === Qt.LeftButton && root.reorderEnabled
-      reorderGesture = false
-      if (reorderCandidate) pressSceneY = pointerSceneY(mouse)
+      dragUsesTrack = mouse.button === Qt.LeftButton && root.trackDragEnabled
+        && !root.reorderEnabled
+      dragCandidate = mouse.button === Qt.LeftButton
+        && (root.reorderEnabled || dragUsesTrack)
+      dragGesture = false
+      if (dragCandidate) pressSceneY = pointerSceneY(mouse)
     }
 
     onPositionChanged: function(mouse) {
-      if (!reorderCandidate || !pressed) return
+      if (!dragCandidate || !pressed) return
       var sceneY = pointerSceneY(mouse)
-      if (!reorderGesture
+      if (!dragGesture
           && Math.abs(sceneY - pressSceneY) >= Style.space(6)) {
-        reorderGesture = true
+        dragGesture = true
         suppressActivation = true
-        root.reorderDragStarted(pressSceneY)
+        if (dragUsesTrack) root.trackDragStarted(pressSceneY)
+        else root.reorderDragStarted(pressSceneY)
       }
-      if (reorderGesture) root.reorderDragMoved(sceneY)
+      if (dragGesture) {
+        if (dragUsesTrack) root.trackDragMoved(sceneY)
+        else root.reorderDragMoved(sceneY)
+      }
     }
 
     onReleased: function(mouse) {
-      if (reorderGesture) root.reorderDragFinished(pointerSceneY(mouse))
-      reorderCandidate = false
-      reorderGesture = false
+      if (dragGesture) {
+        if (dragUsesTrack) root.trackDragFinished(pointerSceneY(mouse))
+        else root.reorderDragFinished(pointerSceneY(mouse))
+      }
+      dragCandidate = false
+      dragGesture = false
+      dragUsesTrack = false
     }
 
     onCanceled: {
-      if (reorderGesture) root.reorderDragCanceled()
-      reorderCandidate = false
-      reorderGesture = false
+      if (dragGesture) {
+        if (dragUsesTrack) root.trackDragCanceled()
+        else root.reorderDragCanceled()
+      }
+      dragCandidate = false
+      dragGesture = false
+      dragUsesTrack = false
       suppressActivation = false
     }
 
@@ -168,38 +199,22 @@ BorderSurface {
     anchors.margins: Style.space(6)
     spacing: Style.space(9)
 
-    BorderSurface {
+    Artwork {
       id: artworkSurface
       width: parent.height
       height: width
-      radius: Style.spacing.labelGap
-      color: Style.normalFillFor(root.foreground, root.accent)
-      borderSpec: Border.controlSpec("normal", root.foreground, root.accent)
-
-      Image {
-        id: rowArtwork
-        anchors.fill: parent
-        anchors.margins: Style.space(2)
-        source: root.itemData && root.itemData.imageUrl ? root.itemData.imageUrl : ""
-        sourceSize.width: 112
-        sourceSize.height: 112
-        fillMode: Image.PreserveAspectFit
-        asynchronous: true
-        cache: false
-        visible: status === Image.Ready
-      }
-
-      Text {
-        anchors.centerIn: parent
-        visible: rowArtwork.status !== Image.Ready
-        text: !root.itemData ? "󰝚"
-          : (root.itemData.type === "playlist" ? "󰲸"
-          : (root.itemData.type === "artist" ? "󰠃"
-          : (root.itemData.type === "album" ? "󰀥" : "󰝚")))
-        color: Qt.darker(root.foreground, 1.35)
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.iconLarge
-      }
+      radius: root.areaRadius
+      foreground: root.foreground
+      accent: root.accent
+      source: root.itemData && root.itemData.imageUrl ? root.itemData.imageUrl : ""
+      sourceSize: 112
+      altText: Api.artworkAltText(
+        root.itemData ? root.itemData.name : "",
+        root.itemData ? root.itemData.subtitle : "")
+      placeholderText: !root.itemData ? "󰝚"
+        : (root.itemData.type === "playlist" ? "󰲸"
+        : (root.itemData.type === "artist" ? "󰠃"
+        : (root.itemData.type === "album" ? "󰀥" : "󰝚")))
     }
 
     Column {
@@ -218,6 +233,9 @@ BorderSurface {
         font.pixelSize: Style.font.body
         font.bold: root.selected
         elide: Text.ElideRight
+        Accessible.role: Accessible.StaticText
+        Accessible.name: text
+        HoverHandler { id: titleHover }
       }
 
       MediaByline {
@@ -248,9 +266,10 @@ BorderSurface {
         color: Qt.darker(root.foreground, 1.45)
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
+        Accessible.name: "Duration " + text
       }
 
-      Button {
+      Chicklet {
         id: saveButton
         objectName: "media-row-save"
         visible: root.saveActionVisible
@@ -258,12 +277,12 @@ BorderSurface {
         iconText: root.saved ? "󰋑" : "󰋕"
         foreground: root.foreground
         selected: root.saved
-        tooltipText: root.saved ? "Unlike" : "Like this song"
-        horizontalPadding: Style.space(7)
+        tooltipText: Api.controlTooltip(root.saved ? "Unlike" : "Like this song", "L")
+        chickletSize: Style.space(30)
         onClicked: root.saveRequested(root.itemData)
       }
 
-      Button {
+      Chicklet {
         id: playlistButton
         objectName: "media-row-playlist"
         visible: root.playlistActionVisible
@@ -271,35 +290,35 @@ BorderSurface {
         iconText: "󱁐"
         foreground: root.foreground
         tooltipText: "Add to playlist"
-        horizontalPadding: Style.space(7)
+        chickletSize: Style.space(30)
         onClicked: root.playlistRequested(root.itemData)
       }
 
-      Button {
+      Chicklet {
         id: queueButton
         objectName: "media-row-queue"
         visible: root.queueActionVisible
           && (!root.compactActions || root.actionsExpanded)
         iconText: "󰐕"
         foreground: root.foreground
-        tooltipText: "Add to queue"
-        horizontalPadding: Style.space(7)
+        tooltipText: Api.controlTooltip("Add to queue", "Q")
+        chickletSize: Style.space(30)
         onClicked: root.queueRequested(root.itemData)
       }
 
-      Button {
+      Chicklet {
         id: playButton
         objectName: "media-row-play"
         visible: root.playActionVisible
           && (!root.compactActions || root.actionsExpanded)
         iconText: "󰐊"
         foreground: root.foreground
-        tooltipText: "Play"
-        horizontalPadding: Style.space(7)
+        tooltipText: Api.controlTooltip("Play", "Enter")
+        chickletSize: Style.space(30)
         onClicked: root.triggerPlay()
       }
 
-      Button {
+      Chicklet {
         id: actionToggle
         objectName: "media-row-actions-toggle"
         visible: root.compactActions
@@ -307,7 +326,7 @@ BorderSurface {
         foreground: root.foreground
         tooltipText: root.actionsExpanded
           ? "Hide row actions" : "Show duration and actions"
-        horizontalPadding: Style.space(7)
+        chickletSize: Style.space(30)
         onClicked: root.actionsExpanded = !root.actionsExpanded
       }
     }

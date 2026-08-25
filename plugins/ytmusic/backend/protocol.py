@@ -6,7 +6,10 @@ import json
 from typing import Any
 
 PROTOCOL_VERSION = 1
-BACKEND_VERSION = "1.1.0"
+BACKEND_VERSION = "1.1.1"
+# One NDJSON frame. Catalog payloads stay well under this; a missing newline
+# must not grow the Omarchy shell SplitParser buffer without bound.
+MAX_LINE_BYTES = 256 * 1024
 
 ERROR_UNSUPPORTED_VERSION = "unsupported_version"
 ERROR_UNKNOWN_COMMAND = "unknown_command"
@@ -21,15 +24,57 @@ def dumps(payload: dict[str, Any]) -> str:
     return json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
 
 
-def parse_line(line: str) -> dict[str, Any] | None:
+def line_size(text: str | bytes) -> int:
+    if isinstance(text, bytes):
+        return len(text)
+    return len(str(text or "").encode("utf-8"))
+
+
+def parse_line(line: str, max_bytes: int = MAX_LINE_BYTES) -> dict[str, Any] | None:
     text = (line or "").strip()
     if not text:
+        return None
+    if line_size(text) > max_bytes:
         return None
     try:
         message = json.loads(text)
     except json.JSONDecodeError:
         return None
     return message if isinstance(message, dict) else None
+
+
+def _stripped_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    next_payload = dict(payload)
+    if next_payload.get("type") == "event" and isinstance(next_payload.get("state"), dict):
+        state = dict(next_payload["state"])
+        state["play_history"] = []
+        track = state.get("track")
+        state["queue"] = [track] if isinstance(track, dict) else []
+        next_payload["state"] = state
+        return next_payload
+    if next_payload.get("type") == "response" and isinstance(next_payload.get("result"), dict):
+        result = dict(next_payload["result"])
+        for key in ("home", "items", "sections", "play_history", "queue"):
+            if key in result:
+                result[key] = []
+        next_payload["result"] = result
+    return next_payload
+
+
+def encode_line(payload: dict[str, Any], max_bytes: int = MAX_LINE_BYTES) -> bytes:
+    data = (dumps(payload) + "\n").encode("utf-8")
+    if len(data) <= max_bytes:
+        return data
+    slim = _stripped_payload(payload)
+    data = (dumps(slim) + "\n").encode("utf-8")
+    if len(data) <= max_bytes:
+        return data
+    fallback = response(
+        payload.get("id"), False,
+        code=ERROR_UNAVAILABLE,
+        message="Response too large",
+    )
+    return (dumps(fallback) + "\n").encode("utf-8")
 
 
 def response(request_id: Any, ok: bool, result: dict[str, Any] | None = None,

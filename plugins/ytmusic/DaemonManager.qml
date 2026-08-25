@@ -32,6 +32,8 @@ Item {
 
   signal started()
   signal stopped()
+  signal restarted()
+  signal restartFailed(string reason)
   signal setupSucceeded()
   signal setupFailed(string reason)
 
@@ -77,7 +79,7 @@ Item {
   }
 
   function start() {
-    if (busy || serviceActive) return
+    if (busy || !pluginDir) return
     if (!binaryAvailable || !unitAvailable) {
       lastError = "Playback support needs to be set up"
       return
@@ -85,7 +87,7 @@ Item {
     lastError = ""
     busy = true
     startCommand.command = ["/usr/bin/bash",
-      pluginDir + "/scripts/playback-runtime.sh", "start"]
+      pluginDir + "/scripts/playback-runtime.sh", "start", pluginDir]
     startCommand.running = true
   }
 
@@ -95,6 +97,15 @@ Item {
     stopCommand.command = ["/usr/bin/bash",
       pluginDir + "/scripts/playback-runtime.sh", "stop"]
     stopCommand.running = true
+  }
+
+  function restart() {
+    if (busy || setupBusy || !pluginDir) return
+    lastError = ""
+    busy = true
+    restartCommand.command = ["/usr/bin/bash",
+      pluginDir + "/scripts/playback-runtime.sh", "restart", pluginDir]
+    restartCommand.running = true
   }
 
   Process {
@@ -178,10 +189,26 @@ Item {
     }
   }
 
+  Process {
+    id: restartCommand
+    running: false
+    stderr: StdioCollector { }
+    onExited: function(code) {
+      root.busy = false
+      if (Number(code) === 0) {
+        root.serviceActive = true
+        root.lastError = ""
+        root.restarted()
+      } else {
+        root.lastError = root.safeError(restartCommand.stderr.text
+          || "Could not restart YouTube Music playback")
+        root.restartFailed(root.lastError)
+      }
+    }
+  }
+
   Timer {
-    // The player service changes rarely while idle. UI actions update the
-    // state directly; this is only a fallback for external systemctl changes.
-    interval: 15000
+    interval: 4000
     running: root.playbackReady
     repeat: true
     onTriggered: root.refreshStatus()

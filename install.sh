@@ -357,6 +357,11 @@ mkdir -p "$BIN_DIR"
 install -m 755 "$SRC/bin/nbshell" "$BIN_DIR/nbshell"
 green "Command -> $BIN_DIR/nbshell"
 
+GREETER_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/nbshell"
+mkdir -p "$GREETER_DATA/greeter"
+install -m 755 "$SRC/setup-greeter.sh" "$GREETER_DATA/setup-greeter.sh"
+install -m 644 "$SRC/greeter/regreet.toml" "$GREETER_DATA/greeter/regreet.toml"
+
 # Desktop metadata for portals and notification attribution. The shell stays
 # hidden from application launchers because it is managed as a session unit.
 APP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"

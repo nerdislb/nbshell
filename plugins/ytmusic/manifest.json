@@ -2,10 +2,10 @@
   "schemaVersion": 2,
   "id": "ytmusic",
   "name": "YouTube Music",
-  "version": "1.1.0",
-  "author": "rlimberger",
+  "version": "1.2.0",
+  "author": "rlimberger, Wizwam, nbshell contributors",
   "license": "MIT",
-  "repository": "https://github.com/rlimberger/omarchy-ytmusic",
+  "repository": "https://github.com/nerdislb/nbshell",
   "dependencies": {
     "commands": ["mpv", "yt-dlp", "python3"],
     "packages": ["mpv", "yt-dlp", "python"]
@@ -23,7 +23,7 @@
     "panel": "Panel.qml"
   },
   "barWidget": {
-    "displayName": "Omarchy YouTube Music",
+    "displayName": "YouTube Music",
     "description": "YouTube Music in Quickshell with a mini player and local mpv playback.",
     "category": "Media",
     "aliases": [
@@ -71,8 +71,8 @@
           "Full player",
           "Mini player"
         ],
-        "defaultValue": "Omarchy Music app",
-        "description": "Choose whether Super+Shift+M launches Omarchy's Music app, the full player, or the mini-player. Bind the shortcut once in Hyprland first."
+        "defaultValue": "Full player",
+        "description": "Choose whether the nbshell music shortcut opens the full player or mini player."
       },
       {
         "key": "audioQuality",

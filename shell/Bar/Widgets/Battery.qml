@@ -9,16 +9,17 @@ Cell {
     id: root
 
     shown: PowerService.available
-    // Platz fuer die Restzeit, die beim Ueberfahren an die Stelle des
-    // Ladestands tritt -- sonst zoege die halbe Leiste mit.
-    slotChars: 7
+    // Percentage and battery-side power stay visible at a glance. Hover still
+    // swaps to the remaining time without moving the rest of the bar.
+    slotChars: 13
     interactive: true
 
     // Das Symbol fuellt sich mit dem Ladestand, beim Laden steht der Blitz
     // da -- den Pfeil davor braucht es dann nicht mehr.
     label: PowerService.charging ? "BAT ↑" : "BAT"
     icon: PowerService.charging ? Icons.batteryCharge(PowerService.percent) : Icons.battery(PowerService.percent)
-    text: hovered ? PowerService.timeText : (PowerService.percent + "%")
+    text: hovered ? PowerService.timeText
+        : (PowerService.percent + "% · " + PowerService.powerCompactText)
 
     color: PowerService.percent <= 20 && !PowerService.charging ? Theme.red : (PowerService.charging ? Theme.green : Theme.text)
 
@@ -42,6 +43,7 @@ Cell {
                     rowWidth: parent.width
                     pairs: [
                         { "label": PowerService.charging ? "Full in" : "Remaining", "value": PowerService.timeText },
+                        { "label": PowerService.powerLabel, "value": PowerService.powerText },
                         { "label": "Power profile", "value": PowerService.activeProfile }
                     ]
                 }
@@ -155,10 +157,7 @@ Cell {
                         "label": PowerService.charging ? "Full in" : "Remaining",
                         "value": PowerService.full ? "full" : PowerService.timeText
                     },
-                    {
-                        "label": PowerService.rate > 0 ? "Power" : "",
-                        "value": PowerService.rate > 0 ? PowerService.rate.toFixed(1) + " W" : ""
-                    },
+                    { "label": PowerService.powerLabel, "value": PowerService.powerText },
                     {
                         "label": PowerService.health > 0 ? "Health" : "",
                         "value": PowerService.health > 0 ? PowerService.health + " %" : "",

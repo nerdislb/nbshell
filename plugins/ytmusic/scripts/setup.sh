@@ -44,6 +44,7 @@ install -m 644 -- \
   "$source_root/backend/auth.py" \
   "$source_root/backend/catalog.py" \
   "$source_root/backend/player.py" \
+  "$source_root/backend/play_history.py" \
   "$lib_dir/"
 chmod 755 -- "$lib_dir/server.py"
 

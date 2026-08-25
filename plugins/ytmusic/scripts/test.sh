@@ -4,22 +4,16 @@ set -euo pipefail
 source_root=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$source_root"
 
-command -v omarchy >/dev/null 2>&1 || {
-  echo "test.sh: omarchy is required" >&2
-  exit 1
-}
-
-omarchy plugin validate .
+repo_root=$(CDPATH= cd -- "$source_root/../.." && pwd)
+bash "$repo_root/shell/scripts/plugins.sh" validate "$source_root"
 
 python3 "$source_root/backend/server.py" --self-test
-python3 "$source_root/tests/test_catalog.py"
-python3 "$source_root/tests/test_auth.py"
-python3 "$source_root/tests/test_player.py"
-python3 "$source_root/tests/test_protocol.py"
+python3 -m unittest discover -s "$source_root/tests" -p 'test_*.py' -v
 
 if command -v qmllint >/dev/null 2>&1; then
-  qmllint -I /usr/share/omarchy/shell Api.js \
-    ArtistLinks.qml MediaByline.qml MediaRow.qml MediaCollection.qml \
+  qmllint -I "$repo_root/shell" Api.js \
+    ArtistLinks.qml Artwork.qml Chicklet.qml EqBar.qml MediaByline.qml \
+    MediaRow.qml MediaCollection.qml RoundedField.qml SidebarItem.qml \
     PlaybackSlider.qml FastScrollHandler.qml LyricsInstallPrompt.qml \
     BackendClient.qml DaemonManager.qml Service.qml BarWidget.qml Panel.qml
 fi

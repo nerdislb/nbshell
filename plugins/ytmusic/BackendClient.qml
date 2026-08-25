@@ -20,6 +20,7 @@ Item {
   property int nextId: 1
   property var pending: ({})
   property int reconnectAttempt: 0
+  property string lineBuffer: ""
 
   readonly property string socketPath: {
     var runtime = Quickshell.env("XDG_RUNTIME_DIR")
@@ -48,8 +49,7 @@ Item {
       return 0
     }
     var id = nextId++
-    var payload = { v: 1, id: id, command: String(name || "") }
-    Api.assign(payload, fields || {})
+    var payload = Api.requestPayload(name, fields, id)
     var nextPending = ({})
     for (var existing in pending) nextPending[existing] = pending[existing]
     nextPending[String(id)] = typeof callback === "function" ? callback : null
@@ -57,6 +57,20 @@ Item {
     socket.write(JSON.stringify(payload) + "\n")
     socket.flush()
     return id
+  }
+
+  function handleChunk(chunk) {
+    var split = Api.splitSocketBuffer(root.lineBuffer, chunk, Api.MAX_SOCKET_LINE)
+    if (split.overflow) {
+      root.lineBuffer = ""
+      root.resetPending("YouTube Music sent a message that was too large")
+      root.tearDownSocket()
+      return
+    }
+    root.lineBuffer = split.buffer
+    var lines = split.lines || []
+    for (var i = 0; i < lines.length; i++)
+      root.handleLine(lines[i])
   }
 
   function handleLine(line) {
@@ -79,10 +93,13 @@ Item {
     if (typeof callback !== "function") return
     if (message.ok === true) {
       var result = message.result || ({})
-      if (result && typeof result === "object" && result.signed_in !== undefined) {
-        lastState = result
-        lifecycle = String(result.lifecycle || lifecycle)
-        sessionConnected = result.signed_in === true
+      if (result && typeof result === "object") {
+        if (Api.isPlaybackState(result)) {
+          lastState = result
+          lifecycle = String(result.lifecycle || lifecycle)
+        }
+        if (result.signed_in !== undefined)
+          sessionConnected = result.signed_in === true
       }
       callback(true, result, "")
     } else {
@@ -92,14 +109,19 @@ Item {
     }
   }
 
-  onWantedChanged: {
-    if (wanted) return
+  function tearDownSocket() {
     reconnectTimer.stop()
     socketLoader.active = false
     lifecycle = ""
     sessionConnected = false
     lastState = null
     reconnectAttempt = 0
+    lineBuffer = ""
+  }
+
+  onWantedChanged: {
+    if (wanted) return
+    tearDownSocket()
     resetPending("YouTube Music stopped")
   }
 
@@ -108,15 +130,23 @@ Item {
   Component {
     id: socketComponent
     Socket {
+      id: socket
       path: root.socketPath
-      connected: true
+      connected: false
       parser: SplitParser {
-        splitMarker: "\n"
-        onRead: function(line) { root.handleLine(line) }
+        // Empty marker emits each read() chunk so a missing newline cannot
+        // grow Quickshell's internal SplitParser buffer without bound.
+        splitMarker: ""
+        onRead: function(chunk) { root.handleChunk(chunk) }
       }
+      Component.onCompleted: connected = true
       onConnectionStateChanged: {
         if (connected) root.sendCommand("hello", null, null)
         else root.lifecycle = ""
+      }
+      onError: function() {
+        connected = false
+        root.lifecycle = ""
       }
     }
   }
@@ -128,7 +158,8 @@ Item {
   }
 
   // A failed connect leaves Quickshell's Socket holding a dead QLocalSocket.
-  // Setting connected=true again is a no-op, so each retry creates a new Socket.
+  // Toggling Loader.active in the same tick is also a no-op, so drop the
+  // socket on one tick and open a new one on the next.
   Timer {
     id: reconnectTimer
     interval: Math.min(1500, 180 + root.reconnectAttempt * 120)
@@ -136,8 +167,11 @@ Item {
     triggeredOnStart: true
     running: root.wanted && !root.connected
     onTriggered: {
-      root.reconnectAttempt = Math.min(12, root.reconnectAttempt + 1)
-      socketLoader.active = false
+      root.reconnectAttempt = Math.min(24, root.reconnectAttempt + 1)
+      if (socketLoader.active) {
+        socketLoader.active = false
+        return
+      }
       socketLoader.active = true
     }
   }

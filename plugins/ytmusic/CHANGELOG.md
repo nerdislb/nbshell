@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.0
+
+- Make first playback more reliable with an Android yt-dlp client, a larger
+  cold-cache resolve budget, and background challenge-cache warm-up.
+- Recover automatically from stopped or disconnected backends and keep Home
+  shelves cached across reconnects.
+- Add local play history, merged with YouTube history when signed in.
+- Add queue reordering and a persistent ten-band equalizer with presets.
+- Improve sign-in errors, responsive artwork, controls, tooltips, and keyboard
+  accessibility while retaining nbshell's Zen session import.
+- Keep the live spectrum analyzer out to avoid a continuous capture process,
+  FFT work, and high-frequency UI updates.
+
 ## 1.1.0
 
 - Recreate the backend socket after a dropped connection so the player can recover.

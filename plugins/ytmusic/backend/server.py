@@ -20,8 +20,9 @@ if str(HERE) not in sys.path:
 
 import auth
 import catalog
+import play_history
 import protocol
-from catalog import Catalog, CatalogError
+from catalog import AuthRequired, Catalog, CatalogError
 from player import PlayerError, QueuePlayer
 from protocol import (
     BACKEND_VERSION,
@@ -31,8 +32,9 @@ from protocol import (
     ERROR_PLAYBACK,
     ERROR_UNKNOWN_COMMAND,
     ERROR_UNSUPPORTED_VERSION,
+    MAX_LINE_BYTES,
     PROTOCOL_VERSION,
-    dumps,
+    encode_line,
     event,
     parse_line,
     redact,
@@ -55,6 +57,13 @@ def socket_path() -> Path:
     return runtime_dir() / "backend.sock"
 
 
+def idle_should_exit(*, idle_minutes: int, playing: bool, client_count: int,
+                     last_activity: float, now: float) -> bool:
+    if idle_minutes <= 0 or playing or client_count > 0:
+        return False
+    return (now - last_activity) >= idle_minutes * 60
+
+
 class Backend:
     def __init__(self, auth_path: Path | None = None):
         self.auth_path = auth.default_auth_path() if auth_path is None else auth_path
@@ -74,7 +83,9 @@ class Backend:
             runtime_dir(),
             on_change=self._on_player_change,
             catalog_radio=self._radio_tracks,
+            on_played=self._remember_play,
         )
+        self.local_history = play_history.load()
         self._last_broadcast = 0.0
 
     def start_catalog(self) -> None:
@@ -119,6 +130,7 @@ class Backend:
             "signed_in": self.signed_in,
             "account_name": self.account_name,
             "playing": self.player.playing,
+            "resolving": self.player.resolving,
             "shuffle": self.player.shuffle,
             "repeat": self.player.repeat,
             "volume": self.player.volume,
@@ -132,14 +144,15 @@ class Backend:
             "sleep_remaining": self.player.sleep_remaining_seconds(),
             "idle_minutes": self.idle_minutes,
             "quality_kbps": self.quality_kbps,
+            "eq": self.player.eq_snapshot(),
             "generation": self.generation,
             "error": self.error or self.player.error,
+            "play_history": list(self.local_history),
         }
 
     def broadcast(self) -> None:
         self.generation += 1
-        payload = dumps(event("state_changed", self.state())) + "\n"
-        data = payload.encode("utf-8")
+        data = encode_line(event("state_changed", self.state()))
         with self._clients_lock:
             living = []
             for client in self._clients:
@@ -167,6 +180,9 @@ class Backend:
         with self._catalog_lock:
             return self.catalog.watch_playlist(video_id)
 
+    def _remember_play(self, item: dict) -> None:
+        self.local_history = play_history.remember(item, self.local_history)
+
     def handle(self, message: dict[str, Any]) -> dict[str, Any]:
         version = message.get("v", PROTOCOL_VERSION)
         request_id = message.get("id")
@@ -177,6 +193,9 @@ class Backend:
         try:
             result = self.dispatch(command, message)
             return response(request_id, True, result)
+        except AuthRequired as exc:
+            self._invalidate_session()
+            return response(request_id, False, code=ERROR_AUTH, message=str(exc))
         except AuthError as exc:
             return response(request_id, False, code=ERROR_AUTH, message=str(exc))
         except CatalogError as exc:
@@ -191,6 +210,7 @@ class Backend:
                             message=redact(str(exc)))
 
     def dispatch(self, command: str, message: dict[str, Any]) -> dict[str, Any]:
+        self.player.note_activity()
         if command in ("hello", "ping", "get_state"):
             return self.state()
         if command == "setup_auth":
@@ -248,6 +268,30 @@ class Backend:
                 raise ValueError("item is required")
             self.player.add_to_queue(item)
             return {"queue": list(self.player.queue)}
+        if command == "reorder_queue":
+            self.player.reorder_queue(
+                int(message.get("source_index") or 0),
+                int(message.get("destination_index") or 0),
+            )
+            return {"queue": list(self.player.queue), "index": self.player.index}
+        if command == "set_eq_band":
+            self.player.set_eq_band(
+                int(message.get("index") or 0),
+                float(message.get("gain") or 0),
+            )
+            return self.player.eq_snapshot()
+        if command == "set_eq_preset":
+            self.player.set_eq_preset(str(message.get("name") or ""))
+            return self.player.eq_snapshot()
+        if command == "cycle_eq_preset":
+            name = self.player.cycle_eq_preset()
+            return self.player.eq_snapshot() | {"preset": name}
+        if command == "restore_eq":
+            self.player.restore_eq(
+                str(message.get("preset") or "Flat"),
+                message.get("bands"),
+            )
+            return self.player.eq_snapshot()
         if command == "search":
             return self.require_catalog().search(
                 str(message.get("query") or ""),
@@ -255,7 +299,10 @@ class Backend:
                 int(message.get("limit") or 24),
             )
         if command == "browse":
-            return self.browse(str(message.get("view") or "home"))
+            return self.browse(
+                str(message.get("view") or "home"),
+                force=bool(message.get("force")),
+            )
         if command == "get_playlist":
             return self.require_catalog().playlist(str(message.get("item_id") or ""))
         if command == "get_album":
@@ -329,13 +376,14 @@ class Backend:
         self.broadcast()
         return self.state()
 
-    def browse(self, view: str) -> dict[str, Any]:
+    def browse(self, view: str, force: bool = False) -> dict[str, Any]:
         cat = self.require_catalog()
         with self._catalog_lock:
             if view == "home":
-                return {"home": cat.home(), "signed_in": self.signed_in}
+                return {"home": cat.home(force=force), "signed_in": self.signed_in}
             if view == "history":
-                return {"items": cat.history()}
+                remote = cat.history() if self.signed_in else []
+                return {"items": play_history.merge(self.local_history, remote)}
             if view == "liked":
                 return {"items": cat.liked()}
             if view == "playlists":
@@ -360,12 +408,25 @@ class Backend:
     def like(self, video_id: str, liked: bool) -> dict[str, Any]:
         if not video_id:
             raise ValueError("video_id is required")
-        self.require_catalog().rate_song(video_id, liked)
+        if not self.signed_in:
+            raise AuthError("Sign in to like songs")
+        try:
+            self.require_catalog().rate_song(video_id, liked)
+        except AuthRequired as exc:
+            self._invalidate_session()
+            raise AuthError(str(exc)) from exc
         current = self.player.current
         if current and current.get("videoId") == video_id:
             current["liked"] = liked
         self.broadcast()
         return {"liked": liked}
+
+    def _invalidate_session(self) -> None:
+        if not self.signed_in and not self.account_name:
+            return
+        self.signed_in = False
+        self.account_name = ""
+        self.broadcast()
 
     def load(self, message: dict[str, Any]) -> dict[str, Any]:
         items = message.get("items")
@@ -430,12 +491,13 @@ class Backend:
         os.chmod(path, 0o600)
         server.listen(8)
         server.settimeout(0.5)
-        self.lifecycle = "ready" if self.lifecycle != "error" else self.lifecycle
         print(f"omarchy-ytmusic-backend listening on {path}", file=sys.stderr)
         idle_thread = threading.Thread(target=self._idle_watch, daemon=True)
         idle_thread.start()
         position_thread = threading.Thread(target=self._position_watch, daemon=True)
         position_thread.start()
+        catalog_thread = threading.Thread(target=self._start_catalog_locked, daemon=True)
+        catalog_thread.start()
         try:
             while not self._stop.is_set():
                 try:
@@ -459,16 +521,71 @@ class Backend:
                 except OSError:
                     pass
 
+    def _start_catalog_locked(self) -> None:
+        self.start_catalog()
+        self.broadcast()
+        self._warm_stream_cache()
+
+    def _catalog_video_id(self) -> str:
+        """Any real videoId from the catalog.
+
+        Used so warming yt-dlp needs no hardcoded video that could later be
+        taken down or blocked in the user's region.
+        """
+        if not self.catalog:
+            return ""
+        for view in ("history", "liked", "home"):
+            try:
+                with self._catalog_lock:
+                    if view == "home":
+                        items = [track for shelf in self.catalog.home() or []
+                                 for track in (shelf.get("tracks") or [])]
+                    else:
+                        items = getattr(self.catalog, view)()
+            except Exception:
+                continue
+            for item in items or []:
+                video_id = str((item or {}).get("videoId") or "")
+                if video_id:
+                    return video_id
+        return ""
+
+    def _warm_stream_cache(self) -> None:
+        """Solve YouTube's player JS challenge before the user presses play.
+
+        The first resolve against a new player build is slow enough to look
+        like a failure. Doing it in the background at startup means the first
+        deliberate play is already fast.
+        """
+        from player import yt_dlp_cache_warm
+
+        if yt_dlp_cache_warm():
+            return
+
+        def worker() -> None:
+            video_id = self._catalog_video_id()
+            if not video_id or self._stop.is_set():
+                return
+            print("omarchy-ytmusic-backend warming yt-dlp player cache",
+                  file=sys.stderr)
+            try:
+                self.player.resolver.resolve(video_id)
+            except Exception:
+                pass
+
+        threading.Thread(target=worker, daemon=True).start()
+
     def _client_loop(self, client: socket.socket) -> None:
         client.settimeout(1.0)
+        self.player.note_activity()
         with self._clients_lock:
             self._clients.append(client)
         try:
-            client.sendall((dumps(event("state_changed", self.state())) + "\n").encode("utf-8"))
+            client.sendall(encode_line(event("state_changed", self.state())))
         except OSError:
             self._drop(client)
             return
-        buffer = ""
+        buffer = b""
         while not self._stop.is_set():
             try:
                 chunk = client.recv(65536)
@@ -478,15 +595,20 @@ class Backend:
                 break
             if not chunk:
                 break
-            buffer += chunk.decode("utf-8", errors="replace")
-            while "\n" in buffer:
-                line, buffer = buffer.split("\n", 1)
-                message = parse_line(line)
+            buffer += chunk
+            if len(buffer) > MAX_LINE_BYTES and b"\n" not in buffer:
+                break
+            while b"\n" in buffer:
+                raw, buffer = buffer.split(b"\n", 1)
+                if len(raw) > MAX_LINE_BYTES:
+                    self._drop(client)
+                    return
+                message = parse_line(raw.decode("utf-8", errors="replace"))
                 if not message:
                     continue
                 reply = self.handle(message)
                 try:
-                    client.sendall((dumps(reply) + "\n").encode("utf-8"))
+                    client.sendall(encode_line(reply))
                 except OSError:
                     self._drop(client)
                     return
@@ -503,12 +625,15 @@ class Backend:
     def _idle_watch(self) -> None:
         while not self._stop.is_set():
             time.sleep(15)
-            if self.idle_minutes <= 0:
-                continue
-            if self.player.playing:
-                continue
-            idle_for = time.time() - self.player.last_activity
-            if idle_for >= self.idle_minutes * 60:
+            with self._clients_lock:
+                clients = len(self._clients)
+            if idle_should_exit(
+                idle_minutes=self.idle_minutes,
+                playing=self.player.playing,
+                client_count=clients,
+                last_activity=self.player.last_activity,
+                now=time.time(),
+            ):
                 print("omarchy-ytmusic-backend idle shutdown", file=sys.stderr)
                 self._stop.set()
                 return
@@ -543,12 +668,14 @@ def main(argv: list[str] | None = None) -> int:
         item = track_item(sample)
         assert item and item["durationMs"] == 225000
         assert duration_ms({"duration": "1:02:03"}) == 3723000
+        probe = encode_line(event("state_changed", {"lifecycle": "ready"}))
+        assert probe.endswith(b"\n")
+        assert b"lifecycle" in probe
         print("ok")
         return 0
 
     auth_path = Path(os.path.expanduser(args.auth)) if args.auth else None
     backend = Backend(auth_path)
-    backend.start_catalog()
 
     def handle_stop(signum, frame):
         backend._stop.set()

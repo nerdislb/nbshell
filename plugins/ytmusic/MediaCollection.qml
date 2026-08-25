@@ -26,19 +26,29 @@ Item {
   property string stateKey: ""
   property bool restoreApplied: false
   property bool allowReorder: false
+  property bool allowTrackDrag: false
   property bool reorderBusy: false
   property int dragSourceIndex: -1
   property int dragDestinationIndex: -1
+  property int trackDragIndex: -1
   property real dragSceneY: 0
   property int dragAutoScrollDirection: 0
 
+  readonly property string playingTrackId: service && service.currentTrackId
+    ? String(service.currentTrackId) : ""
+  readonly property real areaRadius: Math.max(Style.space(14), Style.cornerRadius)
   readonly property var visibleItems: Api.filteredSorted(sourceItems, filterText, sortKey)
   readonly property var sortKeys: ["default", "name", "artist", "album", "duration"]
   readonly property bool canReorder: allowReorder && !reorderBusy
     && String(filterText || "").trim() === "" && sortKey === "default"
     && visibleItems.length > 1
+  readonly property bool canTrackDrag: allowTrackDrag && !reorderBusy
+    && dragSourceIndex < 0 && trackDragIndex < 0
   readonly property var dragItem: dragSourceIndex >= 0
-    && dragSourceIndex < visibleItems.length ? visibleItems[dragSourceIndex] : null
+    && dragSourceIndex < visibleItems.length ? visibleItems[dragSourceIndex]
+    : (trackDragIndex >= 0 && trackDragIndex < visibleItems.length
+      ? visibleItems[trackDragIndex] : null)
+  readonly property bool dragActive: dragSourceIndex >= 0 || trackDragIndex >= 0
 
   signal activated(var item, var sourceItems, string contextUri)
   signal opened(var item)
@@ -48,6 +58,8 @@ Item {
   signal contextRequested(var item, real sceneX, real sceneY, int index,
     var sourceItems, string contextUri)
   signal reorderRequested(int sourceIndex, int destinationIndex)
+  signal trackDragStarted(var item)
+  signal trackDragFinished(var item)
   signal loadMoreRequested()
   signal viewStateChanged(string filterText, string sortKey, real contentY)
 
@@ -132,6 +144,32 @@ Item {
     finishReorder(dragSceneY, true)
   }
 
+  function updateTrackDrag(sceneY) {
+    if (trackDragIndex < 0) return
+    dragSceneY = sceneY
+    var center = mediaList.mapToItem(null, mediaList.width / 2, 0)
+    var point = mediaList.mapFromItem(null, center.x, sceneY)
+    var edge = Math.min(Style.space(48), mediaList.height / 3)
+    dragAutoScrollDirection = point.y < edge ? -1
+      : (point.y > mediaList.height - edge ? 1 : 0)
+  }
+
+  function beginTrackDrag(index, sceneY, item) {
+    if (!canTrackDrag || !item || item.type !== "track") return
+    mediaList.cancelFlick()
+    trackDragIndex = index
+    dragSceneY = sceneY
+    dragAutoScrollDirection = 0
+    trackDragStarted(item)
+  }
+
+  function finishTrackDrag(sceneY, canceled, item) {
+    if (trackDragIndex < 0) return
+    trackDragIndex = -1
+    dragAutoScrollDirection = 0
+    if (!canceled && item) trackDragFinished(item)
+  }
+
   function rememberView() {
     viewStateChanged(filterText, sortKey, mediaList.contentY)
   }
@@ -169,12 +207,14 @@ Item {
   onRestoredContentYChanged: resetRestore()
   onStateKeyChanged: resetRestore()
   onCanReorderChanged: if (!canReorder) cancelReorder()
+  onCanTrackDragChanged: if (!canTrackDrag && trackDragIndex >= 0)
+    finishTrackDrag(dragSceneY, true, null)
   Component.onDestruction: rememberView()
 
   Timer {
     interval: 30
     repeat: true
-    running: root.dragSourceIndex >= 0 && root.dragAutoScrollDirection !== 0
+    running: root.dragActive && root.dragAutoScrollDirection !== 0
     onTriggered: {
       var minimum = mediaList.originY
       var maximum = Math.max(minimum,
@@ -198,7 +238,7 @@ Item {
       visible: root.showFilter || root.showSort
       spacing: Style.space(7)
 
-      TextField {
+      RoundedField {
         id: filterField
         visible: root.showFilter
         width: visible ? Math.max(80, parent.width
@@ -207,6 +247,8 @@ Item {
         foreground: Color.foreground
         placeholderText: "Filter this list"
         text: root.filterText
+        areaRadius: root.areaRadius
+        Accessible.name: "Filter this list"
         onTextEdited: {
           root.filterText = text
           root.viewStateChanged(root.filterText, root.sortKey, mediaList.contentY)
@@ -220,7 +262,9 @@ Item {
         text: root.sortLabel()
         iconText: "󰒺"
         foreground: Color.foreground
-        tooltipText: "Change sort order"
+        tooltipText: "Change sort order. Current: " + root.sortLabel()
+        Accessible.name: "Change sort order"
+        Accessible.description: "Currently sorted by " + root.sortLabel()
         onClicked: root.cycleSort()
       }
 
@@ -233,6 +277,8 @@ Item {
         color: Qt.darker(Color.foreground, 1.42)
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
+        Accessible.role: Accessible.StaticText
+        Accessible.name: text
       }
     }
 
@@ -243,10 +289,12 @@ Item {
         - emptyLabel.height - parent.spacing * 3)
       model: root.visibleItems
       clip: true
+      Accessible.role: Accessible.List
+      Accessible.name: "Songs"
       spacing: Style.space(3)
       reuseItems: true
       cacheBuffer: Style.space(160)
-      interactive: root.dragSourceIndex < 0
+      interactive: !root.dragActive
       activeFocusOnTab: true
       keyNavigationEnabled: true
       highlightFollowsCurrentItem: true
@@ -265,6 +313,17 @@ Item {
 
       Keys.onReturnPressed: if (currentItem) currentItem.triggerPrimary()
       Keys.onEnterPressed: if (currentItem) currentItem.triggerPrimary()
+      Keys.onPressed: function(event) {
+        if (!currentItem || !currentItem.itemData) return
+        var text = String(event.text || "").toLowerCase()
+        if (text === "q") {
+          root.queued(currentItem.itemData)
+          event.accepted = true
+        } else if (text === "l") {
+          root.saveToggled(currentItem.itemData)
+          event.accepted = true
+        }
+      }
 
       delegate: MediaRow {
         required property var modelData
@@ -273,13 +332,18 @@ Item {
         foreground: Color.foreground
         accent: Color.accent
         fontFamily: Style.font.family
-        selected: ListView.isCurrentItem
+        playing: root.playingTrackId !== ""
+          && Api.trackVideoId(modelData) === root.playingTrackId
+        selected: ListView.isCurrentItem && !playing
+        areaRadius: root.areaRadius
         browseOnActivate: root.browseContexts && modelData.kind === "context"
         showQueue: root.showQueue
         showPlaylist: root.showPlaylist
         showSave: root.showSave
         reorderEnabled: root.canReorder
+        trackDragEnabled: root.canTrackDrag && modelData && modelData.type === "track"
         reorderDragging: root.dragSourceIndex === index
+        trackDragging: root.trackDragIndex === index
         reorderDropIndicator: root.dragDestinationIndex === index
           && root.dragSourceIndex !== index
           ? (index < root.dragSourceIndex ? -1 : 1) : 0
@@ -305,6 +369,14 @@ Item {
           root.finishReorder(sceneY, false)
         }
         onReorderDragCanceled: root.cancelReorder()
+        onTrackDragStarted: function(sceneY) {
+          root.beginTrackDrag(index, sceneY, modelData)
+        }
+        onTrackDragMoved: function(sceneY) { root.updateTrackDrag(sceneY) }
+        onTrackDragFinished: function(sceneY) {
+          root.finishTrackDrag(sceneY, false, modelData)
+        }
+        onTrackDragCanceled: root.finishTrackDrag(root.dragSceneY, true, null)
       }
     }
 
@@ -329,6 +401,8 @@ Item {
       text: root.loading ? "Loading…" : "Load more"
       foreground: Color.foreground
       enabled: root.hasMore && !root.loading
+      tooltipText: root.loading ? "Loading more songs" : "Load more songs"
+      Accessible.name: text
       onClicked: root.loadMoreRequested()
     }
   }
@@ -340,7 +414,7 @@ Item {
     height: Style.space(48)
     y: Math.max(0, Math.min(parent.height - height,
       root.mapFromItem(null, 0, root.dragSceneY).y - height / 2))
-    visible: root.dragSourceIndex >= 0 && !!root.dragItem
+    visible: root.dragActive && !!root.dragItem
     enabled: false
     z: 20
     radius: Style.cornerRadius
