@@ -76,6 +76,7 @@ online guide without turning this README into a wall of text.
 - Audio mixer, media controls, Bluetooth, Wi-Fi, batteries, power profiles,
   and persistent Umbriel/Niri display management
 - Floating Picture-in-Picture controls for Zen Browser
+- Optional Omazen bridge for live Zen palette changes after one initial restart
 - Theme-synchronized Hyprlock screen with PAM authentication and lock-before-suspend
 - Calendar, tasks, quick notes, habits, KDE Connect, Android mirroring, and a phone webcam
 - Screenshots, screen recording, OCR, QR scanning, and a screen saver
@@ -303,8 +304,12 @@ OpenCode model in `~/.config/nbshell/agents.json`, for example:
 
 Ollama is optional and can be controlled after installation with
 `nbshell agent ollama start|stop`. nbshell does not store provider credentials
-or conversation history. The installer links the bundled nbshell system skill
-into the common Codex, Claude, and cross-agent skill directories.
+or conversation history. The installer links one bundled nbshell system skill
+into the standard Agent Skills locations used by Claude Code, Codex, and Pi,
+plus the shared directory discovered by Gemini CLI and OpenCode. Check discovery with
+`nbshell agent skills`; invoke it as `/nbshell` in Claude Code, `$nbshell` in
+Codex, or through the respective agent's skills picker. Agents may also load it
+automatically when a task matches its description.
 
 To expose an Ollama model to OpenCode, add a local provider to
 `~/.config/opencode/opencode.jsonc`:

@@ -32,6 +32,31 @@ bash "$ROOT/shell/scripts/browser-theme.sh" setup-zen >/dev/null
 test "$(grep -Fc 'managed by nbshell' "$PROFILE/chrome/userChrome.css")" -eq 1
 test "$(grep -Fc 'toolkit.legacyUserProfileCustomizations.stylesheets' "$PROFILE/user.js")" -eq 1
 
+# Omazen remains a separate optional program. nbshell provides its palette,
+# invokes external-provider mode, and removes only its own legacy CSS import
+# after live setup succeeds.
+FAKE_BIN="$TEST_DIR/bin"
+FAKE_OMAZEN_PROGRAM="$TEST_DIR/zen-program"
+OMAZEN_LOG="$TEST_DIR/omazen.log"
+mkdir -p "$FAKE_BIN" "$FAKE_OMAZEN_PROGRAM/defaults/pref" "$PROFILE/chrome/JS"
+touch "$FAKE_OMAZEN_PROGRAM/defaults/pref/omazen-prefs.js" "$PROFILE/chrome/JS/omazen-bridge.uc.js"
+cat >"$FAKE_BIN/omazen" <<'EOF'
+#!/usr/bin/env bash
+printf '%s|%s|%s\n' "$OMAZEN_SKIP_THEME_HOOK" "$OMAZEN_ACTIVE_COLORS" "$*" >>"$OMAZEN_TEST_LOG"
+EOF
+chmod +x "$FAKE_BIN/omazen"
+export PATH="$FAKE_BIN:$PATH"
+export OMAZEN_TEST_LOG="$OMAZEN_LOG"
+export NBSHELL_OMAZEN_PROGRAM_DIR="$FAKE_OMAZEN_PROGRAM"
+bash "$ROOT/shell/scripts/browser-theme.sh" apply
+grep -Fq '1|' "$OMAZEN_LOG"
+grep -Fq '|sync' "$OMAZEN_LOG"
+grep -Fq 'mode = "dark"' "$XDG_CONFIG_HOME/nbshell/omazen-colors.toml"
+grep -Fq 'accent = "#42a5f5"' "$XDG_CONFIG_HOME/nbshell/omazen-colors.toml"
+bash "$ROOT/shell/scripts/browser-theme.sh" setup-zen-live >/dev/null
+grep -Fq '|setup' "$OMAZEN_LOG"
+! grep -Fq 'managed by nbshell' "$PROFILE/chrome/userChrome.css"
+
 # Brave follows the theme's explicit mode through the Arch launcher flags.
 POLICY="$TEST_DIR/brave-policy.json"
 touch "$POLICY"

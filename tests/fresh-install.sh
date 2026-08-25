@@ -85,9 +85,17 @@ jq -e '
 
 test "$("$XDG_BIN_HOME/nbshell" --version)" = "nbshell $(cat "$ROOT/VERSION")"
 
-for harness in .agents .claude .codex; do
-    test -L "$TEST_HOME/$harness/skills/nbshell"
+for skill_link in \
+    "$TEST_HOME/.agents/skills/nbshell" \
+    "$TEST_HOME/.claude/skills/nbshell" \
+    "$TEST_HOME/.codex/skills/nbshell" \
+    "$TEST_HOME/.pi/agent/skills/nbshell"; do
+    test -L "$skill_link"
+    test "$(readlink -f "$skill_link")" = "$XDG_CONFIG_HOME/quickshell/nbshell/skills/nbshell"
 done
+"$XDG_BIN_HOME/nbshell" agent skills --json | jq -e '
+    .skills | length == 4 and all(.ready == true)
+' >/dev/null
 
 # User configuration and custom plugins must survive an update.
 jq '.testMarker = "keep"' "$XDG_CONFIG_HOME/nbshell/config.json" >"$WORK/config.json"

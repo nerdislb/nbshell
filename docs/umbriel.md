@@ -129,3 +129,9 @@ workspaces, Xwayland startup, and portal screenshots; a native session is still
 required to validate DRM, suspend, locking, and the complete streaming workflow
 on each new hardware configuration. Choose **Niri** if an Umbriel update blocks
 login or a compositor-specific workflow.
+
+When suspend is started through nbshell, the lock helper records Umbriel's
+assigned windows before the outputs disappear. After resume it reattaches only
+windows that lost that prior workspace and restores the previous focus. This
+works around an early Umbriel output-recreation edge case without changing
+scratchpad windows or otherwise healthy workspace state.

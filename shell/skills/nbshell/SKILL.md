@@ -1,19 +1,28 @@
 ---
 name: nbshell
-description: Use when maintaining or customizing an Umbriel-first nbshell desktop with a Niri fallback, including its bar, menus, themes, plugins, IPC, key bindings, and installation.
+description: Maintain or customize an installed nbshell desktop or its source repository, including Umbriel/Niri behavior, bar, menus, themes, plugins, IPC, key bindings, installation, and recovery.
 ---
 
 # nbshell system skill
 
 nbshell is a Quickshell desktop shell for Umbriel on Arch Linux, with Niri
-retained as a recovery fallback. It is not an
-Omarchy or DankMaterialShell fork. Its public repository is normally checked
-out under `~/projects/nbshell`; installed runtime files live under
+retained as a recovery fallback. It is independent from Omarchy and
+DankMaterialShell. Its public repository is normally checked out under
+`~/projects/nbshell`; installed runtime files live under
 `~/.config/quickshell/nbshell` and user state under `~/.config/nbshell`.
+
+## Choose the operating mode
+
+- For normal system customization, prefer `nbshell` CLI commands and persistent
+  files under `~/.config/nbshell`. Do not patch the installed Quickshell copy.
+- For nbshell development, work in the source repository and deploy with
+  `./install.sh`. Preserve unrelated worktree changes.
+- For diagnosis or explanation, inspect state first and do not turn a read-only
+  request into configuration changes.
 
 ## Required workflow
 
-1. Read the closest `AGENTS.md` and the user's Second Brain instructions.
+1. Read the closest `AGENTS.md` and any user knowledge-base instructions.
 2. Run `git status --short` before editing and preserve unrelated changes.
 3. Edit the repository source, not the installed copy under
    `~/.config/quickshell/nbshell`.

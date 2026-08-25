@@ -366,14 +366,27 @@ command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$
 green "App     -> $APP_DIR/dev.nerdi.nbshell.desktop"
 
 # ── Agent skill ──────────────────────────────────────────────────────────
-# One versioned source, linked into the common harness locations. Only the
-# `nbshell` entry is managed; unrelated user skills remain untouched.
+# One versioned source, linked into the common Agent Skills locations. The
+# universal path covers OpenCode and Gemini too; explicit paths keep native
+# skill pickers working in Claude, Codex, and Pi. Only the `nbshell`
+# entry is managed, so unrelated user skills remain untouched.
 SKILL_SOURCE="$SHELL_DIR/skills/nbshell"
-for skill_home in "$HOME/.agents/skills" "$HOME/.claude/skills" "$HOME/.codex/skills"; do
+for skill_home in \
+    "$HOME/.agents/skills" \
+    "$HOME/.claude/skills" \
+    "$HOME/.codex/skills" \
+    "$HOME/.pi/agent/skills"; do
     mkdir -p "$skill_home"
     ln -sfn "$SKILL_SOURCE" "$skill_home/nbshell"
 done
-green "Skill   -> agent skill directories (nbshell)"
+# Gemini discovers the shared path itself. Remove the duplicate native link
+# created by nbshell 0.1 development builds, otherwise current Gemini warns
+# that the same skill was discovered twice.
+GEMINI_SKILL="$HOME/.gemini/skills/nbshell"
+if [ -L "$GEMINI_SKILL" ] && [ "$(readlink -f "$GEMINI_SKILL")" = "$(readlink -f "$SKILL_SOURCE")" ]; then
+    rm "$GEMINI_SKILL"
+fi
+green "Skill   -> shared Agent Skills directories (nbshell)"
 
 case ":$PATH:" in
     *":$BIN_DIR:"*) ;;

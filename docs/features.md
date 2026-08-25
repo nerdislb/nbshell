@@ -16,7 +16,8 @@ main menu, the bar, or the `nbshell` command.
 - A bundled original wallpaper collection and a global picker that can use an
   image from any theme collection without changing the active color theme
 - Theme-accent frames shared by menus, overlays, popouts, and notifications
-- Automatic palette synchronization for Zen Browser and Brave
+- Automatic palette synchronization for Zen Browser and Brave, with an
+  optional Omazen bridge for live Zen updates
 - Notification center, clipboard history, system tray, and on-screen displays
 
 ## System controls

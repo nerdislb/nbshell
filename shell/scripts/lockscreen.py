@@ -292,6 +292,63 @@ def locker_running(command: list[str] | None = None) -> bool:
     return result.returncode == 0
 
 
+def umbriel_binary() -> str | None:
+    detected = shutil.which("umbriel")
+    local = Path.home() / ".local/bin/umbriel"
+    if detected:
+        return detected
+    return str(local) if local.is_file() and os.access(local, os.X_OK) else None
+
+
+def umbriel_windows(binary: str) -> list[dict]:
+    try:
+        result = subprocess.run(
+            [binary, "windows", "--json"], capture_output=True, text=True,
+            timeout=2, check=False,
+        )
+        value = json.loads(result.stdout) if result.returncode == 0 else []
+        return value if isinstance(value, list) else []
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        return []
+
+
+def workspace_selector(workspace: str) -> str:
+    """Convert Umbriel's IPC id (OUTPUT:NAME) to its action selector."""
+    output, separator, name = workspace.rpartition(":")
+    return f"{name}/{output}" if separator and output and name else workspace
+
+
+def repair_umbriel_resume(binary: str, before: dict[str, str], focused_id: str) -> int:
+    """Reattach only windows that lost a previously valid workspace on resume."""
+    repaired_ids: set[str] = set()
+    for _ in range(10):
+        current = umbriel_windows(binary)
+        # Umbriel may need a moment to recreate outputs and workspace groups.
+        if not current:
+            time.sleep(0.5)
+            continue
+        orphaned = [
+            row for row in current
+            if str(row.get("id") or "") in before
+            and before.get(str(row.get("id") or ""), "")
+            and str(row.get("workspace") or "") == ""
+        ]
+        if not orphaned:
+            break
+        for row in orphaned:
+            window_id = str(row["id"])
+            selector = workspace_selector(before[window_id])
+            focus = subprocess.run([binary, "msg", f"window-focus:{window_id}"])
+            if focus.returncode == 0:
+                move = subprocess.run([binary, "msg", f"window-move-to-workspace:{selector}"])
+                if move.returncode == 0:
+                    repaired_ids.add(window_id)
+        time.sleep(0.5)
+    if repaired_ids and focused_id:
+        subprocess.run([binary, "msg", f"window-focus:{focused_id}"])
+    return len(repaired_ids)
+
+
 def start_lock(suspend: bool = False) -> int:
     generated = render()
     command = lock_command(load_json(CONFIG_PATH), generated)
@@ -303,6 +360,17 @@ def start_lock(suspend: bool = False) -> int:
             return 0
         os.execvp(command[0], command)
 
+    umbriel = umbriel_binary()
+    windows_before = umbriel_windows(umbriel) if umbriel else []
+    workspaces_before = {
+        str(row.get("id")): str(row.get("workspace"))
+        for row in windows_before
+        if row.get("id") and row.get("workspace")
+    }
+    focused_before = next(
+        (str(row.get("id")) for row in windows_before if row.get("focused")), ""
+    )
+
     locker = None
     if not locker_running(command):
         locker = subprocess.Popen(command)
@@ -313,7 +381,10 @@ def start_lock(suspend: bool = False) -> int:
                 print(f"nbshell: screen locker exited before suspend ({code})", file=sys.stderr)
                 return code or 1
             time.sleep(0.05)
-    return subprocess.run(["systemctl", "suspend"]).returncode
+    result = subprocess.run(["systemctl", "suspend"])
+    if result.returncode == 0 and umbriel and workspaces_before:
+        repair_umbriel_resume(umbriel, workspaces_before, focused_before)
+    return result.returncode
 
 
 def main() -> int:

@@ -21,6 +21,7 @@ CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / 
 STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "nbshell"
 CONFIG_FILE = CONFIG_DIR / "agents.json"
 OLLAMA_PID = STATE_DIR / "ollama.pid"
+SKILL_SOURCE = Path(__file__).resolve().parents[1] / "skills" / "nbshell"
 
 AGENTS = {
     "codex": {"name": "Codex", "binary": "codex", "kind": "cloud", "prompt": "positional", "glyph": "code", "install": "npm install -g @openai/codex"},
@@ -339,6 +340,47 @@ def doctor() -> int:
     return problems
 
 
+def skill_rows() -> list[dict]:
+    home = Path.home()
+    locations = (
+        ("shared", home / ".agents/skills/nbshell", "OpenCode, Gemini, compatible agents"),
+        ("claude", home / ".claude/skills/nbshell", "Claude Code /nbshell"),
+        ("codex", home / ".codex/skills/nbshell", "Codex $nbshell"),
+        ("pi", home / ".pi/agent/skills/nbshell", "Pi skills picker"),
+    )
+    source = SKILL_SOURCE.resolve()
+    rows = []
+    for agent_id, path, usage in locations:
+        try:
+            target = path.resolve(strict=True)
+            ready = (target / "SKILL.md").is_file() and target == source
+        except OSError:
+            target = None
+            ready = False
+        rows.append({
+            "id": agent_id,
+            "ready": ready,
+            "path": str(path),
+            "target": str(target or ""),
+            "usage": usage,
+        })
+    return rows
+
+
+def skills_status(as_json: bool = False) -> int:
+    rows = skill_rows()
+    if as_json:
+        print(json.dumps({"source": str(SKILL_SOURCE), "skills": rows}))
+    else:
+        print(f"NBSHELL SKILL  {SKILL_SOURCE}")
+        for row in rows:
+            mark = "ready" if row["ready"] else "missing"
+            print(f"  {row['id']:<8} {mark:<8} {row['usage']}")
+        if not all(row["ready"] for row in rows):
+            print("\nRun ./install.sh from the nbshell repository to repair skill links.")
+    return 0 if all(row["ready"] for row in rows) else 1
+
+
 def herdr_workspace(template: str, project: str | None, new_tab: bool = False) -> None:
     pane = os.environ.get("HERDR_PANE_ID", "")
     tab = os.environ.get("HERDR_TAB_ID", "")
@@ -414,6 +456,7 @@ def main() -> int:
     projects_p = sub.add_parser("projects"); projects_p.add_argument("--json", action="store_true")
     sessions_p = sub.add_parser("sessions"); sessions_p.add_argument("--json", action="store_true")
     sub.add_parser("doctor")
+    skills = sub.add_parser("skills"); skills.add_argument("--json", action="store_true")
     default = sub.add_parser("default"); default.add_argument("agent", nargs="?")
     profile = sub.add_parser("profile"); profile.add_argument("profile", nargs="?", choices=["safe", "balanced", "autonomous"])
     model = sub.add_parser("model-profile"); model.add_argument("profile", nargs="?", choices=["local", "cloud", "private", "fast", "strong"])
@@ -448,6 +491,7 @@ def main() -> int:
             for row in rows: print(f"{row['id']:<12} {row['name']:<10} {row['status']:<12} {row['project']}")
         return 0
     if command == "doctor": return doctor()
+    if command == "skills": return skills_status(args.json)
     if command == "default":
         if args.agent is None: print(config["defaultAgent"]); return 0
         if args.agent not in AGENTS: raise SystemExit(f"Unknown agent: {args.agent}")

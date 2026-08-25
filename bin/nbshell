@@ -476,6 +476,7 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell agent workspace dev|review|pair [--project <path>]
                             create an editor/agent layout inside Herdr
   nbshell agent doctor      diagnose the local AI toolchain
+  nbshell agent skills      check shared nbshell skill discovery
   nbshell capture           capture menu (screen, window, region, ocr, record)
   nbshell procs             process list (also: top)
   nbshell menu              searchable main menu
@@ -534,7 +535,7 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell dictate           toggle local voice dictation
   nbshell pip status|apply|size|corner|focus|close
                             control Zen's native Picture-in-Picture
-  nbshell browser-theme status|setup|apply
+  nbshell browser-theme status|setup|apply|setup-zen-live|doctor-zen-live
                             sync nbshell colors to Zen and Brave
   nbshell video-trimmer status|install|update|remove
                             manage the optional Omacut integration

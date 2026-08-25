@@ -118,6 +118,7 @@ def check_suspend_guard() -> None:
         mock.patch.object(LOCKSCREEN, "render", return_value=Path("generated.conf")),
         mock.patch.object(LOCKSCREEN, "load_json", return_value={}),
         mock.patch.object(LOCKSCREEN, "locker_running", return_value=False),
+        mock.patch.object(LOCKSCREEN, "umbriel_binary", return_value=None),
         mock.patch.object(LOCKSCREEN.shutil, "which", return_value="/usr/bin/hyprlock"),
         mock.patch.object(LOCKSCREEN.subprocess, "Popen", return_value=alive),
         mock.patch.object(LOCKSCREEN.subprocess, "run", return_value=completed) as run,
@@ -132,6 +133,7 @@ def check_suspend_guard() -> None:
         mock.patch.object(LOCKSCREEN, "render", return_value=Path("generated.conf")),
         mock.patch.object(LOCKSCREEN, "load_json", return_value={}),
         mock.patch.object(LOCKSCREEN, "locker_running", return_value=False),
+        mock.patch.object(LOCKSCREEN, "umbriel_binary", return_value=None),
         mock.patch.object(LOCKSCREEN.shutil, "which", return_value="/usr/bin/hyprlock"),
         mock.patch.object(LOCKSCREEN.subprocess, "Popen", return_value=failed),
         mock.patch.object(LOCKSCREEN.subprocess, "run") as run,
@@ -142,6 +144,35 @@ def check_suspend_guard() -> None:
         run.assert_not_called()
 
 
+def check_umbriel_resume_repair() -> None:
+    assert LOCKSCREEN.workspace_selector("eDP-1:1") == "1/eDP-1"
+    assert LOCKSCREEN.workspace_selector("DP-1:DEV") == "DEV/DP-1"
+
+    before = {"orphan": "eDP-1:1", "scratch": ""}
+    orphaned = [
+        {"id": "orphan", "workspace": ""},
+        {"id": "scratch", "workspace": ""},
+        {"id": "healthy", "workspace": "eDP-1:1"},
+    ]
+    repaired = [
+        {"id": "orphan", "workspace": "eDP-1:1"},
+        {"id": "scratch", "workspace": ""},
+        {"id": "healthy", "workspace": "eDP-1:1"},
+    ]
+    completed = mock.Mock(returncode=0)
+    with (
+        mock.patch.object(LOCKSCREEN, "umbriel_windows", side_effect=[[], orphaned, repaired]),
+        mock.patch.object(LOCKSCREEN.subprocess, "run", return_value=completed) as run,
+        mock.patch.object(LOCKSCREEN.time, "sleep"),
+    ):
+        assert LOCKSCREEN.repair_umbriel_resume("umbriel", before, "healthy") == 1
+        assert [call.args[0] for call in run.call_args_list] == [
+            ["umbriel", "msg", "window-focus:orphan"],
+            ["umbriel", "msg", "window-move-to-workspace:1/eDP-1"],
+            ["umbriel", "msg", "window-focus:healthy"],
+        ]
+
+
 with tempfile.TemporaryDirectory(prefix="nbshell-lock-test-") as temporary:
     root = Path(temporary)
     check_named_theme(root)
@@ -149,5 +180,6 @@ with tempfile.TemporaryDirectory(prefix="nbshell-lock-test-") as temporary:
     check_ansi_and_solid(root)
     check_custom_command()
     check_suspend_guard()
+    check_umbriel_resume_repair()
 
 print("Lockscreen generation: OK")

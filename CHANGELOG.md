@@ -21,6 +21,17 @@ configuration and plugin interfaces before `1.0.0`.
 - Transactional shell installation with a single-writer lock, preflight
   validation, atomic runtime switching, restart watchdog, and automatic
   rollback when the new shell does not stay active.
+- A shared nbshell system skill is installed for Claude Code, Codex, Gemini
+  CLI, Pi, OpenCode, and other Agent Skills-compatible tools, with a local
+  discovery status command.
+- Optional Omazen integration applies nbshell palette changes to an open Zen
+  Browser through its separately installed, privileged live-theme bridge.
+
+### Fixed
+
+- Suspend through nbshell now restores Umbriel windows that lose their
+  workspace while outputs are recreated, preventing a resumed application
+  from remaining visually stuck above newly focused windows.
 
 ## [0.1.0-beta.1] - 2026-08-22
 
