@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+command_name=${1:-status}
+config_home=${XDG_CONFIG_HOME:-$HOME/.config}
+runtime_shell="$config_home/quickshell/nbshell"
+plugin_dir="$config_home/nbshell/plugins/omawhatsapp"
+config_file="$config_home/nbshell/config.json"
+provider_file="$config_home/nbshell/whatsapp-provider"
+unit_dir="$config_home/systemd/user"
+bin_dir=${XDG_BIN_HOME:-$HOME/.local/bin}
+source_revision=47eaee6a2ec09880e755f8edba44c2bed74d598e
+source_sha=a9c0de68a7b4924e4a2f9bd7e576a4fab23e530fdd2020c3c4014443722c0015
+wacli_version=0.17.1
+wacli_amd64_sha=cbd5e74d5b805550cc36c7479aca552970cc1b314c5c08e02367e08b785714fd
+wacli_arm64_sha=8e5d21f8d5f097e5d3a883cdb42848a9e50a7383e4de049c807cc44e6e7c81b6
+
+provider() {
+    [ -f "$provider_file" ] && tr -d '\n' <"$provider_file" || printf 'prettyzap'
+}
+
+install_wacli() (
+    if [ -x "$bin_dir/wacli" ] && "$bin_dir/wacli" --version 2>&1 | grep -q "$wacli_version"; then return; fi
+    local arch asset checksum stage archive
+    arch=$(uname -m)
+    case "$arch" in
+        x86_64) asset=amd64; checksum=$wacli_amd64_sha ;;
+        aarch64|arm64) asset=arm64; checksum=$wacli_arm64_sha ;;
+        *) echo "Unsupported architecture: $arch" >&2; exit 1 ;;
+    esac
+    stage=$(mktemp -d "${TMPDIR:-/tmp}/nbshell-wacli.XXXXXX")
+    trap 'rm -rf "$stage"' EXIT
+    archive="$stage/wacli.tar.gz"
+    curl -fL --retry 3 "https://github.com/openclaw/wacli/releases/download/v${wacli_version}/wacli_${wacli_version}_linux_${asset}.tar.gz" -o "$archive"
+    printf '%s  %s\n' "$checksum" "$archive" | sha256sum -c -
+    tar -xzf "$archive" -C "$stage"
+    install -Dm755 "$stage/wacli" "$bin_dir/wacli"
+)
+
+switch_config() {
+    local selected=$1
+    python3 - "$config_file" "$selected" <<'PY'
+import json, os, sys, tempfile
+path, selected = sys.argv[1:]
+with open(path, encoding="utf-8") as handle:
+    data = json.load(handle)
+old, new = ("prettyzap", "omawhatsapp") if selected == "omawhatsapp" else ("omawhatsapp", "prettyzap")
+for key in ("collapsedWidgets", "leftWidgets", "centerWidgets", "rightWidgets"):
+    values = [str(value) for value in data.get(key, [])]
+    values = [new if value == old else value for value in values]
+    data[key] = list(dict.fromkeys(values))
+enabled = [str(value) for value in data.get("enabledPlugins", []) if str(value) not in (old, new)]
+enabled.append(new)
+data["enabledPlugins"] = enabled
+directory = os.path.dirname(path)
+fd, temporary = tempfile.mkstemp(prefix=".config.", dir=directory)
+with os.fdopen(fd, "w", encoding="utf-8") as handle:
+    json.dump(data, handle, ensure_ascii=False, indent=2)
+    handle.write("\n")
+    handle.flush(); os.fsync(handle.fileno())
+os.replace(temporary, path)
+PY
+    printf '%s\n' "$selected" >"$provider_file"
+}
+
+setup() (
+    install_wacli
+    local stage archive source staged_plugin old_plugin
+    stage=$(mktemp -d "${TMPDIR:-/tmp}/nbshell-omawhatsapp.XXXXXX")
+    trap 'rm -rf "$stage"' EXIT
+    archive="$stage/source.tar.gz"
+    curl -fL --retry 3 "https://github.com/MoizIbnYousaf/Omarchy-Whatsapp/archive/${source_revision}.tar.gz" -o "$archive"
+    printf '%s  %s\n' "$source_sha" "$archive" | sha256sum -c -
+    tar -xzf "$archive" -C "$stage"
+    source="$stage/Omarchy-Whatsapp-$source_revision"
+    staged_plugin="$stage/plugin"
+    old_plugin="$stage/previous-plugin"
+    install -d "$staged_plugin"
+    cp -a "$source/plugins/omawhatsapp/." "$staged_plugin/"
+    install -Dm644 "$runtime_shell/integrations/omawhatsapp/manifest.json" "$staged_plugin/manifest.json"
+    install -Dm644 "$runtime_shell/integrations/omawhatsapp/BarWidget.qml" "$staged_plugin/BarWidget.qml"
+    install -Dm644 "$source/LICENSE" "$staged_plugin/LICENSE"
+    install -Dm755 "$source/bin/omawhatsapp" "$bin_dir/omawhatsapp"
+    install -Dm644 "$runtime_shell/integrations/omawhatsapp/wacli-sync.service" "$unit_dir/wacli-sync.service"
+    bash "$runtime_shell/scripts/plugins.sh" validate "$staged_plugin" >/dev/null
+    install -d "$(dirname "$plugin_dir")"
+    systemctl --user stop nbshell.service
+    [ ! -e "$plugin_dir" ] || mv "$plugin_dir" "$old_plugin"
+    mv "$staged_plugin" "$plugin_dir"
+    switch_config omawhatsapp
+    systemctl --user daemon-reload
+    systemctl --user enable wacli-sync.service >/dev/null
+    systemctl --user restart nbshell.service
+    echo "OmaWhatsApp installed. Run: nbshell whatsapp auth"
+)
+
+case "$command_name" in
+    setup) setup ;;
+    provider)
+        selected=${2:?expected omawhatsapp or prettyzap}
+        case "$selected" in omawhatsapp|prettyzap) ;; *) exit 2 ;; esac
+        [ "$selected" != omawhatsapp ] || [ -f "$plugin_dir/manifest.json" ] || { echo "Run setup first." >&2; exit 1; }
+        switch_config "$selected"
+        systemctl --user restart nbshell.service
+        ;;
+    auth) exec "$bin_dir/omawhatsapp" auth ;;
+    status)
+        printf 'provider=%s\n' "$(provider)"
+        [ ! -x "$bin_dir/wacli" ] || "$bin_dir/wacli" --version
+        [ ! -x "$bin_dir/omawhatsapp" ] || "$bin_dir/omawhatsapp" status
+        ;;
+    *) echo "Usage: nbshell whatsapp setup|auth|status|provider omawhatsapp|prettyzap" >&2; exit 2 ;;
+esac

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 2,
+  "id": "omawhatsapp",
+  "name": "OmaWhatsApp",
+  "version": "0.6.2-nbshell.1",
+  "author": "MoizIbnYousaf; nbshell port by nerdi",
+  "license": "MIT",
+  "repository": "https://github.com/MoizIbnYousaf/Omarchy-Whatsapp",
+  "dependencies": {
+    "commands": ["python3", "wacli", "wl-copy", "wl-paste", "zenity"],
+    "packages": ["python", "wl-clipboard", "zenity", "qt6-multimedia", "qt6-imageformats"]
+  },
+  "description": "Native local-first WhatsApp client powered by wacli, ported for nbshell.",
+  "category": "Communication",
+  "kinds": ["service", "bar-widget", "panel"],
+  "activation": "on-demand",
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml",
+    "panel": "App.qml"
+  },
+  "barWidget": {
+    "displayName": "OmaWhatsApp",
+    "description": "Local WhatsApp chats and unread messages.",
+    "category": "Communication",
+    "aliases": ["whatsapp", "chat", "messages"],
+    "allowMultiple": false,
+    "defaultSection": "left"
+  }
+}

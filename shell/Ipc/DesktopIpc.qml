@@ -56,6 +56,10 @@ Scope {
             return Plugins.summon(id, "{}");
         }
 
+        function openWithPayload(id: string, payload: string): string {
+            return Plugins.summon(id, payload || "{}");
+        }
+
         function close(id: string): string {
             Plugins.hide(id);
             return id + ": closed";

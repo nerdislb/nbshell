@@ -118,6 +118,7 @@ BROWSER_THEME_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts
 OMACUT_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/omacut.sh"
 SHELL_UPDATE_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/nbshell-update.py"
 UMBRIEL_UPDATE_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/umbriel-update.py"
+OMAWHATSAPP_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/omawhatsapp.sh"
 UMBRIEL_NESTED_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/umbriel-nested.sh"
 GREETER_SETUP="${XDG_DATA_HOME:-$HOME/.local/share}/nbshell/setup-greeter.sh"
 
@@ -480,6 +481,8 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell agent skills      check shared nbshell skill discovery
   nbshell capture           capture menu (screen, window, region, ocr, record)
   nbshell calculator        open the theme-aware calculator
+  nbshell whatsapp setup    install the reversible native OmaWhatsApp test
+  nbshell whatsapp provider omawhatsapp|prettyzap
   nbshell procs             process list (also: top)
   nbshell menu              searchable main menu
   nbshell dashboard         Today, Media, and Tools
@@ -679,6 +682,21 @@ case "$cmd" in
         else
             ipc calculator "${1:-toggle}"
         fi
+        ;;
+    whatsapp)
+        case "${1:-open}" in
+            setup|auth|status) bash "$OMAWHATSAPP_TOOL" "${1:-status}" ;;
+            provider) bash "$OMAWHATSAPP_TOOL" provider "${2:?provider is required}" ;;
+            demo) ipc plugin openWithPayload omawhatsapp '{"demo":true}' ;;
+            open|toggle)
+                if [ "$(bash "$OMAWHATSAPP_TOOL" status 2>/dev/null | sed -n 's/^provider=//p' | head -1)" = omawhatsapp ]; then
+                    ipc plugin toggle omawhatsapp
+                else
+                    prettyzap --show
+                fi
+                ;;
+            *) echo "Usage: nbshell whatsapp setup|auth|status|demo|provider omawhatsapp|prettyzap" >&2; exit 2 ;;
+        esac
         ;;
     palette)
         ipc launcher palette

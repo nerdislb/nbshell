@@ -18,7 +18,7 @@ service to its UI. The first Umbriel adapter supports:
   the standard `ext-workspace-v1` protocol;
 - notification window activation and logout;
 - shell key bindings and the main floating-window rules;
-- PrettyZap/WhatsApp launch and focus through `Mod+Shift+M`;
+- provider-neutral WhatsApp launch and focus through `Mod+Shift+M`;
 - native scrolling/dwindle switching through `Mod+Backspace`;
 - live multi-display mode, scale, transform, placement, and enable controls;
 - screenshots and screen sharing through xdg-desktop-portal-umbriel;

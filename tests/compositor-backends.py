@@ -24,7 +24,7 @@ integration = tomllib.loads((ROOT / "umbriel/nbshell.toml").read_text())
 assert integration["keybinds"]["Mod+Space"].endswith("nbshell menu")
 assert integration["keybinds"]["Mod+BackSpace"] == "workspace-set-layout:toggle"
 assert integration["keybinds"]["Mod+Return"] == "spawn:ghostty"
-assert integration["keybinds"]["Mod+Shift+M"] == "spawn:prettyzap --show"
+assert integration["keybinds"]["Mod+Shift+M"].endswith("nbshell whatsapp open")
 assert integration["keybinds"]["Mod+F"] == "window-toggle-maximize"
 assert integration["keybinds"]["Mod+Shift+F"] == "window-toggle-fullscreen"
 assert integration["keybinds"]["Mod+Shift+V"] == "window-toggle-floating"

@@ -79,6 +79,7 @@ online guide without turning this README into a wall of text.
 - Optional Omazen bridge for live Zen palette changes after one initial restart
 - Theme-synchronized Hyprlock screen with PAM authentication and lock-before-suspend
 - Calendar, tasks, quick notes, habits, KDE Connect, Android mirroring, and a phone webcam
+- Switchable WhatsApp integration: native OmaWhatsApp or the retained PrettyZap fallback
 - Screenshots, screen recording, OCR, QR scanning, and a screen saver
 - AI usage for Codex, Claude, Antigravity, and other providers
 - Curated plugin manager with optional modules, dependency details, update
@@ -175,9 +176,20 @@ nbshell plugin-store     # Browse the curated plugin catalog
 nbshell keys             # Show key bindings
 nbshell dashboard        # Open the dashboard
 nbshell display          # Configure connected displays
+nbshell whatsapp status  # Show the selected WhatsApp provider
 nbshell ui-gallery       # Preview shared interface components
 nbshell pip status       # Check Zen Picture-in-Picture
 nbshell --help           # Show every command
+```
+
+OmaWhatsApp is an optional local-first client backed by `wacli`. Install and
+link it with `nbshell whatsapp setup` and `nbshell whatsapp auth`. The default
+shortcut, `Mod+Shift+M`, follows the selected provider. During a trial you can
+switch back without uninstalling either client:
+
+```bash
+nbshell whatsapp provider prettyzap
+nbshell whatsapp provider omawhatsapp
 ```
 
 Zen Browser opens its native Picture-in-Picture window with `Ctrl+Shift+]`.

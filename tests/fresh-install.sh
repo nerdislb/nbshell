@@ -51,6 +51,7 @@ mkdir -p "$FAKE_SYSTEMD_STATE"
 "$ROOT/install.sh" >/dev/null
 
 test -f "$XDG_CONFIG_HOME/quickshell/nbshell/shell.qml"
+test -f "$XDG_CONFIG_HOME/quickshell/nbshell/integrations/omawhatsapp/manifest.json"
 test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/VERSION")" = "$(cat "$ROOT/VERSION")"
 test -f "$XDG_CONFIG_HOME/nbshell/config.json"
 test -f "$XDG_CONFIG_HOME/systemd/user/nbshell.service"
