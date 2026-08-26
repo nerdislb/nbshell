@@ -11,7 +11,9 @@ configuration and plugin interfaces before `1.0.0`.
 - The native WhatsApp client now uses a compact sidebar, lighter header, and
   wider message bubbles at medium tiling widths without changing its mobile
   single-column mode. A selected unread chat is marked read after a short,
-  uninterrupted viewing delay instead of requiring the overflow menu.
+  uninterrupted viewing delay instead of requiring the overflow menu; the
+  optimistic local state prevents duplicate receipts from cycling background
+  sync, and setup now guarantees that sync is running afterward.
 
 ## [0.1.0-beta.3] - 2026-08-25
 

@@ -93,7 +93,7 @@ setup() (
     mv "$staged_plugin" "$plugin_dir"
     switch_config omawhatsapp
     systemctl --user daemon-reload
-    systemctl --user enable wacli-sync.service >/dev/null
+    systemctl --user enable --now wacli-sync.service >/dev/null
     systemctl --user restart nbshell.service
     echo "WhatsApp installed. Run: nbshell whatsapp auth"
 )

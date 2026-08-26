@@ -56,7 +56,7 @@
 +    }
 @@ -375,0 +403 @@
 +        root.scheduleReadReceipt(root.selectedChatJid)
-@@ -469,7 +498,25 @@
+@@ -469,7 +498,32 @@
    Timer {
      id: refreshDelay
      interval: 220
@@ -78,7 +78,14 @@
 +        restart()
 +        return
 +      }
-+      root.chatAction("read")
++      root.chats = root.chats.map(function(chat) {
++        if (String(chat.jid || "") !== target) return chat
++        var next = Object.assign({}, chat)
++        next.unread = 0
++        next.notification_unread = 0
++        return next
++      })
++      if (!root.chatAction("read")) root.refreshChats()
 +    }
 +  }
  }
