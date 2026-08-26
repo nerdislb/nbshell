@@ -19,3 +19,66 @@
 @@ -40 +41 @@
 -  readonly property real maximumWidth: width * (narrow ? 0.92 : 0.76)
 +  readonly property real maximumWidth: width * (narrow ? 0.92 : (compact ? 0.84 : 0.76))
+--- a/Service.qml
++++ b/Service.qml
+@@ -31,0 +32 @@
++  property string pendingReadJid: ""
+@@ -94,0 +95,24 @@
++  function unreadFor(jid) {
++    var target = String(jid || "")
++    for (var i = 0; i < chats.length; i++)
++      if (String(chats[i].jid || "") === target)
++        return Math.max(0, Number(chats[i].unread || 0))
++    return 0
++  }
++  function cancelReadReceipt() {
++    pendingReadJid = ""
++    readReceiptTimer.stop()
++  }
++  function scheduleReadReceipt(jid) {
++    var target = String(jid || "")
++    cancelReadReceipt()
++    if (!windowOpen || offlineMode || target === ""
++        || target !== selectedChatJid || unreadFor(target) <= 0) return
++    pendingReadJid = target
++    readReceiptTimer.restart()
++  }
++  onWindowOpenChanged: {
++    if (!windowOpen) cancelReadReceipt()
++    else if (messages.length > 0) scheduleReadReceipt(selectedChatJid)
++  }
++
+@@ -98 +122,4 @@
+-    if (next === selectedChatJid) return
++    if (next === selectedChatJid) {
++      scheduleReadReceipt(next)
++      return
++    }
+@@ -375,0 +403 @@
++        root.scheduleReadReceipt(root.selectedChatJid)
+@@ -469,7 +498,25 @@
+   Timer {
+     id: refreshDelay
+     interval: 220
+     repeat: false
+     onTriggered: { root.refreshChats(); root.refreshMessages() }
+   }
++
++  Timer {
++    id: readReceiptTimer
++    interval: 1600
++    repeat: false
++    onTriggered: {
++      var target = root.pendingReadJid
++      root.pendingReadJid = ""
++      if (!root.windowOpen || root.offlineMode || target === ""
++          || target !== root.selectedChatJid || root.unreadFor(target) <= 0) return
++      if (root.writing || writeProcess.running) {
++        root.pendingReadJid = target
++        restart()
++        return
++      }
++      root.chatAction("read")
++    }
++  }
+ }
