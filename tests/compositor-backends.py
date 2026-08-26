@@ -39,6 +39,7 @@ assert integration["include"]["files"] == [
     "nbshell-outputs.toml", "nbshell-cursor.toml", "nbshell-overview.toml"
 ]
 assert integration["input"]["keyboard"]["layout"] == "de"
+assert integration["input"]["keyboard"]["numlock_toggle"] is True
 assert integration["input"]["focus"] == {"follows_mouse": True, "follows_mouse_max_scroll": 0.5}
 assert integration["appearance"]["animation_ms"] == 300
 assert integration["hot_corners"]["top_left"]["action"] == "overview-open"

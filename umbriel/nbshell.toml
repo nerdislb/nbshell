@@ -6,6 +6,7 @@ files = ["nbshell-outputs.toml", "nbshell-cursor.toml", "nbshell-overview.toml"]
 
 [input.keyboard]
 layout = "de"
+numlock_toggle = true
 
 [input.focus]
 follows_mouse = true
