@@ -599,6 +599,8 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell cursor [theme] [size]
   nbshell text [8..28]      show or change UI text size
   nbshell polkit [on]       check or start a Polkit agent
+  nbshell auth approve-next [system|sudo|polkit-1]
+                            approve one privileged action with a paired phone
 
 Legacy German aliases remain available for existing configurations.
 All other arguments are passed directly to Quickshell:
@@ -861,6 +863,32 @@ for b in d["binds"]:
         case "${1:-status}" in
             on) polkit_on ;;
             *) polkit_status ;;
+        esac
+        ;;
+    auth|phone-auth)
+        auth_tool=/usr/lib/nbshell/nbshell_phone_auth.py
+        case "${1:-status}" in
+            approve-next|next)
+                scope="${2:-system}"
+                case "$scope" in system|sudo|polkit-1) ;; *) die "usage: nbshell auth approve-next [system|sudo|polkit-1]" ;; esac
+                [ -x "$auth_tool" ] || die "Phone authentication is not installed."
+                echo "Waiting for biometric approval on the paired phone …"
+                if "$auth_tool" authorize-next --scope "$scope" --timeout 60 --grant-ttl 30 >/dev/null; then
+                    echo "Approved. The next matching action is unlocked for 30 seconds."
+                else
+                    die "Phone approval expired or was declined."
+                fi
+                ;;
+            status)
+                if systemctl is-active --quiet nbshell-phone-auth.service 2>/dev/null \
+                    && [ -S /run/nbshell-auth/control.sock ]; then
+                    echo "Phone authentication broker: ready"
+                else
+                    echo "Phone authentication broker: unavailable"
+                    exit 1
+                fi
+                ;;
+            *) die "usage: nbshell auth [status|approve-next [system|sudo|polkit-1]]" ;;
         esac
         ;;
     state)

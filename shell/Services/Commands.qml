@@ -101,6 +101,7 @@ Singleton {
         // ── Security ──────────────────────────────────────────────────────
         // Delegate all password handling to 1Password. nbshell only starts
         // the vendor-provided UI and never reads vault or clipboard data.
+        out.push(entry("Approve next system action", "one sudo or Polkit request via paired phone", "Security", () => Quickshell.execDetached([Apps.terminal, "-e", "sh", "-lc", "nbshell auth approve-next system; printf '\\nEnter closes this window … '; read -r _"])));
         out.push(entry("Open 1Password", "password manager", "Security", () => Apps.run("1password --show")));
         out.push(entry("1Password Quick Access", "search passwords (Ctrl+Shift+Space)", "Security", () => Apps.run("1password --quick-access")));
         out.push(entry("Lock 1Password", "lock the password manager", "Security", () => Apps.run("1password --lock")));

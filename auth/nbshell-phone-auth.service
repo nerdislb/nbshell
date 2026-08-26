@@ -1,0 +1,26 @@
+[Unit]
+Description=nbshell phone authentication broker
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/lib/nbshell/nbshell_phone_auth.py serve
+User=root
+Group=root
+RuntimeDirectory=nbshell-auth
+RuntimeDirectoryMode=0755
+StateDirectory=nbshell-auth
+StateDirectoryMode=0700
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/nbshell-auth /run/nbshell-auth
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

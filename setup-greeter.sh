@@ -43,6 +43,7 @@ fi
 sudo install -m 644 "$ROOT/greeter/regreet.toml" "$TARGET/regreet.toml"
 sudo install -m 644 "$stage/regreet.css" "$TARGET/regreet.css"
 sudo install -m 644 "$stage/niri.kdl" "$TARGET/nbshell-greeter.kdl"
+sudo install -m 644 "$stage/fingerprint.svg" "$DATA/fingerprint.svg"
 
 case "${WALLPAPER##*.}" in
     jpg|JPG|jpeg|JPEG)

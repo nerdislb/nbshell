@@ -46,6 +46,7 @@ def check_named_theme(root: Path) -> None:
                 "fontSize": 16,
                 "radius": 7,
                 "borderWidth": 3,
+                "lockFingerprint": True,
             }
         ),
         encoding="utf-8",
@@ -63,6 +64,8 @@ def check_named_theme(root: Path) -> None:
     assert "border_size = 3" in text
     assert "outline_thickness = 3" in text
     assert "SESSION LOCKED" in text
+    assert "fingerprint {" in text
+    assert "enabled = true" in text
     assert output.stat().st_mode & 0o777 == 0o600
 
 
@@ -101,6 +104,7 @@ def check_ansi_and_solid(root: Path) -> None:
     assert "rgba(2244ffff)" in text
     assert "path = \n" in text
     assert "$USER  @  $HOSTNAME" not in text
+    assert "fingerprint {" not in text
 
 
 def check_custom_command() -> None:

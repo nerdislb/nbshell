@@ -175,6 +175,13 @@ def collect():
     groups.append({"title": "DEVELOPMENT & AUDIO", "items": dev})
 
     hardware = []
+    phone_auth = unit("nbshell-phone-auth.service", user=False) and Path("/run/nbshell-auth/control.sock").is_socket()
+    hardware.append(item(
+        "phone-auth", "Phone approval",
+        "Ready · one-time sudo/Polkit grants" if phone_auth else "Not installed or inactive",
+        "ok" if phone_auth else "off",
+        "nbshell auth approve-next system" if phone_auth else "",
+    ))
     if shutil.which("ddcutil"):
         code, out, err = run("ddcutil", "detect", "--brief", timeout=8)
         detected = code == 0 and "Display" in out
