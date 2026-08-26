@@ -4,7 +4,7 @@ import qs.Common
 // Shared geometry for centered, full-screen shell overlays. Callers still
 // choose their useful content size, but edge safety, centering, surface role,
 // and border language no longer drift from window to window.
-PanelSurface {
+MotionSurface {
     id: root
 
     property real preferredWidth: Theme.overlayWidthLarge

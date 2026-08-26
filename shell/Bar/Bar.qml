@@ -67,8 +67,9 @@ Variants {
 
         Behavior on openProgress {
             NumberAnimation {
-                duration: 700
-                easing.type: Easing.InOutCubic
+                duration: Theme.motionBar
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Theme.motionCurveEffect
             }
         }
 

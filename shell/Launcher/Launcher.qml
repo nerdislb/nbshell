@@ -111,7 +111,7 @@ PanelWindow {
     anchors.bottom: true
 
     function close() {
-        Runtime.launcherOpen = false;
+        box.dismiss(() => Runtime.launcherOpen = false);
     }
 
     function accept() {
@@ -181,7 +181,7 @@ PanelWindow {
         onClicked: root.close()
     }
 
-    PanelSurface {
+    MotionSurface {
         id: box
 
         anchors.horizontalCenter: parent.horizontalCenter
@@ -329,6 +329,15 @@ PanelWindow {
                 color: index === root.selected ? Theme.selectedSurface(Theme.accent) : "transparent"
                 border.width: index === root.selected ? Theme.borderWidth : 0
                 border.color: Theme.focusBorder
+                scale: index === root.selected ? 1 : 0.992
+                Behavior on color { ColorAnimation { duration: Theme.motionFast } }
+                Behavior on scale {
+                    NumberAnimation {
+                        duration: Theme.motionEffect
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Theme.motionCurveEffect
+                    }
+                }
 
                 Line {
                     id: marker

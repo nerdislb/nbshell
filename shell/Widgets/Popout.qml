@@ -143,7 +143,7 @@ PopupWindow {
             root.visible = false
     }
 
-    PanelSurface {
+    MotionSurface {
         anchors.fill: parent
         accentBorder: true
 

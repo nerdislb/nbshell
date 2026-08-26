@@ -35,6 +35,9 @@ Rectangle {
     border.color: !enabled ? Theme.alpha(Theme.fg, 0.2)
         : (tone === "secondary" ? Theme.alpha(Theme.fg, 0.4) : Theme.alpha(accentColor, 0.8))
     opacity: enabled ? 1 : 0.55
+    Behavior on color { ColorAnimation { duration: Theme.motionFast } }
+    Behavior on border.color { ColorAnimation { duration: Theme.motionFast } }
+    Behavior on opacity { NumberAnimation { duration: Theme.motionFast } }
 
     Line {
         id: label

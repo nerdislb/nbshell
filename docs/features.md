@@ -20,9 +20,16 @@ main menu, the bar, or the `nbshell` command.
 - A bundled original wallpaper collection and a global picker that can use an
   image from any theme collection without changing the active color theme
 - Theme-accent frames shared by menus, overlays, popouts, and notifications
+- Reduced, standard, and expressive motion profiles shared by the bar,
+  controls, menus, popouts, Library, and wallpaper picker
 - Automatic palette synchronization for Zen Browser and Brave, with an
   optional Omazen bridge for live Zen updates
 - Notification center, clipboard history, system tray, and on-screen displays
+
+The Library keeps search and list navigation while presenting the selected
+theme as a responsive animated preview with previous/next theme cues. Motion
+uses short opacity, scale, position, and list-scroll transitions only; the
+reduced profile disables them without changing layout or functionality.
 
 ## System controls
 

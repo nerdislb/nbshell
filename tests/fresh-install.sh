@@ -86,6 +86,7 @@ jq -e '
     .font == "JetBrainsMono Nerd Font" and
     .fontSize == 14 and
     .radius == 2 and
+    .motionProfile == "standard" and
     .widgetStyle == "plain" and
     .enabledPlugins == []
 ' "$XDG_CONFIG_HOME/nbshell/config.json" >/dev/null

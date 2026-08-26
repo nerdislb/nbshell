@@ -257,6 +257,7 @@ if [ ! -f "$DATA_DIR/config.json" ]; then
   "radius": 2,
   "borderWidth": 1,
   "opacity": 1.0,
+  "motionProfile": "standard",
   "wallpaper": true,
   "widgetStyle": "plain",
   "enabledPlugins": [],

@@ -16,6 +16,9 @@ Rectangle {
     border.width: Theme.controlBorderWidth(hover.hovered, selected, danger)
     border.color: Theme.controlBorder(hover.hovered, selected, danger)
     opacity: enabled ? 1 : 0.45
+    Behavior on color { ColorAnimation { duration: Theme.motionFast } }
+    Behavior on border.color { ColorAnimation { duration: Theme.motionFast } }
+    Behavior on opacity { NumberAnimation { duration: Theme.motionFast } }
 
     Line {
         id: label

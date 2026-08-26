@@ -167,6 +167,26 @@ Singleton {
     readonly property int radius: Config.radius
     readonly property int borderWidth: Config.borderWidth
 
+    // Motion is a design token just like spacing or typography. Keep the
+    // vocabulary deliberately small so every surface feels related and a
+    // reduced-motion preference reaches the complete shell.
+    readonly property bool reducedMotion: Config.motionProfile === "reduced"
+    readonly property bool expressiveMotion: Config.motionProfile === "expressive"
+    readonly property int motionFast: reducedMotion ? 0 : (expressiveMotion ? 170 : 120)
+    readonly property int motionEffect: reducedMotion ? 0 : (expressiveMotion ? 240 : 180)
+    readonly property int motionMove: reducedMotion ? 0 : (expressiveMotion ? 340 : 240)
+    readonly property int motionEnter: reducedMotion ? 0 : (expressiveMotion ? 400 : 280)
+    readonly property int motionExit: reducedMotion ? 0 : (expressiveMotion ? 210 : 150)
+    readonly property int motionBar: reducedMotion ? 0 : (expressiveMotion ? 700 : 500)
+    readonly property real motionEnterScale: reducedMotion ? 1.0 : (expressiveMotion ? 0.965 : 0.985)
+    readonly property list<real> motionCurveStandard: [0.20, 0.00, 0.00, 1.00, 1.00, 1.00]
+    readonly property list<real> motionCurveEnter: expressiveMotion
+        ? [0.05, 0.70, 0.10, 1.00, 1.00, 1.00]
+        : motionCurveStandard
+    readonly property list<real> motionCurveEffect: expressiveMotion
+        ? [0.34, 0.80, 0.34, 1.00, 1.00, 1.00]
+        : motionCurveStandard
+
     // Shared visual vocabulary for panels and controls. The bar keeps its
     // character-cell geometry; these tokens make the larger surfaces speak
     // one consistent language without forcing every component to invent

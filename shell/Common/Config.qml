@@ -54,6 +54,10 @@ Singleton {
     readonly property int padY: value("padY", 4)
     readonly property int radius: value("radius", 2)
     readonly property int borderWidth: value("borderWidth", 1)
+    readonly property string motionProfile: {
+        const profile = String(value("motionProfile", "standard")).toLowerCase();
+        return ["reduced", "standard", "expressive"].indexOf(profile) >= 0 ? profile : "standard";
+    }
 
     // Nur der Rahmen UM die Leiste -- Zellen, Popouts und Menues behalten
     // ihren eigenen. Gilt fuer Insel wie Balken.

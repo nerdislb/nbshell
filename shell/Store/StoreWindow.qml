@@ -14,6 +14,8 @@ PanelWindow {
     property string tab: "themes"
     property string query: ""
     property int selected: 0
+    property real previewScale: 1
+    property real previewOpacity: 1
 
     readonly property var sourceItems: tab === "themes" ? ThemeIndex.list
         : tab === "wallpapers" ? Wallpapers.list : Plugins.plugins
@@ -24,6 +26,16 @@ PanelWindow {
             .some(value => String(value || "").toLowerCase().indexOf(needle) >= 0);
     })
     readonly property var current: items[selected] ?? null
+
+    function pulsePreview() {
+        if (Theme.reducedMotion) return;
+        previewScale = Theme.expressiveMotion ? 0.955 : 0.985;
+        previewOpacity = 0.35;
+        Qt.callLater(() => {
+            root.previewScale = 1;
+            root.previewOpacity = 1;
+        });
+    }
 
     visible: Runtime.storeOpen
     screen: Quickshell.screens[0] ?? null
@@ -54,7 +66,17 @@ PanelWindow {
         const name = String(theme || "");
         return Wallpapers.list.filter(item => Wallpapers.themeOf(item) === name).length;
     }
-    function close() { Runtime.storeOpen = false; }
+    function neighbor(delta) {
+        if (!items.length) return null;
+        const index = (selected + delta + items.length) % items.length;
+        return items[index] ?? null;
+    }
+    function moveWrapped(delta) {
+        if (!items.length) return;
+        selected = (selected + delta + items.length) % items.length;
+        list.positionViewAtIndex(selected, ListView.Contain);
+    }
+    function close() { frame.dismiss(() => Runtime.storeOpen = false); }
     function chooseTab(value) {
         tab = value;
         selected = 0;
@@ -93,6 +115,8 @@ PanelWindow {
     }
 
     onItemsChanged: selected = Math.max(0, Math.min(selected, items.length - 1))
+    onSelectedChanged: pulsePreview()
+    onTabChanged: pulsePreview()
     onVisibleChanged: if (visible) {
         ThemeIndex.refresh();
         Wallpapers.refresh();
@@ -104,7 +128,7 @@ PanelWindow {
     Rectangle { anchors.fill: parent; color: Theme.scrim }
     MouseArea { anchors.fill: parent; onClicked: root.close() }
 
-    PanelSurface {
+    MotionSurface {
         id: frame
         anchors.centerIn: parent
         width: Math.min(parent.width - Theme.spaceXl * 4, Math.round(Theme.cellW * 112))
@@ -207,6 +231,15 @@ PanelWindow {
                             radius: Theme.radius
                             border.width: index === root.selected ? Theme.borderWidth : 0
                             border.color: Theme.focusBorder
+                            scale: index === root.selected ? 1 : 0.985
+                            Behavior on color { ColorAnimation { duration: Theme.motionFast } }
+                            Behavior on scale {
+                                NumberAnimation {
+                                    duration: Theme.motionEffect
+                                    easing.type: Easing.BezierSpline
+                                    easing.bezierCurve: Theme.motionCurveEffect
+                                }
+                            }
                             Line {
                                 anchors.left: parent.left
                                 anchors.leftMargin: Theme.spaceMd
@@ -248,12 +281,23 @@ PanelWindow {
                             spacing: Theme.spaceLg
 
                             Rectangle {
+                                id: visualPreview
                                 width: parent.width
                                 height: Math.min(parent.height * 0.48, Theme.cellH * 15)
                                 color: root.tab === "themes" ? (root.current?.background || Theme.bgDarker) : Theme.bgDarker
                                 radius: Theme.radius
                                 border.width: Theme.borderWidth
                                 border.color: root.tab === "themes" ? (root.current?.accent || Theme.accent) : Theme.panelBorder
+                                scale: root.previewScale
+                                opacity: root.previewOpacity
+                                Behavior on scale {
+                                    NumberAnimation {
+                                        duration: Theme.motionMove
+                                        easing.type: Easing.BezierSpline
+                                        easing.bezierCurve: Theme.motionCurveEffect
+                                    }
+                                }
+                                Behavior on opacity { NumberAnimation { duration: Theme.motionEffect } }
                                 Image {
                                     anchors.fill: parent
                                     anchors.margins: Theme.borderWidth
@@ -267,6 +311,52 @@ PanelWindow {
                                     sourceSize.height: Math.max(1, Math.ceil(height))
                                     asynchronous: true
                                     cache: false
+                                }
+                                Repeater {
+                                    model: [-1, 1]
+                                    Rectangle {
+                                        required property int modelData
+                                        readonly property var neighborItem: root.neighbor(modelData)
+                                        visible: root.tab === "themes" && root.items.length > 1
+                                        z: 12
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        x: modelData < 0 ? Theme.spaceSm : parent.width - width - Theme.spaceSm
+                                        width: Math.max(Theme.cellW * 5, parent.width * 0.13)
+                                        height: parent.height * 0.62
+                                        color: neighborItem?.background || Theme.bgDarker
+                                        radius: Theme.radius
+                                        border.width: Theme.borderWidth
+                                        border.color: neighborItem?.accent || Theme.panelBorder
+                                        opacity: 0.68
+                                        scale: 0.94
+                                        Behavior on opacity { NumberAnimation { duration: Theme.motionEffect } }
+                                        Image {
+                                            anchors.fill: parent
+                                            anchors.margins: parent.border.width
+                                            source: parent.visible ? "file://" + String(parent.neighborItem?.wallpaper || "") : ""
+                                            fillMode: Image.PreserveAspectCrop
+                                            asynchronous: true
+                                            cache: false
+                                            sourceSize.width: Math.max(1, Math.ceil(width))
+                                            sourceSize.height: Math.max(1, Math.ceil(height))
+                                        }
+                                        Rectangle {
+                                            anchors.fill: parent
+                                            color: Theme.alpha(Theme.bgDarker, 0.34)
+                                            radius: parent.radius
+                                        }
+                                        Line {
+                                            anchors.centerIn: parent
+                                            text: parent.modelData < 0 ? "‹" : "›"
+                                            color: Theme.fgBright
+                                            font.pixelSize: Theme.fontDisplay
+                                        }
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: root.moveWrapped(parent.modelData)
+                                        }
+                                    }
                                 }
                                 Line {
                                     anchors.centerIn: parent

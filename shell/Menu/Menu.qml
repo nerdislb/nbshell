@@ -96,7 +96,7 @@ PanelWindow {
     }
     function close() {
         root.settingsPage = false;
-        Runtime.menuOpen = false;
+        box.dismiss(() => Runtime.menuOpen = false);
     }
     function back() {
         if (root.settingsPage) {
@@ -353,7 +353,7 @@ PanelWindow {
             }
         }
 
-        PanelSurface {
+        MotionSurface {
             id: box
 
             visible: !root.settingsPage
@@ -417,6 +417,15 @@ PanelWindow {
                         color: rowItem.active ? Theme.selectedSurface(Theme.accent) : "transparent"
                         border.width: rowItem.active ? Theme.borderWidth : 0
                         border.color: Theme.focusBorder
+                        scale: rowItem.active ? 1 : 0.992
+                        Behavior on color { ColorAnimation { duration: Theme.motionFast } }
+                        Behavior on scale {
+                            NumberAnimation {
+                                duration: Theme.motionEffect
+                                easing.type: Easing.BezierSpline
+                                easing.bezierCurve: Theme.motionCurveEffect
+                            }
+                        }
 
                         // Akzent-Balken links, wenn die Zeile gewaehlt ist.
                         Rectangle {
@@ -501,7 +510,7 @@ PanelWindow {
             visible: root.settingsPage
             embedded: true
             onBackRequested: root.settingsPage = false
-            onCloseRequested: root.close()
+            onCloseRequested: Runtime.menuOpen = false
         }
     }
 }

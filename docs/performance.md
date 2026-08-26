@@ -9,6 +9,13 @@ reuse state already held by the shell. File search starts a capped `fd` process
 only for an explicit `@` query. System reports, demo capture, and video exports
 are CLI jobs and leave no resident helper behind.
 
+Shell motion is event-driven. It animates compositor-friendly properties such
+as opacity, scale, position, and list offsets only while a visible state is
+changing. There is no animation daemon, continuous canvas, or wallpaper
+thumbnail conversion job. Settings → Appearance → Motion offers `reduced`,
+`standard`, and `expressive`; reduced motion resolves all shared durations to
+zero.
+
 The systemd service also configures jemalloc for Quickshell:
 
 ```text

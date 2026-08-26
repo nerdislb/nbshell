@@ -242,6 +242,12 @@ Item {
             "max": 1
         },
         {
+            "key": "motionProfile",
+            "def": "standard",
+            "label": "Motion",
+            "values": ["reduced", "standard", "expressive"]
+        },
+        {
             "head": "BEHAVIOR"
         },
         {
@@ -484,10 +490,12 @@ Item {
     }
 
     function close() {
-        if (root.embedded)
-            root.closeRequested();
-        else
-            Runtime.settingsOpen = false;
+        box.dismiss(() => {
+            if (root.embedded)
+                root.closeRequested();
+            else
+                Runtime.settingsOpen = false;
+        });
     }
 
     function back() {

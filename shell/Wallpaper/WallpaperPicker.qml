@@ -46,7 +46,7 @@ PanelWindow {
     anchors.bottom: true
 
     function close() {
-        Runtime.wallpaperOpen = false;
+        box.dismiss(() => Runtime.wallpaperOpen = false);
     }
 
     function syncSelection() {
@@ -133,7 +133,7 @@ PanelWindow {
             }
         }
 
-        PanelSurface {
+        MotionSurface {
             id: box
             accentBorder: true
 
@@ -236,7 +236,7 @@ PanelWindow {
                 // aber los -- sonst haengt der Streifen beim ersten Bild in
                 // der Mitte fest und die Haelfte davor ist leer.
                 currentIndex: root.selected
-                highlightMoveDuration: 220
+                highlightMoveDuration: Theme.motionMove
                 highlightMoveVelocity: -1
                 highlightRangeMode: ListView.ApplyRange
                 preferredHighlightBegin: (strip.width - strip.tileWidth) / 2
@@ -264,8 +264,9 @@ PanelWindow {
 
                     Behavior on inset {
                         NumberAnimation {
-                            duration: 180
-                            easing.type: Easing.OutCubic
+                            duration: Theme.motionEffect
+                            easing.type: Easing.BezierSpline
+                            easing.bezierCurve: Theme.motionCurveEffect
                         }
                     }
 
@@ -281,7 +282,7 @@ PanelWindow {
 
                         Behavior on opacity {
                             NumberAnimation {
-                                duration: 180
+                                duration: Theme.motionEffect
                             }
                         }
 
