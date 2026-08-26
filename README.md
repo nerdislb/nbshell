@@ -85,7 +85,8 @@ online guide without turning this README into a wall of text.
 - Theme-synchronized Hyprlock screen with PAM authentication and lock-before-suspend
 - Calendar, tasks, quick notes, habits, KDE Connect, Android mirroring, and a phone webcam
 - Switchable WhatsApp integration: native client or the retained PrettyZap fallback
-- Screenshots, screen recording, OCR, QR scanning, and a screen saver
+- Screenshots, screen recording, OCR, QR scanning, and an animated screen saver
+  using `ttfx` 0.3.2+ when available, with Python and built-in fallbacks
 - AI usage for Codex, Claude, Antigravity, and other providers
 - Curated plugin manager with optional modules, dependency details, update
   previews, and safe cleanup of external plugins

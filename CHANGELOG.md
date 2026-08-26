@@ -8,6 +8,10 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Changed
 
+- The screen saver now prefers the faster Rust `ttfx` renderer when version
+  0.3.2 or newer is installed, while retaining Python TTE and the built-in
+  renderer as automatic fallbacks. Older ttfx releases are rejected because
+  they can abort when the hosting terminal closes.
 - The battery popout now presents exactly three clear power modes: Power saver,
   Balanced, and Performance. Friendly IPC names map safely to the matching
   tuned profiles without exposing tuned's long specialist profile list.

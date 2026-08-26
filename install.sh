@@ -81,7 +81,9 @@ missing_optional="$(
     optional_check node          "WhatsApp bar module"        "nodejs (>= 20)"
     optional_check npm           "WhatsApp bridge setup"      "npm"
     optional_check patch         "WhatsApp layout integration" "patch"
-    optional_check tte           "additional screen-saver effects" "python-terminaltexteffects (AUR)"
+    if [ "$(bash "$SRC/shell/scripts/screensaver.sh" --renderer)" != "ttfx" ]; then
+        printf '  %-16s %s (%s)\n' "ttfx >= 0.3.2" "fast Rust screen-saver effects" "github.com/omacom-io/ttfx"
+    fi
     optional_check sqlite3       "finding Antigravity accounts" "sqlite"
     optional_check secret-tool   "reading the Antigravity keyring" "libsecret"
     optional_check adb           "Android connection"         "android-tools"

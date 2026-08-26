@@ -1,18 +1,15 @@
 #!/usr/bin/env bash
 #
-# Bildschirmschoner starten -- mit TTE, wenn es da ist, sonst mit dem eigenen.
+# Bildschirmschoner starten -- bevorzugt mit ttfx, sonst TTE oder dem eigenen.
 #
-# TerminalTextEffects (`tte`) ist das Programm, das auch Omarchy benutzt (dort
-# als Fork `ttfx`). Es bringt 39 Effekte mit; unser eigenes Skript hat zehn.
-# Die 39 nachzubauen waere Wochen Arbeit und am Ende doch nur die Imitation --
-# also wird das Original genommen, wenn es installiert ist:
+# `ttfx` is the Rust port of TerminalTextEffects used by current Omarchy. It
+# preserves all 37 effects while avoiding Python startup and rendering cost.
+# Version 0.3.1 could abort when its terminal disappeared, so nbshell only
+# accepts 0.3.2 or newer. The Python original remains a compatible fallback:
 #
-#   paru -S python-terminaltexteffects
+#   ttfx >= 0.3.2 -> tte -> scripts/screensaver.py
 #
-# Ohne das Paket faellt der Schoner auf scripts/screensaver.py zurueck. Nichts
-# bricht, es sind eben zehn statt 39.
-#
-# Die Aufrufwerte sind die von Omarchy (bin/omarchy-screensaver), Flagge fuer
+# Die Aufrufwerte folgen dem Upstream-CLI, Flagge fuer
 # Flagge -- sie machen den Eindruck aus:
 #
 #   --frame-rate 120           fluessig statt ruckelig
@@ -22,14 +19,34 @@
 #   --anchor-canvas/-text c    mittig
 #   --random-effect            jede Runde ein anderer
 #
-# Nicht jede Fassung von tte kennt jede Flagge -- deshalb wird `tte --help`
-# gefragt und nur weitergegeben, was dort auftaucht. Eine unbekannte Flagge
-# waere ein sofortiger Abbruch und ein schwarzer Schirm.
+# Nicht jede Fassung kennt jede Flagge -- deshalb wird `--help` gefragt und nur
+# weitergegeben, was dort auftaucht. Eine unbekannte Flagge waere ein sofortiger
+# Abbruch und ein schwarzer Schirm.
 set -uo pipefail
 
 HIER="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EIGEN="$HIER/screensaver.py"
 VORLAGE="${XDG_CONFIG_HOME:-$HOME/.config}/nbshell/screensaver.txt"
+
+version_ge() {
+	[ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]
+}
+
+renderer=""
+if command -v ttfx >/dev/null 2>&1; then
+	ttfx_version="$(ttfx --version 2>/dev/null | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)"
+	if [ -n "$ttfx_version" ] && version_ge "$ttfx_version" "0.3.2"; then
+		renderer="ttfx"
+	fi
+fi
+[ -n "$renderer" ] || ! command -v tte >/dev/null 2>&1 || renderer="tte"
+
+# Stable diagnostic hook used by setup checks and tests. It must not create a
+# branding file or open a terminal.
+if [ "${1:-}" = "--renderer" ]; then
+	printf '%s\n' "${renderer:-internal}"
+	exit 0
+fi
 
 # Eigene Vorlage schlaegt die eingebaute -- so kann man den Schriftzug
 # austauschen, ohne das Skript anzufassen (wie Omarchys branding-Datei).
@@ -38,11 +55,11 @@ if [ ! -s "$VORLAGE" ]; then
 	python3 "$EIGEN" --wortmarke >"$VORLAGE" 2>/dev/null || true
 fi
 
-if ! command -v tte >/dev/null 2>&1; then
+if [ -z "$renderer" ]; then
 	exec python3 "$EIGEN"
 fi
 
-hilfe="$(tte --help 2>&1 || true)"
+hilfe="$($renderer --help 2>&1 || true)"
 flags=()
 kennt() { printf '%s' "$hilfe" | grep -q -- "$1"; }
 
@@ -51,6 +68,7 @@ kennt --canvas-width && flags+=(--canvas-width 0)
 kennt --canvas-height && flags+=(--canvas-height 0)
 kennt --anchor-canvas && flags+=(--anchor-canvas c)
 kennt --anchor-text && flags+=(--anchor-text c)
+kennt --reuse-canvas && flags+=(--reuse-canvas)
 kennt --no-eol && flags+=(--no-eol)
 kennt --no-restore-cursor && flags+=(--no-restore-cursor)
 
@@ -58,7 +76,9 @@ printf '\033]0;nbshell-screensaver\007'
 printf '\033[?25l'
 
 aufraeumen() {
-	pkill -x tte 2>/dev/null
+	# Only stop the renderer owned by this screen-saver instance. A broad
+	# `pkill -x ttfx` would also terminate an unrelated effect in a terminal.
+	[ -z "${kind:-}" ] || kill "$kind" 2>/dev/null
 	printf '\033[?25h\033[0m\033[2J\033[H'
 	exit 0
 }
@@ -68,7 +88,7 @@ trap aufraeumen INT TERM HUP
 # laeuft wird auf eine Taste gehorcht. `read -t 1` ist die Uhr dafuer.
 while true; do
 	if printf '%s' "$hilfe" | grep -q -- '--random-effect'; then
-		tte "${flags[@]}" --random-effect <"$VORLAGE" &
+		"$renderer" -i "$VORLAGE" "${flags[@]}" --random-effect &
 	else
 		# Aeltere Fassungen kennen keinen Zufall: dann wird selbst gewuerfelt.
 		effekte=(beams binarypath blackhole bouncyballs bubbles burn colorshift
@@ -76,7 +96,7 @@ while true; do
 			orbittingvolley overflow pour print rain randomsequence rings
 			scattered slice slide spotlights spray swarm sweep synthgrid
 			unstable vhstape waves wipe)
-		tte "${flags[@]}" "${effekte[RANDOM % ${#effekte[@]}]}" <"$VORLAGE" &
+		"$renderer" -i "$VORLAGE" "${flags[@]}" "${effekte[RANDOM % ${#effekte[@]}]}" &
 	fi
 	kind=$!
 
@@ -88,7 +108,7 @@ while true; do
 	done
 	wait "$kind" 2>/dev/null
 
-	# tte laesst den Cursor stehen (wir bitten es mit --no-restore-cursor
+	# Der Renderer laesst den Cursor stehen (wir bitten ihn mit --no-restore-cursor
 	# ausdruecklich darum, ihn nicht anzufassen) -- unter dem Schriftzug blinkt
 	# dann ein Strich. Nach jeder Runde wieder wegnehmen.
 	printf '\033[?25l' 

@@ -98,6 +98,9 @@ See the [phone webcam guide](phone-webcam.md) for setup and daily use.
   Wall
 - Calendar synchronization through `khal` and `vdirsyncer`
 - Syncthing-backed tasks, habits, and wallpapers
+- Faster screen-saver rendering through
+  [`ttfx` 0.3.2+](https://github.com/omacom-io/ttfx); Python TTE and the
+  built-in renderer remain automatic fallbacks
 
 Optional features are discovered at runtime. Missing software should disable a
 feature cleanly instead of preventing the shell from starting.

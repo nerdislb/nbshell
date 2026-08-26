@@ -59,6 +59,10 @@ their own bundled license files are linked below.
 - Compatibility controls under `shell/Ui/` are adapted from the MIT-licensed
   [Omarchy](https://github.com/basecamp/omarchy) Quickshell UI kit and map its
   public visual tokens onto the nbshell theme system.
+- The optional screensaver renderer is the MIT-licensed Rust port
+  [ttfx](https://github.com/omacom-io/ttfx), based on ChrisBuilds'
+  TerminalTextEffects. nbshell invokes an independently installed binary and
+  retains both Python TTE and its built-in renderer as fallbacks.
 
 Omarchy, niri, Quickshell, and the other named projects are independent from
 nbshell. Their names are used only to identify compatibility, provenance, or

@@ -42,6 +42,8 @@ if "not affiliated with, endorsed by" not in readme:
 
 third_party_license = (root / "LICENSES/THIRD_PARTY_MIT.md").read_text(encoding="utf-8")
 for notice in (
+    "Copyright (c) 2026 37signals / omacom-io",
+    "Copyright (c) 2023 ChrisBuilds (TerminalTextEffects, from which this is ported)",
     "Copyright (c) David Heinemeier Hansson",
     "Copyright (c) 2026 OmaConnect contributors",
     "Copyright (c) 2026 jesseburlamaque",
