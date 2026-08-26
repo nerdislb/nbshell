@@ -80,6 +80,7 @@ missing_optional="$(
     optional_check magick        "transparent-bar contrast"   "imagemagick"
     optional_check node          "WhatsApp bar module"        "nodejs (>= 20)"
     optional_check npm           "WhatsApp bridge setup"      "npm"
+    optional_check patch         "WhatsApp layout integration" "patch"
     optional_check tte           "additional screen-saver effects" "python-terminaltexteffects (AUR)"
     optional_check sqlite3       "finding Antigravity accounts" "sqlite"
     optional_check secret-tool   "reading the Antigravity keyring" "libsecret"

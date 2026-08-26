@@ -77,6 +77,7 @@ setup() (
     old_plugin="$stage/previous-plugin"
     install -d "$staged_plugin"
     cp -a "$source/plugins/omawhatsapp/." "$staged_plugin/"
+    patch -d "$staged_plugin" -p1 < "$runtime_shell/integrations/omawhatsapp/nbshell-responsive.patch"
     # Keep the upstream/internal identity stable while presenting this as a
     # normal nbshell WhatsApp client in every user-facing QML string.
     find "$staged_plugin" -type f -name '*.qml' -exec sed -i 's/OmaWhatsApp/WhatsApp/g' {} +

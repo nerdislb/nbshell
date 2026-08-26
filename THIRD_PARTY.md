@@ -48,8 +48,9 @@ their own bundled license files are linked below.
 - The optional OmaWhatsApp integration downloads a pinned, checksum-verified
   copy of Moiz Ibn Yousaf's MIT-licensed
   [OmaWhatsApp](https://github.com/MoizIbnYousaf/Omarchy-Whatsapp) and adapts
-  its manifest and bar entry for nbshell. Its installed plugin retains the
-  upstream license. WhatsApp connectivity is provided by the independent,
+  its manifest, bar entry, and medium-width responsive layout for nbshell. Its
+  installed plugin retains the upstream license. WhatsApp connectivity is
+  provided by the independent,
   MIT-licensed [wacli](https://github.com/openclaw/wacli) project.
 - The combined activity center's card hierarchy and icon treatment are
   visually inspired by jankeesvw's MIT-licensed

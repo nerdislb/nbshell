@@ -6,6 +6,12 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+### Changed
+
+- The native WhatsApp client now uses a compact sidebar, lighter header, and
+  wider message bubbles at medium tiling widths without changing its mobile
+  single-column mode.
+
 ## [0.1.0-beta.3] - 2026-08-25
 
 ### Fixed
