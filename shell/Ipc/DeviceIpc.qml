@@ -72,15 +72,17 @@ Scope {
                 "leistung_watt": Number(PowerService.rate.toFixed(1)),
                 "leistung_typ": PowerService.powerLabel,
                 "gesundheit": PowerService.health,
-                "profil": PowerService.activeProfile
+                "profil": PowerService.activeProfile,
+                "modus": PowerService.activeProfileLabel
             });
         }
 
         function profile(name: string): string {
             if (!name)
-                return PowerService.activeProfile;
-            PowerService.setProfile(name);
-            return name;
+                return PowerService.activeProfileLabel;
+            if (!PowerService.setProfile(name))
+                return "unknown mode; use powersaver, balanced, or performance";
+            return PowerService.profileLabel(name);
         }
     }
 

@@ -13,9 +13,9 @@ import qs.Common
 // beiden schliessen sich aus; wer das falsche fragt, bekommt gar keine
 // Antwort. Quickshells eigenes `PowerProfiles` spricht nur mit ppd.
 //
-// tuned kennt ueber 30 Profile, von SAP HANA bis Realtime. In der Leiste steht
-// eine kurze Auswahl, die auf einem Notebook Sinn ergibt -- der Rest bleibt
-// `tuned-adm` vorbehalten.
+// tuned kennt ueber 30 Profile, von SAP HANA bis Realtime. nbshell bietet
+// bewusst nur drei alltagstaugliche Modi an und versteckt die technischen
+// Profilnamen hinter stabilen, compositor-unabhaengigen Bezeichnungen.
 Singleton {
     id: root
 
@@ -125,17 +125,48 @@ Singleton {
 
     // ── tuned ─────────────────────────────────────────────────────────────
 
-    readonly property var profiles: Config.value("powerProfiles", ["powersave", "laptop-battery-powersave", "balanced-battery", "balanced", "desktop", "throughput-performance"])
+    readonly property var profileOptions: [
+        { "label": "Power saver", "value": "powersave" },
+        { "label": "Balanced", "value": "balanced" },
+        { "label": "Performance", "value": "throughput-performance" }
+    ]
 
     property string activeProfile: ""
+    readonly property string activeProfileLabel: profileLabel(activeProfile)
+
+    function canonicalProfile(name) {
+        const normalised = String(name || "").trim().toLowerCase();
+        if (normalised === "powersaver" || normalised === "power-saver" || normalised === "power saver" || normalised === "powersave")
+            return "powersave";
+        if (normalised === "balanced")
+            return "balanced";
+        if (normalised === "performance" || normalised === "throughput-performance")
+            return "throughput-performance";
+        return "";
+    }
+
+    function profileLabel(name) {
+        const canonical = canonicalProfile(name);
+        if (canonical === "powersave")
+            return "Power saver";
+        if (canonical === "balanced")
+            return "Balanced";
+        if (canonical === "throughput-performance")
+            return "Performance";
+        return name || "Unknown";
+    }
 
     function refreshProfile() {
         activeProc.running = true;
     }
 
     function setProfile(name) {
-        setProc.command = ["tuned-adm", "profile", name];
+        const canonical = canonicalProfile(name);
+        if (!canonical)
+            return false;
+        setProc.command = ["tuned-adm", "profile", canonical];
         setProc.running = true;
+        return true;
     }
 
     Process {

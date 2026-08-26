@@ -8,6 +8,9 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Changed
 
+- The battery popout now presents exactly three clear power modes: Power saver,
+  Balanced, and Performance. Friendly IPC names map safely to the matching
+  tuned profiles without exposing tuned's long specialist profile list.
 - Bar hover previews and click popouts now replay the shared motion lifecycle
   when their Wayland surface is mapped, combining a soft fade, subtle scale,
   and edge-aware slide while honoring the selected motion profile.

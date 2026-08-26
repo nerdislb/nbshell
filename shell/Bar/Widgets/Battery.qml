@@ -44,7 +44,7 @@ Cell {
                     pairs: [
                         { "label": PowerService.charging ? "Full in" : "Remaining", "value": PowerService.timeText },
                         { "label": PowerService.powerLabel, "value": PowerService.powerText },
-                        { "label": "Power profile", "value": PowerService.activeProfile }
+                        { "label": "Power mode", "value": PowerService.activeProfileLabel }
                     ]
                 }
             ]
@@ -168,7 +168,7 @@ Cell {
 
             Rule {
                 rowWidth: panel.rowWidth
-                label: "PROFILE  (tuned)"
+                label: "POWER MODE"
             }
 
             // Untereinander stand hier vorher eine Liste, in der nur das
@@ -176,16 +176,9 @@ Cell {
             // und dazu, wie viele es ueberhaupt gibt.
             Segments {
                 rowWidth: panel.rowWidth
-                options: PowerService.profiles
+                options: PowerService.profileOptions
                 current: PowerService.activeProfile
                 onChosen: value => PowerService.setProfile(value)
-            }
-
-            Line {
-                width: panel.rowWidth
-                text: "more profiles: tuned-adm list"
-                color: Theme.muted
-                topPadding: Theme.cellH * 0.3
             }
         }
     }
