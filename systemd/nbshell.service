@@ -9,6 +9,9 @@ Requisite=graphical-session.target
 
 [Service]
 Type=simple
+# Keep the desktop shell outside app.slice: the optional memory guard may
+# reclaim runaway applications there, but must never select the shell itself.
+Slice=session.slice
 Environment="PATH=%h/.local/bin:%h/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/bin"
 Environment="HERDR_SOCKET_PATH=%h/.config/herdr/herdr.sock"
 # Quickshell is linked against jemalloc. Limit idle arenas and prevent small

@@ -35,3 +35,23 @@ surface once, wait again, and repeat the measurement to distinguish the clean
 startup baseline from caches retained after normal use. Performance numbers
 are diagnostics rather than release-test thresholds because GPU drivers,
 screen count, plugins, and enabled modules materially change them.
+
+## Runaway application protection
+
+nbshell can optionally enable systemd-oomd for graphical applications:
+
+```bash
+nbshell memory-guard setup
+nbshell memory-guard status
+nbshell memory-guard remove
+```
+
+The shell and its Umbriel resume guard run in `session.slice`; applications
+remain in `app.slice`. When enabled, systemd-oomd may reclaim an application
+cgroup after `app.slice` stays above 60% memory pressure for 20 seconds, with
+swap exhaustion as a second backstop. This protects the interactive desktop
+without adding a resident nbshell process. The setting is opt-in because an
+OOM decision can close an application that has not saved its work.
+
+`remove` deletes only nbshell's app-slice policy. It deliberately leaves the
+shared systemd-oomd daemon enabled in case another desktop component uses it.

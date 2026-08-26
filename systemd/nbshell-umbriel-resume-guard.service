@@ -7,6 +7,7 @@ ConditionEnvironment=UMBRIEL_SOCKET
 
 [Service]
 Type=simple
+Slice=session.slice
 ExecStart=%h/.config/quickshell/nbshell/scripts/umbriel_resume_guard.py
 Restart=on-failure
 RestartSec=2

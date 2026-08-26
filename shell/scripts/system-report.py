@@ -57,6 +57,12 @@ def collect() -> dict:
     plugins = json_run(["bash", str(plugin_script), "list"]) if plugin_script.is_file() else []
     config = json_run(["jq", "{theme,mode,edge,enabledPlugins}", str(CONFIG_HOME / "nbshell/config.json")]) or {}
     failed = run(["systemctl", "--user", "--failed", "--no-legend", "--plain"])
+    memory_guard_script = RUNTIME / "scripts/memory-guard.sh"
+    memory_guard = (
+        json_run(["bash", str(memory_guard_script), "status", "--json"])
+        if memory_guard_script.is_file()
+        else {"configured": False, "protected": False}
+    )
 
     return {
         "schemaVersion": 1,
@@ -81,6 +87,7 @@ def collect() -> dict:
             "resumeGuard": unit_state("nbshell-umbriel-resume-guard.service"),
             "portal": unit_state("xdg-desktop-portal.service"),
             "umbrielPortal": unit_state("xdg-desktop-portal-umbriel.service"),
+            "memoryGuard": memory_guard,
             "failed": failed.splitlines() if failed else [],
         },
         "extensions": {
@@ -132,7 +139,13 @@ def markdown(data: dict) -> str:
         "## User services",
         "",
     ]
-    rows.extend(f"- {name}: `{state}`" for name, state in services.items() if name != "failed")
+    rows.extend(
+        f"- {name}: `{state}`"
+        for name, state in services.items()
+        if name not in ("failed", "memoryGuard")
+    )
+    guard = services.get("memoryGuard") or {}
+    rows.append(f"- Memory guard: `{'protected' if guard.get('protected') else 'disabled'}`")
     rows += [
         f"- Failed user units: {len(services['failed'])}",
         "",

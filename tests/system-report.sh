@@ -9,6 +9,7 @@ printf '%s' "$REPORT" | jq -e '
     (.desktop.backend | type == "string") and
     (.extensions.installed | type == "array") and
     (.tools | type == "object") and
+    (.services.memoryGuard.protected | type == "boolean") and
     (has("clipboard") | not) and
     (has("notifications") | not) and
     (has("windows") | not)

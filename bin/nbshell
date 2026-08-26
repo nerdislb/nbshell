@@ -118,6 +118,7 @@ BROWSER_THEME_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts
 OMACUT_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/omacut.sh"
 SHELL_UPDATE_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/nbshell-update.py"
 SYSTEM_REPORT_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/system-report.py"
+MEMORY_GUARD_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/memory-guard.sh"
 DEMO_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/demo.sh"
 UMBRIEL_UPDATE_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/umbriel-update.py"
 OMAWHATSAPP_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/omawhatsapp.sh"
@@ -490,6 +491,8 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell store             browse themes, wallpapers, and reviewed plugins
   nbshell system-report     print an agent-safe local system map
   nbshell system-report --write [path]
+  nbshell memory-guard      show runaway application protection
+  nbshell memory-guard setup|remove
   nbshell demo start|stop  record a focused desktop demo on demand
   nbshell demo export reddit|discord|github
   nbshell whatsapp setup    install the reversible native WhatsApp client
@@ -705,6 +708,9 @@ case "$cmd" in
         ;;
     system-report|report)
         python3 "$SYSTEM_REPORT_TOOL" "$@"
+        ;;
+    memory-guard|oomd)
+        bash "$MEMORY_GUARD_TOOL" "$@"
         ;;
     demo)
         bash "$DEMO_TOOL" "$@"
