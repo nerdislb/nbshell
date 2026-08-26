@@ -12,5 +12,7 @@ grep -Fq 'box.dismiss(() => Runtime.launcherOpen = false)' "$ROOT/shell/Launcher
 grep -Fq 'frame.dismiss(() => Runtime.storeOpen = false)' "$ROOT/shell/Store/StoreWindow.qml"
 grep -Fq 'highlightMoveDuration: Theme.motionMove' "$ROOT/shell/Wallpaper/WallpaperPicker.qml"
 ! grep -Fq 'Canvas {' "$ROOT/shell/Widgets/MotionSurface.qml"
+grep -Fq 'Behavior on visualOffsetY' "$ROOT/shell/Widgets/MotionSurface.qml"
+grep -Fq 'surface.enter();' "$ROOT/shell/Widgets/Popout.qml"
 
 echo "Motion profiles and lifecycle: OK"

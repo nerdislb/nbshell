@@ -8,6 +8,9 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Changed
 
+- Bar hover previews and click popouts now replay the shared motion lifecycle
+  when their Wayland surface is mapped, combining a soft fade, subtle scale,
+  and edge-aware slide while honoring the selected motion profile.
 - The native WhatsApp client now uses a compact sidebar, lighter header, and
   wider message bubbles at medium tiling widths without changing its mobile
   single-column mode. A selected unread chat is marked read after a short,

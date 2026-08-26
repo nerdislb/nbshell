@@ -93,6 +93,7 @@ PopupWindow {
         // instead of asking the compositor to resize and re-anchor the popup.
         lockedContentWidth = Math.max(1, loader.item.implicitWidth);
         lockedContentHeight = Math.max(1, loader.item.implicitHeight);
+        surface.enter();
         visible = true;
     }
 
@@ -144,8 +145,11 @@ PopupWindow {
     }
 
     MotionSurface {
+        id: surface
         anchors.fill: parent
         accentBorder: true
+        enterOffsetY: Config.edge === "bottom" ? Theme.spaceSm : -Theme.spaceSm
+        transformOrigin: Config.edge === "bottom" ? Item.Bottom : Item.Top
 
         HoverHandler {
             id: hover

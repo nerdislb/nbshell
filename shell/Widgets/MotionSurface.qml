@@ -10,26 +10,45 @@ PanelSurface {
     property bool motionEnabled: true
     property bool closing: false
     property var closeCallback: null
+    property real enterOffsetY: 0
+    property real visualOffsetY: 0
+    property bool transitionEnabled: true
+    property int entryToken: 0
 
     function enter() {
+        const token = ++entryToken;
         closing = false;
         closeTimer.stop();
+        transitionEnabled = false;
         if (!motionEnabled || Theme.reducedMotion) {
             opacity = 1;
             scale = 1;
+            visualOffsetY = 0;
+            Qt.callLater(() => {
+                if (root.entryToken === token)
+                    root.transitionEnabled = true;
+            });
             return;
         }
         opacity = 0;
         scale = Theme.motionEnterScale;
+        visualOffsetY = enterOffsetY;
         Qt.callLater(() => {
+            if (root.entryToken !== token)
+                return;
+            root.transitionEnabled = true;
             root.opacity = 1;
             root.scale = 1;
+            root.visualOffsetY = 0;
         });
     }
 
     function dismiss(callback) {
         if (closing)
             return;
+        ++entryToken;
+        transitionEnabled = true;
+        visualOffsetY = 0;
         if (!motionEnabled || Theme.reducedMotion) {
             if (callback) callback();
             return;
@@ -44,7 +63,12 @@ PanelSurface {
     onVisibleChanged: if (visible) enter()
     Component.onCompleted: if (visible) enter()
 
+    transform: Translate {
+        y: root.visualOffsetY
+    }
+
     Behavior on opacity {
+        enabled: root.transitionEnabled
         NumberAnimation {
             duration: root.closing ? Theme.motionExit : Theme.motionEnter
             easing.type: Easing.BezierSpline
@@ -52,10 +76,19 @@ PanelSurface {
         }
     }
     Behavior on scale {
+        enabled: root.transitionEnabled
         NumberAnimation {
             duration: root.closing ? Theme.motionExit : Theme.motionEnter
             easing.type: Easing.BezierSpline
             easing.bezierCurve: root.closing ? Theme.motionCurveStandard : Theme.motionCurveEnter
+        }
+    }
+    Behavior on visualOffsetY {
+        enabled: root.transitionEnabled
+        NumberAnimation {
+            duration: Theme.motionEnter
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Theme.motionCurveEnter
         }
     }
     Timer {
