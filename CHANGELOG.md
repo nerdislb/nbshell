@@ -6,6 +6,8 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+## [0.1.0-beta.4] - 2026-08-26
+
 ### Changed
 
 - The screen saver now prefers the faster Rust `ttfx` renderer when version
