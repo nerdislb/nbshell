@@ -25,6 +25,9 @@ main menu, the bar, or the `nbshell` command.
 - Automatic palette synchronization for Zen Browser and Brave, with an
   optional live-theme bridge for Zen updates
 - Notification center, clipboard history, system tray, and on-screen displays
+- Optional 1Password actions in the System > Security menu and searchable
+  command catalog, with global Quick Access on `Ctrl+Shift+Space`; all vault
+  handling remains inside the official 1Password client
 
 The Library keeps search and list navigation while presenting the selected
 theme as a responsive animated preview with previous/next theme cues. Motion

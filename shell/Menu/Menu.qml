@@ -262,6 +262,11 @@ PanelWindow {
                 ] },
                 { "key": "d", "label": "Displays", "description": "Resolution, scale, orientation, and position", "icon": Icons.cp(0xF0379), "run": () => Runtime.displayOpen = true },
                 { "key": "p", "label": "Processes", "icon": Icons.cpu, "run": () => Runtime.procsOpen = true },
+                { "key": "v", "label": "Security", "description": "Password manager and session security", "icon": Icons.cp(0xF033E), "sub": [
+                    { "key": "o", "label": "Open 1Password", "icon": Icons.cp(0xF033E), "run": () => Quickshell.execDetached(["1password", "--show"]) },
+                    { "key": "q", "label": "1Password Quick Access", "description": "Search without leaving the current app (Ctrl+Shift+Space)", "icon": Icons.cp(0xF06E0), "run": () => Quickshell.execDetached(["1password", "--quick-access"]) },
+                    { "key": "l", "label": "Lock 1Password", "icon": Icons.cp(0xF033E), "run": () => Quickshell.execDetached(["1password", "--lock"]) }
+                ] },
                 { "key": "s", "label": "Session", "description": "Lock, sleep, restart, or power off", "icon": Icons.cp(0xF0425), "sub": [
                     { "key": "s", "label": "Lock", "icon": Icons.cp(0xF033E), "run": () => Session.run("lock") },
                     { "key": "a", "label": "Log out", "icon": Icons.cp(0xF0343), "run": () => Session.run("logout") },

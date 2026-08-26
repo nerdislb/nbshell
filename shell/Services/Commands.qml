@@ -98,6 +98,13 @@ Singleton {
         out.push(entry(Idle.enabled ? "Disable idle automation" : "Enable idle automation", "dim, turn off, and lock", "Services", () => Config.set("idle", !Idle.enabled)));
         out.push(entry("Reload theme list", "look for new themes", "Services", () => ThemeIndex.refresh()));
 
+        // ── Security ──────────────────────────────────────────────────────
+        // Delegate all password handling to 1Password. nbshell only starts
+        // the vendor-provided UI and never reads vault or clipboard data.
+        out.push(entry("Open 1Password", "password manager", "Security", () => Apps.run("1password --show")));
+        out.push(entry("1Password Quick Access", "search passwords (Ctrl+Shift+Space)", "Security", () => Apps.run("1password --quick-access")));
+        out.push(entry("Lock 1Password", "lock the password manager", "Security", () => Apps.run("1password --lock")));
+
         // ── Session ──────────────────────────────────────────────────────
         // Was sich nicht zurueckdrehen laesst, fragt nach. In einer
         // Suchpalette liegt "Power off" sonst einen Tippfehler entfernt.

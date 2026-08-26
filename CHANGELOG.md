@@ -6,6 +6,13 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+### Added
+
+- Optional 1Password desktop integration adds Quick Access on
+  `Ctrl+Shift+Space` for Umbriel and Niri, plus Open, Quick Access, and Lock
+  actions in the searchable command catalog and System > Security menu. The
+  shell only launches the official client and never reads vault data.
+
 ### Changed
 
 - Remaining Omarchy-derived product labels are simplified across the visible

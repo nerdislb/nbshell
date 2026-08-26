@@ -31,6 +31,7 @@ assert integration["keybinds"]["Mod+Shift+V"] == "window-toggle-floating"
 assert integration["keybinds"]["Mod+Tab"] == "overview-toggle"
 assert integration["keybinds"]["Mod+O"].endswith("nbshell toggle")
 assert integration["keybinds"]["Mod+Shift+P"].endswith("nbshell power display-off")
+assert integration["keybinds"]["Ctrl+Shift+Space"] == "spawn:1password --quick-access"
 for media_key in (
     "XF86AudioRaiseVolume", "XF86AudioLowerVolume", "XF86AudioMute", "XF86AudioMicMute"
 ):
@@ -116,6 +117,15 @@ assert 'local_umbriel_socket="${UMBRIEL_SOCKET:-$local_runtime/umbriel-$local_wa
 assert 'local_umbriel_bin="$HOME/.local/bin/umbriel"' in cli
 assert '"$local_umbriel_bin" msg dpms-off 2>/dev/null' in cli
 assert "/usr/bin/niri msg action power-off-monitors" in cli
+
+niri_takeover = (ROOT / "niri/nbshell-takeover.kdl").read_text()
+assert 'Ctrl+Shift+Space hotkey-overlay-title="1Password: Quick Access"' in niri_takeover
+
+menu = (ROOT / "shell/Menu/Menu.qml").read_text()
+commands = (ROOT / "shell/Services/Commands.qml").read_text()
+for action in ("--show", "--quick-access", "--lock"):
+    assert action in menu
+    assert action in commands
 
 resume_unit = (ROOT / "systemd/nbshell-umbriel-resume-guard.service").read_text()
 assert "ConditionEnvironment=UMBRIEL_SOCKET" in resume_unit
