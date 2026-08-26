@@ -25,12 +25,18 @@ change before version 1.0.
    that the Niri recovery session still starts, using the
    [beta checklist](beta-testing.md).
 4. Push the commit and wait for the validation workflow.
-5. Create and push the matching tag, for example:
+5. Create and push the matching annotated tag. Sign it when a configured GPG
+   key is available; otherwise use the same annotated form as the existing
+   beta releases:
 
    ```bash
-   git tag -s v0.1.0-beta.1 -m "nbshell 0.1.0-beta.1"
+   git tag -a v0.1.0-beta.1 -m "nbshell 0.1.0-beta.1"
    git push origin v0.1.0-beta.1
    ```
+
+   With a configured signing key, replace `-a` with `-s`. The release workflow
+   validates the tag against `VERSION`, but currently does not require a
+   cryptographic signature.
 
 The release workflow rejects tags that do not match `VERSION`. It creates a
 GitHub prerelease for versions containing a hyphen and attaches the built
