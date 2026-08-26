@@ -146,7 +146,7 @@ def mpv_command_line(binary: str, ipc_path: Path, mpris: str = "") -> list[str]:
         "--no-input-default-bindings",
         "--volume=80",
         "--title=YouTube Music",
-        "--audio-client-name=omarchy-ytmusic",
+        "--audio-client-name=YouTube-Music",
         f"--input-ipc-server={ipc_path}",
         "--msg-level=cplayer=info,ao=info,ffmpeg=warn",
     ]

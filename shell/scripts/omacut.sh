@@ -36,21 +36,21 @@ install_omacut() {
 		git clone "$REPO_URL" "$REPO_DIR"
 	else
 		git -C "$REPO_DIR" diff --quiet && git -C "$REPO_DIR" diff --cached --quiet || {
-			printf 'Omacut has local changes; update was skipped.\n' >&2
+			printf 'Video Trimmer has local changes; update was skipped.\n' >&2
 			exit 1
 		}
 		git -C "$REPO_DIR" pull --ff-only
 	fi
 	"$REPO_DIR/bin/build"
 	install_files
-	printf 'Omacut installed at %s/omacut\n' "$BIN_DIR"
+	printf 'Video Trimmer installed at %s/omacut\n' "$BIN_DIR"
 }
 
 status() {
 	if [[ -x $BIN_DIR/omacut ]]; then
-		printf 'Omacut    installed (%s)\n' "$BIN_DIR/omacut"
+		printf 'Trimmer   installed (%s)\n' "$BIN_DIR/omacut"
 	else
-		printf 'Omacut    not installed\n'
+		printf 'Trimmer   not installed\n'
 	fi
 	printf 'Source    %s\n' "$([[ -d $REPO_DIR/.git ]] && echo "$REPO_DIR" || echo 'not cloned')"
 }
@@ -60,7 +60,7 @@ install|update) install_omacut ;;
 status) status ;;
 remove)
 	rm -f "$BIN_DIR/omacut" "$DATA_HOME/applications/omacut.desktop" "$DATA_HOME/icons/hicolor/scalable/apps/omacut.svg"
-	printf 'Omacut application files removed. Source checkout kept at %s.\n' "$REPO_DIR"
+	printf 'Video Trimmer files removed. Source checkout kept at %s.\n' "$REPO_DIR"
 	;;
 *) printf 'Usage: nbshell video-trimmer status|install|update|remove\n' >&2; exit 2 ;;
 esac

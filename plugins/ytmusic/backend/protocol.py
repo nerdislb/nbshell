@@ -1,4 +1,4 @@
-"""Newline-delimited JSON protocol for the Omarchy YouTube Music backend."""
+"""Newline-delimited JSON protocol for the YouTube Music backend."""
 
 from __future__ import annotations
 

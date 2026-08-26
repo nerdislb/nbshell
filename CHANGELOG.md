@@ -8,6 +8,9 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Changed
 
+- Remaining Omarchy-derived product labels are simplified across the visible
+  shell: Command center, Lyrics, Video Trimmer, and Zen theme bridge. Stable
+  upstream IDs and paths remain unchanged for compatibility and attribution.
 - The bundled email client is now presented simply as Mail across the shell,
   launcher, notifications, setup, and window title. Its stable `omamail`
   plugin ID and storage namespaces remain unchanged, preserving existing

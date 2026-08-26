@@ -81,7 +81,7 @@ online guide without turning this README into a wall of text.
 - Audio mixer, media controls, Bluetooth, Wi-Fi, batteries, power profiles,
   and persistent Umbriel/Niri display management
 - Floating Picture-in-Picture controls for Zen Browser
-- Optional Omazen bridge for live Zen palette changes after one initial restart
+- Optional Zen live-theme bridge after one initial browser restart
 - Theme-synchronized Hyprlock screen with PAM authentication and lock-before-suspend
 - Calendar, tasks, quick notes, habits, KDE Connect, Android mirroring, and a phone webcam
 - Switchable WhatsApp integration: native client or the retained PrettyZap fallback
@@ -192,8 +192,8 @@ nbshell pip status       # Check Zen Picture-in-Picture
 nbshell --help           # Show every command
 ```
 
-The native WhatsApp provider is an optional local-first client based on
-OmaWhatsApp and backed by `wacli`. Install and
+The native WhatsApp provider is an optional local-first client backed by
+`wacli`. Install and
 link it with `nbshell whatsapp setup` and `nbshell whatsapp auth`. The default
 shortcut, `Mod+Shift+M`, follows the selected provider. During a trial you can
 switch back without uninstalling either client:

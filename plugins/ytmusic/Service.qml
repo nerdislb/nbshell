@@ -857,7 +857,7 @@ Item {
     }
     var detail = String(lyricsPluginLaunchStderr.text || "").trim()
     lyricsPluginError = Api.redact(detail
-      || "Omasing is installed, but its lyrics window could not be opened.")
+      || "The lyrics extension is installed, but its window could not be opened.")
     lyricsPluginPromptRequested(lyricsPluginRequestSurface, lyricsPluginAvailability)
   }
 
@@ -987,7 +987,7 @@ Item {
         root.launchLyricsPlugin()
       } else {
         root.lyricsPluginError = Api.redact(String(stderr.text || "").trim()
-          || "Omasing could not be installed.")
+          || "The lyrics extension could not be enabled.")
         root.lyricsPluginPromptRequested(root.lyricsPluginRequestSurface,
           root.lyricsPluginAvailability)
       }

@@ -31,9 +31,9 @@ Item {
     Text {
       objectName: "lyrics-install-title"
       width: parent.width
-      text: root.availability === "disabled" ? "Enable Omasing Lyrics?"
+      text: root.availability === "disabled" ? "Enable Lyrics?"
         : (root.availability === "ready" && root.errorText
-          ? "Omasing didn't open" : "Install Omasing Lyrics?")
+          ? "Lyrics didn't open" : "Lyrics extension unavailable")
       color: root.foreground
       font.family: Style.font.family
       font.pixelSize: Style.font.subtitle
@@ -45,10 +45,10 @@ Item {
       objectName: "lyrics-install-description"
       width: parent.width
       text: root.availability === "disabled"
-        ? "Omasing is already installed. Enable it and add its widget to the center of your bar?"
+        ? "The lyrics extension is already installed but currently disabled."
         : (root.availability === "ready"
           ? "The plugin is installed, but YouTube Music could not open its lyrics window."
-          : "Lyrics are provided by the optional Omasing plugin. Install and enable it now?")
+          : "Install a compatible lyrics extension separately, then try again.")
       color: Qt.darker(root.foreground, 1.35)
       font.family: Style.font.family
       font.pixelSize: Style.font.bodySmall
@@ -58,7 +58,7 @@ Item {
     Text {
       width: parent.width
       visible: root.availability === "missing"
-      text: "Lyrics are an optional external plugin and are not installed by nbshell."
+      text: "Lyrics are optional and are not installed or managed by nbshell."
       color: Qt.darker(root.foreground, 1.5)
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
@@ -98,14 +98,17 @@ Item {
           ? (root.service && root.service.lyricsPluginOperation === "disabled"
             ? "Enabling…" : "Installing…")
           : (root.availability === "disabled" ? "Enable"
-            : (root.availability === "ready" ? "Try again" : "Install"))
+            : (root.availability === "ready" ? "Try again" : "Close"))
         iconText: root.availability === "ready" ? "󰑓" : "󰐕"
         foreground: root.foreground
-        selected: true
+        selected: root.availability !== "missing"
         focusable: true
         hasCursor: root.confirmHasCursor
-        enabled: root.service && !root.busy
-        onClicked: root.service.confirmLyricsPlugin(root.surfaceKey)
+        enabled: !root.busy
+        onClicked: {
+          if (root.availability === "missing") root.canceled()
+          else if (root.service) root.service.confirmLyricsPlugin(root.surfaceKey)
+        }
       }
     }
   }

@@ -39,7 +39,7 @@ class PlayerTests(unittest.TestCase):
         self.assertIn("--load-scripts=no", command)
         self.assertIn("--keep-open=no", command)
         self.assertIn("--clipboard-backends-clr", command)
-        self.assertIn("--audio-client-name=omarchy-ytmusic", command)
+        self.assertIn("--audio-client-name=YouTube-Music", command)
         self.assertIn("--script=/lib/mpris.so", command)
         self.assertNotIn("--really-quiet", command)
         self.assertIn("pipewire", joined)

@@ -1,7 +1,7 @@
 # Trim a screen recording
 
-nbshell integrates the lightweight
-[`nerdislb/omacut`](https://github.com/nerdislb/omacut) fork. It previews a
+nbshell integrates its lightweight Video Trimmer, maintained in the
+[`nerdislb/omacut`](https://github.com/nerdislb/omacut) repository. It previews a
 video, lets you drag the start and end handles, and exports the result through
 ffmpeg without the complexity of a full video editor.
 
@@ -31,12 +31,12 @@ surface, text, light/dark mode, and accent when the nbshell theme changes.
 After a screen recording stops, its notification offers two actions:
 
 - **Play** opens the recording in the default video player.
-- **Trim** opens that exact recording in Omacut.
+- **Trim** opens that exact recording in Video Trimmer.
 
 The Capture menu also contains **Trim latest recording** for the newest video
 in the configured recording directory.
 
-Inside Omacut, drag the two handles or use the keyboard:
+Inside Video Trimmer, drag the two handles or use the keyboard:
 
 | Key | Action |
 | --- | --- |

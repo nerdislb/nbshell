@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Owner-only Unix socket backend for Omarchy YouTube Music."""
+"""Owner-only Unix socket backend for YouTube Music."""
 
 from __future__ import annotations
 
@@ -491,7 +491,7 @@ class Backend:
         os.chmod(path, 0o600)
         server.listen(8)
         server.settimeout(0.5)
-        print(f"omarchy-ytmusic-backend listening on {path}", file=sys.stderr)
+        print(f"ytmusic-backend listening on {path}", file=sys.stderr)
         idle_thread = threading.Thread(target=self._idle_watch, daemon=True)
         idle_thread.start()
         position_thread = threading.Thread(target=self._position_watch, daemon=True)
@@ -566,7 +566,7 @@ class Backend:
             video_id = self._catalog_video_id()
             if not video_id or self._stop.is_set():
                 return
-            print("omarchy-ytmusic-backend warming yt-dlp player cache",
+            print("ytmusic-backend warming yt-dlp player cache",
                   file=sys.stderr)
             try:
                 self.player.resolver.resolve(video_id)
@@ -634,7 +634,7 @@ class Backend:
                 last_activity=self.player.last_activity,
                 now=time.time(),
             ):
-                print("omarchy-ytmusic-backend idle shutdown", file=sys.stderr)
+                print("ytmusic-backend idle shutdown", file=sys.stderr)
                 self._stop.set()
                 return
 
@@ -650,7 +650,7 @@ class AuthError(RuntimeError):
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Omarchy YouTube Music backend")
+    parser = argparse.ArgumentParser(description="YouTube Music backend")
     parser.add_argument("--auth", default="", help="Path to ytmusicapi browser.json")
     parser.add_argument("--socket", default="", help="Unix socket path")
     parser.add_argument("--self-test", action="store_true")

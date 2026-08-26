@@ -25,7 +25,7 @@ fallback.
 
 ## Optional live Zen themes
 
-[Omazen](https://github.com/hemagome/omazen) can apply later palette changes to
+[The Zen theme bridge](https://github.com/hemagome/omazen) can apply later palette changes to
 an open native Zen window. It installs a privileged, tightly scoped
 `fx-autoconfig` bridge, so review its security model before opting in. Install
 a release that supports external palette providers, then run:
@@ -37,11 +37,11 @@ nbshell browser-theme setup-zen-live
 The setup asks for privilege only when installing Zen's program-level loader.
 Restart Zen once to load that bridge; subsequent nbshell theme changes are
 written atomically and applied without restarting the browser. nbshell removes
-only its own legacy `userChrome.css` import after Omazen setup succeeds.
+only its own legacy `userChrome.css` import after bridge setup succeeds.
 
 Run `nbshell browser-theme doctor-zen-live` after every Zen package update.
-If the package replaced Omazen's loader, repeat `setup-zen-live`. This remains
-an optional integration: Omazen is GPL-3.0-only and stays a separately
+If the package replaced the bridge loader, repeat `setup-zen-live`. This remains
+an optional integration: the upstream project is GPL-3.0-only and stays a separately
 installed component rather than being copied into nbshell's MIT source.
 
 Brave reloads its color policy while running. Dark themes seed Brave from the

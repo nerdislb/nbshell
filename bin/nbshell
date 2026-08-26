@@ -559,7 +559,7 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell browser-theme status|setup|apply|setup-zen-live|doctor-zen-live
                             sync nbshell colors to Zen and Brave
   nbshell video-trimmer status|install|update|remove
-                            manage the optional Omacut integration
+                            manage the optional Video Trimmer
 
   nbshell tray              list system-tray entries
   nbshell tray toggle       expand or collapse tray icons

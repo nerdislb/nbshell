@@ -195,7 +195,7 @@ open_trimmer() {
 	trimmer=$(command -v omacut 2>/dev/null || true)
 	[[ -n $trimmer ]] || trimmer="$HOME/.local/bin/omacut"
 	if [[ ! -x $trimmer ]]; then
-		fail "Omacut is not installed. See docs/video-trimming.md."
+		fail "Video Trimmer is not installed. See docs/video-trimming.md."
 	fi
 	# A transient unit keeps the editor alive after this short helper exits and
 	# prevents several trim windows from being opened accidentally.

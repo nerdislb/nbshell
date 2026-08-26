@@ -23,7 +23,7 @@ main menu, the bar, or the `nbshell` command.
 - Reduced, standard, and expressive motion profiles shared by the bar,
   controls, menus, popouts, Library, and wallpaper picker
 - Automatic palette synchronization for Zen Browser and Brave, with an
-  optional Omazen bridge for live Zen updates
+  optional live-theme bridge for Zen updates
 - Notification center, clipboard history, system tray, and on-screen displays
 
 The Library keeps search and list navigation while presenting the selected
@@ -67,7 +67,7 @@ default and supported path is Hyprlock.
 - Screenshots by area, output, or selected window
 - Screen recording and OBS launcher
 - Focused demo recording with on-demand Reddit, Discord, and GitHub exports
-- Fast start/end trimming through the nbshell-themed Omacut fork
+- Fast start/end trimming through the nbshell-themed Video Trimmer
 - OCR, QR scanning, and optional local dictation
 - Browser and application media controls through MPRIS
 

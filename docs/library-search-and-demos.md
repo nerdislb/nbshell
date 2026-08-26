@@ -47,12 +47,12 @@ before publishing because host names and output models are included.
 
 ## Focused demo recording
 
-The demo helper builds on nbshell's existing capture and Omacut paths:
+The demo helper builds on nbshell's existing capture and Video Trimmer paths:
 
 ```bash
 nbshell demo start region off   # region or screen; off, mic, or desktop audio
 nbshell demo stop
-nbshell demo edit               # trim the newest recording in Omacut
+nbshell demo edit               # trim the newest recording
 nbshell demo export reddit      # also: discord or github
 nbshell demo open
 ```
