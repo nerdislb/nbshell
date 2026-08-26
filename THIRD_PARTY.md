@@ -28,7 +28,7 @@ their own bundled license files are linked below.
   [Better Displays](https://github.com/nightdevil00/better.displays). nbshell
   uses an independent Niri-native backend and does not use its Hyprland/Lua
   implementation.
-- The bundled Omamail port comes from Jason Lee's MIT-licensed
+- The bundled Mail client is a port of Jason Lee's MIT-licensed
   [Omamail](https://github.com/huacnlee/omamail). Its Gmail, IMAP/SMTP,
   credential-storage, and message-sanitization implementations and tests are
   retained; nbshell supplies the host lifecycle, bar widget, and theme adapter.

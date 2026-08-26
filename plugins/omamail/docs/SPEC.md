@@ -1,4 +1,4 @@
-# Omamail — Spec
+# Mail — Spec
 
 A native Gmail client for Omarchy, built as a Quickshell plugin on the official
 Gmail REST API. Same technology as Omarchy-Spotify: QML views over plain-JS

@@ -94,7 +94,7 @@ See the [phone webcam guide](phone-webcam.md) for setup and daily use.
 
 - Guided gaming setup for Steam, Heroic, Lutris, Prism Launcher, RetroArch,
   GeForce NOW, and supporting tools
-- Plugin system with managed examples such as Omamail, YouTube Music, and Pit
+- Plugin system with managed examples such as Mail, YouTube Music, and Pit
   Wall
 - Calendar synchronization through `khal` and `vdirsyncer`
 - Syncthing-backed tasks, habits, and wallpapers

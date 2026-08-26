@@ -483,7 +483,7 @@ Item {
   FloatingWindow {
     id: window
     visible: root.opened
-    title: "Omamail"
+    title: "Mail"
     color: root.background
     implicitWidth: Style.space(980)
     implicitHeight: Style.space(720)
@@ -588,7 +588,7 @@ Item {
           Text {
             anchors.verticalCenter: parent.verticalCenter
             visible: !root.compact
-            text: "Omamail"
+            text: "Mail"
             color: root.foreground
             font.family: root.fontFamily
             font.pixelSize: Style.font.title

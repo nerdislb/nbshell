@@ -6,6 +6,13 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+### Changed
+
+- The bundled email client is now presented simply as Mail across the shell,
+  launcher, notifications, setup, and window title. Its stable `omamail`
+  plugin ID and storage namespaces remain unchanged, preserving existing
+  accounts, credentials, caches, and integrations.
+
 ## [0.1.0-beta.4] - 2026-08-26
 
 ### Changed

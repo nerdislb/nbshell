@@ -220,7 +220,7 @@ default_focused = true
 default_size = [1100, 780]
 
 [[window_rule]]
-match.title = "^(Omamail|YouTube Music|Pit Wall)$"
+match.title = "^(Mail|Omamail|YouTube Music|Pit Wall)$"
 default_floating = true
 default_focused = true
 default_size = [1240, 840]

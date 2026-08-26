@@ -27,7 +27,7 @@
     },
     {
       "id": "omamail",
-      "name": "Omamail",
+      "name": "Mail",
       "description": "Native Gmail and IMAP/SMTP mail client with keyring-backed credentials.",
       "author": "Jason Lee; nbshell port by nerdi",
       "license": "MIT",

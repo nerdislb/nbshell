@@ -1080,7 +1080,7 @@ Item {
     // mail, and a display name of "-u" would otherwise be read by notify-send
     // as an option rather than as a name.
     if (list.length === 1) {
-      Quickshell.execDetached(["notify-send", "-a", "Omamail", "-i",
+      Quickshell.execDetached(["notify-send", "-a", "Mail", "-i",
         root.pluginDir + "/assets/omamail.svg",
         "--", Model.notificationTitle(list[0]), Model.notificationBody(list[0])])
       return
@@ -1088,7 +1088,7 @@ Item {
     // One notification per message turns a batch sync into a wall of popups.
     var names = []
     for (var i = 0; i < list.length && i < 3; i++) names.push(Model.notificationTitle(list[i]))
-    Quickshell.execDetached(["notify-send", "-a", "Omamail", "-i",
+    Quickshell.execDetached(["notify-send", "-a", "Mail", "-i",
       root.pluginDir + "/assets/omamail.svg",
       "--", Model.pluralize(list.length, "new message"), names.join(", ")])
   }

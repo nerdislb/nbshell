@@ -1,8 +1,8 @@
-# Omamail — a Gmail and IMAP email client for Omarchy
+# Mail — a Gmail and IMAP email client for nbshell
 
 **Your mail as a native Omarchy window — not a browser tab.**
 
-Omamail is an Omarchy desktop email client: a Quickshell plugin that reads,
+Mail is an nbshell desktop email client: a Quickshell plugin that reads,
 triages, and answers your mail over the official Gmail API, or over IMAP and
 SMTP for every other mailbox. It runs inside the `omarchy-shell` process you
 already have, follows your active theme, and puts an unread count in the bar.
@@ -47,7 +47,7 @@ server — including one you run yourself.
 - **Keyring-backed.** The Gmail refresh token and every IMAP password live in
   GNOME Keyring — never in a config file, never on a command line.
 
-<img width="800" alt="Omamail preview" src="https://github.com/user-attachments/assets/9da73cf7-9b08-421f-b818-bf4fe0e99c00" />
+<img width="800" alt="Mail preview" src="https://github.com/user-attachments/assets/9da73cf7-9b08-421f-b818-bf4fe0e99c00" />
 
 And with mini size mode:
 
@@ -74,7 +74,7 @@ Then click the envelope in the bar. To open it from the keyboard, add this to
 `~/.config/hypr/bindings.lua`:
 
 ```lua
-  o.bind("SUPER + SHIFT + G", "Omamail", "omarchy shell shell toggle omamail '{}'")
+  o.bind("SUPER + SHIFT + G", "Mail", "omarchy shell shell toggle omamail '{}'")
 ```
 
 The target is `shell`, not the plugin id: the window is summoned by the shell,
@@ -109,7 +109,7 @@ move to. Sending goes out over SMTP, or the mailbox is read-only if no SMTP
 server is set.
 
 **HEY** is listed as a future integration. A HEY CLI is reportedly in
-development; once it is ready, Omamail can support it through the provider seam
+development; once it is ready, Mail can support it through the provider seam
 that is already in place.
 
 To remove it:
@@ -134,7 +134,7 @@ above is yours to add and yours to remove.
 ## Connecting your mailbox
 
 Gmail has no shared application to sign in through. Google issues API access
-per Cloud project, so Omamail signs in with an OAuth client **you own**.
+per Cloud project, so Mail signs in with an OAuth client **you own**.
 The window walks you through it in five steps, each with the console page one
 click away. It takes about two minutes, once.
 
@@ -240,7 +240,7 @@ make validate         # node tests, source regressions, qmllint, manifest check
 Working agreements are in [AGENTS.md](AGENTS.md) and the specification is in
 [docs/SPEC.md](docs/SPEC.md).
 
-Omamail is an independent project and is not affiliated with Google.
+Mail is an nbshell port of Omamail and is not affiliated with Google.
 Gmail is a trademark of Google LLC.
 
 Licensed under the [MIT License](LICENSE).

@@ -94,8 +94,8 @@ missing_optional="$(
     optional_check voxtype       "local voice dictation"      "voxtype-bin (AUR, optional)"
     optional_check mpv           "native YouTube Music playback" "mpv"
     optional_check yt-dlp        "native YouTube Music playback" "yt-dlp"
-    optional_check socat         "Omamail OAuth callback"      "socat"
-    optional_check openssl       "Omamail OAuth PKCE"          "openssl"
+    optional_check socat         "Mail OAuth callback"         "socat"
+    optional_check openssl       "Mail OAuth PKCE"              "openssl"
 )"
 if [ -n "$missing_optional" ]; then
     printf '%s\n' "$missing_optional"

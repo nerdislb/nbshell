@@ -56,7 +56,7 @@ if gcloud projects describe "$project_id" >/dev/null 2>&1; then
   printf 'Reusing existing project %s\n' "$project_id"
 else
   printf 'Creating project %s…\n' "$project_id"
-  gcloud projects create "$project_id" --name="Omamail"
+  gcloud projects create "$project_id" --name="Mail"
 fi
 
 printf 'Enabling the Gmail API…\n'
@@ -78,7 +78,7 @@ Done with the part gcloud can do. Two steps are left, and both are console-only:
      $consent_url
 
   2. Create an OAuth client, application type "Desktop app", then paste its
-     client ID into Omamail.
+     client ID into Mail.
 
      $clients_url
 

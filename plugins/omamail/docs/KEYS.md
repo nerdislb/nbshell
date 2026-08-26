@@ -1,4 +1,4 @@
-# Omamail — Keybindings
+# Mail — Keybindings
 
 How the keyboard works in this application, and why it is built this way.
 

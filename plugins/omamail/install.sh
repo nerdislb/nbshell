@@ -69,9 +69,9 @@ if $restart_shell; then
   omarchy restart shell
 fi
 
-printf '%s\n' 'Registering Omamail in the bar…'
+printf '%s\n' 'Registering Mail in the bar…'
 omarchy-shell shell rescanPlugins
 omarchy plugin enable "$plugin_id"
 
-printf 'Omamail installed for development at %s\n' "$install_path"
+printf 'Mail installed for development at %s\n' "$install_path"
 printf '%s\n' 'Click the envelope in the bar. QML edits are read through the symlink.'

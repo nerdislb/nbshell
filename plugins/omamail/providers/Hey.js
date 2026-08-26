@@ -29,7 +29,7 @@ var MAILBOXES = [
 // What the setup page shows instead of a form, and what stops `MailAccount`
 // from ever building a client that is not there.
 var UNAVAILABLE = "A HEY CLI is reportedly in development. Once it is ready, "
-  + "Omamail can add HEY support through this provider integration."
+  + "Mail can add HEY support through this provider integration."
 
 function searchQuery() {
   return ""

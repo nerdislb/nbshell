@@ -65,7 +65,7 @@ function setupDetail(state, missingTools, reason, provider, authKind) {
   if (state === "unavailable") return String(reason || "")
   if (state === "tools_missing") {
     var tools = Array.isArray(missingTools) ? missingTools.join(", ") : ""
-    return "Omamail needs " + (tools || "a few base tools")
+    return "Mail needs " + (tools || "a few base tools")
       + " on PATH before it can sign in."
   }
   if (state === "no_credentials")

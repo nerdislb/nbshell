@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "id": "omamail",
-  "name": "Omamail",
+  "name": "Mail",
   "version": "0.2.0",
   "author": "Jason Lee <huacnlee@gmail.com>",
   "license": "MIT",
@@ -23,7 +23,7 @@
     "panel": "App.qml"
   },
   "barWidget": {
-    "displayName": "Omamail",
+    "displayName": "Mail",
     "description": "Unread mail count in the bar; Gmail and IMAP mailboxes open in a native window.",
     "category": "Communication",
       "aliases": [

@@ -436,7 +436,7 @@ nbshell gaming remove steam
   or stop recording. While recording or transcribing, the AI bar module shows
   the live state and also acts as a stop button. nbshell uses compositor
   control, so Voxtype's evdev hotkey can remain disabled.
-- Omamail is bundled but disabled by default. Enable it with
+- Mail is bundled but disabled by default. Enable it with
   `nbshell plugin enable omamail`, restart nbshell, and open it with
   `Mod+Ctrl+Shift+G`. Gmail uses the official Gmail API and its setup page
   guides you through creating your own Google OAuth client. IMAP/SMTP accounts
