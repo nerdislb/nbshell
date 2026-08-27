@@ -18,18 +18,19 @@ PanelWindow {
     property bool weatherLoading: false
     property bool updatesOpen: false
     property bool shellUpdatesOpen: false
+    property var afterClose: null
     readonly property date now: clock.date
     readonly property real cardGap: Theme.cellW * 1.5
     readonly property var nextEvents: Calendar.events.filter(e => e.end >= new Date()).slice(0, 7)
 
-    visible: Runtime.dashboardOpen
+    visible: true
     screen: Quickshell.screens[0] ?? null
     color: "transparent"
     anchors { left: true; right: true; top: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "nbshell:dashboard"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: Runtime.dashboardOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     function close() {
         updatesOpen = false;
@@ -37,9 +38,21 @@ PanelWindow {
         Runtime.calendarOpen = false;
         Runtime.dashboardOpen = false;
     }
+    function requestClose(done) {
+        box.dismiss(() => {
+            const next = root.afterClose;
+            root.afterClose = null;
+            if (!Runtime.dashboardOpen && next) next();
+            done();
+        });
+    }
+    function requestOpen() {
+        afterClose = null;
+        box.enter();
+    }
     function openSurface(fn) {
+        root.afterClose = fn;
         root.close();
-        Qt.callLater(fn);
     }
     function refreshWeather() {
         if (weatherLoading)
@@ -216,10 +229,11 @@ PanelWindow {
                 event.accepted = true;
             }
         }
-        Rectangle { anchors.fill: parent; z: -1; color: Theme.scrim }
+        Rectangle { anchors.fill: parent; z: -1; color: Theme.scrim; opacity: box.opacity }
         MouseArea { anchors.fill: parent; onClicked: root.close() }
 
         OverlaySurface {
+            id: box
             preferredWidth: Theme.cellW * 104
             preferredHeight: Theme.overlayHeightLarge
             border.width: Math.max(Theme.borderWidth, 2)

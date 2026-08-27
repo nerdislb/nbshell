@@ -8,14 +8,14 @@ import qs.Widgets
 PanelWindow {
     id: root
 
-    visible: Runtime.displayOpen
+    visible: true
     screen: Quickshell.screens[0] ?? null
     color: "transparent"
     anchors { left: true; right: true; top: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "nbshell:displays"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: Runtime.displayOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     readonly property var display: Displays.selected
     property bool resolutionOpen: false
@@ -30,6 +30,8 @@ PanelWindow {
         resolutionOpen = false;
         Runtime.displayOpen = false;
     }
+    function requestClose(done) { box.dismiss(done); }
+    function requestOpen() { box.enter(); }
 
     onDisplayChanged: resolutionOpen = false
 
@@ -38,7 +40,7 @@ PanelWindow {
         keys.forceActiveFocus();
     }
 
-    Rectangle { anchors.fill: parent; color: Theme.scrim }
+    Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: box.opacity }
     MouseArea { anchors.fill: parent; onClicked: root.close() }
 
     FocusScope {
@@ -51,6 +53,7 @@ PanelWindow {
         }
 
         OverlaySurface {
+            id: box
             preferredWidth: Theme.overlayWidthMedium
             preferredHeight: Theme.cellH * 40
 

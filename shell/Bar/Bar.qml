@@ -201,7 +201,7 @@ Variants {
             border.color: Theme.muted
 
             Behavior on color {
-                ColorAnimation { duration: 140 }
+                ColorAnimation { duration: Theme.motionEffectsDefault }
             }
 
             // Doppelklick auf die Leiste: Hintergrund transparent bzw. wieder
@@ -474,7 +474,7 @@ Variants {
 
                 Behavior on opacity {
                     NumberAnimation {
-                        duration: 120
+                        duration: Theme.motionEffectsFast
                     }
                 }
 

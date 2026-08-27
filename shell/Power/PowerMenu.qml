@@ -17,8 +17,9 @@ PanelWindow {
     id: root
 
     property int selected: 0
+    property var afterClose: null
 
-    visible: Runtime.powerOpen
+    visible: true
 
     screen: Quickshell.screens[0] ?? null
     color: "transparent"
@@ -36,12 +37,25 @@ PanelWindow {
     function close() {
         Runtime.powerOpen = false;
     }
+    function requestClose(done) {
+        box.dismiss(() => {
+            const next = root.afterClose;
+            root.afterClose = null;
+            if (!Runtime.powerOpen && next) next();
+            done();
+        });
+    }
+    function requestOpen() {
+        afterClose = null;
+        box.enter();
+    }
 
     function accept() {
         const action = Session.actions[selected];
+        root.afterClose = () => {
+            if (action) Session.run(action.id);
+        };
         close();
-        if (action)
-            Session.run(action.id);
     }
 
     onVisibleChanged: {
@@ -51,6 +65,7 @@ PanelWindow {
         }
     }
 
+    Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: box.opacity }
     MouseArea {
         anchors.fill: parent
         onClicked: root.close()
@@ -80,7 +95,7 @@ PanelWindow {
             }
         }
 
-        PanelSurface {
+        MotionSurface {
             id: box
 
             anchors.centerIn: parent

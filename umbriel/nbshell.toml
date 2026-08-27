@@ -2,7 +2,7 @@
 # ~/.config/umbriel/config.toml; it contains only shell-owned binds and rules.
 
 [include]
-files = ["nbshell-outputs.toml", "nbshell-cursor.toml", "nbshell-overview.toml"]
+files = ["nbshell-outputs.toml", "nbshell-cursor.toml", "nbshell-overview.toml", "nbshell-motion.toml"]
 
 [input.keyboard]
 layout = "de"
@@ -14,9 +14,6 @@ follows_mouse_max_scroll = 0.5
 
 [layout.scrolling]
 default_width_fraction = 0.667
-
-[animation]
-duration_ms = 300
 
 [hot_corners.top_left]
 enabled = true

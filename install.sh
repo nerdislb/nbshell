@@ -376,6 +376,7 @@ green "Binds   -> $CONFIG_HOME/niri/nbshell-takeover.kdl"
 # alter the user's active compositor or existing Umbriel configuration.
 mkdir -p "$CONFIG_HOME/umbriel"
 install -m 644 "$SRC/umbriel/nbshell.toml" "$CONFIG_HOME/umbriel/nbshell.toml"
+install -m 644 "$SRC/umbriel/nbshell-motion.toml" "$CONFIG_HOME/umbriel/nbshell-motion.toml"
 install -m 644 "$SRC/umbriel/nbshell-nested.toml" "$CONFIG_HOME/umbriel/nbshell-nested.toml"
 if [ ! -f "$CONFIG_HOME/umbriel/nbshell-outputs.toml" ]; then
     printf '# Managed by nbshell display; intentionally empty until a setting is saved.\n' > "$CONFIG_HOME/umbriel/nbshell-outputs.toml"

@@ -46,7 +46,7 @@ Rectangle {
     border.width: selected ? Theme.borderWidth : 0
     border.color: selected ? Theme.focusBorder : "transparent"
 
-    Behavior on color { ColorAnimation { duration: 90 } }
+    Behavior on color { ColorAnimation { duration: Theme.motionEffectsFast } }
 
     Rectangle {
         visible: root.urgent

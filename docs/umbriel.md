@@ -38,6 +38,21 @@ opens the overview, and `Mod+O` pins the shell island. Launcher, theme, bar,
 audio, workspace, output, width, wheel-navigation, DPMS, and session bindings
 use their established Niri chords where Umbriel provides an equivalent action.
 
+## Motion ownership
+
+Umbriel owns normal application-window motion. The installed profile uses a
+short asymmetric sequence: a 180 ms pop-in for opening, a 120 ms fade for
+closing, a 220 ms `snappy` move/resize transition, and separate workspace,
+overview, and focus-border timings. This gives entry enough time to orient the
+eye while keeping dismissal immediate.
+
+nbshell owns motion inside its Quickshell surfaces. Bar popouts, menus, and
+overlays animate their inner opacity, scale, and offset inside stable Wayland
+geometry, keep lazy content mounted until exit completes, and then unload it.
+Umbriel layer-shell fades are deliberately disabled to prevent a second
+compositor animation from stacking on the QML transition. The Reduced motion
+profile snaps both finite transitions and recurring shell attention effects.
+
 ## Install the complete stack
 
 On Arch Linux, the normal setup installs build dependencies, builds Umbriel and

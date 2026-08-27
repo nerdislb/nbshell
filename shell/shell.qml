@@ -27,6 +27,7 @@ import qs.Keys
 import qs.Menu
 import qs.Ipc
 import qs.Extensions
+import qs.Widgets
 
 // nbshell -- Einstiegspunkt.
 //
@@ -104,9 +105,15 @@ ShellRoot {
 
     Popups {}
 
-    NotificationCenter {}
+    MotionLoader {
+        requested: Runtime.notificationCenterOpen
+        sourceComponent: Component { NotificationCenter {} }
+    }
 
-    PowerMenu {}
+    MotionLoader {
+        requested: Runtime.powerOpen
+        sourceComponent: Component { PowerMenu {} }
+    }
 
     // Large, infrequently used surfaces are created only while open. Their
     // public IPC remains permanently available through the Runtime flags
@@ -115,15 +122,30 @@ ShellRoot {
 
     LazyLoader { active: Runtime.captureOpen; CaptureMenu {} }
 
-    LazyLoader { active: Runtime.settingsOpen; SettingsWindow {} }
+    MotionLoader {
+        requested: Runtime.settingsOpen
+        sourceComponent: Component { SettingsWindow {} }
+    }
 
-    LazyLoader { active: Runtime.modulesOpen; ModulesMenu {} }
+    MotionLoader {
+        requested: Runtime.modulesOpen
+        sourceComponent: Component { ModulesMenu {} }
+    }
 
-    LazyLoader { active: Runtime.pluginDeveloperOpen; PluginDeveloper {} }
+    MotionLoader {
+        requested: Runtime.pluginDeveloperOpen
+        sourceComponent: Component { PluginDeveloper {} }
+    }
 
-    LazyLoader { active: Runtime.displayOpen; DisplayPanel {} }
+    MotionLoader {
+        requested: Runtime.displayOpen
+        sourceComponent: Component { DisplayPanel {} }
+    }
 
-    LazyLoader { active: Runtime.uiGalleryOpen; UiGallery {} }
+    MotionLoader {
+        requested: Runtime.uiGalleryOpen
+        sourceComponent: Component { UiGallery {} }
+    }
 
     LazyLoader { active: Runtime.wallpaperOpen; WallpaperPicker {} }
 
@@ -141,7 +163,10 @@ ShellRoot {
 
     LazyLoader { active: Runtime.speedOpen; SpeedWindow {} }
 
-    LazyLoader { active: Runtime.audioToolsOpen; AudioTools {} }
+    MotionLoader {
+        requested: Runtime.audioToolsOpen
+        sourceComponent: Component { AudioTools {} }
+    }
 
     LazyLoader { active: Runtime.keysOpen; KeysWindow {} }
 
@@ -149,11 +174,20 @@ ShellRoot {
 
     LazyLoader { active: Runtime.emojiOpen; EmojiWindow {} }
 
-    LazyLoader { active: Runtime.hubOpen; SystemHub {} }
+    MotionLoader {
+        requested: Runtime.hubOpen
+        sourceComponent: Component { SystemHub {} }
+    }
 
-    LazyLoader { active: Runtime.dashboardOpen; Dashboard {} }
+    MotionLoader {
+        requested: Runtime.dashboardOpen
+        sourceComponent: Component { Dashboard {} }
+    }
 
-    LazyLoader { active: Runtime.agentCenterOpen; AgentCenter {} }
+    MotionLoader {
+        requested: Runtime.agentCenterOpen
+        sourceComponent: Component { AgentCenter {} }
+    }
 
     // Nachinstallierte Dienste, Panels und Overlays. Nur explizit aktivierte
     // Plugin-IDs werden geladen; reine Bar-Widgets entstehen in WidgetHost.

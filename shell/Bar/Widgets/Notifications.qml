@@ -146,7 +146,7 @@ Cell {
                 color: active ? Theme.alpha(accentColor, 0.12)
                     : (actionHover.hovered ? Theme.alpha(Theme.fg, 0.08) : "transparent")
 
-                Behavior on color { ColorAnimation { duration: 90 } }
+                Behavior on color { ColorAnimation { duration: Theme.motionEffectsFast } }
 
                 Line {
                     id: actionLabel
@@ -496,7 +496,7 @@ Cell {
                                         color: Theme.alpha(Theme.fg, imageHover.hovered ? 0.11 : 0.06)
                                         clip: true
 
-                                        Behavior on color { ColorAnimation { duration: 90 } }
+                                        Behavior on color { ColorAnimation { duration: Theme.motionEffectsFast } }
 
                                         Image {
                                             anchors.fill: parent
@@ -562,7 +562,7 @@ Cell {
                                     radius: Math.max(Theme.radius, Theme.cellH * 0.58)
                                     color: Theme.alpha(Theme.fg, clipboardHover.hovered ? 0.11 : 0.06)
 
-                                    Behavior on color { ColorAnimation { duration: 90 } }
+                                    Behavior on color { ColorAnimation { duration: Theme.motionEffectsFast } }
 
                                     Rectangle {
                                         anchors.left: parent.left

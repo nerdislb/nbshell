@@ -15,16 +15,18 @@ PanelWindow {
         return needle === "" || ((entry.appName || "") + " " + (entry.summary || "") + " " + (entry.body || "")).toLowerCase().indexOf(needle) >= 0;
     })
 
-    visible: Runtime.notificationCenterOpen
+    visible: true
     screen: Quickshell.screens[0] ?? null
     color: "transparent"
     anchors { left: true; right: true; top: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "nbshell:notification-center"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: Runtime.notificationCenterOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     function close() { Runtime.notificationCenterOpen = false; }
+    function requestClose(done) { box.dismiss(done); }
+    function requestOpen() { box.enter(); }
     function dropSelected() {
         if (shown[selected]) Notify.drop(shown[selected].key);
         selected = Math.max(0, Math.min(selected, shown.length - 2));
@@ -32,7 +34,7 @@ PanelWindow {
     onVisibleChanged: if (visible) { query = ""; selected = 0; keys.forceActiveFocus(); }
     onQueryChanged: selected = 0
 
-    Rectangle { anchors.fill: parent; color: Theme.scrim }
+    Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: box.opacity }
     MouseArea { anchors.fill: parent; onClicked: root.close() }
 
     FocusScope {

@@ -11,16 +11,19 @@ PanelWindow {
     property var toolState: ({"ambience": "", "bypass": "unknown", "presets": []})
     property bool loading: false
     readonly property string script: Qt.resolvedUrl("../scripts/audio-tools.py").toString().replace("file://", "")
-    visible: Runtime.audioToolsOpen
+    visible: true
     screen: Quickshell.screens[0] ?? null
     color: "transparent"
     anchors { left: true; right: true; top: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "nbshell:audio-tools"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: Runtime.audioToolsOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     function run(args) { if (!proc.running) { loading = true; proc.command = ["python3", script].concat(args); proc.running = true; } }
+    function close() { Runtime.audioToolsOpen = false; }
+    function requestClose(done) { box.dismiss(done); }
+    function requestOpen() { box.enter(); }
     onVisibleChanged: if (visible) { run(["status"]); keys.forceActiveFocus(); }
     Process {
         id: proc
@@ -28,13 +31,14 @@ PanelWindow {
         stderr: StdioCollector { onStreamFinished: if (String(text).trim()) console.warn("audio-tools:", String(text).trim()) }
     }
 
-    Rectangle { anchors.fill: parent; color: Theme.alpha(Theme.bgDarker, .78) }
-    MouseArea { anchors.fill: parent; onClicked: Runtime.audioToolsOpen = false }
+    Rectangle { anchors.fill: parent; color: Theme.alpha(Theme.bgDarker, .78); opacity: box.opacity }
+    MouseArea { anchors.fill: parent; onClicked: root.close() }
     FocusScope {
         id: keys; anchors.fill: parent; focus: root.visible
-        Keys.onEscapePressed: Runtime.audioToolsOpen = false
+        Keys.onEscapePressed: root.close()
         Keys.onPressed: event => { if (event.key === Qt.Key_F5) root.run(["status"]); }
         OverlaySurface {
+            id: box
             preferredWidth: Theme.cellW * 72; preferredHeight: Theme.cellH * 30
             MouseArea { anchors.fill: parent }
             Column {

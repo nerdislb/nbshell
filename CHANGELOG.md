@@ -18,6 +18,17 @@ configuration and plugin interfaces before `1.0.0`.
   independent recovery path. Autologin is never inferred from an installed
   session launcher and requires a separate explicit option.
 
+### Changed
+
+- Motion now distinguishes short visual effects from spatial movement. Bar
+  popouts and the most-used overlays keep their content mounted through a real
+  exit animation, fade their scrims with the surface, and unload only after the
+  transition completes. Reduced motion also stops attention and spinner loops.
+- Umbriel uses event-specific motion instead of one global 300 ms duration:
+  opening, closing, moving, workspaces, overview, and focus-border transitions
+  have separate timings and curves. Layer-shell animation stays disabled so
+  nbshell's QML surfaces are never double-animated by the compositor.
+
 ### Fixed
 
 - WhatsApp chat refreshes no longer feed SQLite WAL notifications back into the

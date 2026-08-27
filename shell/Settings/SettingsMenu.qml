@@ -22,6 +22,7 @@ Item {
     id: root
 
     property bool embedded: false
+    property bool externalLifecycle: false
     signal backRequested()
     signal closeRequested()
 
@@ -496,6 +497,10 @@ Item {
     }
 
     function close() {
+        if (root.externalLifecycle) {
+            Runtime.settingsOpen = false;
+            return;
+        }
         box.dismiss(() => {
             if (root.embedded)
                 root.closeRequested();
@@ -503,6 +508,8 @@ Item {
                 Runtime.settingsOpen = false;
         });
     }
+    function requestClose(done) { box.dismiss(done); }
+    function requestOpen() { box.enter(); }
 
     function back() {
         if (root.embedded)
@@ -589,6 +596,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         color: Theme.scrim
+        opacity: box.opacity
     }
 
     MouseArea {

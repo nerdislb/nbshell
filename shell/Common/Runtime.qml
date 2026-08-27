@@ -36,6 +36,62 @@ Singleton {
     property bool audioToolsOpen: false
     property bool controlOpen: false
     property bool launcherOpen: false
+    property var launcherController: null
+    property var menuController: null
+
+    function closeLauncher() {
+        if (launcherController && typeof launcherController.close === "function")
+            launcherController.close();
+        else
+            launcherOpen = false;
+    }
+
+    function openLauncher() {
+        if (launcherController && typeof launcherController.open === "function")
+            launcherController.open();
+        else
+            launcherOpen = true;
+    }
+
+    function toggleLauncher() {
+        if (launcherController && launcherController.closing) {
+            openLauncher();
+            return true;
+        }
+        if (launcherOpen) {
+            closeLauncher();
+            return false;
+        }
+        openLauncher();
+        return true;
+    }
+
+    function closeMenu() {
+        if (menuController && typeof menuController.close === "function")
+            menuController.close();
+        else
+            menuOpen = false;
+    }
+
+    function openMenu() {
+        if (menuController && typeof menuController.open === "function")
+            menuController.open();
+        else
+            menuOpen = true;
+    }
+
+    function toggleMenu() {
+        if (menuController && menuController.closing) {
+            openMenu();
+            return true;
+        }
+        if (menuOpen) {
+            closeMenu();
+            return false;
+        }
+        openMenu();
+        return true;
+    }
 
     // Womit der Starter aufgeht. Leer heisst: mit nichts, also mit den
     // Anwendungen. ">" oeffnet ihn direkt als Befehlspalette, "!" nur mit

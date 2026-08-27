@@ -7,18 +7,20 @@ import qs.Widgets
 PanelWindow {
     id: root
 
-    visible: Runtime.uiGalleryOpen
+    visible: true
     screen: Quickshell.screens[0] ?? null
     color: "transparent"
     anchors { left: true; right: true; top: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "nbshell:ui-gallery"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: Runtime.uiGalleryOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     function close() { Runtime.uiGalleryOpen = false; }
+    function requestClose(done) { box.dismiss(done); }
+    function requestOpen() { box.enter(); }
 
-    Rectangle { anchors.fill: parent; color: Theme.scrim }
+    Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: box.opacity }
     MouseArea { anchors.fill: parent; onClicked: root.close() }
 
     FocusScope {
@@ -27,6 +29,7 @@ PanelWindow {
         Keys.onEscapePressed: root.close()
 
         OverlaySurface {
+            id: box
             preferredWidth: Theme.cellW * 72
             preferredHeight: Theme.overlayHeightMedium
             MouseArea { anchors.fill: parent; onClicked: {} }

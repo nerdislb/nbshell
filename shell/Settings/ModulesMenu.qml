@@ -57,7 +57,7 @@ PanelWindow {
 
     readonly property var currentList: Config.value(groups[groupIndex].key, [])
 
-    visible: Runtime.modulesOpen
+    visible: true
 
     screen: Quickshell.screens[0] ?? null
     color: "transparent"
@@ -75,6 +75,8 @@ PanelWindow {
     function close() {
         Runtime.modulesOpen = false;
     }
+    function requestClose(done) { box.dismiss(done); }
+    function requestOpen() { box.enter(); }
 
     function listOf(i) {
         return Config.value(groups[i].key, []).slice();
@@ -189,6 +191,7 @@ PanelWindow {
         }
     }
 
+    Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: box.opacity }
     MouseArea {
         anchors.fill: parent
         onClicked: root.close()
@@ -230,6 +233,7 @@ PanelWindow {
         }
 
         OverlaySurface {
+            id: box
             preferredWidth: Theme.cellW * 76
             preferredHeight: Theme.overlayHeightLarge
 

@@ -12,16 +12,18 @@ PanelWindow {
     id: root
     property string pendingJobAction: ""
 
-    visible: Runtime.agentCenterOpen
+    visible: true
     screen: Quickshell.screens[0] ?? null
     color: "transparent"
     anchors { left: true; right: true; top: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "nbshell:agents"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: Runtime.agentCenterOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     function close() { Runtime.agentCenterOpen = false; }
+    function requestClose(done) { box.dismiss(done); }
+    function requestOpen() { box.enter(); }
     function confirmJobAction(action, jobId) {
         const key = action + ":" + jobId;
         if (pendingJobAction !== key) {
@@ -66,16 +68,20 @@ PanelWindow {
         return amount > 0 ? "$" + amount.toFixed(amount >= 10 ? 2 : 4) : "INCLUDED";
     }
 
-    onVisibleChanged: {
-        Agents.setOverviewVisible(visible);
-        if (visible) {
-            keys.forceActiveFocus();
+    onVisibleChanged: if (visible) keys.forceActiveFocus()
+
+    Connections {
+        target: Runtime
+        function onAgentCenterOpenChanged() {
+            Agents.setOverviewVisible(Runtime.agentCenterOpen);
         }
     }
+    Component.onCompleted: Agents.setOverviewVisible(Runtime.agentCenterOpen)
+    Component.onDestruction: Agents.setOverviewVisible(false)
 
     Timer { id: approvalReset; interval: 6000; onTriggered: root.pendingJobAction = "" }
 
-    Rectangle { anchors.fill: parent; color: Theme.scrim }
+    Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: box.opacity }
     MouseArea { anchors.fill: parent; onClicked: root.close() }
 
     FocusScope {
@@ -88,6 +94,7 @@ PanelWindow {
         }
 
         OverlaySurface {
+            id: box
             preferredWidth: Theme.overlayWidthLarge
             preferredHeight: Theme.cellH * 44
             MouseArea { anchors.fill: parent; onClicked: {} }

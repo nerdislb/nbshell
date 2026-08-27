@@ -15,14 +15,18 @@ PanelWindow {
     property string expandedId: ""
     readonly property string script: Qt.resolvedUrl("../scripts/system-hub.py").toString().replace("file://", "")
 
-    visible: Runtime.hubOpen
+    visible: true
     screen: Quickshell.screens[0] ?? null
     color: "transparent"
     anchors { left: true; right: true; top: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "nbshell:hub"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: Runtime.hubOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+
+    function close() { Runtime.hubOpen = false; }
+    function requestClose(done) { box.dismiss(done); }
+    function requestOpen() { box.enter(); }
 
     function refresh() {
         if (status.running) return;
@@ -61,13 +65,15 @@ PanelWindow {
         id: keys
         anchors.fill: parent
         focus: root.visible
-        Keys.onEscapePressed: Runtime.hubOpen = false
+        Keys.onEscapePressed: root.close()
         Keys.onPressed: event => {
             if (event.key === Qt.Key_F5) { root.refresh(); event.accepted = true; }
         }
-        MouseArea { anchors.fill: parent; onClicked: Runtime.hubOpen = false }
+        Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: box.opacity }
+        MouseArea { anchors.fill: parent; onClicked: root.close() }
 
         OverlaySurface {
+            id: box
             preferredWidth: Theme.cellW * 96
             preferredHeight: Theme.cellH * 42
             MouseArea { anchors.fill: parent; onClicked: {} }

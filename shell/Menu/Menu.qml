@@ -42,6 +42,7 @@ PanelWindow {
     property int selected: 0
     property string filterText: ""
     property bool settingsPage: false
+    readonly property bool closing: box.closing
     readonly property var levelItems: trail.length ? trail[trail.length - 1].sub : root.tree
 
     function searchTree(entries, needle, parents, inheritedText) {
@@ -86,10 +87,12 @@ PanelWindow {
     readonly property int fs: Theme.fontTitle
 
     function open() {
+        const wasClosing = box.closing;
         root.trail = [];
         root.selected = 0;
         root.filterText = "";
         Runtime.menuOpen = true;
+        if (wasClosing) box.enter();
     }
     function openSettings() {
         root.settingsPage = true;
@@ -98,6 +101,8 @@ PanelWindow {
         root.settingsPage = false;
         box.dismiss(() => Runtime.menuOpen = false);
     }
+    Component.onCompleted: Runtime.menuController = root
+    Component.onDestruction: if (Runtime.menuController === root) Runtime.menuController = null
     function back() {
         if (root.settingsPage) {
             root.settingsPage = false;
@@ -144,6 +149,7 @@ PanelWindow {
 
     onVisibleChanged: {
         if (visible) {
+            box.enter();
             root.trail = [];
             root.selected = 0;
             root.filterText = "";
@@ -170,7 +176,7 @@ PanelWindow {
             "key": "a", "label": "Apps", "icon": Icons.matrix,
             "run": () => {
                 Runtime.launcherPrefill = "";
-                Runtime.launcherOpen = true;
+                Runtime.openLauncher();
             }
         },
         {
@@ -318,6 +324,7 @@ PanelWindow {
     Rectangle {
         anchors.fill: parent
         color: Theme.scrim
+        opacity: box.opacity
     }
 
     // Klick daneben schliesst.

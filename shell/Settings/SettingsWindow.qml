@@ -6,7 +6,7 @@ import qs.Common
 PanelWindow {
     id: root
 
-    visible: Runtime.settingsOpen
+    visible: true
     screen: Quickshell.screens[0] ?? null
     color: "transparent"
 
@@ -20,7 +20,12 @@ PanelWindow {
     anchors.top: true
     anchors.bottom: true
 
+    function requestClose(done) { menu.requestClose(done); }
+    function requestOpen() { menu.requestOpen(); }
+
     SettingsMenu {
+        id: menu
         anchors.fill: parent
+        externalLifecycle: true
     }
 }

@@ -49,13 +49,13 @@ PanelWindow {
     readonly property var list: tab === "store" ? store : installed
     readonly property var plugin: list[selected] ?? null
 
-    visible: Runtime.pluginDeveloperOpen
+    visible: true
     screen: Quickshell.screens[0] ?? null
     color: "transparent"
 
     WlrLayershell.namespace: "nbshell:plugin-manager"
     WlrLayershell.layer: WlrLayershell.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: Runtime.pluginDeveloperOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
     anchors.left: true
     anchors.right: true
@@ -63,6 +63,8 @@ PanelWindow {
     anchors.bottom: true
 
     function close() { Runtime.pluginDeveloperOpen = false; }
+    function requestClose(done) { box.dismiss(done); }
+    function requestOpen() { box.enter(); }
     function matches(item) {
         const needle = query.trim().toLowerCase();
         if (needle === "") return true;
@@ -182,7 +184,7 @@ PanelWindow {
         }
     }
 
-    Rectangle { anchors.fill: parent; color: Theme.scrim }
+    Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: box.opacity }
     MouseArea { anchors.fill: parent; onClicked: root.close() }
 
     FileView {

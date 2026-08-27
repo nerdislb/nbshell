@@ -128,17 +128,16 @@ Scope {
         target: "menu"
 
         function toggle(): string {
-            Runtime.menuOpen = !Runtime.menuOpen;
-            return Runtime.menuOpen ? "open" : "closed";
+            return Runtime.toggleMenu() ? "open" : "closed";
         }
 
         function open(): string {
-            Runtime.menuOpen = true;
+            Runtime.openMenu();
             return "open";
         }
 
         function close(): string {
-            Runtime.menuOpen = false;
+            Runtime.closeMenu();
             return "closed";
         }
     }
@@ -347,38 +346,37 @@ Scope {
         target: "launcher"
 
         function open(): string {
-            Runtime.launcherOpen = true;
+            Runtime.openLauncher();
             return "open";
         }
 
         function close(): string {
-            Runtime.launcherOpen = false;
+            Runtime.closeLauncher();
             return "closed";
         }
 
         function toggle(): string {
             Runtime.launcherPrefill = "";
-            Runtime.launcherOpen = !Runtime.launcherOpen;
-            return Runtime.launcherOpen ? "open" : "closed";
+            return Runtime.toggleLauncher() ? "open" : "closed";
         }
 
         // Dieselbe Flaeche, nur mit gesetztem Praefix: ">" nur Befehle,
         // "!" nur Anwendungen.
         function palette(): string {
             Runtime.launcherPrefill = ">";
-            Runtime.launcherOpen = true;
+            Runtime.openLauncher();
             return "open";
         }
 
         function apps(): string {
             Runtime.launcherPrefill = "!";
-            Runtime.launcherOpen = true;
+            Runtime.openLauncher();
             return "open";
         }
 
         function search(query: string): string {
             Runtime.launcherPrefill = query;
-            Runtime.launcherOpen = true;
+            Runtime.openLauncher();
             return "open";
         }
 

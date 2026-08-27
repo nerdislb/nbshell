@@ -172,13 +172,29 @@ Singleton {
     // reduced-motion preference reaches the complete shell.
     readonly property bool reducedMotion: Config.motionProfile === "reduced"
     readonly property bool expressiveMotion: Config.motionProfile === "expressive"
-    readonly property int motionFast: reducedMotion ? 0 : (expressiveMotion ? 170 : 120)
-    readonly property int motionEffect: reducedMotion ? 0 : (expressiveMotion ? 240 : 180)
-    readonly property int motionMove: reducedMotion ? 0 : (expressiveMotion ? 340 : 240)
-    readonly property int motionEnter: reducedMotion ? 0 : (expressiveMotion ? 400 : 280)
-    readonly property int motionExit: reducedMotion ? 0 : (expressiveMotion ? 210 : 150)
-    readonly property int motionBar: reducedMotion ? 0 : (expressiveMotion ? 700 : 500)
-    readonly property real motionEnterScale: reducedMotion ? 1.0 : (expressiveMotion ? 0.965 : 0.985)
+
+    // Effects (opacity/color) finish before spatial movement. Frequently used
+    // interactions stay responsive; expressive motion comes from the curve and
+    // small overshoot, not from making every transition long.
+    readonly property int motionEffectsFast: reducedMotion ? 0 : (expressiveMotion ? 110 : 90)
+    readonly property int motionEffectsDefault: reducedMotion ? 0 : (expressiveMotion ? 180 : 140)
+    readonly property int motionEffectsSlow: reducedMotion ? 0 : (expressiveMotion ? 280 : 220)
+    readonly property int motionSpatialFast: reducedMotion ? 0 : (expressiveMotion ? 200 : 160)
+    readonly property int motionSpatialDefault: reducedMotion ? 0 : (expressiveMotion ? 280 : 220)
+    readonly property int motionSpatialSlow: reducedMotion ? 0 : (expressiveMotion ? 360 : 300)
+    readonly property int motionEnter: reducedMotion ? 0 : (expressiveMotion ? 300 : 250)
+    readonly property int motionExit: reducedMotion ? 0 : (expressiveMotion ? 140 : 120)
+    readonly property int motionBar: reducedMotion ? 0 : (expressiveMotion ? 420 : 360)
+    readonly property int motionAttention: reducedMotion ? 0 : 700
+    readonly property int motionLoopFast: reducedMotion ? 1 : 900
+    readonly property int motionLoopSlow: reducedMotion ? 1 : 1200
+
+    // Compatibility names keep existing components coherent while call sites
+    // migrate to the explicit effects/spatial vocabulary.
+    readonly property int motionFast: motionEffectsFast
+    readonly property int motionEffect: motionEffectsDefault
+    readonly property int motionMove: motionSpatialDefault
+    readonly property real motionEnterScale: reducedMotion ? 1.0 : (expressiveMotion ? 0.97 : 0.985)
     readonly property list<real> motionCurveStandard: [0.20, 0.00, 0.00, 1.00, 1.00, 1.00]
     readonly property list<real> motionCurveEnter: expressiveMotion
         ? [0.05, 0.70, 0.10, 1.00, 1.00, 1.00]

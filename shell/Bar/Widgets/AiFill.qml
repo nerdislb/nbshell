@@ -30,12 +30,12 @@ Cell {
     onPopoutVisibleChanged: Agents.setOverviewVisible(root.popoutVisible)
 
     SequentialAnimation on contentOpacity {
-        running: Agents.completionAttention
+        running: Agents.completionAttention && !Theme.reducedMotion
         loops: Animation.Infinite
         onRunningChanged: if (!running) root.contentOpacity = 1
 
-        NumberAnimation { to: 0.28; duration: 700; easing.type: Easing.InOutSine }
-        NumberAnimation { to: 1; duration: 700; easing.type: Easing.InOutSine }
+        NumberAnimation { to: 0.28; duration: Theme.motionAttention; easing.type: Easing.InOutSine }
+        NumberAnimation { to: 1; duration: Theme.motionAttention; easing.type: Easing.InOutSine }
     }
 
     onClicked: {

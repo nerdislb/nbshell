@@ -8,6 +8,10 @@ PanelSurface {
     id: root
 
     property bool motionEnabled: true
+    // PopupWindow children remain logically visible while their Wayland window
+    // is unmapped. Those owners prepare and start motion explicitly after their
+    // final geometry is locked, avoiding an invisible startup animation.
+    property bool autoEnter: true
     property bool closing: false
     property var closeCallback: null
     property real enterOffsetY: 0
@@ -19,6 +23,7 @@ PanelSurface {
         const token = ++entryToken;
         closing = false;
         closeTimer.stop();
+        closeCallback = null;
         transitionEnabled = false;
         if (!motionEnabled || Theme.reducedMotion) {
             opacity = 1;
@@ -60,8 +65,8 @@ PanelSurface {
         closeTimer.restart();
     }
 
-    onVisibleChanged: if (visible) enter()
-    Component.onCompleted: if (visible) enter()
+    onVisibleChanged: if (autoEnter && visible) enter()
+    Component.onCompleted: if (autoEnter && visible) enter()
 
     transform: Translate {
         y: root.visualOffsetY

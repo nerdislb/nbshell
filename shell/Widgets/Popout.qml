@@ -18,6 +18,7 @@ PopupWindow {
     property Item anchorItem: null
     property Component contentComponent: null
     property bool requestedVisible: false
+    property bool closing: false
     property real lockedContentWidth: 0
     property real lockedContentHeight: 0
 
@@ -59,7 +60,7 @@ PopupWindow {
     // reichte danach trotz aktivem TextInput keine Tasten mehr hinein.
     // Unsichtbare PopupWindows beanspruchen keinen Sitz, daher ist die
     // zusaetzliche visible-Bedingung weder noetig noch hilfreich.
-    grabFocus: takesKeyboard
+    grabFocus: takesKeyboard && requestedVisible && !closing
 
     implicitWidth: lockedContentWidth > 0 ? lockedContentWidth + padding * 2 + Theme.borderWidth * 2 : 1
     implicitHeight: lockedContentHeight > 0 ? lockedContentHeight + padding * 2 + Theme.borderWidth * 2 : 1
@@ -77,7 +78,13 @@ PopupWindow {
     }
 
     function open() {
+        if (requestedVisible && visible)
+            return;
         requestedVisible = true;
+        closing = false;
+        const previous = Runtime.activePopout;
+        if (previous && previous !== root)
+            previous.close();
         // Loader creation is synchronous by default. Assigning the component
         // before mapping gives the popup its final initial geometry while we
         // are still in the input/IPC activation cycle required by Wayland.
@@ -99,7 +106,22 @@ PopupWindow {
 
     function close() {
         requestedVisible = false;
-        visible = false;
+        if (!visible) {
+            finalizeClose();
+            return;
+        }
+        if (closing)
+            return;
+        closing = true;
+        surface.dismiss(root.finalizeClose);
+    }
+
+    function finalizeClose() {
+        closing = false;
+        if (visible) {
+            visible = false;
+            return;
+        }
         loader.sourceComponent = null;
         lockedContentWidth = 0;
         lockedContentHeight = 0;
@@ -123,6 +145,7 @@ PopupWindow {
             if (!pointerInside)
                 leaveTimer.restart();
         } else {
+            closing = false;
             leaveTimer.stop();
             if (Runtime.activePopout === root)
                 Runtime.activePopout = null;
@@ -141,13 +164,14 @@ PopupWindow {
         id: leaveTimer
         interval: root.leaveDelay
         onTriggered: if (!root.pointerInside)
-            root.visible = false
+            root.close()
     }
 
     MotionSurface {
         id: surface
         anchors.fill: parent
         accentBorder: true
+        autoEnter: false
         enterOffsetY: Config.edge === "bottom" ? Theme.spaceSm : -Theme.spaceSm
         transformOrigin: Config.edge === "bottom" ? Item.Bottom : Item.Top
 

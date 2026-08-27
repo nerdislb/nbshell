@@ -52,9 +52,9 @@ Row {
             RotationAnimator on rotation {
                 from: 0
                 to: 360
-                duration: 1200
+                duration: Theme.motionLoopSlow
                 loops: Animation.Infinite
-                running: root.spins
+                running: root.spins && !Theme.reducedMotion
 
                 onRunningChanged: if (!running)
                     mark.rotation = 0

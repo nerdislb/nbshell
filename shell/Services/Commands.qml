@@ -46,7 +46,7 @@ Singleton {
 
         // ── Windows ──────────────────────────────────────────────────────
         out.push(entry("Settings", "Shell options", "Windows", () => Runtime.settingsOpen = true));
-        out.push(entry("Main menu", "Command center (Mod+Space)", "Windows", () => Runtime.menuOpen = true));
+        out.push(entry("Main menu", "Command center (Mod+Space)", "Windows", () => Runtime.openMenu()));
         out.push(entry("System & Plugins", "Herdr, sync, updates, printing, ports, and hardware (Mod+Ctrl+H)", "Windows", () => Runtime.hubOpen = true));
         out.push(entry("Modules", "choose the modules shown in the bar", "Windows", () => Runtime.modulesOpen = true));
         out.push(entry("Emoji", "search and copy (Mod+Ctrl+E)", "Windows", () => Runtime.emojiOpen = true));

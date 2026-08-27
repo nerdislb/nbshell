@@ -207,14 +207,14 @@ Item {
 
     Behavior on implicitWidth {
         NumberAnimation {
-            duration: 140
+            duration: Theme.motionSpatialFast
             easing.type: Easing.OutCubic
         }
     }
 
     Behavior on opacity {
         NumberAnimation {
-            duration: 140
+            duration: Theme.motionEffectsDefault
         }
     }
 

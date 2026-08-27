@@ -5,11 +5,12 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SHELL_ROOT="$ROOT/shell/shell.qml"
 
 grep -Fq 'LazyLoader { active: Runtime.procsOpen; ProcessList {} }' "$SHELL_ROOT"
-grep -Fq 'LazyLoader { active: Runtime.displayOpen; DisplayPanel {} }' "$SHELL_ROOT"
+grep -Fq 'requested: Runtime.displayOpen' "$SHELL_ROOT"
 grep -Fq 'LazyLoader { active: Runtime.wallpaperOpen; WallpaperPicker {} }' "$SHELL_ROOT"
-grep -Fq 'LazyLoader { active: Runtime.dashboardOpen; Dashboard {} }' "$SHELL_ROOT"
-grep -Fq 'LazyLoader { active: Runtime.agentCenterOpen; AgentCenter {} }' "$SHELL_ROOT"
+grep -Fq 'requested: Runtime.dashboardOpen' "$SHELL_ROOT"
+grep -Fq 'requested: Runtime.agentCenterOpen' "$SHELL_ROOT"
 grep -Fq 'LazyLoader { active: Runtime.storeOpen; StoreWindow {} }' "$SHELL_ROOT"
+grep -Fq 'property bool mounted: false' "$ROOT/shell/Widgets/MotionLoader.qml"
 ! grep -Fq 'void SearchProviders' "$SHELL_ROOT"
 
 # These surfaces and handlers must remain resident for immediate desktop

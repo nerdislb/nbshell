@@ -73,7 +73,7 @@ Scope {
 
                 Behavior on opacity {
                     NumberAnimation {
-                        duration: 400
+                        duration: Theme.motionEffectsSlow
                     }
                 }
             }
@@ -91,7 +91,7 @@ Scope {
 
                 Behavior on opacity {
                     NumberAnimation {
-                        duration: 400
+                        duration: Theme.motionEffectsSlow
                     }
                 }
             }

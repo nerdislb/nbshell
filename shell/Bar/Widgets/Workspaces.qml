@@ -173,14 +173,14 @@ Cell {
 
                     Behavior on width {
                         NumberAnimation {
-                            duration: 140
+                            duration: Theme.motionSpatialFast
                             easing.type: Easing.OutCubic
                         }
                     }
 
                     Behavior on opacity {
                         NumberAnimation {
-                            duration: 120
+                            duration: Theme.motionEffectsFast
                         }
                     }
 
@@ -219,7 +219,7 @@ Cell {
 
                 Behavior on x {
                     NumberAnimation {
-                        duration: 260
+                        duration: Theme.motionSpatialDefault
                         easing.type: Easing.OutCubic
                     }
                 }
@@ -281,27 +281,28 @@ Cell {
                 // Der Invader wackelt nicht, er schaltet zwischen zwei Bildern
                 // um -- so lief es im Original auch.
                 Timer {
-                    running: figure.visible && root.invaderMode
+                    running: figure.visible && root.invaderMode && !Theme.reducedMotion
                     interval: 420
                     repeat: true
                     onTriggered: figure.invaderFrame = 1 - figure.invaderFrame
+                    onRunningChanged: if (!running) figure.invaderFrame = 0
                 }
 
                 SequentialAnimation on mouth {
-                    running: figure.visible && root.pacmanMode
+                    running: figure.visible && root.pacmanMode && !Theme.reducedMotion
                     loops: Animation.Infinite
 
                     NumberAnimation {
                         from: 0.05
                         to: 0.5
-                        duration: 220
+                        duration: Theme.motionEffectsSlow
                         easing.type: Easing.InOutSine
                     }
 
                     NumberAnimation {
                         from: 0.5
                         to: 0.05
-                        duration: 220
+                        duration: Theme.motionEffectsSlow
                         easing.type: Easing.InOutSine
                     }
                 }

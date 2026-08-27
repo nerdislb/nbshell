@@ -28,6 +28,7 @@ PanelWindow {
     // Abschlag, damit bei gleichem Treffer die Anwendung vorn steht. Sie ist
     // das, wofuer der Starter urspruenglich da war.
     readonly property real commandBias: 0.9
+    readonly property bool closing: box.closing
 
     readonly property string mode: {
         const t = input.text;
@@ -113,6 +114,14 @@ PanelWindow {
     function close() {
         box.dismiss(() => Runtime.launcherOpen = false);
     }
+    function open() {
+        const wasClosing = box.closing;
+        Runtime.launcherOpen = true;
+        if (wasClosing) box.enter();
+    }
+
+    Component.onCompleted: Runtime.launcherController = root
+    Component.onDestruction: if (Runtime.launcherController === root) Runtime.launcherController = null
 
     function accept() {
         const entry = results[selected];
@@ -148,6 +157,7 @@ PanelWindow {
 
     onVisibleChanged: {
         if (visible) {
+            box.enter();
             input.text = Runtime.launcherPrefill;
             input.cursorPosition = input.text.length;
             selected = 0;
@@ -173,7 +183,7 @@ PanelWindow {
         }
     }
 
-    Rectangle { anchors.fill: parent; color: Theme.scrim }
+    Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: box.opacity }
 
     // Klick daneben schliesst.
     MouseArea {

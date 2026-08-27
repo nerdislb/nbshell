@@ -1,0 +1,47 @@
+# Managed by nbshell motion settings. Normal application windows belong to
+# Umbriel; layer-shell surfaces use nbshell's own QML lifecycle.
+[animation]
+enabled = true
+duration_ms = 240
+curve = "easeout"
+
+[animation.beziers]
+nbshell_enter = [0.05, 0.70, 0.10, 1.00]
+
+[animation.windows_in]
+enabled = true
+duration_ms = 180
+curve = "nbshell_enter"
+style = "popin"
+scale = 0.90
+
+[animation.windows_out]
+enabled = true
+duration_ms = 120
+curve = "linear"
+style = "fade"
+
+[animation.windows_move]
+enabled = true
+duration_ms = 220
+curve = "snappy"
+
+[animation.workspaces]
+enabled = true
+duration_ms = 240
+curve = "easeout"
+
+[animation.overview]
+enabled = true
+duration_ms = 260
+curve = "nbshell_enter"
+
+[animation.border]
+enabled = true
+duration_ms = 120
+curve = "easeout"
+
+[animation.layers]
+enabled = false
+duration_ms = 160
+curve = "easeout"

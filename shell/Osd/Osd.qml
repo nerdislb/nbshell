@@ -62,7 +62,7 @@ Variants {
 
             Behavior on opacity {
                 NumberAnimation {
-                    duration: 120
+                    duration: Theme.motionEffectsFast
                 }
             }
 
