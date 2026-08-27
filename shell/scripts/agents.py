@@ -392,9 +392,12 @@ def launch(agent_id: str | None, project: str | None, prompt: str = "", quick: b
         toolsets = HERMES_TOOLSETS.get(mode, HERMES_TOOLSETS["restricted"])
         trusted = mode == "trusted"
         if trusted:
-            allowed_roots = [(Path.home() / "projects").resolve(), (Path.home() / "AndroidStudioProjects").resolve()]
-            if not (cwd / ".git").is_dir() or not any(cwd == root or root in cwd.parents for root in allowed_roots):
-                raise SystemExit("Trusted Hermes requires a Git project below ~/projects or ~/AndroidStudioProjects.")
+            home = Path.home().resolve()
+            # A normal Trusted launch mirrors the other agents and starts at
+            # Home. Passing an explicit project still opens exactly there.
+            cwd = Path(project).expanduser().resolve() if project else home
+            if cwd != home and home not in cwd.parents:
+                raise SystemExit("Trusted Hermes workspaces must stay below the user's home directory.")
         else:
             cwd = HERMES_PILOT
         launch_env = os.environ.copy()

@@ -336,16 +336,18 @@ manual approval policy. The shipped and migration-safe default remains
 timestamp, and token count; prompt text and generated titles stay out of the
 shell status path.
 
-`trusted` is the explicit daily-development mode. Unlike the pilot modes it
-starts Hermes directly in the selected Git repository below `~/projects` or
-`~/AndroidStudioProjects`. It enables files, web, terminal, code execution,
+`trusted` is the explicit daily-development mode. Unlike the pilot modes, a
+normal Hermes launch starts directly in the user's home directory, matching
+the other agents. An explicit project launch starts in that directory instead.
+It enables files, web, terminal, code execution,
 task planning, clarification, delegation, session search, skills, and the
 nbshell provider broker. Normal edits, builds, tests, and multi-agent work can
 therefore happen against the real project. Trusted is explicitly autonomous:
 native Hermes receives `--yolo`, while the external Gemini lane receives its
 equivalent permission bypass. Commands therefore do not stop for approval.
-The write-safe root remains the selected repository, while terminal tools can
-use required build tooling and caches. Restricted remains the shipped default;
+The write-safe root is Home for a normal launch or the selected directory for
+an explicit project launch, while terminal tools can use required build tooling
+and caches. Restricted remains the shipped default;
 Trusted must be deliberately selected by the user. In Agent
 Center, right-clicking a project launches Hermes there; left click retains the
 default-agent behavior. Android Studio projects are discovered automatically.

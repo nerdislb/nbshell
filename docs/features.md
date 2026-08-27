@@ -93,8 +93,8 @@ See the [phone webcam guide](phone-webcam.md) for setup and daily use.
   revisions, isolated integration, checks, recovery, and human-only deployment
 - Reviewed Second Brain proposals with append/create-only note boundaries,
   privacy review, exact diffs, and human-only commit and push
-- Explicit autonomous Hermes development sessions in a selected Git project
-  with YOLO terminal access, code execution, planning, delegation, and skills
+- Explicit autonomous Hermes sessions starting at Home, with optional project
+  targeting, YOLO terminal access, code execution, planning, delegation, and skills
 - Provider-focused AI dashboard with subscription limits, reset times, local
   seven-day/model token summaries, agent state, and launch controls
 - Privacy-conscious Markdown or JSON system report for agents and support

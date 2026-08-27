@@ -67,6 +67,12 @@ with tempfile.TemporaryDirectory() as temporary:
     assert "--yolo" in trusted and str(agents.HERMES_PILOT) not in trusted
     assert popen.call_args.kwargs["cwd"] == trusted_project
 
+    with patch.object(agents.Path, "home", return_value=root), patch.object(agents.shutil, "which", side_effect=binary), patch.object(agents.subprocess, "Popen") as popen:
+        agents.launch("hermes", None)
+    trusted_home = " ".join(popen.call_args.args[0])
+    assert "--in " + str(root) in trusted_home and "--yolo" in trusted_home
+    assert popen.call_args.kwargs["cwd"] == root
+
     trusted_config["hermesProvider"] = "gemini"; agents.CONFIG_FILE.write_text(json.dumps(trusted_config))
     with patch.object(agents.Path, "home", return_value=root), patch.object(agents.shutil, "which", side_effect=binary), patch.object(agents.subprocess, "Popen") as popen:
         agents.launch("hermes", str(trusted_project))
