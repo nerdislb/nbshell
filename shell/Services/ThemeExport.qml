@@ -147,8 +147,8 @@ Singleton {
             return "# Managed by nbshell motion settings.\n[animation]\nenabled = false\n";
         return "# Managed by nbshell motion settings.\n"
             + "[animation]\nenabled = true\nduration_ms = 240\ncurve = \"easeout\"\n\n"
-            + "[animation.beziers]\nnbshell_enter = [0.05, 0.70, 0.10, 1.00]\n\n"
-            + "[animation.windows_in]\nenabled = true\nduration_ms = 180\ncurve = \"nbshell_enter\"\nstyle = \"popin\"\nscale = 0.90\n\n"
+            + "[animation.beziers]\nnbshell_enter = [0.215, 0.61, 0.355, 1.00]\n\n"
+            + "[animation.windows_in]\nenabled = true\nduration_ms = 300\ncurve = \"nbshell_enter\"\nstyle = \"popin\"\nscale = 0.94\n\n"
             + "[animation.windows_out]\nenabled = true\nduration_ms = 120\ncurve = \"linear\"\nstyle = \"fade\"\n\n"
             + "[animation.windows_move]\nenabled = true\nduration_ms = 220\ncurve = \"snappy\"\n\n"
             + "[animation.workspaces]\nenabled = true\nduration_ms = 240\ncurve = \"easeout\"\n\n"

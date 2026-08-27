@@ -62,10 +62,10 @@ with open(sys.argv[1], "rb") as handle:
 motion = config["animation"]
 assert motion["enabled"] is True
 assert motion["duration_ms"] == 240
-assert motion["beziers"]["nbshell_enter"] == [0.05, 0.70, 0.10, 1.00]
+assert motion["beziers"]["nbshell_enter"] == [0.215, 0.61, 0.355, 1.00]
 assert motion["windows_in"] == {
-    "enabled": True, "duration_ms": 180, "curve": "nbshell_enter",
-    "style": "popin", "scale": 0.90,
+    "enabled": True, "duration_ms": 300, "curve": "nbshell_enter",
+    "style": "popin", "scale": 0.94,
 }
 assert motion["windows_out"] == {
     "enabled": True, "duration_ms": 120, "curve": "linear", "style": "fade",

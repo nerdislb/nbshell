@@ -31,6 +31,8 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Fixed
 
+- Umbriel window opening now uses a longer, more even ease-out and a subtler
+  pop-in scale, avoiding the abrupt initial jump of the previous motion profile.
 - WhatsApp chat refreshes no longer feed SQLite WAL notifications back into the
   same database query several times per second. The resident service now uses
   its bounded 12-second refresh interval, eliminating the short-lived Python
