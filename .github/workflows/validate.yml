@@ -66,15 +66,26 @@ jobs:
       - name: Test Hermes Brain proposal contracts
         run: python3 ./tests/hermes-brain.py
 
-      - name: Test static runtime contracts
-        run: |
-          bash ./tests/performance-smoke.sh
-          bash ./tests/screensaver-renderer.sh
-          bash ./tests/power-modes.sh
-          bash ./tests/motion.sh
-          bash ./tests/memory-guard.sh
-          bash ./tests/system-report.sh
-          bash ./tests/browser-theme.sh
+      - name: Test performance structure
+        run: bash ./tests/performance-smoke.sh
+
+      - name: Test screen-saver renderer selection
+        run: bash ./tests/screensaver-renderer.sh
+
+      - name: Test power mode aliases
+        run: bash ./tests/power-modes.sh
+
+      - name: Test motion contracts
+        run: bash ./tests/motion.sh
+
+      - name: Test memory guard contracts
+        run: bash ./tests/memory-guard.sh
+
+      - name: Test system report contracts
+        run: bash ./tests/system-report.sh
+
+      - name: Test browser theme contracts
+        run: bash ./tests/browser-theme.sh
 
       - name: Audit release metadata and privacy
         run: ./tests/release-audit.sh
