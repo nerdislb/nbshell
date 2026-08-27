@@ -64,8 +64,14 @@ with tempfile.TemporaryDirectory() as temporary:
         agents.launch("hermes", str(trusted_project))
     trusted = " ".join(popen.call_args.args[0])
     assert str(trusted_project) in trusted and "file,web,terminal,code_execution,todo,clarify,delegation,session_search,skills,nbshell-ai-broker" in trusted
-    assert "--yolo" not in trusted and str(agents.HERMES_PILOT) not in trusted
+    assert "--yolo" in trusted and str(agents.HERMES_PILOT) not in trusted
     assert popen.call_args.kwargs["cwd"] == trusted_project
+
+    trusted_config["hermesProvider"] = "gemini"; agents.CONFIG_FILE.write_text(json.dumps(trusted_config))
+    with patch.object(agents.Path, "home", return_value=root), patch.object(agents.shutil, "which", side_effect=binary), patch.object(agents.subprocess, "Popen") as popen:
+        agents.launch("hermes", str(trusted_project))
+    trusted_gemini = " ".join(popen.call_args.args[0])
+    assert "--dangerously-skip-permissions" in trusted_gemini and str(trusted_project) in trusted_gemini
 
     gemini = launch_for("gemini", "restricted")
     assert "/usr/bin/agy" in gemini and "--sandbox" in gemini and "plan" in gemini

@@ -495,7 +495,7 @@ PanelWindow {
                                         { "id": "restricted", "label": "RESTRICTED", "hint": "workspace files" },
                                         { "id": "research", "label": "RESEARCH", "hint": "+ read-only web" },
                                         { "id": "workspace", "label": "WORKSPACE", "hint": "pilot + terminal" },
-                                        { "id": "trusted", "label": "TRUSTED", "hint": "real Git project" }
+                                        { "id": "trusted", "label": "TRUSTED", "hint": "project + YOLO" }
                                     ]
                                     Rectangle {
                                         id: hermesModeButton
@@ -517,7 +517,7 @@ PanelWindow {
                                 }
                             }
 
-                            Line { text: Agents.hermesMode === "trusted" ? "Trusted works directly in the selected Git project · dangerous commands still require your approval" : (Agents.hermesProvider === "gemini" ? "Gemini: Restricted/Research use plan mode · Workspace accepts edits in its sandbox" : "Native Hermes lane · credentials stay in the provider-owned store"); color: Agents.hermesMode === "trusted" ? Theme.yellow : Theme.muted }
+                            Line { text: Agents.hermesMode === "trusted" ? "Trusted is fully autonomous in the selected Git project · commands do not ask for approval" : (Agents.hermesProvider === "gemini" ? "Gemini: Restricted/Research use plan mode · Workspace accepts edits in its sandbox" : "Native Hermes lane · credentials stay in the provider-owned store"); color: Agents.hermesMode === "trusted" ? Theme.red : Theme.muted }
 
                             Column {
                                 width: parent.width

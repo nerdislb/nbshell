@@ -341,10 +341,12 @@ starts Hermes directly in the selected Git repository below `~/projects` or
 `~/AndroidStudioProjects`. It enables files, web, terminal, code execution,
 task planning, clarification, delegation, session search, skills, and the
 nbshell provider broker. Normal edits, builds, tests, and multi-agent work can
-therefore happen against the real project. It deliberately does not add
-Hermes' `--yolo` flag: dangerous commands still stop for the user's final
-approval. The write-safe root is the selected repository, while explicitly
-approved terminal commands can use required build tooling and caches. In Agent
+therefore happen against the real project. Trusted is explicitly autonomous:
+native Hermes receives `--yolo`, while the external Gemini lane receives its
+equivalent permission bypass. Commands therefore do not stop for approval.
+The write-safe root remains the selected repository, while terminal tools can
+use required build tooling and caches. Restricted remains the shipped default;
+Trusted must be deliberately selected by the user. In Agent
 Center, right-clicking a project launches Hermes there; left click retains the
 default-agent behavior. Android Studio projects are discovered automatically.
 

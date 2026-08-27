@@ -402,6 +402,8 @@ def launch(agent_id: str | None, project: str | None, prompt: str = "", quick: b
         if provider["native"]:
             command = [binary, "--tui", "--in", str(cwd), "--toolsets", toolsets,
                        "--provider", str(provider["provider"]), "--model", str(provider["model"])]
+            if trusted:
+                command.append("--yolo")
             if resume:
                 command += ["--resume", resume, "--no-restore-cwd"]
         else:
@@ -411,6 +413,8 @@ def launch(agent_id: str | None, project: str | None, prompt: str = "", quick: b
             if not agy:
                 raise SystemExit("Antigravity is not installed.")
             command = [agy, "--sandbox", "--add-dir", str(cwd), "--mode", "accept-edits" if mode in {"workspace", "trusted"} else "plan"]
+            if trusted:
+                command.append("--dangerously-skip-permissions")
     shell_cmd = "exec " + " ".join(shlex.quote(part) for part in command)
     terminal = terminal_command(config)
     name = f"dev.nerdi.nbshell.agent.{'quick.' if quick else ''}{agent_id}"
