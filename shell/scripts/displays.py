@@ -192,15 +192,42 @@ def update(name: str, key: str, value) -> None:
     save_state(state)
 
 
+def set_umbriel_mode(name: str, value: str) -> None:
+    """Apply an Umbriel mode through its config and roll back rejected modes."""
+    previous = load_state()
+    desired = {output: dict(settings) for output, settings in previous.items()}
+    row = dict(desired.get(name) or {})
+    row["enabled"] = True
+    if value == "auto":
+        row.pop("mode", None)
+    else:
+        row["mode"] = value
+    desired[name] = row
+    save_state(desired)
+    subprocess.run(["umbriel", "msg", "config-reload"], check=True)
+
+    live = next((output for output in status()["outputs"] if output["name"] == name), None)
+    accepted = bool(live) and (
+        any(mode["current"] and mode["preferred"] for mode in live["modes"])
+        if value == "auto" else live["currentMode"] == value
+    )
+    if accepted:
+        return
+
+    save_state(previous)
+    subprocess.run(["umbriel", "msg", "config-reload"], check=True)
+    raise SystemExit(f"Umbriel rejected mode {value} for {name}; the previous mode was restored")
+
+
 def set_value(name: str, key: str, value: str) -> None:
     validate_name(name)
     if key == "mode":
         if not MODE_RE.fullmatch(value): raise SystemExit("Mode must be auto or WIDTHxHEIGHT@HZ")
-        if backend() == "umbriel" and value == "auto":
-            subprocess.run(["wlr-randr", "--output", name, "--preferred"], check=True)
+        if backend() == "umbriel":
+            set_umbriel_mode(name, value)
         else:
             run_output(name, "mode", value)
-        update(name, "mode", value)
+            update(name, "mode", value)
     elif key == "scale":
         scale = float(value)
         if not 0.5 <= scale <= 4: raise SystemExit("Scale must be between 0.5 and 4")

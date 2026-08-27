@@ -154,8 +154,10 @@ PanelWindow {
                                         text: root.modeLabel(modelData)
                                         selected: modelData.current
                                         onTriggered: {
-                                            root.resolutionOpen = false;
                                             Displays.setValue(root.display.name, "mode", modelData.label);
+                                            // Closing the list destroys this delegate. Do it only
+                                            // after the selected mode has been handed to Displays.
+                                            root.resolutionOpen = false;
                                         }
                                     }
                                 }

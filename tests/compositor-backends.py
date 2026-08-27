@@ -92,6 +92,14 @@ for path in (ROOT / "shell").rglob("*.qml"):
 display_tool = (ROOT / "shell/scripts/displays.py").read_text()
 assert '"wlr-randr", "--json"' in display_tool
 assert "render_toml" in display_tool
+assert "def set_umbriel_mode" in display_tool
+assert "Umbriel rejected mode" in display_tool
+display_panel = (ROOT / "shell/Settings/DisplayPanel.qml").read_text()
+apply_mode = 'Displays.setValue(root.display.name, "mode", modelData.label);'
+close_modes = "root.resolutionOpen = false;"
+assert display_panel.index(apply_mode) < display_panel.index(close_modes, display_panel.index(apply_mode)), (
+    "mode selection must be submitted before closing and destroying its delegate"
+)
 assert "umbriel windows --json" in (ROOT / "shell/scripts/capture.sh").read_text()
 capture_service = (ROOT / "shell/Services/CaptureService.qml").read_text()
 capture_menu = (ROOT / "shell/Capture/CaptureMenu.qml").read_text()
