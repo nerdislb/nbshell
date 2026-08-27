@@ -364,13 +364,91 @@ Variants {
                     id: rightGroup
                     spacing: Theme.barItemGap
 
+                    readonly property int collapseIndex: Config.rightWidgets.indexOf("sep")
+                    readonly property var fixedWidgets: collapseIndex >= 0
+                        ? Config.rightWidgets.slice(0, collapseIndex) : Config.rightWidgets
+                    readonly property var collapsibleWidgets: collapseIndex >= 0
+                        ? Config.rightWidgets.slice(collapseIndex + 1) : []
+
                     Repeater {
-                        model: Config.rightWidgets
+                        model: rightGroup.fixedWidgets
 
                         WidgetHost {
                             required property var modelData
                             widgetName: modelData
                             screenName: win.modelData?.name ?? ""
+                        }
+                    }
+
+                    // The configured separator becomes a compact boundary
+                    // control. It stays visible while every widget to its right
+                    // slides away, and does not touch the tray's own expansion.
+                    Item {
+                        id: rightSectionToggle
+                        visible: rightGroup.collapseIndex >= 0
+                        width: visible ? Theme.cellW * 1.8 : 0
+                        height: Theme.cellH
+
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: Math.max(1, Theme.borderWidth)
+                            height: parent.height * 0.6
+                            color: Theme.muted
+                        }
+
+                        Line {
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: Config.rightSectionExpanded ? "<" : ">"
+                            color: rightSectionHover.hovered ? Theme.text : Theme.textDim
+                        }
+
+                        HoverHandler {
+                            id: rightSectionHover
+                            cursorShape: Qt.PointingHandCursor
+                        }
+
+                        TapHandler {
+                            onTapped: Config.set("rightSectionExpanded", !Config.rightSectionExpanded)
+                        }
+                    }
+
+                    Item {
+                        id: rightSectionClip
+                        visible: rightGroup.collapseIndex >= 0
+                        clip: true
+                        height: Math.max(Theme.cellH, rightSectionRow.implicitHeight)
+                        width: visible && Config.rightSectionExpanded ? rightSectionRow.implicitWidth : 0
+                        opacity: Config.rightSectionExpanded ? 1 : 0
+                        enabled: Config.rightSectionExpanded
+
+                        Behavior on width {
+                            NumberAnimation {
+                                duration: Theme.motionBar
+                                easing.type: Easing.BezierSpline
+                                easing.bezierCurve: Theme.motionCurveEffect
+                            }
+                        }
+
+                        Behavior on opacity {
+                            NumberAnimation { duration: Theme.motionExit }
+                        }
+
+                        Row {
+                            id: rightSectionRow
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: Theme.barItemGap
+
+                            Repeater {
+                                model: rightGroup.collapsibleWidgets
+
+                                WidgetHost {
+                                    required property var modelData
+                                    widgetName: modelData
+                                    screenName: win.modelData?.name ?? ""
+                                }
+                            }
                         }
                     }
                 }

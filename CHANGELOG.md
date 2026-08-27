@@ -6,6 +6,13 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+### Added
+
+- The right side of the bar can collapse at its configured separator into a
+  persistent chevron. Widgets to the left remain visible, the complete tail
+  slides back out on the next click, and the tray keeps its own independent
+  expanded or collapsed state.
+
 ## [0.1.0-beta.5] - 2026-08-27
 
 ### Added

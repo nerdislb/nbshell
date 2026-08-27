@@ -157,6 +157,12 @@ Item {
             "values": [true, false]
         },
         {
+            "key": "rightSectionExpanded",
+            "def": true,
+            "label": "Right bar section expanded",
+            "values": [true, false]
+        },
+        {
             "head": "APPEARANCE"
         },
         {

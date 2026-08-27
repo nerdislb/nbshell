@@ -305,7 +305,8 @@ if [ ! -f "$DATA_DIR/config.json" ]; then
   "collapsedWidgets": ["clock"],
   "leftWidgets": ["workspaces", "sep", "window"],
   "centerWidgets": ["clock"],
-  "rightWidgets": ["sys", "sep", "tray", "notifications", "volume", "control", "themes", "battery"]
+  "rightWidgets": ["sys", "sep", "tray", "notifications", "volume", "control", "themes", "battery"],
+  "rightSectionExpanded": true
 }
 JSON
     green "Config  -> $DATA_DIR/config.json (created)"

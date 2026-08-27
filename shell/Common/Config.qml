@@ -145,6 +145,9 @@ Singleton {
     readonly property var leftWidgets: value("leftWidgets", ["workspaces", "sep", "window"])
     readonly property var centerWidgets: value("centerWidgets", ["clock"])
     readonly property var rightWidgets: value("rightWidgets", ["sys", "sep", "tray", "notifications", "volume", "control", "themes", "battery"])
+    // The first separator in the right group is also its compact-mode boundary.
+    // Collapsing that tail never mutates rightWidgets or the tray's own state.
+    readonly property bool rightSectionExpanded: value("rightSectionExpanded", true)
 
     function value(key, fallback) {
         const v = data[key];

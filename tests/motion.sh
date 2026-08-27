@@ -14,5 +14,10 @@ grep -Fq 'highlightMoveDuration: Theme.motionMove' "$ROOT/shell/Wallpaper/Wallpa
 ! grep -Fq 'Canvas {' "$ROOT/shell/Widgets/MotionSurface.qml"
 grep -Fq 'Behavior on visualOffsetY' "$ROOT/shell/Widgets/MotionSurface.qml"
 grep -Fq 'surface.enter();' "$ROOT/shell/Widgets/Popout.qml"
+grep -Fq 'readonly property int collapseIndex: Config.rightWidgets.indexOf("sep")' "$ROOT/shell/Bar/Bar.qml"
+grep -Fq 'Config.set("rightSectionExpanded", !Config.rightSectionExpanded)' "$ROOT/shell/Bar/Bar.qml"
+grep -Fq 'width: visible && Config.rightSectionExpanded ? rightSectionRow.implicitWidth : 0' "$ROOT/shell/Bar/Bar.qml"
+grep -Fq 'Behavior on width' "$ROOT/shell/Bar/Bar.qml"
+grep -Fq 'readonly property bool rightSectionExpanded' "$ROOT/shell/Common/Config.qml"
 
 echo "Motion profiles and lifecycle: OK"
