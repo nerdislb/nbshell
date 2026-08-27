@@ -400,7 +400,7 @@ Variants {
                         Line {
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
-                            text: Config.rightSectionExpanded ? "<" : ">"
+                            text: Config.rightSectionExpanded ? "«" : "»"
                             color: rightSectionHover.hovered ? Theme.text : Theme.textDim
                         }
 
