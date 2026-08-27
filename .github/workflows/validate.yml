@@ -51,13 +51,20 @@ jobs:
       - name: Test local AI statistics
         run: python3 ./tests/ai-local-stats.py
 
-      - name: Test Hermes integration safety contracts
-        run: |
-          python3 ./tests/hermes-hub.py
-          python3 ./tests/hermes-broker.py
-          python3 ./tests/hermes-jobs.py
-          python3 ./tests/hermes-team.py
-          python3 ./tests/hermes-brain.py
+      - name: Test Hermes hub contracts
+        run: python3 ./tests/hermes-hub.py
+
+      - name: Test Hermes broker safety contracts
+        run: python3 ./tests/hermes-broker.py
+
+      - name: Test Hermes transaction contracts
+        run: python3 ./tests/hermes-jobs.py
+
+      - name: Test Hermes supervised team contracts
+        run: python3 ./tests/hermes-team.py
+
+      - name: Test Hermes Brain proposal contracts
+        run: python3 ./tests/hermes-brain.py
 
       - name: Test static runtime contracts
         run: |
