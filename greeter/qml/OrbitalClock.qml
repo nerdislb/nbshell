@@ -13,25 +13,12 @@ Item {
     property bool authenticating: false
     property string hourFormat: "24"
     property string fontFamily: "JetBrainsMono Nerd Font"
-    property real authBoost: 0
 
     readonly property real unit: width / 960
     readonly property real minuteRadius: 305 * unit
     readonly property real secondRadius: 445 * unit
-    readonly property real minuteRotation: ClockMath.visibleEdgeRotation(ClockMath.minuteAngle(currentTime)) - authBoost * 0.45
-    readonly property real secondRotation: ClockMath.visibleEdgeRotation(ClockMath.secondAngle(currentTime)) - authBoost
-
-    NumberAnimation {
-        target: root
-        property: "authBoost"
-        from: 0
-        to: 360
-        duration: 850
-        loops: Animation.Infinite
-        running: root.authenticating
-        easing.type: Easing.InOutSine
-        onStopped: root.authBoost = 0
-    }
+    readonly property real minuteRotation: ClockMath.visibleEdgeRotation(ClockMath.minuteAngle(currentTime))
+    readonly property real secondRotation: ClockMath.visibleEdgeRotation(ClockMath.secondAngle(currentTime))
 
     Item {
         id: secondRing

@@ -7,10 +7,12 @@ TestCase {
 
     function test_angles() {
         const date = new Date(2026, 7, 26, 15, 30, 15, 500);
-        compare(Math.round(ClockMath.secondAngle(date) * 10) / 10, -93);
-        compare(Math.round(ClockMath.minuteAngle(date) * 100) / 100, -181.55);
+        compare(Math.round(ClockMath.secondAngle(date) * 10) / 10, 93);
+        compare(Math.round(ClockMath.minuteAngle(date) * 100) / 100, 181.55);
         compare(ClockMath.normalizeAngle(-90), 270);
         compare(ClockMath.angularDistance(350, 10), 20);
+        verify(ClockMath.secondAngle(new Date(2026, 7, 26, 15, 30, 16)) > ClockMath.secondAngle(new Date(2026, 7, 26, 15, 30, 15)));
+        verify(ClockMath.minuteAngle(new Date(2026, 7, 26, 15, 31, 0)) > ClockMath.minuteAngle(new Date(2026, 7, 26, 15, 30, 0)));
     }
 
     function test_hour_text() {
@@ -23,7 +25,7 @@ TestCase {
         const date = new Date(2026, 7, 26, 3, 3, 3, 0);
         const minuteMarker = 3 * 6 + ClockMath.visibleEdgeRotation(ClockMath.minuteAngle(date));
         const secondMarker = 3 * 6 + ClockMath.visibleEdgeRotation(ClockMath.secondAngle(date));
-        compare(Math.round(minuteMarker * 10) / 10, 89.7);
-        compare(secondMarker, 90);
+        compare(Math.round(minuteMarker * 10) / 10, 126.3);
+        compare(secondMarker, 126);
     }
 }

@@ -12,12 +12,12 @@ function angularDistance(a, b) {
 
 function secondAngle(date) {
     const value = date instanceof Date ? date : new Date(date);
-    return -((value.getSeconds() + value.getMilliseconds() / 1000) * 6);
+    return (value.getSeconds() + value.getMilliseconds() / 1000) * 6;
 }
 
 function minuteAngle(date) {
     const value = date instanceof Date ? date : new Date(date);
-    return -((value.getMinutes() + value.getSeconds() / 60 + value.getMilliseconds() / 60000) * 6);
+    return (value.getMinutes() + value.getSeconds() / 60 + value.getMilliseconds() / 60000) * 6;
 }
 
 function visibleEdgeRotation(angle) {

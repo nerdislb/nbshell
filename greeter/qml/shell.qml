@@ -99,7 +99,7 @@ ShellRoot {
             statusError = true;
             return;
         }
-        statusMessage = previewMode ? "PREVIEW · AUTHENTICATION DISABLED" : "TOUCH SENSOR OR ENTER PASSWORD";
+        statusMessage = previewMode ? "PREVIEW · AUTHENTICATION DISABLED" : "ENTER PASSWORD";
         statusError = false;
         if (!previewMode && autoStartAuthentication)
             externalAuthTimer.restart();
@@ -118,11 +118,12 @@ ShellRoot {
             responseRequired = false;
             echoResponse = false;
             promptMessage = "";
-            // Authentication method is unknown until PAM emits a concrete
-            // informational prompt. Do not claim fingerprint activity here.
+            // greetd uses one serial PAM conversation. The installed nbshell
+            // setup deliberately requests a password immediately instead of
+            // pretending that password and fingerprint can run in parallel.
             externalAuthActive = false;
             statusError = false;
-            statusMessage = "WAITING FOR AUTHENTICATION";
+            statusMessage = "REQUESTING PASSWORD";
             Greetd.createSession(username);
         }
     }

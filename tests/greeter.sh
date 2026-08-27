@@ -58,6 +58,9 @@ assert "echoMode: root.echoResponse ? TextInput.Normal : TextInput.Password" in 
 assert "externalAuthActive" in shell + view
 assert "externalAuthActive = false;" in shell
 assert 'normalizedMessage.includes("finger")' in shell
+assert "authBoost" not in (root / "greeter/qml/OrbitalClock.qml").read_text(encoding="utf-8")
+assert "START PASSWORD LOGIN" in view
+assert "TOUCH SENSOR OR WAIT FOR PASSWORD" not in view
 PY
 
 grep -Fq 'packages=(greetd-regreet)' "$ROOT/setup-greeter.sh"

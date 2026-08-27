@@ -237,8 +237,8 @@ Item {
                 spacing: 14 * root.uiScale
 
                 ActionLabel {
-                    label: root.externalAuthActive ? "SCANNING FINGERPRINT" : (root.authenticating ? "AUTHENTICATING" : "START AUTHENTICATION")
-                    active: root.externalAuthActive
+                    label: root.responseRequired ? "ENTER PASSWORD" : (root.authenticating ? "WAITING FOR PASSWORD" : "START PASSWORD LOGIN")
+                    active: root.responseRequired
                     interactive: !root.previewMode && !root.launching && !root.authenticating
                     onTriggered: root.startExternalAuth()
                 }
@@ -267,22 +267,22 @@ Item {
                     width: 42 * root.uiScale
                     height: width
                     radius: width / 2
-                    color: root.alpha(root.foreground, root.externalAuthActive ? 0.10 : 0.035)
+                    color: root.alpha(root.foreground, root.responseRequired ? 0.10 : 0.035)
                     border.width: Math.max(1, root.uiScale)
-                    border.color: root.alpha(root.foreground, root.externalAuthActive ? 0.52 : 0.16)
-                    scale: root.externalAuthActive ? 1.12 : 1
+                    border.color: root.alpha(root.foreground, root.responseRequired ? 0.52 : 0.16)
+                    scale: root.responseRequired ? 1.08 : 1
                     Behavior on scale { NumberAnimation { duration: 550; easing.type: Easing.InOutSine } }
 
                     Text {
                         anchors.centerIn: parent
-                        text: "󰈷"
-                        color: root.externalAuthActive ? root.foreground : root.muted
+                        text: "󰌾"
+                        color: root.responseRequired ? root.foreground : root.muted
                         font.family: root.fontFamily
                         font.pixelSize: 23 * root.uiScale
                     }
 
                     SequentialAnimation on opacity {
-                        running: root.externalAuthActive
+                        running: root.authenticating && !root.responseRequired
                         loops: Animation.Infinite
                         NumberAnimation { from: 1; to: 0.45; duration: 520; easing.type: Easing.InOutSine }
                         NumberAnimation { from: 0.45; to: 1; duration: 520; easing.type: Easing.InOutSine }
@@ -335,7 +335,7 @@ Item {
                 Text {
                     anchors.fill: passwordInput
                     visible: passwordInput.text.length === 0
-                    text: root.previewMode ? "GREETER PREVIEW" : (root.launching ? "STARTING SESSION" : (root.responseRequired ? (root.promptMessage || (root.echoResponse ? "ENTER RESPONSE" : "ENTER SECRET")) : (root.externalAuthActive ? "TOUCH SENSOR OR WAIT FOR PASSWORD" : "START AUTHENTICATION")))
+                    text: root.previewMode ? "GREETER PREVIEW" : (root.launching ? "STARTING SESSION" : (root.responseRequired ? (root.promptMessage || (root.echoResponse ? "ENTER RESPONSE" : "ENTER PASSWORD")) : "WAITING FOR PASSWORD PROMPT"))
                     color: root.statusError ? root.danger : root.muted
                     font.family: root.fontFamily
                     font.pixelSize: 11 * root.uiScale
