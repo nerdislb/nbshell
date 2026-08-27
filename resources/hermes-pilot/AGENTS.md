@@ -36,3 +36,6 @@ This workspace is a deliberately restricted evaluation environment.
 
 The purpose of the pilot is to evaluate conversation quality, context handling,
 session continuity, and resource use before granting more capabilities.
+This boundary applies to Restricted, Research, and Workspace pilot sessions.
+The explicitly selected Trusted mode starts in the chosen Git project instead,
+loads that project's rules, and does not use this pilot directory.

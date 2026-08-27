@@ -494,12 +494,13 @@ PanelWindow {
                                     model: [
                                         { "id": "restricted", "label": "RESTRICTED", "hint": "workspace files" },
                                         { "id": "research", "label": "RESEARCH", "hint": "+ read-only web" },
-                                        { "id": "workspace", "label": "WORKSPACE", "hint": "+ approved terminal" }
+                                        { "id": "workspace", "label": "WORKSPACE", "hint": "pilot + terminal" },
+                                        { "id": "trusted", "label": "TRUSTED", "hint": "real Git project" }
                                     ]
                                     Rectangle {
                                         id: hermesModeButton
                                         required property var modelData
-                                        width: (body.width - Theme.cellW * 2) / 3
+                                        width: (body.width - Theme.cellW * 3) / 4
                                         height: Theme.cellH * 2.6
                                         radius: Theme.radius
                                         color: modelData.id === Agents.hermesMode ? Theme.selectedSurface(Theme.accent) : (hermesModeHover.hovered ? Theme.hover : "transparent")
@@ -507,7 +508,7 @@ PanelWindow {
                                         border.color: modelData.id === Agents.hermesMode ? Theme.focusBorder : Theme.panelBorder
                                         Column {
                                             anchors.centerIn: parent
-                                            Line { anchors.horizontalCenter: parent.horizontalCenter; text: hermesModeButton.modelData.label; color: hermesModeButton.modelData.id === "workspace" ? Theme.yellow : Theme.fg }
+                                            Line { anchors.horizontalCenter: parent.horizontalCenter; text: hermesModeButton.modelData.label; color: ["workspace", "trusted"].includes(hermesModeButton.modelData.id) ? Theme.yellow : Theme.fg }
                                             Line { anchors.horizontalCenter: parent.horizontalCenter; text: hermesModeButton.modelData.hint; color: Theme.muted; font.pixelSize: Theme.fontCaption }
                                         }
                                         HoverHandler { id: hermesModeHover; cursorShape: Qt.PointingHandCursor }
@@ -516,7 +517,7 @@ PanelWindow {
                                 }
                             }
 
-                            Line { text: Agents.hermesProvider === "gemini" ? "Gemini: Restricted/Research use plan mode · Workspace accepts edits in its sandbox" : "Native Hermes lane · credentials stay in the provider-owned store"; color: Theme.muted }
+                            Line { text: Agents.hermesMode === "trusted" ? "Trusted works directly in the selected Git project · dangerous commands still require your approval" : (Agents.hermesProvider === "gemini" ? "Gemini: Restricted/Research use plan mode · Workspace accepts edits in its sandbox" : "Native Hermes lane · credentials stay in the provider-owned store"); color: Agents.hermesMode === "trusted" ? Theme.yellow : Theme.muted }
 
                             Column {
                                 width: parent.width
@@ -643,9 +644,15 @@ PanelWindow {
                                     border.width: Theme.borderWidth
                                     border.color: String(Agents.config.lastProject || "") === modelData.path ? Theme.focusBorder : Theme.panelBorder
                                     Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: projectRow.modelData.name; color: Theme.fg }
-                                    Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.65; horizontalAlignment: Text.AlignRight; elide: Text.ElideMiddle; text: projectRow.modelData.path + "  ›"; color: Theme.fgDim }
+                                    Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.65; horizontalAlignment: Text.AlignRight; elide: Text.ElideMiddle; text: projectRow.modelData.path + "  ·  RIGHT HERMES"; color: Theme.fgDim }
                                     HoverHandler { id: projectHover; cursorShape: Qt.PointingHandCursor }
-                                    TapHandler { onTapped: Agents.launch("", projectRow.modelData.path) }
+                                    TapHandler {
+                                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                        onTapped: (point, button) => {
+                                            Agents.launch(button === Qt.RightButton ? "hermes" : "", projectRow.modelData.path);
+                                            root.close();
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -678,7 +685,7 @@ PanelWindow {
 
                 Line {
                     width: parent.width
-                    text: Agents.message !== "" ? Agents.message : "Esc closes · F5 refreshes · project click launches the default agent"
+                    text: Agents.message !== "" ? Agents.message : "Esc closes · F5 refreshes · project: left default agent · right Hermes"
                     color: Agents.message !== "" ? Theme.yellow : Theme.muted
                     elide: Text.ElideRight
                 }

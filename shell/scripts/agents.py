@@ -43,6 +43,7 @@ HERMES_TOOLSETS = {
     "restricted": "file,nbshell-ai-broker",
     "research": "file,web,nbshell-ai-broker",
     "workspace": "file,web,terminal,nbshell-ai-broker",
+    "trusted": "file,web,terminal,code_execution,todo,clarify,delegation,session_search,skills,nbshell-ai-broker",
 }
 
 
@@ -186,7 +187,7 @@ def hermes_status(config: dict) -> dict:
                                  text=True, capture_output=True, timeout=2, check=False)
         result["gateway"] = gateway.stdout.strip() or "inactive"
         result["sessions"] = hermes_sessions(home)
-        process = subprocess.run(["pgrep", "-f", "hermes --tui.*nbshell/hermes-pilot"],
+        process = subprocess.run(["pgrep", "-f", "hermes --tui"],
                                  text=True, capture_output=True, timeout=1, check=False)
         result["running"] = process.returncode == 0
         if HERMES_JOBS.is_file():
@@ -264,12 +265,19 @@ def herdr_result(*args: str, timeout: float = 8) -> dict:
 
 
 def projects(config: dict) -> list[dict]:
-    base = Path(config.get("projectsDir") or Path.home() / "projects").expanduser()
     home = Path.home()
     rows = [{"name": "Home", "path": str(home), "git": (home / ".git").exists()}]
-    if base.is_dir():
+    configured = [Path(config.get("projectsDir") or home / "projects").expanduser()]
+    configured.extend(Path(value).expanduser() for value in config.get("projectRoots", []) if str(value).strip())
+    android = home / "AndroidStudioProjects"
+    if android.is_dir(): configured.append(android)
+    seen = {str(home)}
+    for base in configured:
+        if not base.is_dir(): continue
         for path in sorted((p for p in base.iterdir() if p.is_dir()), key=lambda p: p.name.lower()):
-            rows.append({"name": path.name, "path": str(path), "git": (path / ".git").exists()})
+            resolved = str(path.resolve())
+            if resolved in seen: continue
+            seen.add(resolved); rows.append({"name": path.name, "path": resolved, "git": (path / ".git").exists()})
     last_raw = str(config.get("lastProject") or "").strip()
     if last_raw:
         last = Path(last_raw).expanduser()
@@ -382,11 +390,17 @@ def launch(agent_id: str | None, project: str | None, prompt: str = "", quick: b
         mode = str(config.get("hermesMode") or "restricted")
         provider = HERMES_PROVIDERS.get(provider_id, HERMES_PROVIDERS["codex"])
         toolsets = HERMES_TOOLSETS.get(mode, HERMES_TOOLSETS["restricted"])
-        cwd = HERMES_PILOT
+        trusted = mode == "trusted"
+        if trusted:
+            allowed_roots = [(Path.home() / "projects").resolve(), (Path.home() / "AndroidStudioProjects").resolve()]
+            if not (cwd / ".git").is_dir() or not any(cwd == root or root in cwd.parents for root in allowed_roots):
+                raise SystemExit("Trusted Hermes requires a Git project below ~/projects or ~/AndroidStudioProjects.")
+        else:
+            cwd = HERMES_PILOT
         launch_env = os.environ.copy()
-        launch_env["HERMES_WRITE_SAFE_ROOT"] = str(HERMES_PILOT)
+        launch_env["HERMES_WRITE_SAFE_ROOT"] = str(cwd)
         if provider["native"]:
-            command = [binary, "--tui", "--in", str(HERMES_PILOT), "--toolsets", toolsets,
+            command = [binary, "--tui", "--in", str(cwd), "--toolsets", toolsets,
                        "--provider", str(provider["provider"]), "--model", str(provider["model"])]
             if resume:
                 command += ["--resume", resume, "--no-restore-cwd"]
@@ -396,7 +410,7 @@ def launch(agent_id: str | None, project: str | None, prompt: str = "", quick: b
             agy = antigravity_binary()
             if not agy:
                 raise SystemExit("Antigravity is not installed.")
-            command = [agy, "--sandbox", "--mode", "accept-edits" if mode == "workspace" else "plan"]
+            command = [agy, "--sandbox", "--add-dir", str(cwd), "--mode", "accept-edits" if mode in {"workspace", "trusted"} else "plan"]
     shell_cmd = "exec " + " ".join(shlex.quote(part) for part in command)
     terminal = terminal_command(config)
     name = f"dev.nerdi.nbshell.agent.{'quick.' if quick else ''}{agent_id}"
@@ -448,6 +462,12 @@ def set_value(key: str, value: str) -> None:
     config[key] = value
     save_config(config)
     print(value)
+
+
+def set_project(value: str) -> None:
+    project = Path(value).expanduser().resolve()
+    if not project.is_dir(): raise SystemExit(f"Project directory does not exist: {project}")
+    config = load_config(); config["lastProject"] = str(project); save_config(config); print(project)
 
 
 def set_hermes_choice(key: str, value: str, allowed: dict) -> None:
@@ -723,6 +743,7 @@ def main() -> int:
     default = sub.add_parser("default"); default.add_argument("agent", nargs="?")
     profile = sub.add_parser("profile"); profile.add_argument("profile", nargs="?", choices=["safe", "balanced", "autonomous"])
     model = sub.add_parser("model-profile"); model.add_argument("profile", nargs="?", choices=["local", "cloud", "private", "fast", "strong"])
+    project = sub.add_parser("project"); project.add_argument("path", nargs="?")
     route_model = sub.add_parser("model"); route_model.add_argument("profile", choices=["local", "cloud", "private", "fast", "strong"]); route_model.add_argument("model")
     hermes_provider = sub.add_parser("hermes-provider"); hermes_provider.add_argument("provider", nargs="?", choices=sorted(HERMES_PROVIDERS))
     hermes_mode = sub.add_parser("hermes-mode"); hermes_mode.add_argument("mode", nargs="?", choices=sorted(HERMES_TOOLSETS))
@@ -771,6 +792,9 @@ def main() -> int:
     if command == "model-profile":
         if args.profile is None: print(config["modelProfile"]); return 0
         set_value("modelProfile", args.profile); return 0
+    if command == "project":
+        if args.path is None: print(config.get("lastProject", "")); return 0
+        set_project(args.path); return 0
     if command == "model": set_profile_model(args.profile, args.model); return 0
     if command == "hermes-provider":
         if args.provider is None: print(config.get("hermesProvider", "codex")); return 0

@@ -53,6 +53,20 @@ with tempfile.TemporaryDirectory() as temporary:
     assert "file,web,terminal,nbshell-ai-broker" in workspace
     assert "--yolo" not in workspace
 
+    trusted_project = root / "AndroidStudioProjects" / "nbos"
+    trusted_project.mkdir(parents=True); (trusted_project / ".git").mkdir()
+    trusted_config = agents.DEFAULT_CONFIG | {
+        "hermesProvider": "codex", "hermesMode": "trusted", "terminal": "ghostty",
+        "lastProject": str(trusted_project),
+    }
+    agents.CONFIG_FILE.write_text(json.dumps(trusted_config))
+    with patch.object(agents.Path, "home", return_value=root), patch.object(agents.shutil, "which", side_effect=binary), patch.object(agents.subprocess, "Popen") as popen:
+        agents.launch("hermes", str(trusted_project))
+    trusted = " ".join(popen.call_args.args[0])
+    assert str(trusted_project) in trusted and "file,web,terminal,code_execution,todo,clarify,delegation,session_search,skills,nbshell-ai-broker" in trusted
+    assert "--yolo" not in trusted and str(agents.HERMES_PILOT) not in trusted
+    assert popen.call_args.kwargs["cwd"] == trusted_project
+
     gemini = launch_for("gemini", "restricted")
     assert "/usr/bin/agy" in gemini and "--sandbox" in gemini and "plan" in gemini
 
