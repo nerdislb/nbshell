@@ -15,6 +15,21 @@ import qs.Services
 // begraben lag. Sie sprechen ausschliesslich mit Singletons, also war der
 // Schnitt schmerzlos.
 Scope {
+    // This handler must remain outside the lazy AgentCenter object. Otherwise
+    // the IPC command that opens the panel cannot exist until the panel is
+    // already open.
+    IpcHandler {
+        target: "agentCenter"
+        function toggle(): string { Runtime.agentCenterOpen = !Runtime.agentCenterOpen; return Runtime.agentCenterOpen ? "open" : "closed"; }
+        function open(): string { Runtime.agentCenterOpen = true; return "open"; }
+        function close(): string { Runtime.agentCenterOpen = false; return "closed"; }
+        function refresh(): string { Agents.refresh(); return "refreshing"; }
+        function attention(kind: string, sessionId: string): string { Agents.requestAttention(kind, sessionId); return "recorded"; }
+        function attentionStatus(): string {
+            return JSON.stringify({ "active": Agents.completionAttention, "sessions": Agents.attentionSessions });
+        }
+    }
+
     IpcHandler {
         target: "dashboard"
         function toggle(): string { Runtime.dashboardOpen = !Runtime.dashboardOpen; return Runtime.dashboardOpen ? "open" : "closed"; }

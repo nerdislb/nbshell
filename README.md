@@ -299,6 +299,8 @@ nbshell agent default codex
 nbshell agent quick
 nbshell agent launch --project ~/projects/my-project
 nbshell agent install copilot
+nbshell agent hermes-provider claude
+nbshell agent hermes-mode research
 nbshell commands --json
 ```
 
@@ -320,6 +322,17 @@ skills remain disabled until they receive a separate security review. `safe`,
 each tool's native controls. The explicitly selected `autonomous` profile uses
 Codex's full approval-and-sandbox bypass; fresh installations therefore
 continue to start in the safer `balanced` profile.
+
+The Hermes Hub keeps provider choice separate from permissions. Codex and
+Claude run as native Hermes providers using their provider-owned CLI credential
+stores. Gemini is clearly marked as an external bridge and opens the existing
+Antigravity CLI in its sandbox, because Hermes cannot reuse Antigravity's Google
+login. `restricted` exposes workspace-file operations, `research` adds
+read-only web tools, and `workspace` adds the terminal while retaining Hermes'
+manual approval policy. The shipped and migration-safe default remains
+`codex` plus `restricted`. Recent Hermes sessions are listed by opaque ID,
+timestamp, and token count; prompt text and generated titles stay out of the
+shell status path.
 
 Model profiles route a default launch without changing individual agent
 commands. `local` and `private` route through OpenCode, while `fast` and

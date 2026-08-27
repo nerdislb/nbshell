@@ -480,6 +480,10 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell agent model-profile [local|cloud|private|fast|strong]
   nbshell agent model <profile> <provider/model>
                             set the concrete model used by a routing profile
+  nbshell agent hermes-provider [codex|claude|gemini]
+                            select the Hermes Hub model lane
+  nbshell agent hermes-mode [restricted|research|workspace]
+                            select the Hermes Hub capability boundary
   nbshell agent install <agent>
   nbshell agent sessions    list active Herdr agent sessions
   nbshell agent ollama [status|start|stop]

@@ -21,23 +21,19 @@ PanelWindow {
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     function close() { Runtime.agentCenterOpen = false; }
+    function compactTokens(value) {
+        const count = Number(value || 0);
+        return count >= 1000 ? (count / 1000).toFixed(count >= 10000 ? 0 : 1) + "k" : String(count);
+    }
+    function sessionTime(epoch) {
+        if (!epoch) return "unknown";
+        return new Date(Number(epoch) * 1000).toLocaleString(Qt.locale(), "dd.MM hh:mm");
+    }
 
     onVisibleChanged: {
         if (visible) {
             Agents.refresh();
             keys.forceActiveFocus();
-        }
-    }
-
-    IpcHandler {
-        target: "agentCenter"
-        function toggle(): void { Runtime.agentCenterOpen = !Runtime.agentCenterOpen; }
-        function open(): void { Runtime.agentCenterOpen = true; }
-        function close(): void { Runtime.agentCenterOpen = false; }
-        function refresh(): void { Agents.refresh(); }
-        function attention(kind: string, sessionId: string): void { Agents.requestAttention(kind, sessionId); }
-        function attentionStatus(): string {
-            return JSON.stringify({ "active": Agents.completionAttention, "sessions": Agents.attentionSessions });
         }
     }
 
@@ -185,8 +181,8 @@ PanelWindow {
 
                         Column {
                             width: parent.width
-                            spacing: Theme.cellH * 0.25
-                            Line { text: "HERMES PILOT"; color: Theme.fgDim }
+                            spacing: Theme.cellH * 0.4
+                            Line { text: "HERMES HUB"; color: Theme.fgDim }
                             Rectangle {
                                 width: body.width
                                 height: Theme.cellH * 3
@@ -200,13 +196,109 @@ PanelWindow {
                                     anchors.verticalCenter: parent.verticalCenter
                                     spacing: 0
                                     Line { text: "HERMES  " + (Agents.hermes.version || "NOT INSTALLED"); color: Agents.hermes.installed ? Theme.fg : Theme.muted }
-                                    Line { text: Agents.hermes.authenticated ? ((Agents.hermes.provider || "openai-codex") + " · " + (Agents.hermes.model || "model pending")) : "OpenAI login pending"; color: Agents.hermes.authenticated ? Theme.fgDim : Theme.yellow; font.pixelSize: Theme.fontCaption; elide: Text.ElideRight; width: body.width * 0.68 }
+                                    Line { text: Agents.hermesProvider.toUpperCase() + " · " + Agents.hermesMode.toUpperCase(); color: Theme.fgDim; font.pixelSize: Theme.fontCaption; elide: Text.ElideRight; width: body.width * 0.68 }
                                 }
-                                Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: Agents.hermes.gateway === "active" ? "GATEWAY ACTIVE" : "ISOLATED · OPEN"; color: Agents.hermes.gateway === "active" ? Theme.yellow : Theme.accent }
+                                Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: Agents.hermes.gateway === "active" ? "GATEWAY ACTIVE" : (Agents.hermes.running ? "OPEN · ACTIVE" : "OPEN"); color: Agents.hermes.gateway === "active" ? Theme.yellow : Theme.accent }
                                 HoverHandler { id: hermesHover; cursorShape: Agents.hermes.installed ? Qt.PointingHandCursor : Qt.ArrowCursor }
-                                TapHandler { enabled: Agents.hermes.installed; onTapped: Agents.launch("hermes", "") }
+                                TapHandler {
+                                    enabled: Agents.hermes.installed
+                                    onTapped: {
+                                        Agents.launch("hermes", "");
+                                        root.close();
+                                    }
+                                }
                             }
-                            Line { text: "Workspace-file pilot · no terminal, gateway, memory, cron, browser, or messaging"; color: Theme.muted }
+
+                            Row {
+                                width: parent.width
+                                spacing: Theme.cellW
+                                Repeater {
+                                    model: [
+                                        { "id": "codex", "label": "CODEX", "hint": "native" },
+                                        { "id": "claude", "label": "CLAUDE", "hint": "native" },
+                                        { "id": "gemini", "label": "GEMINI", "hint": "agy bridge" }
+                                    ]
+                                    Rectangle {
+                                        id: hermesProviderButton
+                                        required property var modelData
+                                        readonly property var providerState: (Agents.hermes.providers || {})[modelData.id] || ({ "ready": false })
+                                        width: (body.width - Theme.cellW * 2) / 3
+                                        height: Theme.cellH * 2.6
+                                        radius: Theme.radius
+                                        color: modelData.id === Agents.hermesProvider ? Theme.selectedSurface(Theme.accent) : (hermesProviderHover.hovered ? Theme.hover : "transparent")
+                                        border.width: Theme.borderWidth
+                                        border.color: modelData.id === Agents.hermesProvider ? Theme.focusBorder : Theme.panelBorder
+                                        Column {
+                                            anchors.centerIn: parent
+                                            Line { anchors.horizontalCenter: parent.horizontalCenter; text: hermesProviderButton.modelData.label; color: hermesProviderButton.providerState.ready ? Theme.fg : Theme.muted }
+                                            Line { anchors.horizontalCenter: parent.horizontalCenter; text: hermesProviderButton.providerState.ready ? hermesProviderButton.modelData.hint : "not ready"; color: Theme.muted; font.pixelSize: Theme.fontCaption }
+                                        }
+                                        HoverHandler { id: hermesProviderHover; cursorShape: hermesProviderButton.providerState.ready ? Qt.PointingHandCursor : Qt.ArrowCursor }
+                                        TapHandler { enabled: hermesProviderButton.providerState.ready; onTapped: Agents.setHermesProvider(hermesProviderButton.modelData.id) }
+                                    }
+                                }
+                            }
+
+                            Row {
+                                width: parent.width
+                                spacing: Theme.cellW
+                                Repeater {
+                                    model: [
+                                        { "id": "restricted", "label": "RESTRICTED", "hint": "workspace files" },
+                                        { "id": "research", "label": "RESEARCH", "hint": "+ read-only web" },
+                                        { "id": "workspace", "label": "WORKSPACE", "hint": "+ approved terminal" }
+                                    ]
+                                    Rectangle {
+                                        id: hermesModeButton
+                                        required property var modelData
+                                        width: (body.width - Theme.cellW * 2) / 3
+                                        height: Theme.cellH * 2.6
+                                        radius: Theme.radius
+                                        color: modelData.id === Agents.hermesMode ? Theme.selectedSurface(Theme.accent) : (hermesModeHover.hovered ? Theme.hover : "transparent")
+                                        border.width: Theme.borderWidth
+                                        border.color: modelData.id === Agents.hermesMode ? Theme.focusBorder : Theme.panelBorder
+                                        Column {
+                                            anchors.centerIn: parent
+                                            Line { anchors.horizontalCenter: parent.horizontalCenter; text: hermesModeButton.modelData.label; color: hermesModeButton.modelData.id === "workspace" ? Theme.yellow : Theme.fg }
+                                            Line { anchors.horizontalCenter: parent.horizontalCenter; text: hermesModeButton.modelData.hint; color: Theme.muted; font.pixelSize: Theme.fontCaption }
+                                        }
+                                        HoverHandler { id: hermesModeHover; cursorShape: Qt.PointingHandCursor }
+                                        TapHandler { onTapped: Agents.setHermesMode(hermesModeButton.modelData.id) }
+                                    }
+                                }
+                            }
+
+                            Line { text: Agents.hermesProvider === "gemini" ? "Gemini: Restricted/Research use plan mode · Workspace accepts edits in its sandbox" : "Native Hermes lane · credentials stay in the provider-owned store"; color: Theme.muted }
+
+                            Column {
+                                width: parent.width
+                                spacing: Theme.cellH * 0.2
+                                visible: Agents.hermesProvider !== "gemini" && (Agents.hermes.sessions || []).length > 0
+                                Line { text: "RECENT HERMES SESSIONS"; color: Theme.fgDim }
+                                Repeater {
+                                    model: (Agents.hermes.sessions || []).slice(0, 3)
+                                    Rectangle {
+                                        id: hermesSession
+                                        required property var modelData
+                                        width: body.width
+                                        height: Theme.cellH * 2
+                                        radius: Theme.radius
+                                        color: hermesSessionHover.hovered ? Theme.hover : "transparent"
+                                        border.width: Theme.borderWidth
+                                        border.color: Theme.panelBorder
+                                        Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.42; text: String(hermesSession.modelData.id).slice(-8); color: Theme.fg }
+                                        Line { anchors.horizontalCenter: parent.horizontalCenter; anchors.verticalCenter: parent.verticalCenter; text: root.sessionTime(hermesSession.modelData.lastActive); color: Theme.fgDim }
+                                        Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: root.compactTokens(hermesSession.modelData.inputTokens + hermesSession.modelData.outputTokens) + " TOK · RESUME"; color: Theme.accent }
+                                        HoverHandler { id: hermesSessionHover; cursorShape: Qt.PointingHandCursor }
+                                        TapHandler {
+                                            onTapped: {
+                                                Agents.resumeHermes(hermesSession.modelData.id);
+                                                root.close();
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
 
                         Column {

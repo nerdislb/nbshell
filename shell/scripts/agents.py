@@ -9,6 +9,7 @@ import os
 import shlex
 import shutil
 import signal
+import sqlite3
 import subprocess
 import sys
 import time
@@ -22,6 +23,27 @@ STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state"))
 CONFIG_FILE = CONFIG_DIR / "agents.json"
 OLLAMA_PID = STATE_DIR / "ollama.pid"
 SKILL_SOURCE = Path(__file__).resolve().parents[1] / "skills" / "nbshell"
+HERMES_PILOT = Path.home() / ".local/share/nbshell/hermes-pilot"
+
+HERMES_PROVIDERS = {
+    "codex": {"provider": "openai-codex", "model": "gpt-5.6-sol", "label": "Codex", "native": True},
+    "claude": {"provider": "anthropic", "model": "anthropic/claude-sonnet-4.6", "label": "Claude", "native": True},
+    "gemini": {"provider": "agy", "model": "", "label": "Gemini", "native": False},
+}
+HERMES_TOOLSETS = {
+    "restricted": "file",
+    "research": "file,web",
+    "workspace": "file,web,terminal",
+}
+
+
+def antigravity_binary() -> str:
+    """Prefer the vendor binary so user wrappers cannot widen Hub permissions."""
+    data_home = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share"))
+    vendor = data_home / "antigravity/bin/agy"
+    if vendor.is_file() and os.access(vendor, os.X_OK):
+        return str(vendor)
+    return shutil.which("agy") or ""
 
 AGENTS = {
     "codex": {"name": "Codex", "binary": "codex", "kind": "cloud", "prompt": "positional", "glyph": "code", "install": "npm install -g @openai/codex"},
@@ -41,6 +63,8 @@ DEFAULT_CONFIG = {
     "lastProject": "",
     "projectsDir": str(Path.home() / "projects"),
     "terminal": "",
+    "hermesProvider": "codex",
+    "hermesMode": "restricted",
     "modelProfiles": {
         "local": {"agent": "opencode", "model": ""},
         "private": {"agent": "opencode", "model": ""},
@@ -86,12 +110,43 @@ def ollama_status() -> dict:
         return {"installed": bool(shutil.which("ollama")), "running": False, "host": host, "models": []}
 
 
-def hermes_status() -> dict:
+def hermes_sessions(home: Path, limit: int = 4) -> list[dict]:
+    database = home / "state.db"
+    if not database.is_file():
+        return []
+    try:
+        connection = sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=0.2)
+        rows = connection.execute(
+            """SELECT id, model, COALESCE(last_activity_at, started_at),
+                      message_count, tool_call_count, input_tokens, output_tokens
+                 FROM sessions
+                WHERE source = 'cli' AND cwd = ? AND archived = 0 AND hidden = 0
+                ORDER BY COALESCE(last_activity_at, started_at) DESC LIMIT ?""",
+            (str(HERMES_PILOT), limit),
+        ).fetchall()
+        connection.close()
+        return [{
+            "id": str(row[0]), "model": str(row[1] or ""), "lastActive": float(row[2] or 0),
+            "messages": int(row[3] or 0), "tools": int(row[4] or 0),
+            "inputTokens": int(row[5] or 0), "outputTokens": int(row[6] or 0),
+        } for row in rows]
+    except (OSError, sqlite3.Error, TypeError, ValueError):
+        return []
+
+
+def hermes_status(config: dict) -> dict:
     binary = shutil.which("hermes")
     home = Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes"))
+    selected = str(config.get("hermesProvider") or "codex")
+    if selected not in HERMES_PROVIDERS:
+        selected = "codex"
+    mode = str(config.get("hermesMode") or "restricted")
+    if mode not in HERMES_TOOLSETS:
+        mode = "restricted"
     result = {
         "installed": bool(binary), "version": "", "authenticated": False,
-        "gateway": "inactive", "provider": "", "model": "",
+        "gateway": "inactive", "provider": "", "model": "", "selected": selected,
+        "mode": mode, "running": False, "sessions": [], "providers": {},
     }
     if not binary:
         return result
@@ -119,8 +174,17 @@ def hermes_status() -> dict:
         gateway = subprocess.run(["systemctl", "--user", "is-active", "hermes-gateway.service"],
                                  text=True, capture_output=True, timeout=2, check=False)
         result["gateway"] = gateway.stdout.strip() or "inactive"
+        result["sessions"] = hermes_sessions(home)
+        process = subprocess.run(["pgrep", "-f", "hermes --tui.*nbshell/hermes-pilot"],
+                                 text=True, capture_output=True, timeout=1, check=False)
+        result["running"] = process.returncode == 0
     except (OSError, IndexError, subprocess.TimeoutExpired):
         pass
+    result["providers"] = {
+        "codex": {"label": "Codex", "ready": (home / "auth.json").is_file(), "native": True},
+        "claude": {"label": "Claude", "ready": (Path.home() / ".claude/.credentials.json").is_file(), "native": True},
+        "gemini": {"label": "Gemini", "ready": bool(antigravity_binary()), "native": False},
+    }
     return result
 
 
@@ -192,7 +256,7 @@ def full_status() -> dict:
         "config": config,
         "agents": rows,
         "ollama": ollama_status(),
-        "hermes": hermes_status(),
+        "hermes": hermes_status(config),
         "sessions": sessions,
         "projects": projects(config),
     }
@@ -253,7 +317,8 @@ def prompt_args(agent_id: str, prompt: str) -> list[str]:
     return [prompt]
 
 
-def launch(agent_id: str | None, project: str | None, prompt: str = "", quick: bool = False) -> None:
+def launch(agent_id: str | None, project: str | None, prompt: str = "", quick: bool = False,
+           resume: str = "") -> None:
     config = load_config()
     route = config.get("modelProfiles", {}).get(str(config.get("modelProfile", "cloud")), {})
     agent_id = agent_id or str(route.get("agent") or config["defaultAgent"])
@@ -280,15 +345,33 @@ def launch(agent_id: str | None, project: str | None, prompt: str = "", quick: b
     command = [binary, *profile_args(agent_id, str(config["profile"])), *model_args, *prompt_args(agent_id, prompt)]
     launch_env = None
     if agent_id == "hermes":
-        pilot = Path.home() / ".local/share/nbshell/hermes-pilot"
-        cwd = pilot
-        command = [binary, "--tui", "--in", str(pilot)]
+        provider_id = str(config.get("hermesProvider") or "codex")
+        mode = str(config.get("hermesMode") or "restricted")
+        provider = HERMES_PROVIDERS.get(provider_id, HERMES_PROVIDERS["codex"])
+        toolsets = HERMES_TOOLSETS.get(mode, HERMES_TOOLSETS["restricted"])
+        cwd = HERMES_PILOT
         launch_env = os.environ.copy()
-        launch_env["HERMES_WRITE_SAFE_ROOT"] = str(pilot)
+        launch_env["HERMES_WRITE_SAFE_ROOT"] = str(HERMES_PILOT)
+        if provider["native"]:
+            command = [binary, "--tui", "--in", str(HERMES_PILOT), "--toolsets", toolsets,
+                       "--provider", str(provider["provider"]), "--model", str(provider["model"])]
+            if resume:
+                command += ["--resume", resume, "--no-restore-cwd"]
+        else:
+            if resume:
+                raise SystemExit("Gemini uses an external Antigravity session and cannot resume a Hermes session.")
+            agy = antigravity_binary()
+            if not agy:
+                raise SystemExit("Antigravity is not installed.")
+            command = [agy, "--sandbox", "--mode", "accept-edits" if mode == "workspace" else "plan"]
     shell_cmd = "exec " + " ".join(shlex.quote(part) for part in command)
     terminal = terminal_command(config)
     name = f"dev.nerdi.nbshell.agent.{'quick.' if quick else ''}{agent_id}"
     title = ("Quick Agent · " if quick else "") + AGENTS[agent_id]["name"]
+    if agent_id == "hermes":
+        title = "Hermes Hub · " + HERMES_PROVIDERS.get(
+            str(config.get("hermesProvider") or "codex"), HERMES_PROVIDERS["codex"]
+        )["label"]
     base = Path(terminal[0]).name
     if base == "ghostty":
         # Ghostty forwards CLI arguments to its existing process by default,
@@ -332,6 +415,13 @@ def set_value(key: str, value: str) -> None:
     config[key] = value
     save_config(config)
     print(value)
+
+
+def set_hermes_choice(key: str, value: str, allowed: dict) -> None:
+    if value not in allowed:
+        raise SystemExit(f"Unknown Hermes {key}: {value}")
+    config_key = "hermesProvider" if key == "provider" else "hermesMode"
+    set_value(config_key, value)
 
 
 def set_profile_model(profile: str, model: str) -> None:
@@ -511,7 +601,9 @@ def main() -> int:
     profile = sub.add_parser("profile"); profile.add_argument("profile", nargs="?", choices=["safe", "balanced", "autonomous"])
     model = sub.add_parser("model-profile"); model.add_argument("profile", nargs="?", choices=["local", "cloud", "private", "fast", "strong"])
     route_model = sub.add_parser("model"); route_model.add_argument("profile", choices=["local", "cloud", "private", "fast", "strong"]); route_model.add_argument("model")
-    launch_p = sub.add_parser("launch"); launch_p.add_argument("agent", nargs="?"); launch_p.add_argument("--project"); launch_p.add_argument("--prompt", default="")
+    hermes_provider = sub.add_parser("hermes-provider"); hermes_provider.add_argument("provider", nargs="?", choices=sorted(HERMES_PROVIDERS))
+    hermes_mode = sub.add_parser("hermes-mode"); hermes_mode.add_argument("mode", nargs="?", choices=sorted(HERMES_TOOLSETS))
+    launch_p = sub.add_parser("launch"); launch_p.add_argument("agent", nargs="?"); launch_p.add_argument("--project"); launch_p.add_argument("--prompt", default=""); launch_p.add_argument("--resume", default="")
     quick_p = sub.add_parser("quick"); quick_p.add_argument("--project"); quick_p.add_argument("--prompt", default="")
     install_p = sub.add_parser("install"); install_p.add_argument("agent", choices=sorted(AGENTS))
     prompt_p = sub.add_parser("prompt"); prompt_p.add_argument("prompt", nargs="+"); prompt_p.add_argument("--agent"); prompt_p.add_argument("--project")
@@ -553,7 +645,13 @@ def main() -> int:
         if args.profile is None: print(config["modelProfile"]); return 0
         set_value("modelProfile", args.profile); return 0
     if command == "model": set_profile_model(args.profile, args.model); return 0
-    if command == "launch": launch(args.agent, args.project, args.prompt); return 0
+    if command == "hermes-provider":
+        if args.provider is None: print(config.get("hermesProvider", "codex")); return 0
+        set_hermes_choice("provider", args.provider, HERMES_PROVIDERS); return 0
+    if command == "hermes-mode":
+        if args.mode is None: print(config.get("hermesMode", "restricted")); return 0
+        set_hermes_choice("mode", args.mode, HERMES_TOOLSETS); return 0
+    if command == "launch": launch(args.agent, args.project, args.prompt, resume=args.resume); return 0
     if command == "quick": launch(None, args.project, args.prompt, quick=True); return 0
     if command == "install": install_agent(args.agent); return 0
     if command == "prompt": launch(args.agent, args.project, " ".join(args.prompt)); return 0

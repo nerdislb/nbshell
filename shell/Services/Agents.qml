@@ -13,7 +13,7 @@ Singleton {
     property var projects: []
     property var sessions: []
     property var ollama: ({ "installed": false, "running": false, "models": [] })
-    property var hermes: ({ "installed": false, "authenticated": false, "gateway": "inactive", "provider": "", "model": "" })
+    property var hermes: ({ "installed": false, "authenticated": false, "gateway": "inactive", "provider": "", "model": "", "selected": "codex", "mode": "restricted", "running": false, "sessions": [], "providers": ({}) })
     property var config: ({ "defaultAgent": "codex", "profile": "balanced", "modelProfile": "cloud" })
     property bool loading: false
     property string message: ""
@@ -27,6 +27,8 @@ Singleton {
     readonly property string defaultAgent: String(config.defaultAgent ?? "codex")
     readonly property string approvalProfile: String(config.profile ?? "balanced")
     readonly property string modelProfile: String(config.modelProfile ?? "cloud")
+    readonly property string hermesProvider: String(config.hermesProvider ?? "codex")
+    readonly property string hermesMode: String(config.hermesMode ?? "restricted")
     readonly property int workingCount: sessions.filter(row => String(row.status) === "working").length
     readonly property int waitingCount: sessions.filter(row => ["waiting", "permission", "blocked"].indexOf(String(row.status)) >= 0).length
 
@@ -47,11 +49,16 @@ Singleton {
     function setDefault(id) { action(["default", id]); }
     function setProfile(id) { action(["profile", id]); }
     function setModelProfile(id) { action(["model-profile", id]); }
+    function setHermesProvider(id) { action(["hermes-provider", id]); }
+    function setHermesMode(id) { action(["hermes-mode", id]); }
     function launch(id, project) {
         var args = ["launch"];
         if (id) args.push(id);
         if (project) args = args.concat(["--project", project]);
         action(args);
+    }
+    function resumeHermes(id) {
+        if (id) action(["launch", "hermes", "--resume", String(id)]);
     }
     function install(id) { action(["install", id]); }
     function workspace(templateName, project) {
@@ -172,7 +179,7 @@ Singleton {
                     root.sessionNotifications(nextSessions);
                     root.sessions = nextSessions;
                     root.ollama = data.ollama ?? ({ "installed": false, "running": false, "models": [] });
-                    root.hermes = data.hermes ?? ({ "installed": false, "authenticated": false, "gateway": "inactive", "provider": "", "model": "" });
+                    root.hermes = data.hermes ?? ({ "installed": false, "authenticated": false, "gateway": "inactive", "provider": "", "model": "", "selected": "codex", "mode": "restricted", "running": false, "sessions": [], "providers": ({}) });
                     root.config = data.config ?? root.config;
                 } catch (e) {
                     root.message = "Could not read agent status";
