@@ -244,8 +244,31 @@ def place(name: str, relation: str, reference: str) -> None:
     elif relation == "below": x, y = anchor["x"], anchor["y"] + anchor["height"]
     elif relation == "same": x, y = anchor["x"], anchor["y"]
     else: raise SystemExit("Position must be left, right, above, below, same, or auto")
-    run_output(name, "position", "set", str(x), str(y))
-    state = load_state(); row = dict(state.get(name) or {}); row.update({"x": x, "y": y, "enabled": True}); state[name] = row; save_state(state)
+    if backend() == "umbriel" and relation != "same":
+        # Umbriel normalizes the global output coordinate space. Supplying a
+        # calculated absolute --pos can therefore be moved beside the anchor
+        # even though the requested topology was above/below it. Let the
+        # output-management protocol express the relationship directly.
+        relative_flag = {
+            "left": "--left-of", "right": "--right-of",
+            "above": "--above", "below": "--below",
+        }[relation]
+        subprocess.run(["wlr-randr", "--output", name, relative_flag, reference], check=True)
+    else:
+        run_output(name, "position", "set", str(x), str(y))
+
+    # Umbriel may translate every output after a relative move. Persist its
+    # authoritative coordinates for all connected outputs, not only the one
+    # that was moved, so config reloads reproduce the live topology exactly.
+    live_rows = status()["outputs"]
+    state = load_state()
+    for live in live_rows:
+        if not live["enabled"]:
+            continue
+        row = dict(state.get(live["name"]) or {})
+        row.update({"x": live["x"], "y": live["y"], "enabled": True})
+        state[live["name"]] = row
+    save_state(state)
 
 
 def main() -> int:
