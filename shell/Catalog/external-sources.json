@@ -8,6 +8,8 @@
     {"name": "Mail", "repository": "https://github.com/huacnlee/omamail", "reviewedCommit": "e2cd92f"},
     {"name": "Quick Translate", "repository": "https://github.com/seshna/quick-translate", "reviewedCommit": "284cac8"},
     {"name": "YouTube Music", "repository": "https://github.com/rlimberger/omarchy-ytmusic", "reviewedCommit": "de0d64a"},
-    {"name": "Pit Wall", "repository": "https://github.com/jeremylongshore/omarchy-pit-wall-entry", "reviewedCommit": "cc78151"}
+    {"name": "Pit Wall", "repository": "https://github.com/jeremylongshore/omarchy-pit-wall-entry", "reviewedCommit": "cc78151"},
+    {"name": "Hermes Agent", "repository": "https://github.com/NousResearch/hermes-agent", "reviewedCommit": "2ea42a4", "check": "github-api"},
+    {"name": "Hermes Harness reference", "repository": "https://github.com/archer-clawbot/omarchy-hermes-harness", "reviewedCommit": "2d72688"}
   ]
 }

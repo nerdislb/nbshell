@@ -310,8 +310,13 @@ exports prompt content. Switch providers with the tabs, arrow keys, mouse wheel,
 or middle click; right click launches the configured default agent.
 
 The Agent Center discovers supported tools instead of requiring all of them.
-It currently recognizes Codex, Claude Code, Antigravity, OpenCode, Gemini CLI, GitHub
-Copilot, and Pi. `safe`, `balanced`, and `autonomous` approval profiles map to
+It currently recognizes Codex, Claude Code, Antigravity, OpenCode, Gemini CLI,
+GitHub Copilot, Pi, and an optional isolated Hermes pilot. Hermes is launched
+inside a dedicated workspace with only workspace-file operations enabled;
+gateway, terminal, browser, memory, cron, messaging, delegation, and bundled
+skills remain disabled until they receive a separate security review. `safe`,
+`balanced`, and
+`autonomous` approval profiles map to
 each tool's native controls. The explicitly selected `autonomous` profile uses
 Codex's full approval-and-sandbox bypass; fresh installations therefore
 continue to start in the safer `balanced` profile.

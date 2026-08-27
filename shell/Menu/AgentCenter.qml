@@ -186,6 +186,32 @@ PanelWindow {
                         Column {
                             width: parent.width
                             spacing: Theme.cellH * 0.25
+                            Line { text: "HERMES PILOT"; color: Theme.fgDim }
+                            Rectangle {
+                                width: body.width
+                                height: Theme.cellH * 3
+                                radius: Theme.radius
+                                color: hermesHover.hovered ? Theme.hover : Theme.panelSurfaceRaised
+                                border.width: Theme.borderWidth
+                                border.color: Agents.hermes.authenticated ? Theme.green : Theme.muted
+                                Column {
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: Theme.cellW
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 0
+                                    Line { text: "HERMES  " + (Agents.hermes.version || "NOT INSTALLED"); color: Agents.hermes.installed ? Theme.fg : Theme.muted }
+                                    Line { text: Agents.hermes.authenticated ? ((Agents.hermes.provider || "openai-codex") + " · " + (Agents.hermes.model || "model pending")) : "OpenAI login pending"; color: Agents.hermes.authenticated ? Theme.fgDim : Theme.yellow; font.pixelSize: Theme.fontCaption; elide: Text.ElideRight; width: body.width * 0.68 }
+                                }
+                                Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: Agents.hermes.gateway === "active" ? "GATEWAY ACTIVE" : "ISOLATED · OPEN"; color: Agents.hermes.gateway === "active" ? Theme.yellow : Theme.accent }
+                                HoverHandler { id: hermesHover; cursorShape: Agents.hermes.installed ? Qt.PointingHandCursor : Qt.ArrowCursor }
+                                TapHandler { enabled: Agents.hermes.installed; onTapped: Agents.launch("hermes", "") }
+                            }
+                            Line { text: "Workspace-file pilot · no terminal, gateway, memory, cron, browser, or messaging"; color: Theme.muted }
+                        }
+
+                        Column {
+                            width: parent.width
+                            spacing: Theme.cellH * 0.25
                             Line { text: "MODEL ROUTING"; color: Theme.fgDim }
                             Flow {
                                 width: parent.width

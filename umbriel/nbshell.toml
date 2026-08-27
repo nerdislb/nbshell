@@ -15,8 +15,8 @@ follows_mouse_max_scroll = 0.5
 [layout.scrolling]
 default_width_fraction = 0.667
 
-[appearance]
-animation_ms = 300
+[animation]
+duration_ms = 300
 
 [hot_corners.top_left]
 enabled = true

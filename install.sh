@@ -12,6 +12,7 @@ SHELL_DIR="$CONFIG_HOME/quickshell/nbshell"   # von `qs -c nbshell` gesucht
 DATA_DIR="$CONFIG_HOME/nbshell"               # Config und Themes
 BIN_DIR="${XDG_BIN_HOME:-$HOME/.local/bin}"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/nbshell"
+SHARE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}"
 UNIT_DIR="$CONFIG_HOME/systemd/user"
 
 QS_BIN="$(command -v qs || command -v quickshell || true)"
@@ -128,6 +129,8 @@ install -m 644 "$SRC/systemd/nbshell-umbriel-resume-guard.service" \
     "$UNIT_DIR/nbshell-umbriel-resume-guard.service"
 install -m 644 "$SRC/systemd/nbshell-upstream-audit.service" "$UNIT_DIR/nbshell-upstream-audit.service"
 install -m 644 "$SRC/systemd/nbshell-upstream-audit.timer" "$UNIT_DIR/nbshell-upstream-audit.timer"
+install -Dm644 "$SRC/resources/hermes-pilot/AGENTS.md" \
+    "$SHARE_DIR/nbshell/hermes-pilot/AGENTS.md"
 # Remove the retired Agent Console host from installations that tested it.
 systemctl --user disable --now nbshell-agent-host.service >/dev/null 2>&1 || true
 rm -f "$UNIT_DIR/nbshell-agent-host.service"

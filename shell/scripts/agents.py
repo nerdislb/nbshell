@@ -31,6 +31,7 @@ AGENTS = {
     "gemini": {"name": "Gemini CLI", "binary": "gemini", "kind": "cloud", "prompt": "gemini", "glyph": "spark", "install": "npm install -g @google/gemini-cli"},
     "copilot": {"name": "GitHub Copilot", "binary": "copilot", "kind": "cloud", "prompt": "copilot", "glyph": "code", "install": "npm install -g @github/copilot"},
     "pi": {"name": "Pi", "binary": "pi", "kind": "hybrid", "prompt": "positional", "glyph": "terminal", "install": "npm install -g @mariozechner/pi-coding-agent"},
+    "hermes": {"name": "Hermes", "binary": "hermes", "kind": "pilot", "prompt": "hermes", "glyph": "spark", "install": ""},
 }
 
 DEFAULT_CONFIG = {
@@ -83,6 +84,44 @@ def ollama_status() -> dict:
         return {"installed": bool(shutil.which("ollama")), "running": True, "host": host, "models": models}
     except (OSError, ValueError, urllib.error.URLError):
         return {"installed": bool(shutil.which("ollama")), "running": False, "host": host, "models": []}
+
+
+def hermes_status() -> dict:
+    binary = shutil.which("hermes")
+    home = Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes"))
+    result = {
+        "installed": bool(binary), "version": "", "authenticated": False,
+        "gateway": "inactive", "provider": "", "model": "",
+    }
+    if not binary:
+        return result
+    try:
+        package = (home / "hermes-agent/pyproject.toml").read_text(errors="replace")
+        for line in package.splitlines():
+            if line.startswith("version = "):
+                result["version"] = "v" + line.split('"', 2)[1]
+                break
+        # Authentication data remains opaque: only the protected store's
+        # existence is observed, never its credential-bearing contents.
+        result["authenticated"] = (home / "auth.json").is_file()
+        config = (home / "config.yaml").read_text(errors="replace")
+        in_model = False
+        for line in config.splitlines():
+            if line == "model:":
+                in_model = True
+                continue
+            if in_model and line and not line.startswith(" "):
+                break
+            if in_model and line.startswith("  provider:"):
+                result["provider"] = line.split(":", 1)[1].strip().strip('"\'')
+            if in_model and line.startswith("  default:"):
+                result["model"] = line.split(":", 1)[1].strip().strip('"\'')
+        gateway = subprocess.run(["systemctl", "--user", "is-active", "hermes-gateway.service"],
+                                 text=True, capture_output=True, timeout=2, check=False)
+        result["gateway"] = gateway.stdout.strip() or "inactive"
+    except (OSError, IndexError, subprocess.TimeoutExpired):
+        pass
+    return result
 
 
 def herdr_sessions() -> list[dict]:
@@ -153,6 +192,7 @@ def full_status() -> dict:
         "config": config,
         "agents": rows,
         "ollama": ollama_status(),
+        "hermes": hermes_status(),
         "sessions": sessions,
         "projects": projects(config),
     }
@@ -208,6 +248,8 @@ def prompt_args(agent_id: str, prompt: str) -> list[str]:
         return ["--prompt-interactive", prompt]
     if mode == "copilot":
         return ["--interactive", prompt]
+    if mode == "hermes":
+        return []
     return [prompt]
 
 
@@ -236,6 +278,13 @@ def launch(agent_id: str | None, project: str | None, prompt: str = "", quick: b
     if routed_model and agent_id == "opencode":
         model_args = ["--model", routed_model]
     command = [binary, *profile_args(agent_id, str(config["profile"])), *model_args, *prompt_args(agent_id, prompt)]
+    launch_env = None
+    if agent_id == "hermes":
+        pilot = Path.home() / ".local/share/nbshell/hermes-pilot"
+        cwd = pilot
+        command = [binary, "--tui", "--in", str(pilot)]
+        launch_env = os.environ.copy()
+        launch_env["HERMES_WRITE_SAFE_ROOT"] = str(pilot)
     shell_cmd = "exec " + " ".join(shlex.quote(part) for part in command)
     terminal = terminal_command(config)
     name = f"dev.nerdi.nbshell.agent.{'quick.' if quick else ''}{agent_id}"
@@ -252,7 +301,8 @@ def launch(agent_id: str | None, project: str | None, prompt: str = "", quick: b
         terminal += ["--class", name, "--title", title, "-e", "sh", "-lc", shell_cmd]
     else:
         terminal += ["-e", "sh", "-lc", shell_cmd]
-    subprocess.Popen(terminal, cwd=cwd, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.Popen(terminal, cwd=cwd, env=launch_env, start_new_session=True,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 def install_agent(agent_id: str) -> None:

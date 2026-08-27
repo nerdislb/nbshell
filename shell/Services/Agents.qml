@@ -13,6 +13,7 @@ Singleton {
     property var projects: []
     property var sessions: []
     property var ollama: ({ "installed": false, "running": false, "models": [] })
+    property var hermes: ({ "installed": false, "authenticated": false, "gateway": "inactive", "provider": "", "model": "" })
     property var config: ({ "defaultAgent": "codex", "profile": "balanced", "modelProfile": "cloud" })
     property bool loading: false
     property string message: ""
@@ -171,6 +172,7 @@ Singleton {
                     root.sessionNotifications(nextSessions);
                     root.sessions = nextSessions;
                     root.ollama = data.ollama ?? ({ "installed": false, "running": false, "models": [] });
+                    root.hermes = data.hermes ?? ({ "installed": false, "authenticated": false, "gateway": "inactive", "provider": "", "model": "" });
                     root.config = data.config ?? root.config;
                 } catch (e) {
                     root.message = "Could not read agent status";

@@ -5,7 +5,47 @@ import argparse
 import json
 import os
 import subprocess
+import urllib.error
+import urllib.request
 from pathlib import Path
+from urllib.parse import urlparse
+
+
+def github_head(repository: str) -> str:
+    """Return GitHub's default-branch head without cloning a large repository."""
+    parsed = urlparse(repository)
+    if parsed.hostname != "github.com":
+        return ""
+    parts = parsed.path.strip("/").removesuffix(".git").split("/")
+    if len(parts) != 2:
+        return ""
+    request = urllib.request.Request(
+        f"https://api.github.com/repos/{parts[0]}/{parts[1]}/commits/HEAD",
+        headers={"Accept": "application/vnd.github+json", "User-Agent": "nbshell-upstream-audit"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            data = json.load(response)
+        return str(data.get("sha", ""))
+    except (OSError, ValueError, urllib.error.HTTPError):
+        return ""
+
+
+def remote_head(repository: str, api_first: bool = False) -> str:
+    if api_first:
+        remote = github_head(repository)
+        if remote:
+            return remote
+    try:
+        result = subprocess.run(
+            ["git", "ls-remote", repository, "HEAD"],
+            capture_output=True, text=True, timeout=20, check=False,
+        )
+    except subprocess.TimeoutExpired:
+        result = None
+    if result and not result.returncode and result.stdout.strip():
+        return result.stdout.split()[0]
+    return github_head(repository)
 
 
 def main() -> int:
@@ -17,14 +57,10 @@ def main() -> int:
     pending = []
     failed = []
     for source in catalog["sources"]:
-        result = subprocess.run(
-            ["git", "ls-remote", source["repository"], "HEAD"],
-            capture_output=True, text=True, timeout=20, check=False,
-        )
-        if result.returncode or not result.stdout.strip():
+        remote = remote_head(source["repository"], source.get("check") == "github-api")
+        if not remote:
             failed.append(source["name"])
             continue
-        remote = result.stdout.split()[0]
         reviewed = source["reviewedCommit"]
         marker = "current" if remote.startswith(reviewed) else "review available"
         print(f"{source['name']}: {marker} ({reviewed} -> {remote[:7]})")
