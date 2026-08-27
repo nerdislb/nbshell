@@ -42,6 +42,33 @@ jobs:
       - name: Test compositor backend contracts
         run: python3 ./tests/compositor-backends.py
 
+      - name: Test Umbriel updater contracts
+        run: python3 ./tests/umbriel-update.py
+
+      - name: Test phone authentication core
+        run: python3 ./tests/phone_auth.py
+
+      - name: Test local AI statistics
+        run: python3 ./tests/ai-local-stats.py
+
+      - name: Test Hermes integration safety contracts
+        run: |
+          python3 ./tests/hermes-hub.py
+          python3 ./tests/hermes-broker.py
+          python3 ./tests/hermes-jobs.py
+          python3 ./tests/hermes-team.py
+          python3 ./tests/hermes-brain.py
+
+      - name: Test static runtime contracts
+        run: |
+          bash ./tests/performance-smoke.sh
+          bash ./tests/screensaver-renderer.sh
+          bash ./tests/power-modes.sh
+          bash ./tests/motion.sh
+          bash ./tests/memory-guard.sh
+          bash ./tests/system-report.sh
+          bash ./tests/browser-theme.sh
+
       - name: Audit release metadata and privacy
         run: ./tests/release-audit.sh
 
@@ -49,3 +76,7 @@ jobs:
         run: |
           useradd --create-home nbshell-ci
           runuser -u nbshell-ci -- ./tests/fresh-install.sh
+
+      # The package-free CI image verifies the installed greeter payload in the
+      # fresh-install test. Full QML/Niri/greetd integration remains part of the
+      # documented local release gate because it requires the desktop stack.

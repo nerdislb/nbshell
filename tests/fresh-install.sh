@@ -77,6 +77,9 @@ test -f "$XDG_DATA_HOME/nbshell/native/umbriel-workspaces.c"
 test -x "$XDG_DATA_HOME/nbshell/bin/umbriel-workspaces"
 test -x "$XDG_BIN_HOME/nbshell"
 test -x "$XDG_BIN_HOME/nbshell-install-recover"
+test -x "$XDG_DATA_HOME/nbshell/setup-greeter.sh"
+test -f "$XDG_DATA_HOME/nbshell/greeter/nbshell-greetd.pam"
+cmp -s "$XDG_DATA_HOME/nbshell/greeter/nbshell-greetd.pam" "$ROOT/greeter/nbshell-greetd.pam"
 test -f "$XDG_DATA_HOME/applications/dev.nerdi.nbshell.desktop"
 test -f "$XDG_DATA_HOME/applications/dev.nerdi.nbshell.Calculator.desktop"
 grep -Fq 'Exec=nbshell calculator open' "$XDG_DATA_HOME/applications/dev.nerdi.nbshell.Calculator.desktop"
@@ -107,6 +110,22 @@ done
 "$XDG_BIN_HOME/nbshell" agent skills --json | jq -e '
     .skills | length == 4 and all(.ready == true)
 ' >/dev/null
+
+# The recovery frontend must remain activatable through the installed payload,
+# not only from a source checkout. Run the integration where its compositor
+# dependencies are available; minimal CI still verifies the exact payload.
+if command -v niri >/dev/null && command -v regreet >/dev/null; then
+    GREETER_ROOT="$WORK/installed-greeter-root"
+    mkdir -p "$GREETER_ROOT/etc/greetd" "$GREETER_ROOT/etc/pam.d"
+    printf 'original config\n' >"$GREETER_ROOT/etc/greetd/config.toml"
+    printf 'original pam\n' >"$GREETER_ROOT/etc/pam.d/greetd"
+    NBSHELL_GREETER_TEST_ROOT="$GREETER_ROOT" \
+    NBSHELL_GREETER_WALLPAPER="$ROOT/docs/screenshots/01-menu-grid.png" \
+        "$XDG_DATA_HOME/nbshell/setup-greeter.sh" activate regreet >/dev/null
+    grep -Fq '/usr/bin/regreet' "$GREETER_ROOT/etc/greetd/nbshell-greeter.kdl"
+    cmp -s "$GREETER_ROOT/etc/pam.d/nbshell-greetd" "$ROOT/greeter/nbshell-greetd.pam"
+    cmp -s "$GREETER_ROOT/etc/pam.d/greetd" <(printf 'original pam\n')
+fi
 
 # User configuration and custom plugins must survive an update.
 jq '.testMarker = "keep"' "$XDG_CONFIG_HOME/nbshell/config.json" >"$WORK/config.json"

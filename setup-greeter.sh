@@ -17,9 +17,11 @@ if [[ -n $TEST_ROOT ]]; then
         exit 1
     fi
     TARGET="$TEST_ROOT/etc/greetd"
+    PAM_TARGET="$TEST_ROOT/etc/pam.d"
     DATA="$TEST_ROOT/usr/local/share/nbshell"
 else
     TARGET=/etc/greetd
+    PAM_TARGET=/etc/pam.d
     DATA=/usr/local/share/nbshell
 fi
 QML_TARGET="$DATA/greeter"
@@ -127,11 +129,12 @@ if [[ $MODE == install ]]; then
 fi
 command -v regreet >/dev/null || fail "ReGreet is required as the recovery frontend."
 
-as_root install -d -m 755 "$TARGET" "$DATA"
+as_root install -d -m 755 "$TARGET" "$PAM_TARGET" "$DATA"
 if [[ -f $CONFIG && ! -f $BACKUP ]]; then
     as_root install -m 644 "$CONFIG" "$BACKUP"
 fi
 as_root install -m 644 "$ROOT/greeter/regreet.toml" "$TARGET/regreet.toml"
+as_root install -m 644 "$ROOT/greeter/nbshell-greetd.pam" "$PAM_TARGET/nbshell-greetd"
 as_root install -m 644 "$stage/regreet.css" "$TARGET/regreet.css"
 as_root install -m 644 "$stage/fingerprint.svg" "$DATA/fingerprint.svg"
 if [[ $FRONTEND == orbital ]]; then
@@ -162,6 +165,9 @@ if [[ $MODE == install ]]; then
             '[terminal]' \
             'vt = 1' \
             '' \
+            '[general]' \
+            'service = "nbshell-greetd"' \
+            '' \
             '[default_session]' \
             'user = "greeter"' \
             'command = "dbus-run-session niri --config /etc/greetd/nbshell-greeter.kdl"'
@@ -179,6 +185,7 @@ if [[ -z $TEST_ROOT ]]; then
     as_root systemd-tmpfiles --create
 fi
 as_root test -x /usr/bin/regreet
+as_root test -r "$PAM_TARGET/nbshell-greetd"
 as_root test -r "$TARGET/regreet.toml"
 as_root test -r "$TARGET/regreet.css"
 as_root test -r "$DATA/greeter-wallpaper.jpg"

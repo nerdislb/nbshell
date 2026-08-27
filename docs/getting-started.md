@@ -147,9 +147,14 @@ Plugin updates remain in the plugin manager.
 
 nbshell can replace an existing greetd frontend with either the established
 ReGreet recovery client or the native Orbital QML frontend. Both authenticate
-exclusively through greetd and `/etc/pam.d/greetd`; nbshell does not implement
-PAM, store passwords, or launch arbitrary commands. Niri and Umbriel remain in
-a root-owned session allowlist.
+exclusively through greetd and the dedicated `/etc/pam.d/nbshell-greetd`
+service; nbshell does not implement PAM, store passwords, or launch arbitrary
+commands. The dedicated service includes the distribution's
+`system-local-login` stack but deliberately omits `pam_fprintd`: greetd exposes
+one serial PAM conversation, so a fingerprint-first stack can block the
+password field instead of offering a real method switch. Existing PAM service
+files are left untouched. Niri and Umbriel remain in a root-owned session
+allowlist.
 
 ```bash
 ./setup-greeter.sh install orbital
@@ -179,8 +184,9 @@ nbshell greeter activate regreet
 ```
 
 The sync updates only public root-owned QML/CSS, compositor color, session
-allowlist, and the copied wallpaper. It does not rewrite PAM. ReGreet remains
-installed as the recovery frontend.
+allowlist, the copied wallpaper, and nbshell's own password-first PAM service.
+It does not rewrite existing PAM services. ReGreet remains installed as the
+recovery frontend.
 
 The installer keeps a recovery copy at
 `/etc/greetd/config.toml.before-nbshell-greeter` and does not interrupt the

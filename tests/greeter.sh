@@ -66,6 +66,9 @@ PY
 grep -Fq 'packages=(greetd-regreet)' "$ROOT/setup-greeter.sh"
 grep -Fq 'packages+=(quickshell)' "$ROOT/setup-greeter.sh"
 grep -Fq 'config.toml.before-nbshell-greeter' "$ROOT/setup-greeter.sh"
+grep -Fq 'service = "nbshell-greetd"' "$ROOT/setup-greeter.sh"
+grep -Fq 'auth       include      system-local-login' "$ROOT/greeter/nbshell-greetd.pam"
+! grep -Fq 'pam_fprintd' "$ROOT/greeter/nbshell-greetd.pam"
 grep -Fq 'activate orbital|regreet' "$ROOT/bin/nbshell"
 grep -Fq 'Orbital Lock' "$ROOT/THIRD_PARTY.md"
 
@@ -81,9 +84,12 @@ XDG_CONFIG_HOME="$test_config" \
     "$ROOT/setup-greeter.sh" install orbital >/dev/null
 cmp -s "$fake_root/etc/greetd/config.toml.before-nbshell-greeter" <(printf 'original greetd config\n')
 cmp -s "$fake_root/etc/pam.d/greetd" <(printf 'pam sentinel\n')
+cmp -s "$fake_root/etc/pam.d/nbshell-greetd" "$ROOT/greeter/nbshell-greetd.pam"
 grep -Fq 'dbus-run-session niri --config /etc/greetd/nbshell-greeter.kdl' "$fake_root/etc/greetd/config.toml"
+grep -Fq 'service = "nbshell-greetd"' "$fake_root/etc/greetd/config.toml"
 grep -Fq '/usr/bin/quickshell -p /usr/local/share/nbshell/greeter' "$fake_root/etc/greetd/nbshell-greeter.kdl"
 test "$(stat -c %a "$fake_root/etc/greetd/config.toml")" = 644
+test "$(stat -c %a "$fake_root/etc/pam.d/nbshell-greetd")" = 644
 test "$(stat -c %a "$fake_root/usr/local/share/nbshell/greeter/shell.qml")" = 644
 
 NBSHELL_GREETER_TEST_ROOT="$fake_root" \

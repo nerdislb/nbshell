@@ -39,6 +39,17 @@ for workflow in (root / ".github/workflows").glob("*.yml"):
 readme = (root / "README.md").read_text(encoding="utf-8")
 if "not affiliated with, endorsed by" not in readme:
     raise SystemExit("README.md is missing the independent-project disclaimer")
+if f"Current prerelease: **{version}**" not in readme:
+    raise SystemExit(f"README.md does not identify {version} as the current prerelease")
+unreleased_link = f"[Unreleased]: https://github.com/nerdislb/nbshell/compare/v{version}...HEAD"
+if unreleased_link not in changelog:
+    raise SystemExit("CHANGELOG.md has an inconsistent Unreleased comparison link")
+release_link = re.compile(
+    rf"^\[{re.escape(version)}\]: https://github\.com/nerdislb/nbshell/compare/v[^\s]+\.\.\.v{re.escape(version)}$",
+    re.M,
+)
+if not release_link.search(changelog):
+    raise SystemExit(f"CHANGELOG.md has no comparison link ending at v{version}")
 
 third_party_license = (root / "LICENSES/THIRD_PARTY_MIT.md").read_text(encoding="utf-8")
 for notice in (

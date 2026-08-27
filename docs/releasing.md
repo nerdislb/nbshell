@@ -18,6 +18,16 @@ change before version 1.0.
    python3 ./tests/lockscreen.py
    bash ./tests/performance-smoke.sh
    python3 ./tests/shell-update.py
+   python3 ./tests/compositor-backends.py
+   python3 ./tests/umbriel-update.py
+   python3 ./tests/phone_auth.py
+   python3 ./tests/ai-local-stats.py
+   python3 ./tests/hermes-hub.py
+   python3 ./tests/hermes-broker.py
+   python3 ./tests/hermes-jobs.py
+   python3 ./tests/hermes-team.py
+   python3 ./tests/hermes-brain.py
+   ./tests/greeter.sh
    mkdocs build --strict
    ```
 

@@ -20,7 +20,7 @@ testing, and the direction of the project remain human-led.
 > nbshell is still under active development. It already works as a daily
 > desktop, but commands, configuration, and features may still change.
 
-Current prerelease: **0.1.0-beta.4**. See the
+Current prerelease: **0.1.0-beta.5**. See the
 [changelog](CHANGELOG.md) for user-facing changes.
 
 ![nbshell menu over a three-window grid-scroll workspace](docs/screenshots/01-menu-grid.png)
@@ -87,6 +87,10 @@ online guide without turning this README into a wall of text.
 - Floating Picture-in-Picture controls for Zen Browser
 - Optional Zen live-theme bridge after one initial browser restart
 - Theme-synchronized Hyprlock screen with PAM authentication and lock-before-suspend
+- Optional native Orbital greetd login screen with a password-first PAM service
+  and ReGreet recovery frontend
+- Optional biometric phone approval for the next `sudo` or Polkit action, with
+  explicit per-service activation and password authentication retained
 - Calendar, tasks, quick notes, habits, KDE Connect, Android mirroring, and a phone webcam
 - Switchable WhatsApp integration: native client or the retained PrettyZap fallback
 - Screenshots, screen recording, OCR, QR scanning, and an animated screen saver
@@ -95,7 +99,8 @@ online guide without turning this README into a wall of text.
 - Curated plugin manager with optional modules, dependency details, update
   previews, and safe cleanup of external plugins
 - Agent Center with a default-agent launcher, explicit approval profiles,
-  project selection, Herdr sessions, and optional Ollama/OpenCode routing
+  project selection, Herdr sessions, optional Ollama/OpenCode routing, and an
+  isolated multi-provider Hermes workflow with human-controlled apply and push
 - Umbriel-first key bindings, Niri fallback integration, terminal colors, and systemd autostart
 - Optional herdr status inside the System & Plugins dashboard
 - A release-based nbshell updater, kept separate from system and plugin updates

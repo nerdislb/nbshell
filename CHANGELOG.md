@@ -6,12 +6,36 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+## [0.1.0-beta.5] - 2026-08-27
+
 ### Added
 
 - Optional 1Password desktop integration adds Quick Access on
   `Ctrl+Shift+Space` for Umbriel and Niri, plus Open, Quick Access, and Lock
   actions in the searchable command catalog and System > Security menu. The
   shell only launches the official client and never reads vault data.
+- An optional native Orbital QML login screen authenticates through greetd,
+  keeps ReGreet as an independent recovery frontend, restricts sessions to a
+  root-owned allowlist, and installs transactionally without restarting the
+  active graphical session. A dedicated password-first PAM service avoids
+  blocking password input behind greetd's serial fingerprint conversation
+  while leaving existing PAM services untouched.
+- Optional phone approval uses certificate-pinned TLS, an Android
+  hardware-backed signing key, biometric confirmation, short-lived one-time
+  grants, and explicit per-service PAM activation for `sudo` or Polkit.
+- The Agent Center can run an isolated Hermes pilot with Codex, Claude, or
+  Gemini lanes, bounded cross-provider advisory calls, disposable
+  implementation jobs, independent reviews, supervised multi-agent teams, and
+  human-confirmed apply/install/push boundaries.
+- Hermes can prepare narrowly scoped Second Brain additions for independent
+  review and explicit human application without receiving direct vault access.
+  An opt-in Trusted workspace mode supports normal project work, while the
+  shipped default remains the restricted profile.
+- Native Hermes activity, token, tool-call, process, CPU, and proportional
+  memory summaries are available in the Agent Center and existing AI bar
+  module without exposing prompt or response contents.
+- `nbshell upstream-audit` and a low-frequency user timer report reviewed
+  upstream changes without automatically importing external code.
 
 ### Changed
 
@@ -22,6 +46,34 @@ configuration and plugin interfaces before `1.0.0`.
   launcher, notifications, setup, and window title. Its stable `omamail`
   plugin ID and storage namespaces remain unchanged, preserving existing
   accounts, credentials, caches, and integrations.
+- The WhatsApp integration tracks its reviewed upstream more closely, uses a
+  native responsive toggle, and records external source revisions explicitly.
+- Umbriel updates no longer carry the compatibility patch that was accepted
+  upstream, and dashboard-triggered compositor updates require the same clear
+  install confirmation as other privileged update paths.
+- The Hermes Trusted launcher synchronizes the selected workspace with the TUI
+  gateway before startup, and the stable desktop IPC layer owns Agent Center
+  launch commands even while the heavy panel is unloaded.
+
+### Fixed
+
+- Num Lock is enabled consistently in Umbriel sessions.
+- Vertically arranged outputs retain their configured positions under Umbriel.
+- The Orbital clock now advances clockwise at normal time speed; the accidental
+  360-degree authentication spin was removed.
+- The Orbital greeter requests and focuses a real password prompt immediately
+  instead of presenting a fingerprint/password switch that one serialized PAM
+  conversation cannot provide.
+
+### Security
+
+- Hermes advisory providers receive text only and no project tools. Autonomous
+  jobs run in provider-separated disposable workspaces; applying, installing,
+  pushing, and Brain writes remain unavailable to agents and require explicit
+  human confirmation after an independent review.
+- Greeter deployment validates dependencies, QML, compositor configuration,
+  file ownership, fallback activation, mock greetd IPC, and a temporary-root
+  install before committing the frontend selector.
 
 ## [0.1.0-beta.4] - 2026-08-26
 
@@ -205,7 +257,9 @@ First public beta candidate.
   declared dependencies before activation.
 - Credentials remain outside the repository and plugin configuration.
 
-[Unreleased]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.3...HEAD
+[Unreleased]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.5...HEAD
+[0.1.0-beta.5]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.4...v0.1.0-beta.5
+[0.1.0-beta.4]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.3...v0.1.0-beta.4
 [0.1.0-beta.3]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.2...v0.1.0-beta.3
 [0.1.0-beta.2]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.1...v0.1.0-beta.2
 [0.1.0-beta.1]: https://github.com/nerdislb/nbshell/releases/tag/v0.1.0-beta.1

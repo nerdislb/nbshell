@@ -419,6 +419,7 @@ GREETER_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/nbshell"
 mkdir -p "$GREETER_DATA/greeter"
 install -m 755 "$SRC/setup-greeter.sh" "$GREETER_DATA/setup-greeter.sh"
 install -m 644 "$SRC/greeter/regreet.toml" "$GREETER_DATA/greeter/regreet.toml"
+install -m 644 "$SRC/greeter/nbshell-greetd.pam" "$GREETER_DATA/greeter/nbshell-greetd.pam"
 mkdir -p "$GREETER_DATA/greeter/qml"
 install -m 644 \
     "$SRC/greeter/qml/shell.qml" \
