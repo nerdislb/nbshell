@@ -358,6 +358,19 @@ Center shows job state, diff, review verdict, and separately armed Apply,
 Install, Push, and Reject controls. Enable the broker explicitly with
 `nbshell agent hermes-broker setup` and restart Hermes.
 
+For larger goals, Hermes can start a supervised team with up to three
+non-overlapping tasks. Codex, Claude, and Gemini work in parallel transaction
+clones; another provider reviews every result, and a rejected review triggers
+at most two bounded revisions. Approved commits meet only in a disposable
+integration clone, where allowlisted checks run without network, home-directory
+access, or provider credentials. Integration conflicts are repaired there,
+never in the source checkout. The Agent Center shows overall progress, elapsed
+time, provider, attempt, and check state, and supports pause, reboot-safe
+resume, cancel, and final approval. Even a completed team stops at
+`AWAITING_APPROVAL`: Apply, Install, and Push are separate, double-confirmed
+human actions. Only one team and at most three transaction workers run at once;
+runtime and revision depth are bounded.
+
 Model profiles route a default launch without changing individual agent
 commands. `local` and `private` route through OpenCode, while `fast` and
 `strong` default to Codex and Claude. Advanced users can set a concrete

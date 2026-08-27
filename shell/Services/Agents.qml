@@ -15,6 +15,7 @@ Singleton {
     property var ollama: ({ "installed": false, "running": false, "models": [] })
     property var hermes: ({ "installed": false, "authenticated": false, "gateway": "inactive", "provider": "", "model": "", "selected": "codex", "mode": "restricted", "running": false, "sessions": [], "providers": ({}) })
     property var hermesJobs: []
+    property var hermesTeams: []
     property var jobDetail: ({})
     property string selectedJobId: ""
     property var config: ({ "defaultAgent": "codex", "profile": "balanced", "modelProfile": "cloud" })
@@ -63,6 +64,11 @@ Singleton {
     function hermesJobAction(name, id, provider) {
         var args = ["hermes-job", name, String(id)];
         if (provider) args = args.concat(["--provider", String(provider)]);
+        if (["apply", "install", "push", "reject"].indexOf(name) >= 0) args.push("--yes");
+        action(args);
+    }
+    function hermesTeamAction(name, id) {
+        var args = ["hermes-team", name, String(id)];
         if (["apply", "install", "push", "reject"].indexOf(name) >= 0) args.push("--yes");
         action(args);
     }
@@ -168,7 +174,7 @@ Singleton {
         // While the bar is asking for attention, notice a visit to the target
         // Herdr pane quickly. Return to the cheap background cadence once the
         // marker has been acknowledged.
-        interval: root.completionAttention || Number(root.hermes.jobsRunning || 0) > 0 ? 2000 : 30000
+        interval: root.completionAttention || Number(root.hermes.jobsRunning || 0) > 0 || Number(root.hermes.teamsRunning || 0) > 0 ? 2000 : 30000
         running: true
         repeat: true
         onTriggered: root.refresh()
@@ -196,6 +202,11 @@ Singleton {
                     root.ollama = data.ollama ?? ({ "installed": false, "running": false, "models": [] });
                     root.hermes = data.hermes ?? ({ "installed": false, "authenticated": false, "gateway": "inactive", "provider": "", "model": "", "selected": "codex", "mode": "restricted", "running": false, "sessions": [], "providers": ({}) });
                     root.hermesJobs = root.hermes.jobs ?? [];
+                    const previousAttention = root.hermesTeams.filter(row => ["awaiting_approval", "failed"].includes(String(row.status))).length;
+                    root.hermesTeams = root.hermes.teams ?? [];
+                    const nextAttention = root.hermesTeams.filter(row => ["awaiting_approval", "failed"].includes(String(row.status))).length;
+                    if (nextAttention > previousAttention)
+                        Quickshell.execDetached([root.notifyTool, "hermes-team", "Hermes team", "decision", "Review or approval required"]);
                     if (root.selectedJobId) root.selectHermesJob(root.selectedJobId);
                     root.config = data.config ?? root.config;
                 } catch (e) {

@@ -32,6 +32,13 @@ PanelWindow {
         pendingJobAction = "";
         Agents.hermesJobAction(action, jobId, "");
     }
+    function confirmTeamAction(action, teamId) {
+        const key = "team-" + action + ":" + teamId;
+        if (["apply", "install", "push", "reject"].includes(action) && pendingJobAction !== key) {
+            pendingJobAction = key; approvalReset.restart(); return;
+        }
+        pendingJobAction = ""; Agents.hermesTeamAction(action, teamId);
+    }
     function compactTokens(value) {
         const count = Number(value || 0);
         return count >= 1000 ? (count / 1000).toFixed(count >= 10000 ? 0 : 1) + "k" : String(count);
@@ -187,6 +194,66 @@ PanelWindow {
                                         Line { anchors.centerIn: parent; text: approval.modelData.toUpperCase(); color: approval.modelData === Agents.approvalProfile ? Theme.selectedForeground(Theme.accent) : (approval.modelData === "autonomous" ? Theme.yellow : Theme.fg) }
                                         HoverHandler { id: approvalHover; cursorShape: Qt.PointingHandCursor }
                                         TapHandler { onTapped: Agents.setProfile(approval.modelData) }
+                                    }
+                                }
+                            }
+                        }
+
+                        Column {
+                            width: parent.width
+                            spacing: Theme.cellH * 0.3
+                            visible: (Agents.hermesTeams || []).length > 0
+                            Line { text: "SUPERVISED TEAMS"; color: Theme.fgDim }
+                            Line { text: "Parallel work · independent review · isolated integration · human approval"; color: Theme.muted; font.pixelSize: Theme.fontCaption }
+                            Repeater {
+                                model: (Agents.hermesTeams || []).slice(0, 3)
+                                Rectangle {
+                                    id: teamRow
+                                    required property var modelData
+                                    width: body.width
+                                    height: teamBody.implicitHeight + Theme.cellH * 1.5
+                                    radius: Theme.radius
+                                    color: Theme.panelSurfaceRaised
+                                    border.width: Theme.borderWidth
+                                    border.color: String(modelData.status) === "awaiting_approval" ? Theme.accent : Theme.panelBorder
+                                    Column {
+                                        id: teamBody
+                                        anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: Theme.cellW
+                                        spacing: Theme.cellH * 0.3
+                                        Row {
+                                            width: parent.width
+                                            Line { width: parent.width * 0.66; text: String(teamRow.modelData.goal); color: Theme.fg; font.bold: true; elide: Text.ElideRight }
+                                            Line { width: parent.width * 0.34; horizontalAlignment: Text.AlignRight; text: String(teamRow.modelData.status).toUpperCase() + " · " + Number(teamRow.modelData.progress || 0) + "% · " + Math.floor(Number(teamRow.modelData.elapsed || 0) / 60) + "M"; color: ["failed", "cancelled", "rejected"].includes(String(teamRow.modelData.status)) ? Theme.red : (String(teamRow.modelData.status) === "awaiting_approval" ? Theme.green : Theme.yellow) }
+                                        }
+                                        Rectangle { width: parent.width; height: Theme.borderWidth * 3; color: Theme.panelBorder; Rectangle { width: parent.width * Number(teamRow.modelData.progress || 0) / 100; height: parent.height; color: Theme.accent } }
+                                        Repeater {
+                                            model: teamRow.modelData.tasks || []
+                                            Line { required property var modelData; width: teamBody.width; text: String(modelData.provider).toUpperCase() + "  " + String(modelData.title) + "  ·  " + String(modelData.status).toUpperCase() + "  ·  TRY " + Number(modelData.attempt || 0); color: modelData.status === "failed" ? Theme.red : Theme.fgDim; elide: Text.ElideRight }
+                                        }
+                                        Line { width: parent.width; text: String(teamRow.modelData.summary || teamRow.modelData.error || "Working"); color: teamRow.modelData.error ? Theme.red : Theme.muted; elide: Text.ElideRight }
+                                        Row {
+                                            spacing: Theme.cellW
+                                            Repeater {
+                                                model: [
+                                                    {"id":"pause", "enabled":["running","reviewing","revising","integrating","testing"].includes(String(teamRow.modelData.status))},
+                                                    {"id":"resume", "enabled":Boolean(teamRow.modelData.can_resume)},
+                                                    {"id":"cancel", "enabled":!["applied","installed","pushed","cancelled","rejected"].includes(String(teamRow.modelData.status))},
+                                                    {"id":"apply", "enabled":Boolean(teamRow.modelData.can_apply)},
+                                                    {"id":"install", "enabled":Boolean(teamRow.modelData.can_install)},
+                                                    {"id":"push", "enabled":Boolean(teamRow.modelData.can_push)}
+                                                ]
+                                                Rectangle {
+                                                    id: teamAction
+                                                    required property var modelData
+                                                    width: (teamBody.width - Theme.cellW * 5) / 6; height: Theme.cellH * 1.8; radius: Theme.radius
+                                                    opacity: modelData.enabled ? 1 : 0.32; color: teamActionHover.hovered && modelData.enabled ? Theme.hover : "transparent"
+                                                    border.width: Theme.borderWidth; border.color: modelData.enabled ? Theme.accent : Theme.panelBorder
+                                                    Line { anchors.centerIn: parent; text: root.pendingJobAction === "team-" + teamAction.modelData.id + ":" + teamRow.modelData.id ? "CONFIRM" : String(teamAction.modelData.id).toUpperCase(); color: Theme.fg; font.pixelSize: Theme.fontCaption }
+                                                    HoverHandler { id: teamActionHover; cursorShape: teamAction.modelData.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor }
+                                                    TapHandler { enabled: teamAction.modelData.enabled; onTapped: root.confirmTeamAction(teamAction.modelData.id, teamRow.modelData.id) }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }

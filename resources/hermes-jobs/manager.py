@@ -219,8 +219,8 @@ def _agent_prompt(job: dict, review: bool = False) -> str:
 
 def _provider_command(provider: str, prompt: str, workspace: Path, review: bool) -> list[str]:
     if provider == "codex":
-        command = ["/usr/bin/codex", "exec", "-C", str(workspace)]
-        command += ["--sandbox", "read-only", "--ask-for-approval", "never"] if review else ["--dangerously-bypass-approvals-and-sandbox"]
+        command = ["/usr/bin/codex", "exec", "-C", str(workspace), "--ephemeral", "--ignore-user-config", "--ignore-rules"]
+        command += ["--sandbox", "read-only"] if review else ["--dangerously-bypass-approvals-and-sandbox"]
         return command + [prompt]
     if provider == "claude":
         return [
@@ -228,14 +228,17 @@ def _provider_command(provider: str, prompt: str, workspace: Path, review: bool)
             "--permission-mode", "plan" if review else "bypassPermissions", prompt,
         ]
     agy = str(Path.home() / ".local/share/antigravity/bin/agy")
-    permissions = [] if review else ["--dangerously-skip-permissions"]
+    # bubblewrap makes the transaction workspace read-only for reviewers, so
+    # headless tool approval can be skipped without widening filesystem access.
+    permissions = ["--dangerously-skip-permissions"]
     return [agy, "--sandbox", "--new-project", "--add-dir", "/workspace",
             "--mode", "plan" if review else "accept-edits", *permissions,
             "--print", prompt, "--output-format", "text"]
 
 
-def _run_agent(job: dict, provider: str, review: bool = False) -> subprocess.CompletedProcess:
-    workspace = _workspace(job["id"])
+def _run_agent(job: dict, provider: str, review: bool = False,
+               workspace_override: Path | None = None) -> subprocess.CompletedProcess:
+    workspace = workspace_override or _workspace(job["id"])
     prefix, _ = _bwrap(job["id"], workspace, not review, provider)
     command = _provider_command(provider, _agent_prompt(job, review), Path("/workspace"), review)
     if provider == "gemini":

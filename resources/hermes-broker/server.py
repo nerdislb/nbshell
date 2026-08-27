@@ -29,6 +29,7 @@ RATE_WINDOW_SECONDS = 300
 RATE_LIMIT = 6
 BROKER_HOME = Path(os.environ.get("NBSHELL_HERMES_BROKER_HOME", Path.home() / ".local/share/nbshell/hermes-broker"))
 JOB_MANAGER = Path(os.environ.get("NBSHELL_HERMES_JOB_MANAGER", Path.home() / ".local/share/nbshell/hermes-jobs/manager.py"))
+TEAM_MANAGER = Path(os.environ.get("NBSHELL_HERMES_TEAM_MANAGER", Path.home() / ".local/share/nbshell/hermes-team/manager.py"))
 STATE_HOME = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "nbshell"
 AUDIT_FILE = STATE_HOME / "hermes-broker.jsonl"
 
@@ -202,6 +203,18 @@ def _job_command(*args: str) -> dict:
         raise RuntimeError("transaction manager returned invalid data") from exc
 
 
+def _team_command(*args: str) -> dict:
+    if not TEAM_MANAGER.is_file():
+        raise RuntimeError("nbshell supervised team manager is not installed")
+    result = subprocess.run([sys.executable, str(TEAM_MANAGER), *args], text=True,
+                            capture_output=True, timeout=30, check=False, env=_base_env())
+    if result.returncode:
+        detail = _clean_output(result.stderr or result.stdout).splitlines()
+        raise RuntimeError(detail[-1][:500] if detail else "team manager failed")
+    try: return json.loads(result.stdout)
+    except json.JSONDecodeError as exc: raise RuntimeError("team manager returned invalid data") from exc
+
+
 def _broker_repository(value: object) -> str:
     text = _safe_text(value, "repository")
     path = Path(text).expanduser().resolve()
@@ -293,6 +306,29 @@ TOOLS += [
     ),
 ]
 
+TOOLS += [
+    types.Tool(
+        name="start_supervised_team", title="Start Supervised Agent Team",
+        description=("For a substantial implementation goal, create one to three independent, non-overlapping tasks and route them to Codex, Claude, or Gemini. "
+                     "Each isolated result is reviewed by another provider, revised when needed, integrated, and tested. Apply, install, publish, and push always require explicit human approval in nbshell. "
+                     "Never include credentials or modifications to the Second Brain."),
+        inputSchema={"type": "object", "additionalProperties": False, "properties": {
+            "repository": {"type": "string", "maxLength": 4096}, "goal": {"type": "string", "maxLength": MAX_PROMPT_CHARS},
+            "tasks": {"type": "array", "minItems": 1, "maxItems": 3, "items": {"type": "object", "additionalProperties": False,
+                "properties": {"title": {"type": "string", "maxLength": 160}, "provider": {"type": "string", "enum": ["codex", "claude", "gemini"]},
+                               "instructions": {"type": "string", "maxLength": MAX_PROMPT_CHARS}}, "required": ["title", "provider", "instructions"]}},
+            "checks": {"type": "array", "maxItems": 5, "items": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"type": "string", "maxLength": 500}}},
+        }, "required": ["repository", "goal", "tasks"]},
+        annotations=types.ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True),
+    ),
+    types.Tool(
+        name="supervised_team_status", title="Supervised Agent Team Status",
+        description="Read team progress, task states, review attempts, and check results. This tool cannot approve a final action.",
+        inputSchema={"type": "object", "properties": {"team_id": {"type": "string", "maxLength": 40}}, "required": ["team_id"], "additionalProperties": False},
+        annotations=types.ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False),
+    ),
+]
+
 
 async def list_tools(_context, _params):
     return types.ListToolsResult(tools=TOOLS)
@@ -300,6 +336,22 @@ async def list_tools(_context, _params):
 
 async def call_tool(_context, params):
     arguments = params.arguments or {}
+    if params.name == "start_supervised_team":
+        try:
+            repository = _broker_repository(arguments.get("repository"))
+            goal = _safe_text(arguments.get("goal"), "goal")
+            plan = json.dumps({"tasks": arguments.get("tasks", []), "checks": arguments.get("checks", [])})
+            result = _team_command("create", repository, goal, plan)
+            return types.CallToolResult(content=[types.TextContent(text=json.dumps(result))])
+        except (ValueError, RuntimeError) as exc:
+            return types.CallToolResult(content=[types.TextContent(text=str(exc))], isError=True)
+    if params.name == "supervised_team_status":
+        try:
+            result = _team_command("list", "--team", _safe_text(arguments.get("team_id"), "team_id"))
+            result.pop("diff", None)
+            return types.CallToolResult(content=[types.TextContent(text=json.dumps(result))])
+        except (ValueError, RuntimeError) as exc:
+            return types.CallToolResult(content=[types.TextContent(text=str(exc))], isError=True)
     if params.name in JOB_TOOLS:
         try:
             repository = _broker_repository(arguments.get("repository"))

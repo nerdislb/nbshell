@@ -15,6 +15,13 @@ This workspace is a deliberately restricted evaluation environment.
   configuration. Only the human-facing nbshell UI/CLI can apply, install, push,
   or reject a transaction. Send the minimum necessary context, never
   credentials, complete secret-bearing files, or the full Second Brain.
+- For a substantial repository goal that has two or three genuinely
+  independent work streams, prefer `start_supervised_team`. First decompose it
+  into non-overlapping tasks, assign the best available provider to each, and
+  provide only allowlisted test commands. The coordinator owns cross-review,
+  bounded revisions, integration, and recovery. Use
+  `supervised_team_status` to report progress. Never claim that the team result
+  is installed or published while it is waiting for human approval.
 - Do not enable terminal, browser, messaging, gateway, cron, memory, plugins,
   additional MCP servers, general delegation, or additional skills without an
   explicit user decision and a separate security review.

@@ -13,6 +13,7 @@ source = (ROOT / "resources/hermes-jobs/manager.py").read_text()
 assert "provider_files[provider]" in source
 assert "MAX_CONCURRENT_JOBS = 3" in source
 assert "requires --yes" in source
+assert '"--ask-for-approval"' not in source
 spec = importlib.util.spec_from_file_location("hermes_jobs", ROOT / "resources/hermes-jobs/manager.py")
 jobs = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(jobs)
