@@ -40,7 +40,20 @@ with tempfile.TemporaryDirectory() as temporary:
     with patch.object(jobs, "_run_agent", side_effect=implement): jobs.worker(job_id)
     with patch.object(jobs, "Popen", return_value=FakeProcess()): jobs.start_review(job_id, "claude")
     with patch.object(jobs, "_run_agent", return_value=subprocess.CompletedProcess([], 0, "VERDICT: APPROVE", "")): jobs.review_worker(job_id, "claude")
-    current = teams._read(team["id"]); current["tasks"][0].update(status="approved"); teams._integrate(current); teams._checks(current)
+    current = teams._read(team["id"]); current["tasks"][0].update(status="approved"); teams._integrate(current)
+    if os.environ.get("CI"):
+        completed = subprocess.CompletedProcess([], 0, "", "")
+        with patch.object(teams.subprocess, "run", return_value=completed) as sandbox_run:
+            teams._checks(current)
+        sandbox_command = sandbox_run.call_args.args[0]
+        assert sandbox_command[0] == "bwrap"
+        assert "--unshare-all" in sandbox_command and "--die-with-parent" in sandbox_command
+        assert "--bind" in sandbox_command and "/workspace" in sandbox_command
+        assert sandbox_command[-len(current["checks"][0]):] == current["checks"][0]
+    else:
+        # The documented local release gate exercises the real namespace. GitHub's
+        # container blocks user-namespace creation even when bubblewrap is installed.
+        teams._checks(current)
     current.update(status="awaiting_approval", updated=teams._now()); teams._write(current)
     assert not (repo / "marker.txt").exists()
     try: teams.control(team["id"], "apply", False); raise AssertionError("approval gate failed")
