@@ -36,7 +36,8 @@ with tempfile.TemporaryDirectory() as temporary:
         }
         agents.CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         agents.CONFIG_FILE.write_text(json.dumps(config))
-        with patch.object(agents.shutil, "which", side_effect=binary), patch.object(agents.subprocess, "Popen") as popen:
+        with patch.object(agents.shutil, "which", side_effect=binary), patch.object(agents.subprocess, "run") as run, patch.object(agents.subprocess, "Popen") as popen:
+            run.return_value.returncode = 0
             agents.launch("hermes", None, resume=resume)
         return " ".join(popen.call_args.args[0])
 
@@ -60,21 +61,27 @@ with tempfile.TemporaryDirectory() as temporary:
         "lastProject": str(trusted_project),
     }
     agents.CONFIG_FILE.write_text(json.dumps(trusted_config))
-    with patch.object(agents.Path, "home", return_value=root), patch.object(agents.shutil, "which", side_effect=binary), patch.object(agents.subprocess, "Popen") as popen:
+    with patch.object(agents.Path, "home", return_value=root), patch.object(agents.shutil, "which", side_effect=binary), patch.object(agents.subprocess, "run") as run, patch.object(agents.subprocess, "Popen") as popen:
+        run.return_value.returncode = 0
         agents.launch("hermes", str(trusted_project))
     trusted = " ".join(popen.call_args.args[0])
     assert str(trusted_project) in trusted and "file,web,terminal,code_execution,todo,clarify,delegation,session_search,skills,nbshell-ai-broker" in trusted
     assert "--yolo" in trusted and str(agents.HERMES_PILOT) not in trusted
     assert popen.call_args.kwargs["cwd"] == trusted_project
+    assert popen.call_args.kwargs["env"]["TERMINAL_CWD"] == str(trusted_project)
+    run.assert_called_once()
+    assert run.call_args.args[0][-2:] == ["terminal.cwd", str(trusted_project)]
 
-    with patch.object(agents.Path, "home", return_value=root), patch.object(agents.shutil, "which", side_effect=binary), patch.object(agents.subprocess, "Popen") as popen:
+    with patch.object(agents.Path, "home", return_value=root), patch.object(agents.shutil, "which", side_effect=binary), patch.object(agents.subprocess, "run") as run, patch.object(agents.subprocess, "Popen") as popen:
+        run.return_value.returncode = 0
         agents.launch("hermes", None)
     trusted_home = " ".join(popen.call_args.args[0])
     assert "--in " + str(root) in trusted_home and "--yolo" in trusted_home
     assert popen.call_args.kwargs["cwd"] == root
 
     trusted_config["hermesProvider"] = "gemini"; agents.CONFIG_FILE.write_text(json.dumps(trusted_config))
-    with patch.object(agents.Path, "home", return_value=root), patch.object(agents.shutil, "which", side_effect=binary), patch.object(agents.subprocess, "Popen") as popen:
+    with patch.object(agents.Path, "home", return_value=root), patch.object(agents.shutil, "which", side_effect=binary), patch.object(agents.subprocess, "run") as run, patch.object(agents.subprocess, "Popen") as popen:
+        run.return_value.returncode = 0
         agents.launch("hermes", str(trusted_project))
     trusted_gemini = " ".join(popen.call_args.args[0])
     assert "--dangerously-skip-permissions" in trusted_gemini and str(trusted_project) in trusted_gemini

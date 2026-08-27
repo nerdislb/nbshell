@@ -403,6 +403,20 @@ def launch(agent_id: str | None, project: str | None, prompt: str = "", quick: b
         launch_env = os.environ.copy()
         launch_env["HERMES_WRITE_SAFE_ROOT"] = str(cwd)
         if provider["native"]:
+            # Hermes' TUI gateway prefers terminal.cwd from config.yaml over
+            # both the process cwd and the CLI's explicit --in directory when
+            # it creates a session. Keep that persistent gateway seed aligned
+            # with the nbshell mode; otherwise an earlier restricted launch can
+            # silently put later Trusted sessions back in hermes-pilot.
+            synced = subprocess.run(
+                [binary, "config", "set", "terminal.cwd", str(cwd)],
+                text=True, capture_output=True, timeout=5, check=False,
+                env=launch_env,
+            )
+            if synced.returncode != 0:
+                detail = (synced.stderr or synced.stdout or "unknown error").strip()
+                raise SystemExit(f"Could not set the Hermes workspace: {detail}")
+            launch_env["TERMINAL_CWD"] = str(cwd)
             command = [binary, "--tui", "--in", str(cwd), "--toolsets", toolsets,
                        "--provider", str(provider["provider"]), "--model", str(provider["model"])]
             if trusted:
