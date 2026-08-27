@@ -13,6 +13,7 @@ assert "ask_codex" in source and "ask_claude" in source and "ask_gemini" in sour
 assert "start_codex_job" in source and "start_claude_job" in source and "start_gemini_job" in source
 assert "review_agent_job" in source and "agent_job_status" in source
 assert "start_supervised_team" in source and "supervised_team_status" in source
+assert "prepare_brain_proposal" in source and "revise_brain_proposal" in source and "brain_proposal_status" in source
 assert "transaction repositories must be under" in source
 assert "shell=True" not in source
 assert "--dangerously" not in source and "--yolo" not in source

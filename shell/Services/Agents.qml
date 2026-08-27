@@ -16,6 +16,9 @@ Singleton {
     property var hermes: ({ "installed": false, "authenticated": false, "gateway": "inactive", "provider": "", "model": "", "selected": "codex", "mode": "restricted", "running": false, "sessions": [], "providers": ({}) })
     property var hermesJobs: []
     property var hermesTeams: []
+    property var brainProposals: []
+    property var brainProposalDetail: ({})
+    property string selectedBrainProposalId: ""
     property var jobDetail: ({})
     property string selectedJobId: ""
     property var config: ({ "defaultAgent": "codex", "profile": "balanced", "modelProfile": "cloud" })
@@ -70,6 +73,17 @@ Singleton {
     function hermesTeamAction(name, id) {
         var args = ["hermes-team", name, String(id)];
         if (["apply", "install", "push", "reject"].indexOf(name) >= 0) args.push("--yes");
+        action(args);
+    }
+    function selectBrainProposal(id) {
+        selectedBrainProposalId = String(id || "");
+        if (!selectedBrainProposalId || brainDetailProc.running) return;
+        brainDetailProc.command = ["python3", root.tool, "hermes-brain", "list", selectedBrainProposalId];
+        brainDetailProc.running = true;
+    }
+    function hermesBrainAction(name, id) {
+        var args = ["hermes-brain", name, String(id)];
+        if (["apply", "push", "reject"].includes(name)) args.push("--yes");
         action(args);
     }
     function launch(id, project) {
@@ -174,7 +188,7 @@ Singleton {
         // While the bar is asking for attention, notice a visit to the target
         // Herdr pane quickly. Return to the cheap background cadence once the
         // marker has been acknowledged.
-        interval: root.completionAttention || Number(root.hermes.jobsRunning || 0) > 0 || Number(root.hermes.teamsRunning || 0) > 0 ? 2000 : 30000
+        interval: root.completionAttention || Number(root.hermes.jobsRunning || 0) > 0 || Number(root.hermes.teamsRunning || 0) > 0 || Number(root.hermes.brainReviewing || 0) > 0 ? 2000 : 30000
         running: true
         repeat: true
         onTriggered: root.refresh()
@@ -204,10 +218,16 @@ Singleton {
                     root.hermesJobs = root.hermes.jobs ?? [];
                     const previousAttention = root.hermesTeams.filter(row => ["awaiting_approval", "failed"].includes(String(row.status))).length;
                     root.hermesTeams = root.hermes.teams ?? [];
+                    const previousBrainAttention = root.brainProposals.filter(row => ["awaiting_approval", "revision_requested", "failed"].includes(String(row.status))).length;
+                    root.brainProposals = root.hermes.brainProposals ?? [];
+                    const nextBrainAttention = root.brainProposals.filter(row => ["awaiting_approval", "revision_requested", "failed"].includes(String(row.status))).length;
+                    if (nextBrainAttention > previousBrainAttention)
+                        Quickshell.execDetached([root.notifyTool, "hermes-brain", "Second Brain proposal", "decision", "Review or approval required"]);
                     const nextAttention = root.hermesTeams.filter(row => ["awaiting_approval", "failed"].includes(String(row.status))).length;
                     if (nextAttention > previousAttention)
                         Quickshell.execDetached([root.notifyTool, "hermes-team", "Hermes team", "decision", "Review or approval required"]);
                     if (root.selectedJobId) root.selectHermesJob(root.selectedJobId);
+                    if (root.selectedBrainProposalId) root.selectBrainProposal(root.selectedBrainProposalId);
                     root.config = data.config ?? root.config;
                 } catch (e) {
                     root.message = "Could not read agent status";
@@ -238,6 +258,17 @@ Singleton {
             clearMessage.restart();
             root.refresh();
         }
+    }
+
+    Process {
+        id: brainDetailProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { root.brainProposalDetail = JSON.parse(text); }
+                catch (e) { root.message = "Could not read Brain proposal"; }
+            }
+        }
+        stderr: StdioCollector { onStreamFinished: if (String(text).trim()) root.message = String(text).trim().split("\n")[0] }
     }
 
     Process {

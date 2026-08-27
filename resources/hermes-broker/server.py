@@ -30,6 +30,7 @@ RATE_LIMIT = 6
 BROKER_HOME = Path(os.environ.get("NBSHELL_HERMES_BROKER_HOME", Path.home() / ".local/share/nbshell/hermes-broker"))
 JOB_MANAGER = Path(os.environ.get("NBSHELL_HERMES_JOB_MANAGER", Path.home() / ".local/share/nbshell/hermes-jobs/manager.py"))
 TEAM_MANAGER = Path(os.environ.get("NBSHELL_HERMES_TEAM_MANAGER", Path.home() / ".local/share/nbshell/hermes-team/manager.py"))
+BRAIN_MANAGER = Path(os.environ.get("NBSHELL_HERMES_BRAIN_MANAGER", Path.home() / ".local/share/nbshell/hermes-brain/manager.py"))
 STATE_HOME = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "nbshell"
 AUDIT_FILE = STATE_HOME / "hermes-broker.jsonl"
 
@@ -215,6 +216,24 @@ def _team_command(*args: str) -> dict:
     except json.JSONDecodeError as exc: raise RuntimeError("team manager returned invalid data") from exc
 
 
+def _brain_command(*args: str) -> dict:
+    if not BRAIN_MANAGER.is_file(): raise RuntimeError("nbshell Brain proposal manager is not installed")
+    result = subprocess.run([sys.executable, str(BRAIN_MANAGER), *args], text=True, capture_output=True,
+                            timeout=30, check=False, env=_base_env())
+    if result.returncode:
+        detail = _clean_output(result.stderr or result.stdout).splitlines()
+        raise RuntimeError(detail[-1][:500] if detail else "Brain proposal manager failed")
+    try: return json.loads(result.stdout)
+    except json.JSONDecodeError as exc: raise RuntimeError("Brain proposal manager returned invalid data") from exc
+
+
+def _safe_markdown(value: object) -> str:
+    text = str(value or "")
+    if not text.strip() or len(text) > 48_000 or "\x00" in text or any(pattern.search(text) for pattern in SECRET_PATTERNS):
+        raise ValueError("markdown is empty, too large, or appears to contain credentials")
+    return text
+
+
 def _broker_repository(value: object) -> str:
     text = _safe_text(value, "repository")
     path = Path(text).expanduser().resolve()
@@ -286,6 +305,37 @@ TOOLS += [
 
 TOOLS += [
     types.Tool(
+        name="prepare_brain_proposal", title="Prepare Reviewed Second Brain Proposal",
+        description=("Prepare one complete Markdown update for the user's Second Brain without granting access to the vault. "
+                     "Only the target note is copied into an isolated workspace and another provider reviews the diff. "
+                     "The proposal can never apply or push itself; it waits for explicit human approval in nbshell."),
+        inputSchema={"type": "object", "additionalProperties": False, "properties": {
+            "target": {"type": "string", "maxLength": 500}, "markdown": {"type": "string", "maxLength": 48000},
+            "mode": {"type": "string", "enum": ["append", "create"]},
+            "author_provider": {"type": "string", "enum": ["codex", "claude", "gemini"]},
+            "reviewer_provider": {"type": "string", "enum": ["codex", "claude", "gemini"]},
+            "rationale": {"type": "string", "maxLength": 2000}},
+            "required": ["target", "markdown", "mode", "author_provider", "reviewer_provider", "rationale"]},
+        annotations=types.ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True),
+    ),
+    types.Tool(
+        name="revise_brain_proposal", title="Revise Second Brain Proposal",
+        description="Submit revised Markdown after an independent reviewer requested changes. The same human approval gate remains mandatory.",
+        inputSchema={"type": "object", "additionalProperties": False, "properties": {
+            "proposal_id": {"type": "string", "maxLength": 40}, "markdown": {"type": "string", "maxLength": 48000}},
+            "required": ["proposal_id", "markdown"]},
+        annotations=types.ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True),
+    ),
+    types.Tool(
+        name="brain_proposal_status", title="Second Brain Proposal Status",
+        description="Read review and approval state for a Brain proposal. This cannot apply, commit, or push it.",
+        inputSchema={"type": "object", "properties": {"proposal_id": {"type": "string", "maxLength": 40}}, "required": ["proposal_id"], "additionalProperties": False},
+        annotations=types.ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False),
+    ),
+]
+
+TOOLS += [
+    types.Tool(
         name="review_agent_job", title="Review Agent Transaction",
         description="Ask a provider other than the implementer to review an isolated transaction. This never applies the change.",
         inputSchema={
@@ -336,6 +386,23 @@ async def list_tools(_context, _params):
 
 async def call_tool(_context, params):
     arguments = params.arguments or {}
+    if params.name == "prepare_brain_proposal":
+        try:
+            result = _brain_command("create", _safe_text(arguments.get("target"), "target"), _safe_markdown(arguments.get("markdown")), _safe_text(arguments.get("mode"), "mode"),
+                                    _safe_text(arguments.get("author_provider"), "author_provider"), _safe_text(arguments.get("reviewer_provider"), "reviewer_provider"),
+                                    _safe_text(arguments.get("rationale"), "rationale"))
+            return types.CallToolResult(content=[types.TextContent(text=json.dumps(result))])
+        except (ValueError, RuntimeError) as exc: return types.CallToolResult(content=[types.TextContent(text=str(exc))], isError=True)
+    if params.name == "revise_brain_proposal":
+        try:
+            result = _brain_command("revise", _safe_text(arguments.get("proposal_id"), "proposal_id"), _safe_markdown(arguments.get("markdown")))
+            return types.CallToolResult(content=[types.TextContent(text=json.dumps(result))])
+        except (ValueError, RuntimeError) as exc: return types.CallToolResult(content=[types.TextContent(text=str(exc))], isError=True)
+    if params.name == "brain_proposal_status":
+        try:
+            result = _brain_command("list", "--proposal", _safe_text(arguments.get("proposal_id"), "proposal_id")); result.pop("diff", None)
+            return types.CallToolResult(content=[types.TextContent(text=json.dumps(result))])
+        except (ValueError, RuntimeError) as exc: return types.CallToolResult(content=[types.TextContent(text=str(exc))], isError=True)
     if params.name == "start_supervised_team":
         try:
             repository = _broker_repository(arguments.get("repository"))

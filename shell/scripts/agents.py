@@ -27,9 +27,11 @@ HERMES_PILOT = Path.home() / ".local/share/nbshell/hermes-pilot"
 HERMES_BROKER = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "nbshell/hermes-broker/server.py"
 HERMES_JOBS = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "nbshell/hermes-jobs/manager.py"
 HERMES_TEAMS = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "nbshell/hermes-team/manager.py"
+HERMES_BRAIN = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "nbshell/hermes-brain/manager.py"
 HERMES_BROKER_TOOLS = [
     "ask_claude", "ask_codex", "ask_gemini", "start_claude_job", "start_codex_job",
     "start_gemini_job", "review_agent_job", "agent_job_status", "start_supervised_team", "supervised_team_status",
+    "prepare_brain_proposal", "revise_brain_proposal", "brain_proposal_status",
 ]
 
 HERMES_PROVIDERS = {
@@ -155,6 +157,7 @@ def hermes_status(config: dict) -> dict:
         "gateway": "inactive", "provider": "", "model": "", "selected": selected,
         "mode": mode, "running": False, "sessions": [], "providers": {},
         "jobs": [], "jobsRunning": 0, "teams": [], "teamsRunning": 0, "teamsAttention": 0,
+        "brainProposals": [], "brainReviewing": 0, "brainAttention": 0,
     }
     if not binary:
         return result
@@ -201,6 +204,13 @@ def hermes_status(config: dict) -> dict:
                 result["teams"] = payload.get("teams", [])
                 result["teamsRunning"] = int(payload.get("running", 0))
                 result["teamsAttention"] = int(payload.get("attention", 0))
+        if HERMES_BRAIN.is_file():
+            proposals = subprocess.run([sys.executable, str(HERMES_BRAIN), "list"], text=True, capture_output=True, timeout=3, check=False)
+            if proposals.returncode == 0:
+                payload = json.loads(proposals.stdout)
+                result["brainProposals"] = payload.get("proposals", [])
+                result["brainReviewing"] = int(payload.get("reviewing", 0))
+                result["brainAttention"] = int(payload.get("attention", 0))
     except (OSError, IndexError, ValueError, json.JSONDecodeError, subprocess.TimeoutExpired):
         pass
     result["providers"] = {
@@ -524,6 +534,19 @@ def hermes_team_control(action: str, team_id: str, yes: bool) -> None:
     if result.returncode: raise SystemExit(result.returncode)
 
 
+def hermes_brain_control(action: str, proposal_id: str, yes: bool) -> None:
+    if not HERMES_BRAIN.is_file(): raise SystemExit("Hermes Brain proposal manager is not installed. Run ./install.sh.")
+    command = [sys.executable, str(HERMES_BRAIN), action]
+    if action == "list":
+        if proposal_id: command += ["--proposal", proposal_id]
+    else:
+        if not proposal_id: raise SystemExit(f"{action} requires a proposal id")
+        command.append(proposal_id)
+        if yes: command.append("--yes")
+    result = subprocess.run(command, check=False)
+    if result.returncode: raise SystemExit(result.returncode)
+
+
 def set_profile_model(profile: str, model: str) -> None:
     config = load_config()
     routes = DEFAULT_CONFIG["modelProfiles"] | dict(config.get("modelProfiles", {}))
@@ -706,6 +729,7 @@ def main() -> int:
     hermes_broker = sub.add_parser("hermes-broker"); hermes_broker.add_argument("action", nargs="?", default="status", choices=["status", "setup", "test", "remove"])
     hermes_job = sub.add_parser("hermes-job"); hermes_job.add_argument("action", choices=["create", "list", "review", "apply", "install", "push", "reject"]); hermes_job.add_argument("job_id", nargs="?", default=""); hermes_job.add_argument("--provider", choices=sorted(HERMES_PROVIDERS), default=""); hermes_job.add_argument("--repository", default=""); hermes_job.add_argument("--task", default=""); hermes_job.add_argument("--yes", action="store_true")
     hermes_team = sub.add_parser("hermes-team"); hermes_team.add_argument("action", choices=["list", "pause", "resume", "cancel", "apply", "install", "push", "reject"]); hermes_team.add_argument("team_id", nargs="?", default=""); hermes_team.add_argument("--yes", action="store_true")
+    hermes_brain = sub.add_parser("hermes-brain"); hermes_brain.add_argument("action", choices=["list", "apply", "push", "reject"]); hermes_brain.add_argument("proposal_id", nargs="?", default=""); hermes_brain.add_argument("--yes", action="store_true")
     launch_p = sub.add_parser("launch"); launch_p.add_argument("agent", nargs="?"); launch_p.add_argument("--project"); launch_p.add_argument("--prompt", default=""); launch_p.add_argument("--resume", default="")
     quick_p = sub.add_parser("quick"); quick_p.add_argument("--project"); quick_p.add_argument("--prompt", default="")
     install_p = sub.add_parser("install"); install_p.add_argument("agent", choices=sorted(AGENTS))
@@ -757,6 +781,7 @@ def main() -> int:
     if command == "hermes-broker": hermes_broker_control(args.action); return 0
     if command == "hermes-job": hermes_job_control(args.action, args.job_id, args.provider, args.repository, args.task, args.yes); return 0
     if command == "hermes-team": hermes_team_control(args.action, args.team_id, args.yes); return 0
+    if command == "hermes-brain": hermes_brain_control(args.action, args.proposal_id, args.yes); return 0
     if command == "launch": launch(args.agent, args.project, args.prompt, resume=args.resume); return 0
     if command == "quick": launch(None, args.project, args.prompt, quick=True); return 0
     if command == "install": install_agent(args.agent); return 0

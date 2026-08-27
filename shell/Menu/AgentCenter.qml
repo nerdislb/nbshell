@@ -39,6 +39,11 @@ PanelWindow {
         }
         pendingJobAction = ""; Agents.hermesTeamAction(action, teamId);
     }
+    function confirmBrainAction(action, proposalId) {
+        const key = "brain-" + action + ":" + proposalId;
+        if (pendingJobAction !== key) { pendingJobAction = key; approvalReset.restart(); return; }
+        pendingJobAction = ""; Agents.hermesBrainAction(action, proposalId);
+    }
     function compactTokens(value) {
         const count = Number(value || 0);
         return count >= 1000 ? (count / 1000).toFixed(count >= 10000 ? 0 : 1) + "k" : String(count);
@@ -195,6 +200,64 @@ PanelWindow {
                                         HoverHandler { id: approvalHover; cursorShape: Qt.PointingHandCursor }
                                         TapHandler { onTapped: Agents.setProfile(approval.modelData) }
                                     }
+                                }
+                            }
+                        }
+
+                        Column {
+                            width: parent.width
+                            spacing: Theme.cellH * 0.3
+                            visible: (Agents.brainProposals || []).length > 0
+                            Line { text: "SECOND BRAIN PROPOSALS"; color: Theme.fgDim }
+                            Line { text: "Isolated note · independent privacy review · human-only commit and push"; color: Theme.muted; font.pixelSize: Theme.fontCaption }
+                            Repeater {
+                                model: (Agents.brainProposals || []).slice(0, 4)
+                                Rectangle {
+                                    id: brainRow
+                                    required property var modelData
+                                    width: body.width; height: Theme.cellH * 2.4; radius: Theme.radius
+                                    color: String(modelData.id) === Agents.selectedBrainProposalId ? Theme.selectedSurface(Theme.accent) : (brainHover.hovered ? Theme.hover : "transparent")
+                                    border.width: Theme.borderWidth; border.color: String(modelData.id) === Agents.selectedBrainProposalId ? Theme.focusBorder : Theme.panelBorder
+                                    Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.48; text: String(brainRow.modelData.target); color: Theme.fg; elide: Text.ElideMiddle }
+                                    Line { anchors.horizontalCenter: parent.horizontalCenter; anchors.verticalCenter: parent.verticalCenter; text: String(brainRow.modelData.author).toUpperCase() + " → " + String(brainRow.modelData.reviewer).toUpperCase(); color: Theme.fgDim }
+                                    Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: String(brainRow.modelData.status).toUpperCase(); color: String(brainRow.modelData.status) === "awaiting_approval" ? Theme.green : (["failed","rejected","revision_requested"].includes(String(brainRow.modelData.status)) ? Theme.red : Theme.yellow) }
+                                    HoverHandler { id: brainHover; cursorShape: Qt.PointingHandCursor }
+                                    TapHandler { onTapped: Agents.selectBrainProposal(brainRow.modelData.id) }
+                                }
+                            }
+                            Rectangle {
+                                width: body.width
+                                height: brainDetail.implicitHeight + Theme.cellH * 2
+                                visible: Boolean(Agents.brainProposalDetail && Agents.brainProposalDetail.id && Agents.brainProposalDetail.id === Agents.selectedBrainProposalId)
+                                radius: Theme.radius; color: Theme.panelSurfaceRaised; border.width: Theme.borderWidth; border.color: Theme.panelBorder
+                                Column {
+                                    id: brainDetail
+                                    anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: Theme.cellW
+                                    spacing: Theme.cellH * 0.35
+                                    Line { width: parent.width; text: "TARGET  " + String(Agents.brainProposalDetail.target || ""); color: Theme.fg; font.bold: true; elide: Text.ElideMiddle }
+                                    Line { width: parent.width; text: String(Agents.brainProposalDetail.review || Agents.brainProposalDetail.error || "Independent review is running").slice(-2500); color: Agents.brainProposalDetail.error ? Theme.red : Theme.fgDim; wrapMode: Text.Wrap }
+                                    Line { visible: Boolean(Agents.brainProposalDetail.can_revise); text: "REVISION REQUESTED · Ask Hermes to revise proposal " + String(Agents.brainProposalDetail.id || ""); color: Theme.yellow }
+                                    Row {
+                                        spacing: Theme.cellW
+                                        Repeater {
+                                            model: [
+                                                {"id":"apply", "enabled":Boolean(Agents.brainProposalDetail.can_apply)},
+                                                {"id":"push", "enabled":Boolean(Agents.brainProposalDetail.can_push)},
+                                                {"id":"reject", "enabled":!["applied","pushed","rejected"].includes(String(Agents.brainProposalDetail.status))}
+                                            ]
+                                            Rectangle {
+                                                id: brainAction
+                                                required property var modelData
+                                                width: (brainDetail.width - Theme.cellW * 2) / 3; height: Theme.cellH * 2; radius: Theme.radius
+                                                opacity: modelData.enabled ? 1 : 0.32; color: brainActionHover.hovered && modelData.enabled ? Theme.hover : "transparent"
+                                                border.width: Theme.borderWidth; border.color: modelData.enabled ? (modelData.id === "reject" ? Theme.red : Theme.accent) : Theme.panelBorder
+                                                Line { anchors.centerIn: parent; text: root.pendingJobAction === "brain-" + brainAction.modelData.id + ":" + Agents.brainProposalDetail.id ? "CONFIRM" : String(brainAction.modelData.id).toUpperCase(); color: brainAction.modelData.id === "reject" ? Theme.red : Theme.fg }
+                                                HoverHandler { id: brainActionHover; cursorShape: brainAction.modelData.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor }
+                                                TapHandler { enabled: brainAction.modelData.enabled; onTapped: root.confirmBrainAction(brainAction.modelData.id, Agents.brainProposalDetail.id) }
+                                            }
+                                        }
+                                    }
+                                    Line { width: parent.width; visible: Boolean(Agents.brainProposalDetail.diff); text: String(Agents.brainProposalDetail.diff || "").slice(0, 12000); color: Theme.fgDim; font.pixelSize: Theme.fontCaption; wrapMode: Text.WrapAnywhere }
                                 }
                             }
                         }

@@ -371,6 +371,19 @@ resume, cancel, and final approval. Even a completed team stops at
 human actions. Only one team and at most three transaction workers run at once;
 runtime and revision depth are bounded.
 
+Confirmed knowledge can follow a separate reviewed Second Brain proposal path.
+Hermes submits either an `append` section for an existing note or a complete
+`create` note below `01_Projects`, `02_Knowledge`, `03_Daily`, or `04_Inbox`.
+Neither Hermes nor the independent reviewer receives vault access: the review
+workspace contains only the proposed Markdown. `00_Meta`, `05_Sources`,
+non-Markdown files, replacements, traversal, symlinks, and credential-like
+content are rejected. A review may request two bounded revisions. The Agent
+Center then shows the target, verdict, and exact proposal diff. Apply verifies
+that the target has not changed, commits only that note while preserving other
+working-tree changes, and Push remains a separate double-confirmed human
+action. The MCP tools can prepare, revise, and inspect proposals, but cannot
+apply, commit, reject, or push them.
+
 Model profiles route a default launch without changing individual agent
 commands. `local` and `private` route through OpenCode, while `fast` and
 `strong` default to Codex and Claude. Advanced users can set a concrete

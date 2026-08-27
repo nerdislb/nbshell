@@ -91,6 +91,8 @@ See the [phone webcam guide](phone-webcam.md) for setup and daily use.
 - Quick floating agent, project selection, pair workspaces, and Herdr sessions
 - Supervised Hermes teams with bounded parallel work, cross-provider review,
   revisions, isolated integration, checks, recovery, and human-only deployment
+- Reviewed Second Brain proposals with append/create-only note boundaries,
+  privacy review, exact diffs, and human-only commit and push
 - Provider-focused AI dashboard with subscription limits, reset times, local
   seven-day/model token summaries, agent state, and launch controls
 - Privacy-conscious Markdown or JSON system report for agents and support

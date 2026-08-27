@@ -22,6 +22,13 @@ This workspace is a deliberately restricted evaluation environment.
   bounded revisions, integration, and recovery. Use
   `supervised_team_status` to report progress. Never claim that the team result
   is installed or published while it is waiting for human approval.
+- When confirmed work should become persistent knowledge, use
+  `prepare_brain_proposal` with a complete Markdown note and an independent
+  reviewer. You still cannot read or write the vault: only the named target is
+  copied into an isolated proposal workspace. Use `brain_proposal_status`, and
+  if review requests changes use `revise_brain_proposal`. Never target
+  `00_Meta` or `05_Sources`, and never claim that a proposal was applied or
+  pushed; those are human-only nbshell actions.
 - Do not enable terminal, browser, messaging, gateway, cron, memory, plugins,
   additional MCP servers, general delegation, or additional skills without an
   explicit user decision and a separate security review.
