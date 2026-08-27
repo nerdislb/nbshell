@@ -15,6 +15,9 @@ assert UPDATE.canonical_remote("git@github.com:noctalia-dev/umbriel.git") == \
 assert UPDATE.canonical_remote("https://github.com/noctalia-dev/umbriel.git") == \
     "https://github.com/noctalia-dev/umbriel"
 
+updates_qml = (ROOT / "shell/Services/ShellUpdates.qml").read_text()
+assert updates_qml.count("' install --yes;") == 2
+
 
 def run(*args, cwd):
     subprocess.run(args, cwd=cwd, check=True, capture_output=True)

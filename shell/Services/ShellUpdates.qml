@@ -74,7 +74,7 @@ Singleton {
 
     function installCompositor() {
         const line = "python3 '" + root.compositorScript
-            + "' install; code=$?; echo; read -n1 -r -p 'done — press any key to close the window'; exit $code";
+            + "' install --yes; code=$?; echo; read -n1 -r -p 'done — press any key to close the window'; exit $code";
         root.launchUpdateTerminal(line, "Umbriel Update");
     }
 
@@ -82,7 +82,7 @@ Singleton {
         if (root.updateAvailable && root.installable && root.compositorUpdateAvailable && root.compositorInstallable) {
             const line = "python3 '" + root.script + "' install --channel '" + root.channel
                 + "' && python3 '" + root.compositorScript
-                + "' install; code=$?; echo; read -n1 -r -p 'done — press any key to close the window'; exit $code";
+                + "' install --yes; code=$?; echo; read -n1 -r -p 'done — press any key to close the window'; exit $code";
             root.launchUpdateTerminal(line, "Desktop Update");
         } else if (root.updateAvailable && root.installable) {
             root.install();
