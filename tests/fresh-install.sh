@@ -123,8 +123,9 @@ if command -v niri >/dev/null && command -v regreet >/dev/null; then
     printf 'original pam\n' >"$GREETER_ROOT/etc/pam.d/greetd"
     NBSHELL_GREETER_TEST_ROOT="$GREETER_ROOT" \
     NBSHELL_GREETER_WALLPAPER="$ROOT/docs/screenshots/01-menu-grid.png" \
-        "$XDG_DATA_HOME/nbshell/setup-greeter.sh" activate regreet >/dev/null
+        "$XDG_BIN_HOME/nbshell" greeter install regreet >/dev/null
     grep -Fq '/usr/bin/regreet' "$GREETER_ROOT/etc/greetd/nbshell-greeter.kdl"
+    ! grep -Fq '[initial_session]' "$GREETER_ROOT/etc/greetd/config.toml"
     cmp -s "$GREETER_ROOT/etc/pam.d/nbshell-greetd" "$ROOT/greeter/nbshell-greetd.pam"
     cmp -s "$GREETER_ROOT/etc/pam.d/greetd" <(printf 'original pam\n')
 fi

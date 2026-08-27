@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install or preview the optional nbshell greetd frontend.
+# Install or preview the nbshell greetd frontend.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -30,12 +30,20 @@ BACKUP="$TARGET/config.toml.before-nbshell-greeter"
 WALLPAPER="${NBSHELL_GREETER_WALLPAPER:-}"
 MODE="${1:-install}"
 REQUESTED_FRONTEND="${2:-}"
+AUTOLOGIN_ARG="${3:-}"
+AUTOLOGIN=0
 ROOT_HELPER="${NBSHELL_GREETER_ROOT_HELPER:-sudo}"
 [[ $ROOT_HELPER == sudo || $ROOT_HELPER == pkexec ]] \
     || { printf '%s\n' "NBSHELL_GREETER_ROOT_HELPER must be sudo or pkexec." >&2; exit 1; }
 
 fail() { printf '\033[31m%s\033[0m\n' "$*" >&2; exit 1; }
 ok() { printf '\033[32m%s\033[0m\n' "$*"; }
+warn() { printf '\033[33m%s\033[0m\n' "$*" >&2; }
+if [[ $AUTOLOGIN_ARG == --autologin ]]; then
+    AUTOLOGIN=1
+elif [[ -n $AUTOLOGIN_ARG ]]; then
+    fail "Usage: ./setup-greeter.sh install [orbital|regreet] [--autologin]"
+fi
 as_root() {
     if [[ -n $TEST_ROOT ]]; then
         "$@"
@@ -55,10 +63,13 @@ case "$MODE" in
         [[ $REQUESTED_FRONTEND == orbital || $REQUESTED_FRONTEND == regreet ]] \
             || fail "Usage: ./setup-greeter.sh activate orbital|regreet"
         ;;
-    *) fail "Usage: ./setup-greeter.sh [install [orbital|regreet]|sync|preview|status|activate orbital|regreet]" ;;
+    *) fail "Usage: ./setup-greeter.sh [install [orbital|regreet] [--autologin]|sync|preview|status|activate orbital|regreet]" ;;
 esac
 if [[ $MODE == install && -n $REQUESTED_FRONTEND && $REQUESTED_FRONTEND != orbital && $REQUESTED_FRONTEND != regreet ]]; then
     fail "Usage: ./setup-greeter.sh install [orbital|regreet]"
+fi
+if [[ $AUTOLOGIN == 1 && $MODE != install ]]; then
+    fail "--autologin is valid only with install."
 fi
 
 active_frontend() {
@@ -171,7 +182,9 @@ if [[ $MODE == install ]]; then
             '[default_session]' \
             'user = "greeter"' \
             'command = "dbus-run-session niri --config /etc/greetd/nbshell-greeter.kdl"'
-        if [[ -x $HOME/.local/bin/start-umbriel ]]; then
+        if [[ $AUTOLOGIN == 1 ]]; then
+            [[ -x $HOME/.local/bin/start-umbriel ]] \
+                || fail "--autologin requires $HOME/.local/bin/start-umbriel."
             printf '%s\n' \
                 '' \
                 '[initial_session]' \
@@ -200,6 +213,15 @@ fi
 as_root install -m 644 "$stage/niri.kdl" "$TARGET/nbshell-greeter.kdl"
 if [[ $MODE == install ]]; then
     as_root install -m 644 "$temporary_config" "$CONFIG"
+    if [[ -n $TEST_ROOT ]]; then
+        :
+    elif systemctl is-enabled --quiet greetd.service 2>/dev/null; then
+        :
+    elif systemctl is-enabled --quiet display-manager.service 2>/dev/null; then
+        warn "Another display manager is enabled; Orbital is staged but greetd was not enabled."
+    else
+        as_root systemctl enable greetd.service
+    fi
 fi
 
 case "$MODE" in

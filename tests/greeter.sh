@@ -70,7 +70,28 @@ grep -Fq 'service = "nbshell-greetd"' "$ROOT/setup-greeter.sh"
 grep -Fq 'auth       include      system-local-login' "$ROOT/greeter/nbshell-greetd.pam"
 ! grep -Fq 'pam_fprintd' "$ROOT/greeter/nbshell-greetd.pam"
 grep -Fq 'activate orbital|regreet' "$ROOT/bin/nbshell"
+grep -Fq 'install) "$GREETER_SETUP" install' "$ROOT/bin/nbshell"
 grep -Fq 'Orbital Lock' "$ROOT/THIRD_PARTY.md"
+
+# Full fresh setups offer Orbital by default, while updates and file-only runs
+# keep their existing display-manager frontend. Explicit opt-in remains
+# available for existing installations, and the two contradictory flags fail
+# before the installer can touch the system.
+setup_help="$("$ROOT/setup.sh" --help)"
+grep -Fq -- '--with-greeter' <<<"$setup_help"
+grep -Fq -- '--no-greeter' <<<"$setup_help"
+if "$ROOT/setup.sh" --no-packages --with-greeter >/dev/null 2>&1; then
+    echo "Conflicting greeter setup options unexpectedly succeeded" >&2
+    exit 1
+fi
+if "$ROOT/setup.sh" --with-greeter --no-greeter >/dev/null 2>&1; then
+    echo "Contradictory greeter policy flags unexpectedly succeeded" >&2
+    exit 1
+fi
+grep -Fq '[ "$FRESH_NBSHELL_INSTALL" = "1" ]' "$ROOT/setup.sh"
+grep -Fq '[ "$GREETER_MODE" = "on" ]' "$ROOT/setup.sh"
+grep -Fq 'GREETER_SETUP="${XDG_DATA_HOME:-$HOME/.local/share}/nbshell/setup-greeter.sh"' "$ROOT/setup.sh"
+grep -Fq '"$GREETER_SETUP" install orbital' "$ROOT/setup.sh"
 
 # Exercise install, immutable backup creation, file modes, and both frontend
 # switches without sudo or writes outside the temporary root.
@@ -87,10 +108,23 @@ cmp -s "$fake_root/etc/pam.d/greetd" <(printf 'pam sentinel\n')
 cmp -s "$fake_root/etc/pam.d/nbshell-greetd" "$ROOT/greeter/nbshell-greetd.pam"
 grep -Fq 'dbus-run-session niri --config /etc/greetd/nbshell-greeter.kdl' "$fake_root/etc/greetd/config.toml"
 grep -Fq 'service = "nbshell-greetd"' "$fake_root/etc/greetd/config.toml"
+! grep -Fq '[initial_session]' "$fake_root/etc/greetd/config.toml"
 grep -Fq '/usr/bin/quickshell -p /usr/local/share/nbshell/greeter' "$fake_root/etc/greetd/nbshell-greeter.kdl"
 test "$(stat -c %a "$fake_root/etc/greetd/config.toml")" = 644
 test "$(stat -c %a "$fake_root/etc/pam.d/nbshell-greetd")" = 644
 test "$(stat -c %a "$fake_root/usr/local/share/nbshell/greeter/shell.qml")" = 644
+
+autologin_home="$stage/autologin-home"
+mkdir -p "$autologin_home/.local/bin"
+printf '#!/usr/bin/env bash\n' >"$autologin_home/.local/bin/start-umbriel"
+chmod +x "$autologin_home/.local/bin/start-umbriel"
+HOME="$autologin_home" \
+NBSHELL_GREETER_TEST_ROOT="$fake_root" \
+NBSHELL_GREETER_WALLPAPER="$test_config/nbshell/themes/test/backgrounds/test.jpg" \
+XDG_CONFIG_HOME="$test_config" \
+    "$ROOT/setup-greeter.sh" install orbital --autologin >/dev/null
+grep -Fq '[initial_session]' "$fake_root/etc/greetd/config.toml"
+grep -Fq "command = \"$autologin_home/.local/bin/start-umbriel\"" "$fake_root/etc/greetd/config.toml"
 
 NBSHELL_GREETER_TEST_ROOT="$fake_root" \
 NBSHELL_GREETER_QML_SOURCE="$stage/missing-orbital-source" \

@@ -143,7 +143,7 @@ distribution packages. It shows
 `Restart recommended` when a kernel or another important component changed.
 Plugin updates remain in the plugin manager.
 
-## Optional login screen
+## Default login screen on fresh setups
 
 nbshell can replace an existing greetd frontend with either the established
 ReGreet recovery client or the native Orbital QML frontend. Both authenticate
@@ -156,9 +156,20 @@ password field instead of offering a real method switch. Existing PAM service
 files are left untouched. Niri and Umbriel remain in a root-owned session
 allowlist.
 
+The normal `./setup.sh` path offers Orbital by default on a fresh nbshell
+installation. Passing `--yes` accepts it; use `--no-greeter` to retain the
+current display-manager frontend. Updates never replace an existing frontend.
+To opt in later, or to install Orbital deliberately on an existing system, run:
+
 ```bash
 ./setup-greeter.sh install orbital
 ```
+
+Fresh installations do not enable autologin: Orbital is the authenticated boot
+screen. Personal systems that deliberately want Umbriel autologin must request
+it separately with `./setup-greeter.sh install orbital --autologin`. If no
+other display manager is enabled, setup enables `greetd.service` for the next
+boot; an existing display manager is never disabled automatically.
 
 Preview Orbital inside the current desktop without authentication, session
 launch, or power actions:
