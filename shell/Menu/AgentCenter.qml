@@ -52,10 +52,23 @@ PanelWindow {
         if (!epoch) return "unknown";
         return new Date(Number(epoch) * 1000).toLocaleString(Qt.locale(), "dd.MM hh:mm");
     }
+    function hermesCurrentSession() {
+        const rows = Agents.hermes.sessions || [];
+        return rows.find(row => Boolean(row.active)) || (rows.length ? rows[0] : ({}));
+    }
+    function shortPath(path) {
+        const value = String(path || "");
+        const home = Quickshell.env("HOME");
+        return home && value.indexOf(home) === 0 ? "~" + value.slice(home.length) : value;
+    }
+    function money(value) {
+        const amount = Number(value || 0);
+        return amount > 0 ? "$" + amount.toFixed(amount >= 10 ? 2 : 4) : "INCLUDED";
+    }
 
     onVisibleChanged: {
+        Agents.setOverviewVisible(visible);
         if (visible) {
-            Agents.refresh();
             keys.forceActiveFocus();
         }
     }
@@ -453,6 +466,94 @@ PanelWindow {
                                     onTapped: {
                                         Agents.launch("hermes", "");
                                         root.close();
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                width: body.width
+                                height: hermesOverview.implicitHeight + Theme.cellH * 2
+                                radius: Theme.radius
+                                color: Theme.panelSurfaceRaised
+                                border.width: Theme.borderWidth
+                                border.color: Agents.hermes.running ? Theme.focusBorder : Theme.panelBorder
+
+                                Column {
+                                    id: hermesOverview
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    anchors.margins: Theme.cellW
+                                    spacing: Theme.cellH * 0.45
+                                    readonly property var current: root.hermesCurrentSession()
+                                    readonly property var today: (Agents.hermes.usage || {}).today || ({})
+                                    readonly property var processes: Agents.hermes.processes || ({})
+                                    readonly property int activeJobs: Number(Agents.hermes.jobsRunning || 0)
+                                    readonly property int activeTeams: Number(Agents.hermes.teamsRunning || 0)
+
+                                    Row {
+                                        width: parent.width
+                                        spacing: Theme.cellW
+                                        Line { width: parent.width - activityBadge.width - parent.spacing; text: "LIVE OVERVIEW"; color: Theme.fg; font.bold: true }
+                                        Line {
+                                            id: activityBadge
+                                            text: hermesOverview.current.active ? "● WORKING" : (Agents.hermes.running ? "● READY" : "○ OFFLINE")
+                                            color: hermesOverview.current.active ? Theme.yellow : (Agents.hermes.running ? Theme.green : Theme.muted)
+                                        }
+                                    }
+
+                                    Column {
+                                        width: parent.width
+                                        spacing: 0
+                                        Line { width: parent.width; text: String(hermesOverview.current.title || "No recent Hermes session"); color: Theme.fg; font.pixelSize: Theme.fontTitle; elide: Text.ElideRight }
+                                        Line {
+                                            width: parent.width
+                                            text: root.shortPath(hermesOverview.current.cwd) + (hermesOverview.current.activity ? "  ·  " + String(hermesOverview.current.activity).toUpperCase() : "")
+                                            color: hermesOverview.current.active ? Theme.accent : Theme.fgDim
+                                            font.pixelSize: Theme.fontCaption
+                                            elide: Text.ElideRight
+                                        }
+                                    }
+
+                                    Row {
+                                        width: parent.width
+                                        spacing: Theme.cellW
+                                        Repeater {
+                                            model: [
+                                                { "label": "SESSION", "value": root.compactTokens(Number(hermesOverview.current.inputTokens || 0) + Number(hermesOverview.current.outputTokens || 0)), "hint": "TOKENS" },
+                                                { "label": "TODAY", "value": root.compactTokens(Number(hermesOverview.today.inputTokens || 0) + Number(hermesOverview.today.outputTokens || 0)), "hint": root.money(hermesOverview.today.costUsd) },
+                                                { "label": "ACTIVITY", "value": String(hermesOverview.activeJobs + hermesOverview.activeTeams), "hint": "JOBS / TEAMS" },
+                                                { "label": "RESOURCES", "value": Number(hermesOverview.processes.pssMiB || 0).toFixed(0) + " MB", "hint": Number(hermesOverview.processes.cpuPercent || 0).toFixed(1) + "% CPU" }
+                                            ]
+                                            Rectangle {
+                                                id: hermesMetric
+                                                required property var modelData
+                                                width: (hermesOverview.width - Theme.cellW * 3) / 4
+                                                height: Theme.cellH * 3.2
+                                                radius: Theme.radius
+                                                color: Theme.panelSurface
+                                                border.width: Theme.borderWidth
+                                                border.color: Theme.panelBorder
+                                                Column {
+                                                    anchors.centerIn: parent
+                                                    spacing: 0
+                                                    Line { anchors.horizontalCenter: parent.horizontalCenter; text: hermesMetric.modelData.label; color: Theme.muted; font.pixelSize: Theme.fontCaption }
+                                                    Line { anchors.horizontalCenter: parent.horizontalCenter; text: hermesMetric.modelData.value; color: Theme.fg; font.pixelSize: Theme.fontTitle; font.bold: true }
+                                                    Line { anchors.horizontalCenter: parent.horizontalCenter; text: hermesMetric.modelData.hint; color: Theme.fgDim; font.pixelSize: Theme.fontCaption }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    Row {
+                                        width: parent.width
+                                        spacing: Theme.cellW * 2
+                                        Line { text: "IN  " + root.compactTokens(hermesOverview.current.inputTokens); color: Theme.fgDim }
+                                        Line { text: "OUT  " + root.compactTokens(hermesOverview.current.outputTokens); color: Theme.fgDim }
+                                        Line { text: "CACHE  " + root.compactTokens(Number(hermesOverview.current.cacheReadTokens || 0) + Number(hermesOverview.current.cacheWriteTokens || 0)); color: Theme.fgDim }
+                                        Line { text: "TOOLS  " + String(hermesOverview.current.tools || 0); color: Theme.fgDim }
+                                        Line { text: "CALLS  " + String(hermesOverview.current.apiCalls || 0); color: Theme.fgDim }
+                                        Line { text: "PROCS  " + String(hermesOverview.processes.count || 0); color: Theme.fgDim }
                                     }
                                 }
                             }

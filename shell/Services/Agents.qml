@@ -28,6 +28,7 @@ Singleton {
     property var attentionSessions: []
     property bool genericAttention: false
     property string attentionKind: ""
+    property bool overviewVisible: false
 
     readonly property bool completionAttention: genericAttention || attentionSessions.length > 0
 
@@ -44,6 +45,12 @@ Singleton {
             return;
         loading = true;
         status.running = true;
+    }
+
+    function setOverviewVisible(value) {
+        overviewVisible = Boolean(value);
+        if (overviewVisible)
+            refresh();
     }
 
     function action(args) {
@@ -188,7 +195,7 @@ Singleton {
         // While the bar is asking for attention, notice a visit to the target
         // Herdr pane quickly. Return to the cheap background cadence once the
         // marker has been acknowledged.
-        interval: root.completionAttention || Number(root.hermes.jobsRunning || 0) > 0 || Number(root.hermes.teamsRunning || 0) > 0 || Number(root.hermes.brainReviewing || 0) > 0 ? 2000 : 30000
+        interval: root.overviewVisible ? 5000 : (root.completionAttention || Number(root.hermes.jobsRunning || 0) > 0 || Number(root.hermes.teamsRunning || 0) > 0 || Number(root.hermes.brainReviewing || 0) > 0 ? 2000 : 30000)
         running: true
         repeat: true
         onTriggered: root.refresh()

@@ -120,7 +120,7 @@ def ollama_status() -> dict:
         return {"installed": bool(shutil.which("ollama")), "running": False, "host": host, "models": []}
 
 
-def hermes_sessions(home: Path, limit: int = 4) -> list[dict]:
+def hermes_sessions(home: Path, limit: int = 6) -> list[dict]:
     database = home / "state.db"
     if not database.is_file():
         return []
@@ -128,20 +128,136 @@ def hermes_sessions(home: Path, limit: int = 4) -> list[dict]:
         connection = sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=0.2)
         rows = connection.execute(
             """SELECT id, model, COALESCE(last_activity_at, started_at),
-                      message_count, tool_call_count, input_tokens, output_tokens
+                      message_count, tool_call_count, input_tokens, output_tokens,
+                      cache_read_tokens, cache_write_tokens, reasoning_tokens,
+                      api_call_count, COALESCE(actual_cost_usd, estimated_cost_usd, 0),
+                      cost_status, title, cwd, started_at, ended_at,
+                      last_activity_description
                  FROM sessions
-                WHERE source = 'cli' AND cwd = ? AND archived = 0 AND hidden = 0
+                WHERE source = 'tui' AND archived = 0 AND hidden = 0
                 ORDER BY COALESCE(last_activity_at, started_at) DESC LIMIT ?""",
-            (str(HERMES_PILOT), limit),
+            (limit,),
         ).fetchall()
         connection.close()
         return [{
             "id": str(row[0]), "model": str(row[1] or ""), "lastActive": float(row[2] or 0),
             "messages": int(row[3] or 0), "tools": int(row[4] or 0),
             "inputTokens": int(row[5] or 0), "outputTokens": int(row[6] or 0),
+            "cacheReadTokens": int(row[7] or 0), "cacheWriteTokens": int(row[8] or 0),
+            "reasoningTokens": int(row[9] or 0), "apiCalls": int(row[10] or 0),
+            "costUsd": float(row[11] or 0), "costStatus": str(row[12] or ""),
+            "title": str(row[13] or "Untitled session"), "cwd": str(row[14] or ""),
+            "startedAt": float(row[15] or 0), "endedAt": float(row[16] or 0),
+            "activity": str(row[17] or ""),
+            "active": not row[16] and float(row[2] or 0) >= time.time() - 300,
         } for row in rows]
     except (OSError, sqlite3.Error, TypeError, ValueError):
         return []
+
+
+def hermes_usage(home: Path) -> dict:
+    """Return bounded aggregate counters without exposing conversation text."""
+    database = home / "state.db"
+    empty = {
+        "today": {"inputTokens": 0, "outputTokens": 0, "cacheTokens": 0,
+                  "reasoningTokens": 0, "apiCalls": 0, "costUsd": 0.0, "sessions": 0},
+        "total": {"inputTokens": 0, "outputTokens": 0, "cacheTokens": 0,
+                  "reasoningTokens": 0, "apiCalls": 0, "costUsd": 0.0, "sessions": 0},
+    }
+    if not database.is_file():
+        return empty
+    now = time.time()
+    local = time.localtime(now)
+    midnight = time.mktime((local.tm_year, local.tm_mon, local.tm_mday, 0, 0, 0,
+                            local.tm_wday, local.tm_yday, local.tm_isdst))
+    query = """SELECT COUNT(*), COALESCE(SUM(input_tokens), 0),
+                      COALESCE(SUM(output_tokens), 0),
+                      COALESCE(SUM(cache_read_tokens + cache_write_tokens), 0),
+                      COALESCE(SUM(reasoning_tokens), 0),
+                      COALESCE(SUM(api_call_count), 0),
+                      COALESCE(SUM(COALESCE(actual_cost_usd, estimated_cost_usd, 0)), 0)
+                 FROM sessions
+                WHERE archived = 0 AND hidden = 0 AND started_at >= ?"""
+    try:
+        connection = sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=0.2)
+        today = connection.execute(query, (midnight,)).fetchone()
+        total = connection.execute(query, (0,)).fetchone()
+        connection.close()
+
+        def payload(row: tuple) -> dict:
+            return {"sessions": int(row[0] or 0), "inputTokens": int(row[1] or 0),
+                    "outputTokens": int(row[2] or 0), "cacheTokens": int(row[3] or 0),
+                    "reasoningTokens": int(row[4] or 0), "apiCalls": int(row[5] or 0),
+                    "costUsd": round(float(row[6] or 0), 4)}
+        return {"today": payload(today), "total": payload(total)}
+    except (OSError, sqlite3.Error, TypeError, ValueError):
+        return empty
+
+
+def hermes_processes() -> dict:
+    """Summarize the live Hermes process group using proportional memory."""
+    rows = []
+    markers = ("hermes --tui", "tui_gateway.entry", "nbshell/hermes-broker/",
+               "nbshell/hermes-jobs/", "nbshell/hermes-team/", "nbshell/hermes-brain/")
+    proc = Path("/proc")
+    processes: dict[int, tuple[int, str, Path]] = {}
+    for entry in proc.iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            command = (entry / "cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace")
+            status = (entry / "status").read_text(errors="replace")
+            ppid = 0
+            for line in status.splitlines():
+                if line.startswith("PPid:"):
+                    ppid = int(line.split()[1])
+                    break
+            processes[int(entry.name)] = (ppid, command, entry)
+        except (OSError, UnicodeError, ValueError):
+            continue
+
+    selected = {pid for pid, (_, command, _) in processes.items()
+                if any(marker in command for marker in markers)}
+    changed = True
+    while changed:
+        before = len(selected)
+        selected.update(pid for pid, (ppid, _, _) in processes.items() if ppid in selected)
+        changed = len(selected) != before
+
+    for pid in sorted(selected):
+        _, command, entry = processes[pid]
+        try:
+            status = (entry / "status").read_text(errors="replace")
+            pss_kib = 0
+            try:
+                for line in (entry / "smaps_rollup").read_text(errors="replace").splitlines():
+                    if line.startswith("Pss:"):
+                        pss_kib = int(line.split()[1])
+                        break
+            except (OSError, ValueError):
+                for line in status.splitlines():
+                    if line.startswith("VmRSS:"):
+                        pss_kib = int(line.split()[1])
+                        break
+            rows.append({"pid": pid, "pssMiB": round(pss_kib / 1024, 1),
+                         "role": "gateway" if "tui_gateway.entry" in command else
+                                 ("broker" if "nbshell/hermes-broker/" in command else
+                                  ("hermes" if "hermes --tui" in command else "tui"))})
+        except (OSError, UnicodeError, ValueError):
+            continue
+    cpu_percent = 0.0
+    if rows:
+        try:
+            measured = subprocess.run(
+                ["ps", "-p", ",".join(str(row["pid"]) for row in rows), "-o", "%cpu="],
+                text=True, capture_output=True, timeout=1, check=False,
+            )
+            if measured.returncode == 0:
+                cpu_percent = sum(float(value) for value in measured.stdout.split())
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            pass
+    return {"count": len(rows), "pssMiB": round(sum(row["pssMiB"] for row in rows), 1),
+            "cpuPercent": round(cpu_percent, 1), "rows": rows}
 
 
 def hermes_status(config: dict) -> dict:
@@ -157,6 +273,8 @@ def hermes_status(config: dict) -> dict:
         "installed": bool(binary), "version": "", "authenticated": False,
         "gateway": "inactive", "provider": "", "model": "", "selected": selected,
         "mode": mode, "running": False, "sessions": [], "providers": {},
+        "usage": hermes_usage(home),
+        "processes": {"count": 0, "pssMiB": 0, "cpuPercent": 0, "rows": []},
         "jobs": [], "jobsRunning": 0, "teams": [], "teamsRunning": 0, "teamsAttention": 0,
         "brainProposals": [], "brainReviewing": 0, "brainAttention": 0,
     }
@@ -187,6 +305,7 @@ def hermes_status(config: dict) -> dict:
                                  text=True, capture_output=True, timeout=2, check=False)
         result["gateway"] = gateway.stdout.strip() or "inactive"
         result["sessions"] = hermes_sessions(home)
+        result["processes"] = hermes_processes()
         process = subprocess.run(["pgrep", "-f", "hermes --tui"],
                                  text=True, capture_output=True, timeout=1, check=False)
         result["running"] = process.returncode == 0

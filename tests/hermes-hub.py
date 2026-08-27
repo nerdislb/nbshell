@@ -3,7 +3,9 @@
 
 import importlib.util
 import json
+import sqlite3
 import tempfile
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -27,6 +29,34 @@ with tempfile.TemporaryDirectory() as temporary:
     agents.HERMES_PILOT = root / "pilot"
     agents.HERMES_PILOT.mkdir()
     agents.antigravity_binary = lambda: "/usr/bin/agy"
+
+    hermes_home = root / "hermes"
+    hermes_home.mkdir()
+    database = sqlite3.connect(hermes_home / "state.db")
+    database.execute("""CREATE TABLE sessions (
+        id TEXT, source TEXT, model TEXT, started_at REAL, last_activity_at REAL,
+        ended_at REAL, message_count INTEGER, tool_call_count INTEGER,
+        input_tokens INTEGER, output_tokens INTEGER, cache_read_tokens INTEGER,
+        cache_write_tokens INTEGER, reasoning_tokens INTEGER, api_call_count INTEGER,
+        actual_cost_usd REAL, estimated_cost_usd REAL, cost_status TEXT, title TEXT,
+        cwd TEXT, last_activity_description TEXT, archived INTEGER, hidden INTEGER
+    )""")
+    database.execute("""INSERT INTO sessions VALUES
+        ('home-session', 'tui', 'test-model', ?, ?, NULL, 4, 2, 100, 20,
+         300, 10, 5, 2, NULL, 0.25, 'estimated', 'Active work', ?,
+         'tool running: terminal', 0, 0)""", (time.time() - 30, time.time(), str(root)))
+    database.execute("""INSERT INTO sessions VALUES
+        ('broker-session', 'cli', 'review-model', ?, ?, ?, 2, 0, 10, 5,
+         0, 0, 0, 1, NULL, 0.10, 'estimated', 'Review', ?, '', 0, 0)""",
+        (time.time() - 20, time.time(), time.time(), str(root / "broker")))
+    database.commit(); database.close()
+
+    sessions = agents.hermes_sessions(hermes_home)
+    assert len(sessions) == 1 and sessions[0]["id"] == "home-session"
+    assert sessions[0]["active"] and sessions[0]["cacheReadTokens"] == 300
+    usage = agents.hermes_usage(hermes_home)["today"]
+    assert usage["sessions"] == 2 and usage["inputTokens"] == 110
+    assert usage["cacheTokens"] == 310 and usage["costUsd"] == 0.35
 
     def launch_for(provider: str, mode: str, resume: str = "") -> str:
         config = agents.DEFAULT_CONFIG | {
