@@ -13,16 +13,16 @@ make_fake() {
     chmod +x "$dir/$name"
 }
 
-mkdir -p "$TMP/empty"
-[ "$(PATH="$TMP/empty:/usr/bin" bash "$SCRIPT" --renderer)" = "tte" ]
+make_fake "$TMP/tte" tte 0.0.0
+[ "$(PATH="$TMP/tte:/usr/bin" bash "$SCRIPT" --renderer)" = "tte" ]
 
 make_fake "$TMP/old" ttfx 0.3.1
-[ "$(PATH="$TMP/old:/usr/bin" bash "$SCRIPT" --renderer)" = "tte" ]
+[ "$(PATH="$TMP/old:$TMP/tte:/usr/bin" bash "$SCRIPT" --renderer)" = "tte" ]
 
 make_fake "$TMP/current" ttfx 0.3.2
-[ "$(PATH="$TMP/current:/usr/bin" bash "$SCRIPT" --renderer)" = "ttfx" ]
+[ "$(PATH="$TMP/current:$TMP/tte:/usr/bin" bash "$SCRIPT" --renderer)" = "ttfx" ]
 
 make_fake "$TMP/newer" ttfx 1.0.0
-[ "$(PATH="$TMP/newer:/usr/bin" bash "$SCRIPT" --renderer)" = "ttfx" ]
+[ "$(PATH="$TMP/newer:$TMP/tte:/usr/bin" bash "$SCRIPT" --renderer)" = "ttfx" ]
 
 echo "Screen-saver renderer selection: OK"
