@@ -123,7 +123,8 @@ PKG_SYSTEM=(networkmanager bluez bluez-utils pipewire pipewire-pulse wireplumber
 #   qrencode       WLAN als QR-Code im Control Center
 #   speedtest-cli  Durchsatz messen, ebenda
 #   imagemagick    Wallpaper-Streifen fuer transparenten Bar-Kontrast abtasten
-PKG_BAUSTEINE=(wl-clipboard hyprlock tuned libnotify xdg-utils pacman-contrib fakeroot headsetcontrol hyprpolkitagent qrencode speedtest-cli imagemagick sqlite libsecret)
+#   bubblewrap     Dateisystem-/Netzwerkgrenze fuer Hermes-Jobs und Team-Checks
+PKG_BAUSTEINE=(wl-clipboard hyprlock tuned libnotify xdg-utils pacman-contrib fakeroot headsetcontrol hyprpolkitagent qrencode speedtest-cli imagemagick sqlite libsecret bubblewrap)
 
 # Kalender: khal rechnet die Wiederholungen, vdirsyncer holt sie.
 PKG_KALENDER=(khal vdirsyncer)

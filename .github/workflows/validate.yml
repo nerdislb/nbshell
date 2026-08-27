@@ -15,7 +15,7 @@ jobs:
       - name: Install test dependencies
         run: >-
           pacman -Syu --noconfirm git bash python jq shadow gcc pkgconf wayland
-          wayland-protocols
+          wayland-protocols bubblewrap
 
       - uses: actions/checkout@v5
 
