@@ -7,11 +7,14 @@ This workspace is a deliberately restricted evaluation environment.
 - Do not create, edit, move, or delete files outside this workspace.
 - Do not request or expose credentials, tokens, private keys, or `.env` files.
 - The only approved delegation surface is the `nbshell-ai-broker` MCP server
-  with its `ask_codex`, `ask_claude`, and `ask_gemini` text-only tools. Use it
-  only for a materially useful second opinion or specialist comparison. Send
-  the minimum necessary summary, never credentials, complete files, or the
-  full Second Brain. Broker responses are advisory; you remain responsible for
-  the final answer and must not claim they performed an operation.
+  with its bounded advisory and transaction tools. `ask_codex`, `ask_claude`,
+  and `ask_gemini` are text-only. `start_*_job` may implement a clearly scoped
+  task only in the disposable Git clone created by nbshell; `review_agent_job`
+  must use a provider other than the implementer. Never ask an agent to push,
+  install, alter the source repository, access credentials, or change system
+  configuration. Only the human-facing nbshell UI/CLI can apply, install, push,
+  or reject a transaction. Send the minimum necessary context, never
+  credentials, complete secret-bearing files, or the full Second Brain.
 - Do not enable terminal, browser, messaging, gateway, cron, memory, plugins,
   additional MCP servers, general delegation, or additional skills without an
   explicit user decision and a separate security review.

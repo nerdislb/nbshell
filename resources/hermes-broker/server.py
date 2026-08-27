@@ -10,6 +10,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import time
 from collections import deque
 from pathlib import Path
@@ -27,6 +28,7 @@ TIMEOUT_SECONDS = 120
 RATE_WINDOW_SECONDS = 300
 RATE_LIMIT = 6
 BROKER_HOME = Path(os.environ.get("NBSHELL_HERMES_BROKER_HOME", Path.home() / ".local/share/nbshell/hermes-broker"))
+JOB_MANAGER = Path(os.environ.get("NBSHELL_HERMES_JOB_MANAGER", Path.home() / ".local/share/nbshell/hermes-jobs/manager.py"))
 STATE_HOME = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "nbshell"
 AUDIT_FILE = STATE_HOME / "hermes-broker.jsonl"
 
@@ -34,6 +36,11 @@ PROVIDERS = {
     "ask_codex": ("codex", "Codex"),
     "ask_claude": ("claude", "Claude"),
     "ask_gemini": ("gemini", "Gemini"),
+}
+JOB_TOOLS = {
+    "start_codex_job": "codex",
+    "start_claude_job": "claude",
+    "start_gemini_job": "gemini",
 }
 
 SECRET_PATTERNS = (
@@ -179,6 +186,31 @@ def _run_provider(provider: str, prompt: str) -> str:
     return output
 
 
+def _job_command(*args: str) -> dict:
+    if not JOB_MANAGER.is_file():
+        raise RuntimeError("nbshell transaction manager is not installed")
+    result = subprocess.run(
+        [sys.executable, str(JOB_MANAGER), *args], text=True, capture_output=True,
+        timeout=20, check=False, env=_base_env(),
+    )
+    if result.returncode:
+        detail = _clean_output(result.stderr or result.stdout).splitlines()
+        raise RuntimeError(detail[-1][:500] if detail else "transaction manager failed")
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("transaction manager returned invalid data") from exc
+
+
+def _broker_repository(value: object) -> str:
+    text = _safe_text(value, "repository")
+    path = Path(text).expanduser().resolve()
+    root = (Path.home() / "projects").resolve()
+    if path != root and root not in path.parents:
+        raise ValueError(f"transaction repositories must be under {root}")
+    return str(path)
+
+
 async def _advice(provider: str, question: object, context: object) -> str:
     question_text = _safe_text(question, "question")
     context_text = _safe_text(context, "context")
@@ -216,15 +248,84 @@ TOOLS = [
     for name, (_, label) in PROVIDERS.items()
 ]
 
+TOOLS += [
+    types.Tool(
+        name=name,
+        title=f"Start {provider.title()} Transaction",
+        description=(
+            f"Start {provider.title()} on an implementation task in a disposable, isolated Git clone. "
+            "Returns immediately with a job id. The agent cannot apply, install, or push the result; "
+            "those actions require explicit human approval in nbshell. Never include credentials."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "repository": {"type": "string", "maxLength": 4096},
+                "task": {"type": "string", "maxLength": MAX_PROMPT_CHARS},
+            },
+            "required": ["repository", "task"],
+            "additionalProperties": False,
+        },
+        annotations=types.ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True),
+    )
+    for name, provider in JOB_TOOLS.items()
+]
+
+TOOLS += [
+    types.Tool(
+        name="review_agent_job", title="Review Agent Transaction",
+        description="Ask a provider other than the implementer to review an isolated transaction. This never applies the change.",
+        inputSchema={
+            "type": "object",
+            "properties": {"job_id": {"type": "string", "maxLength": 40}, "provider": {"type": "string", "enum": sorted(set(JOB_TOOLS.values()))}},
+            "required": ["job_id", "provider"], "additionalProperties": False,
+        },
+        annotations=types.ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True),
+    ),
+    types.Tool(
+        name="agent_job_status", title="Agent Transaction Status",
+        description="Read the metadata, test summary, and review verdict for an isolated transaction. Does not return full source diffs.",
+        inputSchema={
+            "type": "object", "properties": {"job_id": {"type": "string", "maxLength": 40}},
+            "required": ["job_id"], "additionalProperties": False,
+        },
+        annotations=types.ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False),
+    ),
+]
+
 
 async def list_tools(_context, _params):
     return types.ListToolsResult(tools=TOOLS)
 
 
 async def call_tool(_context, params):
+    arguments = params.arguments or {}
+    if params.name in JOB_TOOLS:
+        try:
+            repository = _broker_repository(arguments.get("repository"))
+            task = _safe_text(arguments.get("task"), "task")
+            result = _job_command("create", JOB_TOOLS[params.name], repository, task)
+            return types.CallToolResult(content=[types.TextContent(text=json.dumps(result))])
+        except (ValueError, RuntimeError) as exc:
+            return types.CallToolResult(content=[types.TextContent(text=str(exc))], isError=True)
+    if params.name == "review_agent_job":
+        try:
+            job_id = _safe_text(arguments.get("job_id"), "job_id")
+            provider = _safe_text(arguments.get("provider"), "provider")
+            result = _job_command("review", job_id, provider)
+            return types.CallToolResult(content=[types.TextContent(text=json.dumps(result))])
+        except (ValueError, RuntimeError) as exc:
+            return types.CallToolResult(content=[types.TextContent(text=str(exc))], isError=True)
+    if params.name == "agent_job_status":
+        try:
+            job_id = _safe_text(arguments.get("job_id"), "job_id")
+            result = _job_command("list", "--job", job_id)
+            result.pop("diff", None)
+            return types.CallToolResult(content=[types.TextContent(text=json.dumps(result))])
+        except (ValueError, RuntimeError) as exc:
+            return types.CallToolResult(content=[types.TextContent(text=str(exc))], isError=True)
     if params.name not in PROVIDERS:
         return types.CallToolResult(content=[types.TextContent(text="Unknown broker tool")], isError=True)
-    arguments = params.arguments or {}
     provider, label = PROVIDERS[params.name]
     try:
         response = await _advice(provider, arguments.get("question"), arguments.get("context", ""))

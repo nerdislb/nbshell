@@ -14,6 +14,9 @@ Singleton {
     property var sessions: []
     property var ollama: ({ "installed": false, "running": false, "models": [] })
     property var hermes: ({ "installed": false, "authenticated": false, "gateway": "inactive", "provider": "", "model": "", "selected": "codex", "mode": "restricted", "running": false, "sessions": [], "providers": ({}) })
+    property var hermesJobs: []
+    property var jobDetail: ({})
+    property string selectedJobId: ""
     property var config: ({ "defaultAgent": "codex", "profile": "balanced", "modelProfile": "cloud" })
     property bool loading: false
     property string message: ""
@@ -51,6 +54,18 @@ Singleton {
     function setModelProfile(id) { action(["model-profile", id]); }
     function setHermesProvider(id) { action(["hermes-provider", id]); }
     function setHermesMode(id) { action(["hermes-mode", id]); }
+    function selectHermesJob(id) {
+        selectedJobId = String(id || "");
+        if (!selectedJobId || jobDetailProc.running) return;
+        jobDetailProc.command = ["python3", root.tool, "hermes-job", "list", selectedJobId];
+        jobDetailProc.running = true;
+    }
+    function hermesJobAction(name, id, provider) {
+        var args = ["hermes-job", name, String(id)];
+        if (provider) args = args.concat(["--provider", String(provider)]);
+        if (["apply", "install", "push", "reject"].indexOf(name) >= 0) args.push("--yes");
+        action(args);
+    }
     function launch(id, project) {
         var args = ["launch"];
         if (id) args.push(id);
@@ -153,7 +168,7 @@ Singleton {
         // While the bar is asking for attention, notice a visit to the target
         // Herdr pane quickly. Return to the cheap background cadence once the
         // marker has been acknowledged.
-        interval: root.completionAttention ? 2000 : 30000
+        interval: root.completionAttention || Number(root.hermes.jobsRunning || 0) > 0 ? 2000 : 30000
         running: true
         repeat: true
         onTriggered: root.refresh()
@@ -180,6 +195,8 @@ Singleton {
                     root.sessions = nextSessions;
                     root.ollama = data.ollama ?? ({ "installed": false, "running": false, "models": [] });
                     root.hermes = data.hermes ?? ({ "installed": false, "authenticated": false, "gateway": "inactive", "provider": "", "model": "", "selected": "codex", "mode": "restricted", "running": false, "sessions": [], "providers": ({}) });
+                    root.hermesJobs = root.hermes.jobs ?? [];
+                    if (root.selectedJobId) root.selectHermesJob(root.selectedJobId);
                     root.config = data.config ?? root.config;
                 } catch (e) {
                     root.message = "Could not read agent status";
@@ -210,6 +227,17 @@ Singleton {
             clearMessage.restart();
             root.refresh();
         }
+    }
+
+    Process {
+        id: jobDetailProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { root.jobDetail = JSON.parse(text); }
+                catch (e) { root.message = "Could not read transaction details"; }
+            }
+        }
+        stderr: StdioCollector { onStreamFinished: if (String(text).trim()) root.message = String(text).trim().split("\n")[0] }
     }
 
 

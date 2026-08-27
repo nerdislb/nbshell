@@ -25,6 +25,11 @@ OLLAMA_PID = STATE_DIR / "ollama.pid"
 SKILL_SOURCE = Path(__file__).resolve().parents[1] / "skills" / "nbshell"
 HERMES_PILOT = Path.home() / ".local/share/nbshell/hermes-pilot"
 HERMES_BROKER = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "nbshell/hermes-broker/server.py"
+HERMES_JOBS = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "nbshell/hermes-jobs/manager.py"
+HERMES_BROKER_TOOLS = [
+    "ask_claude", "ask_codex", "ask_gemini", "start_claude_job", "start_codex_job",
+    "start_gemini_job", "review_agent_job", "agent_job_status",
+]
 
 HERMES_PROVIDERS = {
     "codex": {"provider": "openai-codex", "model": "gpt-5.6-sol", "label": "Codex", "native": True},
@@ -148,6 +153,7 @@ def hermes_status(config: dict) -> dict:
         "installed": bool(binary), "version": "", "authenticated": False,
         "gateway": "inactive", "provider": "", "model": "", "selected": selected,
         "mode": mode, "running": False, "sessions": [], "providers": {},
+        "jobs": [], "jobsRunning": 0,
     }
     if not binary:
         return result
@@ -179,7 +185,14 @@ def hermes_status(config: dict) -> dict:
         process = subprocess.run(["pgrep", "-f", "hermes --tui.*nbshell/hermes-pilot"],
                                  text=True, capture_output=True, timeout=1, check=False)
         result["running"] = process.returncode == 0
-    except (OSError, IndexError, subprocess.TimeoutExpired):
+        if HERMES_JOBS.is_file():
+            jobs = subprocess.run([sys.executable, str(HERMES_JOBS), "list"],
+                                  text=True, capture_output=True, timeout=3, check=False)
+            if jobs.returncode == 0:
+                payload = json.loads(jobs.stdout)
+                result["jobs"] = payload.get("jobs", [])
+                result["jobsRunning"] = int(payload.get("running", 0))
+    except (OSError, IndexError, ValueError, json.JSONDecodeError, subprocess.TimeoutExpired):
         pass
     result["providers"] = {
         "codex": {"label": "Codex", "ready": (home / "auth.json").is_file(), "native": True},
@@ -455,14 +468,37 @@ def hermes_broker_control(action: str) -> None:
         "command": str(python),
         "args": json.dumps([str(HERMES_BROKER)]),
         "enabled": "true",
-        "tools.include": json.dumps(["ask_claude", "ask_codex", "ask_gemini"]),
+        "tools.include": json.dumps(HERMES_BROKER_TOOLS),
     }
     for suffix, value in values.items():
         subprocess.run([
             hermes, "config", "set", f"mcp_servers.nbshell-ai-broker.{suffix}", value,
         ], check=True)
     subprocess.run([hermes, "mcp", "test", "nbshell-ai-broker"], check=True)
-    print("Hermes advisory broker enabled. Restart Hermes to load ask_codex, ask_claude, and ask_gemini.")
+    print("Hermes broker enabled. Restart Hermes to load advisory and transactional agent tools.")
+
+
+def hermes_job_control(action: str, job_id: str, provider: str, repository: str,
+                       task: str, yes: bool) -> None:
+    if not HERMES_JOBS.is_file():
+        raise SystemExit("Hermes transaction manager is not installed. Run ./install.sh.")
+    command = [sys.executable, str(HERMES_JOBS), action]
+    if action == "create":
+        if not provider or not repository or not task:
+            raise SystemExit("create requires --provider, --repository, and --task")
+        command += [provider, repository, task]
+    elif action == "list":
+        if job_id: command += ["--job", job_id]
+    elif action == "review":
+        if not job_id or not provider: raise SystemExit("review requires job id and --provider")
+        command += [job_id, provider]
+    else:
+        if not job_id: raise SystemExit(f"{action} requires a job id")
+        command += [job_id]
+        if yes: command.append("--yes")
+    result = subprocess.run(command, check=False)
+    if result.returncode:
+        raise SystemExit(result.returncode)
 
 
 def set_profile_model(profile: str, model: str) -> None:
@@ -645,6 +681,7 @@ def main() -> int:
     hermes_provider = sub.add_parser("hermes-provider"); hermes_provider.add_argument("provider", nargs="?", choices=sorted(HERMES_PROVIDERS))
     hermes_mode = sub.add_parser("hermes-mode"); hermes_mode.add_argument("mode", nargs="?", choices=sorted(HERMES_TOOLSETS))
     hermes_broker = sub.add_parser("hermes-broker"); hermes_broker.add_argument("action", nargs="?", default="status", choices=["status", "setup", "test", "remove"])
+    hermes_job = sub.add_parser("hermes-job"); hermes_job.add_argument("action", choices=["create", "list", "review", "apply", "install", "push", "reject"]); hermes_job.add_argument("job_id", nargs="?", default=""); hermes_job.add_argument("--provider", choices=sorted(HERMES_PROVIDERS), default=""); hermes_job.add_argument("--repository", default=""); hermes_job.add_argument("--task", default=""); hermes_job.add_argument("--yes", action="store_true")
     launch_p = sub.add_parser("launch"); launch_p.add_argument("agent", nargs="?"); launch_p.add_argument("--project"); launch_p.add_argument("--prompt", default=""); launch_p.add_argument("--resume", default="")
     quick_p = sub.add_parser("quick"); quick_p.add_argument("--project"); quick_p.add_argument("--prompt", default="")
     install_p = sub.add_parser("install"); install_p.add_argument("agent", choices=sorted(AGENTS))
@@ -694,6 +731,7 @@ def main() -> int:
         if args.mode is None: print(config.get("hermesMode", "restricted")); return 0
         set_hermes_choice("mode", args.mode, HERMES_TOOLSETS); return 0
     if command == "hermes-broker": hermes_broker_control(args.action); return 0
+    if command == "hermes-job": hermes_job_control(args.action, args.job_id, args.provider, args.repository, args.task, args.yes); return 0
     if command == "launch": launch(args.agent, args.project, args.prompt, resume=args.resume); return 0
     if command == "quick": launch(None, args.project, args.prompt, quick=True); return 0
     if command == "install": install_agent(args.agent); return 0

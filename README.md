@@ -302,6 +302,7 @@ nbshell agent install copilot
 nbshell agent hermes-provider claude
 nbshell agent hermes-mode research
 nbshell agent hermes-broker setup
+nbshell agent hermes-job list
 nbshell commands --json
 ```
 
@@ -335,14 +336,27 @@ manual approval policy. The shipped and migration-safe default remains
 timestamp, and token count; prompt text and generated titles stay out of the
 shell status path.
 
-The optional advisory broker gives a Hermes session exactly three additional
-MCP tools: `ask_codex`, `ask_claude`, and `ask_gemini`. They exchange bounded
-text only and cannot perform work on Hermes' behalf. Calls are serialized,
-rate-limited, time-limited, output-limited, and logged without prompt or
-response content. Codex and Claude run through tool-minimal nested Hermes
-queries; Gemini runs inside a bubblewrap filesystem boundary with only its
-minimum CLI authentication state mounted. The broker rejects common credential
-shapes and must be enabled explicitly with `nbshell agent hermes-broker setup`.
+The optional Hermes broker has two deliberately separate surfaces. Its
+`ask_codex`, `ask_claude`, and `ask_gemini` tools exchange bounded advisory text
+only. Calls are serialized, rate-limited, time-limited, output-limited, and
+logged without prompt or response content. Codex and Claude run through
+tool-minimal nested Hermes queries; Gemini runs inside a bubblewrap filesystem
+boundary with only its minimum CLI authentication state mounted.
+
+Transactional tools can start Codex, Claude, or Gemini on an implementation in
+a disposable local Git clone. They never receive the real repository's Git
+metadata, SSH keys, or system write access. A different provider must review
+the resulting normalized commit before it becomes eligible for application.
+Hermes may start transactions only for repositories below `~/projects`, and no
+more than three jobs can run concurrently. Each sandbox sees only the selected
+provider's read-only authentication state; provider runtime homes are separate.
+Hermes and its MCP tools cannot apply, install, push, or reject a transaction:
+those operations exist only in the human-facing Agent Center and
+`nbshell agent hermes-job`, require an explicit confirmation, fail closed when
+the source branch moved or is dirty, and retain an action audit. The Agent
+Center shows job state, diff, review verdict, and separately armed Apply,
+Install, Push, and Reject controls. Enable the broker explicitly with
+`nbshell agent hermes-broker setup` and restart Hermes.
 
 Model profiles route a default launch without changing individual agent
 commands. `local` and `private` route through OpenCode, while `fast` and

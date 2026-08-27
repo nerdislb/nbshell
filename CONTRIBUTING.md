@@ -17,6 +17,7 @@ focused pull requests are the easiest to review.
    python3 ./tests/grid-layout.py
    python3 ./tests/hermes-hub.py
    python3 ./tests/hermes-broker.py
+   python3 ./tests/hermes-jobs.py
    find shell -type f -name '*.py' -exec python3 -m py_compile {} +
    ```
 

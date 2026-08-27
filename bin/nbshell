@@ -485,7 +485,9 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell agent hermes-mode [restricted|research|workspace]
                             select the Hermes Hub capability boundary
   nbshell agent hermes-broker [status|setup|test|remove]
-                            manage the bounded three-provider advisory broker
+                            manage the bounded advisory and transaction broker
+  nbshell agent hermes-job <create|list|review|apply|install|push|reject>
+                            manage isolated, human-approved provider jobs
   nbshell agent install <agent>
   nbshell agent sessions    list active Herdr agent sessions
   nbshell agent ollama [status|start|stop]

@@ -10,6 +10,7 @@ import qs.Widgets
 // It follows Omarchy's panel hierarchy while retaining nbshell's TUI grid.
 PanelWindow {
     id: root
+    property string pendingJobAction: ""
 
     visible: Runtime.agentCenterOpen
     screen: Quickshell.screens[0] ?? null
@@ -21,6 +22,16 @@ PanelWindow {
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     function close() { Runtime.agentCenterOpen = false; }
+    function confirmJobAction(action, jobId) {
+        const key = action + ":" + jobId;
+        if (pendingJobAction !== key) {
+            pendingJobAction = key;
+            approvalReset.restart();
+            return;
+        }
+        pendingJobAction = "";
+        Agents.hermesJobAction(action, jobId, "");
+    }
     function compactTokens(value) {
         const count = Number(value || 0);
         return count >= 1000 ? (count / 1000).toFixed(count >= 10000 ? 0 : 1) + "k" : String(count);
@@ -36,6 +47,8 @@ PanelWindow {
             keys.forceActiveFocus();
         }
     }
+
+    Timer { id: approvalReset; interval: 6000; onTriggered: root.pendingJobAction = "" }
 
     Rectangle { anchors.fill: parent; color: Theme.scrim }
     MouseArea { anchors.fill: parent; onClicked: root.close() }
@@ -174,6 +187,111 @@ PanelWindow {
                                         Line { anchors.centerIn: parent; text: approval.modelData.toUpperCase(); color: approval.modelData === Agents.approvalProfile ? Theme.selectedForeground(Theme.accent) : (approval.modelData === "autonomous" ? Theme.yellow : Theme.fg) }
                                         HoverHandler { id: approvalHover; cursorShape: Qt.PointingHandCursor }
                                         TapHandler { onTapped: Agents.setProfile(approval.modelData) }
+                                    }
+                                }
+                            }
+                        }
+
+                        Column {
+                            width: parent.width
+                            spacing: Theme.cellH * 0.3
+                            visible: (Agents.hermesJobs || []).length > 0
+                            Line { text: "HERMES TRANSACTIONS"; color: Theme.fgDim }
+                            Line { text: "Agents work in disposable clones · review and human approval are mandatory"; color: Theme.muted; font.pixelSize: Theme.fontCaption }
+
+                            Repeater {
+                                model: (Agents.hermesJobs || []).slice(0, 5)
+                                Rectangle {
+                                    id: transactionRow
+                                    required property var modelData
+                                    width: body.width
+                                    height: Theme.cellH * 2.3
+                                    radius: Theme.radius
+                                    color: String(modelData.id) === Agents.selectedJobId ? Theme.selectedSurface(Theme.accent) : (transactionHover.hovered ? Theme.hover : "transparent")
+                                    border.width: Theme.borderWidth
+                                    border.color: String(modelData.id) === Agents.selectedJobId ? Theme.focusBorder : Theme.panelBorder
+                                    Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.2; text: String(transactionRow.modelData.provider).toUpperCase(); color: Theme.accent }
+                                    Line { anchors.centerIn: parent; width: parent.width * 0.45; text: String(transactionRow.modelData.task); elide: Text.ElideRight; color: Theme.fg }
+                                    Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: String(transactionRow.modelData.status).toUpperCase(); color: ["failed", "rejected"].includes(String(transactionRow.modelData.status)) ? Theme.red : (["reviewed", "applied", "installed", "pushed"].includes(String(transactionRow.modelData.status)) ? Theme.green : Theme.yellow) }
+                                    HoverHandler { id: transactionHover; cursorShape: Qt.PointingHandCursor }
+                                    TapHandler { onTapped: Agents.selectHermesJob(transactionRow.modelData.id) }
+                                }
+                            }
+
+                            Rectangle {
+                                width: body.width
+                                height: transactionDetail.implicitHeight + Theme.cellH * 2
+                                visible: Boolean(Agents.jobDetail && Agents.jobDetail.id && Agents.jobDetail.id === Agents.selectedJobId)
+                                radius: Theme.radius
+                                color: Theme.panelSurfaceRaised
+                                border.width: Theme.borderWidth
+                                border.color: Theme.panelBorder
+
+                                Column {
+                                    id: transactionDetail
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    anchors.margins: Theme.cellW
+                                    spacing: Theme.cellH * 0.35
+                                    Line { width: parent.width; text: "JOB " + String(Agents.jobDetail.id || ""); color: Theme.fg; font.bold: true; elide: Text.ElideRight }
+                                    Line { width: parent.width; text: String(Agents.jobDetail.summary || Agents.jobDetail.error || "Waiting for agent output"); color: Agents.jobDetail.error ? Theme.red : Theme.fgDim; wrapMode: Text.Wrap }
+                                    Line { text: "REVIEW: " + ((Agents.jobDetail.reviews || []).length ? String(Agents.jobDetail.reviews[Agents.jobDetail.reviews.length - 1].provider).toUpperCase() + " · " + String(Agents.jobDetail.reviews[Agents.jobDetail.reviews.length - 1].status).toUpperCase() : "PENDING"); color: (Agents.jobDetail.reviews || []).some(row => row.status === "approved") ? Theme.green : Theme.yellow }
+
+                                    Row {
+                                        spacing: Theme.cellW
+                                        visible: Boolean(Agents.jobDetail.can_review)
+                                        Repeater {
+                                            model: ["codex", "claude", "gemini"].filter(name => name !== Agents.jobDetail.provider)
+                                            Rectangle {
+                                                id: reviewerButton
+                                                required property string modelData
+                                                width: (transactionDetail.width - Theme.cellW) / 2
+                                                height: Theme.cellH * 2
+                                                radius: Theme.radius
+                                                color: reviewerHover.hovered ? Theme.hover : "transparent"
+                                                border.width: Theme.borderWidth
+                                                border.color: Theme.panelBorder
+                                                Line { anchors.centerIn: parent; text: "REVIEW WITH " + reviewerButton.modelData.toUpperCase(); color: Theme.accent }
+                                                HoverHandler { id: reviewerHover; cursorShape: Qt.PointingHandCursor }
+                                                TapHandler { onTapped: Agents.hermesJobAction("review", Agents.jobDetail.id, reviewerButton.modelData) }
+                                            }
+                                        }
+                                    }
+
+                                    Row {
+                                        spacing: Theme.cellW
+                                        Repeater {
+                                            model: [
+                                                { "id": "apply", "label": "APPLY", "enabled": Boolean(Agents.jobDetail.can_apply) },
+                                                { "id": "install", "label": "INSTALL", "enabled": Boolean(Agents.jobDetail.can_install) },
+                                                { "id": "push", "label": "PUSH", "enabled": Boolean(Agents.jobDetail.can_push) },
+                                                { "id": "reject", "label": "REJECT", "enabled": !["applied", "installed", "pushed", "rejected"].includes(String(Agents.jobDetail.status)) }
+                                            ]
+                                            Rectangle {
+                                                id: transactionAction
+                                                required property var modelData
+                                                width: (transactionDetail.width - Theme.cellW * 3) / 4
+                                                height: Theme.cellH * 2
+                                                radius: Theme.radius
+                                                color: root.pendingJobAction === modelData.id + ":" + Agents.jobDetail.id ? Theme.yellow : (transactionActionHover.hovered && modelData.enabled ? Theme.hover : "transparent")
+                                                opacity: modelData.enabled ? 1 : 0.35
+                                                border.width: Theme.borderWidth
+                                                border.color: modelData.enabled ? (modelData.id === "reject" ? Theme.red : Theme.accent) : Theme.panelBorder
+                                                Line { anchors.centerIn: parent; text: root.pendingJobAction === transactionAction.modelData.id + ":" + Agents.jobDetail.id ? "CONFIRM" : transactionAction.modelData.label; color: root.pendingJobAction === transactionAction.modelData.id + ":" + Agents.jobDetail.id ? Theme.bg : (transactionAction.modelData.id === "reject" ? Theme.red : Theme.fg) }
+                                                HoverHandler { id: transactionActionHover; cursorShape: transactionAction.modelData.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor }
+                                                TapHandler { enabled: transactionAction.modelData.enabled; onTapped: root.confirmJobAction(transactionAction.modelData.id, Agents.jobDetail.id) }
+                                            }
+                                        }
+                                    }
+
+                                    Line {
+                                        width: parent.width
+                                        visible: Boolean(Agents.jobDetail.diff)
+                                        text: String(Agents.jobDetail.diff || "").slice(0, 12000)
+                                        color: Theme.fgDim
+                                        font.pixelSize: Theme.fontCaption
+                                        wrapMode: Text.WrapAnywhere
                                     }
                                 }
                             }
