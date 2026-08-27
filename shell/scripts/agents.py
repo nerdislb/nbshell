@@ -24,6 +24,7 @@ CONFIG_FILE = CONFIG_DIR / "agents.json"
 OLLAMA_PID = STATE_DIR / "ollama.pid"
 SKILL_SOURCE = Path(__file__).resolve().parents[1] / "skills" / "nbshell"
 HERMES_PILOT = Path.home() / ".local/share/nbshell/hermes-pilot"
+HERMES_BROKER = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "nbshell/hermes-broker/server.py"
 
 HERMES_PROVIDERS = {
     "codex": {"provider": "openai-codex", "model": "gpt-5.6-sol", "label": "Codex", "native": True},
@@ -31,9 +32,9 @@ HERMES_PROVIDERS = {
     "gemini": {"provider": "agy", "model": "", "label": "Gemini", "native": False},
 }
 HERMES_TOOLSETS = {
-    "restricted": "file",
-    "research": "file,web",
-    "workspace": "file,web,terminal",
+    "restricted": "file,nbshell-ai-broker",
+    "research": "file,web,nbshell-ai-broker",
+    "workspace": "file,web,terminal,nbshell-ai-broker",
 }
 
 
@@ -424,6 +425,46 @@ def set_hermes_choice(key: str, value: str, allowed: dict) -> None:
     set_value(config_key, value)
 
 
+def hermes_broker_control(action: str) -> None:
+    hermes = shutil.which("hermes")
+    hermes_home = Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes"))
+    python = hermes_home / "hermes-agent/venv/bin/python"
+    if not hermes:
+        raise SystemExit("Hermes is not installed.")
+    if action == "status":
+        result = subprocess.run([hermes, "config", "get", "mcp_servers.nbshell-ai-broker.enabled"],
+                                text=True, capture_output=True, timeout=5, check=False)
+        enabled = result.returncode == 0 and result.stdout.strip().lower() == "true"
+        print(json.dumps({
+            "installed": HERMES_BROKER.is_file(), "enabled": enabled,
+            "server": str(HERMES_BROKER), "python": str(python),
+        }))
+        return
+    if action == "remove":
+        subprocess.run([hermes, "config", "unset", "mcp_servers.nbshell-ai-broker"], check=False)
+        print("Hermes advisory broker removed. Restart Hermes to apply the change.")
+        return
+    if not HERMES_BROKER.is_file():
+        raise SystemExit("Hermes broker is not installed. Run ./install.sh from the nbshell repository.")
+    if not python.is_file():
+        raise SystemExit("Hermes Python environment is unavailable.")
+    if action == "test":
+        subprocess.run([hermes, "mcp", "test", "nbshell-ai-broker"], check=True)
+        return
+    values = {
+        "command": str(python),
+        "args": json.dumps([str(HERMES_BROKER)]),
+        "enabled": "true",
+        "tools.include": json.dumps(["ask_claude", "ask_codex", "ask_gemini"]),
+    }
+    for suffix, value in values.items():
+        subprocess.run([
+            hermes, "config", "set", f"mcp_servers.nbshell-ai-broker.{suffix}", value,
+        ], check=True)
+    subprocess.run([hermes, "mcp", "test", "nbshell-ai-broker"], check=True)
+    print("Hermes advisory broker enabled. Restart Hermes to load ask_codex, ask_claude, and ask_gemini.")
+
+
 def set_profile_model(profile: str, model: str) -> None:
     config = load_config()
     routes = DEFAULT_CONFIG["modelProfiles"] | dict(config.get("modelProfiles", {}))
@@ -603,6 +644,7 @@ def main() -> int:
     route_model = sub.add_parser("model"); route_model.add_argument("profile", choices=["local", "cloud", "private", "fast", "strong"]); route_model.add_argument("model")
     hermes_provider = sub.add_parser("hermes-provider"); hermes_provider.add_argument("provider", nargs="?", choices=sorted(HERMES_PROVIDERS))
     hermes_mode = sub.add_parser("hermes-mode"); hermes_mode.add_argument("mode", nargs="?", choices=sorted(HERMES_TOOLSETS))
+    hermes_broker = sub.add_parser("hermes-broker"); hermes_broker.add_argument("action", nargs="?", default="status", choices=["status", "setup", "test", "remove"])
     launch_p = sub.add_parser("launch"); launch_p.add_argument("agent", nargs="?"); launch_p.add_argument("--project"); launch_p.add_argument("--prompt", default=""); launch_p.add_argument("--resume", default="")
     quick_p = sub.add_parser("quick"); quick_p.add_argument("--project"); quick_p.add_argument("--prompt", default="")
     install_p = sub.add_parser("install"); install_p.add_argument("agent", choices=sorted(AGENTS))
@@ -651,6 +693,7 @@ def main() -> int:
     if command == "hermes-mode":
         if args.mode is None: print(config.get("hermesMode", "restricted")); return 0
         set_hermes_choice("mode", args.mode, HERMES_TOOLSETS); return 0
+    if command == "hermes-broker": hermes_broker_control(args.action); return 0
     if command == "launch": launch(args.agent, args.project, args.prompt, resume=args.resume); return 0
     if command == "quick": launch(None, args.project, args.prompt, quick=True); return 0
     if command == "install": install_agent(args.agent); return 0

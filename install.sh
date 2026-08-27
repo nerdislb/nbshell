@@ -131,6 +131,8 @@ install -m 644 "$SRC/systemd/nbshell-upstream-audit.service" "$UNIT_DIR/nbshell-
 install -m 644 "$SRC/systemd/nbshell-upstream-audit.timer" "$UNIT_DIR/nbshell-upstream-audit.timer"
 install -Dm644 "$SRC/resources/hermes-pilot/AGENTS.md" \
     "$SHARE_DIR/nbshell/hermes-pilot/AGENTS.md"
+install -Dm755 "$SRC/resources/hermes-broker/server.py" \
+    "$SHARE_DIR/nbshell/hermes-broker/server.py"
 # Remove the retired Agent Console host from installations that tested it.
 systemctl --user disable --now nbshell-agent-host.service >/dev/null 2>&1 || true
 rm -f "$UNIT_DIR/nbshell-agent-host.service"

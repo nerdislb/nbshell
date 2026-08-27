@@ -42,15 +42,15 @@ with tempfile.TemporaryDirectory() as temporary:
 
     codex = launch_for("codex", "restricted")
     assert "--provider" in codex and "openai-codex" in codex
-    assert "--toolsets" in codex and "file" in codex
+    assert "--toolsets" in codex and "file,nbshell-ai-broker" in codex
     assert "--yolo" not in codex
 
     claude = launch_for("claude", "research", "session-1")
     assert "anthropic" in claude and "anthropic/claude-sonnet-4.6" in claude
-    assert "file,web" in claude and "--resume" in claude and "session-1" in claude
+    assert "file,web,nbshell-ai-broker" in claude and "--resume" in claude and "session-1" in claude
 
     workspace = launch_for("codex", "workspace")
-    assert "file,web,terminal" in workspace
+    assert "file,web,terminal,nbshell-ai-broker" in workspace
     assert "--yolo" not in workspace
 
     gemini = launch_for("gemini", "restricted")

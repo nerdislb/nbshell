@@ -301,6 +301,7 @@ nbshell agent launch --project ~/projects/my-project
 nbshell agent install copilot
 nbshell agent hermes-provider claude
 nbshell agent hermes-mode research
+nbshell agent hermes-broker setup
 nbshell commands --json
 ```
 
@@ -333,6 +334,15 @@ manual approval policy. The shipped and migration-safe default remains
 `codex` plus `restricted`. Recent Hermes sessions are listed by opaque ID,
 timestamp, and token count; prompt text and generated titles stay out of the
 shell status path.
+
+The optional advisory broker gives a Hermes session exactly three additional
+MCP tools: `ask_codex`, `ask_claude`, and `ask_gemini`. They exchange bounded
+text only and cannot perform work on Hermes' behalf. Calls are serialized,
+rate-limited, time-limited, output-limited, and logged without prompt or
+response content. Codex and Claude run through tool-minimal nested Hermes
+queries; Gemini runs inside a bubblewrap filesystem boundary with only its
+minimum CLI authentication state mounted. The broker rejects common credential
+shapes and must be enabled explicitly with `nbshell agent hermes-broker setup`.
 
 Model profiles route a default launch without changing individual agent
 commands. `local` and `private` route through OpenCode, while `fast` and
