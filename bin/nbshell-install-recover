@@ -4,6 +4,7 @@ set -euo pipefail
 
 SHELL_DIR="${1:?runtime path required}"
 ROLLBACK_DIR="${2:?rollback path required}"
+MODE="${3:-restart}"
 PARENT_DIR="$(dirname "$SHELL_DIR")"
 
 # Refuse broad or unrelated deletion targets even if a caller is malformed.
@@ -14,6 +15,14 @@ if [ "$(basename "$SHELL_DIR")" != "nbshell" ] \
     echo "Refusing unsafe nbshell recovery paths." >&2
     exit 2
 fi
+
+if [ "$MODE" = "deferred" ]; then
+    if [ ! -e "$SHELL_DIR" ] && [ -d "$ROLLBACK_DIR" ]; then
+        mv -- "$ROLLBACK_DIR" "$SHELL_DIR"
+    fi
+    exit 0
+fi
+[ "$MODE" = "restart" ] || { echo "Unknown recovery mode: $MODE" >&2; exit 2; }
 
 if ! systemctl --user is-active --quiet nbshell.service; then
     systemctl --user start nbshell.service >/dev/null 2>&1 || true

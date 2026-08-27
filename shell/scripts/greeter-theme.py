@@ -1,26 +1,54 @@
 #!/usr/bin/env python3
-"""Render ReGreet assets from the same nbshell state as the session lock."""
+"""Render public greetd frontend assets from nbshell's current theme."""
 
 from __future__ import annotations
 
 import argparse
+import json
+import os
 from pathlib import Path
+import shutil
 import sys
 
 import lockscreen
 
 
-def render(output_dir: Path) -> Path:
+ORBITAL_ROOT = Path("/usr/local/share/nbshell/greeter")
+PUBLIC_WALLPAPER = Path("/usr/local/share/nbshell/greeter-wallpaper.jpg")
+
+
+def session_entries(home: Path) -> list[dict[str, object]]:
+    """Return a small argument-based allowlist for the sessions nbshell supports."""
+    sessions: list[dict[str, object]] = []
+    umbriel = home / ".local/bin/start-umbriel"
+    if umbriel.is_file() and os.access(umbriel, os.X_OK):
+        sessions.append({"name": "Umbriel", "command": [str(umbriel)]})
+
+    niri_session = shutil.which("niri-session")
+    if niri_session:
+        sessions.append({"name": "Niri", "command": [niri_session]})
+    return sessions
+
+
+def render(output_dir: Path, username: str, frontend: str) -> Path:
     config = lockscreen.load_json(lockscreen.CONFIG_PATH)
     colors, theme_dir = lockscreen.load_theme(config)
     wallpaper = lockscreen.find_wallpaper(config, theme_dir)
     if wallpaper is None:
         raise SystemExit("nbshell: no readable wallpaper is available for the greeter")
 
-    font = str(config.get("font") or "JetBrainsMono Nerd Font").replace("\n", " ")
+    clean_user = username.strip()
+    if not clean_user or any(character in clean_user for character in "\r\n\0"):
+        raise SystemExit("nbshell: invalid greeter username")
+    sessions = session_entries(Path.home())
+    if not sessions:
+        raise SystemExit("nbshell: neither Umbriel nor niri-session is available")
+
+    font = str(config.get("font") or "JetBrainsMono Nerd Font").replace("\n", " ").replace("\r", " ")
     font_size = lockscreen.bounded_int(config, "fontSize", 14, 8, 24)
     radius = lockscreen.bounded_int(config, "radius", 2, 0, 40)
     border = lockscreen.bounded_int(config, "borderWidth", 1, 0, 4)
+    dim = lockscreen.bounded_int(config, "lockDim", 48, 0, 85) / 100
     background = colors["background"]
     foreground = colors["foreground"]
     muted = colors["muted"]
@@ -39,59 +67,32 @@ def render(output_dir: Path) -> Path:
   font-size: {font_size}px;
   color: {foreground};
 }}
-
 window, overlay {{ background-color: {background}; }}
 picture {{ filter: brightness(0.52) saturate(0.82); }}
-
 overlay > frame.background:nth-child(2) {{
-  min-width: 620px;
-  min-height: 352px;
-  background-color: {background};
-  border: {border}px solid {accent};
-  border-radius: {radius}px;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
-  padding: 18px;
+  min-width: 620px; min-height: 352px; background-color: {background};
+  border: {border}px solid {accent}; border-radius: {radius}px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55); padding: 18px;
 }}
-
 overlay > frame.background:nth-child(3) {{
-  min-width: 0;
-  min-height: 0;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  padding: 26px;
+  min-width: 0; min-height: 0; background: transparent; border: 0;
+  border-radius: 0; box-shadow: none; padding: 26px;
 }}
-
 overlay > frame.background:nth-child(3) label {{
-  font-size: 48px;
-  font-weight: 500;
-  color: {colors['bright']};
+  font-size: 48px; font-weight: 500; color: {colors['bright']};
 }}
-
 entry, combobox button {{
-  min-height: 42px;
-  background: {background};
-  color: {foreground};
-  border: {border}px solid {muted};
-  border-radius: {radius}px;
-  box-shadow: none;
+  min-height: 42px; background: {background}; color: {foreground};
+  border: {border}px solid {muted}; border-radius: {radius}px; box-shadow: none;
 }}
 passwordentry entry {{
   background-image: url("/usr/local/share/nbshell/fingerprint.svg");
-  background-repeat: no-repeat;
-  background-position: right center;
-  padding-right: 42px;
+  background-repeat: no-repeat; background-position: right center; padding-right: 42px;
 }}
 entry:focus, combobox button:focus {{ border-color: {accent}; outline-color: {accent}; }}
-
 button {{
-  min-height: 36px;
-  background: {background};
-  color: {foreground};
-  border: {border}px solid {muted};
-  border-radius: {radius}px;
-  box-shadow: none;
+  min-height: 36px; background: {background}; color: {foreground};
+  border: {border}px solid {muted}; border-radius: {radius}px; box-shadow: none;
 }}
 button:hover, button:focus {{ border-color: {accent}; }}
 button.suggested-action {{ background: {accent}; color: {background}; border-color: {accent}; }}
@@ -103,9 +104,12 @@ popover, menu {{
 selection {{ background: {accent}; color: {background}; }}
 ''', encoding="utf-8"
     )
+
+    orbital_command = f"/usr/bin/quickshell -p {ORBITAL_ROOT}"
+    frontend_command = orbital_command if frontend == "orbital" else "/usr/bin/regreet"
     (output_dir / "niri.kdl").write_text(
-        f'''// Generated by nbshell for the isolated ReGreet session.
-spawn-sh-at-startup "regreet; niri msg action quit --skip-confirmation"
+        f'''// Generated by nbshell for the isolated greetd frontend session.
+spawn-sh-at-startup "{frontend_command}; niri msg action quit --skip-confirmation"
 hotkey-overlay {{
     skip-at-startup
 }}
@@ -132,7 +136,7 @@ layout {{
     background-color "{background}"
 }}
 window-rule {{
-    match app-id="regreet"
+    match app-id=r#"^(regreet|dev\\.nerdi\\.nbshell\\.greeter)$"#
     open-maximized true
 }}
 debug {{
@@ -140,14 +144,41 @@ debug {{
 }}
 ''', encoding="utf-8"
     )
+
+    orbital_config = {
+        "username": clean_user,
+        "wallpaper": str(PUBLIC_WALLPAPER),
+        "background": background,
+        "foreground": foreground,
+        "bright": colors["bright"],
+        "muted": muted,
+        "accent": accent,
+        "red": colors["red"],
+        "font": font,
+        "fontSize": font_size,
+        "radius": radius,
+        "borderWidth": border,
+        "dimOpacity": dim,
+        "hourFormat": "12" if str(config.get("lockHourFormat")) == "12" else "24",
+        "showSecondsRing": config.get("greeterShowSecondsRing", True) is not False,
+        "showPowerActions": config.get("greeterShowPowerActions", True) is not False,
+        "autoStartAuthentication": config.get("greeterAutoStartAuthentication", True) is not False,
+        "defaultSessionIndex": 0,
+        "sessions": sessions,
+    }
+    (output_dir / "config.json").write_text(
+        json.dumps(orbital_config, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
     return wallpaper
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("output_dir", type=Path)
+    parser.add_argument("--user", default=os.environ.get("USER", ""))
+    parser.add_argument("--frontend", choices=("orbital", "regreet"), default="orbital")
     args = parser.parse_args()
-    print(render(args.output_dir))
+    print(render(args.output_dir, args.user, args.frontend))
     return 0
 
 

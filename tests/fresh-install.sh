@@ -15,8 +15,8 @@ state="${FAKE_SYSTEMD_STATE:?}"
 case " $* " in
     *" is-active "*) test -f "$state/active" ;;
     *" is-enabled "*|*" cat "*) exit 1 ;;
-    *" stop "*) rm -f "$state/active" ;;
-    *" start "*)
+    *" stop nbshell.service "*) rm -f "$state/active" ;;
+    *" start nbshell.service "*)
         if [ -f "$state/fail-next-start" ]; then
             rm -f "$state/fail-next-start"
             exit 1
@@ -45,6 +45,9 @@ export XDG_CONFIG_HOME="$TEST_HOME/.config"
 export XDG_DATA_HOME="$TEST_HOME/.local/share"
 export XDG_BIN_HOME="$TEST_HOME/.local/bin"
 export FAKE_SYSTEMD_STATE="$WORK/systemd-state"
+# Tests run inside the developer's real nbshell.service cgroup; force the normal
+# restart path except for the dedicated deferred-restart case below.
+export NBSHELL_INSTALL_DEFER_RESTART=0
 export PATH="$FAKE_BIN:/usr/bin:/bin"
 mkdir -p "$FAKE_SYSTEMD_STATE"
 
@@ -120,6 +123,17 @@ test -f "$XDG_CONFIG_HOME/umbriel/nbshell.toml"
 "$ROOT/setup.sh" --no-packages --yes >/dev/null
 jq -e '.testMarker == "keep"' "$XDG_CONFIG_HOME/nbshell/config.json" >/dev/null
 
+# An installer launched from the shell's own service must atomically update the
+# runtime without stopping its parent cgroup. The untouched failure sentinel
+# proves that no restart was attempted.
+printf '%s\n' deferred >"$XDG_CONFIG_HOME/quickshell/nbshell/deferred-sentinel"
+touch "$FAKE_SYSTEMD_STATE/active" "$FAKE_SYSTEMD_STATE/fail-next-start"
+NBSHELL_INSTALL_DEFER_RESTART=1 "$ROOT/install.sh" >/dev/null
+test -f "$FAKE_SYSTEMD_STATE/active"
+test -f "$FAKE_SYSTEMD_STATE/fail-next-start"
+test ! -e "$XDG_CONFIG_HOME/quickshell/nbshell/deferred-sentinel"
+rm -f "$FAKE_SYSTEMD_STATE/fail-next-start"
+
 # A failed shell restart must restore the previous runtime and bring its unit
 # back. The one-shot failure simulates a QML process that did not stay up.
 printf '%s\n' previous >"$XDG_CONFIG_HOME/quickshell/nbshell/rollback-sentinel"
@@ -143,5 +157,16 @@ touch "$FAKE_SYSTEMD_STATE/fail-next-start"
     "$XDG_CONFIG_HOME/quickshell/nbshell" "$RECOVERY_BACKUP"
 test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/rollback-sentinel")" = watchdog
 test -f "$FAKE_SYSTEMD_STATE/active"
+
+# Deferred recovery never restarts the parent service; it only closes the
+# two-rename interruption window by restoring a missing runtime path.
+DEFERRED_PARENT="$WORK/deferred/quickshell"
+DEFERRED_RUNTIME="$DEFERRED_PARENT/nbshell"
+DEFERRED_BACKUP="$DEFERRED_PARENT/.nbshell-rollback.deferred-test"
+mkdir -p "$DEFERRED_BACKUP"
+printf '%s\n' deferred-watchdog >"$DEFERRED_BACKUP/rollback-sentinel"
+"$XDG_BIN_HOME/nbshell-install-recover" \
+    "$DEFERRED_RUNTIME" "$DEFERRED_BACKUP" deferred
+test "$(cat "$DEFERRED_RUNTIME/rollback-sentinel")" = deferred-watchdog
 
 echo "Fresh install and update preservation: OK"

@@ -145,30 +145,48 @@ Plugin updates remain in the plugin manager.
 
 ## Optional login screen
 
-nbshell can replace an existing greetd frontend with the established ReGreet
-authentication client and an nbshell-styled interface. PAM and session startup
-remain owned by greetd; nbshell does not implement password handling. Niri and
-Umbriel remain available in the session selector.
+nbshell can replace an existing greetd frontend with either the established
+ReGreet recovery client or the native Orbital QML frontend. Both authenticate
+exclusively through greetd and `/etc/pam.d/greetd`; nbshell does not implement
+PAM, store passwords, or launch arbitrary commands. Niri and Umbriel remain in
+a root-owned session allowlist.
 
 ```bash
-./setup-greeter.sh
+./setup-greeter.sh install orbital
+```
+
+Preview Orbital inside the current desktop without authentication, session
+launch, or power actions:
+
+```bash
+nbshell greeter preview
 ```
 
 After changing the theme or choosing a different wallpaper, synchronize the
-logout greeter with the same appearance used by the suspend lock screen:
+currently staged frontend:
 
 ```bash
 nbshell greeter sync
 ```
 
-The sync updates only ReGreet's public CSS, compositor color, and wallpaper;
-it does not rewrite PAM or restart the active login session.
+Inspect or switch the staged frontend without restarting the current graphical
+session:
 
-The installer uses the current nbshell wallpaper, keeps a recovery copy at
-`/etc/greetd/config.toml.before-nbshell-greeter`, and does not interrupt the
-current session. greetd cannot reload its configuration while running, so the
-new login screen appears after a reboot; logging out before that still opens
-the previously loaded greeter.
+```bash
+nbshell greeter status
+nbshell greeter activate orbital
+nbshell greeter activate regreet
+```
+
+The sync updates only public root-owned QML/CSS, compositor color, session
+allowlist, and the copied wallpaper. It does not rewrite PAM. ReGreet remains
+installed as the recovery frontend.
+
+The installer keeps a recovery copy at
+`/etc/greetd/config.toml.before-nbshell-greeter` and does not interrupt the
+current session. greetd cannot reload its configuration while running, so a
+frontend switch appears after a reboot; logging out before that still opens the
+frontend already loaded by greetd.
 
 ## If something goes wrong
 

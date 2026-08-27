@@ -1,0 +1,21 @@
+{
+  "username": "preview",
+  "wallpaper": "",
+  "background": "#1a1b26",
+  "foreground": "#c0caf5",
+  "bright": "#ffffff",
+  "muted": "#565f89",
+  "accent": "#7aa2f7",
+  "red": "#f7768e",
+  "font": "JetBrainsMono Nerd Font",
+  "fontSize": 14,
+  "dimOpacity": 0.48,
+  "hourFormat": "24",
+  "showSecondsRing": true,
+  "showPowerActions": true,
+  "autoStartAuthentication": false,
+  "sessions": [
+    {"name": "Umbriel", "command": ["/bin/true"]},
+    {"name": "Niri", "command": ["/bin/true"]}
+  ]
+}

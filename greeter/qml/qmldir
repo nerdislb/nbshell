@@ -1,0 +1,3 @@
+module NbshellGreeter
+GreeterView 1.0 GreeterView.qml
+OrbitalClock 1.0 OrbitalClock.qml

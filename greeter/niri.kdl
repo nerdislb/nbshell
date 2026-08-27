@@ -1,5 +1,5 @@
-// Minimal compositor session for ReGreet. Authentication remains in greetd.
-spawn-sh-at-startup "regreet; niri msg action quit --skip-confirmation"
+// Minimal compositor session for the native Orbital greetd frontend.
+spawn-sh-at-startup "/usr/bin/quickshell -p /usr/local/share/nbshell/greeter; niri msg action quit --skip-confirmation"
 
 hotkey-overlay {
     skip-at-startup
@@ -32,7 +32,7 @@ layout {
 }
 
 window-rule {
-    match app-id="regreet"
+    match app-id=r#"^(regreet|dev\.nerdi\.nbshell\.greeter)$"#
     open-maximized true
 }
 

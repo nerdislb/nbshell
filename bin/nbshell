@@ -560,7 +560,10 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell hub               system, plugin, and integration status
   nbshell battery           battery and power profile
   nbshell power             power menu (also: lock, logout, suspend, display-off)
-  nbshell greeter sync      match ReGreet to the current theme and wallpaper
+  nbshell greeter sync      match the active greeter to theme and wallpaper
+  nbshell greeter preview   preview Orbital without authentication or power actions
+  nbshell greeter status    show the staged greetd frontend
+  nbshell greeter activate orbital|regreet
   nbshell media playpause|next|previous|status
   nbshell dictate           toggle local voice dictation
   nbshell pip status|apply|size|corner|focus|close
@@ -1177,7 +1180,10 @@ for b in d["binds"]:
     greeter)
         case "${1:-}" in
             sync) "$GREETER_SETUP" sync ;;
-            *) die "usage: nbshell greeter sync" ;;
+            preview) "$GREETER_SETUP" preview ;;
+            status) "$GREETER_SETUP" status ;;
+            activate) "$GREETER_SETUP" activate "${2:-}" ;;
+            *) die "usage: nbshell greeter sync|preview|status|activate orbital|regreet" ;;
         esac
         ;;
     video-trimmer|trim-video)

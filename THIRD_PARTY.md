@@ -59,6 +59,11 @@ their own bundled license files are linked below.
 - Compatibility controls under `shell/Ui/` are adapted from the MIT-licensed
   [Omarchy](https://github.com/basecamp/omarchy) Quickshell UI kit and map its
   public visual tokens onto the nbshell theme system.
+- The optional Orbital greetd frontend adapts the declarative clock geometry,
+  clock arithmetic, and presentation from Dumidu's MIT-licensed
+  [Orbital Lock](https://github.com/dumidulkdev/omarchy-orbital-lock), reviewed
+  at commit `6639304d250da02dc3e9771dec7a9c0fc0b87cb2`. Its Omarchy session-lock
+  and PAM controller are not used; nbshell authenticates only through greetd.
 - The optional screensaver renderer is the MIT-licensed Rust port
   [ttfx](https://github.com/omacom-io/ttfx), based on ChrisBuilds'
   TerminalTextEffects. nbshell invokes an independently installed binary and

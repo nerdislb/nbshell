@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install the optional nbshell-styled ReGreet frontend for greetd.
+# Install or preview the optional nbshell greetd frontend.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -9,92 +9,207 @@ if [[ -f $ROOT/shell/scripts/greeter-theme.py ]]; then
 else
     THEME_RENDERER="$RUNTIME/scripts/greeter-theme.py"
 fi
-TARGET=/etc/greetd
-DATA=/usr/local/share/nbshell
+QML_SOURCE="${NBSHELL_GREETER_QML_SOURCE:-$ROOT/greeter/qml}"
+TEST_ROOT="${NBSHELL_GREETER_TEST_ROOT:-}"
+if [[ -n $TEST_ROOT ]]; then
+    if [[ $TEST_ROOT != /* ]]; then
+        printf '%s\n' "NBSHELL_GREETER_TEST_ROOT must be an absolute path." >&2
+        exit 1
+    fi
+    TARGET="$TEST_ROOT/etc/greetd"
+    DATA="$TEST_ROOT/usr/local/share/nbshell"
+else
+    TARGET=/etc/greetd
+    DATA=/usr/local/share/nbshell
+fi
+QML_TARGET="$DATA/greeter"
 CONFIG="$TARGET/config.toml"
 BACKUP="$TARGET/config.toml.before-nbshell-greeter"
 WALLPAPER="${NBSHELL_GREETER_WALLPAPER:-}"
 MODE="${1:-install}"
+REQUESTED_FRONTEND="${2:-}"
+ROOT_HELPER="${NBSHELL_GREETER_ROOT_HELPER:-sudo}"
+[[ $ROOT_HELPER == sudo || $ROOT_HELPER == pkexec ]] \
+    || { printf '%s\n' "NBSHELL_GREETER_ROOT_HELPER must be sudo or pkexec." >&2; exit 1; }
 
-die() { printf '\033[31m%s\033[0m\n' "$*" >&2; exit 1; }
+fail() { printf '\033[31m%s\033[0m\n' "$*" >&2; exit 1; }
 ok() { printf '\033[32m%s\033[0m\n' "$*"; }
+as_root() {
+    if [[ -n $TEST_ROOT ]]; then
+        "$@"
+    elif [[ $ROOT_HELPER == pkexec ]]; then
+        pkexec "$@"
+    else
+        sudo "$@"
+    fi
+}
 
-[ "$(id -u)" != 0 ] || die "Run this installer as your normal user, not root."
-command -v pacman >/dev/null || die "The automatic greeter setup currently targets Arch Linux."
-[[ $MODE == install || $MODE == sync ]] || die "Usage: ./setup-greeter.sh [install|sync]"
+[ "$(id -u)" != 0 ] || fail "Run this tool as your normal user, not root."
+command -v pacman >/dev/null || fail "The automatic greeter setup currently targets Arch Linux."
+command -v niri >/dev/null || fail "Niri is required for the isolated greetd frontend session."
+case "$MODE" in
+    install|sync|preview|status) ;;
+    activate)
+        [[ $REQUESTED_FRONTEND == orbital || $REQUESTED_FRONTEND == regreet ]] \
+            || fail "Usage: ./setup-greeter.sh activate orbital|regreet"
+        ;;
+    *) fail "Usage: ./setup-greeter.sh [install [orbital|regreet]|sync|preview|status|activate orbital|regreet]" ;;
+esac
+if [[ $MODE == install && -n $REQUESTED_FRONTEND && $REQUESTED_FRONTEND != orbital && $REQUESTED_FRONTEND != regreet ]]; then
+    fail "Usage: ./setup-greeter.sh install [orbital|regreet]"
+fi
+
+active_frontend() {
+    if [[ -r $TARGET/nbshell-greeter.kdl ]] && grep -Fq '/usr/bin/quickshell -p /usr/local/share/nbshell/greeter' "$TARGET/nbshell-greeter.kdl"; then
+        printf 'orbital\n'
+    else
+        printf 'regreet\n'
+    fi
+}
+
+if [[ $MODE == status ]]; then
+    printf 'Frontend  %s\n' "$(active_frontend)"
+    printf 'greetd    %s\n' "$(systemctl is-active greetd 2>/dev/null || true)"
+    printf 'Config    %s\n' "$CONFIG"
+    if [[ -r $QML_TARGET/shell.qml && -r $QML_TARGET/config.json ]]; then
+        printf 'Orbital   installed (%s)\n' "$QML_TARGET"
+    else
+        printf 'Orbital   not installed (%s)\n' "$QML_TARGET"
+    fi
+    if grep -Fq '[initial_session]' "$CONFIG" 2>/dev/null; then
+        printf 'Boot       autologin (greeter appears after logout)\n'
+    else
+        printf 'Boot       greeter\n'
+    fi
+    exit 0
+fi
+
+case "$MODE" in
+    install) FRONTEND="${REQUESTED_FRONTEND:-orbital}" ;;
+    activate) FRONTEND="$REQUESTED_FRONTEND" ;;
+    sync) FRONTEND="$(active_frontend)" ;;
+    preview) FRONTEND=orbital ;;
+esac
+
+[[ -f $THEME_RENDERER ]] || fail "The installed nbshell greeter renderer is missing."
+if [[ $FRONTEND == orbital ]]; then
+    [[ -f $QML_SOURCE/shell.qml ]] || fail "The Orbital QML frontend is missing. Run install.sh first."
+    command -v quickshell >/dev/null || fail "Quickshell was not installed."
+fi
 
 stage="$(mktemp -d "${TMPDIR:-/tmp}/nbshell-greeter.XXXXXX")"
 trap 'rm -rf -- "$stage"' EXIT
-[[ -f $THEME_RENDERER ]] || die "The installed nbshell greeter renderer is missing."
-generated_wallpaper="$(python3 "$THEME_RENDERER" "$stage")"
+generated_wallpaper="$(python3 "$THEME_RENDERER" "$stage" --user "$USER" --frontend "$FRONTEND")"
 [ -n "$WALLPAPER" ] || WALLPAPER="$generated_wallpaper"
-[ -f "$WALLPAPER" ] || die "No readable wallpaper found. Set NBSHELL_GREETER_WALLPAPER to an image file."
-
-if [[ $MODE == install ]]; then
-    sudo pacman -S --needed greetd-regreet
-fi
-command -v regreet >/dev/null || die "ReGreet was not installed."
+[ -f "$WALLPAPER" ] || fail "No readable wallpaper found. Set NBSHELL_GREETER_WALLPAPER to an image file."
 niri validate -c "$stage/niri.kdl"
 
-sudo install -d -m 755 "$TARGET" "$DATA"
-if [ -f "$CONFIG" ] && [ ! -f "$BACKUP" ]; then
-    sudo install -m 644 "$CONFIG" "$BACKUP"
+if [[ $MODE == preview ]]; then
+    python3 - "$stage/config.json" "$WALLPAPER" <<'PY'
+import json, pathlib, sys
+path = pathlib.Path(sys.argv[1])
+data = json.loads(path.read_text(encoding="utf-8"))
+data["wallpaper"] = str(pathlib.Path(sys.argv[2]).resolve())
+data["username"] = data.get("username") or "preview"
+data["autoStartAuthentication"] = False
+path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+PY
+    exec env NBSHELL_GREETER_PREVIEW=1 NBSHELL_GREETER_CONFIG="$stage/config.json" \
+        quickshell -p "$QML_SOURCE"
 fi
-sudo install -m 644 "$ROOT/greeter/regreet.toml" "$TARGET/regreet.toml"
-sudo install -m 644 "$stage/regreet.css" "$TARGET/regreet.css"
-sudo install -m 644 "$stage/niri.kdl" "$TARGET/nbshell-greeter.kdl"
-sudo install -m 644 "$stage/fingerprint.svg" "$DATA/fingerprint.svg"
+
+if [[ $MODE == install ]]; then
+    if [[ -z $TEST_ROOT ]]; then
+        packages=(greetd-regreet)
+        [[ $FRONTEND != orbital ]] || packages+=(quickshell)
+        as_root pacman -S --needed "${packages[@]}"
+    fi
+fi
+command -v regreet >/dev/null || fail "ReGreet is required as the recovery frontend."
+
+as_root install -d -m 755 "$TARGET" "$DATA"
+if [[ -f $CONFIG && ! -f $BACKUP ]]; then
+    as_root install -m 644 "$CONFIG" "$BACKUP"
+fi
+as_root install -m 644 "$ROOT/greeter/regreet.toml" "$TARGET/regreet.toml"
+as_root install -m 644 "$stage/regreet.css" "$TARGET/regreet.css"
+as_root install -m 644 "$stage/fingerprint.svg" "$DATA/fingerprint.svg"
+if [[ $FRONTEND == orbital ]]; then
+    as_root install -d -m 755 "$QML_TARGET"
+    as_root install -m 644 "$stage/config.json" "$QML_TARGET/config.json"
+    as_root install -m 644 \
+        "$QML_SOURCE/shell.qml" "$QML_SOURCE/GreeterView.qml" \
+        "$QML_SOURCE/OrbitalClock.qml" "$QML_SOURCE/ClockMath.js" \
+        "$QML_SOURCE/qmldir" "$QML_TARGET/"
+fi
 
 case "${WALLPAPER##*.}" in
     jpg|JPG|jpeg|JPEG)
-        sudo install -m 644 "$WALLPAPER" "$DATA/greeter-wallpaper.jpg"
-        ;;
-    png|PNG)
-        command -v magick >/dev/null || die "ImageMagick is required to convert a PNG greeter wallpaper to JPEG."
-        temporary="$(mktemp "${TMPDIR:-/tmp}/nbshell-greeter.XXXXXX.jpg")"
-        trap 'rm -f -- "$temporary"' EXIT
-        magick "$WALLPAPER" -quality 94 "$temporary"
-        sudo install -m 644 "$temporary" "$DATA/greeter-wallpaper.jpg"
+        as_root install -m 644 "$WALLPAPER" "$DATA/greeter-wallpaper.jpg"
         ;;
     *)
-        command -v magick >/dev/null || die "Use a JPEG/PNG wallpaper or install ImageMagick for conversion."
-        temporary="$(mktemp "${TMPDIR:-/tmp}/nbshell-greeter.XXXXXX.jpg")"
-        trap 'rm -f -- "$temporary"' EXIT
+        command -v magick >/dev/null || fail "Use a JPEG wallpaper or install ImageMagick for conversion."
+        temporary="$stage/greeter-wallpaper.jpg"
         magick "$WALLPAPER" -quality 94 "$temporary"
-        sudo install -m 644 "$temporary" "$DATA/greeter-wallpaper.jpg"
+        as_root install -m 644 "$temporary" "$DATA/greeter-wallpaper.jpg"
         ;;
 esac
 
 if [[ $MODE == install ]]; then
     temporary_config="$stage/config.toml"
-    cat > "$temporary_config" <<EOF
-[terminal]
-vt = 1
-
-[default_session]
-user = "greeter"
-command = "dbus-run-session niri --config $TARGET/nbshell-greeter.kdl"
-
-[initial_session]
-user = "$USER"
-command = "$HOME/.local/bin/start-umbriel"
-EOF
-    sudo install -o root -g root -m 644 "$temporary_config" "$CONFIG"
+    {
+        printf '%s\n' \
+            '[terminal]' \
+            'vt = 1' \
+            '' \
+            '[default_session]' \
+            'user = "greeter"' \
+            'command = "dbus-run-session niri --config /etc/greetd/nbshell-greeter.kdl"'
+        if [[ -x $HOME/.local/bin/start-umbriel ]]; then
+            printf '%s\n' \
+                '' \
+                '[initial_session]' \
+                "user = \"$USER\"" \
+                "command = \"$HOME/.local/bin/start-umbriel\""
+        fi
+    } >"$temporary_config"
 fi
 
-sudo systemd-tmpfiles --create
-sudo test -x /usr/bin/regreet
-sudo test -r "$TARGET/regreet.toml"
-sudo test -r "$TARGET/regreet.css"
-sudo test -r "$DATA/greeter-wallpaper.jpg"
-
-if [[ $MODE == sync ]]; then
-    ok "ReGreet now matches the current nbshell theme and wallpaper."
-else
-    ok "nbshell ReGreet installed."
-    printf '%s\n' \
-        "It becomes active after a reboot; greetd cannot reload its running configuration." \
-        "The current session was not interrupted." \
-        "Recovery backup: $BACKUP" \
-        "TTY recovery: Ctrl+Alt+F2, then copy the backup back to $CONFIG."
+if [[ -z $TEST_ROOT ]]; then
+    as_root systemd-tmpfiles --create
 fi
+as_root test -x /usr/bin/regreet
+as_root test -r "$TARGET/regreet.toml"
+as_root test -r "$TARGET/regreet.css"
+as_root test -r "$DATA/greeter-wallpaper.jpg"
+if [[ $FRONTEND == orbital ]]; then
+    as_root test -x /usr/bin/quickshell
+    as_root test -r "$QML_TARGET/config.json"
+    as_root test -r "$QML_TARGET/shell.qml"
+fi
+
+# Commit the frontend switch only after every dependency has been installed and
+# verified. A failed copy above therefore leaves the previous bootable frontend.
+as_root install -m 644 "$stage/niri.kdl" "$TARGET/nbshell-greeter.kdl"
+if [[ $MODE == install ]]; then
+    as_root install -m 644 "$temporary_config" "$CONFIG"
+fi
+
+case "$MODE" in
+    sync)
+        ok "The $FRONTEND greeter now matches the current nbshell theme and wallpaper."
+        ;;
+    activate)
+        ok "The $FRONTEND frontend is staged for the next greetd start."
+        printf '%s\n' "Reboot to activate it; the current graphical session was not interrupted."
+        ;;
+    install)
+        ok "nbshell $FRONTEND greeter installed."
+        printf '%s\n' \
+            "It becomes active after a reboot; greetd cannot reload its running configuration." \
+            "The current session was not interrupted." \
+            "Recovery frontend: ./setup-greeter.sh activate regreet" \
+            "Recovery backup: $BACKUP" \
+            "TTY recovery: Ctrl+Alt+F2, then copy the backup back to $CONFIG."
+        ;;
+esac

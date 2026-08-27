@@ -162,6 +162,11 @@ bash -n "$SRC/bin/nbshell" "$SRC/bin/nbshell-install-recover"
 while IFS= read -r -d '' script; do bash -n "$script"; done < <(find "$SRC/shell/scripts" -type f -name '*.sh' -print0)
 python3 -c 'import ast, pathlib, sys; ast.parse(pathlib.Path(sys.argv[1]).read_text())' \
     "$STAGED_SHELL/scripts/agents.py"
+QMLLINT_BIN="$(command -v qmllint || true)"
+[ -n "$QMLLINT_BIN" ] || [ ! -x /usr/lib/qt6/bin/qmllint ] || QMLLINT_BIN=/usr/lib/qt6/bin/qmllint
+if [ -n "$QMLLINT_BIN" ]; then
+    "$QMLLINT_BIN" "$STAGED_SHELL/shell.qml" >/dev/null 2>&1
+fi
 
 unit_active=0
 systemctl --user is-active --quiet nbshell.service 2>/dev/null && unit_active=1
@@ -170,15 +175,29 @@ if [ $unit_active -ne 1 ] && "$QS_BIN" list --all 2>/dev/null | grep -c "quicksh
     was_running=1
 fi
 
+# Agent terminals opened by nbshell are members of nbshell.service. Stopping
+# that unit here would also terminate the installer and its controlling agent.
+# The runtime directory can still be switched atomically; in that case leave
+# the already running shell untouched and let the next login/restart load it.
+defer_service_restart=0
+restart_policy="${NBSHELL_INSTALL_DEFER_RESTART:-auto}"
+if [ $unit_active -eq 1 ] && { [ "$restart_policy" = "1" ] \
+        || { [ "$restart_policy" = "auto" ] \
+            && grep -Fq '/nbshell.service' /proc/$$/cgroup 2>/dev/null; }; }; then
+    defer_service_restart=1
+fi
+
 # This timer belongs to the user manager, not to the calling terminal. Even a
 # killed installer cannot leave a previously running desktop without its bar.
 recovery_armed=0
 if [ $unit_active -eq 1 ]; then
     systemctl --user stop nbshell-install-recovery.timer nbshell-install-recovery.service >/dev/null 2>&1 || true
     systemctl --user reset-failed nbshell-install-recovery.service >/dev/null 2>&1 || true
+    recovery_mode=restart
+    [ $defer_service_restart -ne 1 ] || recovery_mode=deferred
     if systemd-run --user --quiet --unit=nbshell-install-recovery --on-active=20s \
             --timer-property=AccuracySec=1s "$BIN_DIR/nbshell-install-recover" \
-            "$SHELL_DIR" "$ROLLBACK_SHELL"; then
+            "$SHELL_DIR" "$ROLLBACK_SHELL" "$recovery_mode"; then
         recovery_armed=1
     fi
 fi
@@ -188,14 +207,16 @@ install_ready=0
 recover_install() {
     result=$?
     if [ $install_ready -ne 1 ] && [ $swapped -eq 1 ] && [ -d "$ROLLBACK_SHELL" ]; then
-        systemctl --user stop nbshell.service >/dev/null 2>&1 || true
+        if [ $defer_service_restart -ne 1 ]; then
+            systemctl --user stop nbshell.service >/dev/null 2>&1 || true
+        fi
         rm -rf -- "${SHELL_DIR:?}"
         mv -- "$ROLLBACK_SHELL" "$SHELL_DIR"
     fi
     if [ -n "${STAGED_SHELL:-}" ] && [ -d "$STAGED_SHELL" ]; then
         rm -rf -- "$STAGED_SHELL"
     fi
-    if [ $unit_active -eq 1 ]; then
+    if [ $unit_active -eq 1 ] && [ $defer_service_restart -ne 1 ]; then
         systemctl --user is-active --quiet nbshell.service 2>/dev/null || \
             systemctl --user start nbshell.service >/dev/null 2>&1 || true
     fi
@@ -203,7 +224,7 @@ recover_install() {
 }
 trap recover_install EXIT
 
-if [ $unit_active -eq 1 ]; then
+if [ $unit_active -eq 1 ] && [ $defer_service_restart -ne 1 ]; then
     systemctl --user stop nbshell.service
 elif [ "$was_running" = "1" ]; then
     "${SRC}/bin/nbshell" stop >/dev/null 2>&1 || true
@@ -216,21 +237,24 @@ fi
 mv -- "$STAGED_SHELL" "$SHELL_DIR"
 STAGED_SHELL=""
 
-if [ $unit_active -eq 1 ]; then
+if [ $unit_active -eq 1 ] && [ $defer_service_restart -ne 1 ]; then
     systemctl --user start nbshell.service
     sleep 2
     if ! systemctl --user is-active --quiet nbshell.service; then
         warn "The new shell did not stay active; restoring the previous runtime."
         exit 1
     fi
+elif [ $defer_service_restart -eq 1 ]; then
+    warn "Shell restart deferred because this installer runs inside nbshell.service."
+    warn "The new runtime will load after the service is restarted outside this shell or at the next login."
 elif [ "$was_running" = "1" ]; then
     "$BIN_DIR/nbshell" start -d >/dev/null 2>&1 &
 fi
 install_ready=1
-if [ -d "$ROLLBACK_SHELL" ]; then
+if [ -d "$ROLLBACK_SHELL" ] && [ $defer_service_restart -ne 1 ]; then
     rm -rf -- "$ROLLBACK_SHELL"
 fi
-if [ $recovery_armed -eq 1 ]; then
+if [ $recovery_armed -eq 1 ] && [ $defer_service_restart -ne 1 ]; then
     systemctl --user stop nbshell-install-recovery.timer >/dev/null 2>&1 || true
 fi
 # A running grid watcher has imported the previous Python file already. Restart
@@ -395,6 +419,15 @@ GREETER_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/nbshell"
 mkdir -p "$GREETER_DATA/greeter"
 install -m 755 "$SRC/setup-greeter.sh" "$GREETER_DATA/setup-greeter.sh"
 install -m 644 "$SRC/greeter/regreet.toml" "$GREETER_DATA/greeter/regreet.toml"
+mkdir -p "$GREETER_DATA/greeter/qml"
+install -m 644 \
+    "$SRC/greeter/qml/shell.qml" \
+    "$SRC/greeter/qml/GreeterView.qml" \
+    "$SRC/greeter/qml/OrbitalClock.qml" \
+    "$SRC/greeter/qml/ClockMath.js" \
+    "$SRC/greeter/qml/qmldir" \
+    "$SRC/greeter/qml/preview.json" \
+    "$GREETER_DATA/greeter/qml/"
 
 # Desktop metadata for portals and notification attribution. The shell stays
 # hidden from application launchers because it is managed as a session unit.
@@ -436,8 +469,10 @@ esac
 # Laeuft nbshell als Dienst, gehoert der Neustart dem Dienst -- sonst steht
 # neben der Unit-Instanz eine zweite, von Hand gestartete, und die Leiste ist
 # doppelt da.
-if [ $unit_active -eq 1 ]; then
+if [ $unit_active -eq 1 ] && [ $defer_service_restart -ne 1 ]; then
     green "Restarted nbshell.service."
+elif [ $defer_service_restart -eq 1 ]; then
+    green "Updated nbshell.service runtime (restart deferred)."
 elif [ "$was_running" = "1" ]; then
     green "Restarted the shell."
 fi
