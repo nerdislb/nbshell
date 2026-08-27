@@ -354,6 +354,11 @@ Singleton {
     function summon(id, payload) {
         const item = panelFor(id);
         if (!item) {
+            const service = serviceFor(id);
+            if (service && typeof service.openApp === "function") {
+                service.openApp(payload ?? "{}");
+                return id + ": open";
+            }
             const plugin = entry(id);
             if (!plugin || root.enabledIds.indexOf(id) < 0)
                 return "Plugin is disabled or has no panel: " + id;
@@ -391,6 +396,11 @@ Singleton {
         const item = panelFor(id);
         if (item && typeof item.close === "function")
             item.close();
+        else {
+            const service = serviceFor(id);
+            if (service && typeof service.closeApp === "function")
+                service.closeApp();
+        }
         const nextPayloads = Object.assign({}, root.pendingPayloads);
         delete nextPayloads[id];
         root.pendingPayloads = nextPayloads;
@@ -401,8 +411,14 @@ Singleton {
 
     function toggle(id, payload) {
         const item = panelFor(id);
-        if (!item)
+        if (!item) {
+            const service = serviceFor(id);
+            if (service && typeof service.toggleApp === "function") {
+                service.toggleApp(payload ?? "{}");
+                return id + ": toggled";
+            }
             return summon(id, payload);
+        }
         if (item.opened === true) {
             hide(id);
             return id + ": closed";

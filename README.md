@@ -44,6 +44,10 @@ Current prerelease: **0.1.0-beta.4**. See the
 - **Safe shell updates:** the dashboard checks published nbshell releases,
   shows their notes, and verifies the release checksum before the normal,
   data-preserving installer runs in a visible terminal.
+- **Reviewed external sources:** `nbshell upstream-audit` checks pinned upstream
+  projects without changing local code. A persistent three-day user timer only
+  notifies when a manual compatibility review is needed; external QML is never
+  updated automatically.
 - **Keyboard first, mouse friendly:** the searchable menu reaches nested
   actions and installed applications, while every major surface remains
   directly addressable from a shortcut or CLI command.

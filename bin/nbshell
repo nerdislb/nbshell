@@ -24,6 +24,7 @@ ipc() {
 }
 
 warn() { printf '\033[33m%s\033[0m\n' "$1"; }
+die() { printf '\033[31m%s\033[0m\n' "$1" >&2; exit 1; }
 
 # ── Eigenstaendig ein- und ausschalten ───────────────────────────────────
 NIRI_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/niri"
@@ -917,6 +918,9 @@ for b in d["binds"]:
         ;;
     updates)
         ipc updates "${1:-status}"
+        ;;
+    upstream-audit|source-audit)
+        python3 "$RUNTIME_DIR/scripts/upstream-audit.py" "$@"
         ;;
     update|self-update)
         case "${1:-check}" in

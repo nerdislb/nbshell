@@ -18,7 +18,7 @@ Cell {
     color: oma && oma.ready ? (unread > 0 ? Theme.green : Theme.barAccent) : Theme.textDim
     interactive: true
 
-    onClicked: Plugins.toggle("omawhatsapp", "{}")
+    onClicked: if (oma) oma.toggleApp("{}")
     onMiddleClicked: if (oma) oma.dismissNotifications("")
     onRightClicked: if (oma) oma.refresh()
 }

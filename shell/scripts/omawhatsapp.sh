@@ -9,8 +9,8 @@ config_file="$config_home/nbshell/config.json"
 provider_file="$config_home/nbshell/whatsapp-provider"
 unit_dir="$config_home/systemd/user"
 bin_dir=${XDG_BIN_HOME:-$HOME/.local/bin}
-source_revision=47eaee6a2ec09880e755f8edba44c2bed74d598e
-source_sha=a9c0de68a7b4924e4a2f9bd7e576a4fab23e530fdd2020c3c4014443722c0015
+source_revision=83f4c4a35498b36a64adf613749765d4084b30b6
+source_sha=3ca0ae7157ee3dbb177860bd223589eb9c362d1fcf01311a9af71c82d22675a9
 wacli_version=0.17.1
 wacli_amd64_sha=cbd5e74d5b805550cc36c7479aca552970cc1b314c5c08e02367e08b785714fd
 wacli_arm64_sha=8e5d21f8d5f097e5d3a883cdb42848a9e50a7383e4de049c807cc44e6e7c81b6
@@ -83,6 +83,7 @@ setup() (
     find "$staged_plugin" -type f -name '*.qml' -exec sed -i 's/OmaWhatsApp/WhatsApp/g' {} +
     install -Dm644 "$runtime_shell/integrations/omawhatsapp/manifest.json" "$staged_plugin/manifest.json"
     install -Dm644 "$runtime_shell/integrations/omawhatsapp/BarWidget.qml" "$staged_plugin/BarWidget.qml"
+    install -Dm644 "$runtime_shell/integrations/omawhatsapp/ToggleSwitch.qml" "$staged_plugin/ToggleSwitch.qml"
     install -Dm644 "$source/LICENSE" "$staged_plugin/LICENSE"
     install -Dm755 "$source/bin/omawhatsapp" "$bin_dir/omawhatsapp"
     install -Dm644 "$runtime_shell/integrations/omawhatsapp/wacli-sync.service" "$unit_dir/wacli-sync.service"

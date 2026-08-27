@@ -126,6 +126,8 @@ mkdir -p "$UNIT_DIR"
 install -m 644 "$SRC/systemd/nbshell.service" "$UNIT_DIR/nbshell.service"
 install -m 644 "$SRC/systemd/nbshell-umbriel-resume-guard.service" \
     "$UNIT_DIR/nbshell-umbriel-resume-guard.service"
+install -m 644 "$SRC/systemd/nbshell-upstream-audit.service" "$UNIT_DIR/nbshell-upstream-audit.service"
+install -m 644 "$SRC/systemd/nbshell-upstream-audit.timer" "$UNIT_DIR/nbshell-upstream-audit.timer"
 # Remove the retired Agent Console host from installations that tested it.
 systemctl --user disable --now nbshell-agent-host.service >/dev/null 2>&1 || true
 rm -f "$UNIT_DIR/nbshell-agent-host.service"
@@ -133,6 +135,7 @@ mkdir -p "$BIN_DIR"
 install -m 755 "$SRC/bin/nbshell-install-recover" "$BIN_DIR/nbshell-install-recover"
 systemctl --user daemon-reload 2>/dev/null || true
 systemctl --user enable nbshell-umbriel-resume-guard.service >/dev/null 2>&1 || true
+systemctl --user enable --now nbshell-upstream-audit.timer >/dev/null 2>&1 || true
 
 # Prepare and validate a complete runtime before stopping the bar. Switching
 # two directories on the same filesystem keeps the incomplete-copy window out

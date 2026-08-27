@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {"name": "Umbriel", "repository": "https://github.com/noctalia-dev/umbriel", "reviewedCommit": "15188d2"},
+    {"name": "Umbriel portal", "repository": "https://github.com/noctalia-dev/xdg-desktop-portal-umbriel", "reviewedCommit": "515c9f7"},
+    {"name": "Omazen", "repository": "https://github.com/hemagome/omazen", "reviewedCommit": "281f8cc"},
+    {"name": "WhatsApp", "repository": "https://github.com/MoizIbnYousaf/Omarchy-Whatsapp", "reviewedCommit": "83f4c4a"},
+    {"name": "Mail", "repository": "https://github.com/huacnlee/omamail", "reviewedCommit": "e2cd92f"},
+    {"name": "Quick Translate", "repository": "https://github.com/seshna/quick-translate", "reviewedCommit": "284cac8"},
+    {"name": "YouTube Music", "repository": "https://github.com/rlimberger/omarchy-ytmusic", "reviewedCommit": "de0d64a"},
+    {"name": "Pit Wall", "repository": "https://github.com/jeremylongshore/omarchy-pit-wall-entry", "reviewedCommit": "cc78151"}
+  ]
+}

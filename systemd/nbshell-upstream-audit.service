@@ -1,0 +1,7 @@
+[Unit]
+Description=Check external nbshell sources without applying changes
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.config/quickshell/nbshell/scripts/upstream-audit.py --notify
