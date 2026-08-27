@@ -12,6 +12,18 @@ configuration and plugin interfaces before `1.0.0`.
   persistent chevron. Widgets to the left remain visible, the complete tail
   slides back out on the next click, and the tray keeps its own independent
   expanded or collapsed state.
+- Fresh installations now offer the native Orbital login screen by default.
+  Existing installations and file-only updates preserve their current display
+  manager frontend unless Orbital is requested explicitly; ReGreet remains the
+  independent recovery path. Autologin is never inferred from an installed
+  session launcher and requires a separate explicit option.
+
+### Fixed
+
+- WhatsApp chat refreshes no longer feed SQLite WAL notifications back into the
+  same database query several times per second. The resident service now uses
+  its bounded 12-second refresh interval, eliminating the short-lived Python
+  process storm while keeping unread counts current.
 
 ## [0.1.0-beta.5] - 2026-08-27
 
