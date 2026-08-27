@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import qs.Common
 import qs.Services
 import qs.Widgets
@@ -10,18 +11,23 @@ Cell {
 
     property int selectedProviderIndex: 0
 
-    readonly property bool agentActive: Agents.workingCount > 0 || Agents.waitingCount > 0
+    readonly property var hermesSession: (Agents.hermes.sessions || []).find(row => Boolean(row.active)) || ((Agents.hermes.sessions || [])[0] ?? ({}))
+    readonly property bool hermesActive: Boolean(root.hermesSession.active)
+    readonly property int hermesTokens: Number(root.hermesSession.inputTokens || 0) + Number(root.hermesSession.outputTokens || 0)
+    readonly property bool agentActive: Agents.workingCount > 0 || Agents.waitingCount > 0 || root.hermesActive
     readonly property bool limitWarning: AiUsage.list.some(entry =>
         (entry.limits ?? []).some(window => (window.percent ?? 0) >= 90))
 
     shown: Agents.completionAttention || root.agentActive || (AiUsage.available && AiUsage.list.length > 0)
     interactive: true
     popoutTakesKeyboard: true
-    slotChars: 1
+    slotChars: root.hermesActive ? 6 : 1
     label: "AI"
     icon: Icons.agent
-    text: ""
+    text: root.hermesActive ? AiUsage.formatTokens(root.hermesTokens) : ""
     color: root.limitWarning ? Theme.red : (Agents.completionAttention ? (Agents.attentionKind === "decision" ? Theme.yellow : Theme.cyan) : (root.agentActive ? Theme.green : Theme.textDim))
+
+    onPopoutVisibleChanged: Agents.setOverviewVisible(root.popoutVisible)
 
     SequentialAnimation on contentOpacity {
         running: Agents.completionAttention
@@ -60,7 +66,7 @@ Cell {
 
             icon: Icons.agent
             title: "AI agents"
-            subtitle: Agents.completionAttention ? (Agents.attentionKind === "decision" ? "Agent needs your input" : "Agent task completed") : (root.agentActive ? "Work in progress" : "No active session")
+            subtitle: Agents.completionAttention ? (Agents.attentionKind === "decision" ? "Agent needs your input" : "Agent task completed") : (root.hermesActive ? String(root.hermesSession.title || "Hermes is working") : (root.agentActive ? "Work in progress" : "No active session"))
             badge: Agents.completionAttention ? (Agents.attentionKind === "decision" ? "INPUT" : "NEW") : (root.agentActive ? "ACTIVE" : "IDLE")
             badgeColor: root.limitWarning ? Theme.red : (Agents.completionAttention ? (Agents.attentionKind === "decision" ? Theme.yellow : Theme.cyan) : (root.agentActive ? Theme.green : Theme.fgDim))
             content: [
@@ -69,6 +75,7 @@ Cell {
                     pairs: [
                         { "label": "Running", "value": String(Agents.workingCount), "color": Agents.workingCount > 0 ? Theme.green : Theme.fgDim },
                         { "label": "Waiting", "value": String(Agents.waitingCount), "color": Agents.waitingCount > 0 ? Theme.yellow : Theme.fgDim },
+                        { "label": "Hermes", "value": root.hermesActive ? (AiUsage.formatTokens(root.hermesTokens) + " tokens") : (Agents.hermes.running ? "ready" : "offline"), "color": root.hermesActive ? Theme.yellow : (Agents.hermes.running ? Theme.green : Theme.fgDim) },
                         { "label": "Highest limit", "value": card.highest ? (card.highest.id + "  " + card.highest.percent + " %") : "unavailable", "color": root.limitWarning ? Theme.red : Theme.fg }
                     ]
                 }
@@ -88,6 +95,8 @@ Cell {
             readonly property var limits: provider?.limits ?? []
             readonly property real dayPeak: Math.max(1, ...(stats.recentDays ?? []).map(day => Number(day.tokens ?? 0)))
             readonly property real modelPeak: Math.max(1, ...(stats.models ?? []).map(model => Number(model.tokens ?? 0)))
+            readonly property var hermesToday: (Agents.hermes.usage || {}).today || ({})
+            readonly property var hermesProcesses: Agents.hermes.processes || ({})
 
             spacing: Theme.cellH * 0.55
             focus: true
@@ -334,6 +343,43 @@ Cell {
 
             Rule {
                 rowWidth: panel.rowWidth
+                label: "HERMES LIVE"
+            }
+
+            PanelHead {
+                rowWidth: panel.rowWidth
+                icon: Icons.agent
+                title: String(root.hermesSession.title || "Hermes")
+                subtitle: root.hermesSession.cwd ? String(root.hermesSession.cwd).replace(Quickshell.env("HOME"), "~") : (Agents.hermes.running ? "Ready" : "Offline")
+                badge: root.hermesActive ? "WORKING" : (Agents.hermes.running ? "READY" : "OFFLINE")
+                badgeColor: root.hermesActive ? Theme.yellow : (Agents.hermes.running ? Theme.green : Theme.fgDim)
+            }
+
+            Facts {
+                rowWidth: panel.rowWidth
+                pairs: [
+                    { "label": "Session tokens", "value": AiUsage.formatTokens(root.hermesTokens), "color": Theme.fgBright },
+                    { "label": "Today", "value": AiUsage.formatTokens(Number(panel.hermesToday.inputTokens || 0) + Number(panel.hermesToday.outputTokens || 0)), "color": Theme.fg },
+                    { "label": "Input / output", "value": AiUsage.formatTokens(root.hermesSession.inputTokens || 0) + " / " + AiUsage.formatTokens(root.hermesSession.outputTokens || 0), "color": Theme.fg },
+                    { "label": "Cache", "value": AiUsage.formatTokens(Number(root.hermesSession.cacheReadTokens || 0) + Number(root.hermesSession.cacheWriteTokens || 0)), "color": Theme.fgDim },
+                    { "label": "Tools / calls", "value": String(root.hermesSession.tools || 0) + " / " + String(root.hermesSession.apiCalls || 0), "color": Theme.fg },
+                    { "label": "Jobs / teams", "value": String(Number(Agents.hermes.jobsRunning || 0)) + " / " + String(Number(Agents.hermes.teamsRunning || 0)), "color": (Number(Agents.hermes.jobsRunning || 0) + Number(Agents.hermes.teamsRunning || 0)) > 0 ? Theme.yellow : Theme.fgDim },
+                    { "label": "Memory", "value": Number(panel.hermesProcesses.pssMiB || 0).toFixed(0) + " MB PSS", "color": Theme.fg },
+                    { "label": "CPU / processes", "value": Number(panel.hermesProcesses.cpuPercent || 0).toFixed(1) + "% / " + String(panel.hermesProcesses.count || 0), "color": Theme.fg }
+                ]
+            }
+
+            Line {
+                visible: Boolean(root.hermesSession.activity)
+                width: panel.rowWidth
+                text: String(root.hermesSession.activity || "").toUpperCase()
+                color: root.hermesActive ? Theme.accent : Theme.fgDim
+                elide: Text.ElideRight
+                font.pixelSize: Theme.fontCaption
+            }
+
+            Rule {
+                rowWidth: panel.rowWidth
                 label: "AGENTS"
             }
 
@@ -361,16 +407,19 @@ Cell {
                 ActionButton {
                     text: "Refresh"
                     compact: true
-                    onTriggered: AiUsage.refresh()
+                    onTriggered: {
+                        AiUsage.refresh();
+                        Agents.refresh();
+                    }
                 }
 
                 ActionButton {
-                    text: "Launch " + Agents.defaultAgent
+                    text: "Launch Hermes"
                     tone: "primary"
                     compact: true
                     onTriggered: {
                         panel.closePopout?.();
-                        Agents.launch(Agents.defaultAgent, "");
+                        Agents.launch("hermes", "");
                     }
                 }
             }
