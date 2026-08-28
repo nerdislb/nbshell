@@ -30,6 +30,7 @@ FINAL_STATES = {"ready", "reviewed", "applied", "installed", "pushed", "rejected
 MAX_TASK_CHARS = 12_000
 MAX_JOBS = 30
 MAX_CONCURRENT_JOBS = 3
+GEMINI_PRINT_TIMEOUT = "25m"
 SECRET_PATTERNS = (
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
     re.compile(r"\b(?:sk|ghp|github_pat|xox[baprs])[-_][A-Za-z0-9_-]{16,}\b"),
@@ -166,6 +167,19 @@ def _bind_file(command: list[str], source: Path, target: Path) -> None:
         command.extend(["--ro-bind", str(source), str(target)])
 
 
+def _copy_private_file(source: Path, target: Path) -> None:
+    """Seed a writable, job-local credential copy without mutating the source."""
+    if not source.is_file():
+        return
+    target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if target.is_file() and target.stat().st_mtime_ns >= source.stat().st_mtime_ns:
+        return
+    temporary = target.with_name(target.name + ".tmp")
+    shutil.copyfile(source, temporary)
+    temporary.chmod(0o600)
+    temporary.replace(target)
+
+
 def _bwrap(job_id: str, workspace: Path, writable: bool, provider: str) -> tuple[list[str], Path]:
     home = _sandbox_home(job_id, provider)
     command = [
@@ -195,7 +209,10 @@ def _bwrap(job_id: str, workspace: Path, writable: bool, provider: str) -> tuple
         ),
     }
     for source, relative in provider_files[provider]:
-        _bind_file(command, source, Path("/sandbox-home") / relative)
+        if provider == "gemini":
+            _copy_private_file(source, home / relative)
+        else:
+            _bind_file(command, source, Path("/sandbox-home") / relative)
     env = {"HOME": "/sandbox-home", "XDG_CONFIG_HOME": "/sandbox-home/.config", "XDG_CACHE_HOME": "/sandbox-home/.cache", "XDG_RUNTIME_DIR": "/sandbox-home/runtime", "NO_COLOR": "1", "TERM": "dumb"}
     for key, value in env.items():
         command.extend(["--setenv", key, value])
@@ -233,6 +250,7 @@ def _provider_command(provider: str, prompt: str, workspace: Path, review: bool)
     permissions = ["--dangerously-skip-permissions"]
     return [agy, "--sandbox", "--new-project", "--add-dir", "/workspace",
             "--mode", "plan" if review else "accept-edits", *permissions,
+            "--print-timeout", GEMINI_PRINT_TIMEOUT,
             "--print", prompt, "--output-format", "text"]
 
 

@@ -2,6 +2,7 @@
 """Transactional Hermes job contracts, including the human approval gate."""
 
 import importlib.util
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -17,6 +18,25 @@ assert '"--ask-for-approval"' not in source
 spec = importlib.util.spec_from_file_location("hermes_jobs", ROOT / "resources/hermes-jobs/manager.py")
 jobs = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(jobs)
+
+
+gemini_command = jobs._provider_command("gemini", "audit", Path("/workspace"), False)
+assert gemini_command[gemini_command.index("--print-timeout") + 1] == "25m"
+
+with tempfile.TemporaryDirectory() as credential_temp:
+    credential_root = Path(credential_temp)
+    source_credential = credential_root / "source-token"
+    local_credential = credential_root / "job-home" / "token"
+    source_credential.write_text("expired-but-refreshable\n")
+    source_credential.chmod(0o640)
+    jobs._copy_private_file(source_credential, local_credential)
+    assert local_credential.read_text() == "expired-but-refreshable\n"
+    assert local_credential.stat().st_mode & 0o777 == 0o600
+    local_credential.write_text("refreshed-in-sandbox\n")
+    os.utime(local_credential, ns=(source_credential.stat().st_mtime_ns + 1, source_credential.stat().st_mtime_ns + 1))
+    jobs._copy_private_file(source_credential, local_credential)
+    assert local_credential.read_text() == "refreshed-in-sandbox\n"
+    assert source_credential.read_text() == "expired-but-refreshable\n"
 
 
 with tempfile.TemporaryDirectory() as temporary:
