@@ -27,6 +27,7 @@ change before version 1.0.
    python3 ./tests/hermes-jobs.py
    python3 ./tests/hermes-team.py
    python3 ./tests/hermes-brain.py
+   python3 ./tests/cli-consistency.py
    ./tests/greeter.sh
    mkdocs build --strict
    ```

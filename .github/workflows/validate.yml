@@ -87,6 +87,9 @@ jobs:
       - name: Test browser theme contracts
         run: bash ./tests/browser-theme.sh
 
+      - name: Test CLI help and catalog consistency
+        run: python3 ./tests/cli-consistency.py
+
       - name: Audit release metadata and privacy
         run: ./tests/release-audit.sh
 

@@ -397,14 +397,15 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
 
   nbshell start [-d]        start the shell (-d runs in the background)
   nbshell stop              stop the shell
-  nbshell restart
+  nbshell restart           restart the shell
 
   nbshell bar               full-width bar
   nbshell island            floating island that collapses to the clock
   nbshell pill              floating island that stays expanded
   nbshell mode toggle       cycle through all three modes
   nbshell edge top|bottom|toggle
-  nbshell open|close|toggle hold the island open
+                            set or toggle the screen edge
+  nbshell open|close|toggle  hold the island open or closed
 
   nbshell theme             show the active theme
   nbshell theme <name>      switch theme
@@ -412,6 +413,7 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell theme install [--force] <url|directory>
                             install an Omarchy theme; --force replaces it
   nbshell theme remove <name>
+                            remove an installed theme
   nbshell theme update      update themes installed from Git
   nbshell picker            open the theme picker
   nbshell next | prev       select the next or previous theme
@@ -420,7 +422,7 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell accent green      use a color from the active theme
   nbshell accent theme      use the theme's default accent
 
-  nbshell widget                    list per-module appearance overrides
+  nbshell widget            list per-module appearance overrides
   nbshell widget battery display icon
                             full | icon | text | auto
   nbshell widget clock style plain
@@ -428,12 +430,13 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell widget updates color red
                             a theme color; auto follows the global setting
   nbshell widget updates reset
-  nbshell widget reset all
+                            reset module color override
+  nbshell widget reset all  reset all widget overrides
 
   nbshell audio up|down     change volume
   nbshell audio mute        toggle mute
   nbshell audio <percent>   set volume
-  nbshell audio status
+  nbshell audio status      show volume and active sink
   nbshell audio panel       open mixer and device list
 
   nbshell launcher          open the application launcher (alias: run)
@@ -449,7 +452,7 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell notify            show notification status
   nbshell notify toggle     open the notification center
   nbshell notify dnd        toggle do not disturb
-  nbshell notify clear
+  nbshell notify clear      dismiss all notifications
   nbshell notify server on|off
                             manage org.freedesktop.Notifications ownership
 
@@ -458,7 +461,9 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell display           open display management (Niri-first)
   nbshell display status    list connected outputs as JSON
   nbshell display set <output> mode|scale|transform|enabled <value>
+                            configure display properties
   nbshell display place <output> left|right|above|below <reference>
+                            position connected displays
   nbshell ui-gallery        preview the shared nbshell component language
   nbshell update            check nbshell and the Umbriel stack
   nbshell update install    verify and install the latest nbshell release
@@ -477,20 +482,28 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell agent prompt <text>
                             start the default agent with a prompt
   nbshell agent profile [safe|balanced|autonomous]
+                            show or set the agent approval profile
   nbshell agent model-profile [local|cloud|private|fast|strong]
+                            show or set the model routing profile
   nbshell agent model <profile> <provider/model>
                             set the concrete model used by a routing profile
   nbshell agent hermes-provider [codex|claude|gemini]
                             select the Hermes Hub model lane
-  nbshell agent hermes-mode [restricted|research|workspace]
+  nbshell agent hermes-mode [restricted|research|workspace|trusted]
                             select the Hermes Hub capability boundary
   nbshell agent hermes-broker [status|setup|test|remove]
                             manage the bounded advisory and transaction broker
   nbshell agent hermes-job <create|list|review|apply|install|push|reject>
                             manage isolated, human-approved provider jobs
+  nbshell agent hermes-team <list|pause|resume|cancel|apply|install|push|reject>
+                            manage supervised multi-agent team sessions
+  nbshell agent hermes-brain <list|apply|push|reject>
+                            manage reviewed Second Brain proposals
   nbshell agent install <agent>
+                            install an optional coding agent
   nbshell agent sessions    list active Herdr agent sessions
   nbshell agent ollama [status|start|stop]
+                            manage local Ollama server
   nbshell agent workspace dev|review|pair [--project <path>]
                             create an editor/agent layout inside Herdr
   nbshell agent doctor      diagnose the local AI toolchain
@@ -500,12 +513,16 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell store             browse themes, wallpapers, and reviewed plugins
   nbshell system-report     print an agent-safe local system map
   nbshell system-report --write [path]
+                            write an agent-safe local system map to file
   nbshell memory-guard      show runaway application protection
   nbshell memory-guard setup|remove
-  nbshell demo start|stop  record a focused desktop demo on demand
+                            configure or remove runaway application service
+  nbshell demo start|stop   record a focused desktop demo on demand
   nbshell demo export reddit|discord|github
+                            export demo recording for platforms
   nbshell whatsapp setup    install the reversible native WhatsApp client
   nbshell whatsapp provider whatsapp|prettyzap
+                            select WhatsApp client provider
   nbshell aether setup      connect Aether's Apply button to nbshell
   nbshell procs             process list (also: top)
   nbshell menu              searchable main menu
@@ -515,14 +532,18 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell cal               calendar (also: next, sync, status)
   nbshell gaming status     show installed and available gaming tools
   nbshell gaming install <item>
+                            install an optional gaming tool
   nbshell gaming remove <item>
-                            explicit, confirmed gaming setup actions
+                            remove an installed gaming tool
   nbshell grid toggle       toggle the workspace-local 2x2 scrolling layout
   nbshell grid on|off|status
+                            control workspace-local 2x2 scrolling layout
   nbshell grid backend stable|atomic|status
+                            select grid layout compositor backend
   nbshell grid compositor stable|atomic|status
-  nbshell compositor status show the detected compositor backend
-  nbshell compositor nested run the isolated Umbriel development profile
+                            alias for grid backend selection
+  nbshell compositor status  show the detected compositor backend
+  nbshell compositor nested  run the isolated Umbriel development profile
 
   nbshell todo              list tasks
   nbshell todo <text>       add a task (also: todo add <text>)
@@ -538,9 +559,9 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell notes sync        merge conflict copies and reload
 
   nbshell habits            list habits
-  nbshell habits toggle <n> toggle completion
+  nbshell habits toggle <n>  toggle completion
   nbshell habits done <n>   mark as completed
-  nbshell habits inc <n> [x] increase a counter
+  nbshell habits inc <n> [x]  increase a counter
   nbshell habits <text>     add a habit
   nbshell habits open       open the 20-week heatmap
   nbshell habits sync       merge conflict copies and reload
@@ -548,11 +569,15 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell plugins           list modules (also: reload)
   nbshell plugin add <url>  install a third-party plugin; only use trusted code
   nbshell plugin validate <directory>
+                            validate plugin manifest and structure
   nbshell plugin enable|disable <id>
-  nbshell plugin diff <name>   review incoming commits and files
+                            enable or disable an installed plugin
+  nbshell plugin diff <name>  review incoming commits and files
   nbshell plugin update [name]
+                            update installed plugins
   nbshell plugin remove <name>
-  nbshell plugin-manager      open installed plugins and the store
+                            remove an installed plugin
+  nbshell plugin-manager    open installed plugins and the store
   nbshell popout <name>     open a module popout
   nbshell extension toggle <id>  toggle a plugin panel or overlay
   nbshell translate         toggle the optional Quick Translate overlay
@@ -564,8 +589,11 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell greeter preview   preview Orbital without authentication or power actions
   nbshell greeter status    show the staged greetd frontend
   nbshell greeter install orbital|regreet
+                            install Orbital or ReGreet frontend
   nbshell greeter activate orbital|regreet
+                            activate staged greetd frontend
   nbshell media playpause|next|previous|status
+                            control media playback
   nbshell dictate           toggle local voice dictation
   nbshell pip status|apply|size|corner|focus|close
                             control Zen's native Picture-in-Picture
@@ -579,25 +607,27 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell osd test|on|off   volume and brightness overlay
   nbshell control           control center (brightness, Wi-Fi, Bluetooth)
   nbshell brightness up|down|<percent>
+                            adjust screen brightness
 
   nbshell wallpaper on|off  toggle the theme wallpaper
   nbshell wallpaper pick    browse theme wallpapers
-  nbshell wallpaper list
+  nbshell wallpaper list    list available theme wallpapers
   nbshell wallpaper <path>  use a fixed image
 
   nbshell get <key>         read a configuration value
-  nbshell set <key> <value> set a value; JSON is supported
+  nbshell set <key> <value>  set a value; JSON is supported
   nbshell config            show the full configuration
   nbshell state             show open surfaces
-  nbshell status
+  nbshell status            show bar status
 
   nbshell switch on         enable autostart and niri integration
   nbshell switch off        disable autostart and niri integration
-  nbshell switch status
+  nbshell switch status     show autostart and integration status
 
   nbshell nearby scan       find nearby LocalSend devices
   nbshell nearby            list discovered devices
   nbshell nearby send <file> [alias]
+                            send a file to a LocalSend device
 
   nbshell keys              show all key bindings
   nbshell keys list         print key bindings in the terminal
@@ -610,6 +640,7 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell idle on|off       manage idle automation
   nbshell saver             start the screen saver
   nbshell cursor [theme] [size]
+                            show or set cursor theme and size
   nbshell text [8..28]      show or change UI text size
   nbshell polkit [on]       check or start a Polkit agent
   nbshell auth approve-next [system|sudo|polkit-1]
@@ -759,14 +790,39 @@ case "$cmd" in
             usage | python3 -c '
 import json, re, sys
 rows = []
+pending_cmd = None
+pending_summary = []
+
+def flush():
+    global pending_cmd, pending_summary
+    if pending_cmd:
+        summary_text = " ".join(" ".join(pending_summary).split())
+        if pending_cmd == "nbshell commands --json":
+            summary_text = "Print this machine-readable CLI catalog"
+        rows.append({"command": pending_cmd, "summary": summary_text})
+        pending_cmd = None
+        pending_summary = []
+
 for line in sys.stdin:
-    match = re.match(r"^  (nbshell\s+\S+(?:\s+\S+)*)\s{2,}(.+)$", line.rstrip())
-    if not match:
+    stripped = line.rstrip()
+    if not stripped or stripped.startswith("nbshell --") or "Legacy German aliases" in stripped or "All other arguments" in stripped:
+        flush()
         continue
-    command, summary = match.groups()
-    if command == "nbshell commands --json":
-        summary = "Print this machine-readable CLI catalog"
-    rows.append({"command": command, "summary": summary})
+    cmd_match = re.match(r"^  (nbshell(?: [^\s]+)*)(?:\s{2,}(.+))?$", stripped)
+    if cmd_match:
+        flush()
+        cmd, inline_summary = cmd_match.groups()
+        if cmd == "nbshell log, nbshell ipc show, ...":
+            continue
+        pending_cmd = cmd
+        if inline_summary and inline_summary.strip():
+            pending_summary.append(inline_summary.strip())
+    elif pending_cmd and re.match(r"^\s{4,}\S", stripped):
+        pending_summary.append(stripped.strip())
+    else:
+        flush()
+
+flush()
 print(json.dumps({"schemaVersion": 1, "commands": rows}, indent=2))'
         else
             ipc launcher commands "${1:-}"

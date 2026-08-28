@@ -214,6 +214,6 @@ niri validate
 nbshell switch status
 ```
 
-Choose Niri in the greeter to bypass an Umbriel regression. Run `nbshell switch
-off` to return to the previous shell integration without deleting personal
+Choose Niri in the greeter to bypass an Umbriel regression. Run `nbshell switch off`
+to return to the previous shell integration without deleting personal
 nbshell settings.
