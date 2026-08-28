@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Networking
+import "NetMetrics.js" as NetMetrics
 
 // Netzwerk. Quickshell spricht selbst mit dem NetworkManager; hier steht nur,
 // was das Control Center davon zeigt.
@@ -150,31 +151,44 @@ Singleton {
         return Math.round(100 * Math.log(1 + capped) / Math.log(1 + 100 * 1024 * 1024));
     }
 
-    Process {
-        id: trafficSample
-        command: ["sh", "-c", "d=$(ip -o route show default | awk 'NR==1 {print $5}'); test -n \"$d\" && printf '%s %s %s\\n' \"$d\" \"$(cat /sys/class/net/$d/statistics/rx_bytes)\" \"$(cat /sys/class/net/$d/statistics/tx_bytes)\""]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const parts = text.trim().split(/\s+/);
-                if (parts.length !== 3)
-                    return;
-                const iface = parts[0];
-                const rx = Number(parts[1]);
-                const tx = Number(parts[2]);
-                const now = Date.now();
-                if (iface === root.trafficInterface && root.previousRx >= 0 && root.previousTx >= 0) {
-                    const seconds = Math.max(0.001, (now - root.previousSampleMs) / 1000);
-                    root.downloadBps = Math.max(0, (rx - root.previousRx) / seconds);
-                    root.uploadBps = Math.max(0, (tx - root.previousTx) / seconds);
-                } else {
-                    root.downloadBps = 0;
-                    root.uploadBps = 0;
-                }
+    // Read the kernel tables directly. The old sampler spawned a shell, ip,
+    // awk and two cat processes every second; these files contain the same
+    // counters and route selection without any process startup.
+    FileView {
+        id: routeFile
+        path: "/proc/net/route"
+        printErrors: false
+        onLoaded: {
+            const iface = NetMetrics.defaultInterface(text());
+            if (iface !== root.trafficInterface) {
                 root.trafficInterface = iface;
-                root.previousRx = rx;
-                root.previousTx = tx;
-                root.previousSampleMs = now;
+                root.previousRx = -1;
+                root.previousTx = -1;
+                root.previousSampleMs = 0;
+                root.downloadBps = 0;
+                root.uploadBps = 0;
             }
+            trafficFile.reload();
+        }
+    }
+
+    FileView {
+        id: trafficFile
+        path: "/proc/net/dev"
+        printErrors: false
+        onLoaded: {
+            const counters = NetMetrics.interfaceCounters(text(), root.trafficInterface);
+            if (!counters)
+                return;
+            const now = Date.now();
+            if (root.previousRx >= 0 && root.previousTx >= 0) {
+                const seconds = Math.max(0.001, (now - root.previousSampleMs) / 1000);
+                root.downloadBps = Math.max(0, (counters.rx - root.previousRx) / seconds);
+                root.uploadBps = Math.max(0, (counters.tx - root.previousTx) / seconds);
+            }
+            root.previousRx = counters.rx;
+            root.previousTx = counters.tx;
+            root.previousSampleMs = now;
         }
     }
 
@@ -183,7 +197,7 @@ Singleton {
         repeat: true
         running: root.trafficMonitoring
         triggeredOnStart: true
-        onTriggered: if (!trafficSample.running) trafficSample.running = true
+        onTriggered: routeFile.reload()
     }
 
     // Die Signalstaerke kommt als Anteil zwischen 0 und 1 herein, nicht als

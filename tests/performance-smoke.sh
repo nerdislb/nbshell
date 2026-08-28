@@ -42,6 +42,16 @@ for removed in ("storeWatchProcess", "storeRefreshDebounce", "refreshFromStore",
 assert "   Timer {\n     interval: 12000" in patch
 PY
 
+# Hot refreshers must read procfs/runtime snapshots in-process. These paths
+# used to create five child processes per network sample and one `cat` child
+# per Pit Wall bridge sample respectively.
+grep -Fq 'path: "/proc/net/route"' "$ROOT/shell/Services/Net.qml"
+grep -Fq 'path: "/proc/net/dev"' "$ROOT/shell/Services/Net.qml"
+! grep -Fq 'ip -o route show default' "$ROOT/shell/Services/Net.qml"
+grep -Fq 'property var bridgeSnapshotFile: FileView {' "$ROOT/plugins/pit-wall/Service.qml"
+! grep -Fq 'command: ["/usr/bin/cat", root.bridgeSnapshot]' "$ROOT/plugins/pit-wall/Service.qml"
+node "$ROOT/tests/net-metrics.test.js"
+
 # Package updates may require elevation, so their execution path must use
 # fixed argv arrays and never reinterpret a display string as shell syntax.
 if grep -Eq '^[[:space:]]*eval[[:space:]]' "$ROOT/shell/scripts/updates.sh"; then

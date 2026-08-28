@@ -108,8 +108,7 @@ QtObject {
         if (bridgeAvailable) {
             if (!bridgeProc.running)
                 bridgeProc.running = true;
-            if (!bridgeSnapshotProc.running)
-                bridgeSnapshotProc.running = true;
+            bridgeSnapshotFile.reload();
             return;
         }
         if (!liveDriversProc.running)
@@ -177,27 +176,25 @@ QtObject {
         }
     }
 
-    property var bridgeSnapshotProc: Process {
-        command: ["/usr/bin/cat", root.bridgeSnapshot]
-        stdout: StdioCollector {
-            waitForEnd: true
-            onStreamFinished: {
-                let payload;
-                try {
-                    payload = JSON.parse(text);
-                } catch (e) {
-                    return;
-                }
-                if (!payload || !payload.ok)
-                    return;
-                root.liveDrivers = payload.drivers || ({});
-                root.livePositions = payload.positions || ({});
-                root.liveGaps = payload.gaps || ({});
-                root.liveDetails = payload.details || ({});
-                root.trackStatus = payload.trackStatus || "green";
-                root.bridgeHealthy = true;
-                root.errorText = "";
+    property var bridgeSnapshotFile: FileView {
+        path: root.bridgeSnapshot
+        printErrors: false
+        onLoaded: {
+            let payload;
+            try {
+                payload = JSON.parse(text());
+            } catch (e) {
+                return;
             }
+            if (!payload || !payload.ok)
+                return;
+            root.liveDrivers = payload.drivers || ({});
+            root.livePositions = payload.positions || ({});
+            root.liveGaps = payload.gaps || ({});
+            root.liveDetails = payload.details || ({});
+            root.trackStatus = payload.trackStatus || "green";
+            root.bridgeHealthy = true;
+            root.errorText = "";
         }
     }
 
