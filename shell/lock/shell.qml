@@ -92,7 +92,8 @@ ShellRoot {
         WlSessionLockSurface {
             id: lockSurface
             color: shell.background
-            readonly property bool primary: !Quickshell.screens.length || screen.name === Quickshell.screens[0].name
+            readonly property bool primary: screen !== null
+                && (!Quickshell.screens.length || screen.name === Quickshell.screens[0].name)
             LockView {
                 anchors.fill: parent; primary: lockSurface.primary; previewMode: false
                 username: shell.username; wallpaper: shell.wallpaper; background: shell.background

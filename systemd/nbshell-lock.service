@@ -10,6 +10,7 @@ Slice=session.slice
 Environment="NBSHELL_LOCK_CONFIG=%h/.config/nbshell/generated/orbital-lock.json"
 Environment="NBSHELL_LOCK_READY=%t/nbshell-lock-ready"
 ExecStart=/usr/bin/quickshell -p %h/.config/quickshell/nbshell/lock
+ExecStopPost=/usr/bin/rm -f %t/nbshell-lock-ready
 Restart=on-failure
 RestartSec=500ms
 TimeoutStopSec=5

@@ -160,6 +160,7 @@ def check_qml_contract() -> None:
     unit = (ROOT / "systemd/nbshell-lock.service").read_text()
     assert "Slice=session.slice" in unit
     assert "Restart=on-failure" in unit
+    assert "ExecStopPost=/usr/bin/rm -f %t/nbshell-lock-ready" in unit
     assert "PartOf=nbshell.service" not in unit
 
 
