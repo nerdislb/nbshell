@@ -2,7 +2,12 @@
 # Install the dedicated PAM service used by the native in-session locker.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SOURCE="${NBSHELL_LOCK_PAM_SOURCE:-$ROOT/shell/lock/nbshell-lock.pam}"
+if [[ -f $ROOT/shell/lock/nbshell-lock.pam ]]; then
+    DEFAULT_SOURCE="$ROOT/shell/lock/nbshell-lock.pam"
+else
+    DEFAULT_SOURCE="$ROOT/locker/nbshell-lock.pam"
+fi
+SOURCE="${NBSHELL_LOCK_PAM_SOURCE:-$DEFAULT_SOURCE}"
 TEST_ROOT="${NBSHELL_LOCK_TEST_ROOT:-}"
 HELPER="${NBSHELL_LOCK_ROOT_HELPER:-sudo}"
 [[ $HELPER == sudo || $HELPER == pkexec ]] || { echo "NBSHELL_LOCK_ROOT_HELPER must be sudo or pkexec" >&2; exit 2; }
