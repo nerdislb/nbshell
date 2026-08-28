@@ -44,7 +44,13 @@ ShellRoot {
     function authenticate(secret) {
         if (previewMode || authenticating || typeof secret !== "string" || !secret.length) return;
         pendingSecret = secret; authenticating = true; statusError = false; statusMessage = "AUTHENTICATING";
-        pam.start();
+        if (!pam.start()) {
+            pendingSecret = "";
+            authenticating = false;
+            resetSerial += 1;
+            statusMessage = "AUTHENTICATION SERVICE UNAVAILABLE";
+            statusError = true;
+        }
     }
     function reset() {
         pendingSecret = ""; resetSerial += 1;
@@ -60,6 +66,7 @@ ShellRoot {
     PamContext {
         id: pam
         config: "nbshell-lock"
+        user: shell.username
         onPamMessage: {
             if (this.responseRequired) {
                 const secret = shell.pendingSecret;
@@ -81,7 +88,7 @@ ShellRoot {
     WlSessionLock {
         id: sessionLock
         locked: !shell.previewMode
-        onSecureChanged: if (secure && shell.readyPath) readyProcess.running = true
+        onSecureStateChanged: if (secure && shell.readyPath) readyProcess.running = true
         WlSessionLockSurface {
             id: lockSurface
             color: shell.background

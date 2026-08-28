@@ -1,0 +1,16 @@
+[Unit]
+Description=nbshell Orbital session locker
+Documentation=https://github.com/nerdislb/nbshell
+After=graphical-session.target
+Requisite=graphical-session.target
+
+[Service]
+Type=simple
+Slice=session.slice
+Environment="NBSHELL_LOCK_CONFIG=%h/.config/nbshell/generated/orbital-lock.json"
+Environment="NBSHELL_LOCK_READY=%t/nbshell-lock-ready"
+ExecStart=/usr/bin/quickshell -p %h/.config/quickshell/nbshell/lock
+Restart=on-failure
+RestartSec=500ms
+TimeoutStopSec=5
+UMask=0077

@@ -22,7 +22,8 @@ OUTPUT_PATH = NB_DIR / "generated" / "hyprlock.conf"
 NATIVE_CONFIG_PATH = NB_DIR / "generated" / "orbital-lock.json"
 LOCK_DIR = Path(__file__).resolve().parents[1] / "lock"
 PAM_SERVICE_PATH = Path("/etc/pam.d/nbshell-lock")
-READY_PATH = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / f"nbshell-lock-ready-{os.getuid()}"
+READY_PATH = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "nbshell-lock-ready"
+NATIVE_UNIT = "nbshell-lock.service"
 
 
 def load_json(path: Path) -> dict:
@@ -342,8 +343,9 @@ def native_command(config: dict, native_config: Path) -> list[str] | None:
     if isinstance(config.get("lockCommand"), str) and config["lockCommand"].strip():
         return None
     quickshell = shutil.which("quickshell") or shutil.which("qs")
-    if quickshell and (LOCK_DIR / "shell.qml").is_file() and PAM_SERVICE_PATH.is_file():
-        return [quickshell, "-p", str(LOCK_DIR)]
+    unit = CONFIG_HOME / "systemd/user" / NATIVE_UNIT
+    if quickshell and (LOCK_DIR / "shell.qml").is_file() and PAM_SERVICE_PATH.is_file() and unit.is_file():
+        return ["systemctl", "--user", "start", NATIVE_UNIT]
     return None
 
 
@@ -358,6 +360,12 @@ def selected_locker(config: dict, generated: Path, native_config: Path) -> tuple
 
 def locker_running(command: list[str] | None = None) -> bool:
     command = command or ["hyprlock"]
+    if command == ["systemctl", "--user", "start", NATIVE_UNIT]:
+        result = subprocess.run(
+            ["systemctl", "--user", "is-active", "--quiet", NATIVE_UNIT],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        return result.returncode == 0
     if "-p" in command and str(LOCK_DIR) in command:
         result = subprocess.run(
             ["pgrep", "-f", f"(^|/)(quickshell|qs).* -p {str(LOCK_DIR)}($| )"],
@@ -441,6 +449,24 @@ def start_lock(suspend: bool = False) -> int:
     if not shutil.which(command[0]):
         print(f"nbshell: screen locker is not installed: {command[0]}", file=sys.stderr)
         return 127
+    if native and not locker_running(command):
+        READY_PATH.unlink(missing_ok=True)
+        started = subprocess.run(command, env=environment)
+        if started.returncode != 0:
+            if not locker_running(command):
+                os.execvpe(fallback_command[0], fallback_command, os.environ.copy())
+            return started.returncode
+        deadline = time.monotonic() + 4.0
+        while time.monotonic() < deadline:
+            if READY_PATH.is_file():
+                break
+            if not locker_running(command):
+                os.execvpe(fallback_command[0], fallback_command, os.environ.copy())
+            time.sleep(0.05)
+        else:
+            print("nbshell: native locker did not confirm secure output coverage", file=sys.stderr)
+            return 1
+
     if not suspend:
         if locker_running(command):
             return 0

@@ -125,6 +125,7 @@ fi
 # Install the shell lifecycle unit before touching the running shell.
 mkdir -p "$UNIT_DIR"
 install -m 644 "$SRC/systemd/nbshell.service" "$UNIT_DIR/nbshell.service"
+install -m 644 "$SRC/systemd/nbshell-lock.service" "$UNIT_DIR/nbshell-lock.service"
 install -m 644 "$SRC/systemd/nbshell-umbriel-resume-guard.service" \
     "$UNIT_DIR/nbshell-umbriel-resume-guard.service"
 install -m 644 "$SRC/systemd/nbshell-upstream-audit.service" "$UNIT_DIR/nbshell-upstream-audit.service"
@@ -358,7 +359,7 @@ fi
 # ── systemd-Unit ─────────────────────────────────────────────────────────
 # The shell lifecycle remains opt-in via `nbshell switch on`; the narrow
 # Umbriel recovery guard is enabled independently above.
-green "Units   -> $UNIT_DIR (shell lifecycle and Umbriel resume guard)"
+green "Units   -> $UNIT_DIR (shell lifecycle, isolated locker, and Umbriel resume guard)"
 
 # ── niri-Tastenkuerzel ───────────────────────────────────────────────────
 mkdir -p "$CONFIG_HOME/niri"

@@ -143,6 +143,9 @@ def check_qml_contract() -> None:
     view = (ROOT / "shell/lock/LockView.qml").read_text()
     clock = (ROOT / "shell/lock/OrbitalClock.qml").read_text()
     assert 'config: "nbshell-lock"' in shell
+    assert "user: shell.username" in shell
+    assert "if (!pam.start())" in shell
+    assert "onSecureStateChanged" in shell
     assert "PamResult.Success" in shell and "sessionLock.locked = false" in shell
     assert 'locked: !shell.previewMode' in shell
     assert "WlSessionLockSurface" in shell and "Quickshell.screens" in shell
@@ -154,6 +157,10 @@ def check_qml_contract() -> None:
     assert clock.count("Repeater") >= 1
     for token in ("minuteRing", "secondRing", "angularDistance", "72 * root.unit", "-7 * root.unit"):
         assert token in clock, token
+    unit = (ROOT / "systemd/nbshell-lock.service").read_text()
+    assert "Slice=session.slice" in unit
+    assert "Restart=on-failure" in unit
+    assert "PartOf=nbshell.service" not in unit
 
 
 def check_suspend_guard() -> None:
