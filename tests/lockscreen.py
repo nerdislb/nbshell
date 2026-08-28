@@ -121,6 +121,41 @@ def check_custom_command() -> None:
     assert LOCKSCREEN.locker_running(["this-process-cannot-exist"]) is False
 
 
+def check_native_render_and_selection(root: Path) -> None:
+    config = root / "native.json"
+    config.write_text(json.dumps({"font": "Native Mono", "lockDim": 55, "clockFormat": "12"}))
+    output = root / "orbital-lock.json"
+    LOCKSCREEN.render_native(config, output)
+    document = json.loads(output.read_text())
+    assert document["font"] == "Native Mono"
+    assert document["dimOpacity"] == 0.55
+    assert document["hourFormat"] == "12"
+    assert output.stat().st_mode & 0o777 == 0o600
+    with mock.patch.object(LOCKSCREEN, "native_command", return_value=["quickshell", "-p", "/lock"]):
+        command, environment, native = LOCKSCREEN.selected_locker({}, Path("hypr.conf"), output)
+    assert command == ["quickshell", "-p", "/lock"]
+    assert environment["NBSHELL_LOCK_CONFIG"] == str(output)
+    assert native is True
+
+
+def check_qml_contract() -> None:
+    shell = (ROOT / "shell/lock/shell.qml").read_text()
+    view = (ROOT / "shell/lock/LockView.qml").read_text()
+    clock = (ROOT / "shell/lock/OrbitalClock.qml").read_text()
+    assert 'config: "nbshell-lock"' in shell
+    assert "PamResult.Success" in shell and "sessionLock.locked = false" in shell
+    assert 'locked: !shell.previewMode' in shell
+    assert "WlSessionLockSurface" in shell and "Quickshell.screens" in shell
+    assert 'shell.pendingSecret = ""' in shell
+    for token in ("MultiEffect", "blur: 0.72", 'passwordCharacter: "✦"',
+                  "failureShake", "Qt.Key_U", "Qt.Key_Escape",
+                  "UNLOCK CONTROLS ON PRIMARY DISPLAY", "dd MMM yyyy"):
+        assert token in view, token
+    assert clock.count("Repeater") >= 1
+    for token in ("minuteRing", "secondRing", "angularDistance", "72 * root.unit", "-7 * root.unit"):
+        assert token in clock, token
+
+
 def check_suspend_guard() -> None:
     alive = mock.Mock()
     alive.poll.return_value = None
@@ -128,6 +163,7 @@ def check_suspend_guard() -> None:
     with (
         mock.patch.object(LOCKSCREEN, "render", return_value=Path("generated.conf")),
         mock.patch.object(LOCKSCREEN, "load_json", return_value={}),
+        mock.patch.object(LOCKSCREEN, "native_command", return_value=None),
         mock.patch.object(LOCKSCREEN, "locker_running", return_value=False),
         mock.patch.object(LOCKSCREEN, "umbriel_binary", return_value=None),
         mock.patch.object(LOCKSCREEN.shutil, "which", return_value="/usr/bin/hyprlock"),
@@ -143,6 +179,7 @@ def check_suspend_guard() -> None:
     with (
         mock.patch.object(LOCKSCREEN, "render", return_value=Path("generated.conf")),
         mock.patch.object(LOCKSCREEN, "load_json", return_value={}),
+        mock.patch.object(LOCKSCREEN, "native_command", return_value=None),
         mock.patch.object(LOCKSCREEN, "locker_running", return_value=False),
         mock.patch.object(LOCKSCREEN, "umbriel_binary", return_value=None),
         mock.patch.object(LOCKSCREEN.shutil, "which", return_value="/usr/bin/hyprlock"),
@@ -216,6 +253,8 @@ with tempfile.TemporaryDirectory(prefix="nbshell-lock-test-") as temporary:
     check_live_wallpaper_wins(root)
     check_ansi_and_solid(root)
     check_custom_command()
+    check_native_render_and_selection(root)
+    check_qml_contract()
     check_suspend_guard()
     check_umbriel_resume_repair()
     check_umbriel_resume_snapshot()

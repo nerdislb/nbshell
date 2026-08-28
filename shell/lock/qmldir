@@ -1,0 +1,3 @@
+module NbshellLock
+OrbitalClock 1.0 OrbitalClock.qml
+LockView 1.0 LockView.qml

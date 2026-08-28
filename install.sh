@@ -56,7 +56,7 @@ echo
 echo "Optional features disabled by missing programs (setup.sh installs them):"
 missing_optional="$(
     optional_check wl-paste      "clipboard history"          "wl-clipboard"
-    optional_check hyprlock      "screen locking"             "hyprlock"
+    optional_check hyprlock      "fallback screen locking"    "hyprlock"
     optional_check fakeroot      "update checks"              "fakeroot"
     optional_check paru          "AUR updates"                "paru or yay"
     optional_check tuned-adm     "power profiles"             "tuned"
@@ -420,6 +420,9 @@ fi
 GREETER_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/nbshell"
 mkdir -p "$GREETER_DATA/greeter"
 install -m 755 "$SRC/setup-greeter.sh" "$GREETER_DATA/setup-greeter.sh"
+install -m 755 "$SRC/setup-locker.sh" "$GREETER_DATA/setup-locker.sh"
+mkdir -p "$GREETER_DATA/locker"
+install -m 644 "$SRC/shell/lock/nbshell-lock.pam" "$GREETER_DATA/locker/nbshell-lock.pam"
 install -m 644 "$SRC/greeter/regreet.toml" "$GREETER_DATA/greeter/regreet.toml"
 install -m 644 "$SRC/greeter/nbshell-greetd.pam" "$GREETER_DATA/greeter/nbshell-greetd.pam"
 mkdir -p "$GREETER_DATA/greeter/qml"

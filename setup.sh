@@ -143,7 +143,7 @@ PKG_SYSTEM=(networkmanager bluez bluez-utils pipewire pipewire-pulse wireplumber
 
 # Einzelne Bausteine und Knoepfe.
 #   wl-clipboard   Ablage (`wl-paste --watch`, `wl-copy`)
-#   hyprlock       PAM-authenticated session lock and lock-before-suspend
+#   hyprlock       independent fallback if the native Quickshell locker cannot start
 #   tuned          power profiles beim Akku
 #   libnotify      `notify-send` aus den Skripten
 #   xdg-utils      `xdg-open` nach einer Aufnahme
@@ -425,6 +425,14 @@ fi
 # letzte save.sh.
 head2 "Files"
 NBSHELL_FROM_SETUP=1 "$SRC/install.sh"
+
+# Quickshell's native locker uses a deliberately separate, password-first PAM
+# service. Files-only setup stages the payload but never changes /etc.
+if [ "$WITH_PACKAGES" = "1" ]; then
+	LOCKER_SETUP="${XDG_DATA_HOME:-$HOME/.local/share}/nbshell/setup-locker.sh"
+	NBSHELL_LOCK_PAM_SOURCE="${XDG_DATA_HOME:-$HOME/.local/share}/nbshell/locker/nbshell-lock.pam" \
+		"$LOCKER_SETUP"
+fi
 
 # Umbriel is nbshell's recommended compositor. Niri stays installed and keeps
 # its generated integration as a recovery session. Files-only installs cannot

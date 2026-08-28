@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate and launch nbshell's Hyprlock-based session lock."""
+"""Launch nbshell's native session locker, with Hyprlock as a fallback."""
 
 from __future__ import annotations
 
@@ -19,6 +19,10 @@ CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
 NB_DIR = CONFIG_HOME / "nbshell"
 CONFIG_PATH = NB_DIR / "config.json"
 OUTPUT_PATH = NB_DIR / "generated" / "hyprlock.conf"
+NATIVE_CONFIG_PATH = NB_DIR / "generated" / "orbital-lock.json"
+LOCK_DIR = Path(__file__).resolve().parents[1] / "lock"
+PAM_SERVICE_PATH = Path("/etc/pam.d/nbshell-lock")
+READY_PATH = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / f"nbshell-lock-ready-{os.getuid()}"
 
 
 def load_json(path: Path) -> dict:
@@ -309,8 +313,58 @@ def lock_command(config: dict, generated: Path) -> list[str]:
     return ["hyprlock", "--config", str(generated), "--immediate-render"]
 
 
+def render_native(config_path: Path = CONFIG_PATH, output_path: Path = NATIVE_CONFIG_PATH) -> Path:
+    config = load_json(config_path)
+    colors, theme_dir = load_theme(config)
+    wallpaper = find_wallpaper(config, theme_dir)
+    document = {
+        "username": os.environ.get("USER", ""),
+        "wallpaper": str(wallpaper) if wallpaper else "",
+        "background": colors["background"], "foreground": colors["foreground"],
+        "muted": colors["muted"], "accent": colors["accent"], "red": colors["red"],
+        "font": str(config.get("font") or "JetBrainsMono Nerd Font").replace("\n", " "),
+        "dimOpacity": bounded_int(config, "lockDim", 48, 0, 85) / 100,
+        "hourFormat": "12" if str(config.get("clockFormat")) == "12" else "24",
+        "showSecondsRing": config.get("lockShowSeconds", True) is not False,
+    }
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=output_path.parent, delete=False) as handle:
+        json.dump(document, handle, indent=2)
+        handle.write("\n")
+        temporary = Path(handle.name)
+    temporary.chmod(0o600)
+    os.replace(temporary, output_path)
+    return output_path
+
+
+def native_command(config: dict, native_config: Path) -> list[str] | None:
+    """Return the native command only when its runtime and PAM contract exist."""
+    if isinstance(config.get("lockCommand"), str) and config["lockCommand"].strip():
+        return None
+    quickshell = shutil.which("quickshell") or shutil.which("qs")
+    if quickshell and (LOCK_DIR / "shell.qml").is_file() and PAM_SERVICE_PATH.is_file():
+        return [quickshell, "-p", str(LOCK_DIR)]
+    return None
+
+
+def selected_locker(config: dict, generated: Path, native_config: Path) -> tuple[list[str], dict[str, str], bool]:
+    native = native_command(config, native_config)
+    if native:
+        environment = os.environ.copy()
+        environment.update(NBSHELL_LOCK_CONFIG=str(native_config), NBSHELL_LOCK_READY=str(READY_PATH))
+        return native, environment, True
+    return lock_command(config, generated), os.environ.copy(), False
+
+
 def locker_running(command: list[str] | None = None) -> bool:
-    process_name = Path((command or ["hyprlock"])[0]).name
+    command = command or ["hyprlock"]
+    if "-p" in command and str(LOCK_DIR) in command:
+        result = subprocess.run(
+            ["pgrep", "-f", f"(^|/)(quickshell|qs).* -p {str(LOCK_DIR)}($| )"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        return result.returncode == 0
+    process_name = Path(command[0]).name
     result = subprocess.run(
         ["pgrep", "-x", process_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
     )
@@ -376,14 +430,23 @@ def repair_umbriel_resume(binary: str, before: dict[str, str], focused_id: str) 
 
 def start_lock(suspend: bool = False) -> int:
     generated = render()
-    command = lock_command(load_json(CONFIG_PATH), generated)
+    native_config = render_native()
+    config = load_json(CONFIG_PATH)
+    command, environment, native = selected_locker(config, generated, native_config)
+    fallback_command = lock_command(config, generated)
+    # A fallback started after an earlier native failure is still a valid,
+    # secure locker. Do not race it with a second session-lock client.
+    if native and locker_running(fallback_command):
+        command, environment, native = fallback_command, os.environ.copy(), False
     if not shutil.which(command[0]):
         print(f"nbshell: screen locker is not installed: {command[0]}", file=sys.stderr)
         return 127
     if not suspend:
         if locker_running(command):
             return 0
-        os.execvp(command[0], command)
+        if native:
+            READY_PATH.unlink(missing_ok=True)
+        os.execvpe(command[0], command, environment)
 
     umbriel = umbriel_binary()
     windows_before = umbriel_windows(umbriel) if umbriel else []
@@ -398,14 +461,25 @@ def start_lock(suspend: bool = False) -> int:
 
     locker = None
     if not locker_running(command):
-        locker = subprocess.Popen(command)
-        deadline = time.monotonic() + 1.5
+        if native:
+            READY_PATH.unlink(missing_ok=True)
+        locker = subprocess.Popen(command, env=environment)
+        deadline = time.monotonic() + (4.0 if native else 1.5)
         while time.monotonic() < deadline:
             code = locker.poll()
             if code is not None:
                 print(f"nbshell: screen locker exited before suspend ({code})", file=sys.stderr)
                 return code or 1
+            if not native or READY_PATH.is_file():
+                break
             time.sleep(0.05)
+        else:
+            if native:
+                print("nbshell: screen locker did not confirm secure output coverage", file=sys.stderr)
+                return 1
+    elif native and not READY_PATH.is_file():
+        print("nbshell: native locker is running but not ready for suspend", file=sys.stderr)
+        return 1
     result = subprocess.run(["systemctl", "suspend"])
     if result.returncode == 0 and umbriel and workspaces_before:
         repair_umbriel_resume(umbriel, workspaces_before, focused_before)
@@ -417,16 +491,33 @@ def main() -> int:
     if action == "render":
         print(render())
         return 0
+    if action == "render-native":
+        print(render_native())
+        return 0
     if action == "status":
         generated = render()
-        command = lock_command(load_json(CONFIG_PATH), generated)
-        print("locked" if locker_running(command) else "unlocked")
+        native_config = render_native()
+        config = load_json(CONFIG_PATH)
+        command, _, native = selected_locker(config, generated, native_config)
+        running = locker_running(command)
+        if native and not running:
+            running = locker_running(lock_command(config, generated))
+        print("locked" if running else "unlocked")
         return 0
     if action == "lock":
         return start_lock()
     if action == "suspend":
         return start_lock(suspend=True)
-    print("usage: lockscreen.py lock|suspend|render|status", file=sys.stderr)
+    if action == "preview":
+        native_config = render_native()
+        quickshell = shutil.which("quickshell") or shutil.which("qs")
+        if not quickshell:
+            print("nbshell: Quickshell is not installed", file=sys.stderr)
+            return 127
+        environment = os.environ.copy()
+        environment.update(NBSHELL_LOCK_PREVIEW="1", NBSHELL_LOCK_CONFIG=str(native_config))
+        os.execvpe(quickshell, [quickshell, "-p", str(LOCK_DIR)], environment)
+    print("usage: lockscreen.py lock|suspend|render|render-native|status|preview", file=sys.stderr)
     return 2
 
 

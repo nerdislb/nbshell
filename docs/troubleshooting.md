@@ -36,9 +36,30 @@ Run `./install.sh` to see missing optional programs. The Plugin Manager shows
 declared dependencies for bundled and external plugins. Installing a plugin
 does not install packages or enable the plugin automatically.
 
+## Native Orbital session locker
+
+The in-session locker is a Quickshell `WlSessionLock`, visually matched to the
+Orbital login screen but architecturally separate from greetd. It authenticates
+one password at a time through `/etc/pam.d/nbshell-lock`; only PAM success
+releases the Wayland session lock. `./setup.sh` installs that dedicated profile.
+`./install.sh` only stages it at
+`~/.local/share/nbshell/locker/nbshell-lock.pam`, because the files-only
+installer never changes `/etc`.
+
+Preview the visuals safely, without acquiring a session lock or invoking PAM:
+
+```bash
+~/.config/quickshell/nbshell/scripts/lockscreen.py preview
+```
+
+The launcher selects the native locker when Quickshell, its QML payload, and
+the dedicated PAM service are all available. Otherwise it starts Hyprlock.
+An explicit `lockCommand` remains an override. Suspend waits for the native
+locker's compositor-confirmed secure state before calling systemd.
+
 ## Recover from a failed screen locker
 
-Hyprlock uses Niri's secure session-lock protocol. If the locker exits while
+Both the native locker and Hyprlock use the secure session-lock protocol. If a locker exits while
 the session is locked, Niri deliberately shows a red security screen instead
 of exposing the desktop. Press `Mod+Alt+L` to start the locker again; this
 binding remains enabled while locked.
@@ -48,10 +69,10 @@ in, and restart the locker on the active Wayland display. Do not terminate
 Niri to bypass the red screen. After returning, inspect:
 
 ```bash
-journalctl --user --since "10 minutes ago" | grep -i hyprlock
+journalctl --user --since "10 minutes ago" | grep -Ei 'nbshell.lock|hyprlock|quickshell'
 ```
 
-The generated configuration is
+Hyprlock remains an independent fallback. Its generated configuration is
 `~/.config/nbshell/generated/hyprlock.conf`. It is replaced on every lock, so
 put persistent choices in nbshell Settings or `~/.config/nbshell/config.json`
 rather than editing that file.
