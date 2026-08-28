@@ -191,7 +191,7 @@ Scope {
             if (!Plugins.entry(name))
                 return "unknown module: " + name;
             Runtime.revealIslandTemporarily();
-            Runtime.requestPopout(name);
+            Runtime.requestPopout(name, Compositor.focusedOutput);
             return name;
         }
     }
@@ -429,9 +429,13 @@ Scope {
         target: "control"
 
         function toggle(): string {
+            if (Runtime.controlOpen) {
+                Runtime.closeAll();
+                return "closed";
+            }
             Runtime.revealIslandTemporarily();
-            Runtime.controlOpen = !Runtime.controlOpen;
-            return Runtime.controlOpen ? "open" : "closed";
+            Runtime.requestPopout("control", Compositor.focusedOutput);
+            return "open";
         }
 
         function status(): string {

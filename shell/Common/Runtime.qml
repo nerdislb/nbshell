@@ -159,11 +159,35 @@ Singleton {
     // loest aus: eine blosse Zeichenkette meldete beim zweiten Mal desselben
     // Namens keine Aenderung mehr.
     property string popoutTarget: ""
+    property string popoutOutput: ""
     property int popoutToken: 0
+    property int popoutClaimToken: -1
 
-    function requestPopout(name) {
+    function requestPopout(name, output) {
         popoutTarget = name;
+        popoutOutput = output ?? "";
+        popoutClaimToken = -1;
         popoutToken += 1;
+    }
+
+    function popoutMatchesOutput(output) {
+        return popoutOutput === "" || popoutOutput === output;
+    }
+
+    // A bar cell exists once per output (and can temporarily exist twice on
+    // the same output during the island handoff). Exactly one enabled cell may
+    // consume an external popup request. Without this claim, every monitor
+    // maps the same global audio/control request and the popups close each
+    // other through activePopout.
+    function claimPopout(token, output) {
+        if (token !== popoutToken || !popoutMatchesOutput(output))
+            return false;
+        if (popoutClaimToken === token)
+            return false;
+        popoutClaimToken = token;
+        if (popoutOutput === "")
+            popoutOutput = output;
+        return true;
     }
 
     // Hochgezaehlt, wenn alle Popouts zugehen sollen -- Esc auf der Leiste,

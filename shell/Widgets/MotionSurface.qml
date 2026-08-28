@@ -65,6 +65,20 @@ PanelSurface {
         closeTimer.restart();
     }
 
+    // Cancel every deferred transition callback and restore a stable painted
+    // state. Popup handoffs use this before synchronously unmapping the old
+    // Wayland popup; its dismissal callback must not fire into the new grab.
+    function cancelTransition() {
+        ++entryToken;
+        closeTimer.stop();
+        closeCallback = null;
+        closing = false;
+        transitionEnabled = false;
+        opacity = 1;
+        scale = 1;
+        visualOffsetY = 0;
+    }
+
     onVisibleChanged: if (autoEnter && visible) enter()
     Component.onCompleted: if (autoEnter && visible) enter()
 

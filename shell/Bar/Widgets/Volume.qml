@@ -69,14 +69,6 @@ Cell {
             }
     }
 
-    Connections {
-        target: Runtime
-
-        function onAudioPanelOpenChanged() {
-            root.setPopout(Runtime.audioPanelOpen);
-        }
-    }
-
     popout: Component {
         Column {
             id: panel

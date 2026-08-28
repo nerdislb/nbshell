@@ -17,6 +17,10 @@ Item {
     // (`nbshell popout wetter`), ohne dass jeder Baustein ein eigenes
     // IPC-Ziel braucht.
     property string widgetId: ""
+    // Output containing this concrete cell. Keep this separate from widget-
+    // specific properties such as Workspaces.output.
+    property string popupOutput: ""
+    property bool externalPopoutEligible: true
 
     // Ein Zeichen aus der Nerd-Font-Schrift vor dem Text. Leer heisst: nur
     // Text. Abschalten laesst sich das fuer alle gemeinsam mit `widgetIcons`.
@@ -67,6 +71,7 @@ Item {
     property bool popoutTakesKeyboard: false
     property bool active: false
     property int pendingPopoutToken: -1
+    property string popupMode: ""
     property alias hovered: mouse.containsMouse
 
     // Ersetzt den Text durch eigenen Inhalt, wenn eine Zelle mehr zeigen soll
@@ -94,8 +99,10 @@ Item {
     // Damit ein Baustein mitbekommt, wenn der Kompositor das Popout von sich
     // aus geschlossen hat -- sonst denkt ein Tastenkuerzel, es sei noch offen,
     // und der naechste Druck taete scheinbar nichts.
-    readonly property bool popoutVisible: popoutLoader.item ? popoutLoader.item.visible : false
-    readonly property bool previewVisible: previewLoader.item ? previewLoader.item.visible : false
+    readonly property bool popoutVisible: popupLoader.item
+        ? popupLoader.item.visible && root.popupMode === "popout" : false
+    readonly property bool previewVisible: popupLoader.item
+        ? popupLoader.item.visible && root.popupMode === "preview" : false
 
     onPopoutVisibleChanged: Runtime.popoutCount = Math.max(0, Runtime.popoutCount + (popoutVisible ? 1 : -1))
     onPreviewVisibleChanged: Runtime.popoutCount = Math.max(0, Runtime.popoutCount + (previewVisible ? 1 : -1))
@@ -226,7 +233,7 @@ Item {
         radius: Theme.radius
         color: root.active || root.popoutVisible || root.previewVisible ? Theme.mix(Theme.barSurface, root.shownColor, 0.15) : (mouse.containsMouse && root.clickable ? Theme.barHover : "transparent")
         border.width: root.boxed ? Theme.borderWidth : 0
-        border.color: root.active || popoutLoader.item?.visible ? root.shownColor : Theme.muted
+        border.color: root.active || popupLoader.item?.visible ? root.shownColor : Theme.muted
     }
 
     IconText {
@@ -259,7 +266,9 @@ Item {
         }
 
         function onPopoutTokenChanged() {
-            if (root.widgetId !== "" && Runtime.popoutTarget === root.widgetId) {
+            if (root.widgetId !== "" && Runtime.popoutTarget === root.widgetId
+                    && root.externalPopoutEligible && root.popout !== null
+                    && root.shown && Runtime.popoutMatchesOutput(root.popupOutput)) {
                 if (!root.enabled) {
                     // An IPC request can reveal a collapsed island and target
                     // a widget in the same frame. Its expanded row is not
@@ -268,7 +277,8 @@ Item {
                     root.pendingPopoutToken = Runtime.popoutToken;
                 } else {
                     root.pendingPopoutToken = -1;
-                    root.setPopout(!root.popoutVisible);
+                    if (Runtime.claimPopout(Runtime.popoutToken, root.popupOutput))
+                        root.setPopout(!root.popoutVisible);
                 }
             }
         }
@@ -277,7 +287,9 @@ Item {
     onEnabledChanged: {
         if (enabled && pendingPopoutToken === Runtime.popoutToken) {
             pendingPopoutToken = -1;
-            root.setPopout(true);
+            if (root.externalPopoutEligible && root.popout !== null && root.shown
+                    && Runtime.claimPopout(Runtime.popoutToken, root.popupOutput))
+                root.setPopout(true);
         }
     }
 
@@ -291,24 +303,27 @@ Item {
         // werden ueberblendet, nicht geschaltet.
         if (open && !root.enabled)
             return;
-        if (open)
-            root.setPreview(false);
-        if (popoutLoader.item) {
-            if (open)
-                popoutLoader.item.open();
-            else
-                popoutLoader.item.close();
+        if (popupLoader.item) {
+            if (open) {
+                previewTimer.stop();
+                popupLoader.item.show(root.popout, root.popoutTakesKeyboard, -1);
+                root.popupMode = "popout";
+            } else if (root.popupMode === "popout") {
+                popupLoader.item.close();
+            }
         }
     }
 
     function setPreview(open) {
         if (open && (!root.enabled || root.popoutVisible))
             return;
-        if (previewLoader.item) {
-            if (open)
-                previewLoader.item.open();
-            else
-                previewLoader.item.close();
+        if (popupLoader.item) {
+            if (open) {
+                popupLoader.item.show(root.preview, false, 700);
+                root.popupMode = "preview";
+            } else if (root.popupMode === "preview") {
+                popupLoader.item.close();
+            }
         }
     }
 
@@ -319,37 +334,28 @@ Item {
             root.setPreview(true)
     }
 
-    // Erst wenn ein Baustein wirklich eines hat, entsteht das Popupfenster.
+    // Exactly one native popup exists per cell. A hover preview is upgraded in
+    // place to the click menu, avoiding an xdg_popup unmap/map handoff.
     Loader {
-        id: popoutLoader
-        active: root.popout !== null
-        sourceComponent: popoutComponent
+        id: popupLoader
+        active: root.popout !== null || root.preview !== null
+        sourceComponent: popupComponent
     }
 
     Component {
-        id: popoutComponent
+        id: popupComponent
 
         Popout {
             anchorItem: root
-            contentComponent: root.popout
-            takesKeyboard: root.popoutTakesKeyboard
         }
     }
 
-    Loader {
-        id: previewLoader
-        active: root.preview !== null
-        sourceComponent: previewComponent
-    }
+    Connections {
+        target: popupLoader.item
 
-    Component {
-        id: previewComponent
-
-        Popout {
-            anchorItem: root
-            contentComponent: root.preview
-            takesKeyboard: false
-            leaveDelayOverride: 700
+        function onVisibleChanged() {
+            if (popupLoader.item && !popupLoader.item.visible)
+                root.popupMode = "";
         }
     }
 
@@ -369,9 +375,10 @@ Item {
                 root.middleClicked();
                 return;
             }
-            root.setPreview(false);
-            if (popoutLoader.item)
-                popoutLoader.item.toggle();
+            if (root.popoutVisible)
+                root.setPopout(false);
+            else
+                root.setPopout(true);
             root.clicked();
         }
         onWheel: wheelEvent => root.wheel(wheelEvent.angleDelta.y)

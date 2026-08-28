@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import qs.Common as Common
 import qs.Commons
 
 // The button. One component for every clickable thing in the kit.
@@ -170,9 +171,9 @@ BorderSurface {
       RotationAnimation on rotation {
         from: 0
         to: 360
-        duration: Theme.motionLoopFast
+        duration: Common.Theme.motionLoopFast
         loops: Animation.Infinite
-        running: root.iconSpinning && !Theme.reducedMotion
+        running: root.iconSpinning && !Common.Theme.reducedMotion
       }
     }
 

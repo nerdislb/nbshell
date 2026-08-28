@@ -77,14 +77,35 @@ PopupWindow {
             open();
     }
 
+    // Reuse this native popup for preview -> interactive-menu transitions.
+    // Creating a second xdg_popup either races the old popup's unmap or loses
+    // the click serial while waiting for it. Updating an already mapped host
+    // avoids both protocol boundaries; grabFocus is changed while still in the
+    // original click handler.
+    function show(component, keyboard, delayOverride) {
+        leaveTimer.stop();
+        contentComponent = component;
+        takesKeyboard = keyboard;
+        leaveDelayOverride = delayOverride;
+        open();
+    }
+
     function open() {
-        if (requestedVisible && visible)
+        const replacingContent = visible && loader.sourceComponent !== contentComponent;
+        if (requestedVisible && visible && !replacingContent)
             return;
         requestedVisible = true;
         closing = false;
         const previous = Runtime.activePopout;
+        // A Wayland popup must be created while the triggering input serial is
+        // still valid. Waiting for the old popup's exit animation loses that
+        // serial on Umbriel; mapping before it unmaps leaves Qt with a stale
+        // topmost grab. Tear the old popup down synchronously, then map this
+        // one before returning from the click handler.
         if (previous && previous !== root)
-            previous.close();
+            previous.closeImmediately();
+        if (replacingContent)
+            surface.cancelTransition();
         // Loader creation is synchronous by default. Assigning the component
         // before mapping gives the popup its final initial geometry while we
         // are still in the input/IPC activation cycle required by Wayland.
@@ -100,7 +121,8 @@ PopupWindow {
         // instead of asking the compositor to resize and re-anchor the popup.
         lockedContentWidth = Math.max(1, loader.item.implicitWidth);
         lockedContentHeight = Math.max(1, loader.item.implicitHeight);
-        surface.enter();
+        if (!visible)
+            surface.enter();
         visible = true;
     }
 
@@ -114,6 +136,16 @@ PopupWindow {
             return;
         closing = true;
         surface.dismiss(root.finalizeClose);
+    }
+
+    function closeImmediately() {
+        requestedVisible = false;
+        closing = false;
+        surface.cancelTransition();
+        if (visible)
+            visible = false;
+        else
+            finalizeClose();
     }
 
     function finalizeClose() {

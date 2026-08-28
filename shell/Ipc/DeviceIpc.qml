@@ -218,9 +218,13 @@ Scope {
         }
 
         function panel(): string {
+            if (Runtime.audioPanelOpen) {
+                Runtime.closeAll();
+                return "closed";
+            }
             Runtime.revealIslandTemporarily();
-            Runtime.audioPanelOpen = !Runtime.audioPanelOpen;
-            return Runtime.audioPanelOpen ? "open" : "closed";
+            Runtime.requestPopout("volume", Compositor.focusedOutput);
+            return "open";
         }
 
         function tools(): string {

@@ -366,11 +366,21 @@ def umbriel_beschreibung(aktion):
     return UMBRIEL_AKTIONEN.get(aktion, aktion)
 
 
+def umbriel_aktion(value):
+    # Umbriel also accepts an inline table for binds that need metadata such as
+    # allow_when_locked. The cheatsheet describes the action while preserving
+    # the complete raw value separately.
+    if isinstance(value, dict):
+        return str(value.get("action", ""))
+    return str(value)
+
+
 def umbriel_main():
     with open(UMBRIEL_KONFIG, "rb") as handle:
         data = tomllib.load(handle)
     liste = []
-    for taste, aktion in data.get("keybinds", {}).items():
+    for taste, raw_aktion in data.get("keybinds", {}).items():
+        aktion = umbriel_aktion(raw_aktion)
         liste.append({
             "taste": taste_lesbar(taste),
             "roh": taste,

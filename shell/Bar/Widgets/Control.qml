@@ -52,14 +52,6 @@ Cell {
     // Zurueckmelden, wenn der Kompositor das Popout geschlossen hat.
     onPopoutVisibleChanged: Runtime.controlOpen = root.popoutVisible
 
-    Connections {
-        target: Runtime
-
-        function onControlOpenChanged() {
-            root.setPopout(Runtime.controlOpen);
-        }
-    }
-
     popout: Component {
         Column {
             id: panel

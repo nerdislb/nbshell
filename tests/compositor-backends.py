@@ -21,6 +21,7 @@ for relative in (
         tomllib.load(handle)
 
 integration = tomllib.loads((ROOT / "umbriel/nbshell.toml").read_text())
+motion = tomllib.loads((ROOT / "umbriel/nbshell-motion.toml").read_text())
 assert integration["keybinds"]["Mod+Space"].endswith("nbshell menu")
 assert integration["keybinds"]["Mod+BackSpace"] == "workspace-set-layout:toggle"
 assert integration["keybinds"]["Mod+Return"] == "spawn:ghostty"
@@ -37,12 +38,14 @@ for media_key in (
 ):
     assert integration["keybinds"][media_key].startswith("spawn:$HOME/.local/bin/nbshell audio ")
 assert integration["include"]["files"] == [
-    "nbshell-outputs.toml", "nbshell-cursor.toml", "nbshell-overview.toml"
+    "nbshell-outputs.toml", "nbshell-cursor.toml", "nbshell-overview.toml",
+    "nbshell-motion.toml"
 ]
 assert integration["input"]["keyboard"]["layout"] == "de"
 assert integration["input"]["keyboard"]["numlock_toggle"] is True
 assert integration["input"]["focus"] == {"follows_mouse": True, "follows_mouse_max_scroll": 0.5}
-assert integration["animation"]["duration_ms"] == 300
+assert motion["animation"]["duration_ms"] == 240
+assert motion["animation"]["windows_in"]["duration_ms"] == 300
 assert integration["hot_corners"]["top_left"]["action"] == "overview-open"
 assert integration["window_rule"] and integration["layer_rule"]
 clear_layer_namespaces = {"^nbshell:menu$", "^nbshell:settings$"}
@@ -60,6 +63,9 @@ key_data = json.loads(subprocess.check_output(
 assert key_data["backend"] == "umbriel"
 assert len(key_data["binds"]) == len(integration["keybinds"])
 assert any(row["roh"] == "Mod+Tab" and row["text"] == "overview" for row in key_data["binds"])
+assert any(row["roh"] == "Ctrl+Alt+Shift+L"
+           and row["aktion"].startswith("spawn:systemctl --user restart nbshell-lock.service")
+           for row in key_data["binds"])
 
 cursor_script = (ROOT / "shell/scripts/cursors.sh").read_text()
 assert "nbshell-cursor.toml" in cursor_script
@@ -82,6 +88,17 @@ for contract in (
     'fullWorkspaceModel',
 ):
     assert contract in service, contract
+assert 'property string focusedOutput: ""' in service
+assert '"is_focused": data.focused ? w.id === data.id : w.is_focused' in service
+assert "focusedOutput = output" in service
+
+cell = (ROOT / "shell/Widgets/Cell.qml").read_text()
+workspace_widget = (ROOT / "shell/Bar/Widgets/Workspaces.qml").read_text()
+widget_host = (ROOT / "shell/Bar/WidgetHost.qml").read_text()
+assert 'property string popupOutput: ""' in cell
+assert 'property string output: ""' not in cell
+assert 'property string output: ""' in workspace_widget
+assert 'property: "popupOutput"' in widget_host
 
 for path in (ROOT / "shell").rglob("*.qml"):
     if path.name == "Niri.qml":

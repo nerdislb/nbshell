@@ -261,7 +261,10 @@ PanelWindow {
             "sub": [
                 { "key": "h", "label": "System & Plugins", "description": "Sync, updates, printing, ports, and hardware", "icon": Icons.matrix, "run": () => Runtime.hubOpen = true },
                 { "key": "c", "label": "Connections", "description": "Network, VPN, Bluetooth, Tailscale, and QR", "icon": Icons.wifi, "sub": [
-                    { "key": "c", "label": "Control center", "icon": Icons.wifi, "run": () => Runtime.controlOpen = true },
+                    { "key": "c", "label": "Control center", "icon": Icons.wifi, "run": () => {
+                        Runtime.revealIslandTemporarily();
+                        Runtime.requestPopout("control", Compositor.focusedOutput);
+                    } },
                     { "key": "t", "label": "Tailscale", "icon": "󰖂", "run": () => root.term("tailscale status") },
                     { "key": "q", "label": "Wi-Fi QR code", "icon": Icons.cp(0xF0432), "run": () => Runtime.qrOpen = true },
                     { "key": "s", "label": "Speedtest", "icon": Icons.cpu, "run": () => Runtime.speedOpen = true }

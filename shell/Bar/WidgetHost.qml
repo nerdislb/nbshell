@@ -18,6 +18,7 @@ Item {
 
     property string widgetName: ""
     property string screenName: ""
+    property bool externalPopoutEligible: true
 
     readonly property var item: loader.item
     readonly property bool hasActivityWidget: Config.collapsedWidgets.indexOf("notifications") >= 0
@@ -70,6 +71,22 @@ Item {
         when: root.item && "output" in root.item
         property: "output"
         value: root.screenName
+        restoreMode: Binding.RestoreNone
+    }
+
+    Binding {
+        target: root.item
+        when: root.item && "popupOutput" in root.item
+        property: "popupOutput"
+        value: root.screenName
+        restoreMode: Binding.RestoreNone
+    }
+
+    Binding {
+        target: root.item
+        when: root.item && "externalPopoutEligible" in root.item
+        property: "externalPopoutEligible"
+        value: root.externalPopoutEligible
         restoreMode: Binding.RestoreNone
     }
 

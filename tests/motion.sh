@@ -15,7 +15,25 @@ grep -Fq 'highlightMoveDuration: Theme.motionMove' "$ROOT/shell/Wallpaper/Wallpa
 grep -Fq 'Behavior on visualOffsetY' "$ROOT/shell/Widgets/MotionSurface.qml"
 grep -Fq 'surface.enter();' "$ROOT/shell/Widgets/Popout.qml"
 grep -Fq 'surface.dismiss(root.finalizeClose)' "$ROOT/shell/Widgets/Popout.qml"
+grep -Fq 'previous.closeImmediately();' "$ROOT/shell/Widgets/Popout.qml"
+grep -Fq 'function show(component, keyboard, delayOverride)' "$ROOT/shell/Widgets/Popout.qml"
+grep -Fq 'const replacingContent = visible && loader.sourceComponent !== contentComponent;' "$ROOT/shell/Widgets/Popout.qml"
+grep -Fq 'id: popupLoader' "$ROOT/shell/Widgets/Cell.qml"
+grep -Fq 'popupLoader.item.show(root.popout, root.popoutTakesKeyboard, -1);' "$ROOT/shell/Widgets/Cell.qml"
+grep -Fq 'popupLoader.item.show(root.preview, false, 700);' "$ROOT/shell/Widgets/Cell.qml"
+! grep -Fq 'id: previewLoader' "$ROOT/shell/Widgets/Cell.qml"
+! grep -Fq 'id: popoutLoader' "$ROOT/shell/Widgets/Cell.qml"
+grep -Fq 'surface.cancelTransition();' "$ROOT/shell/Widgets/Popout.qml"
+grep -Fq 'function cancelTransition()' "$ROOT/shell/Widgets/MotionSurface.qml"
+! grep -Fq 'previous.close(() =>' "$ROOT/shell/Widgets/Popout.qml"
 grep -Fq 'root.close()' "$ROOT/shell/Widgets/Popout.qml"
+grep -Fq 'Runtime.claimPopout(Runtime.popoutToken, root.popupOutput)' "$ROOT/shell/Widgets/Cell.qml"
+grep -Fq 'root.externalPopoutEligible && root.popout !== null' "$ROOT/shell/Widgets/Cell.qml"
+grep -Fq 'externalPopoutEligible: win.expandedWidgetNames.indexOf(modelData) < 0' "$ROOT/shell/Bar/Bar.qml"
+grep -Fq 'Runtime.requestPopout("volume", Compositor.focusedOutput)' "$ROOT/shell/Ipc/DeviceIpc.qml"
+grep -Fq 'Runtime.requestPopout("control", Compositor.focusedOutput)' "$ROOT/shell/Ipc/DesktopIpc.qml"
+! grep -Fq 'function onAudioPanelOpenChanged()' "$ROOT/shell/Bar/Widgets/Volume.qml"
+! grep -Fq 'function onControlOpenChanged()' "$ROOT/shell/Bar/Widgets/Control.qml"
 grep -Fq 'autoEnter: false' "$ROOT/shell/Widgets/Popout.qml"
 grep -Fq 'readonly property int collapseIndex: Config.rightWidgets.indexOf("sep")' "$ROOT/shell/Bar/Bar.qml"
 grep -Fq 'Config.set("rightSectionExpanded", !Config.rightSectionExpanded)' "$ROOT/shell/Bar/Bar.qml"
@@ -40,6 +58,10 @@ root = pathlib.Path(sys.argv[1])
 qml = list(root.rglob("*.qml"))
 hardcoded = []
 for path in qml:
+    # The standalone session-lock runtime deliberately does not import the
+    # reloadable desktop Theme singleton while it owns ext-session-lock.
+    if path.relative_to(root).parts[0] == "lock":
+        continue
     for number in re.findall(r"\bduration:\s*(\d+)", path.read_text(encoding="utf-8")):
         hardcoded.append((path.relative_to(root).as_posix(), number))
 assert not hardcoded, f"hard-coded motion durations remain: {hardcoded}"
@@ -48,8 +70,14 @@ for relative in (
     "Bar/Widgets/AiFill.qml", "Bar/Widgets/Workspaces.qml",
 ):
     text = (root / relative).read_text(encoding="utf-8")
-    assert "loops: Animation.Infinite" not in text or "!Theme.reducedMotion" in text, relative
+    assert (
+        "loops: Animation.Infinite" not in text
+        or re.search(r"!\s*(?:Common\.)?Theme\.reducedMotion", text)
+    ), relative
 PY
+
+grep -Fq 'import qs.Common as Common' "$ROOT/shell/Ui/Button.qml"
+grep -Fq 'duration: Common.Theme.motionLoopFast' "$ROOT/shell/Ui/Button.qml"
 
 grep -Fq '"nbshell-motion.toml"' "$ROOT/umbriel/nbshell.toml"
 grep -Fq 'function onMotionProfileChanged()' "$ROOT/shell/Services/ThemeExport.qml"

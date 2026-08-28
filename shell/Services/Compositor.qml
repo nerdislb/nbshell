@@ -27,10 +27,21 @@ Singleton {
     property string keyboardLayout: ""
     property var _layoutNames: []
     property bool fullWorkspaceModel: false
+    property string focusedOutput: ""
 
     readonly property var focusedWindow: windows.find(w => String(w.id) === String(focusedWindowId)) ?? null
     readonly property string focusedTitle: focusedWindow?.title ?? ""
     readonly property string focusedAppId: focusedWindow?.app_id ?? ""
+
+    function workspaceOutput(rows, workspace) {
+        const value = String(workspace ?? "");
+        if (value === "")
+            return "";
+        const match = (rows ?? []).find(w => String(w.id) === value
+            || String(w.name) === value
+            || (String(w.output) + ":" + String(w.name)) === value);
+        return match?.output ?? "";
+    }
 
     function workspacesForOutput(output) {
         return workspaces.filter(w => !output || !w.output || w.output === output).sort((a, b) => a.idx - b.idx);
@@ -74,6 +85,10 @@ Singleton {
         }));
         windows = normalized;
         focusedWindowId = String(normalized.find(w => w.is_focused)?.id ?? "");
+        const focusedWorkspace = normalized.find(w => w.is_focused)?.workspace ?? "";
+        const focusedWorkspaceOutput = workspaceOutput(workspaces, focusedWorkspace);
+        if (focusedWorkspaceOutput !== "")
+            focusedOutput = focusedWorkspaceOutput;
 
         // Umbriel's current IPC exposes the workspace id on each window but
         // no standalone workspace event yet. This gives the bar a useful
@@ -105,17 +120,18 @@ Singleton {
         const kind = Object.keys(event)[0];
         const data = event[kind];
         switch (kind) {
-        case "WorkspacesChanged": workspaces = data.workspaces; break;
+        case "WorkspacesChanged":
+            workspaces = data.workspaces;
+            focusedOutput = data.workspaces.find(w => w.is_focused)?.output ?? focusedOutput;
+            break;
         case "WorkspaceActivated":
             const output = outputOf(data.id);
-            workspaces = workspaces.map(w => {
-                if (w.output !== output) return w;
-                const active = w.id === data.id;
-                return Object.assign({}, w, {
-                    "is_active": active,
-                    "is_focused": data.focused ? active : w.is_focused
-                });
-            });
+            workspaces = workspaces.map(w => Object.assign({}, w, {
+                "is_active": w.output === output ? w.id === data.id : w.is_active,
+                "is_focused": data.focused ? w.id === data.id : w.is_focused
+            }));
+            if (data.focused && output !== "")
+                focusedOutput = output;
             break;
         case "WindowsChanged":
             windows = data.windows;
@@ -142,6 +158,9 @@ Singleton {
         if (event.event === "workspaces") {
             fullWorkspaceModel = true;
             workspaces = event.data ?? [];
+            const output = workspaceOutput(workspaces, focusedWindow?.workspace ?? "");
+            if (output !== "")
+                focusedOutput = output;
         } else if (event.event === "windows") {
             const oldFocus = focusedWindowId;
             normalizeUmbrielWindows(event.data);

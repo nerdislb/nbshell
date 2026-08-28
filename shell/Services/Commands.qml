@@ -50,7 +50,10 @@ Singleton {
         out.push(entry("System & Plugins", "Herdr, sync, updates, printing, ports, and hardware (Mod+Ctrl+H)", "Windows", () => Runtime.hubOpen = true));
         out.push(entry("Modules", "choose the modules shown in the bar", "Windows", () => Runtime.modulesOpen = true));
         out.push(entry("Emoji", "search and copy (Mod+Ctrl+E)", "Windows", () => Runtime.emojiOpen = true));
-        out.push(entry("Audio", "devices and application volumes (Mod+Ctrl+A)", "Windows", () => Runtime.audioPanelOpen = true));
+        out.push(entry("Audio", "devices and application volumes (Mod+Ctrl+A)", "Windows", () => {
+            Runtime.revealIslandTemporarily();
+            Runtime.requestPopout("volume", Compositor.focusedOutput);
+        }));
         out.push(entry("Tasks", "task list (Mod+T)", "Windows", () => Runtime.todoOpen = true));
         out.push(entry("Restore audio", "move headphones back to the laptop", "Audio", () => Audio.tonZurueck()));
         out.push(entry("Clipboard", "history (Mod+V)", "Windows", () => Runtime.clipOpen = true));

@@ -48,6 +48,8 @@ Variants {
         readonly property real centerHandoff: Math.max(0, Math.min(1, (openProgress - 0.72) / 0.28))
         readonly property bool reuseCollapsedCenter: !barMode && !pillMode
             && JSON.stringify(Config.collapsedWidgets) === JSON.stringify(Config.centerWidgets)
+        readonly property var expandedWidgetNames: Config.leftWidgets
+            .concat(Config.centerWidgets).concat(Config.rightWidgets)
         property bool hovering: false
         property real edgeDragY: 0
         readonly property string wallpaperSource: Config.value("wallpaperOverride", "") || (ThemeIndex.current?.wallpaper ?? "")
@@ -271,6 +273,7 @@ Variants {
                         required property var modelData
                         widgetName: modelData
                         screenName: win.modelData?.name ?? ""
+                        externalPopoutEligible: win.expandedWidgetNames.indexOf(modelData) < 0
                     }
                 }
             }
