@@ -150,6 +150,9 @@ action = "overview-open"
 "Ctrl+XF86Launch1" = "spawn:$HOME/.local/bin/nbshell capture screen"
 "F9" = "spawn:$HOME/.local/bin/nbshell dictate"
 "Mod+Alt+L" = "spawn:$HOME/.local/bin/nbshell power lock"
+# Safe recovery while ext-session-lock remains active: restart only the
+# dedicated lock client. Umbriel keeps the session concealed between clients.
+"Ctrl+Alt+Shift+L" = { action = "spawn:systemctl --user restart nbshell-lock.service", allow_when_locked = true }
 "Mod+Shift+P" = "spawn:$HOME/.local/bin/nbshell power display-off"
 "Mod+Shift+E" = "session-quit"
 "XF86MonBrightnessUp" = "spawn:$HOME/.local/bin/nbshell brightness up"
