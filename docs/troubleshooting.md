@@ -59,14 +59,33 @@ locker's compositor-confirmed secure state before calling systemd.
 
 ## Recover from a failed screen locker
 
-Both the native locker and Hyprlock use the secure session-lock protocol. If a locker exits while
-the session is locked, Niri deliberately shows a red security screen instead
-of exposing the desktop. Press `Mod+Alt+L` to start the locker again; this
-binding remains enabled while locked.
+The native locker runs in the dedicated `nbshell-lock.service`, outside the
+main `nbshell.service` cgroup. Umbriel deliberately keeps the session concealed
+if a session-lock client crashes, and the unit restarts the client after a
+failure.
 
-If the binding itself is unavailable, switch to a TTY with `Ctrl+Alt+F3`, log
-in, and restart the locker on the active Wayland display. Do not terminate
-Niri to bypass the red screen. After returning, inspect:
+If the lock UI does not return automatically under Umbriel, press
+`Ctrl+Alt+Shift+L`. This key is explicitly allowed while locked and only runs:
+
+```bash
+systemctl --user restart nbshell-lock.service
+```
+
+It cannot unlock the session; only successful PAM authentication can do that.
+Do not start Hyprlock while the native client may still own the session lock.
+
+The compositor-independent final recovery path is a TTY. Switch with
+`Ctrl+Alt+F2`, log in, identify the active Wayland session, and terminate that
+session so the already enabled greetd service can present the login screen:
+
+```bash
+loginctl list-sessions
+sudo loginctl terminate-session <WAYLAND_SESSION_ID>
+```
+
+This intentionally closes applications in that graphical session, so use it
+only when restarting the lock client did not restore an authentication UI.
+After the next login, inspect:
 
 ```bash
 journalctl --user --since "10 minutes ago" | grep -Ei 'nbshell.lock|hyprlock|quickshell'
