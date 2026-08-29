@@ -70,6 +70,9 @@ for legacy in ("tabHover", "tabTap", "Theme.controlFill("):
         raise SystemExit(f"Dashboard tab contract regressed to manual state handling: {legacy}")
 
 volume = (ROOT / "shell/Bar/Widgets/Volume.qml").read_text(encoding="utf-8")
+volume_header = volume[:volume.index("popout: Component")]
+if "popoutTakesKeyboard: true" not in volume_header:
+    raise SystemExit("Audio popout no longer accepts keyboard focus")
 sink_start = volume.index("model: Audio.sinks")
 sink_contract = volume[sink_start:]
 if "PanelRow {" not in sink_contract:

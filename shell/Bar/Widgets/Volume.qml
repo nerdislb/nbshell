@@ -11,6 +11,7 @@ Cell {
     shown: Audio.ready
     slotChars: 5
     interactive: true
+    popoutTakesKeyboard: true
     color: Audio.muted ? Theme.red : Theme.text
 
     // Der Lautsprecher zeigt schon, worum es geht -- das "VOL" davor war

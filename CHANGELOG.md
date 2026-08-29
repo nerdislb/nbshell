@@ -45,6 +45,8 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Fixed
 
+- The audio popout now acquires keyboard focus before mapping, so Tab reaches
+  its accessible output-device rows and Enter or Space can switch sinks.
 - Omarchy-compatible plugin buttons, icon actions, and sliders resolve motion
   timing through the explicit nbshell Theme adapter instead of an undefined
   global `Theme`; isolated public-API and pointer/keyboard contract tests now
