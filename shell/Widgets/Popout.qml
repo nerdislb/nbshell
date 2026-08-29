@@ -124,6 +124,16 @@ PopupWindow {
         if (!visible)
             surface.enter();
         visible = true;
+        focusInitialItem();
+    }
+
+    function focusInitialItem() {
+        if (!takesKeyboard || !loader.item
+                || !("initialFocusItem" in loader.item)
+                || !loader.item.initialFocusItem)
+            return;
+        focusRetry.attempts = 0;
+        focusRetry.restart();
     }
 
     function close() {
@@ -197,6 +207,48 @@ PopupWindow {
         interval: root.leaveDelay
         onTriggered: if (!root.pointerInside)
             root.close()
+    }
+
+    Timer {
+        id: focusRetry
+
+        property int attempts: 0
+
+        interval: 16
+        repeat: true
+        onTriggered: {
+            if (!root.visible || !root.requestedVisible || root.closing
+                    || !root.takesKeyboard || !loader.item
+                    || !("initialFocusItem" in loader.item)) {
+                stop();
+                return;
+            }
+            const target = loader.item.initialFocusItem;
+            if (!target || attempts >= 60) {
+                stop();
+                return;
+            }
+            if (target.activeFocus) {
+                stop();
+                return;
+            }
+            const focusWindow = target.Window.window;
+            const focused = focusWindow ? focusWindow.activeFocusItem : null;
+            if (focused && focused !== surface && focused !== target) {
+                stop();
+                return;
+            }
+            attempts++;
+            target.forceActiveFocus(Qt.TabFocusReason);
+            if (target.activeFocus)
+                stop();
+        }
+    }
+
+    Connections {
+        target: loader.item
+        ignoreUnknownSignals: true
+        function onInitialFocusItemChanged() { root.focusInitialItem(); }
     }
 
     MotionSurface {

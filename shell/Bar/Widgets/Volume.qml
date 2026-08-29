@@ -77,6 +77,7 @@ Cell {
             property var closePopout: null
 
             readonly property real rowWidth: 40 * Theme.cellW
+            readonly property Item initialFocusItem: sinkRows.count > 0 ? sinkRows.itemAt(0) : null
 
             spacing: Theme.cellH * 0.4
 
@@ -309,6 +310,7 @@ Cell {
             }
 
             Repeater {
+                id: sinkRows
                 model: Audio.sinks
 
                 PanelRow {

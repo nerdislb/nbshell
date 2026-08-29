@@ -73,6 +73,16 @@ volume = (ROOT / "shell/Bar/Widgets/Volume.qml").read_text(encoding="utf-8")
 volume_header = volume[:volume.index("popout: Component")]
 if "popoutTakesKeyboard: true" not in volume_header:
     raise SystemExit("Audio popout no longer accepts keyboard focus")
+if "initialFocusItem: sinkRows.count > 0 ? sinkRows.itemAt(0) : null" not in volume:
+    raise SystemExit("Audio popout no longer identifies its initial keyboard target")
+popout = (ROOT / "shell/Widgets/Popout.qml").read_text(encoding="utf-8")
+for snippet in (
+    "target.forceActiveFocus(Qt.TabFocusReason)",
+    "focused && focused !== surface && focused !== target",
+    "attempts >= 60",
+):
+    if snippet not in popout:
+        raise SystemExit(f"Keyboard popout initial-focus contract is incomplete: {snippet}")
 sink_start = volume.index("model: Audio.sinks")
 sink_contract = volume[sink_start:]
 if "PanelRow {" not in sink_contract:
