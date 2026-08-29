@@ -77,7 +77,7 @@ Cell {
             property var closePopout: null
 
             readonly property real rowWidth: 40 * Theme.cellW
-            readonly property Item initialFocusItem: sinkRows.count > 0 ? sinkRows.itemAt(0) : null
+            readonly property Item initialFocusItem: outputVolume
 
             spacing: Theme.cellH * 0.4
 
@@ -96,9 +96,12 @@ Cell {
                 spacing: Theme.cellW
 
                 LevelBar {
+                    id: outputVolume
                     cells: 24
                     value: Audio.volume
                     maximum: Audio.maxVolume
+                    keyboardFocusable: true
+                    accessibleName: "Output volume"
                     fillColor: Audio.muted ? Theme.muted : Theme.accent
                     onMoved: v => Audio.setVolume(v)
                 }
@@ -130,17 +133,13 @@ Cell {
                     fillColor: Audio.micMuted ? Theme.muted : Theme.green
                 }
 
-                Line {
+                ControlButton {
                     width: Theme.cellW * 9
-                    horizontalAlignment: Text.AlignRight
+                    height: Theme.cellH
                     text: Audio.micMuted ? "muted" : ("MIC " + Audio.micVolume + "%")
-                    color: Audio.micMuted ? Theme.red : Theme.fgDim
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: Audio.setMicMuted(!Audio.micMuted)
-                    }
+                    textColor: Audio.micMuted ? Theme.red : Theme.fgDim
+                    accessibleName: Audio.micMuted ? "Unmute microphone" : "Mute microphone"
+                    onTriggered: Audio.setMicMuted(!Audio.micMuted)
                 }
             }
 
@@ -182,19 +181,19 @@ Cell {
                             cells: 24
                             value: Audio.streamVolume(appRow.modelData)
                             maximum: Audio.maxVolume
+                            keyboardFocusable: true
+                            accessibleName: Audio.label(appRow.modelData) + " volume"
                             fillColor: appRow.modelData.audio.muted ? Theme.muted : Theme.green
                             onMoved: v => Audio.setStreamVolume(appRow.modelData, v)
                         }
 
-                        Line {
+                        ControlButton {
                             width: Theme.cellW * 9
-                            horizontalAlignment: Text.AlignRight
+                            height: Theme.cellH
                             text: appRow.modelData.audio.muted ? "muted" : (Audio.streamVolume(appRow.modelData) + "%")
-                            color: appRow.modelData.audio.muted ? Theme.red : Theme.fgDim
-
-                            TapHandler {
-                                onTapped: Audio.toggleStreamMute(appRow.modelData)
-                            }
+                            textColor: appRow.modelData.audio.muted ? Theme.red : Theme.fgDim
+                            accessibleName: (appRow.modelData.audio.muted ? "Unmute " : "Mute ") + Audio.label(appRow.modelData)
+                            onTriggered: Audio.toggleStreamMute(appRow.modelData)
                         }
                     }
                 }
@@ -208,17 +207,17 @@ Cell {
 
             Repeater {
                 model: Audio.routeSinks.length > 1 ? Audio.routes : []
-                Rectangle {
+                PanelRow {
                     id: routeRow
                     required property var modelData
                     width: panel.rowWidth
                     height: Theme.cellH * 1.5
-                    radius: Theme.radius
-                    color: routeHover.hovered ? Theme.hover : "transparent"
-                    Line { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.42; text: routeRow.modelData.name; color: Theme.fg; elide: Text.ElideRight }
-                    Line { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.55; horizontalAlignment: Text.AlignRight; text: routeRow.modelData.sinkLabel + "  ›"; color: Theme.accent; elide: Text.ElideRight }
-                    HoverHandler { id: routeHover; cursorShape: Qt.PointingHandCursor }
-                    TapHandler { onTapped: Audio.cycleRoute(routeRow.modelData) }
+                    title: routeRow.modelData.name
+                    value: routeRow.modelData.sinkLabel + "  ›"
+                    accessibleName: "Route " + routeRow.modelData.name
+                    accessibleDescription: "Current output: " + routeRow.modelData.sinkLabel
+                    interactive: true
+                    onTriggered: Audio.cycleRoute(routeRow.modelData)
                 }
             }
 
@@ -250,37 +249,18 @@ Cell {
                 Repeater {
                     model: Audio.btCodecs
 
-                    delegate: Rectangle {
+                    delegate: ControlButton {
                         id: codec
 
                         required property var modelData
 
                         readonly property bool aktiv: codec.modelData.profil === Audio.btAktiv
 
-                        width: name.implicitWidth + Theme.cellW * 2
+                        text: codec.modelData.codec
+                        selected: codec.aktiv
+                        accessibleName: "Use " + codec.modelData.codec + " Bluetooth codec"
                         height: Theme.denseRowHeight
-                        radius: Theme.radius
-                        color: codec.aktiv ? Theme.selectedSurface(Theme.accent) : (hover.hovered ? Theme.hover : "transparent")
-                        border.width: codec.aktiv ? Theme.borderWidth : 0
-                        border.color: Theme.readable(Theme.accent, Theme.bg)
-
-                        Line {
-                            id: name
-
-                            anchors.centerIn: parent
-                            text: codec.modelData.codec
-                            color: codec.aktiv ? Theme.selectedForeground(Theme.accent) : Theme.fgDim
-                        }
-
-                        HoverHandler {
-                            id: hover
-
-                            cursorShape: Qt.PointingHandCursor
-                        }
-
-                        TapHandler {
-                            onTapped: Audio.setzeCodec(codec.modelData.profil)
-                        }
+                        onTriggered: Audio.setzeCodec(codec.modelData.profil)
                     }
                 }
             }
@@ -288,18 +268,12 @@ Cell {
             // Der Hinweis, wegen dem das Ganze hier steht: die Buds koennen
             // AAC und standen trotzdem auf SBC. Ohne diese Zeile faellt so
             // etwas nie auf.
-            Line {
+            ControlButton {
                 visible: Audio.btSchlechter
                 text: "  better codec available: " + (Audio.btCodecs.length > 0 ? Audio.btCodecs[0].codec : "")
-                color: Theme.yellow
-
-                HoverHandler {
-                    cursorShape: Qt.PointingHandCursor
-                }
-
-                TapHandler {
-                    onTapped: Audio.setzeCodec(Audio.btBeste)
-                }
+                textColor: Theme.yellow
+                accessibleName: "Use better Bluetooth codec " + (Audio.btCodecs.length > 0 ? Audio.btCodecs[0].codec : "")
+                onTriggered: Audio.setzeCodec(Audio.btBeste)
             }
 
             // ── Geraete ───────────────────────────────────────────────────

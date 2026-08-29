@@ -14,8 +14,52 @@ Item {
     property int cells: 20
     property color fillColor: Theme.accent
     property bool interactive: true
+    property bool keyboardFocusable: false
+    property string accessibleName: "Value"
+    property int keyboardStep: 5
+    readonly property int minimumValue: 0
+    readonly property int maximumValue: maximum
+    readonly property int stepSize: keyboardStep
 
     signal moved(int value)
+
+    function moveTo(nextValue) {
+        if (!root.interactive || !root.enabled)
+            return;
+        root.moved(Math.max(0, Math.min(root.maximum, Math.round(nextValue))));
+    }
+
+    function moveBy(delta) {
+        root.moveTo(root.value + delta);
+    }
+
+    activeFocusOnTab: keyboardFocusable && interactive && enabled
+    Accessible.role: Accessible.Slider
+    Accessible.ignored: !keyboardFocusable
+    Accessible.name: accessibleName
+    Accessible.description: value + " of " + maximum
+    Accessible.focusable: activeFocusOnTab
+    Accessible.focused: activeFocus
+    Accessible.onIncreaseAction: root.moveBy(root.keyboardStep)
+    Accessible.onDecreaseAction: root.moveBy(-root.keyboardStep)
+
+    Keys.onPressed: event => {
+        if (!root.keyboardFocusable || !root.interactive)
+            return;
+        if (event.key === Qt.Key_Left || event.key === Qt.Key_Down) {
+            root.moveBy(-root.keyboardStep);
+            event.accepted = true;
+        } else if (event.key === Qt.Key_Right || event.key === Qt.Key_Up) {
+            root.moveBy(root.keyboardStep);
+            event.accepted = true;
+        } else if (event.key === Qt.Key_Home) {
+            root.moveTo(0);
+            event.accepted = true;
+        } else if (event.key === Qt.Key_End) {
+            root.moveTo(root.maximum);
+            event.accepted = true;
+        }
+    }
 
     // Meter-Stil (Config.meterStyle): "blocks" (TUI-Bloecke) oder "line"
     // (duenne Linie). Nur diese zwei -- die fancy Varianten hat der Visualizer.
@@ -100,11 +144,25 @@ Item {
             root.moved(Math.round(share * root.maximum));
         }
 
-        onPressed: mouseEvent => apply(mouseEvent.x)
+        onPressed: mouseEvent => {
+            if (root.keyboardFocusable)
+                root.forceActiveFocus(Qt.MouseFocusReason);
+            apply(mouseEvent.x);
+        }
         onPositionChanged: mouseEvent => {
             if (pressed)
                 apply(mouseEvent.x);
         }
         onWheel: wheelEvent => root.moved(root.value + (wheelEvent.angleDelta.y > 0 ? 5 : -5))
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: -Theme.borderWidth * 2
+        color: "transparent"
+        border.width: root.activeFocus ? Theme.borderWidth : 0
+        border.color: Theme.focusBorder
+        radius: Theme.radius
+        visible: root.activeFocus
     }
 }

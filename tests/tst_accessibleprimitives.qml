@@ -1,6 +1,7 @@
 import QtQuick
 import QtTest
 import "../shell/Widgets" as Widgets
+import "../shell/Widgets/FocusScroll.js" as FocusScroll
 
 TestCase {
     id: root
@@ -12,6 +13,7 @@ TestCase {
     property int actionRightTriggers: 0
     property int rowTriggers: 0
     property int staticRowTriggers: 0
+    property int sliderMovedValue: -1
 
     Item {
         width: 600
@@ -58,6 +60,23 @@ TestCase {
             visualFocus: true
             accessibilityIgnored: true
         }
+
+        Widgets.LevelBar {
+            id: slider
+            x: 460
+            y: 60
+            value: 50
+            keyboardFocusable: true
+            accessibleName: "Output volume"
+            onMoved: value => root.sliderMovedValue = value
+        }
+
+        Widgets.LevelBar {
+            id: passiveMeter
+            x: 460
+            y: 120
+            value: 25
+        }
     }
 
     function cleanup() {
@@ -66,6 +85,7 @@ TestCase {
         actionRightTriggers = 0;
         rowTriggers = 0;
         staticRowTriggers = 0;
+        sliderMovedValue = -1;
         control.enabled = true;
         control.interactive = true;
         control.selected = false;
@@ -91,6 +111,15 @@ TestCase {
         compare(previewControl.Accessible.ignored, true);
         compare(previewControl.Accessible.focused, false);
         compare(previewControl.border.width, 1);
+        compare(slider.Accessible.role, Accessible.Slider);
+        compare(slider.Accessible.name, "Output volume");
+        compare(slider.Accessible.focusable, true);
+        compare(slider.Accessible.ignored, false);
+        compare(slider.minimumValue, 0);
+        compare(slider.maximumValue, 100);
+        compare(slider.stepSize, 5);
+        compare(passiveMeter.activeFocusOnTab, false);
+        compare(passiveMeter.Accessible.ignored, true);
     }
 
     function test_keyboard_activation() {
@@ -117,6 +146,32 @@ TestCase {
         compare(controlTriggers, 1);
         compare(actionTriggers, 1);
         compare(rowTriggers, 1);
+    }
+
+    function test_slider_keyboard_and_accessibility_actions() {
+        slider.forceActiveFocus();
+        tryCompare(slider, "activeFocus", true);
+        keyClick(Qt.Key_Right);
+        compare(sliderMovedValue, 55);
+        keyClick(Qt.Key_Home);
+        compare(sliderMovedValue, 0);
+        keyClick(Qt.Key_End);
+        compare(sliderMovedValue, 100);
+
+        sliderMovedValue = -1;
+        slider.Accessible.increaseAction();
+        compare(sliderMovedValue, 55);
+        slider.Accessible.decreaseAction();
+        compare(sliderMovedValue, 45);
+    }
+
+    function test_focus_scroll_follows_visible_bounds() {
+        compare(FocusScroll.contentYForFocus(120, 20, 100, 100, 300, 8), 100);
+        compare(FocusScroll.contentYForFocus(90, 20, 100, 100, 300, 8), 82);
+        compare(FocusScroll.contentYForFocus(190, 20, 100, 100, 300, 8), 118);
+        compare(FocusScroll.contentYForFocus(290, 20, 100, 100, 300, 8), 200);
+        compare(FocusScroll.contentYForFocus(0, 20, 100, 100, 300, 8), 0);
+        compare(FocusScroll.contentYForFocus(40, 20, 0, 200, 100, 8), 0);
     }
 
     function test_disabled_or_busy_controls_do_not_activate() {

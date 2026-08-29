@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import qs.Common
+import "FocusScroll.js" as FocusScroll
 
 // Ein Fenster, das an einer Zelle haengt.
 //
@@ -21,6 +22,10 @@ PopupWindow {
     property bool closing: false
     property real lockedContentWidth: 0
     property real lockedContentHeight: 0
+    readonly property var focusWindow: loader.item
+        && ("initialFocusItem" in loader.item)
+        && loader.item.initialFocusItem
+        ? loader.item.initialFocusItem.Window.window : null
 
     // Der Griff ist der ganze Trick beim Schliessen: erst damit weiss der
     // Kompositor, dass hier ein Menue offen ist. Er beendet den Griff, sobald
@@ -136,6 +141,20 @@ PopupWindow {
         focusRetry.restart();
     }
 
+    function ensureFocusVisible(item) {
+        if (!item || !loader.item || !visible)
+            return;
+        const point = item.mapToItem(loader.item, 0, 0);
+        const margin = Theme.spaceSm;
+        const top = point.y;
+        const bottom = top + item.height;
+        if (bottom < 0 || top > loader.height)
+            return;
+        contentViewport.contentY = FocusScroll.contentYForFocus(
+            top, item.height, contentViewport.contentY,
+            contentViewport.height, contentViewport.contentHeight, margin);
+    }
+
     function close() {
         requestedVisible = false;
         if (!visible) {
@@ -249,6 +268,15 @@ PopupWindow {
         target: loader.item
         ignoreUnknownSignals: true
         function onInitialFocusItemChanged() { root.focusInitialItem(); }
+    }
+
+    Connections {
+        target: root.focusWindow
+        ignoreUnknownSignals: true
+        function onActiveFocusItemChanged() {
+            Qt.callLater(() => root.ensureFocusVisible(root.focusWindow
+                ? root.focusWindow.activeFocusItem : null));
+        }
     }
 
     MotionSurface {

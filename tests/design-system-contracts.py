@@ -73,16 +73,34 @@ volume = (ROOT / "shell/Bar/Widgets/Volume.qml").read_text(encoding="utf-8")
 volume_header = volume[:volume.index("popout: Component")]
 if "popoutTakesKeyboard: true" not in volume_header:
     raise SystemExit("Audio popout no longer accepts keyboard focus")
-if "initialFocusItem: sinkRows.count > 0 ? sinkRows.itemAt(0) : null" not in volume:
+if "initialFocusItem: outputVolume" not in volume:
     raise SystemExit("Audio popout no longer identifies its initial keyboard target")
+for snippet in (
+    'keyboardFocusable: true\n                    accessibleName: "Output volume"',
+    'accessibleName: Audio.label(appRow.modelData) + " volume"',
+    'accessibleName: Audio.micMuted ? "Unmute microphone" : "Mute microphone"',
+):
+    if snippet not in volume:
+        raise SystemExit(f"Audio popout keyboard control contract is incomplete: {snippet}")
 popout = (ROOT / "shell/Widgets/Popout.qml").read_text(encoding="utf-8")
 for snippet in (
     "target.forceActiveFocus(Qt.TabFocusReason)",
     "focused && focused !== surface && focused !== target",
     "attempts >= 60",
+    "function onActiveFocusItemChanged()",
+    "root.focusWindow.activeFocusItem",
 ):
     if snippet not in popout:
         raise SystemExit(f"Keyboard popout initial-focus contract is incomplete: {snippet}")
+level_bar = (ROOT / "shell/Widgets/LevelBar.qml").read_text(encoding="utf-8")
+for snippet in (
+    "Accessible.ignored: !keyboardFocusable",
+    "readonly property int minimumValue: 0",
+    "readonly property int maximumValue: maximum",
+    "readonly property int stepSize: keyboardStep",
+):
+    if snippet not in level_bar:
+        raise SystemExit(f"LevelBar accessibility contract is incomplete: {snippet}")
 sink_start = volume.index("model: Audio.sinks")
 sink_contract = volume[sink_start:]
 if "PanelRow {" not in sink_contract:
