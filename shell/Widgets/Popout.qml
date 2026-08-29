@@ -329,6 +329,10 @@ PopupWindow {
 
                 width: item ? Math.max(contentViewport.width, item.implicitWidth) : 1
                 height: item ? item.implicitHeight : 1
+                // Loader is a Qt focus scope. Its loaded children cannot gain
+                // active focus unless the scope itself participates in the
+                // popup's focus chain.
+                focus: root.takesKeyboard
                 sourceComponent: null
 
                 onStatusChanged: root.mapWhenReady()

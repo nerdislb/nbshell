@@ -88,6 +88,7 @@ for snippet in (
     "function focusIsInsideContent(item)",
     "cursor === loader.item",
     "root.focusIsInsideContent(focused)",
+    "focus: root.takesKeyboard",
     "attempts >= 60",
     "function onActiveFocusItemChanged()",
     "root.focusWindow.activeFocusItem",
