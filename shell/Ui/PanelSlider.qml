@@ -1,4 +1,5 @@
 import QtQuick
+import qs.Common as Common
 import qs.Commons
 
 Item {
@@ -62,7 +63,7 @@ Item {
 
     Behavior on width {
       enabled: !root.dragging
-      NumberAnimation { duration: Theme.motionSpatialFast; easing.type: Easing.OutCubic }
+      NumberAnimation { duration: Common.Theme.motionSpatialFast; easing.type: Easing.OutCubic }
     }
   }
 
@@ -93,11 +94,11 @@ Item {
 
     Behavior on x {
       enabled: !root.dragging
-      NumberAnimation { duration: Theme.motionSpatialFast; easing.type: Easing.OutCubic }
+      NumberAnimation { duration: Common.Theme.motionSpatialFast; easing.type: Easing.OutCubic }
     }
 
     Behavior on scale {
-      NumberAnimation { duration: Theme.motionEffectsFast; easing.type: Easing.OutCubic }
+      NumberAnimation { duration: Common.Theme.motionEffectsFast; easing.type: Easing.OutCubic }
     }
   }
 

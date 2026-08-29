@@ -37,6 +37,10 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Fixed
 
+- Omarchy-compatible plugin buttons, icon actions, and sliders resolve motion
+  timing through the explicit nbshell Theme adapter instead of an undefined
+  global `Theme`; isolated public-API and pointer/keyboard contract tests now
+  cover the `qs.Ui`/`qs.Commons` compatibility layer.
 - Process-list actions remain bound to the selected process identity across
   two-second refreshes and CPU-based reordering. Signals now verify PID plus
   start time and use a Linux pidfd, so a recycled PID cannot redirect a stop or

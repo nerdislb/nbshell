@@ -126,7 +126,7 @@ BorderSurface {
   // dedicated selected border.
   borderSpec: _borderSpec
 
-  Behavior on color { ColorAnimation { duration: Theme.motionEffectsDefault } }
+  Behavior on color { ColorAnimation { duration: Common.Theme.motionEffectsDefault } }
 
   ToolTip {
     visible: root.tooltipText !== "" && mouseArea.containsMouse

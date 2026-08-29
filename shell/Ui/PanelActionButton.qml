@@ -1,4 +1,5 @@
 import QtQuick
+import qs.Common as Common
 import qs.Commons
 
 // Small (22×22 by default) icon button used at the right edge of panel rows
@@ -66,7 +67,7 @@ BorderSurface {
       : "transparent")
   borderSpec: _borderSpec
 
-  Behavior on color { ColorAnimation { duration: Theme.motionEffectsFast } }
+  Behavior on color { ColorAnimation { duration: Common.Theme.motionEffectsFast } }
 
   Text {
     anchors.centerIn: parent
