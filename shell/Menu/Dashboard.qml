@@ -260,17 +260,15 @@ PanelWindow {
                     spacing: Theme.cellW
                     Repeater {
                         model: ["TODAY", "MEDIA", "TOOLS", "CALENDAR"]
-                        Rectangle {
+                        ControlButton {
                             required property var modelData
                             required property int index
                             width: (parent.width - Theme.cellW * 3) / 4
                             height: Theme.cellH * 1.7
-                            color: Theme.controlFill(tabHover.hovered, root.page === index, tabTap.pressed)
-                            border.width: Theme.borderWidth
-                            border.color: Theme.controlBorder(tabHover.hovered, root.page === index, false)
-                            Line { anchors.centerIn: parent; text: parent.modelData; color: root.page === parent.index ? Theme.selectedForeground(Theme.accent) : Theme.fgDim; font.bold: root.page === parent.index }
-                            HoverHandler { id: tabHover; cursorShape: Qt.PointingHandCursor }
-                            TapHandler { id: tabTap; onTapped: root.page = parent.index }
+                            text: modelData
+                            selected: root.page === index
+                            textColor: Theme.fgDim
+                            onTriggered: root.page = index
                         }
                     }
                 }

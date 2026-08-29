@@ -81,6 +81,7 @@ TestCase {
         compare(control.Accessible.role, Accessible.Button);
         compare(control.Accessible.name, "Apply");
         compare(control.Accessible.focusable, true);
+        compare(control.textColor, "#f0f0f0");
         compare(action.Accessible.name, "Save");
         compare(row.Accessible.name, "Network");
         compare(row.Accessible.description, "Connected securely; Online");

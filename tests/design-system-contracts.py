@@ -59,6 +59,16 @@ if exported_ui_types != expected_ui_types:
         f"got {sorted(exported_ui_types)}"
     )
 
+dashboard = (ROOT / "shell/Menu/Dashboard.qml").read_text(encoding="utf-8")
+tab_start = dashboard.index('model: ["TODAY", "MEDIA", "TOOLS", "CALENDAR"]')
+tab_end = dashboard.index("// ── TODAY", tab_start)
+tab_contract = dashboard[tab_start:tab_end]
+if "ControlButton {" not in tab_contract:
+    raise SystemExit("Dashboard tabs no longer use the canonical ControlButton")
+for legacy in ("tabHover", "tabTap", "Theme.controlFill("):
+    if legacy in tab_contract:
+        raise SystemExit(f"Dashboard tab contract regressed to manual state handling: {legacy}")
+
 print(
     "Design-system adapter contracts: OK "
     f"({len(used_theme_members)} Theme members, {len(exported_ui_types)} Ui exports)"

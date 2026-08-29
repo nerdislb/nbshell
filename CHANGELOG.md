@@ -26,6 +26,9 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Changed
 
+- Dashboard tabs now use the shared accessible `ControlButton` contract while
+  preserving their four-column geometry, muted inactive labels, page shortcuts,
+  and selected-state styling.
 - Motion now distinguishes short visual effects from spatial movement. Bar
   popouts and the most-used overlays keep their content mounted through a real
   exit animation, fade their scrims with the surface, and unload only after the

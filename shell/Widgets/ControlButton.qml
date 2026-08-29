@@ -7,6 +7,8 @@ InteractiveSurface {
     property string text: ""
     property bool selected: false
     property bool danger: false
+    property color textColor: Theme.fg
+    property color selectedTextColor: Theme.selectedForeground(Theme.accent)
     accessibleName: text
     accessibleSelected: selected
     accessiblePressed: tap.pressed
@@ -27,7 +29,7 @@ InteractiveSurface {
         anchors.centerIn: parent
         text: root.text
         color: root.danger ? Theme.readable(Theme.red, root.color, 4.5)
-            : (root.selected ? Theme.selectedForeground(Theme.accent) : Theme.fg)
+            : (root.selected ? root.selectedTextColor : root.textColor)
         font.pixelSize: Theme.fontBody
     }
 
