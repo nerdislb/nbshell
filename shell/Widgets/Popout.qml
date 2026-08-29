@@ -164,6 +164,12 @@ PopupWindow {
         return false;
     }
 
+    function focusIsOnKeyboardControl(item) {
+        return root.focusIsInsideContent(item)
+            && item.visible && item.enabled && item.activeFocusOnTab
+            && item.Accessible.focusable;
+    }
+
     function ensureFocusVisible(item) {
         if (!item || !loader.item || !visible)
             return;
@@ -276,7 +282,12 @@ PopupWindow {
             }
             const focusWindow = target.Window.window;
             const focused = focusWindow ? focusWindow.activeFocusItem : null;
-            if (root.focusIsInsideContent(focused)) {
+            // A passive loaded root (for example the audio panel's Column)
+            // may temporarily become the window's activeFocusItem. That is
+            // still a focus proxy, not a successful handoff to a control.
+            // Stop only for a real tab target so a user's explicit focus is
+            // preserved without accepting a dead container as success.
+            if (root.focusIsOnKeyboardControl(focused)) {
                 stop();
                 return;
             }
@@ -362,14 +373,14 @@ PopupWindow {
         // the content explicitly; subsequent traversal remains Qt-native.
         Keys.onTabPressed: event => {
             const focused = root.focusWindow ? root.focusWindow.activeFocusItem : null;
-            if (!root.focusIsInsideContent(focused)) {
+            if (!root.focusIsOnKeyboardControl(focused)) {
                 root.enterKeyboardFocus(Qt.TabFocusReason);
                 event.accepted = true;
             }
         }
         Keys.onBacktabPressed: event => {
             const focused = root.focusWindow ? root.focusWindow.activeFocusItem : null;
-            if (!root.focusIsInsideContent(focused)) {
+            if (!root.focusIsOnKeyboardControl(focused)) {
                 root.enterKeyboardFocus(Qt.BacktabFocusReason);
                 event.accepted = true;
             }

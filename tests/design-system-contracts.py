@@ -86,8 +86,11 @@ popout = (ROOT / "shell/Widgets/Popout.qml").read_text(encoding="utf-8")
 for snippet in (
     "target.forceActiveFocus(reason)",
     "function focusIsInsideContent(item)",
+    "function focusIsOnKeyboardControl(item)",
     "cursor === loader.item",
-    "root.focusIsInsideContent(focused)",
+    "item.visible && item.enabled && item.activeFocusOnTab",
+    "item.Accessible.focusable",
+    "root.focusIsOnKeyboardControl(focused)",
     "focus: root.takesKeyboard",
     "attempts >= 60",
     "function onActiveFocusItemChanged()",
@@ -100,6 +103,8 @@ for snippet in (
         raise SystemExit(f"Keyboard popout initial-focus contract is incomplete: {snippet}")
 if "focused && focused !== surface && focused !== target" in popout:
     raise SystemExit("Keyboard popout can still abandon initial focus on an internal proxy")
+if "if (root.focusIsInsideContent(focused))" in popout:
+    raise SystemExit("Keyboard popout can still treat a passive content proxy as a focused control")
 level_bar = (ROOT / "shell/Widgets/LevelBar.qml").read_text(encoding="utf-8")
 for snippet in (
     "Accessible.ignored: !keyboardFocusable",
