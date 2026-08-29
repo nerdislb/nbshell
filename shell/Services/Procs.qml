@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.Common
+import "../Procs/ProcessSelection.js" as ProcessSelection
 
 // Prozessliste.
 //
@@ -13,6 +14,8 @@ import qs.Common
 // startet, waere reine Verschwendung.
 Singleton {
     id: root
+
+    readonly property string killScript: Qt.resolvedUrl("../scripts/kill-process.py").toString().replace("file://", "")
 
     property var list: []
     property string filter: ""
@@ -41,8 +44,8 @@ Singleton {
 
     // SIGTERM zuerst -- ein Programm darf sich verabschieden. Erst `hart`
     // schickt SIGKILL.
-    function kill(pid, hard) {
-        Quickshell.execDetached(["kill", hard ? "-9" : "-15", String(pid)]);
+    function kill(pid, started, hard) {
+        Quickshell.execDetached(["python3", killScript, String(pid), started, hard ? "9" : "15"]);
         // Kurz warten, dann neu lesen: sofort danach steht der Prozess noch da.
         refreshTimer.restart();
     }
@@ -68,7 +71,7 @@ Singleton {
     Process {
         id: proc
 
-        command: ["ps", "-eo", "pid,pcpu,pmem,rss,comm", "--sort=-pcpu"]
+        command: ["ps", "-eo", "pid,pcpu,pmem,rss,lstart,comm", "--sort=-pcpu"]
 
         stdout: StdioCollector {
             onStreamFinished: {
@@ -76,18 +79,10 @@ Singleton {
                 const lines = text.split("\n");
                 // Zeile 0 ist die Ueberschrift.
                 for (var i = 1; i < lines.length; i++) {
-                    const parts = lines[i].trim().split(/\s+/);
-                    if (parts.length < 5)
+                    const row = ProcessSelection.parsePsLine(lines[i]);
+                    if (!row)
                         continue;
-                    rows.push({
-                        "pid": parseInt(parts[0], 10),
-                        "cpu": parseFloat(parts[1]),
-                        "mem": parseFloat(parts[2]),
-                        "rss": parseInt(parts[3], 10),
-                        // Der Name kann Leerzeichen enthalten -- der Rest der
-                        // Zeile gehoert dazu.
-                        "name": parts.slice(4).join(" ")
-                    });
+                    rows.push(row);
                 }
                 root.list = rows;
             }

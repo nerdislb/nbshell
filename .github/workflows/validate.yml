@@ -69,6 +69,9 @@ jobs:
       - name: Test performance structure
         run: bash ./tests/performance-smoke.sh
 
+      - name: Test process selection identity
+        run: bash ./tests/process-selection.sh
+
       - name: Test screen-saver renderer selection
         run: bash ./tests/screensaver-renderer.sh
 

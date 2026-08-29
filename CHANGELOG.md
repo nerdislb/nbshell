@@ -31,6 +31,10 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Fixed
 
+- Process-list actions remain bound to the selected process identity across
+  two-second refreshes and CPU-based reordering. Signals now verify PID plus
+  start time and use a Linux pidfd, so a recycled PID cannot redirect a stop or
+  force-stop action to a different process.
 - Umbriel window opening now uses a longer, more even ease-out and a subtler
   pop-in scale, avoiding the abrupt initial jump of the previous motion profile.
 - WhatsApp chat refreshes no longer feed SQLite WAL notifications back into the

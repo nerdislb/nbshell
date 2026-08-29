@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import qs.Common
 import qs.Services
 import qs.Widgets
+import "ProcessSelection.js" as ProcessSelection
 
 // Prozessliste -- der Ersatz fuer DMS' Mod+M.
 //
@@ -14,7 +15,9 @@ import qs.Widgets
 PanelWindow {
     id: root
 
-    property int selected: 0
+    property int selected: -1
+    property int selectedPid: -1
+    property string selectedStarted: ""
 
     visible: Runtime.procsOpen
 
@@ -35,27 +38,79 @@ PanelWindow {
         Runtime.procsOpen = false;
     }
 
-    function move(delta) {
-        const max = Procs.shown.length - 1;
-        if (max < 0)
+    function clearSelection() {
+        selected = -1;
+        selectedPid = -1;
+        selectedStarted = "";
+    }
+
+    function selectIndex(index) {
+        const entry = ProcessSelection.entryAt(Procs.shown, index);
+        if (!entry) {
+            clearSelection();
             return;
-        selected = Math.max(0, Math.min(max, selected + delta));
+        }
+        selected = index;
+        selectedPid = entry.pid;
+        selectedStarted = entry.started;
+    }
+
+    function selectProcess(pid, started) {
+        const index = ProcessSelection.indexForProcess(Procs.shown, pid, started);
+        if (index < 0) {
+            clearSelection();
+            return;
+        }
+        selected = index;
+        selectedPid = pid;
+        selectedStarted = started;
+    }
+
+    function syncSelection() {
+        if (selectedPid < 1)
+            return;
+        const index = ProcessSelection.indexForProcess(Procs.shown, selectedPid, selectedStarted);
+        if (index < 0) {
+            clearSelection();
+            return;
+        }
+        selected = index;
         list.positionViewAtIndex(selected, ListView.Contain);
     }
 
+    function move(delta) {
+        const entry = ProcessSelection.movedEntry(Procs.shown, selectedPid, selectedStarted, delta);
+        if (!entry) {
+            clearSelection();
+            return;
+        }
+        selectProcess(entry.pid, entry.started);
+        if (selected >= 0)
+            list.positionViewAtIndex(selected, ListView.Contain);
+    }
+
     function killSelected(hard) {
-        const entry = Procs.shown[selected];
-        if (entry)
-            Procs.kill(entry.pid, hard);
+        const pid = selectedPid;
+        const started = selectedStarted;
+        if (ProcessSelection.indexForProcess(Procs.shown, pid, started) < 0) {
+            clearSelection();
+            return;
+        }
+        Procs.kill(pid, started, hard);
     }
 
     onVisibleChanged: {
         if (visible) {
-            selected = 0;
             Procs.filter = "";
             filterInput.text = "";
+            selectIndex(0);
             filterInput.forceActiveFocus();
         }
+    }
+
+    Connections {
+        target: Procs
+        function onShownChanged() { root.syncSelection(); }
     }
 
     MouseArea {
@@ -109,7 +164,7 @@ PanelWindow {
 
                 onTextChanged: {
                     Procs.filter = text;
-                    root.selected = 0;
+                    root.selectIndex(0);
                 }
 
                 Keys.onEscapePressed: root.close()
@@ -217,7 +272,10 @@ PanelWindow {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onEntered: root.selected = row.index
+                    onEntered: {
+                        if (row.modelData?.pid && row.modelData?.started)
+                            root.selectProcess(row.modelData.pid, row.modelData.started);
+                    }
                 }
             }
         }
