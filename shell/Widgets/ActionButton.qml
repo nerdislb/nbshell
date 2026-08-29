@@ -34,9 +34,9 @@ InteractiveSurface {
     implicitWidth: label.implicitWidth + Theme.cellW * (compact ? 1.0 : 2.2)
     implicitHeight: Theme.cellH * (compact ? 1.1 : 1.55)
     radius: Theme.radius
-    color: !enabled ? Theme.alpha(Theme.panelSurfaceRaised, 0.45) : (hover.hovered || activeFocus || tap.pressed ? activeSurface : idleSurface)
-    border.width: activeFocus ? Theme.borderWidth : (root.tone === "primary" ? 0 : Theme.borderWidth)
-    border.color: activeFocus ? Theme.focusBorder : (!enabled ? Theme.alpha(Theme.fg, 0.2)
+    color: !enabled ? Theme.alpha(Theme.panelSurfaceRaised, 0.45) : (hover.hovered || visualFocus || tap.pressed ? activeSurface : idleSurface)
+    border.width: visualFocus ? Theme.borderWidth : (root.tone === "primary" ? 0 : Theme.borderWidth)
+    border.color: visualFocus ? Theme.focusBorder : (!enabled ? Theme.alpha(Theme.fg, 0.2)
         : (tone === "secondary" ? Theme.alpha(Theme.fg, 0.4) : Theme.alpha(accentColor, 0.8))
     )
     opacity: enabled ? 1 : 0.55

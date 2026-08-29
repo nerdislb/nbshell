@@ -14,9 +14,9 @@ InteractiveSurface {
     implicitWidth: label.implicitWidth + Theme.spaceXl * 2
     implicitHeight: Theme.controlHeight
     radius: Theme.radius
-    color: Theme.controlFill(hover.hovered || activeFocus, selected, tap.pressed)
-    border.width: activeFocus ? Theme.borderWidth : Theme.controlBorderWidth(hover.hovered, selected, danger)
-    border.color: activeFocus ? Theme.focusBorder : Theme.controlBorder(hover.hovered, selected, danger)
+    color: Theme.controlFill(hover.hovered || visualFocus, selected, tap.pressed)
+    border.width: visualFocus ? Theme.borderWidth : Theme.controlBorderWidth(hover.hovered, selected, danger)
+    border.color: visualFocus ? Theme.focusBorder : Theme.controlBorder(hover.hovered, selected, danger)
     opacity: enabled ? 1 : 0.45
     Behavior on color { ColorAnimation { duration: Theme.motionFast } }
     Behavior on border.color { ColorAnimation { duration: Theme.motionFast } }

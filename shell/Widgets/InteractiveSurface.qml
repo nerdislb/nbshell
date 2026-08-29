@@ -8,6 +8,9 @@ Rectangle {
     property bool interactive: true
     property bool keyboardFocusable: interactive
     property bool activationBlocked: false
+    // Paint-only override for previews; accessibility focus always follows activeFocus.
+    property bool visualFocus: activeFocus
+    property bool accessibilityIgnored: false
     property string accessibleName: ""
     property string accessibleDescription: ""
     property int accessibleRole: Accessible.Button
@@ -30,6 +33,7 @@ Rectangle {
     activeFocusOnTab: keyboardFocusable && interactive && enabled
 
     Accessible.role: accessibleRole
+    Accessible.ignored: accessibilityIgnored
     Accessible.name: accessibleName
     Accessible.description: accessibleDescription
     Accessible.focusable: activeFocusOnTab

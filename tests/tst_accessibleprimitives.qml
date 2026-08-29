@@ -49,6 +49,15 @@ TestCase {
             detail: "No action available"
             onTriggered: root.staticRowTriggers += 1
         }
+
+        Widgets.ControlButton {
+            id: previewControl
+            y: 120
+            text: "Focus preview"
+            interactive: false
+            visualFocus: true
+            accessibilityIgnored: true
+        }
     }
 
     function cleanup() {
@@ -77,6 +86,9 @@ TestCase {
         compare(row.Accessible.description, "Connected securely; Online");
         compare(staticRow.Accessible.role, Accessible.StaticText);
         compare(staticRow.Accessible.focusable, false);
+        compare(previewControl.Accessible.ignored, true);
+        compare(previewControl.Accessible.focused, false);
+        compare(previewControl.border.width, 1);
     }
 
     function test_keyboard_activation() {

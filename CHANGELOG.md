@@ -11,6 +11,9 @@ configuration and plugin interfaces before `1.0.0`.
 - Shared buttons and interactive panel rows now expose native Qt accessibility
   roles, names, states, assistive-technology press actions, visible keyboard
   focus, and guarded Return/Enter/Space activation without key-repeat actions.
+- The UI Gallery is scrollable and documents typography, control and action
+  states, selected-focus behavior, static versus interactive accessibility
+  roles, long-content handling, active theme mode, motion, and surface levels.
 - The right side of the bar can collapse at its configured separator into a
   persistent chevron. Widgets to the left remain visible, the complete tail
   slides back out on the next click, and the tray keeps its own independent
