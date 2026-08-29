@@ -61,6 +61,9 @@ assert 'normalizedMessage.includes("finger")' in shell
 assert "authBoost" not in (root / "greeter/qml/OrbitalClock.qml").read_text(encoding="utf-8")
 assert "START PASSWORD LOGIN" in view
 assert "TOUCH SENSOR OR WAIT FOR PASSWORD" not in view
+assert "authenticationRetryPending" in shell
+assert "cancelSession() is acknowledged" in shell
+assert "AUTHENTICATION RESET TIMED OUT · PRESS ESC TO CANCEL" in shell
 PY
 
 grep -Fq 'packages=(greetd-regreet)' "$ROOT/setup-greeter.sh"

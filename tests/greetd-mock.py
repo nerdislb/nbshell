@@ -67,7 +67,12 @@ def write_config(path: Path) -> None:
     )
 
 
-def run_conversation(message_type: str, response: str, include_info: bool) -> None:
+def run_conversation(
+    message_type: str,
+    response: str,
+    include_info: bool,
+    reject_first_attempt: bool = False,
+) -> None:
     with tempfile.TemporaryDirectory(prefix="nbshell-greetd-mock.") as directory:
         temporary = Path(directory)
         socket_path = temporary / "greetd.sock"
@@ -84,36 +89,51 @@ def run_conversation(message_type: str, response: str, include_info: bool) -> No
                 connection, _ = server.accept()
                 with connection:
                     connection.settimeout(8)
-                    request = receive_message(connection)
-                    assert request == {
-                        "type": "create_session",
-                        "username": "test-user",
-                    }, request
-                    if include_info:
+                    attempts = 2 if reject_first_attempt else 1
+                    for attempt in range(attempts):
+                        request = receive_message(connection)
+                        assert request == {
+                            "type": "create_session",
+                            "username": "test-user",
+                        }, request
+                        if include_info and attempt == 0:
+                            send_message(
+                                connection,
+                                {
+                                    "type": "auth_message",
+                                    "auth_message_type": "info",
+                                    "auth_message": "Touch the fingerprint sensor",
+                                },
+                            )
+                            request = receive_message(connection)
+                            assert request.get("type") == "post_auth_message_response", request
+                            assert request.get("response") is None, request
                         send_message(
                             connection,
                             {
                                 "type": "auth_message",
-                                "auth_message_type": "info",
-                                "auth_message": "Touch the fingerprint sensor",
+                                "auth_message_type": message_type,
+                                "auth_message": "Password:" if message_type == "secret" else "One-time code:",
                             },
                         )
                         request = receive_message(connection)
-                        assert request.get("type") == "post_auth_message_response", request
-                        assert request.get("response") is None, request
-                    send_message(
-                        connection,
-                        {
-                            "type": "auth_message",
-                            "auth_message_type": message_type,
-                            "auth_message": "Password:" if message_type == "secret" else "One-time code:",
-                        },
-                    )
-                    request = receive_message(connection)
-                    assert request == {
-                        "type": "post_auth_message_response",
-                        "response": response,
-                    }, request
+                        assert request == {
+                            "type": "post_auth_message_response",
+                            "response": response,
+                        }, request
+                        if reject_first_attempt and attempt == 0:
+                            send_message(
+                                connection,
+                                {
+                                    "type": "error",
+                                    "error_type": "auth_error",
+                                    "description": "Authentication failed",
+                                },
+                            )
+                            request = receive_message(connection)
+                            assert request == {"type": "cancel_session"}, request
+                            send_message(connection, {"type": "success"})
+                            continue
                     send_message(connection, {"type": "success"})
                     request = receive_message(connection)
                     assert request.get("type") == "start_session", request
@@ -214,6 +234,12 @@ def main() -> int:
         return 0
     run_conversation("secret", "correct horse", include_info=True)
     run_conversation("visible", "123456", include_info=False)
+    run_conversation(
+        "secret",
+        "second attempt",
+        include_info=False,
+        reject_first_attempt=True,
+    )
     verify_preview_isolation()
     print("Greetd mock integration: OK")
     return 0

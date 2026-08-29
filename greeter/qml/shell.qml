@@ -44,6 +44,8 @@ ShellRoot {
     property int failedAttempts: 0
     property int passwordResetSerial: 0
     property int promptSerial: 0
+    property bool authenticationRetryPending: false
+    property int authenticationRetryChecks: 0
 
     readonly property bool authenticating: !previewMode && Greetd.state === GreetdState.Authenticating
     readonly property bool greetdAvailable: previewMode || Greetd.available
@@ -115,6 +117,8 @@ ShellRoot {
         if (previewMode || launching || !username || !Greetd.available)
             return;
         if (Greetd.state === GreetdState.Inactive) {
+            authenticationRetryPending = false;
+            authenticationRetryTimer.stop();
             responseRequired = false;
             echoResponse = false;
             promptMessage = "";
@@ -144,6 +148,8 @@ ShellRoot {
     }
 
     function cancelAuthentication() {
+        authenticationRetryPending = false;
+        authenticationRetryTimer.stop();
         passwordResetSerial += 1;
         responseRequired = false;
         echoResponse = false;
@@ -174,6 +180,30 @@ ShellRoot {
         interval: 350
         repeat: false
         onTriggered: shell.startAuthentication()
+    }
+
+    Timer {
+        id: authenticationRetryTimer
+        interval: 250
+        repeat: true
+        onTriggered: {
+            if (!shell.authenticationRetryPending || shell.previewMode || shell.launching) {
+                stop();
+                return;
+            }
+            if (Greetd.state === GreetdState.Inactive) {
+                stop();
+                shell.startAuthentication();
+                return;
+            }
+            shell.authenticationRetryChecks += 1;
+            if (shell.authenticationRetryChecks >= 20) {
+                stop();
+                shell.authenticationRetryPending = false;
+                shell.statusMessage = "AUTHENTICATION RESET TIMED OUT · PRESS ESC TO CANCEL";
+                shell.statusError = true;
+            }
+        }
     }
 
     Timer {
@@ -232,6 +262,17 @@ ShellRoot {
         }
 
         function onReadyToLaunch() {
+            // cancelSession() is acknowledged through the same success signal
+            // as completed authentication. Consume that acknowledgement before
+            // creating the replacement conversation, otherwise the two
+            // requests can overlap and the cancel success can launch a session.
+            if (shell.authenticationRetryPending) {
+                // A cancel acknowledgement is not an authenticated session.
+                // The bounded reset timer starts the replacement only after
+                // the service reports Inactive.
+                return;
+            }
+            shell.authenticationRetryPending = false;
             shell.responseRequired = false;
             shell.echoResponse = false;
             shell.promptMessage = "";
@@ -253,6 +294,14 @@ ShellRoot {
             shell.failedAttempts += 1;
             shell.statusMessage = message ? String(message).toUpperCase() : "AUTHENTICATION FAILED";
             shell.statusError = true;
+            // A rejected PAM conversation is closed by greetd. Recreate only
+            // the empty password prompt after cancel acknowledgement; no
+            // credential is submitted and pam_faillock remains authoritative.
+            shell.authenticationRetryPending = true;
+            shell.authenticationRetryChecks = 0;
+            if (Greetd.state !== GreetdState.Inactive)
+                Greetd.cancelSession();
+            authenticationRetryTimer.restart();
         }
 
         function onError(error) {
