@@ -78,6 +78,25 @@ for legacy in ("id: mouse", "onTapped: Audio.setSink"):
     if legacy in sink_contract:
         raise SystemExit(f"Audio sink rows regressed to manual interaction: {legacy}")
 
+required_accessible_names = {
+    ROOT / "plugins/omamail/components/AppMenu.qml": [
+        'accessibleName: "More options"',
+    ],
+    ROOT / "plugins/omamail/components/SearchBar.qml": [
+        'accessibleName: "Clear search"',
+    ],
+    ROOT / "plugins/omamail/components/ComposeView.qml": [
+        '"Change sender. Current sender: "',
+        '"Hide Cc field"',
+        '"Show Cc field"',
+    ],
+}
+for path, snippets in required_accessible_names.items():
+    source = path.read_text(encoding="utf-8")
+    for snippet in snippets:
+        if snippet not in source:
+            raise SystemExit(f"Missing explicit accessibility name in {path}: {snippet}")
+
 print(
     "Design-system adapter contracts: OK "
     f"({len(used_theme_members)} Theme members, {len(exported_ui_types)} Ui exports)"

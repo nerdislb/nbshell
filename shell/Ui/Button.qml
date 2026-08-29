@@ -24,6 +24,9 @@ BorderSurface {
   property string text: ""
   property string iconText: ""
   property string tooltipText: ""
+  property string accessibleName: ""
+  property string accessibleDescription: ""
+  property bool accessibilityIgnored: false
 
   // State flags (see comment above for paint priority).
   property bool selected: false
@@ -63,10 +66,38 @@ BorderSurface {
   signal rightClicked()
   signal hovered(bool isHovered)
 
+  readonly property string _resolvedAccessibleName: accessibleName !== ""
+    ? accessibleName : (text !== "" ? text : tooltipText)
+  readonly property string _resolvedAccessibleDescription: accessibleDescription !== ""
+    ? accessibleDescription
+    : (tooltipText !== "" && tooltipText !== _resolvedAccessibleName ? tooltipText : "")
+
+  function activate() {
+    if (root.enabled) root.clicked()
+  }
+
+  function activateFromKey(event) {
+    if (!root.focusable) {
+      event.accepted = false
+      return
+    }
+    if (!event.isAutoRepeat) root.activate()
+    event.accepted = true
+  }
+
   activeFocusOnTab: focusable
-  Keys.onReturnPressed: if (focusable) root.clicked()
-  Keys.onEnterPressed: if (focusable) root.clicked()
-  Keys.onSpacePressed: if (focusable) root.clicked()
+  Accessible.role: Accessible.Button
+  Accessible.name: _resolvedAccessibleName
+  Accessible.description: _resolvedAccessibleDescription
+  Accessible.ignored: accessibilityIgnored
+  Accessible.focusable: enabled
+  Accessible.focused: activeFocus
+  Accessible.selected: selected || active
+  Accessible.pressed: mouseArea.pressed
+  Accessible.onPressAction: root.activate()
+  Keys.onReturnPressed: event => root.activateFromKey(event)
+  Keys.onEnterPressed: event => root.activateFromKey(event)
+  Keys.onSpacePressed: event => root.activateFromKey(event)
 
   // Reserve the largest border any visual state can paint. Otherwise a
   // borderless idle button grows by a pixel per side on hover/focus and
@@ -192,12 +223,13 @@ BorderSurface {
     id: mouseArea
     anchors.fill: parent
     hoverEnabled: true
+    enabled: root.enabled
     cursorShape: Qt.PointingHandCursor
     acceptedButtons: Qt.LeftButton | Qt.RightButton
     onClicked: function(mouse) {
       if (root.focusable) root.forceActiveFocus()
       if (mouse.button === Qt.RightButton) root.rightClicked()
-      else root.clicked()
+      else root.activate()
     }
   }
 

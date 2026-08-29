@@ -10,6 +10,8 @@ Item {
 
     property int buttonClicks: 0
     property int actionClicks: 0
+    property int nonTabButtonClicks: 0
+    property int nonTabActionClicks: 0
     property int sliderMoves: 0
     property int sliderReleases: 0
     property int sliderRightClicks: 0
@@ -65,6 +67,23 @@ Item {
         password: false
     }
 
+    Ui.Button {
+        id: nonTabButton
+        x: 240
+        y: 120
+        text: "Background action"
+        onClicked: host.nonTabButtonClicks += 1
+    }
+
+    Ui.PanelActionButton {
+        id: nonTabAction
+        x: 400
+        y: 120
+        iconText: "×"
+        tooltipText: "Clear"
+        onClicked: host.nonTabActionClicks += 1
+    }
+
     TestCase {
         name: "UiCompatibilityContracts"
         when: windowShown
@@ -74,9 +93,14 @@ Item {
         function cleanup() {
             host.buttonClicks = 0;
             host.actionClicks = 0;
+            host.nonTabButtonClicks = 0;
+            host.nonTabActionClicks = 0;
             host.sliderMoves = 0;
             host.sliderReleases = 0;
             host.sliderRightClicks = 0;
+            button.accessibleName = "";
+            button.accessibleDescription = "";
+            nonTabAction.enabled = true;
         }
 
         function test_border_surface_public_api() {
@@ -94,20 +118,62 @@ Item {
             compare(button.iconText, "+");
             compare(button.tooltipText, "Apply changes");
             compare(button.focusable, true);
+            compare(button.Accessible.name, "Apply");
+            compare(button.Accessible.description, "Apply changes");
+            compare(button.Accessible.role, Accessible.Button);
             button.forceActiveFocus();
             tryCompare(button, "activeFocus", true);
             keyClick(Qt.Key_Space);
             compare(host.buttonClicks, 1);
         }
 
+        function test_explicit_button_accessibility_overrides() {
+            button.accessibleName = "Apply settings";
+            button.accessibleDescription = "Save the current configuration";
+            compare(button.Accessible.name, "Apply settings");
+            compare(button.Accessible.description, "Save the current configuration");
+        }
+
         function test_panel_action_public_api_and_signal() {
             compare(action.iconText, "×");
             compare(action.tooltipText, "Remove");
             compare(action.focusable, true);
+            compare(action.Accessible.name, "Remove");
+            compare(action.Accessible.role, Accessible.Button);
             action.forceActiveFocus();
             tryCompare(action, "activeFocus", true);
             keyClick(Qt.Key_Return);
             compare(host.actionClicks, 1);
+        }
+
+        function test_non_tabbable_buttons_remain_at_accessible() {
+            compare(nonTabButton.focusable, false);
+            compare(nonTabButton.activeFocusOnTab, false);
+            compare(nonTabButton.Accessible.focusable, true);
+            nonTabButton.Accessible.pressAction();
+            compare(host.nonTabButtonClicks, 1);
+
+            compare(nonTabAction.focusable, false);
+            compare(nonTabAction.activeFocusOnTab, false);
+            compare(nonTabAction.Accessible.name, "Clear");
+            nonTabAction.Accessible.pressAction();
+            compare(host.nonTabActionClicks, 1);
+
+            nonTabAction.enabled = false;
+            nonTabAction.Accessible.pressAction();
+            compare(host.nonTabActionClicks, 1);
+        }
+
+        function test_button_activation_guards() {
+            nonTabButton.enabled = false;
+            nonTabButton.Accessible.pressAction();
+            compare(host.nonTabButtonClicks, 0);
+            nonTabButton.enabled = true;
+
+            const repeated = { "isAutoRepeat": true, "accepted": false };
+            button.activateFromKey(repeated);
+            compare(host.buttonClicks, 0);
+            compare(repeated.accepted, true);
         }
 
         function test_slider_public_api_and_signals() {

@@ -30,6 +30,9 @@ BorderSurface {
 
   property string iconText: ""
   property string tooltipText: ""
+  property string accessibleName: ""
+  property string accessibleDescription: ""
+  property bool accessibilityIgnored: false
   property color foreground: Color.foreground
   property color hoverColor: foreground
   property string fontFamily: Style.font.family
@@ -43,10 +46,34 @@ BorderSurface {
   signal clicked()
   signal hovered(bool isHovered)
 
+  readonly property string _resolvedAccessibleName: accessibleName !== ""
+    ? accessibleName : (tooltipText !== "" ? tooltipText : iconText)
+
+  function activate() {
+    if (root.enabled) root.clicked()
+  }
+
+  function activateFromKey(event) {
+    if (!root.focusable) {
+      event.accepted = false
+      return
+    }
+    if (!event.isAutoRepeat) root.activate()
+    event.accepted = true
+  }
+
   activeFocusOnTab: focusable
-  Keys.onReturnPressed: if (focusable) root.clicked()
-  Keys.onEnterPressed: if (focusable) root.clicked()
-  Keys.onSpacePressed: if (focusable) root.clicked()
+  Accessible.role: Accessible.Button
+  Accessible.name: _resolvedAccessibleName
+  Accessible.description: accessibleDescription
+  Accessible.ignored: accessibilityIgnored
+  Accessible.focusable: enabled
+  Accessible.focused: activeFocus
+  Accessible.pressed: mouse.pressed
+  Accessible.onPressAction: root.activate()
+  Keys.onReturnPressed: event => root.activateFromKey(event)
+  Keys.onEnterPressed: event => root.activateFromKey(event)
+  Keys.onSpacePressed: event => root.activateFromKey(event)
 
   implicitWidth: size
   implicitHeight: size
@@ -88,7 +115,7 @@ BorderSurface {
     onContainsMouseChanged: root.hovered(containsMouse)
     onClicked: {
       if (root.focusable) root.forceActiveFocus()
-      root.clicked()
+      root.activate()
     }
   }
 

@@ -298,6 +298,9 @@ Item {
         width: Math.min(implicitWidth + trailing,
           parent.width - fromLabel.width - Style.space(46))
         text: root.fromEmail
+        accessibleName: root.fromAliases.length > 1
+          ? "Change sender. Current sender: " + root.fromEmail
+          : "Sender: " + root.fromEmail
         foreground: root.textColor
         accent: root.accentColor
         fontFamily: root.panelFontFamily
@@ -355,6 +358,7 @@ Item {
         anchors.rightMargin: Style.space(18)
         anchors.verticalCenter: parent.verticalCenter
         text: "Cc"
+        accessibleName: root.ccVisible ? "Hide Cc field" : "Show Cc field"
         foreground: root.ccVisible ? root.textColor : root.dimColor
         bordered: false
         fontSize: Style.font.caption

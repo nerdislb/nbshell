@@ -77,6 +77,8 @@ Item {
     visible: field.text !== ""
     iconText: "×"
     tooltipText: "Clear search · Esc"
+    accessibleName: "Clear search"
+    accessibleDescription: "Escape also clears or leaves search according to the current context"
     foreground: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.55)
     hoverColor: root.textColor
     fontSize: Style.font.body

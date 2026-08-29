@@ -70,6 +70,8 @@ Item {
     visible: root.showTrigger
     anchors.fill: parent
     text: "⋮"
+    accessibleName: "More options"
+    accessibleDescription: "Open the application menu"
     foreground: root.textColor
     bordered: false
     onClicked: menu.opened ? menu.close() : menu.open()

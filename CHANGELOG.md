@@ -11,6 +11,9 @@ configuration and plugin interfaces before `1.0.0`.
 - Shared buttons and interactive panel rows now expose native Qt accessibility
   roles, names, states, assistive-technology press actions, visible keyboard
   focus, and guarded Return/Enter/Space activation without key-repeat actions.
+- Omarchy-compatible plugin buttons and inline actions now expose native Qt
+  names, states, and press actions without adding new physical Tab stops or
+  changing the plugins' existing keyboard routers.
 - The UI Gallery is scrollable and documents typography, control and action
   states, selected-focus behavior, static versus interactive accessibility
   roles, long-content handling, active theme mode, motion, and surface levels.
