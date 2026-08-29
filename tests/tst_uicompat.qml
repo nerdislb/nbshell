@@ -69,6 +69,8 @@ Item {
         name: "UiCompatibilityContracts"
         when: windowShown
 
+        function dynamicMember(object, key) { return object[key]; }
+
         function cleanup() {
             host.buttonClicks = 0;
             host.actionClicks = 0;
@@ -132,6 +134,13 @@ Item {
             verify(Style.hoverFillFor(Color.foreground, Color.accent).valid);
             verify(Style.selectedFillFor(Color.foreground, Color.accent).valid);
             verify(Style.pressedFillFor(Color.foreground, Color.accent).valid);
+            compare(Style.normalBorderFor(Color.foreground, Color.accent), "#a0a0a0");
+            compare(Style.hoverBorderFor(Color.foreground, Color.accent), "#80b8ff");
+            compare(Style.controlBorder(false, false, Color.foreground, Color.accent), "#707070");
+            compare(Style.controlBorder(true, true, Color.foreground, Color.accent), "#80b8ff");
+            compare(dynamicMember(Color.popups, "background"), "#101010");
+            compare(dynamicMember(Color.popups, "border"), "#80b8ff");
+            compare(Color.urgent, "#ff6060");
 
             const normal = Border.controlSpec("normal", Color.foreground, Color.accent);
             const focus = Border.controlSpec("focus", Color.foreground, Color.accent);
