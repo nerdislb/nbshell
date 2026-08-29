@@ -496,7 +496,7 @@ def start_lock(suspend: bool = False) -> int:
             if code is not None:
                 print(f"nbshell: screen locker exited before suspend ({code})", file=sys.stderr)
                 return code or 1
-            if not native or READY_PATH.is_file():
+            if native and READY_PATH.is_file():
                 break
             time.sleep(0.05)
         else:

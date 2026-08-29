@@ -177,13 +177,14 @@ def check_suspend_guard() -> None:
         mock.patch.object(LOCKSCREEN.shutil, "which", return_value="/usr/bin/hyprlock"),
         mock.patch.object(LOCKSCREEN.subprocess, "Popen", return_value=alive),
         mock.patch.object(LOCKSCREEN.subprocess, "run", return_value=completed) as run,
-        mock.patch.object(LOCKSCREEN.time, "monotonic", side_effect=[0.0, 2.0]),
+        mock.patch.object(LOCKSCREEN.time, "monotonic", side_effect=[0.0, 0.5, 1.0, 1.5]),
+        mock.patch.object(LOCKSCREEN.time, "sleep"),
     ):
         assert LOCKSCREEN.start_lock(suspend=True) == 0
         run.assert_called_once_with(["systemctl", "suspend"])
 
     failed = mock.Mock()
-    failed.poll.return_value = 5
+    failed.poll.side_effect = [None, None, 5]
     with (
         mock.patch.object(LOCKSCREEN, "render", return_value=Path("generated.conf")),
         mock.patch.object(LOCKSCREEN, "load_json", return_value={}),
@@ -193,7 +194,8 @@ def check_suspend_guard() -> None:
         mock.patch.object(LOCKSCREEN.shutil, "which", return_value="/usr/bin/hyprlock"),
         mock.patch.object(LOCKSCREEN.subprocess, "Popen", return_value=failed),
         mock.patch.object(LOCKSCREEN.subprocess, "run") as run,
-        mock.patch.object(LOCKSCREEN.time, "monotonic", side_effect=[0.0, 0.1]),
+        mock.patch.object(LOCKSCREEN.time, "monotonic", side_effect=[0.0, 0.0, 0.5, 1.0]),
+        mock.patch.object(LOCKSCREEN.time, "sleep"),
     ):
         with contextlib.redirect_stderr(io.StringIO()):
             assert LOCKSCREEN.start_lock(suspend=True) == 5

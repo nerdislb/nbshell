@@ -149,12 +149,45 @@ systemctl --user daemon-reload 2>/dev/null || true
 systemctl --user enable nbshell-umbriel-resume-guard.service >/dev/null 2>&1 || true
 systemctl --user enable --now nbshell-upstream-audit.timer >/dev/null 2>&1 || true
 
-# Prepare and validate a complete runtime before stopping the bar. Switching
-# two directories on the same filesystem keeps the incomplete-copy window out
-# of the live path.
+unit_active=0
+defer_service_restart=0
+install_ready=0
+rollback_is_runtime() {
+    [ -d "$ROLLBACK_SHELL" ] && [ -f "$ROLLBACK_SHELL/shell.qml" ]
+}
+recover_install() {
+    result=$?
+    if [ $install_ready -ne 1 ] && rollback_is_runtime; then
+        if [ $defer_service_restart -ne 1 ]; then
+            systemctl --user stop nbshell.service >/dev/null 2>&1 || true
+        fi
+        rm -rf -- "${SHELL_DIR:?}"
+        mv -T -- "$ROLLBACK_SHELL" "$SHELL_DIR"
+    fi
+    [ ! -d "$STAGED_SHELL" ] || rm -rf -- "$STAGED_SHELL"
+    if [ -d "$ROLLBACK_SHELL" ] && ! rollback_is_runtime; then
+        rm -rf -- "$ROLLBACK_SHELL"
+    fi
+    if [ $unit_active -eq 1 ] && [ $defer_service_restart -ne 1 ]; then
+        systemctl --user is-active --quiet nbshell.service 2>/dev/null || \
+            systemctl --user start nbshell.service >/dev/null 2>&1 || true
+    fi
+    return "$result"
+}
+
+# Prepare and validate a complete runtime before stopping the bar. Both names
+# are private, same-filesystem reservations. A rollback is genuine only after
+# the old, validated runtime has occupied its reservation.
 mkdir -p "$CONFIG_HOME/quickshell"
 STAGED_SHELL="$(mktemp -d "$CONFIG_HOME/quickshell/.nbshell-stage.XXXXXX")"
-ROLLBACK_SHELL="$CONFIG_HOME/quickshell/.nbshell-rollback.$$"
+if ! ROLLBACK_SHELL="$(mktemp -d "$CONFIG_HOME/quickshell/.nbshell-rollback.XXXXXX")"; then
+    rm -rf -- "$STAGED_SHELL"
+    exit 1
+fi
+# Arm cleanup immediately after both reservations, before copy, validation, or
+# recovery arming can fail.
+trap recover_install EXIT
+
 cp -a "$SRC/shell/." "$STAGED_SHELL/"
 cp -a "$SRC/integrations" "$STAGED_SHELL/"
 install -m 644 "$SRC/VERSION" "$STAGED_SHELL/VERSION"
@@ -168,8 +201,8 @@ QMLLINT_BIN="$(command -v qmllint || true)"
 if [ -n "$QMLLINT_BIN" ]; then
     "$QMLLINT_BIN" "$STAGED_SHELL/shell.qml" >/dev/null 2>&1
 fi
+[ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "pre-swap" ] || exit 97
 
-unit_active=0
 systemctl --user is-active --quiet nbshell.service 2>/dev/null && unit_active=1
 was_running=0
 if [ $unit_active -ne 1 ] && "$QS_BIN" list --all 2>/dev/null | grep -c "quickshell/nbshell/shell.qml" >/dev/null; then
@@ -180,7 +213,6 @@ fi
 # that unit here would also terminate the installer and its controlling agent.
 # The runtime directory can still be switched atomically; in that case leave
 # the already running shell untouched and let the next login/restart load it.
-defer_service_restart=0
 restart_policy="${NBSHELL_INSTALL_DEFER_RESTART:-auto}"
 if [ $unit_active -eq 1 ] && { [ "$restart_policy" = "1" ] \
         || { [ "$restart_policy" = "auto" ] \
@@ -203,28 +235,6 @@ if [ $unit_active -eq 1 ]; then
     fi
 fi
 
-swapped=0
-install_ready=0
-recover_install() {
-    result=$?
-    if [ $install_ready -ne 1 ] && [ $swapped -eq 1 ] && [ -d "$ROLLBACK_SHELL" ]; then
-        if [ $defer_service_restart -ne 1 ]; then
-            systemctl --user stop nbshell.service >/dev/null 2>&1 || true
-        fi
-        rm -rf -- "${SHELL_DIR:?}"
-        mv -- "$ROLLBACK_SHELL" "$SHELL_DIR"
-    fi
-    if [ -n "${STAGED_SHELL:-}" ] && [ -d "$STAGED_SHELL" ]; then
-        rm -rf -- "$STAGED_SHELL"
-    fi
-    if [ $unit_active -eq 1 ] && [ $defer_service_restart -ne 1 ]; then
-        systemctl --user is-active --quiet nbshell.service 2>/dev/null || \
-            systemctl --user start nbshell.service >/dev/null 2>&1 || true
-    fi
-    return "$result"
-}
-trap recover_install EXIT
-
 if [ $unit_active -eq 1 ] && [ $defer_service_restart -ne 1 ]; then
     systemctl --user stop nbshell.service
 elif [ "$was_running" = "1" ]; then
@@ -232,11 +242,14 @@ elif [ "$was_running" = "1" ]; then
     sleep 0.3
 fi
 if [ -d "$SHELL_DIR" ]; then
-    mv -- "$SHELL_DIR" "$ROLLBACK_SHELL"
-    swapped=1
+    # mv cannot replace the reserved directory itself. Removing that empty
+    # inode is safe: the unpredictable name remains ours and installs are
+    # serialized. Cleanup validates the moved contents, not a flag.
+    rmdir -- "$ROLLBACK_SHELL"
+    mv -T -- "$SHELL_DIR" "$ROLLBACK_SHELL"
+    [ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-first-rename" ] || exit 98
 fi
-mv -- "$STAGED_SHELL" "$SHELL_DIR"
-STAGED_SHELL=""
+mv -T -- "$STAGED_SHELL" "$SHELL_DIR"
 
 if [ $unit_active -eq 1 ] && [ $defer_service_restart -ne 1 ]; then
     systemctl --user start nbshell.service

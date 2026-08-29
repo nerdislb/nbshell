@@ -7,6 +7,16 @@ ROLLBACK_DIR="${2:?rollback path required}"
 MODE="${3:-restart}"
 PARENT_DIR="$(dirname "$SHELL_DIR")"
 
+rollback_is_runtime() {
+    [ -d "$ROLLBACK_DIR" ] && [ -f "$ROLLBACK_DIR/shell.qml" ]
+}
+
+discard_empty_reservation() {
+    if [ -d "$ROLLBACK_DIR" ] && [ -z "$(find "$ROLLBACK_DIR" -mindepth 1 -print -quit)" ]; then
+        rmdir -- "$ROLLBACK_DIR"
+    fi
+}
+
 # Refuse broad or unrelated deletion targets even if a caller is malformed.
 if [ "$(basename "$SHELL_DIR")" != "nbshell" ] \
         || [ "$(dirname "$ROLLBACK_DIR")" != "$PARENT_DIR" ] \
@@ -16,9 +26,11 @@ if [ "$(basename "$SHELL_DIR")" != "nbshell" ] \
     exit 2
 fi
 
+discard_empty_reservation
+
 if [ "$MODE" = "deferred" ]; then
-    if [ ! -e "$SHELL_DIR" ] && [ -d "$ROLLBACK_DIR" ]; then
-        mv -- "$ROLLBACK_DIR" "$SHELL_DIR"
+    if [ ! -e "$SHELL_DIR" ] && rollback_is_runtime; then
+        mv -T -- "$ROLLBACK_DIR" "$SHELL_DIR"
     fi
     exit 0
 fi
@@ -34,13 +46,12 @@ if systemctl --user is-active --quiet nbshell.service; then
     exit 0
 fi
 
-if [ ! -d "$ROLLBACK_DIR" ]; then
+if ! rollback_is_runtime; then
     echo "nbshell could not restart and no rollback runtime is available." >&2
     exit 1
 fi
 
 systemctl --user stop nbshell.service >/dev/null 2>&1 || true
 [ ! -e "$SHELL_DIR" ] || rm -rf -- "$SHELL_DIR"
-mv -- "$ROLLBACK_DIR" "$SHELL_DIR"
+mv -T -- "$ROLLBACK_DIR" "$SHELL_DIR"
 systemctl --user start nbshell.service
-

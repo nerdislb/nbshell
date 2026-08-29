@@ -52,9 +52,16 @@ export NBSHELL_INSTALL_DEFER_RESTART=0
 export PATH="$FAKE_BIN:/usr/bin:/bin"
 mkdir -p "$FAKE_SYSTEMD_STATE"
 
+assert_no_reservations() {
+    test -z "$(find "$XDG_CONFIG_HOME/quickshell" -maxdepth 1 -type d \
+        \( -name '.nbshell-stage.*' -o -name '.nbshell-rollback.*' \) \
+        -print -quit 2>/dev/null)"
+}
+
 "$ROOT/install.sh" >/dev/null
 
 test -f "$XDG_CONFIG_HOME/quickshell/nbshell/shell.qml"
+assert_no_reservations
 test -f "$XDG_CONFIG_HOME/quickshell/nbshell/integrations/omawhatsapp/manifest.json"
 test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/VERSION")" = "$(cat "$ROOT/VERSION")"
 test -f "$XDG_CONFIG_HOME/nbshell/config.json"
@@ -158,6 +165,27 @@ test -f "$XDG_CONFIG_HOME/umbriel/nbshell-motion.toml"
 "$ROOT/setup.sh" --no-packages --yes >/dev/null
 jq -e '.testMarker == "keep"' "$XDG_CONFIG_HOME/nbshell/config.json" >/dev/null
 
+# Validation/pre-swap failure removes both private reservations and leaves the
+# live runtime untouched.
+printf '%s\n' pre-swap >"$XDG_CONFIG_HOME/quickshell/nbshell/transaction-sentinel"
+if NBSHELL_INSTALL_TEST_FAULT=pre-swap "$ROOT/install.sh" >/dev/null 2>&1; then
+    echo "Install unexpectedly succeeded at the pre-swap fault" >&2
+    exit 1
+fi
+test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/transaction-sentinel")" = pre-swap
+assert_no_reservations
+
+# A fault on the instruction immediately after the first mv must recognize the
+# occupied rollback by its runtime contents and restore it flat.
+if NBSHELL_INSTALL_TEST_FAULT=post-first-rename "$ROOT/install.sh" >/dev/null 2>&1; then
+    echo "Install unexpectedly succeeded at the post-first-rename fault" >&2
+    exit 1
+fi
+test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/transaction-sentinel")" = pre-swap
+test -f "$XDG_CONFIG_HOME/quickshell/nbshell/shell.qml"
+test ! -d "$XDG_CONFIG_HOME/quickshell/nbshell/nbshell"
+assert_no_reservations
+
 # An installer launched from the shell's own service must atomically update the
 # runtime without stopping its parent cgroup. The untouched failure sentinel
 # proves that no restart was attempted.
@@ -168,6 +196,12 @@ test -f "$FAKE_SYSTEMD_STATE/active"
 test -f "$FAKE_SYSTEMD_STATE/fail-next-start"
 test ! -e "$XDG_CONFIG_HOME/quickshell/nbshell/deferred-sentinel"
 rm -f "$FAKE_SYSTEMD_STATE/fail-next-start"
+DEFERRED_INSTALL_BACKUP="$(find "$XDG_CONFIG_HOME/quickshell" -maxdepth 1 \
+    -type d -name '.nbshell-rollback.*' -print -quit)"
+test -f "$DEFERRED_INSTALL_BACKUP/shell.qml"
+"$XDG_BIN_HOME/nbshell-install-recover" \
+    "$XDG_CONFIG_HOME/quickshell/nbshell" "$DEFERRED_INSTALL_BACKUP"
+assert_no_reservations
 
 # A failed shell restart must restore the previous runtime and bring its unit
 # back. The one-shot failure simulates a QML process that did not stay up.
@@ -185,13 +219,26 @@ test -f "$FAKE_SYSTEMD_STATE/active"
 RECOVERY_BACKUP="$XDG_CONFIG_HOME/quickshell/.nbshell-rollback.recovery-test"
 mkdir -p "$RECOVERY_BACKUP"
 printf '%s\n' watchdog >"$RECOVERY_BACKUP/rollback-sentinel"
+printf '%s\n' backup-runtime >"$RECOVERY_BACKUP/shell.qml"
 printf '%s\n' broken >"$XDG_CONFIG_HOME/quickshell/nbshell/rollback-sentinel"
 rm -f "$FAKE_SYSTEMD_STATE/active"
 touch "$FAKE_SYSTEMD_STATE/fail-next-start"
 "$XDG_BIN_HOME/nbshell-install-recover" \
     "$XDG_CONFIG_HOME/quickshell/nbshell" "$RECOVERY_BACKUP"
 test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/rollback-sentinel")" = watchdog
+test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/shell.qml")" = backup-runtime
+test ! -d "$XDG_CONFIG_HOME/quickshell/nbshell/nbshell"
 test -f "$FAKE_SYSTEMD_STATE/active"
+
+# An empty reserved rollback is not a runtime and is removed, not restored.
+EMPTY_PARENT="$WORK/empty/quickshell"
+EMPTY_RUNTIME="$EMPTY_PARENT/nbshell"
+EMPTY_BACKUP="$EMPTY_PARENT/.nbshell-rollback.empty-test"
+mkdir -p "$EMPTY_BACKUP"
+"$XDG_BIN_HOME/nbshell-install-recover" \
+    "$EMPTY_RUNTIME" "$EMPTY_BACKUP" deferred
+test ! -e "$EMPTY_BACKUP"
+test ! -e "$EMPTY_RUNTIME"
 
 # Deferred recovery never restarts the parent service; it only closes the
 # two-rename interruption window by restoring a missing runtime path.
@@ -200,8 +247,13 @@ DEFERRED_RUNTIME="$DEFERRED_PARENT/nbshell"
 DEFERRED_BACKUP="$DEFERRED_PARENT/.nbshell-rollback.deferred-test"
 mkdir -p "$DEFERRED_BACKUP"
 printf '%s\n' deferred-watchdog >"$DEFERRED_BACKUP/rollback-sentinel"
+printf '%s\n' deferred-runtime >"$DEFERRED_BACKUP/shell.qml"
 "$XDG_BIN_HOME/nbshell-install-recover" \
     "$DEFERRED_RUNTIME" "$DEFERRED_BACKUP" deferred
 test "$(cat "$DEFERRED_RUNTIME/rollback-sentinel")" = deferred-watchdog
+test -f "$DEFERRED_RUNTIME/shell.qml"
+test ! -d "$DEFERRED_RUNTIME/nbshell"
+
+assert_no_reservations
 
 echo "Fresh install and update preservation: OK"
