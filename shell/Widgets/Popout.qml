@@ -132,13 +132,36 @@ PopupWindow {
         focusInitialItem();
     }
 
-    function focusInitialItem() {
+    function initialFocusTarget() {
         if (!takesKeyboard || !loader.item
-                || !("initialFocusItem" in loader.item)
-                || !loader.item.initialFocusItem)
+                || !("initialFocusItem" in loader.item))
+            return null;
+        return loader.item.initialFocusItem;
+    }
+
+    function focusInitialItem() {
+        if (!initialFocusTarget())
             return;
         focusRetry.attempts = 0;
         focusRetry.restart();
+    }
+
+    function enterKeyboardFocus(reason) {
+        const target = initialFocusTarget();
+        if (!target || !target.visible || !target.enabled)
+            return false;
+        target.forceActiveFocus(reason);
+        if (target.activeFocus)
+            ensureFocusVisible(target);
+        return true;
+    }
+
+    function focusIsInsideContent(item) {
+        for (let cursor = item; cursor; cursor = cursor.parent) {
+            if (cursor === loader.item)
+                return true;
+        }
+        return false;
     }
 
     function ensureFocusVisible(item) {
@@ -242,7 +265,7 @@ PopupWindow {
                 stop();
                 return;
             }
-            const target = loader.item.initialFocusItem;
+            const target = root.initialFocusTarget();
             if (!target || attempts >= 60) {
                 stop();
                 return;
@@ -253,12 +276,12 @@ PopupWindow {
             }
             const focusWindow = target.Window.window;
             const focused = focusWindow ? focusWindow.activeFocusItem : null;
-            if (focused && focused !== surface && focused !== target) {
+            if (root.focusIsInsideContent(focused)) {
                 stop();
                 return;
             }
             attempts++;
-            target.forceActiveFocus(Qt.TabFocusReason);
+            root.enterKeyboardFocus(Qt.TabFocusReason);
             if (target.activeFocus)
                 stop();
         }
@@ -329,6 +352,24 @@ PopupWindow {
 
         // Escape schliesst -- erwartet man bei allem, was sich aufklappt.
         Keys.onEscapePressed: root.close()
+        // Qt can leave active focus on an internal Flickable/Loader proxy when
+        // the Wayland popup becomes active. In that state automatic traversal
+        // has no tab-focusable starting item. Let the first Tab or Backtab enter
+        // the content explicitly; subsequent traversal remains Qt-native.
+        Keys.onTabPressed: event => {
+            const focused = root.focusWindow ? root.focusWindow.activeFocusItem : null;
+            if (!root.focusIsInsideContent(focused)) {
+                root.enterKeyboardFocus(Qt.TabFocusReason);
+                event.accepted = true;
+            }
+        }
+        Keys.onBacktabPressed: event => {
+            const focused = root.focusWindow ? root.focusWindow.activeFocusItem : null;
+            if (!root.focusIsInsideContent(focused)) {
+                root.enterKeyboardFocus(Qt.BacktabFocusReason);
+                event.accepted = true;
+            }
+        }
         focus: true
     }
 }

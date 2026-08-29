@@ -84,14 +84,21 @@ for snippet in (
         raise SystemExit(f"Audio popout keyboard control contract is incomplete: {snippet}")
 popout = (ROOT / "shell/Widgets/Popout.qml").read_text(encoding="utf-8")
 for snippet in (
-    "target.forceActiveFocus(Qt.TabFocusReason)",
-    "focused && focused !== surface && focused !== target",
+    "target.forceActiveFocus(reason)",
+    "function focusIsInsideContent(item)",
+    "cursor === loader.item",
+    "root.focusIsInsideContent(focused)",
     "attempts >= 60",
     "function onActiveFocusItemChanged()",
     "root.focusWindow.activeFocusItem",
+    "Keys.onTabPressed",
+    "Keys.onBacktabPressed",
+    "root.enterKeyboardFocus(Qt.TabFocusReason)",
 ):
     if snippet not in popout:
         raise SystemExit(f"Keyboard popout initial-focus contract is incomplete: {snippet}")
+if "focused && focused !== surface && focused !== target" in popout:
+    raise SystemExit("Keyboard popout can still abandon initial focus on an internal proxy")
 level_bar = (ROOT / "shell/Widgets/LevelBar.qml").read_text(encoding="utf-8")
 for snippet in (
     "Accessible.ignored: !keyboardFocusable",
