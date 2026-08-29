@@ -146,6 +146,18 @@ PopupWindow {
         focusRetry.restart();
     }
 
+    function recoverKeyboardFocusAfterPointerEntry() {
+        if (!visible || !requestedVisible || closing || !takesKeyboard)
+            return;
+        const focused = focusWindow ? focusWindow.activeFocusItem : null;
+        if (focusIsOnKeyboardControl(focused))
+            return;
+        // Coalesce pointer-enter and QQuickWindow activation into the next
+        // event-loop turn. The handler rechecks focus before starting the
+        // bounded retry, so a real control chosen by the user is never reset.
+        pointerFocusRecovery.restart();
+    }
+
     function enterKeyboardFocus(reason) {
         const target = initialFocusTarget();
         if (!target || !target.visible || !target.enabled)
@@ -298,6 +310,20 @@ PopupWindow {
         }
     }
 
+    Timer {
+        id: pointerFocusRecovery
+
+        interval: 0
+        onTriggered: {
+            if (!root.visible || !root.requestedVisible || root.closing
+                    || !root.takesKeyboard)
+                return;
+            const focused = root.focusWindow ? root.focusWindow.activeFocusItem : null;
+            if (!root.focusIsOnKeyboardControl(focused))
+                root.focusInitialItem();
+        }
+    }
+
     Connections {
         target: loader.item
         ignoreUnknownSignals: true
@@ -307,6 +333,10 @@ PopupWindow {
     Connections {
         target: root.focusWindow
         ignoreUnknownSignals: true
+        function onActiveChanged() {
+            if (root.focusWindow?.active)
+                root.recoverKeyboardFocusAfterPointerEntry();
+        }
         function onActiveFocusItemChanged() {
             Qt.callLater(() => root.ensureFocusVisible(root.focusWindow
                 ? root.focusWindow.activeFocusItem : null));
@@ -323,6 +353,8 @@ PopupWindow {
 
         HoverHandler {
             id: hover
+            onHoveredChanged: if (hovered)
+                root.recoverKeyboardFocusAfterPointerEntry()
         }
         Flickable {
             id: contentViewport
