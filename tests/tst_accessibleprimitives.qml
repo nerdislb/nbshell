@@ -85,6 +85,7 @@ TestCase {
         compare(action.Accessible.name, "Save");
         compare(row.Accessible.name, "Network");
         compare(row.Accessible.description, "Connected securely; Online");
+        compare(row.contentLeftPadding, 16);
         compare(staticRow.Accessible.role, Accessible.StaticText);
         compare(staticRow.Accessible.focusable, false);
         compare(previewControl.Accessible.ignored, true);

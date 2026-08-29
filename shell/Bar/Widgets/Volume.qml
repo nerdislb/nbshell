@@ -310,7 +310,7 @@ Cell {
             Repeater {
                 model: Audio.sinks
 
-                Rectangle {
+                PanelRow {
                     id: device
 
                     required property var modelData
@@ -319,31 +319,12 @@ Cell {
 
                     width: panel.rowWidth
                     height: Theme.denseRowHeight
-                    radius: Theme.radius
-                    color: device.isCurrent ? Theme.selectedSurface(Theme.accent)
-                        : (mouse.hovered ? Theme.hover : "transparent")
-                    border.width: device.isCurrent ? Theme.borderWidth : 0
-                    border.color: Theme.controlBorder(false, device.isCurrent, false)
-
-                    Line {
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.leftMargin: Theme.cellW / 2
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: (device.isCurrent ? "▸ " : "  ") + Audio.label(device.modelData)
-                        color: device.isCurrent ? Theme.selectedForeground(Theme.accent) : Theme.fg
-                        elide: Text.ElideRight
-                    }
-
-                    HoverHandler {
-                        id: mouse
-
-                        cursorShape: Qt.PointingHandCursor
-                    }
-
-                    TapHandler {
-                        onTapped: Audio.setSink(device.modelData)
-                    }
+                    title: (device.isCurrent ? "▸ " : "  ") + Audio.label(device.modelData)
+                    accessibleName: Audio.label(device.modelData)
+                    contentLeftPadding: Theme.cellW / 2
+                    selected: device.isCurrent
+                    interactive: true
+                    onTriggered: Audio.setSink(device.modelData)
                 }
             }
         }

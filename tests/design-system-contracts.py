@@ -69,6 +69,15 @@ for legacy in ("tabHover", "tabTap", "Theme.controlFill("):
     if legacy in tab_contract:
         raise SystemExit(f"Dashboard tab contract regressed to manual state handling: {legacy}")
 
+volume = (ROOT / "shell/Bar/Widgets/Volume.qml").read_text(encoding="utf-8")
+sink_start = volume.index("model: Audio.sinks")
+sink_contract = volume[sink_start:]
+if "PanelRow {" not in sink_contract:
+    raise SystemExit("Audio sink rows no longer use the canonical PanelRow")
+for legacy in ("id: mouse", "onTapped: Audio.setSink"):
+    if legacy in sink_contract:
+        raise SystemExit(f"Audio sink rows regressed to manual interaction: {legacy}")
+
 print(
     "Design-system adapter contracts: OK "
     f"({len(used_theme_members)} Theme members, {len(exported_ui_types)} Ui exports)"

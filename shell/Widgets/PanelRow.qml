@@ -10,6 +10,7 @@ InteractiveSurface {
     property string glyph: ""
     property bool selected: false
     property color tone: Theme.accent
+    property real contentLeftPadding: root.glyph !== "" ? Theme.spaceLg : Theme.spaceXl
 
     interactive: false
     keyboardFocusable: interactive
@@ -39,7 +40,7 @@ InteractiveSurface {
 
     Column {
         anchors.left: root.glyph !== "" ? icon.right : parent.left
-        anchors.leftMargin: root.glyph !== "" ? Theme.spaceLg : Theme.spaceXl
+        anchors.leftMargin: root.contentLeftPadding
         anchors.right: valueText.left
         anchors.rightMargin: Theme.spaceMd
         anchors.verticalCenter: parent.verticalCenter
