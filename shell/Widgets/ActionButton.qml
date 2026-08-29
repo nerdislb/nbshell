@@ -3,7 +3,7 @@ import qs.Common
 
 // Gemeinsame Aktionsflaeche. Klickbare Befehle tragen keine dekorativen
 // Textklammern mehr; Rolle, Flaeche und Zustand machen die Aktion erkennbar.
-Rectangle {
+InteractiveSurface {
     id: root
 
     property string text: ""
@@ -12,8 +12,12 @@ Rectangle {
     property bool compact: false
     property color accentColor: tone === "danger" ? Theme.red : Theme.accent
 
-    signal triggered()
     signal rightTriggered()
+
+    activationBlocked: busy
+    accessibleName: text
+    accessibleDescription: busy ? "Action in progress" : ""
+    accessiblePressed: tap.pressed
 
     readonly property color idleSurface: tone === "primary"
         ? Theme.selectedSurface(accentColor)
@@ -30,10 +34,11 @@ Rectangle {
     implicitWidth: label.implicitWidth + Theme.cellW * (compact ? 1.0 : 2.2)
     implicitHeight: Theme.cellH * (compact ? 1.1 : 1.55)
     radius: Theme.radius
-    color: !enabled ? Theme.alpha(Theme.panelSurfaceRaised, 0.45) : (hover.hovered || tap.pressed ? activeSurface : idleSurface)
-    border.width: root.tone === "primary" ? 0 : Theme.borderWidth
-    border.color: !enabled ? Theme.alpha(Theme.fg, 0.2)
+    color: !enabled ? Theme.alpha(Theme.panelSurfaceRaised, 0.45) : (hover.hovered || activeFocus || tap.pressed ? activeSurface : idleSurface)
+    border.width: activeFocus ? Theme.borderWidth : (root.tone === "primary" ? 0 : Theme.borderWidth)
+    border.color: activeFocus ? Theme.focusBorder : (!enabled ? Theme.alpha(Theme.fg, 0.2)
         : (tone === "secondary" ? Theme.alpha(Theme.fg, 0.4) : Theme.alpha(accentColor, 0.8))
+    )
     opacity: enabled ? 1 : 0.55
     Behavior on color { ColorAnimation { duration: Theme.motionFast } }
     Behavior on border.color { ColorAnimation { duration: Theme.motionFast } }
@@ -51,19 +56,21 @@ Rectangle {
 
     HoverHandler {
         id: hover
-        enabled: root.enabled
-        cursorShape: Qt.PointingHandCursor
+        enabled: root.interactive && root.enabled
+        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
     }
 
     TapHandler {
         id: tap
-        enabled: root.enabled && !root.busy
+        enabled: root.interactive && root.enabled && !root.busy
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         onTapped: function(eventPoint, button) {
-            if (button === Qt.RightButton)
+            if (button === Qt.RightButton && root.interactive && root.enabled && !root.busy)
                 root.rightTriggered();
-            else
-                root.triggered();
+            else {
+                root.forceActiveFocus();
+                root.activate();
+            }
         }
     }
 }

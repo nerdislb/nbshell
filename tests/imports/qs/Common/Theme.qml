@@ -1,0 +1,53 @@
+pragma Singleton
+
+import QtQuick
+
+QtObject {
+    readonly property string fontFamily: "monospace"
+    readonly property int fontSize: 14
+    readonly property int fontCaption: 13
+    readonly property int fontBody: 15
+    readonly property int fontTitle: 17
+    readonly property real cellW: 8
+    readonly property real cellH: 18
+    readonly property real spaceMd: 8
+    readonly property real spaceLg: 12
+    readonly property real spaceXl: 16
+    readonly property real controlHeight: 28
+    readonly property real rowHeight: 34
+    readonly property int radius: 2
+    readonly property int borderWidth: 1
+    readonly property int motionFast: 0
+    readonly property color bg: "#101010"
+    readonly property color fg: "#f0f0f0"
+    readonly property color fgDim: "#a0a0a0"
+    readonly property color red: "#ff6060"
+    readonly property color accent: "#60a0ff"
+    readonly property color focusBorder: "#80b8ff"
+    readonly property color hover: "#303030"
+    readonly property color panelSurfaceRaised: "#202020"
+
+    function alpha(color, value) { return Qt.rgba(color.r, color.g, color.b, value); }
+    function mix(base, tone, amount) {
+        return Qt.rgba(
+            base.r + (tone.r - base.r) * amount,
+            base.g + (tone.g - base.g) * amount,
+            base.b + (tone.b - base.b) * amount,
+            1);
+    }
+    function selectedSurface(tone) { return mix(bg, tone ?? accent, 0.22); }
+    function selectedForeground(tone) { return fg; }
+    function readable(tone, surface, ratio) { return tone; }
+    function controlFill(hot, selected, pressed) {
+        if (pressed) return mix(bg, accent, 0.30);
+        if (selected) return selectedSurface(accent);
+        if (hot) return hover;
+        return panelSurfaceRaised;
+    }
+    function controlBorder(hot, selected, urgent) {
+        if (urgent) return red;
+        if (hot) return accent;
+        return fgDim;
+    }
+    function controlBorderWidth(hot, selected, urgent) { return selected && !urgent ? 0 : borderWidth; }
+}

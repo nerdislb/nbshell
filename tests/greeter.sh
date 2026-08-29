@@ -140,12 +140,7 @@ XDG_CONFIG_HOME="$test_config" \
     "$ROOT/setup-greeter.sh" activate orbital >/dev/null
 grep -Fq '/usr/bin/quickshell -p /usr/local/share/nbshell/greeter' "$fake_root/etc/greetd/nbshell-greeter.kdl"
 
-qml_test_runner=/usr/lib/qt6/bin/qmltestrunner
-if [[ -x $qml_test_runner ]]; then
-    env -u DISPLAY -u WAYLAND_DISPLAY \
-        QT_QPA_PLATFORM=offscreen QT_QPA_PLATFORMTHEME= QT_QUICK_BACKEND=software \
-        "$qml_test_runner" -input "$ROOT/tests" -o -,txt
-fi
+bash "$ROOT/tests/qml.sh"
 
 python3 "$ROOT/tests/greetd-mock.py"
 

@@ -1,7 +1,7 @@
 import QtQuick
 import qs.Common
 
-Rectangle {
+InteractiveSurface {
     id: root
 
     property string title: ""
@@ -9,17 +9,22 @@ Rectangle {
     property string value: ""
     property string glyph: ""
     property bool selected: false
-    property bool interactive: false
     property color tone: Theme.accent
 
-    signal triggered()
+    interactive: false
+    keyboardFocusable: interactive
+    accessibleRole: interactive ? Accessible.Button : Accessible.StaticText
+    accessibleName: title
+    accessibleDescription: [detail, value].filter(part => part !== "").join("; ")
+    accessibleSelected: selected
+    accessiblePressed: tap.pressed
 
     implicitWidth: Theme.cellW * 36
     implicitHeight: Theme.rowHeight
     radius: Theme.radius
-    color: selected ? Theme.selectedSurface(tone) : Theme.controlFill(hover.hovered, false, tap.pressed)
-    border.width: Theme.controlBorderWidth(hover.hovered, selected, false)
-    border.color: Theme.controlBorder(hover.hovered, selected, false)
+    color: selected ? Theme.selectedSurface(tone) : Theme.controlFill(hover.hovered || activeFocus, false, tap.pressed)
+    border.width: activeFocus ? Theme.borderWidth : Theme.controlBorderWidth(hover.hovered, selected, false)
+    border.color: activeFocus ? Theme.focusBorder : Theme.controlBorder(hover.hovered, selected, false)
 
     Line {
         id: icon
@@ -53,6 +58,13 @@ Rectangle {
         color: root.selected ? Theme.selectedForeground(root.tone) : Theme.fgDim
     }
 
-    HoverHandler { id: hover; enabled: root.interactive; cursorShape: root.interactive ? Qt.PointingHandCursor : Qt.ArrowCursor }
-    TapHandler { id: tap; enabled: root.interactive; onTapped: root.triggered() }
+    HoverHandler { id: hover; enabled: root.interactive && root.enabled; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor }
+    TapHandler {
+        id: tap
+        enabled: root.interactive && root.enabled
+        onTapped: {
+            root.forceActiveFocus();
+            root.activate();
+        }
+    }
 }
