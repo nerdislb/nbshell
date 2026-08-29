@@ -51,6 +51,23 @@ missing = {name: paths for name, paths in used.items() if name not in defined}
 assert not missing, "missing shared Style functions: %r" % missing
 PY
 
+# Plugin references to the core icon singleton are also resolved lazily. Keep
+# every bundled plugin on names that the installed Icons API actually exports.
+python3 - "$ROOT" <<'PY'
+import pathlib, re, sys
+
+root = pathlib.Path(sys.argv[1])
+icons = (root / "shell/Common/Icons.qml").read_text(encoding="utf-8")
+defined = set(re.findall(r"readonly\s+property\s+\w+\s+(\w+)\s*:", icons))
+used = {}
+for path in (root / "plugins").rglob("*.qml"):
+    text = path.read_text(encoding="utf-8")
+    for name in re.findall(r"\bIcons\.(\w+)\b", text):
+        used.setdefault(name, []).append(path.relative_to(root).as_posix())
+missing = {name: paths for name, paths in used.items() if name not in defined}
+assert not missing, "missing shared Icons properties: %r" % missing
+PY
+
 make_fixture() {
     local name="$1" manifest="$2"
     mkdir -p "$WORK/$name"

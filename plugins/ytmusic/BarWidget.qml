@@ -50,7 +50,7 @@ Cell {
 
       PanelHead {
         rowWidth: panel.rowWidth
-        icon: Icons.music
+        icon: Icons.play
         title: player && player.hasMedia ? player.title : "YouTube Music"
         subtitle: player && player.hasMedia ? player.artist : "Nothing playing"
         badge: player && player.hasMedia && player.lengthSeconds > 0
