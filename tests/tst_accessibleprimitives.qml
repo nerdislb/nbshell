@@ -36,12 +36,24 @@ TestCase {
         Widgets.PanelRow {
             id: row
             x: 320
+            width: 280
+            height: implicitHeight
             title: "Network"
             detail: "Connected securely"
             value: "Online"
             trailingInset: 80
+            pointerActivationExclusion: rowExclusion
+            pointerActivationExclusionEnabled: true
             interactive: true
             onTriggered: root.rowTriggers += 1
+
+            Widgets.ActionButton {
+                id: rowExclusion
+                x: row.width - width
+                width: 80
+                height: row.height
+                text: "Remove"
+            }
         }
 
         Widgets.PanelRow {
@@ -89,6 +101,7 @@ TestCase {
         sliderMovedValue = -1;
         control.enabled = true;
         control.interactive = true;
+        row.activationBlocked = false;
         control.selected = false;
         action.enabled = true;
         action.interactive = true;
@@ -151,6 +164,22 @@ TestCase {
         compare(rowTriggers, 1);
     }
 
+    function test_panel_row_pointer_exclusion() {
+        compare(row.width, 280);
+        compare(rowExclusion.x, 200);
+        compare(rowExclusion.width, 80);
+        compare(rowExclusion.y, 0);
+        compare(rowExclusion.height, row.height);
+        verify(row.height > 0);
+        compare(row.pointerActivationExclusion, rowExclusion);
+        compare(row.pointerInsideExclusion(Qt.point(row.width - 10, row.height / 2)), true);
+        compare(row.pointerInsideExclusion(Qt.point(10, row.height / 2)), false);
+        row.activateFromPointer(Qt.point(row.width - 10, row.height / 2));
+        compare(rowTriggers, 0);
+        row.activateFromPointer(Qt.point(10, row.height / 2));
+        compare(rowTriggers, 1);
+    }
+
     function test_slider_keyboard_and_accessibility_actions() {
         slider.forceActiveFocus();
         tryCompare(slider, "activeFocus", true);
@@ -185,6 +214,10 @@ TestCase {
         action.busy = true;
         action.Accessible.pressAction();
         compare(actionTriggers, 0);
+
+        row.activationBlocked = true;
+        row.Accessible.pressAction();
+        compare(rowTriggers, 0);
     }
 
     function test_selected_control_keeps_visible_focus_border() {

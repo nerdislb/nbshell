@@ -4,6 +4,8 @@ import qs.Common
 InteractiveSurface {
     id: root
 
+    default property alias overlayData: overlay.data
+
     property string title: ""
     property string detail: ""
     property string value: ""
@@ -12,6 +14,9 @@ InteractiveSurface {
     property color tone: Theme.accent
     property real contentLeftPadding: root.glyph !== "" ? Theme.spaceLg : Theme.spaceXl
     property real trailingInset: 0
+    property Item pointerActivationExclusion: null
+    property bool pointerActivationExclusionEnabled: pointerActivationExclusion !== null
+        && pointerActivationExclusion.visible
     readonly property bool hovered: hover.hovered
 
     interactive: false
@@ -21,6 +26,24 @@ InteractiveSurface {
     accessibleDescription: [detail, value].filter(part => part !== "").join("; ")
     accessibleSelected: selected
     accessiblePressed: tap.pressed
+
+    function pointerInsideExclusion(position) {
+        if (!root.pointerActivationExclusion || !root.pointerActivationExclusionEnabled)
+            return false;
+        const topLeft = Qt.point(
+            root.pointerActivationExclusion.x, root.pointerActivationExclusion.y);
+        return position.x >= topLeft.x
+            && position.x <= topLeft.x + root.pointerActivationExclusion.width
+            && position.y >= topLeft.y
+            && position.y <= topLeft.y + root.pointerActivationExclusion.height;
+    }
+
+    function activateFromPointer(position) {
+        if (root.pointerInsideExclusion(position))
+            return;
+        root.forceActiveFocus();
+        root.activate();
+    }
 
     implicitWidth: Theme.cellW * 36
     implicitHeight: Theme.rowHeight
@@ -61,13 +84,18 @@ InteractiveSurface {
         color: root.selected ? Theme.selectedForeground(root.tone) : Theme.fgDim
     }
 
+    Item {
+        id: overlay
+        anchors.fill: parent
+        z: 1
+    }
+
     HoverHandler { id: hover; enabled: root.interactive && root.enabled; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor }
     TapHandler {
         id: tap
         enabled: root.interactive && root.enabled
-        onTapped: {
-            root.forceActiveFocus();
-            root.activate();
+        onTapped: function(eventPoint) {
+            root.activateFromPointer(eventPoint.position);
         }
     }
 }

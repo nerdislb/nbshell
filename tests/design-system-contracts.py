@@ -153,6 +153,34 @@ for legacy in ("id: mouse", "onTapped: {"):
     if legacy in theme_rows:
         raise SystemExit(f"Theme rows regressed to manual interaction: {legacy}")
 
+control = (ROOT / "shell/Bar/Widgets/Control.qml").read_text(encoding="utf-8")
+panel_row_source = (ROOT / "shell/Widgets/PanelRow.qml").read_text(encoding="utf-8")
+for snippet in (
+    "default property alias overlayData: overlay.data",
+    "property Item pointerActivationExclusion: null",
+    "function activateFromPointer(position)",
+):
+    if snippet not in panel_row_source:
+        raise SystemExit(f"PanelRow overlay interaction contract is incomplete: {snippet}")
+for snippet in (
+    "readonly property Item initialFocusItem: wifiRepeater.count > 0",
+    "readonly property Item focusTarget: wifiRow",
+    "id: vpnRepeater",
+    "id: btRepeater",
+    "id: wifiRow",
+    "id: vpnRow",
+    "id: btRow",
+    "accessibleName: entry.modelData.name",
+    "accessibleName: vpnRow.modelData.name",
+    "accessibleName: Bt.label(btRow.modelData)",
+    "pointerActivationExclusion: removeButton",
+):
+    if snippet not in control:
+        raise SystemExit(f"Control Center row migration contract is incomplete: {snippet}")
+for legacy in ("id: wifiMouse", "id: vpnMouse", "id: btMouse"):
+    if legacy in control:
+        raise SystemExit(f"Control Center rows regressed to manual interaction: {legacy}")
+
 required_accessible_names = {
     ROOT / "shell/Ui/PanelSlider.qml": [
         'property string accessibleName: ""',

@@ -64,6 +64,10 @@ Cell {
             property string pendingBtRemoval: ""
 
             readonly property real rowWidth: 44 * Theme.cellW
+            readonly property Item initialFocusItem: wifiRepeater.count > 0
+                ? wifiRepeater.itemAt(0).focusTarget
+                : (vpnRepeater.count > 0 ? vpnRepeater.itemAt(0)
+                    : (btRepeater.count > 0 ? btRepeater.itemAt(0) : null))
 
             spacing: Theme.cellH * 0.4
 
@@ -297,6 +301,7 @@ Cell {
             }
 
             Repeater {
+                id: wifiRepeater
                 model: Net.wifiEnabled ? Net.wifiNetworks.slice(0, 8) : []
 
                 Column {
@@ -306,56 +311,35 @@ Cell {
 
                     readonly property bool isCurrent: modelData.connected
                     readonly property bool asksPassword: panel.pendingNetwork === modelData
+                    readonly property Item focusTarget: wifiRow
 
                     spacing: 0
 
-                    Rectangle {
+                    PanelRow {
+                        id: wifiRow
+
                         width: panel.rowWidth
                         height: Theme.denseRowHeight
-                        radius: Theme.radius
-                        color: entry.isCurrent ? Theme.selectedSurface(Theme.accent)
-                            : (wifiMouse.hovered ? Theme.hover : "transparent")
-                        border.width: entry.isCurrent ? Theme.borderWidth : 0
-                        border.color: Theme.controlBorder(false, entry.isCurrent, false)
-
-                        Line {
-                            anchors.left: parent.left
-                            anchors.leftMargin: Theme.cellW / 2
-                            anchors.right: strength.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: (entry.isCurrent ? "▸ " : "  ") + entry.modelData.name + (entry.modelData.known && !entry.isCurrent ? "  ·saved" : "")
-                            color: entry.isCurrent ? Theme.selectedForeground(Theme.accent) : Theme.fg
-                            elide: Text.ElideRight
-                        }
-
-                        Line {
-                            id: strength
-
-                            anchors.right: parent.right
-                            anchors.rightMargin: Theme.cellW / 2
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: (entry.modelData.security !== WifiSecurityType.Open ? "🔒 " : "   ") + Net.bars(entry.modelData.signalStrength)
-                            color: Theme.fgDim
-                        }
-
-                        HoverHandler {
-                            id: wifiMouse
-
-                            cursorShape: Qt.PointingHandCursor
-                        }
-
-                        TapHandler {
-                            onTapped: {
-                                if (entry.isCurrent) {
-                                    Net.disconnect(entry.modelData);
-                                    return;
-                                }
-                                if (Net.needsPassword(entry.modelData)) {
-                                    panel.pendingNetwork = entry.modelData;
-                                    return;
-                                }
-                                Net.connect(entry.modelData, "");
+                        interactive: true
+                        selected: entry.isCurrent
+                        title: (entry.isCurrent ? "▸ " : "  ") + entry.modelData.name
+                            + (entry.modelData.known && !entry.isCurrent ? "  ·saved" : "")
+                        value: (entry.modelData.security !== WifiSecurityType.Open ? "🔒 " : "   ")
+                            + Net.bars(entry.modelData.signalStrength)
+                        contentLeftPadding: Theme.cellW / 2
+                        accessibleName: entry.modelData.name
+                        accessibleDescription: (entry.modelData.security !== WifiSecurityType.Open ? "Secured" : "Open")
+                            + "; signal " + Net.bars(entry.modelData.signalStrength)
+                        onTriggered: {
+                            if (entry.isCurrent) {
+                                Net.disconnect(entry.modelData);
+                                return;
                             }
+                            if (Net.needsPassword(entry.modelData)) {
+                                panel.pendingNetwork = entry.modelData;
+                                return;
+                            }
+                            Net.connect(entry.modelData, "");
                         }
                     }
 
@@ -438,9 +422,10 @@ Cell {
             }
 
             Repeater {
+                id: vpnRepeater
                 model: Net.vpnAvailable ? Net.vpnProfiles : []
 
-                Rectangle {
+                PanelRow {
                     id: vpnRow
 
                     required property var modelData
@@ -449,42 +434,17 @@ Cell {
 
                     width: panel.rowWidth
                     height: Theme.denseRowHeight
-                    radius: Theme.radius
-                    color: modelData.active ? Theme.selectedSurface(Theme.accent)
-                        : (vpnMouse.hovered ? Theme.hover : "transparent")
-                    border.width: modelData.active ? Theme.borderWidth : 0
-                    border.color: Theme.controlBorder(false, modelData.active, false)
-
-                    Line {
-                        anchors.left: parent.left
-                        anchors.leftMargin: Theme.cellW / 2
-                        anchors.right: vpnState.left
-                        anchors.rightMargin: Theme.cellW
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: (vpnRow.modelData.active ? "▸ " : "  ") + vpnRow.modelData.name
-                        color: vpnRow.modelData.active ? Theme.selectedForeground(Theme.accent) : Theme.fg
-                        elide: Text.ElideRight
-                    }
-
-                    Line {
-                        id: vpnState
-
-                        anchors.right: parent.right
-                        anchors.rightMargin: Theme.cellW / 2
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: vpnRow.busy ? panel.spin : (vpnRow.modelData.active ? "CONNECTED" : vpnRow.modelData.type.toUpperCase())
-                        color: vpnRow.modelData.active ? Theme.green : Theme.fgDim
-                    }
-
-                    HoverHandler {
-                        id: vpnMouse
-                        cursorShape: vpnRow.busy ? Qt.BusyCursor : Qt.PointingHandCursor
-                    }
-
-                    TapHandler {
-                        enabled: !vpnRow.busy
-                        onTapped: Net.toggleVpn(vpnRow.modelData)
-                    }
+                    interactive: true
+                    activationBlocked: vpnRow.busy
+                    selected: vpnRow.modelData.active
+                    title: (vpnRow.modelData.active ? "▸ " : "  ") + vpnRow.modelData.name
+                    value: vpnRow.busy ? panel.spin
+                        : (vpnRow.modelData.active ? "CONNECTED" : vpnRow.modelData.type.toUpperCase())
+                    contentLeftPadding: Theme.cellW / 2
+                    accessibleName: vpnRow.modelData.name
+                    accessibleDescription: vpnRow.busy ? "Busy"
+                        : (vpnRow.modelData.active ? "Connected" : vpnRow.modelData.type)
+                    onTriggered: Net.toggleVpn(vpnRow.modelData)
                 }
             }
 
@@ -542,31 +502,37 @@ Cell {
             }
 
             Repeater {
+                id: btRepeater
                 model: Bt.enabled ? Bt.sorted.slice(0, 8) : []
 
-                Rectangle {
+                PanelRow {
                     id: btRow
 
                     required property var modelData
 
+                    readonly property bool pairing: btRow.modelData.pairing
+                        || Bt.pairingAddress === btRow.modelData.address
+                    readonly property string stateDescription: btRow.modelData.connected ? "Connected"
+                        : (btRow.pairing ? "Pairing"
+                            : (btRow.modelData.paired || btRow.modelData.bonded ? "Paired" : "New device"))
+
                     width: panel.rowWidth
                     height: Theme.denseRowHeight
-                    radius: Theme.radius
-                    color: btRow.modelData.connected ? Theme.selectedSurface(Theme.accent)
-                        : (btMouse.hovered ? Theme.hover : "transparent")
-                    border.width: btRow.modelData.connected ? Theme.borderWidth : 0
-                    border.color: Theme.controlBorder(false, btRow.modelData.connected, false)
-
-                    Line {
-                        anchors.left: parent.left
-                        anchors.leftMargin: Theme.cellW / 2
-                        anchors.right: removeButton.visible ? removeButton.left : parent.right
-                        anchors.rightMargin: removeButton.visible ? Theme.cellW / 2 : 0
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: (btRow.modelData.connected ? "▸ " : "  ") + Bt.label(btRow.modelData) + (btRow.modelData.batteryAvailable ? ("  " + Math.round(btRow.modelData.battery * 100) + "%") : "") + (btRow.modelData.pairing || Bt.pairingAddress === btRow.modelData.address ? "  ·pairing" : (btRow.modelData.paired || btRow.modelData.connected ? "" : "  ·new"))
-                        color: btRow.modelData.connected ? Theme.selectedForeground(Theme.accent) : Theme.fg
-                        elide: Text.ElideRight
-                    }
+                    interactive: true
+                    selected: btRow.modelData.connected
+                    title: (btRow.modelData.connected ? "▸ " : "  ") + Bt.label(btRow.modelData)
+                        + (btRow.modelData.batteryAvailable ? ("  " + Math.round(btRow.modelData.battery * 100) + "%") : "")
+                        + (btRow.pairing ? "  ·pairing"
+                            : (btRow.modelData.paired || btRow.modelData.connected ? "" : "  ·new"))
+                    contentLeftPadding: Theme.cellW / 2
+                    trailingInset: removeButton.visible ? removeButton.width + Theme.cellW : 0
+                    pointerActivationExclusion: removeButton
+                    pointerActivationExclusionEnabled: removeButton.visible
+                    accessibleName: Bt.label(btRow.modelData)
+                    accessibleDescription: btRow.stateDescription
+                        + (btRow.modelData.batteryAvailable
+                            ? ("; battery " + Math.round(btRow.modelData.battery * 100) + " percent") : "")
+                    onTriggered: Bt.toggleDevice(btRow.modelData)
 
                     Action {
                         id: removeButton
@@ -585,16 +551,6 @@ Cell {
                                 panel.pendingBtRemoval = btRow.modelData.address;
                             }
                         }
-                    }
-
-                    HoverHandler {
-                        id: btMouse
-
-                        cursorShape: Qt.PointingHandCursor
-                    }
-
-                    TapHandler {
-                        onTapped: Bt.toggleDevice(btRow.modelData)
                     }
                 }
             }
