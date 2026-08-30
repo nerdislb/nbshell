@@ -93,6 +93,9 @@ jobs:
       - name: Test browser theme contracts
         run: bash ./tests/browser-theme.sh
 
+      - name: Test Hermes theme generation
+        run: bash ./tests/hermes-theme.sh
+
       - name: Test CLI help and catalog consistency
         run: python3 ./tests/cli-consistency.py
 

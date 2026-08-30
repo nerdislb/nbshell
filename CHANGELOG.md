@@ -6,6 +6,8 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+## [0.1.0-beta.6] - 2026-08-30
+
 ### Added
 
 - Shared buttons and interactive panel rows now expose native Qt accessibility
@@ -26,6 +28,15 @@ configuration and plugin interfaces before `1.0.0`.
   manager frontend unless Orbital is requested explicitly; ReGreet remains the
   independent recovery path. Autologin is never inferred from an installed
   session launcher and requires a separate explicit option.
+- A native Orbital session locker runs in its own restartable service, uses a
+  dedicated PAM profile, waits for compositor-confirmed output coverage before
+  suspend, and provides a locked-session recovery binding. Hyprlock remains an
+  independent fallback.
+- A bounded AT-SPI diagnostic probe records privacy-protected accessibility
+  snapshots and focus events. Its unit tests also document the current external
+  Quickshell window-proxy limitation.
+- The optional example theme hook can generate a validated `nbshell` skin for
+  Hermes Agent and update the active CLI, TUI, and desktop palette atomically.
 
 ### Changed
 
@@ -42,6 +53,13 @@ configuration and plugin interfaces before `1.0.0`.
   opening, closing, moving, workspaces, overview, and focus-border transitions
   have separate timings and curves. Layer-shell animation stays disabled so
   nbshell's QML surfaces are never double-animated by the compositor.
+- Theme, network, VPN, Bluetooth, KDE Connect, notification, dashboard, plugin
+  text-field, and plugin-slider controls now share the same keyboard, pointer,
+  focus, scrolling, and assistive-technology contracts while retaining their
+  existing layouts and actions.
+- Network counters and Pit Wall snapshots are read in-process instead of
+  spawning hot-path helper commands. The public CLI catalog now validates all
+  180 documented commands against help and Markdown references.
 
 ### Fixed
 
@@ -62,6 +80,40 @@ configuration and plugin interfaces before `1.0.0`.
   same database query several times per second. The resident service now uses
   its bounded 12-second refresh interval, eliminating the short-lived Python
   process storm while keeping unread counts current.
+- Display refresh-rate changes are verified after Umbriel reloads them and roll
+  back transactionally when DRM rejects a mode.
+- Bar popouts are claimed by exactly one output, preventing binding loops and
+  missing audio or network panels on multi-monitor Umbriel sessions.
+- Gemini implementation jobs use a bounded long-running timeout and an isolated
+  private credential copy, so completed transactions are not lost at the old
+  five-minute boundary.
+- Installer staging, runtime swaps, rollback discovery, and recovery now handle
+  interruption after either rename without leaving an empty or nested runtime.
+- The Orbital login screen creates a fresh writable password prompt after a
+  failed authentication attempt.
+- Audio popouts recover keyboard focus after Wayland activation and pointer
+  entry, keep focused controls visible, and preserve normal Tab traversal.
+- Process actions verify PID plus process start time and use pidfds, preventing
+  a recycled PID from receiving a stop or force-stop intended for another task.
+- Plugin compatibility adapters resolve exported icons and theme members
+  explicitly, and line-style meters no longer reference an undefined Config
+  singleton at runtime.
+
+### Security
+
+- The native locker is isolated from the desktop shell cgroup, its installed
+  PAM payload is verified, and suspend waits for compositor-confirmed secure
+  output coverage. The startup crash window cannot pass through unlocked.
+- Installer reservations are private and atomic, recovery validates runtime
+  contents instead of trusting rename state, and fault-injection covers the
+  first-swap interruption boundary.
+
+### Known limitations
+
+- Quickshell's proxied window integration currently exposes only an empty
+  application root to AT-SPI even though the same Qt accessibility stack works
+  for ordinary Qt Quick windows. The new probe diagnoses this external limit;
+  it does not make Orca traversal of nbshell windows available yet.
 
 ## [0.1.0-beta.5] - 2026-08-27
 
@@ -314,7 +366,8 @@ First public beta candidate.
   declared dependencies before activation.
 - Credentials remain outside the repository and plugin configuration.
 
-[Unreleased]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.5...HEAD
+[Unreleased]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.6...HEAD
+[0.1.0-beta.6]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.5...v0.1.0-beta.6
 [0.1.0-beta.5]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.4...v0.1.0-beta.5
 [0.1.0-beta.4]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.3...v0.1.0-beta.4
 [0.1.0-beta.3]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.2...v0.1.0-beta.3

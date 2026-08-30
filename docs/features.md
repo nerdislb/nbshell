@@ -24,6 +24,8 @@ main menu, the bar, or the `nbshell` command.
   controls, menus, popouts, Library, and wallpaper picker
 - Automatic palette synchronization for Zen Browser and Brave, with an
   optional live-theme bridge for Zen updates
+- Optional Hermes Agent skin generation through the example theme hook, with
+  atomic live updates for Hermes CLI, TUI, and desktop surfaces
 - Notification center, clipboard history, system tray, and on-screen displays
 - Optional 1Password actions in the System > Security menu and searchable
   command catalog, with global Quick Access on `Ctrl+Shift+Space`; all vault
@@ -41,22 +43,26 @@ reduced profile disables them without changing layout or functionality.
 - Persistent Niri display setup for resolution, scale, rotation, and position
 - Update workflow with restart recommendations for important system packages
 - Process viewer, power menu, screen saver, and session controls
-- Theme-synchronized Hyprlock screen using PAM authentication, the current
-  palette, and either the current wallpaper or a private solid background
+- Native Orbital session locker using dedicated PAM authentication, the current
+  palette, and either the current wallpaper or a private solid background;
+  Hyprlock remains an independent fallback
 - Lock-before-suspend and configurable idle locking
 
 ## Lock screen
 
 `Mod+Alt+L`, the session menu, and idle automation all use the same lock path.
-nbshell generates the visual configuration immediately before locking, while
-Hyprlock owns authentication and the compositor's secure session-lock
-protocol. nbshell never reads or stores the password.
+The native locker runs as a separate Quickshell `WlSessionLock` service and
+authenticates through `/etc/pam.d/nbshell-lock`. Suspend waits until the
+compositor confirms the secure session lock. At lock time, the launcher checks
+for Quickshell, the native QML payload, and the dedicated PAM service; if any
+are unavailable, it starts Hyprlock instead. nbshell never reads or stores the
+password.
 
 Settings → Lock Screen controls the background mode, wallpaper blur and dim
 strength, date, and user/host label. Notification text, clipboard contents,
 calendar entries, and agent data are intentionally never rendered. A custom
-`lockCommand` remains available in `config.json` for advanced users, but the
-default and supported path is Hyprlock.
+`lockCommand` remains available in `config.json` for advanced users and takes
+precedence over both the native locker and Hyprlock fallback.
 
 ## Window workflow
 

@@ -126,6 +126,16 @@ if command -v bat >/dev/null 2>&1 && [ ! -e "$CONFIG/bat/config" ]; then
 	printf -- '--theme=ansi\n' >"$CONFIG/bat/config"
 fi
 
+# ── Hermes Agent ──────────────────────────────────────────────────────────
+#
+# Hermes uses one skin palette across its CLI, TUI, and desktop surfaces.
+# This helper generates the fixed `nbshell` skin. Atomic replacement lets a
+# running Hermes instance pick up the theme change immediately.
+HERMES_THEME="$CONFIG/quickshell/nbshell/scripts/hermes-theme.sh"
+if command -v hermes >/dev/null 2>&1 && [ -r "$HERMES_THEME" ]; then
+	bash "$HERMES_THEME" >/dev/null 2>&1 || true
+fi
+
 # ── herdr ────────────────────────────────────────────────────────────────
 #
 # herdr (AI Terminal Session Manager) haelt Panes und Sessions persistent.

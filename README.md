@@ -20,7 +20,7 @@ testing, and the direction of the project remain human-led.
 > nbshell is still under active development. It already works as a daily
 > desktop, but commands, configuration, and features may still change.
 
-Current prerelease: **0.1.0-beta.5**. See the
+Current prerelease: **0.1.0-beta.6**. See the
 [changelog](CHANGELOG.md) for user-facing changes.
 
 ![nbshell menu over a three-window grid-scroll workspace](docs/screenshots/01-menu-grid.png)
@@ -32,7 +32,8 @@ Current prerelease: **0.1.0-beta.5**. See the
   workspace-local two-window grid-scroll mode.
 - **One theme across the desktop:** import compatible Omarchy themes or use the
   bundled independent collection; nbshell keeps the bar, menus, terminal,
-  browser accents, lock screen, and wallpaper language coherent.
+  browser accents, lock screen, and wallpaper language coherent. The optional
+  theme hook can also generate and live-update a matching Hermes Agent skin.
 - **Linux tools remain Linux tools:** nbshell coordinates NetworkManager,
   PipeWire, systemd, grim, OBS, KDE Connect, and other existing components
   instead of replacing them with a closed desktop stack.
@@ -86,7 +87,8 @@ online guide without turning this README into a wall of text.
   and persistent Umbriel/Niri display management
 - Floating Picture-in-Picture controls for Zen Browser
 - Optional Zen live-theme bridge after one initial browser restart
-- Theme-synchronized Hyprlock screen with PAM authentication and lock-before-suspend
+- Native Orbital session locker with dedicated PAM authentication, secure
+  lock-before-suspend, crash recovery, and Hyprlock as an independent fallback
 - Optional native Orbital greetd login screen with a password-first PAM service
   and ReGreet recovery frontend
 - Optional biometric phone approval for the next `sudo` or Polkit action, with
