@@ -42,6 +42,8 @@ Item {
     // field takes Gmail syntax straight through, and nowhere else says so at
     // the moment you would use it.
     placeholderText: "Search mail — from:jane has:attachment"
+    accessibleName: "Search mail"
+    accessibleDescription: "Accepts Gmail search operators such as from and has attachment"
     font.family: root.panelFontFamily
     font.pixelSize: Style.font.bodySmall
     rightPadding: horizontalPadding + Style.space(22)

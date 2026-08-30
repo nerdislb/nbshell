@@ -127,16 +127,44 @@ for legacy in ("id: mouse", "onTapped: Audio.setSink"):
         raise SystemExit(f"Audio sink rows regressed to manual interaction: {legacy}")
 
 required_accessible_names = {
+    ROOT / "shell/Ui/TextField.qml": [
+        'property string accessibleName: ""',
+        'property string accessibleDescription: ""',
+        'Accessible.name: accessibleName.length > 0 ? accessibleName : placeholderText',
+        'Accessible.description: accessibleDescription',
+        'Accessible.passwordEdit: password',
+    ],
     ROOT / "plugins/omamail/components/AppMenu.qml": [
         'accessibleName: "More options"',
     ],
     ROOT / "plugins/omamail/components/SearchBar.qml": [
+        'accessibleName: "Search mail"',
         'accessibleName: "Clear search"',
     ],
     ROOT / "plugins/omamail/components/ComposeView.qml": [
         '"Change sender. Current sender: "',
         '"Hide Cc field"',
         '"Show Cc field"',
+        'accessibleName: "To"',
+        'accessibleName: "Cc"',
+        'accessibleName: "Subject"',
+    ],
+    ROOT / "plugins/omamail/components/SetupPage.qml": [
+        'accessibleName: "Google OAuth client ID"',
+        'accessibleName: "Google OAuth client secret"',
+    ],
+    ROOT / "plugins/omamail/components/ImapSetupPage.qml": [
+        'accessibleName: "Email address"',
+        'accessibleName: "Mailbox password"',
+        'accessibleName: "IMAP server"',
+        'accessibleName: "IMAP port"',
+        'accessibleName: "SMTP server"',
+        'accessibleName: "SMTP port"',
+        'accessibleName: "Username"',
+    ],
+    ROOT / "plugins/ytmusic/Panel.qml": [
+        'accessibleName: "Playlist name"',
+        'accessibleName: "Stop when idle"',
     ],
 }
 for path, snippets in required_accessible_names.items():

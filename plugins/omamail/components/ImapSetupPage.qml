@@ -198,6 +198,7 @@ Column {
       font.family: root.panelFontFamily
       font.pixelSize: Style.font.bodySmall
       placeholderText: "Email address — you@example.com"
+      accessibleName: "Email address"
       onTextChanged: root.applySuggestion()
       onAccepted: passwordField.forceActiveFocus()
     }
@@ -232,6 +233,7 @@ Column {
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.bodySmall
         placeholderText: "Password, or app password"
+        accessibleName: "Mailbox password"
         onAccepted: root.signIn()
       }
 
@@ -297,6 +299,7 @@ Column {
           font.family: root.panelFontFamily
           font.pixelSize: Style.font.bodySmall
           placeholderText: "IMAP server"
+          accessibleName: "IMAP server"
           onTextEdited: root.serversTouched = true
         }
 
@@ -307,6 +310,7 @@ Column {
           font.family: root.panelFontFamily
           font.pixelSize: Style.font.bodySmall
           placeholderText: "IMAP port"
+          accessibleName: "IMAP port"
           onTextEdited: root.serversTouched = true
         }
       }
@@ -322,6 +326,8 @@ Column {
           font.family: root.panelFontFamily
           font.pixelSize: Style.font.bodySmall
           placeholderText: "SMTP server — leave empty to read only"
+          accessibleName: "SMTP server"
+          accessibleDescription: "Leave empty to configure a read-only mailbox"
           onTextEdited: root.serversTouched = true
         }
 
@@ -332,6 +338,7 @@ Column {
           font.family: root.panelFontFamily
           font.pixelSize: Style.font.bodySmall
           placeholderText: "SMTP port"
+          accessibleName: "SMTP port"
           onTextEdited: root.serversTouched = true
         }
       }
@@ -346,6 +353,8 @@ Column {
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.bodySmall
         placeholderText: "Username — only if it is not the address"
+        accessibleName: "Username"
+        accessibleDescription: "Only needed when the login name differs from the email address"
       }
     }
 

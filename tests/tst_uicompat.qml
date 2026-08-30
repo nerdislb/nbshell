@@ -100,6 +100,9 @@ Item {
             host.sliderRightClicks = 0;
             button.accessibleName = "";
             button.accessibleDescription = "";
+            field.accessibleName = "";
+            field.accessibleDescription = "";
+            field.password = false;
             nonTabAction.enabled = true;
         }
 
@@ -224,6 +227,19 @@ Item {
             compare(field.password, false);
             verify(field.horizontalPadding > 0);
             verify(field.verticalPadding > 0);
+        }
+
+        function test_text_field_accessibility_api() {
+            compare(field.Accessible.name, "Search");
+            compare(field.Accessible.description, "");
+            compare(field.Accessible.passwordEdit, false);
+            field.accessibleName = "Mail search";
+            field.accessibleDescription = "Accepts Gmail search operators";
+            compare(field.Accessible.name, "Mail search");
+            compare(field.Accessible.description, "Accepts Gmail search operators");
+            field.password = true;
+            compare(field.echoMode, TextInput.Password);
+            compare(field.Accessible.passwordEdit, true);
         }
     }
 }

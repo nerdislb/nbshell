@@ -204,6 +204,7 @@ Column {
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.bodySmall
         placeholderText: "Client ID — 000000-xxxx.apps.googleusercontent.com"
+        accessibleName: "Google OAuth client ID"
         onAccepted: clientSecretField.forceActiveFocus()
       }
 
@@ -224,6 +225,7 @@ Column {
           font.family: root.panelFontFamily
           font.pixelSize: Style.font.bodySmall
           placeholderText: "Client secret — optional"
+          accessibleName: "Google OAuth client secret"
           onAccepted: root.save()
         }
 

@@ -22,6 +22,8 @@ TextField {
   property color accent: Color.accent
   property color selectionTint: Style.selectionFillFor(foreground, accent)
   property bool password: false
+  property string accessibleName: ""
+  property string accessibleDescription: ""
   property real horizontalPadding: Style.spacing.controlPaddingX
   property real verticalPadding: Style.spacing.inputPaddingY
 
@@ -43,6 +45,9 @@ TextField {
   selectionColor: selectionTint
   selectedTextColor: foreground
   placeholderTextColor: Qt.darker(foreground, 1.6)
+  Accessible.name: accessibleName.length > 0 ? accessibleName : placeholderText
+  Accessible.description: accessibleDescription
+  Accessible.passwordEdit: password
 
   leftPadding: horizontalPadding + Border.left(_borderSpec)
   rightPadding: horizontalPadding + Border.right(_borderSpec)

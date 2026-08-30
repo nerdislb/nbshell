@@ -564,6 +564,7 @@ Item {
         width: parent.width
         foreground: root.foreground
         placeholderText: "Playlist name"
+        accessibleName: "Playlist name"
         text: root.newPlaylistName
         onTextEdited: root.newPlaylistName = text
         onAccepted: createButton.clicked()
@@ -1255,6 +1256,8 @@ Item {
             width: Style.space(72)
             foreground: root.foreground
             text: root.draftIdleMinutes
+            accessibleName: "Stop when idle"
+            accessibleDescription: "Idle time in minutes before local playback stops"
             onTextEdited: root.draftIdleMinutes = text
             onEditingFinished: root.persistDraftSettings()
           }

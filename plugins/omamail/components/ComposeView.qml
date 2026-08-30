@@ -377,6 +377,7 @@ Item {
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.bodySmall
         placeholderText: "recipient@example.com"
+        accessibleName: "To"
         onAccepted: subjectField.forceActiveFocus()
       }
 
@@ -420,6 +421,7 @@ Item {
         accent: root.accentColor
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.bodySmall
+        accessibleName: "Cc"
         onAccepted: subjectField.forceActiveFocus()
       }
 
@@ -463,6 +465,7 @@ Item {
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.bodySmall
         placeholderText: "Subject"
+        accessibleName: "Subject"
         onAccepted: bodyEdit.forceActiveFocus()
       }
 
