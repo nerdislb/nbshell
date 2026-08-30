@@ -26,6 +26,7 @@ change before version 1.0.
    ./tests/system-report.sh
    ./tests/browser-theme.sh
    ./tests/hermes-theme.sh
+   python3 ./tests/hermarchy-theme.py
    python3 ./tests/grid-layout.py
    python3 ./tests/lockscreen.py
    bash ./tests/performance-smoke.sh

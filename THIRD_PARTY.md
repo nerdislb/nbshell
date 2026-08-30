@@ -11,6 +11,12 @@ their own bundled license files are linked below.
 - Color definitions under `themes/` come from
   [Omarchy](https://github.com/basecamp/omarchy). See
   [themes/ATTRIBUTION.md](themes/ATTRIBUTION.md).
+- The bundled Hermarchy palette and three converted wallpapers come from
+  Archer Clawbot's MIT-licensed
+  [Hermarchy community theme](https://github.com/archer-clawbot/omarchy-hermarchy-theme),
+  reviewed at commit `12f3c5257f87237fa3fd549cf7be3f9fba76f9c8`.
+  nbshell does not include its Omarchy-specific agent widget or collector; see
+  [themes/ATTRIBUTION.md](themes/ATTRIBUTION.md).
 - Bongo Cat images and related behavior are based on wayland-bongocat and
   HANCORE's Omarchy plugin. Their licenses are included under
   `shell/assets/bongocat/`.

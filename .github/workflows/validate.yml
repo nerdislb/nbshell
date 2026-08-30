@@ -96,6 +96,9 @@ jobs:
       - name: Test Hermes theme generation
         run: bash ./tests/hermes-theme.sh
 
+      - name: Test Hermarchy theme assets
+        run: python3 ./tests/hermarchy-theme.py
+
       - name: Test CLI help and catalog consistency
         run: python3 ./tests/cli-consistency.py
 
