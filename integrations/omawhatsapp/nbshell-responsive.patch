@@ -8,14 +8,5 @@
 -          : Math.min(Style.space(340), Math.max(Style.space(250), window.width * 0.30)))
 +        width: root.narrow ? parent.width
 +          : (root.sidebarCollapsed ? 0
-+            : (root.compact ? Style.space(240)
++            : (root.compact ? Style.space(272)
 +              : Math.min(Style.space(340), Math.max(Style.space(250), window.width * 0.30))))
-@@ -1583,0 +1586 @@
-+              compact: root.compact
---- a/MessageBubble.qml
-+++ b/MessageBubble.qml
-@@ -20,0 +21 @@
-+  property bool compact: false
-@@ -40 +41 @@
--  readonly property real maximumWidth: width * (narrow ? 0.92 : 0.76)
-+  readonly property real maximumWidth: width * (narrow ? 0.92 : (compact ? 0.84 : 0.76))
