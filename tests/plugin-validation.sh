@@ -6,7 +6,7 @@ TOOL="$ROOT/shell/scripts/plugins.sh"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/nbshell-plugin-test.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 
-for plugin in beispiel wetter headset omamail ytmusic pit-wall; do
+for plugin in beispiel wetter headset hermarchy-agent omamail ytmusic pit-wall; do
     bash "$TOOL" validate "$ROOT/plugins/$plugin" >/dev/null
 done
 

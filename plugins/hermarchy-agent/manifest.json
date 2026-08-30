@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 2,
+  "id": "hermarchy-agent",
+  "name": "Hermarchy Agent Signal",
+  "description": "Optional compact Hermes state signal for comparing with nbshell's full AI module",
+  "category": "AI",
+  "version": "1.0.0",
+  "author": "Archer Clawbot; nbshell adapter by nerdi",
+  "license": "MIT",
+  "repository": "https://github.com/archer-clawbot/omarchy-hermarchy-theme",
+  "dependencies": { "commands": [], "packages": [] },
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Hermarchy Agent Signal",
+    "description": "One semantic Hermes state beside the full nbshell AI module",
+    "category": "AI",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

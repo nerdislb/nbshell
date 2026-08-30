@@ -17,9 +17,11 @@ The adapted palette keeps Hermarchy's near-black workstation base while using
 brighter Catppuccin-leaning blue, mauve, teal, green, amber, and red roles so
 the existing nbshell surfaces remain easier to scan without adding UI.
 
-No Hermarchy agent collector, status widget, Omarchy shell configuration,
-Hyprland configuration, or Hyprlock configuration is included. nbshell keeps
-its existing native Hermes overview and merely applies the selected palette to
+No Hermarchy agent collector, independent poller, Omarchy shell configuration,
+Hyprland configuration, or Hyprlock configuration is included. The optional
+`hermarchy-agent` comparison widget reimplements only the compact semantic
+signal on nbshell's existing resident Hermes data. It is disabled by default;
+the full native AI module remains unchanged. The selected palette also reaches
 Hermes through the existing optional theme hook.
 
 To refresh the color files from an Omarchy checkout:

@@ -10,8 +10,12 @@ configuration and plugin interfaces before `1.0.0`.
 
 - Hermarchy is available as a restrained near-black nbshell theme with a more
   colorful Catppuccin-leaning semantic palette and three original converted wallpapers.
-  The upstream Omarchy agent widget is deliberately not included: nbshell keeps
-  one existing Hermes surface and its theme hook updates Hermes itself.
+  Its optional compact comparison widget is disabled by default and reuses the
+  existing Hermes service without adding a collector or polling process. Hermes
+  session state, tokens, resources, jobs, and launch affordances now live only
+  in the compact widget or Agent Center; the original AI popout remains focused
+  on provider limits, usage history, and non-Hermes agent activity. The theme
+  hook continues to update Hermes itself.
 
 ## [0.1.0-beta.6] - 2026-08-30
 

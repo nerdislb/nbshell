@@ -62,6 +62,18 @@
       "dependencies": {"commands": ["python3"], "packages": ["python"]}
     },
     {
+      "id": "hermarchy-agent",
+      "name": "Hermarchy Agent Signal",
+      "description": "Optional compact Hermes state signal for comparison with the full nbshell AI module.",
+      "author": "Archer Clawbot; nbshell adapter by nerdi",
+      "license": "MIT",
+      "category": "AI",
+      "kinds": ["bar-widget"],
+      "source": "bundled",
+      "repository": "https://github.com/archer-clawbot/omarchy-hermarchy-theme",
+      "dependencies": {"commands": [], "packages": []}
+    },
+    {
       "id": "beispiel",
       "name": "Example plugin",
       "description": "Small click-counter template for learning the nbshell plugin API.",

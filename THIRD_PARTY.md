@@ -15,7 +15,9 @@ their own bundled license files are linked below.
   Archer Clawbot's MIT-licensed
   [Hermarchy community theme](https://github.com/archer-clawbot/omarchy-hermarchy-theme),
   reviewed at commit `12f3c5257f87237fa3fd549cf7be3f9fba76f9c8`.
-  nbshell does not include its Omarchy-specific agent widget or collector; see
+  nbshell does not include its collector or Omarchy-specific plugin code. Its
+  optional comparison widget is a native, disabled-by-default adaptation that
+  reuses nbshell's existing Hermes service; see
   [themes/ATTRIBUTION.md](themes/ATTRIBUTION.md).
 - Bongo Cat images and related behavior are based on wayland-bongocat and
   HANCORE's Omarchy plugin. Their licenses are included under

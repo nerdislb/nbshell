@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import tomllib
 from pathlib import Path
@@ -87,11 +88,34 @@ def main() -> None:
         assert webp_size(path) == (1920, 1080), path
         assert path.stat().st_size < 1_000_000, path
 
-    # Keep the adaptation visually useful but structurally quiet: nbshell already
-    # has one native Hermes surface, so the Omarchy collector/widget is excluded.
+    # The comparison widget is optional and must reuse nbshell's resident data.
+    plugin = ROOT / "plugins/hermarchy-agent"
+    assert {path.name for path in plugin.iterdir()} == {
+        ".nbshell-managed", "BarWidget.qml", "LICENSE", "manifest.json"
+    }
+    manifest = json.loads((plugin / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["schemaVersion"] == 2
+    assert manifest["id"] == "hermarchy-agent"
+    assert manifest["kinds"] == ["bar-widget"]
+    widget = (plugin / "BarWidget.qml").read_text(encoding="utf-8")
+    assert "Agents.hermes" in widget
+    assert "Cell {" in widget
+    assert "readonly property string state:" not in widget
+    assert "Process {" not in widget
+    assert "Timer {" not in widget
+    assert "hermarchy-agent-state" not in widget
+
+    legacy_ai = (ROOT / "shell/Bar/Widgets/AiFill.qml").read_text(encoding="utf-8")
+    removed_hermes_fields = (
+        "HERMES LIVE", "hermesSession", "hermesTokens", "hermesProcesses", "Launch Hermes"
+    )
+    for removed in removed_hermes_fields:
+        assert removed not in legacy_ai, removed
+
+    # Keep the adaptation structurally quiet: no independent collector is
+    # shipped anywhere in nbshell.
     tracked_names = [path.as_posix() for path in ROOT.rglob("*") if path.is_file()]
     assert not any("hermarchy-agent-state" in name for name in tracked_names)
-    assert not (ROOT / "plugins/io.github.archer-clawbot.hermarchy-agent").exists()
 
     print("Hermarchy theme adaptation: OK")
 
