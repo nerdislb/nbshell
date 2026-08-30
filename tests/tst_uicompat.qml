@@ -2,6 +2,7 @@ import QtQuick
 import QtTest
 import qs.Commons
 import qs.Ui as Ui
+import "../plugins/ytmusic" as YtMusic
 
 Item {
     id: host
@@ -15,6 +16,8 @@ Item {
     property int sliderMoves: 0
     property int sliderReleases: 0
     property int sliderRightClicks: 0
+    property int playbackCommits: 0
+    property real playbackCommittedValue: -1
 
     Ui.BorderSurface {
         id: surface
@@ -54,6 +57,8 @@ Item {
         maximum: 1
         step: 0.1
         tickCount: 5
+        accessibleName: "Preview level"
+        accessibleDescription: "Adjusts the preview level"
         onMoved: host.sliderMoves += 1
         onReleased: host.sliderReleases += 1
         onRightClicked: host.sliderRightClicks += 1
@@ -65,6 +70,21 @@ Item {
         text: "query"
         placeholderText: "Search"
         password: false
+    }
+
+    YtMusic.PlaybackSlider {
+        id: playbackSlider
+        y: 180
+        width: 200
+        minimum: 0
+        maximum: 100
+        step: 10
+        sourceValue: 20
+        accessibleName: "Seek"
+        onCommitted: function(value) {
+            host.playbackCommits += 1;
+            host.playbackCommittedValue = value;
+        }
     }
 
     Ui.Button {
@@ -98,6 +118,16 @@ Item {
             host.sliderMoves = 0;
             host.sliderReleases = 0;
             host.sliderRightClicks = 0;
+            host.playbackCommits = 0;
+            host.playbackCommittedValue = -1;
+            playbackSlider.clearPreview();
+            playbackSlider.sourceValue = 20;
+            slider.minimum = 0;
+            slider.maximum = 1;
+            slider.step = 0.1;
+            slider.integer = false;
+            slider.value = 0.5;
+            slider.enabled = true;
             button.accessibleName = "";
             button.accessibleDescription = "";
             field.accessibleName = "";
@@ -195,6 +225,49 @@ Item {
             compare(host.sliderMoves, 1);
             compare(host.sliderReleases, 1);
             compare(host.sliderRightClicks, 1);
+        }
+
+        function test_slider_accessibility_actions() {
+            compare(slider.Accessible.role, Accessible.Slider);
+            compare(slider.Accessible.name, "Preview level");
+            compare(slider.Accessible.description, "Adjusts the preview level");
+            compare(slider.Accessible.focusable, true);
+            compare(slider.activeFocusOnTab, false);
+            compare(slider.minimumValue, 0);
+            compare(slider.maximumValue, 1);
+            compare(slider.stepSize, 0.1);
+
+            slider.Accessible.increaseAction();
+            compare(slider.liveValue, 0.6);
+            compare(host.sliderMoves, 1);
+            compare(host.sliderReleases, 1);
+
+            slider.Accessible.decreaseAction();
+            compare(slider.liveValue, 0.5);
+            compare(host.sliderMoves, 2);
+            compare(host.sliderReleases, 2);
+
+            slider.maximum = 2;
+            slider.step = 5;
+            slider.integer = true;
+            slider.Accessible.increaseAction();
+            compare(slider.liveValue, 2);
+            slider.Accessible.decreaseAction();
+            compare(slider.liveValue, 0);
+
+            slider.enabled = false;
+            compare(slider.Accessible.focusable, false);
+            slider.Accessible.increaseAction();
+            compare(slider.liveValue, 0);
+            compare(host.sliderMoves, 4);
+            compare(host.sliderReleases, 4);
+        }
+
+        function test_playback_slider_accessibility_commits_once() {
+            playbackSlider.Accessible.increaseAction();
+            compare(host.playbackCommits, 1);
+            compare(host.playbackCommittedValue, 30);
+            compare(playbackSlider.pendingValue, 30);
         }
 
         function test_adapter_singleton_contracts() {

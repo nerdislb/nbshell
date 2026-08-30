@@ -127,6 +127,15 @@ for legacy in ("id: mouse", "onTapped: Audio.setSink"):
         raise SystemExit(f"Audio sink rows regressed to manual interaction: {legacy}")
 
 required_accessible_names = {
+    ROOT / "shell/Ui/PanelSlider.qml": [
+        'property string accessibleName: ""',
+        'property string accessibleDescription: ""',
+        'Accessible.role: Accessible.Slider',
+        'Accessible.focusable: enabled',
+        'Accessible.onIncreaseAction: root.commitStep(1)',
+        'Accessible.onDecreaseAction: root.commitStep(-1)',
+        'activeFocusOnTab: false',
+    ],
     ROOT / "shell/Ui/TextField.qml": [
         'property string accessibleName: ""',
         'property string accessibleDescription: ""',
@@ -165,6 +174,9 @@ required_accessible_names = {
     ROOT / "plugins/ytmusic/Panel.qml": [
         'accessibleName: "Playlist name"',
         'accessibleName: "Stop when idle"',
+        'accessibleName: "Seek"',
+        'accessibleName: "Volume " + Api.volumeCaption(sourceValue)',
+        'step: 10',
     ],
 }
 for path, snippets in required_accessible_names.items():

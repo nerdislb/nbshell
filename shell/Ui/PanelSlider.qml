@@ -11,6 +11,8 @@ Item {
   property real maximum: 1
   property real step: 0.05
   property bool integer: false
+  property string accessibleName: ""
+  property string accessibleDescription: ""
   property color trackColor: bar ? Style.selectedFillFor(bar.foreground, Color.accent) : "#333"
   property color fillColor: bar ? bar.foreground : Color.foreground
   property color knobColor: bar ? bar.foreground : Color.foreground
@@ -39,8 +41,37 @@ Item {
   implicitHeight: Math.max(Style.space(22), knobSize + Style.spacing.md)
 
   readonly property real range: Math.max(0.0001, maximum - minimum)
+  readonly property real minimumValue: minimum
+  readonly property real maximumValue: maximum
+  readonly property real stepSize: step
   readonly property real progress: Math.max(0, Math.min(1, (liveValue - minimum) / range))
   readonly property bool _hot: mouseArea.containsMouse || root.dragging
+
+  Accessible.role: Accessible.Slider
+  Accessible.name: accessibleName
+  Accessible.description: accessibleDescription
+  Accessible.focusable: enabled
+  Accessible.focused: activeFocus
+  Accessible.onIncreaseAction: root.commitStep(1)
+  Accessible.onDecreaseAction: root.commitStep(-1)
+  activeFocusOnTab: false
+
+  function normalizedValue(candidate) {
+    var next = Number(candidate)
+    if (!isFinite(next)) next = minimum
+    next = Math.max(minimum, Math.min(maximum, next))
+    if (integer) next = Math.round(next)
+    return Math.max(minimum, Math.min(maximum, next))
+  }
+
+  function commitStep(direction) {
+    if (!enabled) return
+    var delta = step > 0 ? step : range / 100
+    var next = normalizedValue(liveValue + (direction < 0 ? -delta : delta))
+    liveValue = next
+    moved(next)
+    released(next)
+  }
 
   Rectangle {
     id: track
@@ -139,12 +170,7 @@ Item {
       root.liveValue = root.value
     }
     onWheel: function(wheel) {
-      var delta = wheel.angleDelta.y > 0 ? root.step : -root.step
-      var next = Math.max(root.minimum, Math.min(root.maximum, root.liveValue + delta))
-      if (root.integer) next = Math.round(next)
-      root.liveValue = next
-      root.moved(next)
-      root.released(next)
+      root.commitStep(wheel.angleDelta.y > 0 ? 1 : -1)
     }
   }
 }

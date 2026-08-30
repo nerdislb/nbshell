@@ -2037,13 +2037,13 @@ Item {
                   bar: root.panelBar
                   minimum: 0
                   maximum: Math.max(1, root.service ? root.service.lengthSeconds : 1)
+                  step: 10
                   sourceValue: root.service ? root.service.positionSeconds : 0
                   sourcePending: root.service && root.service.pendingSeek !== null
                   acknowledgeTolerance: 2
                   contextKey: root.service ? root.service.currentUri : ""
-                  Accessible.role: Accessible.Slider
-                  Accessible.name: "Seek"
-                  Accessible.description: "Shift+Left and Shift+Right skip ten seconds"
+                  accessibleName: "Seek"
+                  accessibleDescription: "Shift+Left and Shift+Right skip ten seconds"
                   onCommitted: function(value) {
                     if (root.service) root.service.seekSeconds(value)
                   }
@@ -2117,9 +2117,8 @@ Item {
                   step: 0.05
                   sourceValue: root.service ? root.service.volume : 0.8
                   contextKey: "volume"
-                  Accessible.role: Accessible.Slider
-                  Accessible.name: "Volume " + Api.volumeCaption(sourceValue)
-                  Accessible.description: "Ctrl+Up and Ctrl+Down change volume"
+                  accessibleName: "Volume " + Api.volumeCaption(sourceValue)
+                  accessibleDescription: "Ctrl+Up and Ctrl+Down change volume"
                   onCommitted: function(value) {
                     if (root.service) root.service.setVolume(value)
                   }
