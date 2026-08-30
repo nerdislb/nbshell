@@ -3,6 +3,7 @@ import QtTest
 import qs.Commons
 import qs.Ui as Ui
 import "../plugins/ytmusic" as YtMusic
+import "../shell/Menu" as Menu
 
 Item {
     id: host
@@ -18,6 +19,8 @@ Item {
     property int sliderRightClicks: 0
     property int playbackCommits: 0
     property real playbackCommittedValue: -1
+    property int dashboardPrimaryTriggers: 0
+    property int dashboardSecondaryTriggers: 0
 
     Ui.BorderSurface {
         id: surface
@@ -87,6 +90,17 @@ Item {
         }
     }
 
+    Menu.DashboardAction {
+        id: dashboardAction
+        x: 220
+        y: 200
+        label: "Updates"
+        detail: "2 available"
+        rightLabel: "Install updates"
+        run: function() { host.dashboardPrimaryTriggers += 1; }
+        rightRun: function() { host.dashboardSecondaryTriggers += 1; }
+    }
+
     Ui.Button {
         id: nonTabButton
         x: 240
@@ -120,6 +134,9 @@ Item {
             host.sliderRightClicks = 0;
             host.playbackCommits = 0;
             host.playbackCommittedValue = -1;
+            host.dashboardPrimaryTriggers = 0;
+            host.dashboardSecondaryTriggers = 0;
+            dashboardAction.enabled = true;
             playbackSlider.clearPreview();
             playbackSlider.sourceValue = 20;
             slider.minimum = 0;
@@ -268,6 +285,47 @@ Item {
             compare(host.playbackCommits, 1);
             compare(host.playbackCommittedValue, 30);
             compare(playbackSlider.pendingValue, 30);
+        }
+
+        function test_dashboard_action_accessibility_and_primary_activation() {
+            compare(dashboardAction.Accessible.name, "Updates");
+            compare(dashboardAction.Accessible.description, "2 available");
+            compare(dashboardAction.Accessible.focusable, true);
+            dashboardAction.Accessible.pressAction();
+            compare(host.dashboardPrimaryTriggers, 1);
+            compare(host.dashboardSecondaryTriggers, 0);
+
+            dashboardAction.forceActiveFocus();
+            tryCompare(dashboardAction, "activeFocus", true);
+            keyClick(Qt.Key_Space);
+            compare(host.dashboardPrimaryTriggers, 2);
+        }
+
+        function test_dashboard_action_secondary_pointer_and_disabled_guards() {
+            const button = dashboardAction.secondaryButton;
+            const secondaryPoint = button.mapToItem(
+                dashboardAction, button.width / 2, button.height / 2);
+            verify(dashboardAction.pointerInsideSecondary(secondaryPoint));
+
+            dashboardAction.activateFromPointer(secondaryPoint, Qt.LeftButton);
+            compare(host.dashboardPrimaryTriggers, 0);
+            compare(host.dashboardSecondaryTriggers, 0);
+
+            button.Accessible.pressAction();
+            compare(host.dashboardSecondaryTriggers, 1);
+            button.rightTriggered();
+            compare(host.dashboardSecondaryTriggers, 2);
+
+            dashboardAction.activateFromPointer(Qt.point(10, 10), Qt.LeftButton);
+            compare(host.dashboardPrimaryTriggers, 1);
+            dashboardAction.activateFromPointer(Qt.point(10, 10), Qt.RightButton);
+            compare(host.dashboardSecondaryTriggers, 3);
+
+            dashboardAction.enabled = false;
+            dashboardAction.activateFromPointer(Qt.point(10, 10), Qt.LeftButton);
+            dashboardAction.triggerSecondary();
+            compare(host.dashboardPrimaryTriggers, 1);
+            compare(host.dashboardSecondaryTriggers, 3);
         }
 
         function test_adapter_singleton_contracts() {

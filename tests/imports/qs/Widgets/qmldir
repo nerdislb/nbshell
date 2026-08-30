@@ -1,0 +1,4 @@
+module qs.Widgets
+InteractiveSurface 1.0 InteractiveSurface.qml
+ActionButton 1.0 ActionButton.qml
+Line 1.0 Line.qml

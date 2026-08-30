@@ -68,6 +68,30 @@ if "ControlButton {" not in tab_contract:
 for legacy in ("tabHover", "tabTap", "Theme.controlFill("):
     if legacy in tab_contract:
         raise SystemExit(f"Dashboard tab contract regressed to manual state handling: {legacy}")
+if "component Action: DashboardAction" not in dashboard:
+    raise SystemExit("Dashboard no longer uses the testable DashboardAction component")
+dashboard_action = (ROOT / "shell/Menu/DashboardAction.qml").read_text(encoding="utf-8")
+for snippet in (
+    "InteractiveSurface {",
+    "accessibleName: label",
+    "onTriggered: if (run) run()",
+    "id: rightHint",
+    "onRightTriggered: root.triggerSecondary()",
+    "function activateFromPointer(position, button)",
+    "root.pointerInsideSecondary(position)",
+):
+    if snippet not in dashboard_action:
+        raise SystemExit(f"Dashboard action accessibility contract is incomplete: {snippet}")
+for snippet in (
+    "rightLabel: \"Install system updates\"",
+    "rightLabel: \"Install desktop updates\"",
+    "rightLabel: \"Toggle screen recording\"",
+    "rightLabel: \"Next theme\"",
+):
+    if snippet not in dashboard:
+        raise SystemExit(f"Dashboard secondary action label is missing: {snippet}")
+if "component Action: Rectangle" in dashboard:
+    raise SystemExit("Dashboard actions regressed to manual Rectangle controls")
 
 volume = (ROOT / "shell/Bar/Widgets/Volume.qml").read_text(encoding="utf-8")
 volume_header = volume[:volume.index("popout: Component")]

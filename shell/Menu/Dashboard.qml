@@ -170,46 +170,7 @@ PanelWindow {
         }
     }
 
-    component Action: Rectangle {
-        id: action
-        property string label: ""
-        property string detail: ""
-        property string glyph: ""
-        property color tone: Theme.accent
-        property var run: null
-        property var rightRun: null
-        property bool centered: false
-        width: Theme.cellW * 21
-        height: Theme.cellH * 3.2
-        radius: Theme.radius
-        color: Theme.controlFill(actionHover.hovered, false, actionTap.pressed)
-        border.width: Theme.borderWidth
-        border.color: actionHover.hovered ? action.tone : Theme.controlBorder(false, false, false)
-
-        Line { visible: !action.centered; anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.top: parent.top; anchors.topMargin: Theme.cellH * 0.55; text: action.glyph + (action.glyph !== "" ? "  " : "") + action.label; color: action.tone; font.pixelSize: Theme.fontBody; font.bold: true }
-        Line { visible: !action.centered; anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.right: rightHint.left; anchors.rightMargin: Theme.cellW * 0.5; anchors.bottom: parent.bottom; anchors.bottomMargin: Theme.cellH * 0.45; text: action.detail; color: Theme.fgDim; font.pixelSize: Theme.fontCaption; elide: Text.ElideRight }
-        Line { id: rightHint; visible: !action.centered && action.rightRun !== null; anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.bottom: parent.bottom; anchors.bottomMargin: Theme.cellH * 0.45; text: "R"; color: Theme.muted }
-        Column {
-            visible: action.centered
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: Theme.spaceXs
-            Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: action.glyph + (action.glyph !== "" ? "  " : "") + action.label; color: action.tone; font.pixelSize: Theme.fontBody; font.bold: true }
-            Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: action.detail; color: Theme.fgDim; font.pixelSize: Theme.fontCaption; elide: Text.ElideRight }
-        }
-        HoverHandler { id: actionHover; cursorShape: Qt.PointingHandCursor }
-        TapHandler {
-            id: actionTap
-            acceptedButtons: Qt.LeftButton | Qt.RightButton
-            onTapped: (point, button) => {
-                if (button === Qt.RightButton && action.rightRun)
-                    action.rightRun();
-                else if (button === Qt.LeftButton && action.run)
-                    action.run();
-            }
-        }
-    }
+    component Action: DashboardAction {}
 
     Item {
         id: keys
@@ -464,6 +425,7 @@ PanelWindow {
                                 if (!Updates.ready)
                                     Updates.refresh();
                             }
+                            rightLabel: "Install system updates"
                             rightRun: () => root.openSurface(() => Updates.update())
                         }
                         Action {
@@ -478,12 +440,13 @@ PanelWindow {
                                 if (!ShellUpdates.ready || !ShellUpdates.compositorReady)
                                     ShellUpdates.refresh();
                             }
+                            rightLabel: "Install desktop updates"
                             rightRun: (ShellUpdates.updateAvailable && ShellUpdates.installable)
                                 || (ShellUpdates.compositorUpdateAvailable && ShellUpdates.compositorInstallable)
                                 ? () => root.openSurface(() => ShellUpdates.installAll()) : null
                         }
-                        Action { label: "Capture"; detail: CaptureService.recording ? "running" : "Screenshot, OCR, QR"; glyph: CaptureService.recording ? Icons.record : Icons.camera; tone: CaptureService.recording ? Theme.red : Theme.accent; run: () => root.openSurface(() => Runtime.captureOpen = true); rightRun: () => CaptureService.toggleRecording() }
-                        Action { label: "Theme"; detail: Config.theme; glyph: Icons.palette; run: () => root.openSurface(() => Runtime.themePickerOpen = true); rightRun: () => ThemeIndex.step(1) }
+                        Action { label: "Capture"; detail: CaptureService.recording ? "running" : "Screenshot, OCR, QR"; glyph: CaptureService.recording ? Icons.record : Icons.camera; tone: CaptureService.recording ? Theme.red : Theme.accent; run: () => root.openSurface(() => Runtime.captureOpen = true); rightLabel: "Toggle screen recording"; rightRun: () => CaptureService.toggleRecording() }
+                        Action { label: "Theme"; detail: Config.theme; glyph: Icons.palette; run: () => root.openSurface(() => Runtime.themePickerOpen = true); rightLabel: "Next theme"; rightRun: () => ThemeIndex.step(1) }
                         Action { label: "Keep awake"; detail: Idle.caffeine ? "active" : "idle automation active"; glyph: Icons.coffee; tone: Idle.caffeine ? Theme.yellow : Theme.fgDim; run: () => Idle.toggleCaffeine() }
                         Action { label: "AI usage"; detail: AiUsage.list.length ? AiUsage.list.map(e => e.id + " " + e.percent + "%").join(" · ") : "no data"; glyph: Icons.cp(0xF1218); run: () => AiUsage.refresh() }
                         Action { label: "System-Hub"; detail: "Services, sync, ports"; glyph: Icons.matrix; run: () => root.openSurface(() => Runtime.hubOpen = true) }

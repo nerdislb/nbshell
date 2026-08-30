@@ -15,6 +15,11 @@ imports="$(mktemp -d)"
 trap 'rm -rf -- "$imports"' EXIT
 mkdir -p "$imports/qs"
 ln -s "$ROOT/tests/imports/qs/Common" "$imports/qs/Common"
+mkdir -p "$imports/qs/Widgets"
+cp "$ROOT/tests/imports/qs/Widgets/qmldir" "$imports/qs/Widgets/qmldir"
+ln -s "$ROOT/shell/Widgets/InteractiveSurface.qml" "$imports/qs/Widgets/InteractiveSurface.qml"
+ln -s "$ROOT/shell/Widgets/ActionButton.qml" "$imports/qs/Widgets/ActionButton.qml"
+ln -s "$ROOT/shell/Widgets/Line.qml" "$imports/qs/Widgets/Line.qml"
 ln -s "$ROOT/shell/Commons" "$imports/qs/Commons"
 ln -s "$ROOT/shell/Ui" "$imports/qs/Ui"
 
