@@ -14,7 +14,7 @@ jobs:
     steps:
       - name: Install test dependencies
         run: >-
-          pacman -Syu --noconfirm git bash python jq shadow gcc pkgconf wayland qt6-declarative
+          pacman -Syu --noconfirm git bash python jq nodejs shadow gcc pkgconf wayland qt6-declarative
           wayland-protocols bubblewrap diffutils
 
       - uses: actions/checkout@v5
