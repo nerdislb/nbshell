@@ -2,6 +2,7 @@ import QtQuick
 import qs.Common
 import qs.Services
 import qs.Widgets
+import "../../Widgets/FocusScroll.js" as FocusScroll
 
 // KDE Connect: Geraetestatus in der Leiste, volles Panel im Popout.
 // Optik nach Vorbild von OmaConnect, in nbshells Bausteinen nachgebaut.
@@ -23,6 +24,7 @@ Cell {
     // exakt denselben Seitenabstand wie die benachbarten Symbolzellen haben.
     slotChars: 0
     interactive: true
+    popoutTakesKeyboard: true
     label: "KDE"
     icon: String.fromCodePoint(0xF011C) // nf-md-cellphone
     text: (root.dev && root.dev.capabilities.battery && root.dev.charge >= 0) ? (root.dev.charge + "%") : ""
@@ -63,6 +65,8 @@ Cell {
 
             property var closePopout: null
             readonly property real rowWidth: 56 * Theme.cellW
+            readonly property Item initialFocusItem: deviceRepeater.count > 0
+                ? deviceRepeater.itemAt(0) : null
             implicitWidth: rowWidth
             implicitHeight: Theme.cellH * 28
 
@@ -75,6 +79,14 @@ Cell {
                 flickableDirection: Flickable.VerticalFlick
                 boundsBehavior: Flickable.StopAtBounds
                 clip: true
+
+                function revealItem(item) {
+                    if (!item)
+                        return;
+                    const mapped = item.mapToItem(panel, 0, 0);
+                    contentY = FocusScroll.contentYForFocus(
+                        mapped.y, item.height, contentY, height, contentHeight, Theme.spaceMd);
+                }
 
                 Column {
                     id: panel
@@ -159,36 +171,33 @@ Cell {
             }
 
             Repeater {
+                id: deviceRepeater
                 model: Kdeconnect.devices
 
-                Rectangle {
+                PanelRow {
                     id: devRow
                     required property var modelData
 
+                    readonly property bool isSelected: Kdeconnect.selectedDevice
+                        && Kdeconnect.selectedDevice.id === devRow.modelData.id
+
                     width: panel.rowWidth
                     height: Theme.cellH * 1.6
-                    radius: Theme.radius
-                    color: (Kdeconnect.selectedDevice && Kdeconnect.selectedDevice.id === modelData.id) ? Theme.alpha(Theme.accent, 0.12) : Theme.alpha(Theme.fg, 0.05)
-                    border.width: Theme.borderWidth
-                    border.color: (Kdeconnect.selectedDevice && Kdeconnect.selectedDevice.id === modelData.id) ? Theme.accent : Theme.alpha(Theme.fg, 0.12)
-
-                    Line {
-                        anchors.left: parent.left
-                        anchors.leftMargin: Theme.cellW
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: modelData.name
-                        color: modelData.reachable ? Theme.fg : Theme.fgDim
-                        elide: Text.ElideRight
-                        width: panel.rowWidth * 0.55
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        acceptedButtons: Qt.LeftButton
-                        onClicked: Kdeconnect.selectedId = devRow.modelData.id
-                    }
+                    interactive: true
+                    selected: devRow.isSelected
+                    title: (devRow.isSelected ? "▸ " : "  ") + devRow.modelData.name
+                    contentLeftPadding: Theme.cellW
+                    trailingInset: deviceActions.implicitWidth + Theme.cellW
+                    pointerActivationExclusion: pairButton
+                    pointerActivationExclusionEnabled: pairButton.visible
+                    accessibleName: devRow.modelData.name
+                    accessibleDescription: (devRow.modelData.reachable ? "Reachable" : "Not reachable")
+                        + (devRow.modelData.paired ? "; paired" : "; not paired")
+                    onActiveFocusChanged: if (devRow.activeFocus) scroll.revealItem(devRow)
+                    onTriggered: Kdeconnect.selectedId = devRow.modelData.id
 
                     Row {
+                        id: deviceActions
                         anchors.right: parent.right
                         anchors.rightMargin: Theme.cellW
                         anchors.verticalCenter: parent.verticalCenter
@@ -198,29 +207,24 @@ Cell {
                             text: "●"
                             color: devRow.modelData.reachable ? Theme.green : Theme.muted
                             anchors.verticalCenter: parent.verticalCenter
+                            Accessible.ignored: true
                         }
 
-                        Line {
-                            text: {
-                                if (!devRow.modelData.paired)
-                                    return "Pair";
-                                return panel.confirmUnpair === devRow.modelData.id ? "Sicher?" : "Unpair";
-                            }
-                            color: unpairHover.hovered ? Theme.readable(Theme.accent, Theme.bg) : (panel.confirmUnpair === devRow.modelData.id ? Theme.red : Theme.fgDim)
-                            anchors.verticalCenter: parent.verticalCenter
-
-                            HoverHandler { id: unpairHover }
-                            TapHandler {
-                                onTapped: {
-                                    const id = devRow.modelData.id;
-                                    if (!devRow.modelData.paired) {
-                                        Kdeconnect.pair(id);
-                                    } else if (panel.confirmUnpair === id) {
-                                        Kdeconnect.unpair(id);
-                                        panel.confirmUnpair = "";
-                                    } else {
-                                        panel.confirmUnpair = id;
-                                    }
+                        ActionButton {
+                            id: pairButton
+                            compact: true
+                            text: !devRow.modelData.paired ? "Pair"
+                                : (panel.confirmUnpair === devRow.modelData.id ? "Confirm" : "Unpair")
+                            tone: panel.confirmUnpair === devRow.modelData.id ? "danger" : "secondary"
+                            onTriggered: {
+                                const id = devRow.modelData.id;
+                                if (!devRow.modelData.paired) {
+                                    Kdeconnect.pair(id);
+                                } else if (panel.confirmUnpair === id) {
+                                    Kdeconnect.unpair(id);
+                                    panel.confirmUnpair = "";
+                                } else {
+                                    panel.confirmUnpair = id;
                                 }
                             }
                         }
@@ -500,26 +504,21 @@ Cell {
             }
 
             // ── REMOTE COMMANDS ────────────────────────────────────────────
-            Item {
+            PanelRow {
+                id: cmdHeader
                 width: panel.rowWidth
-                height: cmdHeader.implicitHeight + Theme.cellH * 0.6
+                height: Theme.denseRowHeight
                 visible: panel.dev && panel.dev.capabilities.commands
-
-                Line {
-                    id: cmdHeader
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: (panel.cmdsOpen ? "⌄ " : "> ") + "REMOTE COMMANDS"
-                    color: cmdHover.hovered ? Theme.accent : Theme.fgDim
-                    font.pixelSize: Theme.fontSize - 1
-
-                    HoverHandler { id: cmdHover }
-                    TapHandler {
-                        onTapped: {
-                            panel.cmdsOpen = !panel.cmdsOpen;
-                            if (panel.cmdsOpen && panel.dev)
-                                Kdeconnect.loadCommands(panel.dev.id);
-                        }
-                    }
+                interactive: true
+                selected: panel.cmdsOpen
+                title: (panel.cmdsOpen ? "⌄ " : "> ") + "REMOTE COMMANDS"
+                accessibleName: "Remote commands"
+                accessibleDescription: panel.cmdsOpen ? "Expanded" : "Collapsed"
+                onActiveFocusChanged: if (cmdHeader.activeFocus) scroll.revealItem(cmdHeader)
+                onTriggered: {
+                    panel.cmdsOpen = !panel.cmdsOpen;
+                    if (panel.cmdsOpen && panel.dev)
+                        Kdeconnect.loadCommands(panel.dev.id);
                 }
             }
 
@@ -531,32 +530,22 @@ Cell {
             }
 
             Repeater {
+                id: commandRepeater
                 model: panel.cmdsOpen ? Kdeconnect.commands : []
 
-                Rectangle {
+                PanelRow {
+                    id: commandRow
                     required property var modelData
                     width: panel.rowWidth
                     height: Theme.denseRowHeight
-                    radius: Theme.radius
-                    color: cmdRowMouse.containsMouse ? Theme.hover : "transparent"
-
-                    Line {
-                        anchors.left: parent.left
-                        anchors.leftMargin: Theme.cellW
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "▶ " + modelData.name
-                        color: Theme.fg
-                        elide: Text.ElideRight
-                        width: panel.rowWidth - Theme.cellW * 2
-                    }
-
-                    MouseArea {
-                        id: cmdRowMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: if (panel.dev) Kdeconnect.runCommand(panel.dev.id, modelData.key)
-                    }
+                    interactive: true
+                    title: "▶ " + commandRow.modelData.name
+                    contentLeftPadding: Theme.cellW
+                    accessibleName: commandRow.modelData.name
+                    accessibleDescription: "Run remote command"
+                    onActiveFocusChanged: if (commandRow.activeFocus) scroll.revealItem(commandRow)
+                    onTriggered: if (panel.dev)
+                        Kdeconnect.runCommand(panel.dev.id, commandRow.modelData.key)
                 }
             }
 

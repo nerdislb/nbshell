@@ -30,8 +30,7 @@ InteractiveSurface {
     function pointerInsideExclusion(position) {
         if (!root.pointerActivationExclusion || !root.pointerActivationExclusionEnabled)
             return false;
-        const topLeft = Qt.point(
-            root.pointerActivationExclusion.x, root.pointerActivationExclusion.y);
+        const topLeft = root.pointerActivationExclusion.mapToItem(root, 0, 0);
         return position.x >= topLeft.x
             && position.x <= topLeft.x + root.pointerActivationExclusion.width
             && position.y >= topLeft.y

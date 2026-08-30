@@ -181,6 +181,25 @@ for legacy in ("id: wifiMouse", "id: vpnMouse", "id: btMouse"):
     if legacy in control:
         raise SystemExit(f"Control Center rows regressed to manual interaction: {legacy}")
 
+kde_connect = (ROOT / "shell/Bar/Widgets/KdeConnect.qml").read_text(encoding="utf-8")
+for snippet in (
+    "popoutTakesKeyboard: true",
+    "readonly property Item initialFocusItem: deviceRepeater.count > 0",
+    "function revealItem(item)",
+    "id: devRow",
+    "pointerActivationExclusion: pairButton",
+    "accessibleName: devRow.modelData.name",
+    'accessibleName: "Remote commands"',
+    "id: commandRow",
+    "accessibleName: commandRow.modelData.name",
+    "scroll.revealItem(commandRow)",
+):
+    if snippet not in kde_connect:
+        raise SystemExit(f"KDE Connect row migration contract is incomplete: {snippet}")
+for legacy in ("id: unpairHover", "id: cmdRowMouse", "id: cmdHover"):
+    if legacy in kde_connect:
+        raise SystemExit(f"KDE Connect rows regressed to manual interaction: {legacy}")
+
 required_accessible_names = {
     ROOT / "shell/Ui/PanelSlider.qml": [
         'property string accessibleName: ""',

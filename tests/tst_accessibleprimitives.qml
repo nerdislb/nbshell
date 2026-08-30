@@ -47,12 +47,17 @@ TestCase {
             interactive: true
             onTriggered: root.rowTriggers += 1
 
-            Widgets.ActionButton {
-                id: rowExclusion
+            Item {
+                id: rowExclusionContainer
                 x: row.width - width
                 width: 80
                 height: row.height
-                text: "Remove"
+
+                Widgets.ActionButton {
+                    id: rowExclusion
+                    anchors.fill: parent
+                    text: "Remove"
+                }
             }
         }
 
@@ -166,12 +171,16 @@ TestCase {
 
     function test_panel_row_pointer_exclusion() {
         compare(row.width, 280);
-        compare(rowExclusion.x, 200);
+        compare(rowExclusionContainer.x, 200);
+        compare(rowExclusion.x, 0);
         compare(rowExclusion.width, 80);
         compare(rowExclusion.y, 0);
         compare(rowExclusion.height, row.height);
         verify(row.height > 0);
         compare(row.pointerActivationExclusion, rowExclusion);
+        const mapped = rowExclusion.mapToItem(row, 0, 0);
+        compare(mapped.x, 200);
+        compare(mapped.y, 0);
         compare(row.pointerInsideExclusion(Qt.point(row.width - 10, row.height / 2)), true);
         compare(row.pointerInsideExclusion(Qt.point(10, row.height / 2)), false);
         row.activateFromPointer(Qt.point(row.width - 10, row.height / 2));
