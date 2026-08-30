@@ -1,17 +1,11 @@
 --- a/Service.qml
 +++ b/Service.qml
-@@ -28,7 +28,6 @@
-   property bool appOpen: false
-   property bool dropdownOpen: false
-   property bool messagesPending: false
+@@ -35 +34,0 @@
 -  property bool storeRefreshPending: false
-   property string activeWriteKind: ""
-   property string activeWriteChatJid: ""
-   property string selectedChatJid: ""
-@@ -48,13 +47,6 @@
-   property string pendingAppPayload: ""
- 
-   readonly property string helper: Quickshell.env("HOME") + "/.local/bin/omawhatsapp"
+@@ -65,2 +63,0 @@
+-  readonly property var storeDirectories:
+-    AccountModel.storeDirectories(accounts, storeDirectory)
+@@ -75,7 +71,0 @@
 -  readonly property string storeDirectory: {
 -    var configured = String(Quickshell.env("WACLI_STORE_DIR") || "").trim()
 -    if (configured !== "") return configured
@@ -19,57 +13,47 @@
 -    if (stateHome === "") stateHome = Quickshell.env("HOME") + "/.local/state"
 -    return stateHome + "/wacli"
 -  }
-   readonly property int unreadCount: chats.reduce(function(total, chat) {
-     return total + Number(chat.unread || 0)
-   }, 0)
-@@ -120,10 +112,6 @@
-   }
-   function refreshStatus() {
-     if (!statusProcess.running) statusProcess.running = true
+@@ -167,4 +156,0 @@
 -  }
 -  function refreshFromStore() {
 -    storeRefreshPending = true
 -    storeRefreshDebounce.restart()
-   }
-   function refreshChats() {
-     if (chatsProcess.running) return
-@@ -323,8 +311,6 @@
-     return true
-   }
- 
--  Component.onCompleted: storeWatchProcess.running = true
--
-   // The full window belongs to the one resident service, while the bar owns
-   // the anchored dropdown. This avoids duplicate per-monitor app windows and
-   // keeps a bar click on the compact surface.
-@@ -368,47 +354,6 @@
-     }
-   }
- 
--  Process {
--    id: storeWatchProcess
--    command: [
--      "setpriv", "--pdeathsig", "TERM",
--      "inotifywait", "-m", "-q",
--      "-e", "close_write,create,delete,move,modify",
--      "--format", "%f", root.storeDirectory
--    ]
--    stdout: SplitParser {
--      splitMarker: "\n"
--      onRead: function(fileName) {
--        var name = String(fileName || "").trim()
--        if (name === "wacli.db" || name === "wacli.db-wal")
--          root.refreshFromStore()
+@@ -472,51 +457,0 @@
+-  // One watcher per account store; they share the debounce below.
+-  Instantiator {
+-    id: storeWatchers
+-    model: root.storeDirectories
+-    delegate: Process {
+-      required property string modelData
+-      running: true
+-      command: [
+-        "setpriv", "--pdeathsig", "TERM",
+-        "inotifywait", "-m", "-q",
+-        "-e", "close_write,create,delete,move,modify",
+-        "--format", "%f", modelData
+-      ]
+-      stdout: SplitParser {
+-        splitMarker: "\n"
+-        onRead: function(fileName) {
+-          var name = String(fileName || "").trim()
+-          if (name === "wacli.db" || name === "wacli.db-wal")
+-            root.refreshFromStore()
+-        }
 -      }
+-      onExited: storeWatchRestart.restart()
 -    }
--    onExited: storeWatchRestart.restart()
 -  }
 -
 -  Timer {
 -    id: storeWatchRestart
 -    interval: 1500
 -    repeat: false
--    onTriggered: if (!storeWatchProcess.running) storeWatchProcess.running = true
+-    onTriggered: {
+-      for (var i = 0; i < storeWatchers.count; i++) {
+-        var watcher = storeWatchers.objectAt(i)
+-        if (watcher && !watcher.running) watcher.running = true
+-      }
+-    }
 -  }
 -
 -  Timer {
@@ -86,15 +70,5 @@
 -      }
 -    }
 -  }
--
-   Timer {
-     interval: 12000
-     running: true
-@@ -461,7 +406,6 @@
-     onStarted: { write(payload + "\n"); payload = ""; stdinEnabled = false }
-     onExited: function(exitCode) {
-       root.loadingChats = false
+@@ -586 +520,0 @@
 -      if (root.storeRefreshPending) storeRefreshDebounce.restart()
-       var payload = root.parseJson(chatsOutput.text)
-       if (!payload || payload.ok !== true) {
-         root.errorText = (payload && payload.error) || String(chatsError.text || "Chats could not be read.").trim()

@@ -1,9 +1,9 @@
 --- a/App.qml
 +++ b/App.qml
-@@ -87 +87 @@
+@@ -96 +96 @@
 -  readonly property bool compact: window.width < Style.space(900)
 +  readonly property bool compact: window.width < Style.space(1040)
-@@ -1078,2 +1078,4 @@
+@@ -1577,2 +1577,4 @@
 -        width: root.narrow ? parent.width : (root.sidebarCollapsed ? 0
 -          : Math.min(Style.space(340), Math.max(Style.space(250), window.width * 0.30)))
 +        width: root.narrow ? parent.width

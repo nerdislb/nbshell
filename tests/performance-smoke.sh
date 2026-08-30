@@ -37,9 +37,23 @@ root = pathlib.Path(sys.argv[1])
 setup = (root / "shell/scripts/omawhatsapp.sh").read_text(encoding="utf-8")
 patch = (root / "integrations/omawhatsapp/nbshell-refresh.patch").read_text(encoding="utf-8")
 assert 'nbshell-refresh.patch' in setup
-for removed in ("storeWatchProcess", "storeRefreshDebounce", "refreshFromStore", "storeRefreshPending"):
-    assert f"-    id: {removed}" in patch or f"-  function {removed}" in patch or f"-  property bool {removed}" in patch
-assert "   Timer {\n     interval: 12000" in patch
+removed_names = (
+    "storeWatchProcess", "storeWatchers", "storeWatchRestart",
+    "storeRefreshDebounce", "refreshFromStore", "storeRefreshPending",
+    "storeDirectories",
+)
+removed_lines = [line for line in patch.splitlines() if line.startswith("-")]
+for removed in removed_names:
+    if removed == "storeWatchProcess" and "storeWatchers" in patch:
+        continue
+    assert any(removed in line for line in removed_lines), removed
+assert not any("interval: 12000" in line for line in removed_lines)
+for unit_name in ("wacli-sync.service", "wacli-sync@.service"):
+    unit = (root / "integrations/omawhatsapp" / unit_name).read_text(encoding="utf-8")
+    assert "--lock-wait 30s sync --follow" in unit
+assert 'install -Dm644 "$runtime_shell/integrations/omawhatsapp/wacli-sync@.service"' in setup
+assert 'status_json=$("$bin_dir/omawhatsapp" status)' in setup
+assert 'wacli-sync@${account_name}.service' in setup
 PY
 
 # Hot refreshers must read procfs/runtime snapshots in-process. These paths

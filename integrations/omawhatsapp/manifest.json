@@ -2,15 +2,15 @@
   "schemaVersion": 2,
   "id": "omawhatsapp",
   "name": "WhatsApp",
-  "version": "0.8.2-nbshell.1",
+  "version": "0.10.0-nbshell.1",
   "author": "MoizIbnYousaf; nbshell port by nerdi",
   "license": "MIT",
   "repository": "https://github.com/MoizIbnYousaf/Omarchy-Whatsapp",
   "dependencies": {
-    "commands": ["python3", "wacli", "wl-copy", "wl-paste", "zenity", "inotifywait", "jq"],
-    "packages": ["python", "wl-clipboard", "zenity", "inotify-tools", "jq", "qt6-multimedia", "qt6-imageformats"]
+    "commands": ["python3", "wacli", "wl-copy", "wl-paste", "zenity", "jq"],
+    "packages": ["python", "wl-clipboard", "zenity", "jq", "qt6-multimedia", "qt6-imageformats"]
   },
-  "description": "Native local-first WhatsApp client powered by wacli, ported for nbshell.",
+  "description": "Native local-first WhatsApp client with voice notes, notifications and multi-account support, powered by wacli.",
   "category": "Communication",
   "kinds": ["service", "bar-widget"],
   "activation": "on-demand",

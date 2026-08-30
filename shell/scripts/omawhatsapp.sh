@@ -9,8 +9,8 @@ config_file="$config_home/nbshell/config.json"
 provider_file="$config_home/nbshell/whatsapp-provider"
 unit_dir="$config_home/systemd/user"
 bin_dir=${XDG_BIN_HOME:-$HOME/.local/bin}
-source_revision=83f4c4a35498b36a64adf613749765d4084b30b6
-source_sha=3ca0ae7157ee3dbb177860bd223589eb9c362d1fcf01311a9af71c82d22675a9
+source_revision=ddd150ad0506fe6c199bfe1fd4f747219ab3c6d5
+source_sha=0d422b873241b3942476491111c5c978673fa52d39541e6f53111bcd6bf52374
 wacli_version=0.17.1
 wacli_amd64_sha=cbd5e74d5b805550cc36c7479aca552970cc1b314c5c08e02367e08b785714fd
 wacli_arm64_sha=8e5d21f8d5f097e5d3a883cdb42848a9e50a7383e4de049c807cc44e6e7c81b6
@@ -88,6 +88,7 @@ setup() (
     install -Dm644 "$source/LICENSE" "$staged_plugin/LICENSE"
     install -Dm755 "$source/bin/omawhatsapp" "$bin_dir/omawhatsapp"
     install -Dm644 "$runtime_shell/integrations/omawhatsapp/wacli-sync.service" "$unit_dir/wacli-sync.service"
+    install -Dm644 "$runtime_shell/integrations/omawhatsapp/wacli-sync@.service" "$unit_dir/wacli-sync@.service"
     bash "$runtime_shell/scripts/plugins.sh" validate "$staged_plugin" >/dev/null
     install -d "$(dirname "$plugin_dir")"
     systemctl --user stop nbshell.service
@@ -95,7 +96,32 @@ setup() (
     mv "$staged_plugin" "$plugin_dir"
     switch_config omawhatsapp
     systemctl --user daemon-reload
-    systemctl --user enable --now wacli-sync.service >/dev/null
+    local status_json account_name unit
+    local -a account_names account_units
+    status_json=$("$bin_dir/omawhatsapp" status)
+    if jq -e '.accounts | length == 1 and .[0].account == ""' <<<"$status_json" >/dev/null; then
+        account_names=("")
+        account_units=(wacli-sync.service)
+    else
+        mapfile -t account_names < <(jq -r '.accounts[].account' <<<"$status_json")
+        account_units=()
+        for account_name in "${account_names[@]}"; do
+            account_units+=("wacli-sync@${account_name}.service")
+        done
+        systemctl --user disable --now wacli-sync.service >/dev/null 2>&1 || true
+    fi
+    for index in "${!account_units[@]}"; do
+        unit=${account_units[$index]}
+        account_name=${account_names[$index]}
+        if jq -e --arg account "$account_name" \
+            '.accounts[] | select(.account == $account) | .online == false' \
+            <<<"$status_json" >/dev/null; then
+            systemctl --user disable --now "$unit" >/dev/null
+        else
+            systemctl --user enable "$unit" >/dev/null
+            systemctl --user restart "$unit"
+        fi
+    done
     systemctl --user restart nbshell.service
     echo "WhatsApp installed. Run: nbshell whatsapp auth"
 )
