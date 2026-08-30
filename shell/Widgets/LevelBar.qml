@@ -1,5 +1,5 @@
 import QtQuick
-import qs.Common
+import qs.Common as Common
 
 // Ein Balken aus Bloecken, wie ihn ein Terminalprogramm zeichnen wuerde.
 //
@@ -12,7 +12,7 @@ Item {
     property int value: 0
     property int maximum: 100
     property int cells: 20
-    property color fillColor: Theme.accent
+    property color fillColor: Common.Theme.accent
     property bool interactive: true
     property bool keyboardFocusable: false
     property string accessibleName: "Value"
@@ -63,7 +63,7 @@ Item {
 
     // Meter-Stil (Config.meterStyle): "blocks" (TUI-Bloecke) oder "line"
     // (duenne Linie). Nur diese zwei -- die fancy Varianten hat der Visualizer.
-    readonly property bool asLine: Config.meterStyle === "line"
+    readonly property bool asLine: Common.Config.meterStyle === "line"
     readonly property real ratio: Math.max(0, Math.min(1, maximum > 0 ? value / maximum : 0))
 
     readonly property int filled: Math.round(cells * Math.max(0, Math.min(maximum, value)) / maximum)
@@ -85,7 +85,7 @@ Item {
     //
     // Nachgemessen statt vermutet: Soll 156, gemalt 167,6.
     implicitWidth: bloecke.implicitWidth
-    implicitHeight: Theme.cellH
+    implicitHeight: Common.Theme.cellH
 
     // Ein Zeichen je Zelle, in zwei Stuecken nebeneinander -- gefuellt und
     // gedaempft. Vorher war es ein Text mit `<font>`-Marken und RichText; zwei
@@ -104,7 +104,7 @@ Item {
 
         Line {
             text: "░".repeat(Math.max(0, root.cells - root.filled))
-            color: Theme.muted
+            color: Common.Theme.muted
         }
     }
 
@@ -117,12 +117,12 @@ Item {
         visible: root.asLine
         anchors.verticalCenter: parent.verticalCenter
         width: bloecke.implicitWidth
-        height: Math.max(2, Theme.borderWidth * 2)
+        height: Math.max(2, Common.Theme.borderWidth * 2)
 
         Rectangle {
             anchors.fill: parent
             radius: height / 2
-            color: Theme.alpha(Theme.muted, 0.45)
+            color: Common.Theme.alpha(Common.Theme.muted, 0.45)
         }
 
         Rectangle {
@@ -158,11 +158,11 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        anchors.margins: -Theme.borderWidth * 2
+        anchors.margins: -Common.Theme.borderWidth * 2
         color: "transparent"
-        border.width: root.activeFocus ? Theme.borderWidth : 0
-        border.color: Theme.focusBorder
-        radius: Theme.radius
+        border.width: root.activeFocus ? Common.Theme.borderWidth : 0
+        border.color: Common.Theme.focusBorder
+        radius: Common.Theme.radius
         visible: root.activeFocus
     }
 }

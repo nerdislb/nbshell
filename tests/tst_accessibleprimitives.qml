@@ -139,6 +139,7 @@ TestCase {
         compare(slider.minimumValue, 0);
         compare(slider.maximumValue, 100);
         compare(slider.stepSize, 5);
+        compare(slider.asLine, true);
         compare(passiveMeter.activeFocusOnTab, false);
         compare(passiveMeter.Accessible.ignored, true);
     }
