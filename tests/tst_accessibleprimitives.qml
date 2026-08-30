@@ -39,6 +39,7 @@ TestCase {
             title: "Network"
             detail: "Connected securely"
             value: "Online"
+            trailingInset: 80
             interactive: true
             onTriggered: root.rowTriggers += 1
         }
@@ -106,6 +107,8 @@ TestCase {
         compare(row.Accessible.name, "Network");
         compare(row.Accessible.description, "Connected securely; Online");
         compare(row.contentLeftPadding, 16);
+        compare(row.trailingInset, 80);
+        compare(row.hovered, false);
         compare(staticRow.Accessible.role, Accessible.StaticText);
         compare(staticRow.Accessible.focusable, false);
         compare(previewControl.Accessible.ignored, true);

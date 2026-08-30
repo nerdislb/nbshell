@@ -14,6 +14,7 @@ Cell {
     text: Config.widgetIcons ? "" : Config.theme
     color: Theme.barAccent
     interactive: true
+    popoutTakesKeyboard: true
 
     onWheel: delta => ThemeIndex.step(delta > 0 ? -1 : 1)
 
@@ -47,6 +48,11 @@ Cell {
             // Zeile ist das das aktive -- so steht dort nie ein leeres Feld,
             // und man sieht beim Aufklappen, womit man vergleicht.
             property string previewName: Config.theme
+
+            readonly property int currentIndex: ThemeIndex.list.findIndex(theme => theme.name === Config.theme)
+            readonly property int initialFocusIndex: currentIndex >= 0 ? currentIndex : 0
+            readonly property Item initialFocusItem: themeRepeater.count > initialFocusIndex
+                ? themeRepeater.itemAt(initialFocusIndex) : null
 
             readonly property var previewTheme: ThemeIndex.byName(picker.previewName) ?? ThemeIndex.current
 
@@ -167,6 +173,18 @@ Cell {
                     contentY = Math.max(0, Math.min(index * itemHeight - (height - itemHeight) / 2, contentHeight - height));
                 }
 
+                function revealIndex(index) {
+                    if (index < 0 || contentHeight <= height)
+                        return;
+                    const top = index * itemHeight;
+                    const bottom = top + itemHeight;
+                    if (top < contentY)
+                        contentY = top;
+                    else if (bottom > contentY + height)
+                        contentY = bottom - height;
+                    contentY = Math.max(0, Math.min(contentY, contentHeight - height));
+                }
+
                 Component.onCompleted: Qt.callLater(revealCurrent)
 
                 ScrollBar.vertical: ScrollBar {
@@ -187,36 +205,50 @@ Cell {
                     width: themeList.width - (themeList.contentHeight > themeList.height ? Theme.cellW : 0)
 
                     Repeater {
+                        id: themeRepeater
                         model: ThemeIndex.list
 
-                        Rectangle {
+                        PanelRow {
                             id: row
 
                             required property var modelData
+                            required property int index
 
                             readonly property bool isCurrent: modelData.name === Config.theme
 
                             width: listColumn.width
                             height: themeList.itemHeight
-                            radius: Theme.radius
-                            color: row.isCurrent ? Theme.selectedSurface(Theme.accent) : (mouse.hovered ? Theme.hover : "transparent")
-                            border.width: row.isCurrent ? Theme.controlBorderWidth(mouse.hovered, true, false) : 0
-                            border.color: Theme.controlBorder(mouse.hovered, row.isCurrent, false)
-
-                            Line {
-                                anchors.left: parent.left
-                                anchors.leftMargin: Theme.cellW
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: (row.isCurrent ? "▸ " : "  ") + row.modelData.name
-                                color: row.isCurrent ? Theme.selectedForeground(Theme.accent) : Theme.fg
-                                font.pixelSize: Theme.fontBody
+                            interactive: true
+                            selected: row.isCurrent
+                            title: (row.isCurrent ? "▸ " : "  ") + row.modelData.name
+                            accessibleName: row.modelData.name
+                            contentLeftPadding: Theme.cellW
+                            trailingInset: palette.implicitWidth + Theme.cellW
+                            onHoveredChanged: {
+                                if (row.hovered)
+                                    picker.previewName = row.modelData.name;
+                                else if (!row.activeFocus)
+                                    picker.previewName = Config.theme;
+                            }
+                            onActiveFocusChanged: {
+                                if (row.activeFocus) {
+                                    picker.previewName = row.modelData.name;
+                                    themeList.revealIndex(row.index);
+                                }
+                            }
+                            onTriggered: {
+                                ThemeIndex.apply(row.modelData.name);
+                                if (picker.closePopout)
+                                    picker.closePopout();
                             }
 
                             Row {
+                                id: palette
                                 anchors.right: parent.right
                                 anchors.rightMargin: Theme.cellW
                                 anchors.verticalCenter: parent.verticalCenter
                                 spacing: 2
+                                Accessible.ignored: true
 
                                 Repeater {
                                     model: [row.modelData.background, row.modelData.accent, row.modelData.red, row.modelData.green, row.modelData.yellow]
@@ -232,21 +264,6 @@ Cell {
                                 }
                             }
 
-                            HoverHandler {
-                                id: mouse
-
-                                cursorShape: Qt.PointingHandCursor
-
-                                onHoveredChanged: picker.previewName = mouse.hovered ? row.modelData.name : Config.theme
-                            }
-
-                            TapHandler {
-                                onTapped: {
-                                    ThemeIndex.apply(row.modelData.name);
-                                    if (picker.closePopout)
-                                        picker.closePopout();
-                                }
-                            }
                         }
                     }
                 }

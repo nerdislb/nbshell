@@ -11,6 +11,8 @@ InteractiveSurface {
     property bool selected: false
     property color tone: Theme.accent
     property real contentLeftPadding: root.glyph !== "" ? Theme.spaceLg : Theme.spaceXl
+    property real trailingInset: 0
+    readonly property bool hovered: hover.hovered
 
     interactive: false
     keyboardFocusable: interactive
@@ -42,7 +44,7 @@ InteractiveSurface {
         anchors.left: root.glyph !== "" ? icon.right : parent.left
         anchors.leftMargin: root.contentLeftPadding
         anchors.right: valueText.left
-        anchors.rightMargin: Theme.spaceMd
+        anchors.rightMargin: Theme.spaceMd + root.trailingInset
         anchors.verticalCenter: parent.verticalCenter
         spacing: 0
 

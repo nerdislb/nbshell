@@ -126,6 +126,33 @@ for legacy in ("id: mouse", "onTapped: Audio.setSink"):
     if legacy in sink_contract:
         raise SystemExit(f"Audio sink rows regressed to manual interaction: {legacy}")
 
+themes = (ROOT / "shell/Bar/Widgets/Themes.qml").read_text(encoding="utf-8")
+theme_rows = themes[themes.index("model: ThemeIndex.list"):]
+for snippet in (
+    "popoutTakesKeyboard: true",
+    "readonly property Item initialFocusItem:",
+    "themeRepeater.count > initialFocusIndex",
+    "themeRepeater.itemAt(initialFocusIndex)",
+    "function revealIndex(index)",
+):
+    if snippet not in themes:
+        raise SystemExit(f"Theme popout keyboard contract is incomplete: {snippet}")
+for snippet in (
+    "PanelRow {",
+    "selected: row.isCurrent",
+    'title: (row.isCurrent ? "▸ " : "  ") + row.modelData.name',
+    "accessibleName: row.modelData.name",
+    "trailingInset: palette.implicitWidth + Theme.cellW",
+    "onHoveredChanged: {",
+    "themeList.revealIndex(row.index)",
+    "ThemeIndex.apply(row.modelData.name)",
+):
+    if snippet not in theme_rows:
+        raise SystemExit(f"Theme row migration contract is incomplete: {snippet}")
+for legacy in ("id: mouse", "onTapped: {"):
+    if legacy in theme_rows:
+        raise SystemExit(f"Theme rows regressed to manual interaction: {legacy}")
+
 required_accessible_names = {
     ROOT / "shell/Ui/PanelSlider.qml": [
         'property string accessibleName: ""',
