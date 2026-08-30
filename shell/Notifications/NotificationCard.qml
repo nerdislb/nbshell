@@ -16,6 +16,9 @@ Rectangle {
 
     signal opened()
     signal removed()
+    signal focusEntered()
+
+    onActiveFocusChanged: if (activeFocus) focusEntered()
 
     readonly property bool urgent: entry.urgency === NotificationUrgency.Critical || entry.urgency === 2
     readonly property string iconName: Notify.sourceIcon(entry)
@@ -39,12 +42,38 @@ Rectangle {
         return Quickshell.iconPath(raw, true);
     }
 
+    function activateFromKey(event) {
+        if (!event.isAutoRepeat)
+            root.opened();
+        event.accepted = true;
+    }
+
     implicitHeight: content.implicitHeight + Theme.cellH * 0.9
     radius: Math.max(Theme.radius, Theme.cellH * 0.58)
     color: selected ? Theme.selectedSurface(urgent ? Theme.red : Theme.accent)
         : Theme.alpha(Theme.fg, hover.hovered ? 0.11 : 0.06)
-    border.width: selected ? Theme.borderWidth : 0
-    border.color: selected ? Theme.focusBorder : "transparent"
+    border.width: activeFocus || selected ? Theme.borderWidth : 0
+    border.color: activeFocus ? Theme.focusBorder
+        : (selected ? Theme.controlBorder(false, true, false) : "transparent")
+    activeFocusOnTab: enabled && !showActions
+
+    Accessible.role: showActions ? Accessible.ListItem : Accessible.Button
+    Accessible.name: entry.summary || Notify.sourceName(entry)
+    Accessible.description: [Notify.sourceName(entry), Notify.plain(entry.body || ""),
+        urgent ? "Urgent" : "", unread ? "Unread" : ""].filter(part => part !== "").join("; ")
+    Accessible.focusable: enabled && !showActions
+    Accessible.focused: activeFocus
+    Accessible.selected: selected
+    Accessible.onPressAction: if (!showActions) root.opened()
+
+    Keys.onReturnPressed: event => root.activateFromKey(event)
+    Keys.onEnterPressed: event => root.activateFromKey(event)
+    Keys.onSpacePressed: event => root.activateFromKey(event)
+    Keys.onDeletePressed: event => {
+        if (!event.isAutoRepeat)
+            root.removed();
+        event.accepted = true;
+    }
 
     Behavior on color { ColorAnimation { duration: Theme.motionEffectsFast } }
 
@@ -170,10 +199,12 @@ Rectangle {
                 visible: root.showActions
 
                 ActionButton {
+                    id: openButton
                     text: "Open"
                     tone: "primary"
                     compact: true
                     onTriggered: root.opened()
+                    onActiveFocusChanged: if (activeFocus) root.focusEntered()
                 }
 
                 Repeater {
@@ -184,14 +215,17 @@ Rectangle {
                         text: modelData.text || "Action"
                         compact: true
                         onTriggered: Notify.invoke(root.entry.key, modelData)
+                        onActiveFocusChanged: if (activeFocus) root.focusEntered()
                     }
                 }
 
                 ActionButton {
+                    id: dismissButton
                     text: "Dismiss"
                     tone: "danger"
                     compact: true
                     onTriggered: root.removed()
+                    onActiveFocusChanged: if (activeFocus) root.focusEntered()
                 }
             }
         }
@@ -221,7 +255,7 @@ Rectangle {
         }
 
         HoverHandler { id: dismissHover; cursorShape: Qt.PointingHandCursor }
-        TapHandler { onTapped: root.removeRequested() }
+        TapHandler { onTapped: root.removed() }
     }
 
     MouseArea {

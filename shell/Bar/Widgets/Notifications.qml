@@ -4,6 +4,7 @@ import qs.Common
 import qs.Notifications
 import qs.Services
 import qs.Widgets
+import "../../Widgets/FocusScroll.js" as FocusScroll
 
 // One quiet bar entry for the two closely related inboxes. Existing notify
 // and clipboard IPC commands still open their respective tab directly.
@@ -28,6 +29,7 @@ Cell {
     }
 
     interactive: true
+    popoutTakesKeyboard: true
     quiet: false
     slotChars: 0
     label: Notify.dnd ? "DND" : "INBOX"
@@ -121,6 +123,7 @@ Cell {
                 if (needle === "") return true;
                 return ((e.appName || "") + " " + (e.summary || "") + " " + (e.body || "")).toLowerCase().indexOf(needle) >= 0;
             })
+            readonly property Item initialFocusItem: notificationsTab
 
             function beginSearch() {
                 searching = true;
@@ -132,34 +135,13 @@ Cell {
                 searching = false;
             }
 
-            component HeaderAction: Rectangle {
-                id: headerAction
-                property string text: ""
+            component HeaderAction: ActionButton {
                 property bool active: false
                 property bool danger: false
-                property color accentColor: Theme.accent
-                signal triggered()
-
-                width: actionLabel.implicitWidth + Theme.cellW * 2
+                compact: true
                 height: Theme.controlHeight
-                radius: Math.max(Theme.radius, Theme.cellH * 0.35)
-                color: active ? Theme.alpha(accentColor, 0.12)
-                    : (actionHover.hovered ? Theme.alpha(Theme.fg, 0.08) : "transparent")
-
-                Behavior on color { ColorAnimation { duration: Theme.motionEffectsFast } }
-
-                Line {
-                    id: actionLabel
-                    anchors.centerIn: parent
-                    text: headerAction.text
-                    color: headerAction.active || headerAction.danger
-                        ? Theme.readable(headerAction.accentColor, Theme.bg) : Theme.fgDim
-                    font.pixelSize: Theme.fontCaption
-                    font.bold: headerAction.active
-                }
-
-                HoverHandler { id: actionHover; cursorShape: Qt.PointingHandCursor }
-                TapHandler { onTapped: headerAction.triggered() }
+                tone: danger ? "danger" : (active ? "primary" : "secondary")
+                accessibleSelected: active
             }
 
             Timer {
@@ -339,6 +321,14 @@ Cell {
                         clip: true
                         boundsBehavior: Flickable.StopAtBounds
 
+                        function revealItem(item) {
+                            if (!item)
+                                return;
+                            const mapped = item.mapToItem(historyCards, 0, 0);
+                            contentY = FocusScroll.contentYForFocus(
+                                mapped.y, item.height, contentY, height, contentHeight, Theme.spaceMd);
+                        }
+
                         ScrollBar.vertical: ScrollBar {
                             width: Math.max(Theme.borderWidth * 3, 4)
                             policy: historyView.contentHeight > historyView.height ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
@@ -374,6 +364,7 @@ Cell {
                                     }
 
                                     NotificationCard {
+                                        id: historyCard
                                         width: parent.width
                                         entry: parent.modelData
                                         detailed: true
@@ -381,6 +372,7 @@ Cell {
                                         unread: parent.modelData.time.getTime() > Notify.readMark
                                         onOpened: { Notify.focus(parent.modelData); panel.closePopout?.(); }
                                         onRemoved: Notify.drop(parent.modelData.key)
+                                        onFocusEntered: historyView.revealItem(historyCard)
                                     }
                                 }
                             }

@@ -5,6 +5,7 @@ import Quickshell.Wayland
 import qs.Common
 import qs.Services
 import qs.Widgets
+import "../Widgets/FocusScroll.js" as FocusScroll
 
 PanelWindow {
     id: root
@@ -29,10 +30,23 @@ PanelWindow {
     function requestOpen() { box.enter(); }
     function dropSelected() {
         if (shown[selected]) Notify.drop(shown[selected].key);
-        selected = Math.max(0, Math.min(selected, shown.length - 2));
+    }
+    function openSelected() {
+        if (shown[selected]) {
+            Notify.open(shown[selected]);
+            close();
+        }
     }
     onVisibleChanged: if (visible) { query = ""; selected = 0; keys.forceActiveFocus(); }
-    onQueryChanged: selected = 0
+    onQueryChanged: {
+        selected = 0;
+        Qt.callLater(() => flick.revealSelected());
+    }
+    onShownChanged: {
+        selected = Math.max(0, Math.min(selected, shown.length - 1));
+        Qt.callLater(() => flick.revealSelected());
+    }
+    onSelectedChanged: Qt.callLater(() => flick.revealSelected())
 
     Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: box.opacity }
     MouseArea { anchors.fill: parent; onClicked: root.close() }
@@ -42,15 +56,19 @@ PanelWindow {
         anchors.fill: parent
         focus: root.visible
         Keys.onPressed: event => {
+            let handled = true;
             if (event.key === Qt.Key_Escape) root.query !== "" ? root.query = "" : root.close();
             else if (event.key === Qt.Key_Backspace) root.query = root.query.slice(0, -1);
             else if (event.key === Qt.Key_Up) root.selected = Math.max(0, root.selected - 1);
-            else if (event.key === Qt.Key_Down) root.selected = Math.min(root.shown.length - 1, root.selected + 1);
+            else if (event.key === Qt.Key_Down && root.shown.length > 0)
+                root.selected = Math.min(root.shown.length - 1, root.selected + 1);
+            else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) root.openSelected();
             else if (event.key === Qt.Key_Delete || event.key === Qt.Key_X) root.dropSelected();
             else if (event.key === Qt.Key_D) Notify.setDnd(!Notify.dnd);
             else if (event.key === Qt.Key_C && (event.modifiers & Qt.ControlModifier)) Notify.clear();
             else if (event.text && event.text >= " ") root.query += event.text;
-            event.accepted = true;
+            else handled = false;
+            event.accepted = handled;
         }
 
         OverlaySurface {
@@ -88,6 +106,14 @@ PanelWindow {
                     contentHeight: cards.implicitHeight
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
+                    function revealSelected() {
+                        const item = notificationCards.itemAt(root.selected);
+                        if (!item)
+                            return;
+                        const mapped = item.mapToItem(cards, 0, 0);
+                        contentY = FocusScroll.contentYForFocus(
+                            mapped.y, item.height, contentY, height, contentHeight, Theme.spaceMd);
+                    }
                     ScrollBar.vertical: ScrollBar {
                         width: Math.max(Theme.borderWidth * 3, 4)
                         policy: flick.contentHeight > flick.height ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
@@ -100,6 +126,7 @@ PanelWindow {
                         spacing: Theme.cellH * 0.3
                         Line { visible: root.shown.length === 0; text: Notify.count ? "No results" : "No notifications yet"; color: Theme.muted }
                         Repeater {
+                            id: notificationCards
                             model: root.shown
                             NotificationCard {
                                 id: card
@@ -111,6 +138,8 @@ PanelWindow {
                                 onOpened: { Notify.open(modelData); root.close(); }
                                 onRemoved: Notify.drop(modelData.key)
                                 HoverHandler { onHoveredChanged: if (hovered) root.selected = index }
+                                onActiveFocusChanged: if (activeFocus) root.selected = index
+                                onFocusEntered: root.selected = index
                             }
                         }
                     }

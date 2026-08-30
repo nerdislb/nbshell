@@ -200,6 +200,47 @@ for legacy in ("id: unpairHover", "id: cmdRowMouse", "id: cmdHover"):
     if legacy in kde_connect:
         raise SystemExit(f"KDE Connect rows regressed to manual interaction: {legacy}")
 
+notification_card = (ROOT / "shell/Notifications/NotificationCard.qml").read_text(encoding="utf-8")
+notification_center = (ROOT / "shell/Notifications/NotificationCenter.qml").read_text(encoding="utf-8")
+notification_bar = (ROOT / "shell/Bar/Widgets/Notifications.qml").read_text(encoding="utf-8")
+for snippet in (
+    "Accessible.role: showActions ? Accessible.ListItem : Accessible.Button",
+    "Accessible.onPressAction: if (!showActions) root.opened()",
+    "signal focusEntered()",
+    "onActiveFocusChanged: if (activeFocus) focusEntered()",
+    "onActiveFocusChanged: if (activeFocus) root.focusEntered()",
+    "Keys.onReturnPressed",
+    "Keys.onDeletePressed",
+    "TapHandler { onTapped: root.removed() }",
+):
+    if snippet not in notification_card:
+        raise SystemExit(f"NotificationCard accessibility contract is incomplete: {snippet}")
+if "removeRequested()" in notification_card:
+    raise SystemExit("NotificationCard hover dismiss calls a missing signal")
+for snippet in (
+    "function openSelected()",
+    "notificationCards.itemAt(root.selected)",
+    "FocusScroll.contentYForFocus",
+    "root.openSelected()",
+    "else handled = false",
+    "onShownChanged: {",
+    "onFocusEntered: root.selected = index",
+):
+    if snippet not in notification_center:
+        raise SystemExit(f"Notification Center keyboard contract is incomplete: {snippet}")
+if "shown.length - 2" in notification_center:
+    raise SystemExit("Notification Center double-clamps selection after deletion")
+for snippet in (
+    "popoutTakesKeyboard: true",
+    "readonly property Item initialFocusItem: notificationsTab",
+    "component HeaderAction: ActionButton",
+    "accessibleSelected: active",
+    "function revealItem(item)",
+    "onFocusEntered: historyView.revealItem(historyCard)",
+):
+    if snippet not in notification_bar:
+        raise SystemExit(f"Notification bar popout keyboard contract is incomplete: {snippet}")
+
 required_accessible_names = {
     ROOT / "shell/Ui/PanelSlider.qml": [
         'property string accessibleName: ""',
