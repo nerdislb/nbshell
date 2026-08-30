@@ -61,10 +61,10 @@ def main() -> None:
     palette_text = (THEME / "colors.toml").read_text(encoding="utf-8")
     palette = tomllib.loads(palette_text)
     assert palette["mode"] == "dark"
-    assert palette["background"] == "#08090A"
-    assert palette["foreground"] == "#F1F1EC"
-    assert palette["accent"] == "#61D6FF"
-    assert palette["selection"] == "#26333A"
+    assert palette["background"] == "#0F1014"
+    assert palette["foreground"] == "#CDD6F4"
+    assert palette["accent"] == "#89B4FA"
+    assert palette["selection"] == "#313244"
     for name, value in palette.items():
         if name == "mode":
             continue

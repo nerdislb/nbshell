@@ -8,8 +8,8 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Added
 
-- Hermarchy is available as a restrained near-black nbshell theme with warm
-  white text, semantic cyan focus, and three original converted wallpapers.
+- Hermarchy is available as a restrained near-black nbshell theme with a more
+  colorful Catppuccin-leaning semantic palette and three original converted wallpapers.
   The upstream Omarchy agent widget is deliberately not included: nbshell keeps
   one existing Hermes surface and its theme hook updates Hermes itself.
 
