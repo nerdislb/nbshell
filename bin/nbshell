@@ -526,7 +526,7 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell aether setup      connect Aether's Apply button to nbshell
   nbshell procs             process list (also: top)
   nbshell menu              searchable main menu
-  nbshell dashboard         Today, Media, and Tools
+  nbshell dashboard         Overview, Calendar, and Tools
   nbshell bongo             Bongo Cat: status, test, on, off, allow, revoke
   nbshell clip              clipboard history (toggle, list, clear)
   nbshell cal               calendar (also: next, sync, status)

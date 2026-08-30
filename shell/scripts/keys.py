@@ -118,7 +118,7 @@ UMBRIEL_AKTIONEN = {
     "window-move-up": "move window up",
     "window-move-down": "move window down",
     "window-consume-left": "move window into left column",
-    "window-expel-right": "move window out to right column",
+    "window-consume-or-expel-right": "merge or split column to the right",
     "workspace-next": "next workspace",
     "workspace-previous": "previous workspace",
     "window-move-to-workspace-next": "move window to next workspace",

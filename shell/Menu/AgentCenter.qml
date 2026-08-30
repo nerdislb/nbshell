@@ -6,11 +6,12 @@ import qs.Common
 import qs.Services
 import qs.Widgets
 
-// One dense control surface for agents, models, projects, and live sessions.
-// It follows Omarchy's panel hierarchy while retaining nbshell's TUI grid.
+// A scan-first agent overview with detailed work and configuration kept on
+// separate pages. It follows Omarchy's hierarchy and nbshell's TUI grid.
 PanelWindow {
     id: root
     property string pendingJobAction: ""
+    property int page: 0
 
     visible: true
     screen: Quickshell.screens[0] ?? null
@@ -68,7 +69,11 @@ PanelWindow {
         return amount > 0 ? "$" + amount.toFixed(amount >= 10 ? 2 : 4) : "INCLUDED";
     }
 
-    onVisibleChanged: if (visible) keys.forceActiveFocus()
+    onVisibleChanged: if (visible) {
+        page = 0;
+        keys.forceActiveFocus();
+    }
+    onPageChanged: agentFlick.contentY = 0
 
     Connections {
         target: Runtime
@@ -81,7 +86,7 @@ PanelWindow {
 
     Timer { id: approvalReset; interval: 6000; onTriggered: root.pendingJobAction = "" }
 
-    Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: box.opacity }
+    Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: box.opacity * 0.45 }
     MouseArea { anchors.fill: parent; onClicked: root.close() }
 
     FocusScope {
@@ -91,12 +96,17 @@ PanelWindow {
         Keys.onEscapePressed: root.close()
         Keys.onPressed: event => {
             if (event.key === Qt.Key_F5) { Agents.refresh(); event.accepted = true; }
+            else if (event.key >= Qt.Key_1 && event.key <= Qt.Key_3) {
+                root.page = event.key - Qt.Key_1;
+                event.accepted = true;
+            }
         }
 
         OverlaySurface {
             id: box
-            preferredWidth: Theme.overlayWidthLarge
-            preferredHeight: Theme.cellH * 44
+            dockedTop: true
+            preferredWidth: Theme.cellW * 112
+            preferredHeight: Theme.cellH * 32
             MouseArea { anchors.fill: parent; onClicked: {} }
 
             Column {
@@ -109,7 +119,9 @@ PanelWindow {
                     spacing: Theme.cellW
                     Line {
                         width: parent.width - refreshLine.width - parent.spacing
-                        text: Icons.cp(0xF1218) + "  AGENT CENTER"
+                        text: Icons.cp(0xF1218) + "  AGENTS  ·  "
+                            + Agents.hermesProvider.toUpperCase() + "  ·  "
+                            + Agents.hermesMode.toUpperCase()
                         color: Theme.fg
                         font.pixelSize: Theme.fontHeading
                         font.bold: true
@@ -123,39 +135,27 @@ PanelWindow {
                     }
                 }
 
-                Rectangle {
+                Row {
                     width: parent.width
-                    height: Theme.cellH * 3.3
-                    radius: Theme.radius
-                    color: Theme.panelSurfaceRaised
-                    border.width: Theme.borderWidth
-                    border.color: Theme.muted
-
-                    Row {
-                        anchors.fill: parent
-                        anchors.margins: Theme.cellW
-                        spacing: Theme.cellW * 2
-                        Column {
-                            width: parent.width * 0.31
-                            Line { text: "DEFAULT AGENT"; color: Theme.muted }
-                            Line { text: Agents.defaultAgent.toUpperCase(); color: Theme.accent; font.pixelSize: Theme.fontTitle }
-                        }
-                        Column {
-                            width: parent.width * 0.29
-                            Line { text: "APPROVAL"; color: Theme.muted }
-                            Line { text: Agents.approvalProfile.toUpperCase(); color: Agents.approvalProfile === "autonomous" ? Theme.yellow : Theme.fg; font.pixelSize: Theme.fontTitle }
-                        }
-                        Column {
-                            width: parent.width * 0.31
-                            Line { text: "MODEL PROFILE"; color: Theme.muted }
-                            Line { text: Agents.modelProfile.toUpperCase(); color: Theme.fg; font.pixelSize: Theme.fontTitle }
+                    spacing: Theme.cellW
+                    Repeater {
+                        model: ["NOW", "WORK", "SETUP"]
+                        ControlButton {
+                            required property string modelData
+                            required property int index
+                            width: (parent.width - Theme.cellW * 2) / 3
+                            height: Theme.cellH * 1.7
+                            text: modelData
+                            selected: root.page === index
+                            onTriggered: root.page = index
                         }
                     }
                 }
 
                 Flickable {
+                    id: agentFlick
                     width: parent.width
-                    height: parent.height - Theme.cellH * 8.5
+                    height: parent.height - Theme.cellH * 6.6
                     contentHeight: body.implicitHeight
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
@@ -166,6 +166,7 @@ PanelWindow {
                         spacing: Theme.cellH * 0.8
 
                         Column {
+                            visible: root.page === 2
                             width: parent.width
                             spacing: Theme.cellH * 0.2
                             Line { text: "AGENTS"; color: Theme.fgDim }
@@ -200,6 +201,7 @@ PanelWindow {
                         }
 
                         Column {
+                            visible: root.page === 2
                             width: parent.width
                             spacing: Theme.cellH * 0.25
                             Line { text: "APPROVAL PROFILE"; color: Theme.fgDim }
@@ -227,7 +229,7 @@ PanelWindow {
                         Column {
                             width: parent.width
                             spacing: Theme.cellH * 0.3
-                            visible: (Agents.brainProposals || []).length > 0
+                            visible: root.page === 1 && (Agents.brainProposals || []).length > 0
                             Line { text: "SECOND BRAIN PROPOSALS"; color: Theme.fgDim }
                             Line { text: "Isolated note · independent privacy review · human-only commit and push"; color: Theme.muted; font.pixelSize: Theme.fontCaption }
                             Repeater {
@@ -285,7 +287,7 @@ PanelWindow {
                         Column {
                             width: parent.width
                             spacing: Theme.cellH * 0.3
-                            visible: (Agents.hermesTeams || []).length > 0
+                            visible: root.page === 1 && (Agents.hermesTeams || []).length > 0
                             Line { text: "SUPERVISED TEAMS"; color: Theme.fgDim }
                             Line { text: "Parallel work · independent review · isolated integration · human approval"; color: Theme.muted; font.pixelSize: Theme.fontCaption }
                             Repeater {
@@ -345,7 +347,7 @@ PanelWindow {
                         Column {
                             width: parent.width
                             spacing: Theme.cellH * 0.3
-                            visible: (Agents.hermesJobs || []).length > 0
+                            visible: root.page === 1 && (Agents.hermesJobs || []).length > 0
                             Line { text: "HERMES TRANSACTIONS"; color: Theme.fgDim }
                             Line { text: "Agents work in disposable clones · review and human approval are mandatory"; color: Theme.muted; font.pixelSize: Theme.fontCaption }
 
@@ -447,39 +449,27 @@ PanelWindow {
                             }
                         }
 
+                        Line {
+                            visible: root.page === 1
+                                && (Agents.brainProposals || []).length === 0
+                                && (Agents.hermesTeams || []).length === 0
+                                && (Agents.hermesJobs || []).length === 0
+                            width: parent.width
+                            text: "No active jobs, teams, or proposals"
+                            horizontalAlignment: Text.AlignHCenter
+                            color: Theme.muted
+                        }
+
                         Column {
+                            visible: root.page !== 1
                             width: parent.width
                             spacing: Theme.cellH * 0.4
-                            Line { text: "HERMES HUB"; color: Theme.fgDim }
-                            Rectangle {
-                                width: body.width
-                                height: Theme.cellH * 3
-                                radius: Theme.radius
-                                color: hermesHover.hovered ? Theme.hover : Theme.panelSurfaceRaised
-                                border.width: Theme.borderWidth
-                                border.color: Agents.hermes.authenticated ? Theme.green : Theme.muted
-                                Column {
-                                    anchors.left: parent.left
-                                    anchors.leftMargin: Theme.cellW
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    spacing: 0
-                                    Line { text: "HERMES  " + (Agents.hermes.version || "NOT INSTALLED"); color: Agents.hermes.installed ? Theme.fg : Theme.muted }
-                                    Line { text: Agents.hermesProvider.toUpperCase() + " · " + Agents.hermesMode.toUpperCase(); color: Theme.fgDim; font.pixelSize: Theme.fontCaption; elide: Text.ElideRight; width: body.width * 0.68 }
-                                }
-                                Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: Agents.hermes.gateway === "active" ? "GATEWAY ACTIVE" : (Agents.hermes.running ? "OPEN · ACTIVE" : "OPEN"); color: Agents.hermes.gateway === "active" ? Theme.yellow : Theme.accent }
-                                HoverHandler { id: hermesHover; cursorShape: Agents.hermes.installed ? Qt.PointingHandCursor : Qt.ArrowCursor }
-                                TapHandler {
-                                    enabled: Agents.hermes.installed
-                                    onTapped: {
-                                        Agents.launch("hermes", "");
-                                        root.close();
-                                    }
-                                }
-                            }
+                            Line { text: root.page === 0 ? "CURRENT SESSION" : "HERMES"; color: Theme.fgDim }
 
                             Rectangle {
+                                visible: root.page === 0
                                 width: body.width
-                                height: hermesOverview.implicitHeight + Theme.cellH * 2
+                                height: visible ? hermesOverview.implicitHeight + Theme.cellH * 2 : 0
                                 radius: Theme.radius
                                 color: Theme.panelSurfaceRaised
                                 border.width: Theme.borderWidth
@@ -494,18 +484,29 @@ PanelWindow {
                                     spacing: Theme.cellH * 0.45
                                     readonly property var current: root.hermesCurrentSession()
                                     readonly property var today: (Agents.hermes.usage || {}).today || ({})
-                                    readonly property var processes: Agents.hermes.processes || ({})
                                     readonly property int activeJobs: Number(Agents.hermes.jobsRunning || 0)
                                     readonly property int activeTeams: Number(Agents.hermes.teamsRunning || 0)
+                                    readonly property int activeProposals: Number(Agents.hermes.brainReviewing || 0)
 
                                     Row {
                                         width: parent.width
                                         spacing: Theme.cellW
-                                        Line { width: parent.width - activityBadge.width - parent.spacing; text: "LIVE OVERVIEW"; color: Theme.fg; font.bold: true }
+                                        Line { width: parent.width - activityBadge.width - openHermes.width - parent.spacing * 2; text: "HERMES"; color: Theme.fg; font.bold: true }
                                         Line {
                                             id: activityBadge
                                             text: hermesOverview.current.active ? "● WORKING" : (Agents.hermes.running ? "● READY" : "○ OFFLINE")
                                             color: hermesOverview.current.active ? Theme.yellow : (Agents.hermes.running ? Theme.green : Theme.muted)
+                                        }
+                                        ControlButton {
+                                            id: openHermes
+                                            width: Theme.cellW * 18
+                                            height: Theme.cellH * 1.7
+                                            text: hermesOverview.current.active ? "OPEN SESSION" : "OPEN HERMES"
+                                            enabled: Agents.hermes.installed
+                                            onTriggered: {
+                                                Agents.launch("hermes", "");
+                                                root.close();
+                                            }
                                         }
                                     }
 
@@ -529,18 +530,16 @@ PanelWindow {
                                             model: [
                                                 { "label": "SESSION", "value": root.compactTokens(Number(hermesOverview.current.inputTokens || 0) + Number(hermesOverview.current.outputTokens || 0)), "hint": "TOKENS" },
                                                 { "label": "TODAY", "value": root.compactTokens(Number(hermesOverview.today.inputTokens || 0) + Number(hermesOverview.today.outputTokens || 0)), "hint": root.money(hermesOverview.today.costUsd) },
-                                                { "label": "ACTIVITY", "value": String(hermesOverview.activeJobs + hermesOverview.activeTeams), "hint": "JOBS / TEAMS" },
-                                                { "label": "RESOURCES", "value": Number(hermesOverview.processes.pssMiB || 0).toFixed(0) + " MB", "hint": Number(hermesOverview.processes.cpuPercent || 0).toFixed(1) + "% CPU" }
+                                                { "label": "ACTIVE WORK", "value": String(hermesOverview.activeJobs + hermesOverview.activeTeams + hermesOverview.activeProposals), "hint": "OPEN WORK TAB" }
                                             ]
                                             Rectangle {
                                                 id: hermesMetric
                                                 required property var modelData
-                                                width: (hermesOverview.width - Theme.cellW * 3) / 4
+                                                width: (hermesOverview.width - Theme.cellW * 2) / 3
                                                 height: Theme.cellH * 3.2
                                                 radius: Theme.radius
-                                                color: Theme.panelSurface
-                                                border.width: Theme.borderWidth
-                                                border.color: Theme.panelBorder
+                                                color: "transparent"
+                                                border.width: 0
                                                 Column {
                                                     anchors.centerIn: parent
                                                     spacing: 0
@@ -552,20 +551,11 @@ PanelWindow {
                                         }
                                     }
 
-                                    Row {
-                                        width: parent.width
-                                        spacing: Theme.cellW * 2
-                                        Line { text: "IN  " + root.compactTokens(hermesOverview.current.inputTokens); color: Theme.fgDim }
-                                        Line { text: "OUT  " + root.compactTokens(hermesOverview.current.outputTokens); color: Theme.fgDim }
-                                        Line { text: "CACHE  " + root.compactTokens(Number(hermesOverview.current.cacheReadTokens || 0) + Number(hermesOverview.current.cacheWriteTokens || 0)); color: Theme.fgDim }
-                                        Line { text: "TOOLS  " + String(hermesOverview.current.tools || 0); color: Theme.fgDim }
-                                        Line { text: "CALLS  " + String(hermesOverview.current.apiCalls || 0); color: Theme.fgDim }
-                                        Line { text: "PROCS  " + String(hermesOverview.processes.count || 0); color: Theme.fgDim }
-                                    }
                                 }
                             }
 
                             Row {
+                                visible: root.page === 2
                                 width: parent.width
                                 spacing: Theme.cellW
                                 Repeater {
@@ -596,6 +586,7 @@ PanelWindow {
                             }
 
                             Row {
+                                visible: root.page === 2
                                 width: parent.width
                                 spacing: Theme.cellW
                                 Repeater {
@@ -625,15 +616,15 @@ PanelWindow {
                                 }
                             }
 
-                            Line { text: Agents.hermesMode === "trusted" ? "Trusted is fully autonomous in the selected Git project · commands do not ask for approval" : (Agents.hermesProvider === "gemini" ? "Gemini: Restricted/Research use plan mode · Workspace accepts edits in its sandbox" : "Native Hermes lane · credentials stay in the provider-owned store"); color: Agents.hermesMode === "trusted" ? Theme.red : Theme.muted }
+                            Line { visible: root.page === 2; text: Agents.hermesMode === "trusted" ? "Trusted is fully autonomous in the selected Git project · commands do not ask for approval" : (Agents.hermesProvider === "gemini" ? "Gemini: Restricted/Research use plan mode · Workspace accepts edits in its sandbox" : "Native Hermes lane · credentials stay in the provider-owned store"); color: Agents.hermesMode === "trusted" ? Theme.red : Theme.muted }
 
                             Column {
                                 width: parent.width
                                 spacing: Theme.cellH * 0.2
-                                visible: Agents.hermesProvider !== "gemini" && (Agents.hermes.sessions || []).length > 0
+                                visible: root.page === 0 && Agents.hermesProvider !== "gemini" && (Agents.hermes.sessions || []).length > 0
                                 Line { text: "RECENT HERMES SESSIONS"; color: Theme.fgDim }
                                 Repeater {
-                                    model: (Agents.hermes.sessions || []).slice(0, 3)
+                                    model: (Agents.hermes.sessions || []).slice(0, 2)
                                     Rectangle {
                                         id: hermesSession
                                         required property var modelData
@@ -643,7 +634,7 @@ PanelWindow {
                                         color: hermesSessionHover.hovered ? Theme.hover : "transparent"
                                         border.width: Theme.borderWidth
                                         border.color: Theme.panelBorder
-                                        Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.42; text: String(hermesSession.modelData.id).slice(-8); color: Theme.fg }
+                                        Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.5; text: String(hermesSession.modelData.title || hermesSession.modelData.id); color: Theme.fg; elide: Text.ElideRight }
                                         Line { anchors.horizontalCenter: parent.horizontalCenter; anchors.verticalCenter: parent.verticalCenter; text: root.sessionTime(hermesSession.modelData.lastActive); color: Theme.fgDim }
                                         Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: root.compactTokens(hermesSession.modelData.inputTokens + hermesSession.modelData.outputTokens) + " TOK · RESUME"; color: Theme.accent }
                                         HoverHandler { id: hermesSessionHover; cursorShape: Qt.PointingHandCursor }
@@ -658,142 +649,13 @@ PanelWindow {
                             }
                         }
 
-                        Column {
-                            width: parent.width
-                            spacing: Theme.cellH * 0.25
-                            Line { text: "MODEL ROUTING"; color: Theme.fgDim }
-                            Flow {
-                                width: parent.width
-                                spacing: Theme.cellW
-                                Repeater {
-                                    model: ["local", "cloud", "private", "fast", "strong"]
-                                    Rectangle {
-                                        id: route
-                                        required property string modelData
-                                        width: (body.width - Theme.cellW * 4) / 5
-                                        height: Theme.cellH * 2
-                                        radius: Theme.radius
-                                        color: modelData === Agents.modelProfile ? Theme.selectedSurface(Theme.accent) : (routeHover.hovered ? Theme.hover : "transparent")
-                                        border.width: Theme.borderWidth
-                                        border.color: modelData === Agents.modelProfile ? Theme.focusBorder : Theme.panelBorder
-                                        Line { anchors.centerIn: parent; text: route.modelData.toUpperCase(); color: modelData === Agents.modelProfile ? Theme.selectedForeground(Theme.accent) : Theme.fg }
-                                        HoverHandler { id: routeHover; cursorShape: Qt.PointingHandCursor }
-                                        TapHandler { onTapped: Agents.setModelProfile(route.modelData) }
-                                    }
-                                }
-                            }
-                        }
 
-                        Column {
-                            width: parent.width
-                            spacing: Theme.cellH * 0.25
-                            Line { text: "NEW WORKSPACE"; color: Theme.fgDim }
-                            Row {
-                                spacing: Theme.cellW
-                                Repeater {
-                                    model: [
-                                        { "id": "dev", "label": "DEV", "hint": "editor · agent · terminal" },
-                                        { "id": "review", "label": "REVIEW", "hint": "adds read-only review" },
-                                        { "id": "pair", "label": "PAIR", "hint": "lead · local agent" }
-                                    ]
-                                    Rectangle {
-                                        id: workspaceButton
-                                        required property var modelData
-                                        width: (body.width - Theme.cellW * 2) / 3
-                                        height: Theme.cellH * 2.6
-                                        radius: Theme.radius
-                                        color: workspaceHover.hovered ? Theme.hover : "transparent"
-                                        border.width: Theme.borderWidth
-                                        border.color: Theme.muted
-                                        Column {
-                                            anchors.centerIn: parent
-                                            Line { anchors.horizontalCenter: parent.horizontalCenter; text: workspaceButton.modelData.label; color: Theme.accent }
-                                            Line { anchors.horizontalCenter: parent.horizontalCenter; text: workspaceButton.modelData.hint; color: Theme.muted }
-                                        }
-                                        HoverHandler { id: workspaceHover; cursorShape: Qt.PointingHandCursor }
-                                        TapHandler { onTapped: Agents.workspace(workspaceButton.modelData.id, Agents.config.lastProject || "") }
-                                    }
-                                }
-                            }
-                        }
-
-                        Column {
-                            width: parent.width
-                            spacing: Theme.cellH * 0.2
-                            Line { text: "LOCAL MODELS"; color: Theme.fgDim }
-                            Rectangle {
-                                width: body.width
-                                height: Theme.cellH * 2.2
-                                radius: Theme.radius
-                                color: ollamaHover.hovered ? Theme.hover : Theme.panelSurfaceRaised
-                                border.width: Theme.borderWidth
-                                border.color: Agents.ollama.running ? Theme.green : Theme.muted
-                                Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: "OLLAMA"; color: Agents.ollama.installed ? Theme.fg : Theme.muted }
-                                Line { anchors.centerIn: parent; text: Agents.ollama.running ? ((Agents.ollama.models?.length ?? 0) + " MODELS") : (Agents.ollama.installed ? "STOPPED" : "NOT INSTALLED"); color: Agents.ollama.running ? Theme.green : Theme.muted }
-                                Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: Agents.ollama.installed ? (Agents.ollama.running ? "STOP" : "START") : "OPTIONAL"; color: Theme.accent }
-                                HoverHandler { id: ollamaHover; cursorShape: Agents.ollama.installed ? Qt.PointingHandCursor : Qt.ArrowCursor }
-                                TapHandler { enabled: Agents.ollama.installed; onTapped: Agents.ollamaAction(Agents.ollama.running ? "stop" : "start") }
-                            }
-                        }
-
-                        Column {
-                            width: parent.width
-                            spacing: Theme.cellH * 0.2
-                            Line { text: "PROJECTS"; color: Theme.fgDim }
-                            Repeater {
-                                model: Agents.projects.slice(0, 12)
-                                Rectangle {
-                                    id: projectRow
-                                    required property var modelData
-                                    width: body.width
-                                    height: Theme.cellH * 1.8
-                                    radius: Theme.radius
-                                    color: projectHover.hovered ? Theme.hover : "transparent"
-                                    border.width: Theme.borderWidth
-                                    border.color: String(Agents.config.lastProject || "") === modelData.path ? Theme.focusBorder : Theme.panelBorder
-                                    Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: projectRow.modelData.name; color: Theme.fg }
-                                    Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.65; horizontalAlignment: Text.AlignRight; elide: Text.ElideMiddle; text: projectRow.modelData.path + "  ·  RIGHT HERMES"; color: Theme.fgDim }
-                                    HoverHandler { id: projectHover; cursorShape: Qt.PointingHandCursor }
-                                    TapHandler {
-                                        acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                        onTapped: (point, button) => {
-                                            Agents.launch(button === Qt.RightButton ? "hermes" : "", projectRow.modelData.path);
-                                            root.close();
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        Column {
-                            visible: Agents.sessions.length > 0
-                            width: parent.width
-                            spacing: Theme.cellH * 0.2
-                            Line { text: "LIVE SESSIONS"; color: Theme.fgDim }
-                            Repeater {
-                                model: Agents.sessions
-                                Rectangle {
-                                    id: sessionRow
-                                    required property var modelData
-                                    width: body.width
-                                    height: Theme.cellH * 1.8
-                                    radius: Theme.radius
-                                    color: sessionHover.hovered ? Theme.hover : "transparent"
-                                    border.width: Theme.borderWidth
-                                    border.color: ["waiting", "permission", "blocked"].indexOf(String(sessionRow.modelData.status)) >= 0 ? Theme.yellow : Theme.muted
-                                    Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: sessionRow.modelData.name.toUpperCase() + "  " + sessionRow.modelData.status.toUpperCase(); color: ["waiting", "permission", "blocked"].indexOf(String(sessionRow.modelData.status)) >= 0 ? Theme.yellow : Theme.fg }
-                                    Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.58; horizontalAlignment: Text.AlignRight; elide: Text.ElideMiddle; text: sessionRow.modelData.title || sessionRow.modelData.project; color: Theme.fgDim }
-                                    HoverHandler { id: sessionHover; cursorShape: Qt.PointingHandCursor }
-                                    TapHandler { onTapped: Agents.focusSession(sessionRow.modelData.id) }
-                                }
-                            }
-                        }
                     }
                 }
 
                 Line {
                     width: parent.width
-                    text: Agents.message !== "" ? Agents.message : "Esc closes · F5 refreshes · project: left default agent · right Hermes"
+                    text: Agents.message !== "" ? Agents.message : "Esc closes · 1–3 switch views · F5 refreshes"
                     color: Agents.message !== "" ? Theme.yellow : Theme.muted
                     elide: Text.ElideRight
                 }

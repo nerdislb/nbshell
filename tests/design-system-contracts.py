@@ -60,7 +60,7 @@ if exported_ui_types != expected_ui_types:
     )
 
 dashboard = (ROOT / "shell/Menu/Dashboard.qml").read_text(encoding="utf-8")
-tab_start = dashboard.index('model: ["TODAY", "MEDIA", "TOOLS", "CALENDAR"]')
+tab_start = dashboard.index('model: ["OVERVIEW", "CALENDAR", "TOOLS"]')
 tab_end = dashboard.index("// ── TODAY", tab_start)
 tab_contract = dashboard[tab_start:tab_end]
 if "ControlButton {" not in tab_contract:
@@ -92,6 +92,98 @@ for snippet in (
         raise SystemExit(f"Dashboard secondary action label is missing: {snippet}")
 if "component Action: Rectangle" in dashboard:
     raise SystemExit("Dashboard actions regressed to manual Rectangle controls")
+for snippet in (
+    "dockedTop: true",
+    'model: ["OVERVIEW", "CALENDAR", "TOOLS"]',
+    "opacity: box.opacity * 0.45",
+):
+    if snippet not in dashboard:
+        raise SystemExit(f"Dashboard bar-extension contract is incomplete: {snippet}")
+for removed in ("// ── MEDIA", "MediaService.player?.trackArtUrl"):
+    if removed in dashboard:
+        raise SystemExit(f"Dashboard dedicated media page returned: {removed}")
+
+desktop_ipc = (ROOT / "shell/Ipc/DesktopIpc.qml").read_text(encoding="utf-8")
+data_ipc = (ROOT / "shell/Ipc/DataIpc.qml").read_text(encoding="utf-8")
+if 'const names = ["overview", "calendar", "tools"]' not in desktop_ipc:
+    raise SystemExit("Dashboard IPC no longer exposes the three-page navigation")
+if '"media": 0' not in desktop_ipc or 'target: "music"' not in data_ipc:
+    raise SystemExit("Legacy media entry points no longer route to the overview")
+
+agent_center = (ROOT / "shell/Menu/AgentCenter.qml").read_text(encoding="utf-8")
+for snippet in (
+    "dockedTop: true",
+    'model: ["NOW", "WORK", "SETUP"]',
+    "visible: root.page === 1 && (Agents.hermesJobs || []).length > 0",
+    "visible: root.page === 2",
+    'Line { text: root.page === 0 ? "CURRENT SESSION" : "HERMES"',
+    'model: (Agents.hermes.sessions || []).slice(0, 2)',
+    "opacity: box.opacity * 0.45",
+):
+    if snippet not in agent_center:
+        raise SystemExit(f"Agent Center bar-extension contract is incomplete: {snippet}")
+for removed in (
+    '"RESOURCES"', 'Line { text: "IN  "', 'model: Agents.projects',
+    'text: "LIVE SESSIONS"', 'text: "MODEL ROUTING"',
+    'text: "NEW WORKSPACE"', 'text: "LOCAL MODELS"',
+):
+    if removed in agent_center:
+        raise SystemExit(f"Agent Center overview regained secondary detail: {removed}")
+
+keys = (ROOT / "shell/Keys/KeysWindow.qml").read_text(encoding="utf-8")
+for snippet in (
+    "OverlaySurface {",
+    "dockedTop: true",
+    "PanelHead {",
+    "SectionHeader {",
+    "component ShortcutColumn: PanelSurface",
+    "opacity: box.opacity * 0.45",
+):
+    if snippet not in keys:
+        raise SystemExit(f"Keyboard shortcuts no longer follows the shared panel language: {snippet}")
+for removed in ("DragHandler {", "x: (parent.width - width) / 2", "y: (parent.height - height) / 2"):
+    if removed in keys:
+        raise SystemExit(f"Keyboard shortcuts regressed to the detached legacy window: {removed}")
+
+umbriel_config = (ROOT / "umbriel/nbshell.toml").read_text(encoding="utf-8")
+if "show_cheatsheet = false" not in umbriel_config:
+    raise SystemExit("Umbriel startup cheatsheet must remain disabled")
+if 'mode = "dwindle"' not in umbriel_config:
+    raise SystemExit("Umbriel must start new workspaces in Dwindle, not Scrolling")
+
+modules = (ROOT / "shell/Settings/ModulesMenu.qml").read_text(encoding="utf-8")
+for snippet in (
+    "dockedTop: true",
+    "PanelHead {",
+    'title: "Bar modules"',
+    "PanelSurface {",
+    "SectionHeader {",
+    "delegate: PanelRow {",
+    "opacity: box.opacity * 0.45",
+):
+    if snippet not in modules:
+        raise SystemExit(f"Modules menu no longer follows the shared panel language: {snippet}")
+for removed in ('text: "MODULES"', 'text: "AVAILABLE"'):
+    if removed in modules:
+        raise SystemExit(f"Modules menu regressed to the legacy split-list header: {removed}")
+
+overlay_surface = (ROOT / "shell/Widgets/OverlaySurface.qml").read_text(encoding="utf-8")
+for snippet in ("property bool dockedTop: false", "property real dockOffset:"):
+    if snippet not in overlay_surface:
+        raise SystemExit(f"OverlaySurface docking contract is incomplete: {snippet}")
+
+settings = (ROOT / "shell/Settings/SettingsMenu.qml").read_text(encoding="utf-8")
+for snippet in (
+    "PanelHead {",
+    "SectionHeader {",
+    "PanelRow {",
+    "ActionButton {",
+    "function groupIcon(name)",
+):
+    if snippet not in settings:
+        raise SystemExit(f"Settings no longer follows the shared panel language: {snippet}")
+if settings.count("PanelRow {") < 2:
+    raise SystemExit("Settings navigation and values must both use shared PanelRow controls")
 
 volume = (ROOT / "shell/Bar/Widgets/Volume.qml").read_text(encoding="utf-8")
 volume_header = volume[:volume.index("popout: Component")]
@@ -151,31 +243,42 @@ for legacy in ("id: mouse", "onTapped: Audio.setSink"):
         raise SystemExit(f"Audio sink rows regressed to manual interaction: {legacy}")
 
 themes = (ROOT / "shell/Bar/Widgets/Themes.qml").read_text(encoding="utf-8")
-theme_rows = themes[themes.index("model: ThemeIndex.list"):]
 for snippet in (
-    "popoutTakesKeyboard: true",
-    "readonly property Item initialFocusItem:",
-    "themeRepeater.count > initialFocusIndex",
-    "themeRepeater.itemAt(initialFocusIndex)",
-    "function revealIndex(index)",
+    "active: Runtime.themePickerOpen",
+    "onClicked: Runtime.themePickerOpen = true",
+    "onWheel: delta => ThemeIndex.step",
 ):
     if snippet not in themes:
-        raise SystemExit(f"Theme popout keyboard contract is incomplete: {snippet}")
+        raise SystemExit(f"Theme bar entry no longer routes to the standalone gallery: {snippet}")
+if "popout: Component" in themes:
+    raise SystemExit("Theme gallery regressed to an optional bar-owned popout")
+
+theme_gallery = (ROOT / "shell/Wallpaper/ThemeGallery.qml").read_text(encoding="utf-8")
 for snippet in (
-    "PanelRow {",
-    "selected: row.isCurrent",
-    'title: (row.isCurrent ? "▸ " : "  ") + row.modelData.name',
-    "accessibleName: row.modelData.name",
-    "trailingInset: palette.implicitWidth + Theme.cellW",
-    "onHoveredChanged: {",
-    "themeList.revealIndex(row.index)",
-    "ThemeIndex.apply(row.modelData.name)",
+    "MotionSurface {",
+    "orientation: ListView.Horizontal",
+    "snapMode: ListView.SnapOneItem",
+    "highlightRangeMode: ListView.StrictlyEnforceRange",
+    "ThemeIndex.apply(current.name)",
+    "enabled: !Theme.reducedMotion",
 ):
-    if snippet not in theme_rows:
-        raise SystemExit(f"Theme row migration contract is incomplete: {snippet}")
-for legacy in ("id: mouse", "onTapped: {"):
-    if legacy in theme_rows:
-        raise SystemExit(f"Theme rows regressed to manual interaction: {legacy}")
+    if snippet not in theme_gallery:
+        raise SystemExit(f"Standalone theme gallery contract is incomplete: {snippet}")
+
+shell_root = (ROOT / "shell/shell.qml").read_text(encoding="utf-8")
+if "requested: Runtime.themePickerOpen" not in shell_root or "ThemeGallery {}" not in shell_root:
+    raise SystemExit("Theme gallery is no longer owned by the permanent shell lifecycle")
+
+wallpaper = (ROOT / "shell/Bar/Wallpaper.qml").read_text(encoding="utf-8")
+for snippet in (
+    "mask: Region { item: wallpaperInput }",
+    "acceptedButtons: Qt.LeftButton",
+    "onDoubleTapped: Runtime.wallpaperOpen = true",
+    "acceptedButtons: Qt.RightButton",
+    "onDoubleTapped: Runtime.themePickerOpen = true",
+):
+    if snippet not in wallpaper:
+        raise SystemExit(f"Wallpaper desktop gesture contract is incomplete: {snippet}")
 
 control = (ROOT / "shell/Bar/Widgets/Control.qml").read_text(encoding="utf-8")
 panel_row_source = (ROOT / "shell/Widgets/PanelRow.qml").read_text(encoding="utf-8")

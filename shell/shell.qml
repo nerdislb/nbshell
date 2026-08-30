@@ -147,6 +147,11 @@ ShellRoot {
         sourceComponent: Component { UiGallery {} }
     }
 
+    MotionLoader {
+        requested: Runtime.themePickerOpen
+        sourceComponent: Component { ThemeGallery {} }
+    }
+
     LazyLoader { active: Runtime.wallpaperOpen; WallpaperPicker {} }
 
     LazyLoader { active: Runtime.todoOpen; TodoList {} }

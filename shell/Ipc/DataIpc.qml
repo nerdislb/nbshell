@@ -21,16 +21,16 @@ Scope {
         target: "music"
 
         function open(): string {
-            Runtime.dashboardPage = 1;
+            Runtime.dashboardPage = 0;
             Runtime.dashboardOpen = true;
             return "open";
         }
 
         function toggle(): string {
-            if (Runtime.dashboardOpen && Runtime.dashboardPage === 1)
+            if (Runtime.dashboardOpen && Runtime.dashboardPage === 0)
                 Runtime.dashboardOpen = false;
             else {
-                Runtime.dashboardPage = 1;
+                Runtime.dashboardPage = 0;
                 Runtime.dashboardOpen = true;
             }
             return Runtime.dashboardOpen ? "open" : "closed";
@@ -61,16 +61,16 @@ Scope {
         target: "calendar"
 
         function open(): string {
-            Runtime.dashboardPage = 3;
+            Runtime.dashboardPage = 1;
             Runtime.dashboardOpen = true;
             return "open";
         }
 
         function toggle(): string {
-            if (Runtime.dashboardOpen && Runtime.dashboardPage === 3)
+            if (Runtime.dashboardOpen && Runtime.dashboardPage === 1)
                 Runtime.dashboardOpen = false;
             else {
-                Runtime.dashboardPage = 3;
+                Runtime.dashboardPage = 1;
                 Runtime.dashboardOpen = true;
             }
             return Runtime.dashboardOpen ? "open" : "closed";

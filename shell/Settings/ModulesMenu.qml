@@ -45,8 +45,7 @@ PanelWindow {
     // Feste Breiten am Fenster statt `width: <Column>.width` an den Zeilen:
     // die Verweise vom Kind auf den Positionierer haben hier dazu gefuehrt,
     // dass die Zeilen gar nicht erst entstanden -- ohne Fehler, ohne Meldung.
-    readonly property real leftWidth: Theme.cellW * 46
-    readonly property real rightWidth: Theme.cellW * 24
+    readonly property real leftWidth: Theme.cellW * 62
 
     property int groupIndex: 0
     property int itemIndex: 0
@@ -191,15 +190,11 @@ PanelWindow {
         }
     }
 
-    Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: box.opacity }
-    MouseArea {
-        anchors.fill: parent
-        onClicked: root.close()
-    }
+    Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: box.opacity * 0.45 }
+    MouseArea { anchors.fill: parent; onClicked: root.close() }
 
     FocusScope {
         id: keys
-
         anchors.fill: parent
         focus: root.visible
 
@@ -234,275 +229,255 @@ PanelWindow {
 
         OverlaySurface {
             id: box
-            preferredWidth: Theme.cellW * 76
-            preferredHeight: Theme.overlayHeightLarge
+            dockedTop: true
+            preferredWidth: Theme.cellW * 112
+            preferredHeight: Theme.cellH * 38
 
-            MouseArea {
+            MouseArea { anchors.fill: parent }
+
+            Column {
+                id: content
                 anchors.fill: parent
-            }
+                anchors.margins: Theme.spaceXl
+                spacing: Theme.spaceLg
 
-            Flickable {
-                id: leftScroll
-                anchors.left: parent.left
-                anchors.top: parent.top
-                anchors.bottom: hint.top
-                anchors.margins: Theme.cellW
-                anchors.bottomMargin: Theme.cellH * 2
-                width: root.leftWidth
-                clip: true
-                contentWidth: width
-                contentHeight: left.implicitHeight
-                boundsBehavior: Flickable.StopAtBounds
-
-                Column {
-                    id: left
-
-                    width: root.leftWidth
-                    spacing: 0
-
-                Line {
-                    text: "MODULES"
-                    color: root.inCatalog ? Theme.muted : Theme.fgDim
-                    bottomPadding: Theme.cellH * 0.4
+                PanelHead {
+                    id: head
+                    rowWidth: content.width
+                    icon: Icons.cp(0xF12E)
+                    title: "Bar modules"
+                    subtitle: "Arrange the island and bar · drag modules or use the keyboard"
+                    badge: root.inCatalog ? "AVAILABLE" : root.groups[root.groupIndex].label.toUpperCase()
+                    badgeColor: Theme.accent
                 }
 
-                    Repeater {
-                        model: root.groups
+                Row {
+                    id: panes
+                    width: content.width
+                    height: content.height - head.height - footer.height - content.spacing * 2
+                    spacing: Theme.spaceXl
 
-                    Column {
-                        id: group
-
-                        required property var modelData
-                        required property int index
-
+                    PanelSurface {
                         width: root.leftWidth
-                        spacing: 0
+                        height: parent.height
+                        raised: true
+                        accentBorder: !root.inCatalog
 
-                        Item {
-                            width: group.width
-                            height: Theme.controlHeight
+                        Column {
+                            anchors.fill: parent
+                            anchors.margins: Theme.spaceSm
+                            spacing: 0
 
-                            Line {
-                                anchors.left: parent.left
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: group.modelData.label
-                                color: Theme.fgDim
+                            SectionHeader {
+                                width: parent.width
+                                text: "Current layout"
+                                detail: "4 groups"
                             }
 
-                            // Leere Gruppe oder Ablage auf den Gruppenkopf:
-                            // der Baustein kommt ans Ende dieser Gruppe.
-                            DropArea {
-                                anchors.fill: parent
-                                enabled: root.dragGroup >= 0
-                                onDropped: root.moveDragged(group.index, root.listOf(group.index).length)
-                            }
-                        }
+                            Flickable {
+                                id: leftScroll
+                                width: parent.width
+                                height: parent.height - Theme.controlHeight
+                                contentWidth: width
+                                contentHeight: left.implicitHeight
+                                clip: true
+                                boundsBehavior: Flickable.StopAtBounds
 
-                        Line {
-                            visible: Config.value(group.modelData.key, []).length === 0
-                            text: "     —"
-                            color: Theme.muted
-                        }
+                                Column {
+                                    id: left
+                                    width: leftScroll.width
+                                    spacing: Theme.spaceSm
 
-                        Repeater {
-                            model: Config.value(group.modelData.key, [])
+                                    Repeater {
+                                        model: root.groups
 
-                            // Ausdruecklich `delegate:`. In der impliziten Form
-                            // (Rectangle direkt als Kind) hat dieser Repeater
-                            // nichts erzeugt -- ohne Fehler, ohne Meldung.
-                            delegate: Rectangle {
-                                id: row
+                                        Column {
+                                            id: group
+                                            required property var modelData
+                                            required property int index
+                                            width: left.width
+                                            spacing: 0
 
-                                required property var modelData
-                                required property int index
+                                            SectionHeader {
+                                                width: parent.width
+                                                text: group.modelData.label
+                                                detail: root.listOf(group.index).length + " modules"
 
-                                readonly property bool current: !root.inCatalog && group.index === root.groupIndex && row.index === root.itemIndex
+                                                DropArea {
+                                                    anchors.fill: parent
+                                                    enabled: root.dragGroup >= 0
+                                                    onDropped: root.moveDragged(group.index, root.listOf(group.index).length)
+                                                }
+                                            }
 
-                                width: root.leftWidth
-                                height: Theme.controlHeight
-                                radius: Theme.radius
-                                color: row.current ? Theme.selectedSurface(Theme.accent) : "transparent"
+                                            Line {
+                                                visible: root.listOf(group.index).length === 0
+                                                width: parent.width
+                                                height: Theme.rowHeight
+                                                leftPadding: Theme.spaceXl
+                                                verticalAlignment: Text.AlignVCenter
+                                                text: "No modules"
+                                                color: Theme.muted
+                                            }
 
-                                opacity: rowDrag.active ? 0.45 : 1
-                                z: rowDrag.active ? 20 : 0
+                                            Repeater {
+                                                model: Config.value(group.modelData.key, [])
 
-                                Drag.active: rowDrag.active
-                                Drag.source: row
-                                Drag.hotSpot.x: width / 2
-                                Drag.hotSpot.y: height / 2
+                                                delegate: PanelRow {
+                                                    id: moduleRow
+                                                    required property var modelData
+                                                    required property int index
+                                                    readonly property bool current: !root.inCatalog
+                                                        && group.index === root.groupIndex
+                                                        && moduleRow.index === root.itemIndex
 
-                                Line {
-                                    anchors.left: parent.left
-                                    anchors.leftMargin: Theme.cellW * 2
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: (row.current ? "◂ ▸ " : "    ") + Plugins.label(row.modelData)
-                                    color: row.current ? Theme.selectedForeground(Theme.accent) : Theme.fg
-                                }
+                                                    width: group.width
+                                                    height: Theme.rowHeight
+                                                    title: Plugins.label(moduleRow.modelData)
+                                                    detail: Plugins.source(moduleRow.modelData) === "" ? "Built in" : "Plugin"
+                                                    value: moduleRow.current ? "DRAG  ·  ← →" : ""
+                                                    selected: moduleRow.current
+                                                    visualFocus: moduleRow.current
+                                                    interactive: true
+                                                    opacity: moduleDrag.active ? 0.45 : 1
+                                                    z: moduleDrag.active ? 20 : 0
 
-                                MouseArea {
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onEntered: {
-                                        root.inCatalog = false;
-                                        root.groupIndex = group.index;
-                                        root.itemIndex = row.index;
-                                    }
-                                    acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                    onClicked: mouseEvent => root.moveWithin(mouseEvent.button === Qt.RightButton ? -1 : 1)
-                                }
+                                                    Drag.active: moduleDrag.active
+                                                    Drag.source: moduleRow
+                                                    Drag.hotSpot.x: width / 2
+                                                    Drag.hotSpot.y: height / 2
 
-                                DragHandler {
-                                    id: rowDrag
-                                    acceptedButtons: Qt.LeftButton
-                                    target: null
-                                    grabPermissions: PointerHandler.CanTakeOverFromAnything
-                                    onActiveChanged: {
-                                        if (active) {
-                                            root.inCatalog = false;
-                                            root.dragGroup = group.index;
-                                            root.dragIndex = row.index;
-                                        } else if (root.dragGroup === group.index && root.dragIndex === row.index) {
-                                            root.dragGroup = -1;
-                                            root.dragIndex = -1;
+                                                    onTriggered: {
+                                                        root.inCatalog = false;
+                                                        root.groupIndex = group.index;
+                                                        root.itemIndex = moduleRow.index;
+                                                    }
+
+                                                    DragHandler {
+                                                        id: moduleDrag
+                                                        acceptedButtons: Qt.LeftButton
+                                                        target: null
+                                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
+                                                        onActiveChanged: {
+                                                            if (active) {
+                                                                root.inCatalog = false;
+                                                                root.groupIndex = group.index;
+                                                                root.itemIndex = moduleRow.index;
+                                                                root.dragGroup = group.index;
+                                                                root.dragIndex = moduleRow.index;
+                                                            } else if (root.dragGroup === group.index && root.dragIndex === moduleRow.index) {
+                                                                root.dragGroup = -1;
+                                                                root.dragIndex = -1;
+                                                            }
+                                                        }
+                                                    }
+
+                                                    DropArea {
+                                                        anchors.fill: parent
+                                                        enabled: root.dragGroup >= 0
+                                                            && !(root.dragGroup === group.index && root.dragIndex === moduleRow.index)
+                                                        onDropped: drop => root.moveDragged(group.index, moduleRow.index + (drop.y > height / 2 ? 1 : 0))
+
+                                                        Rectangle {
+                                                            anchors.left: parent.left
+                                                            anchors.right: parent.right
+                                                            anchors.top: parent.top
+                                                            height: Math.max(2, Theme.borderWidth * 2)
+                                                            color: Theme.accent
+                                                            visible: parent.containsDrag
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
+                            }
+                        }
+                    }
 
-                                // Obere Haelfte = davor, untere = dahinter.
-                                DropArea {
-                                    anchors.fill: parent
-                                    enabled: root.dragGroup >= 0 && !(root.dragGroup === group.index && root.dragIndex === row.index)
-                                    onDropped: drop => root.moveDragged(group.index, row.index + (drop.y > height / 2 ? 1 : 0))
+                    PanelSurface {
+                        width: panes.width - root.leftWidth - panes.spacing
+                        height: parent.height
+                        raised: false
+                        accentBorder: root.inCatalog
 
-                                    Rectangle {
-                                        anchors.left: parent.left
-                                        anchors.right: parent.right
-                                        anchors.top: parent.top
-                                        height: Math.max(2, Theme.borderWidth * 2)
-                                        color: Theme.accent
-                                        visible: parent.containsDrag
+                        Column {
+                            anchors.fill: parent
+                            anchors.margins: Theme.spaceSm
+                            spacing: 0
+
+                            SectionHeader {
+                                width: parent.width
+                                text: "Available"
+                                detail: root.catalog.length + " modules"
+                            }
+
+                            Flickable {
+                                id: rightScroll
+                                width: parent.width
+                                height: parent.height - Theme.controlHeight
+                                contentWidth: width
+                                contentHeight: available.implicitHeight
+                                clip: true
+                                boundsBehavior: Flickable.StopAtBounds
+
+                                Column {
+                                    id: available
+                                    width: rightScroll.width
+                                    spacing: 0
+
+                                    Repeater {
+                                        model: root.catalog
+
+                                        PanelRow {
+                                            id: catalogRow
+                                            required property var modelData
+                                            required property int index
+                                            readonly property bool current: root.inCatalog && catalogRow.index === root.catalogIndex
+
+                                            width: available.width
+                                            height: Theme.rowHeight
+                                            title: Plugins.label(catalogRow.modelData)
+                                            detail: Plugins.describe(catalogRow.modelData)
+                                            value: catalogRow.current ? "ENTER  ·  ADD" : "ADD"
+                                            selected: catalogRow.current
+                                            visualFocus: catalogRow.current
+                                            interactive: true
+                                            onTriggered: {
+                                                root.inCatalog = true;
+                                                root.catalogIndex = catalogRow.index;
+                                                root.addFromCatalog();
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                    }
-                }
-            }
-
-            Rectangle {
-                anchors.right: leftScroll.right
-                width: Theme.borderWidth * 2
-                height: leftScroll.contentHeight > leftScroll.height
-                    ? Math.max(Theme.cellH * 2, leftScroll.height * leftScroll.height / leftScroll.contentHeight)
-                    : 0
-                y: leftScroll.contentHeight > leftScroll.height
-                    ? leftScroll.y + leftScroll.contentY * (leftScroll.height - height) / Math.max(1, leftScroll.contentHeight - leftScroll.height)
-                    : leftScroll.y
-                visible: height > 0
-                color: Theme.muted
-                z: 10
-            }
-
-            Flickable {
-                id: rightScroll
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.bottom: hint.top
-                anchors.margins: Theme.cellW
-                anchors.bottomMargin: Theme.cellH * 2
-                width: root.rightWidth
-                clip: true
-                contentWidth: width
-                contentHeight: right.implicitHeight
-                boundsBehavior: Flickable.StopAtBounds
-
-                Column {
-                    id: right
-
-                    width: root.rightWidth
-                    spacing: 0
-
-                Line {
-                    text: "AVAILABLE"
-                    color: root.inCatalog ? Theme.fgDim : Theme.muted
-                    bottomPadding: Theme.cellH * 0.4
                 }
 
-                    Repeater {
-                        model: root.catalog
+                Row {
+                    id: footer
+                    width: content.width
+                    height: Theme.controlHeight
+                    spacing: Theme.spaceMd
 
-                    delegate: Rectangle {
-                        id: catRow
-
-                        required property var modelData
-                        required property int index
-
-                        readonly property bool current: root.inCatalog && catRow.index === root.catalogIndex
-
-                        width: root.rightWidth
-                        height: Theme.controlHeight
-                        radius: Theme.radius
-                        color: catRow.current ? Theme.selectedSurface(Theme.accent) : "transparent"
-
-                        Line {
-                            anchors.left: parent.left
-                            anchors.leftMargin: Theme.cellW
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: (catRow.current ? "▸ " : "  ") + Plugins.label(catRow.modelData) + (Plugins.source(catRow.modelData) === "" ? "" : "  ·plugin")
-                            color: catRow.current ? Theme.selectedForeground(Theme.accent) : Theme.fgDim
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onEntered: {
-                                root.inCatalog = true;
-                                root.catalogIndex = catRow.index;
-                            }
-                            onClicked: root.addFromCatalog()
-                        }
+                    Line {
+                        width: parent.width - closeButton.width - parent.spacing
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Tab switches pane  ·  ↑↓ selects  ·  ←→ reorders  ·  Shift+←→ changes group  ·  Delete removes"
+                        color: Theme.muted
+                        elide: Text.ElideRight
                     }
+
+                    ActionButton {
+                        id: closeButton
+                        text: "Close"
+                        compact: true
+                        onTriggered: root.close()
                     }
                 }
-            }
-
-            Rectangle {
-                anchors.right: rightScroll.right
-                width: Theme.borderWidth * 2
-                height: rightScroll.contentHeight > rightScroll.height
-                    ? Math.max(Theme.cellH * 2, rightScroll.height * rightScroll.height / rightScroll.contentHeight)
-                    : 0
-                y: rightScroll.contentHeight > rightScroll.height
-                    ? rightScroll.y + rightScroll.contentY * (rightScroll.height - height) / Math.max(1, rightScroll.contentHeight - rightScroll.height)
-                    : rightScroll.y
-                visible: height > 0
-                color: Theme.muted
-                z: 10
-            }
-
-            // Was der gewaehlte Baustein ueberhaupt tut. In der Liste steht
-            // nur sein Name -- bei siebzehn Eintraegen ist das zu wenig.
-            Line {
-                anchors.bottom: hint.top
-                anchors.left: parent.left
-                anchors.margins: Theme.cellW
-                anchors.bottomMargin: Theme.cellH * 0.3
-                visible: root.inCatalog
-                text: Plugins.describe(root.catalog[root.catalogIndex] ?? "")
-                color: Theme.fgDim
-            }
-
-            Line {
-                id: hint
-
-                anchors.bottom: parent.bottom
-                anchors.left: parent.left
-                anchors.margins: Theme.cellW
-                text: "↑↓ select · ←→ move · Shift+←→ change group · x remove · Tab available · Enter add · Esc"
-                color: Theme.muted
             }
         }
     }

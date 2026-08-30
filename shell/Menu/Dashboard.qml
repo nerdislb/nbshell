@@ -7,7 +7,7 @@ import qs.Services
 import qs.Widgets
 import qs.Bar.Widgets
 
-// Die Uhr als Eingang in den Alltag: Termine, Wetter, Media und die Dinge,
+// Die Uhr als Eingang in den Alltag: Termine, Wetter und die Dinge,
 // die nicht dauerhaft Platz in der Bar brauchen. Angeregt vom Asked Dashboard
 // fuer Omarchy, aber vollstaendig auf nbshells vorhandenen Diensten aufgebaut.
 PanelWindow {
@@ -88,7 +88,7 @@ PanelWindow {
 
     onVisibleChanged: if (visible) {
         page = Runtime.dashboardPage;
-        Runtime.calendarOpen = page === 3;
+        Runtime.calendarOpen = page === 1;
         Calendar.ensure(new Date());
         AiUsage.refresh();
         refreshWeather();
@@ -98,7 +98,7 @@ PanelWindow {
     }
     onPageChanged: {
         Runtime.dashboardPage = page;
-        Runtime.calendarOpen = root.visible && page === 3;
+        Runtime.calendarOpen = root.visible && page === 1;
     }
 
     Connections {
@@ -137,8 +137,10 @@ PanelWindow {
         property string title: ""
         property string badge: ""
         property var run: null
+        property bool primary: false
         default property alias content: body.data
-        raised: true
+        raised: primary
+        border.color: primary ? Theme.panelBorder : "transparent"
 
         HoverHandler {
             enabled: parent.run !== null
@@ -185,19 +187,19 @@ PanelWindow {
                 root.close();
         }
         Keys.onPressed: event => {
-            if (event.key >= Qt.Key_1 && event.key <= Qt.Key_4) {
+            if (event.key >= Qt.Key_1 && event.key <= Qt.Key_3) {
                 root.page = event.key - Qt.Key_1;
                 event.accepted = true;
             }
         }
-        Rectangle { anchors.fill: parent; z: -1; color: Theme.scrim; opacity: box.opacity }
+        Rectangle { anchors.fill: parent; z: -1; color: Theme.scrim; opacity: box.opacity * 0.45 }
         MouseArea { anchors.fill: parent; onClicked: root.close() }
 
         OverlaySurface {
             id: box
-            preferredWidth: Theme.cellW * 104
-            preferredHeight: Theme.overlayHeightLarge
-            border.width: Math.max(Theme.borderWidth, 2)
+            dockedTop: true
+            preferredWidth: Theme.cellW * 112
+            preferredHeight: Theme.cellH * 38
             MouseArea { anchors.fill: parent; onClicked: {} }
 
             Column {
@@ -207,24 +209,24 @@ PanelWindow {
 
                 Item {
                     width: parent.width
-                    height: Theme.cellH * 3.5
+                    height: Theme.cellH * 2.6
                     Column {
                         anchors.left: parent.left
-                        Line { text: root.now.toLocaleString(Qt.locale(Config.value("locale", "en_US")), "dddd, dd. MMMM"); color: Theme.fgBright; font.pixelSize: Theme.fontHeading; font.bold: true }
+                        Line { text: root.now.toLocaleString(Qt.locale(Config.value("locale", "en_US")), "dddd, dd. MMMM"); color: Theme.fgBright; font.pixelSize: Theme.fontTitle; font.bold: true }
                         Line { text: "WEEK " + Calendar.isoWeek(root.now) + "  ·  " + Calendar.moonName(root.now); color: Theme.fgDim; font.pixelSize: Theme.fontCaption }
                     }
-                    Line { anchors.right: parent.right; anchors.top: parent.top; text: root.now.toLocaleTimeString(Qt.locale(), "HH:mm"); color: Theme.readable(Theme.accent, Theme.bg); font.pixelSize: Theme.fontDisplay; font.bold: true }
+                    Line { anchors.right: parent.right; anchors.top: parent.top; text: root.now.toLocaleTimeString(Qt.locale(), "HH:mm"); color: Theme.readable(Theme.accent, Theme.bg); font.pixelSize: Theme.fontHeading; font.bold: true }
                 }
 
                 Row {
                     width: parent.width
                     spacing: Theme.cellW
                     Repeater {
-                        model: ["TODAY", "MEDIA", "TOOLS", "CALENDAR"]
+                        model: ["OVERVIEW", "CALENDAR", "TOOLS"]
                         ControlButton {
                             required property var modelData
                             required property int index
-                            width: (parent.width - Theme.cellW * 3) / 4
+                            width: (parent.width - Theme.cellW * 2) / 3
                             height: Theme.cellH * 1.7
                             text: modelData
                             selected: root.page === index
@@ -253,8 +255,9 @@ PanelWindow {
                             Card {
                             width: parent.width; height: (parent.height - root.cardGap) / 2
                             title: "Upcoming events"
+                            primary: true
                             badge: Calendar.loading ? "…" : "OPEN  ·  " + String(root.nextEvents.length)
-                            run: () => root.page = 3
+                            run: () => root.page = 1
                             Line { visible: root.nextEvents.length === 0; text: Calendar.available ? "nothing in the next few days" : Calendar.problem; color: Theme.muted }
                             Repeater {
                                 model: root.nextEvents.slice(0, 5)
@@ -341,65 +344,6 @@ PanelWindow {
                     }
                 }
 
-                // ── MEDIA ──────────────────────────────────────────────
-                Item {
-                    visible: root.page === 1
-                    width: parent.width
-                    height: parent.height - Theme.cellH * 8.2
-
-                    Column {
-                        anchors.centerIn: parent
-                        anchors.verticalCenterOffset: -Theme.cellH * 1.5
-                        width: Math.min(parent.width - root.cardGap * 2, Theme.cellW * 76)
-                        spacing: root.cardGap
-
-                        Item {
-                            width: parent.width; height: Theme.cellH * 17
-                            PanelSurface {
-                                width: parent.height; height: parent.height; anchors.centerIn: parent
-                                accentBorder: false
-                                Image { anchors.fill: parent; anchors.margins: Theme.borderWidth; source: MediaService.player?.trackArtUrl ?? ""; fillMode: Image.PreserveAspectCrop; asynchronous: true }
-                                Line { anchors.centerIn: parent; visible: (MediaService.player?.trackArtUrl ?? "") === ""; text: Icons.play; color: Theme.muted; font.pixelSize: Theme.fontSize + 40 }
-                            }
-                        }
-
-                        PanelSurface {
-                            width: parent.width; height: Theme.cellH * 11.5
-                            accentBorder: false
-                            Column {
-                                anchors.fill: parent; anchors.margins: Theme.cellW * 1.5
-                                spacing: Theme.cellH * 0.35
-                                Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: MediaService.active ? (MediaService.title || "Unknown title") : "No active player"; color: Theme.fgBright; font.pixelSize: Theme.fontHeading; elide: Text.ElideRight }
-                                Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: MediaService.artist; color: Theme.fgDim; elide: Text.ElideRight }
-                                Line { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: MediaService.zeit(MediaService.position) + "  /  " + MediaService.zeit(MediaService.length); color: Theme.fgDim }
-                                LevelBar { width: parent.width; cells: 56; value: MediaService.length > 0 ? 100 * MediaService.position / MediaService.length : 0; fillColor: Theme.accent }
-                                Row {
-                                    width: parent.width
-                                    spacing: Theme.cellW * 2
-                                    Action { centered: true; width: (parent.width - Theme.cellW * 4) / 3; height: Theme.cellH * 2.8; label: "Previous"; glyph: Icons.cp(0xF04AE); detail: "previous track"; run: () => MediaService.previous() }
-                                    Action { centered: true; width: (parent.width - Theme.cellW * 4) / 3; height: Theme.cellH * 2.8; label: MediaService.playing ? "Pause" : "Play"; glyph: MediaService.playing ? Icons.pause : Icons.play; detail: MediaService.playing ? "pause playback" : "resume playback"; run: () => MediaService.playPause() }
-                                    Action { centered: true; width: (parent.width - Theme.cellW * 4) / 3; height: Theme.cellH * 2.8; label: "Next"; glyph: Icons.cp(0xF04AD); detail: "next track"; run: () => MediaService.next() }
-                                }
-                                Line { visible: MediaService.volumeSupported; width: parent.width; horizontalAlignment: Text.AlignHCenter; text: "PLAYER VOLUME  " + Math.round(MediaService.volume * 100) + " %"; color: Theme.fgDim }
-                                Item {
-                                    visible: MediaService.volumeSupported
-                                    width: parent.width
-                                    height: visible ? Theme.cellH : 0
-                                    LevelBar {
-                                        anchors.centerIn: parent
-                                        width: implicitWidth
-                                        cells: 56
-                                        value: MediaService.volume * 100
-                                        fillColor: Theme.cyan
-                                        interactive: true
-                                        onMoved: value => MediaService.setVolume(value / 100)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
                 // ── TOOLS ───────────────────────────────────────────
                 Item {
                     visible: root.page === 2
@@ -464,7 +408,7 @@ PanelWindow {
                 // colours and day markers instead of introducing a second
                 // calendar implementation just for this surface.
                 Item {
-                    visible: root.page === 3
+                    visible: root.page === 1
                     width: parent.width
                     height: parent.height - Theme.cellH * 8.2
 
@@ -491,7 +435,7 @@ PanelWindow {
                         anchors.centerIn: parent
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
-                        text: "Esc closes  ·  1–4 switch pages  ·  R marks a right-click action"
+                        text: "Esc closes  ·  1–3 switch pages  ·  R marks a right-click action"
                         color: Theme.muted
                     }
                 }

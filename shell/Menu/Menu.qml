@@ -208,7 +208,7 @@ PanelWindow {
         {
             "key": "m", "label": "Media & Capture", "description": "Media controls, screenshots, recording, OCR, and audio tools", "icon": Icons.camera,
             "sub": [
-                { "key": "m", "label": "Media", "icon": Icons.play, "run": () => { Runtime.dashboardPage = 1; Runtime.dashboardOpen = true; } },
+                { "key": "m", "label": "Media", "icon": Icons.play, "run": () => { Runtime.dashboardPage = 0; Runtime.dashboardOpen = true; } },
                 { "key": "c", "label": "Capture", "description": "Screenshots, recording, and trimming", "icon": Icons.camera, "sub": [
                     { "key": "r", "label": "Region", "icon": Icons.camera, "run": () => CaptureService.shoot("region") },
                     { "key": "b", "label": "Screen", "icon": Icons.cp(0xF0379), "run": () => CaptureService.shoot("screen") },

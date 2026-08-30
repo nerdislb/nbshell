@@ -4,6 +4,12 @@
 [include]
 files = ["nbshell-outputs.toml", "nbshell-cursor.toml", "nbshell-overview.toml", "nbshell-motion.toml"]
 
+[general]
+show_cheatsheet = false
+
+[layout]
+mode = "dwindle"
+
 [input.keyboard]
 layout = "de"
 numlock_toggle = true
@@ -46,8 +52,8 @@ action = "overview-open"
 "Mod+Equal" = "window-modify-width:0.1"
 "Mod+Minus" = "window-modify-width:-0.1"
 "Mod+BracketLeft" = "window-consume-left"
-"Mod+BracketRight" = "window-expel-right"
-"Mod+Period" = "window-expel-right"
+"Mod+BracketRight" = "window-consume-or-expel-right"
+"Mod+Period" = "window-consume-or-expel-right"
 "Alt+Tab" = "window-focus-next"
 "Mod+WheelUp" = "window-focus-left"
 "Mod+WheelDown" = "window-focus-right"
@@ -243,5 +249,12 @@ blur_popups = false
 
 [[layer_rule]]
 match.namespace = "^nbshell:settings$"
+blur = false
+blur_popups = false
+
+# Dashboard and Agents are bar extensions rather than modal dialogs. Keeping
+# the workspace sharp preserves spatial continuity with their bar entry points.
+[[layer_rule]]
+match.namespace = "^nbshell:(dashboard|agents)$"
 blur = false
 blur_popups = false

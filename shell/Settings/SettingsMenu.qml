@@ -536,6 +536,19 @@ Item {
         return String(v);
     }
 
+    function groupIcon(name) {
+        const icons = {
+            "BAR": Icons.cp(0xF0379),
+            "MODULES": Icons.matrix,
+            "APPEARANCE": Icons.palette,
+            "BEHAVIOR": Icons.cp(0xF0493),
+            "IDLE": Icons.coffee,
+            "LOCK SCREEN": Icons.cp(0xF033E),
+            "SERVICES": Icons.cp(0xF01E6)
+        };
+        return icons[name] || Icons.cp(0xF0493);
+    }
+
     // Blaettern: bei Listen zum naechsten Eintrag, bei Zahlen um die
     // Schrittweite -- und an den Enden bleibt es stehen, statt umzuspringen.
     function step(entry, direction) {
@@ -641,200 +654,169 @@ Item {
             id: box
 
             readonly property real rowHeight: Theme.rowHeight
-            // Omarchy-sized navigation and value columns: the settings view
-            // should read as a calm overview, not a narrow terminal table.
-            readonly property real leftWidth: Theme.cellW * 19
-            readonly property real rightWidth: Theme.cellW * 47
+            readonly property real leftWidth: Theme.cellW * 22
+            readonly property real rightWidth: Theme.cellW * 44
 
-            preferredWidth: box.leftWidth + box.rightWidth + Theme.cellW * 4
-            preferredHeight: header.implicitHeight + root.maxItems * box.rowHeight + footer.implicitHeight + Theme.cellH * 2.5
+            preferredWidth: box.leftWidth + box.rightWidth + Theme.spaceXl * 3
+            preferredHeight: Theme.spaceXl * 2
+                + Theme.cellH * 2.6
+                + Theme.spaceLg
+                + Theme.controlHeight
+                + root.maxItems * box.rowHeight
+                + Theme.spaceLg
+                + Theme.controlHeight
 
             MouseArea {
                 anchors.fill: parent
             }
 
-            Rectangle {
-                id: header
-
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.margins: Theme.cellH * 0.6
-                height: Theme.cellH * 3
-                implicitHeight: height
-                radius: Theme.radius
-                color: Theme.panelSurfaceRaised
-                border.width: Theme.borderWidth
-                border.color: Theme.panelBorder
-
-                Line {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.leftMargin: Theme.cellW
-                    anchors.rightMargin: Theme.cellW
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: (root.embedded ? "‹  MAIN MENU  ›  PERSONALIZE  ›  " : "") + "SETTINGS"
-                    color: root.embedded ? Theme.fg : Theme.fgDim
-                    font.pixelSize: Theme.fontTitle
-                    elide: Text.ElideRight
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    enabled: root.embedded
-                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                    onClicked: root.back()
-                }
-            }
-
-            // ── Links: die Gruppen ───────────────────────────────────────
             Column {
-                id: groupColumn
+                id: content
+                anchors.fill: parent
+                anchors.margins: Theme.spaceXl
+                spacing: Theme.spaceLg
 
-                anchors.left: parent.left
-                anchors.top: header.bottom
-                anchors.topMargin: Theme.cellH * 0.5
-                anchors.leftMargin: Theme.cellW * 0.5
-                width: box.leftWidth
-                spacing: 0
+                PanelHead {
+                    rowWidth: content.width
+                    icon: Icons.cp(0xF0493)
+                    title: "Settings"
+                    subtitle: root.embedded
+                        ? "Main menu  ›  Personalize  ·  changes apply immediately"
+                        : "Appearance, behavior and services  ·  changes apply immediately"
+                    badge: root.groups[root.group]?.head || ""
+                    badgeColor: Theme.accent
+                }
 
-                Repeater {
-                    model: root.groups
+                Row {
+                    width: content.width
+                    height: Theme.controlHeight + root.maxItems * box.rowHeight
+                    spacing: Theme.spaceXl
 
                     Rectangle {
-                        id: groupRow
-
-                        required property var modelData
-                        required property int index
-
-                        readonly property bool current: groupRow.index === root.group
-
-                        width: groupColumn.width
-                        height: box.rowHeight
+                        id: navigation
+                        width: box.leftWidth
+                        height: Theme.controlHeight + root.groups.length * box.rowHeight + Theme.spaceSm * 2
                         radius: Theme.radius
-                        // Nur die Seite, die die Tasten hat, bekommt die
-                        // volle Markierung -- sonst sehen beide gleich
-                        // ausgewaehlt aus und man weiss nicht, wo man tippt.
-                        color: groupRow.current && root.pane === 0 ? Theme.selectedSurface(Theme.accent) : "transparent"
+                        color: Theme.panelSurfaceRaised
+                        border.width: Theme.borderWidth
+                        border.color: root.pane === 0 ? Theme.focusBorder : Theme.panelBorder
 
-                        Line {
-                            anchors.left: parent.left
-                            anchors.leftMargin: Theme.cellW / 2
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: (groupRow.current ? "▸ " : "  ") + groupRow.modelData.head
-                            color: {
-                                if (groupRow.current && root.pane === 0)
-                                    return Theme.selectedForeground(Theme.accent);
-                                return groupRow.current ? Theme.readable(Theme.accent, Theme.bg) : Theme.fgDim;
-                            }
-                        }
-
-                        MouseArea {
+                        Column {
                             anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onEntered: {
-                                if (root.group !== groupRow.index) {
-                                    root.group = groupRow.index;
-                                    root.selected = 0;
+                            anchors.margins: Theme.spaceSm
+                            spacing: 0
+
+                            SectionHeader {
+                                width: parent.width
+                                text: "Categories"
+                                detail: (root.group + 1) + " / " + root.groups.length
+                            }
+
+                            Repeater {
+                                model: root.groups
+
+                                PanelRow {
+                                    id: groupRow
+                                    required property var modelData
+                                    required property int index
+
+                                    width: parent.width
+                                    height: box.rowHeight
+                                    title: groupRow.modelData.head
+                                    value: String(groupRow.modelData.items.length)
+                                    glyph: root.groupIcon(groupRow.modelData.head)
+                                    selected: groupRow.index === root.group
+                                    visualFocus: groupRow.selected && root.pane === 0
+                                    interactive: true
+                                    onTriggered: {
+                                        root.group = groupRow.index;
+                                        root.selected = 0;
+                                        root.pane = 1;
+                                    }
                                 }
                             }
-                            onClicked: {
-                                root.group = groupRow.index;
-                                root.selected = 0;
-                                root.pane = 1;
+                        }
+                    }
+
+                    Column {
+                        id: itemColumn
+                        width: box.rightWidth
+                        height: parent.height
+                        spacing: 0
+
+                        SectionHeader {
+                            width: parent.width
+                            text: root.groups[root.group]?.head || "Settings"
+                            detail: root.items.length + (root.items.length === 1 ? " option" : " options")
+                        }
+
+                        Repeater {
+                            model: root.items
+
+                            PanelRow {
+                                id: settingRow
+                                required property var modelData
+                                required property int index
+
+                                readonly property bool current: settingRow.index === root.selected
+
+                                width: itemColumn.width
+                                height: box.rowHeight
+                                title: settingRow.modelData.label
+                                detail: settingRow.modelData.action !== undefined ? "Open dedicated view" : ""
+                                value: (settingRow.current && root.pane === 1 ? "◂  " : "")
+                                    + root.shown(settingRow.modelData)
+                                    + (settingRow.current && root.pane === 1 ? "  ▸" : "")
+                                selected: settingRow.current && root.pane === 1
+                                visualFocus: settingRow.selected
+                                interactive: true
+                                onTriggered: {
+                                    root.selected = settingRow.index;
+                                    root.pane = 1;
+                                    root.step(settingRow.modelData, 1);
+                                }
+
+                                TapHandler {
+                                    acceptedButtons: Qt.RightButton
+                                    onTapped: {
+                                        root.selected = settingRow.index;
+                                        root.pane = 1;
+                                        root.step(settingRow.modelData, -1);
+                                    }
+                                }
+
+                                WheelHandler {
+                                    onWheel: wheelEvent => {
+                                        root.selected = settingRow.index;
+                                        root.pane = 1;
+                                        root.step(settingRow.modelData, wheelEvent.angleDelta.y > 0 ? 1 : -1);
+                                    }
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            // Die Trennlinie zwischen den Spalten -- ein Strich, kein Kasten.
-            Rectangle {
-                anchors.left: groupColumn.right
-                anchors.leftMargin: Theme.cellW
-                anchors.top: groupColumn.top
-                width: Theme.borderWidth
-                height: root.maxItems * box.rowHeight
-                color: Theme.muted
-            }
+                Row {
+                    width: content.width
+                    height: Theme.controlHeight
+                    spacing: Theme.spaceMd
 
-            // ── Rechts: die Zeilen der Gruppe ────────────────────────────
-            Column {
-                id: itemColumn
+                    Line {
+                        width: parent.width - closeButton.width - parent.spacing
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Tab switches pane  ·  ↑↓ selects  ·  ←→ changes  ·  right-click goes back"
+                        color: Theme.muted
+                        elide: Text.ElideRight
+                    }
 
-                anchors.left: groupColumn.right
-                anchors.leftMargin: Theme.cellW * 2
-                anchors.top: groupColumn.top
-                width: box.rightWidth
-                spacing: 0
-
-                Repeater {
-                    model: root.items
-
-                    Rectangle {
-                        id: row
-
-                        required property var modelData
-                        required property int index
-
-                        readonly property bool current: row.index === root.selected
-
-                        width: itemColumn.width
-                        height: box.rowHeight
-                        radius: Theme.radius
-                        color: row.current && root.pane === 1 ? Theme.selectedSurface(Theme.accent) : "transparent"
-
-                        Line {
-                            anchors.left: parent.left
-                            anchors.leftMargin: Theme.cellW / 2
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: (row.current ? "▸ " : "  ") + row.modelData.label
-                            color: row.current && root.pane === 1 ? Theme.selectedForeground(Theme.accent) : Theme.fg
-                        }
-
-                        Line {
-                            anchors.right: parent.right
-                            anchors.rightMargin: Theme.cellW / 2
-                            anchors.verticalCenter: parent.verticalCenter
-                            // Die Pfeile nur auf der Seite, die sie auch
-                            // annimmt: links kaeme ←→ nicht hier an.
-                            text: (row.current && root.pane === 1 ? "◂ " : "  ") + root.shown(row.modelData) + (row.current && root.pane === 1 ? " ▸" : "  ")
-                            color: row.current && root.pane === 1 ? Theme.selectedForeground(Theme.accent) : Theme.fgDim
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            acceptedButtons: Qt.LeftButton | Qt.RightButton
-                            onEntered: {
-                                root.selected = row.index;
-                                root.pane = 1;
-                            }
-                            onClicked: mouseEvent => root.step(row.modelData, mouseEvent.button === Qt.RightButton ? -1 : 1)
-                            onWheel: wheelEvent => root.step(row.modelData, wheelEvent.angleDelta.y > 0 ? 1 : -1)
-                        }
+                    ActionButton {
+                        id: closeButton
+                        text: root.embedded ? "Back" : "Close"
+                        compact: true
+                        onTriggered: root.back()
                     }
                 }
-            }
-
-            Line {
-                id: footer
-
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                anchors.margins: Theme.cellH * 0.6
-                anchors.leftMargin: Theme.cellW
-                // Muss in EINE Zeile passen: die Hoehe des Kastens rechnet mit
-                // `footer.implicitHeight`, ein Umbruch schoebe den Fusstext in
-                // die letzte Zeile der Liste.
-                text: root.embedded
-                    ? "Tab: page · ↑↓ select · ←→ change · Esc/← back"
-                    : "Tab: page · ↑↓ select · ←→ change · Esc closes"
-                color: Theme.muted
-                elide: Text.ElideRight
             }
         }
     }

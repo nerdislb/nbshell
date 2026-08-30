@@ -49,7 +49,7 @@ Scope {
             anchors.top: true
             anchors.bottom: true
 
-            mask: Region {}
+            mask: Region { item: wallpaperInput }
 
             // Deckt die Raender ab, solange ein Bild laedt oder keines da ist.
             Rectangle {
@@ -153,6 +153,26 @@ Scope {
                 function onStatusChanged() {
                     if (imageB.status === Image.Ready && win.showA && imageB.source != "")
                         win.showA = false;
+                }
+            }
+
+            // Empty desktop gestures stay available regardless of which
+            // optional modules are present in the bar. Windows and shell
+            // overlays remain above this background layer and keep priority.
+            Item {
+                id: wallpaperInput
+                anchors.fill: parent
+
+                TapHandler {
+                    acceptedButtons: Qt.LeftButton
+                    gesturePolicy: TapHandler.ReleaseWithinBounds
+                    onDoubleTapped: Runtime.wallpaperOpen = true
+                }
+
+                TapHandler {
+                    acceptedButtons: Qt.RightButton
+                    gesturePolicy: TapHandler.ReleaseWithinBounds
+                    onDoubleTapped: Runtime.themePickerOpen = true
                 }
             }
 

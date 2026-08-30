@@ -237,10 +237,7 @@ Scope {
             return ThemeIndex.list.map(t => (t.name === Config.theme ? " * " : "   ") + t.name).join("\n");
         }
 
-        // Die Insel klappt mit auf: sonst haengt der Waehler an einer Zelle,
-        // die gerade gar nicht zu sehen ist.
         function open(): string {
-            Runtime.revealIslandTemporarily();
             Runtime.themePickerOpen = true;
             return "open";
         }
