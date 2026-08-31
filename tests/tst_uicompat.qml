@@ -336,6 +336,13 @@ Item {
             verify(Style.pressedFillFor(Color.foreground, Color.accent).valid);
             compare(Style.normalBorderFor(Color.foreground, Color.accent), "#a0a0a0");
             compare(Style.hoverBorderFor(Color.foreground, Color.accent), "#80b8ff");
+            compare(Style.focusBorderFor(Color.foreground, Color.accent), "#80b8ff");
+            compare(Style.selectedBorderFor(Color.foreground, Color.accent), "transparent");
+            compare(Style.stateBorderWidth("selected"), 0);
+            compare(Style.stateBorderWidth("focus"), 1);
+            verify(dynamicMember(Style.spacing, "panelPadding") > 0);
+            verify(dynamicMember(Style.spacing, "searchableDropdownWidth") > dynamicMember(Style.spacing, "dropdownWidth"));
+            verify(dynamicMember(Style.font, "display") > dynamicMember(Style.font, "heading"));
             compare(Style.controlBorder(false, false, Color.foreground, Color.accent), "#707070");
             compare(Style.controlBorder(true, true, Color.foreground, Color.accent), "#80b8ff");
             compare(dynamicMember(Color.popups, "background"), "#101010");

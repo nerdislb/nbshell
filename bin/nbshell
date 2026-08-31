@@ -567,9 +567,13 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell habits sync       merge conflict copies and reload
 
   nbshell plugins           list modules (also: reload)
+  nbshell plugin new <id> [--kind bar-widget|panel|overlay|service]
+                            create a design-contract-clean plugin scaffold
   nbshell plugin add <url>  install a third-party plugin; only use trusted code
   nbshell plugin validate <directory>
                             validate plugin manifest and structure
+  nbshell plugin design-check <directory> [--strict]
+                            check shared UI, token, motion, and lifecycle rules
   nbshell plugin enable|disable <id>
                             enable or disable an installed plugin
   nbshell plugin diff <name>  review incoming commits and files
@@ -1079,7 +1083,7 @@ for b in d["binds"]:
         # deshalb direkt an das Skript -- es muss auch dann gehen, wenn die
         # Shell gerade nicht laeuft.
         case "${1:-list}" in
-            add|remove|rm|update|validate|enable|disable)
+            add|remove|rm|update|diff|validate|design-check|audit|new|enable|disable|dir)
                 "$PLUGIN_TOOL" "$@"
                 ;;
             *)

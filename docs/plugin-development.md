@@ -8,15 +8,29 @@ Creativity is welcome. The compatibility and safety rules below are not
 optional: plugin code runs unsandboxed with everything the current user can
 access.
 
-## Start from the example
+## Start from the scaffold
 
-Copy `plugins/beispiel` into a separate repository and give it a globally
-unique, namespaced id such as `io.github.alice.weather`.
+Create a plugin with the same generator used by the contract tests. Choose the
+runtime kind that owns the plugin's primary responsibility:
+
+```bash
+nbshell plugin new io.github.alice.weather --kind bar-widget
+nbshell plugin new io.github.alice.weather-panel --kind panel
+nbshell plugin new io.github.alice.weather-overlay --kind overlay
+nbshell plugin new io.github.alice.weather-service --kind service
+```
+
+The default output directory is the final segment of the plugin id in the
+current working directory. Use `--output`, `--name`, or `--author` to override
+the generated metadata. Each scaffold uses the public theme and component APIs,
+contains no private palette or motion constants, and passes strict design
+checks before it is written.
 
 Validate the directory before loading it:
 
 ```bash
 nbshell plugin validate /path/to/plugin
+nbshell plugin design-check /path/to/plugin --strict
 nbshell plugin add /path/to/plugin
 nbshell plugin enable io.github.alice.weather
 ```
@@ -101,14 +115,44 @@ an optional injected property as `required`.
 
 ## UI and resource rules
 
-- Use `qs.Common` and `qs.Widgets` components or the public nbshell
-  theme tokens. Do not hard-code a private color palette.
+- Read the repository-root `DESIGN.md`; it is the stable visual and interaction
+  contract for core shell surfaces and plugins.
+- Prefer the native `qs.Common` and `qs.Widgets` APIs. `qs.Commons` and `qs.Ui`
+  are supported compatibility APIs for portable Omarchy-style controls.
+- Use public Theme/Style tokens and the highest-level shared primitive that
+  matches the task. Do not hard-code a private color, spacing, typography, or
+  motion system, and do not rebuild standard controls from rectangles.
 - Keep visible strings and public documentation in English.
-- Support keyboard focus and Escape in panels and overlays.
+- Pointer hover and keyboard cursor must show the same state. Support visible
+  keyboard focus, accessible names, and Escape in panels and overlays.
+- Use shared motion tokens, honor Reduced Motion, and keep Wayland surface
+  geometry stable while animating content.
+- Check visible UI in `nbshell ui-gallery` and against dark/light themes, a
+  narrow geometry, long content, and relevant empty/loading/error states.
 - Avoid continuously repainted Canvas animations and aggressive polling.
 - A bar widget should be quiet while it has nothing useful to report.
 - Do not create a second notification server, tray host, or other exclusive
   desktop service.
+
+### Design check
+
+`nbshell plugin design-check .` reports design-contract findings without
+blocking development. Add `--strict` for CI and store candidates. It checks for
+hard-coded colors, fixed font/radius/spacing metrics, hard-coded animation
+durations, missing shared imports, and incomplete panel/overlay lifecycle or
+Escape behavior.
+
+Specialized visualizations may suppress one intentional literal on the same
+line:
+
+```qml
+color: "#ff00ff" // nbshell-design: allow-hardcoded-color
+duration: 175 // nbshell-design: allow-hardcoded-duration
+radius: 7 // nbshell-design: allow-fixed-metric
+```
+
+Suppressions are narrow exceptions, not permission to create a second design
+system inside a plugin.
 
 ## Testing
 
@@ -116,6 +160,7 @@ At minimum:
 
 ```bash
 nbshell plugin validate .
+nbshell plugin design-check . --strict
 bash -n scripts/*.sh
 python -m py_compile scripts/*.py
 ```

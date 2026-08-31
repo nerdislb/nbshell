@@ -20,6 +20,7 @@ QtObject {
     readonly property real spaceXl: 16
     readonly property real controlHeight: 28
     readonly property real rowHeight: 34
+    readonly property real panelPadding: 16
     readonly property real barIconCanvas: 18
     readonly property real barIconSlot: 20
     readonly property real barHeight: 28

@@ -27,6 +27,30 @@ PanelWindow {
         anchors.fill: parent
         focus: root.visible
         Keys.onEscapePressed: root.close()
+        Keys.priority: Keys.AfterItem
+        Keys.onPressed: event => {
+            const maximum = Math.max(0, viewport.contentHeight - viewport.height);
+            const step = Theme.rowHeight * 2;
+            if (event.key === Qt.Key_Down || event.key === Qt.Key_J) {
+                viewport.contentY = Math.min(maximum, viewport.contentY + step);
+                event.accepted = true;
+            } else if (event.key === Qt.Key_Up || event.key === Qt.Key_K) {
+                viewport.contentY = Math.max(0, viewport.contentY - step);
+                event.accepted = true;
+            } else if (event.key === Qt.Key_PageDown) {
+                viewport.contentY = Math.min(maximum, viewport.contentY + viewport.height * 0.8);
+                event.accepted = true;
+            } else if (event.key === Qt.Key_PageUp) {
+                viewport.contentY = Math.max(0, viewport.contentY - viewport.height * 0.8);
+                event.accepted = true;
+            } else if (event.key === Qt.Key_Home) {
+                viewport.contentY = 0;
+                event.accepted = true;
+            } else if (event.key === Qt.Key_End) {
+                viewport.contentY = maximum;
+                event.accepted = true;
+            }
+        }
 
         OverlaySurface {
             id: box
@@ -98,6 +122,29 @@ PanelWindow {
 
                     SectionHeader { width: parent.width; text: "Environment" }
                     Line { text: "THEME  " + (Theme.isLight ? "LIGHT" : "DARK") + "   MOTION  " + (Theme.reducedMotion ? "REDUCED" : "ENABLED") + "   SCALE  " + Theme.fontSize + " PX"; color: Theme.fg }
+
+                    SectionHeader { width: parent.width; text: "Plugin design contract"; detail: "native API · compatibility API · shared states" }
+                    PanelSurface {
+                        width: parent.width
+                        height: contractContent.implicitHeight + Theme.spaceLg * 2
+                        raised: true
+
+                        Column {
+                            id: contractContent
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.leftMargin: Theme.spaceLg
+                            anchors.rightMargin: Theme.spaceLg
+                            spacing: Theme.spaceSm
+
+                            Line { width: parent.width; text: "NATIVE  qs.Common + qs.Widgets"; color: Theme.fg }
+                            Line { width: parent.width; text: "COMPAT  qs.Commons + qs.Ui"; color: Theme.fgDim }
+                            Line { width: parent.width; text: "STATES  normal · hover-cursor · focus · selected · pressed · urgent"; color: Theme.fgDim }
+                            Line { width: parent.width; text: "MOTION  effects " + Theme.motionEffectsDefault + " ms · spatial " + Theme.motionSpatialDefault + " ms · exit " + Theme.motionExit + " ms"; color: Theme.fgDim }
+                            Line { width: parent.width; text: "SCAFFOLD  nbshell plugin new <id> --kind <kind>"; color: Theme.accent }
+                        }
+                    }
 
                     SectionHeader { width: parent.width; text: "Surface hierarchy" }
                     Row {

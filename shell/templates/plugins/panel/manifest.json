@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 2,
+  "id": "{{ID}}",
+  "name": "{{NAME}}",
+  "version": "0.1.0",
+  "author": "{{AUTHOR}}",
+  "license": "MIT",
+  "description": "A floating nbshell panel.",
+  "kinds": ["panel"],
+  "hosts": ["panel", "window"],
+  "entryPoints": {
+    "panel": "Panel.qml"
+  },
+  "activation": "on-demand",
+  "dependencies": {
+    "commands": [],
+    "packages": []
+  }
+}

@@ -431,6 +431,38 @@ for path, snippets in required_accessible_names.items():
         if snippet not in source:
             raise SystemExit(f"Missing explicit accessibility name in {path}: {snippet}")
 
+design_doc = (ROOT / "DESIGN.md").read_text(encoding="utf-8")
+agent_guide = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+plugin_docs = (ROOT / "docs/plugin-development.md").read_text(encoding="utf-8")
+for snippet in (
+    "qs.Common` and `qs.Widgets` are the native nbshell API",
+    "nbshell plugin new io.github.user.example --kind panel",
+    "nbshell plugin design-check . --strict",
+    "`nbshell ui-gallery` is the living reference",
+):
+    if snippet not in design_doc:
+        raise SystemExit(f"Stable design contract is incomplete: {snippet}")
+for snippet in ("Read the repository-root `DESIGN.md`", "Add a real component to `nbshell ui-gallery`"):
+    if snippet not in agent_guide:
+        raise SystemExit(f"Agent design guidance is incomplete: {snippet}")
+for snippet in ("## Start from the scaffold", "### Design check", "nbshell-design: allow-hardcoded-color"):
+    if snippet not in plugin_docs:
+        raise SystemExit(f"Plugin authoring guide is incomplete: {snippet}")
+
+ui_gallery = (ROOT / "shell/Settings/UiGallery.qml").read_text(encoding="utf-8")
+for snippet in (
+    'text: "Plugin design contract"',
+    'text: "NATIVE  qs.Common + qs.Widgets"',
+    'Theme.motionEffectsDefault',
+    'text: "SCAFFOLD  nbshell plugin new <id> --kind <kind>"',
+    "Keys.priority: Keys.AfterItem",
+    "event.key === Qt.Key_PageDown",
+    "event.key === Qt.Key_End",
+    "viewport.contentY = maximum",
+):
+    if snippet not in ui_gallery:
+        raise SystemExit(f"UI Gallery no longer exposes the plugin design contract: {snippet}")
+
 print(
     "Design-system adapter contracts: OK "
     f"({len(used_theme_members)} Theme members, {len(exported_ui_types)} Ui exports)"

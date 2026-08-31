@@ -22,6 +22,9 @@
 set -uo pipefail
 
 PLUGIN_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/nbshell/plugins"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEMPLATE_ROOT="$SCRIPT_DIR/../templates/plugins"
+DESIGN_CHECK="$SCRIPT_DIR/plugin-design-check.py"
 
 cmd_list() {
 	local first=1
@@ -185,6 +188,130 @@ PY
 
 valid_name() {
 	[[ "$1" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ && "$1" != *'..'* ]]
+}
+
+cmd_design_check() {
+	local directory="${1:?Plugin directory is required}"
+	shift
+	python3 "$DESIGN_CHECK" "$directory" "$@"
+}
+
+cmd_new() {
+	local id="${1:?Plugin ID is required}"
+	shift
+	valid_name "$id" || {
+		echo "Invalid plugin ID: $id" >&2
+		return 1
+	}
+	[[ "$id" != nbshell.* ]] || {
+		echo "Plugin ID uses the reserved nbshell.* namespace: $id" >&2
+		return 1
+	}
+
+	local kind="bar-widget" output="" name="" author=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+		--kind)
+			kind="${2:?--kind requires a value}"
+			shift 2
+			;;
+		--output)
+			output="${2:?--output requires a directory}"
+			shift 2
+			;;
+		--name)
+			name="${2:?--name requires a value}"
+			shift 2
+			;;
+		--author)
+			author="${2:?--author requires a value}"
+			shift 2
+			;;
+		*)
+			echo "Unknown plugin new option: $1" >&2
+			return 2
+			;;
+		esac
+	done
+	case "$kind" in
+	bar-widget | panel | overlay | service) ;;
+	*)
+		echo "Unsupported plugin kind: $kind" >&2
+		echo "Choose: bar-widget, panel, overlay, or service" >&2
+		return 2
+		;;
+	esac
+
+	local slug="${id##*.}"
+	[ -n "$output" ] || output="$PWD/$slug"
+	[ ! -e "$output" ] || {
+		echo "Output already exists: $output" >&2
+		return 1
+	}
+	if [ -z "$name" ]; then
+		name="$(python3 - "$slug" <<'PY'
+import re, sys
+print(" ".join(word.capitalize() for word in re.split(r"[-_]", sys.argv[1]) if word))
+PY
+)"
+	fi
+	[ -n "$author" ] || author="$(git config --get user.name 2>/dev/null || true)"
+	[ -n "$author" ] || author="Your name"
+
+	[ -d "$TEMPLATE_ROOT/$kind" ] || {
+		echo "Plugin template is missing: $TEMPLATE_ROOT/$kind" >&2
+		return 1
+	}
+	mkdir -p "$(dirname "$output")" || return 1
+	local stage
+	stage="$(mktemp -d "$(dirname "$output")/.nbshell-plugin-new.XXXXXX")" || return 1
+	trap 'rm -rf -- "$stage"; exit 130' INT TERM HUP
+	cp -a "$TEMPLATE_ROOT/$kind/." "$stage/" || {
+		rm -rf "$stage"
+		return 1
+	}
+	cp "$TEMPLATE_ROOT/README.md" "$stage/README.md" || {
+		rm -rf "$stage"
+		return 1
+	}
+	python3 - "$stage" "$id" "$name" "$author" "$slug" <<'PY'
+import json, pathlib, sys
+
+directory = pathlib.Path(sys.argv[1])
+raw_values = {
+    "{{ID}}": sys.argv[2],
+    "{{NAME}}": sys.argv[3],
+    "{{AUTHOR}}": sys.argv[4],
+    "{{SLUG}}": sys.argv[5],
+}
+for path in directory.rglob("*"):
+    if not path.is_file():
+        continue
+    text = path.read_text(encoding="utf-8")
+    string_literal = path.suffix in {".json", ".qml"}
+    for marker, value in raw_values.items():
+        replacement = json.dumps(value, ensure_ascii=False)[1:-1] if string_literal else value
+        text = text.replace(marker, replacement)
+    path.write_text(text, encoding="utf-8")
+PY
+
+	check_plugin "$stage" label >/dev/null || {
+		rm -rf "$stage"
+		return 1
+	}
+	cmd_design_check "$stage" --strict >/dev/null || {
+		echo "Generated plugin failed its design contract." >&2
+		cmd_design_check "$stage" --strict >&2 || true
+		rm -rf "$stage"
+		return 1
+	}
+	mv -T -- "$stage" "$output" || {
+		rm -rf "$stage"
+		return 1
+	}
+	trap - INT TERM HUP
+	printf '%s\n' "Created $name ($kind) at $output"
+	printf '%s\n' "Next: cd '$output' && nbshell plugin validate . && nbshell plugin design-check . --strict"
 }
 
 cmd_add() {
@@ -466,9 +593,17 @@ PY
 
 case "${1:-list}" in
 list) cmd_list ;;
+new)
+	shift
+	cmd_new "$@"
+	;;
 validate)
 	shift
 	check_plugin "${1:?Plugin-Verzeichnis fehlt}" label
+	;;
+design-check | audit)
+	shift
+	cmd_design_check "$@"
 	;;
 enable)
 	shift
@@ -498,7 +633,7 @@ diff)
 	cmd_diff "$@"
 	;;
 *)
-echo "Usage: $(basename "$0") list|dir|validate <directory>|add <source>|enable <id>|disable <id>|diff <name>|update [name]|remove <name>" >&2
+echo "Usage: $(basename "$0") list|dir|new <id> [--kind kind] [--output dir]|validate <directory>|design-check <directory> [--strict]|add <source>|enable <id>|disable <id>|diff <name>|update [name]|remove <name>" >&2
 	exit 2
 	;;
 esac
