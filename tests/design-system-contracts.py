@@ -259,6 +259,10 @@ for snippet in (
     "orientation: ListView.Horizontal",
     "snapMode: ListView.SnapOneItem",
     "highlightRangeMode: ListView.StrictlyEnforceRange",
+    "property string query:",
+    "model: root.filteredThemes",
+    "Accessible.name: \"Search themes\"",
+    "highlightMoveVelocity: -1",
     "ThemeIndex.apply(current.name)",
     "enabled: !Theme.reducedMotion",
 ):
