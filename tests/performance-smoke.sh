@@ -36,7 +36,15 @@ import pathlib, sys
 root = pathlib.Path(sys.argv[1])
 setup = (root / "shell/scripts/omawhatsapp.sh").read_text(encoding="utf-8")
 patch = (root / "integrations/omawhatsapp/nbshell-refresh.patch").read_text(encoding="utf-8")
+composer_patch = (root / "integrations/omawhatsapp/nbshell-composer-scroll.patch").read_text(encoding="utf-8")
 assert 'nbshell-refresh.patch' in setup
+assert 'nbshell-composer-scroll.patch' in setup
+assert "defer_shell_restart=1" in setup
+assert "Shell restart deferred until the next external restart or login." in setup
+assert composer_patch.count("+            ScrollView {") == 1
+assert composer_patch.count("+                ScrollView {") == 1
+assert composer_patch.count("ScrollBar.vertical.policy: ScrollBar.AsNeeded") == 2
+assert composer_patch.count("width: composerScroll.availableWidth") == 2
 removed_names = (
     "storeWatchProcess", "storeWatchers", "storeWatchRestart",
     "storeRefreshDebounce", "refreshFromStore", "storeRefreshPending",

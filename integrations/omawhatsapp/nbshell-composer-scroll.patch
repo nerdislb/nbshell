@@ -1,0 +1,116 @@
+--- a/App.qml
++++ b/App.qml
+@@ -2572,23 +2572,33 @@
+             border.width: composer.activeFocus ? 1 : 0
+             border.color: root.accent
+ 
+-            TextEdit {
+-              id: composer
++            ScrollView {
++              id: composerScroll
+               anchors.fill: parent
+               anchors.margins: Style.space(10)
+-              color: root.foreground
+-              selectionColor: root.accent
+-              selectedTextColor: root.background
+-              wrapMode: TextEdit.Wrap
+-              textFormat: TextEdit.PlainText
+-              font.family: root.fontFamily
+-              font.pixelSize: Style.font.body
+-              onActiveFocusChanged: if (activeFocus) keyboardNavigation.enterComposer()
+-              onTextChanged: root.updateMentionCompletion()
+-              onCursorPositionChanged: root.updateMentionCompletion()
+-              Keys.priority: Keys.BeforeItem
+-              Keys.onPressed: function(event) {
+-                if (root.mentionCompletionVisible
++              clip: true
++              ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
++              ScrollBar.vertical.policy: ScrollBar.AsNeeded
++
++              TextArea {
++                id: composer
++                width: composerScroll.availableWidth
++                padding: 0
++                background: null
++                color: root.foreground
++                selectionColor: root.accent
++                selectedTextColor: root.background
++                wrapMode: TextEdit.Wrap
++                textFormat: TextEdit.PlainText
++                selectByMouse: true
++                font.family: root.fontFamily
++                font.pixelSize: Style.font.body
++                onActiveFocusChanged: if (activeFocus) keyboardNavigation.enterComposer()
++                onTextChanged: root.updateMentionCompletion()
++                onCursorPositionChanged: root.updateMentionCompletion()
++                Keys.priority: Keys.BeforeItem
++                Keys.onPressed: function(event) {
++                  if (root.mentionCompletionVisible
+                     && (event.key === Qt.Key_Down || event.key === Qt.Key_Up)) {
+                   var delta = event.key === Qt.Key_Down ? 1 : -1
+                   root.mentionSelection = (root.mentionSelection + delta
+@@ -2620,6 +2630,7 @@
+                   event.accepted = true
+                 }
+               }
++              }
+             }
+ 
+             Text {
+--- a/Dropdown.qml
++++ b/Dropdown.qml
+@@ -1077,23 +1077,30 @@
+                   HoverHandler { id: clipboardHover }
+                   TapHandler { onTapped: root.pasteClipboard() }
+                 }
+-                TextArea {
+-                  id: composer
++                ScrollView {
++                  id: composerScroll
+                   width: parent.width - Style.space(123)
+-                  height: Math.max(Style.space(44), Math.min(implicitHeight, Style.space(96)))
+-                  placeholderText: root.offline ? "Offline archive is read-only" : "Message"
+-                  readOnly: root.offline || root.sending
+-                  color: root.foreground
+-                  placeholderTextColor: root.muted
+-                  selectionColor: root.accent
+-                  selectedTextColor: root.background
+-                  wrapMode: TextEdit.Wrap
+-                  selectByMouse: true
+-                  font.family: root.fontFamily
+-                  font.pixelSize: Style.font.body
+-                  background: null
+-                  Keys.onPressed: function(event) {
+-                    if ((event.modifiers & Qt.ControlModifier)
++                  height: Math.max(Style.space(44), Math.min(composer.implicitHeight, Style.space(96)))
++                  clip: true
++                  ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
++                  ScrollBar.vertical.policy: ScrollBar.AsNeeded
++
++                  TextArea {
++                    id: composer
++                    width: composerScroll.availableWidth
++                    placeholderText: root.offline ? "Offline archive is read-only" : "Message"
++                    readOnly: root.offline || root.sending
++                    color: root.foreground
++                    placeholderTextColor: root.muted
++                    selectionColor: root.accent
++                    selectedTextColor: root.background
++                    wrapMode: TextEdit.Wrap
++                    selectByMouse: true
++                    font.family: root.fontFamily
++                    font.pixelSize: Style.font.body
++                    background: null
++                    Keys.onPressed: function(event) {
++                      if ((event.modifiers & Qt.ControlModifier)
+                         && (event.modifiers & Qt.ShiftModifier)
+                         && event.key === Qt.Key_V) {
+                       root.toggleVoiceRecording()
+@@ -1117,6 +1124,7 @@
+                       event.accepted = true
+                     }
+                   }
++                  }
+                 }
+                 Rectangle {
+                   width: Style.space(34)

@@ -79,6 +79,7 @@ setup() (
     cp -a "$source/plugins/omawhatsapp/." "$staged_plugin/"
     patch -d "$staged_plugin" -p1 < "$runtime_shell/integrations/omawhatsapp/nbshell-responsive.patch"
     patch -d "$staged_plugin" -p1 < "$runtime_shell/integrations/omawhatsapp/nbshell-refresh.patch"
+    patch -d "$staged_plugin" -p1 < "$runtime_shell/integrations/omawhatsapp/nbshell-composer-scroll.patch"
     # Keep the upstream/internal identity stable while presenting this as a
     # normal nbshell WhatsApp client in every user-facing QML string.
     find "$staged_plugin" -type f -name '*.qml' -exec sed -i 's/OmaWhatsApp/WhatsApp/g' {} +
@@ -91,7 +92,13 @@ setup() (
     install -Dm644 "$runtime_shell/integrations/omawhatsapp/wacli-sync@.service" "$unit_dir/wacli-sync@.service"
     bash "$runtime_shell/scripts/plugins.sh" validate "$staged_plugin" >/dev/null
     install -d "$(dirname "$plugin_dir")"
-    systemctl --user stop nbshell.service
+    local defer_shell_restart=0
+    if systemctl --user is-active --quiet nbshell.service \
+            && grep -Fq '/nbshell.service' /proc/$$/cgroup 2>/dev/null; then
+        defer_shell_restart=1
+    else
+        systemctl --user stop nbshell.service
+    fi
     [ ! -e "$plugin_dir" ] || mv "$plugin_dir" "$old_plugin"
     mv "$staged_plugin" "$plugin_dir"
     switch_config omawhatsapp
@@ -122,8 +129,12 @@ setup() (
             systemctl --user restart "$unit"
         fi
     done
-    systemctl --user restart nbshell.service
-    echo "WhatsApp installed. Run: nbshell whatsapp auth"
+    if [ "$defer_shell_restart" -eq 1 ]; then
+        echo "WhatsApp installed. Shell restart deferred until the next external restart or login."
+    else
+        systemctl --user restart nbshell.service
+        echo "WhatsApp installed. Run: nbshell whatsapp auth"
+    fi
 )
 
 case "$command_name" in
