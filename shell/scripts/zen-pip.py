@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Controls Zen's native Picture-in-Picture window through the compositor."""
+"""Control Zen's native Picture-in-Picture window through Umbriel."""
 
 import json
 import os
@@ -9,50 +9,39 @@ from pathlib import Path
 
 STATE = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "nbshell/zen-pip.json"
 SIZES = (0.25, 0.38, 0.55)
-CORNERS = ("unten-rechts", "unten-links", "oben-links", "oben-rechts")
-MARGIN = 16
+SIZE_NAMES = ("small", "medium", "large")
 
 
-def backend():
-    desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
-    return "umbriel" if os.environ.get("UMBRIEL_SOCKET") or "umbriel" in desktop else "niri"
+def umbriel(*args):
+    return subprocess.run(["umbriel", *args], text=True, capture_output=True, check=True).stdout
 
 
-def niri(*args):
-    return subprocess.run(["niri", "msg", *args], text=True, capture_output=True, check=True).stdout
+def windows():
+    return json.loads(umbriel("windows", "--json"))
 
 
-def data(kind):
-    if backend() == "umbriel":
-        if kind != "windows":
-            raise RuntimeError(f"Umbriel does not expose {kind} through this helper")
-        result = subprocess.run(["umbriel", "windows", "--json"], text=True, capture_output=True, check=True)
-        return json.loads(result.stdout)
-    return json.loads(niri("--json", kind))
-
-
-def umbriel_action(action):
-    subprocess.run(["umbriel", "msg", action], check=True)
+def action(name):
+    subprocess.run(["umbriel", "msg", name], check=True)
 
 
 def pip_window():
-    for win in data("windows"):
+    for win in windows():
         title = (win.get("title") or "").lower()
         app_id = (win.get("app_id") or "").lower()
-        pip_titles = ("picture-in-picture", "bild-im-bild")
-        if (app_id.startswith("zen") or app_id == "firefox") and any(name in title for name in pip_titles):
+        if (app_id.startswith("zen") or app_id == "firefox") and any(
+            name in title for name in ("picture-in-picture", "bild-im-bild")
+        ):
             return win
     return None
 
 
 def load_state():
     try:
-        state = {**{"size": 0, "corner": 0}, **json.loads(STATE.read_text())}
+        state = {**{"size": 0}, **json.loads(STATE.read_text())}
         state["size"] = int(state["size"]) % len(SIZES)
-        state["corner"] = int(state["corner"]) % len(CORNERS)
         return state
-    except Exception:
-        return {"size": 0, "corner": 0}
+    except (OSError, TypeError, ValueError):
+        return {"size": 0}
 
 
 def save_state(state):
@@ -66,39 +55,10 @@ def status():
     print(json.dumps({
         "active": win is not None,
         "id": win.get("id") if win else None,
-        "floating": bool(win and (win.get("is_floating") or win.get("floating"))),
+        "floating": bool(win and win.get("floating")),
         "size": state["size"],
-        "sizeName": ("klein", "mittel", "gross")[state["size"]],
-        "corner": state["corner"],
-        "cornerName": CORNERS[state["corner"]],
+        "sizeName": SIZE_NAMES[state["size"]],
     }))
-
-
-def geometry(win, state):
-    if backend() == "umbriel":
-        raise RuntimeError("Exact PiP size and corner placement are not available on Umbriel yet; use the Niri fallback for these controls")
-    workspaces = {w["id"]: w for w in data("workspaces")}
-    workspace = workspaces.get(win["workspace_id"])
-    outputs = data("outputs")
-    output = outputs.get(workspace.get("output")) if workspace else None
-    if not output or not output.get("logical"):
-        raise RuntimeError("Could not find the output containing the PiP window")
-    area = output["logical"]
-    width = round(area["width"] * SIZES[state["size"]])
-    height = round(width * 9 / 16)
-    # move-floating-window erwartet Koordinaten relativ zum aktuellen Output.
-    positions = (
-        (area["width"] - width - MARGIN, area["height"] - height - MARGIN),
-        (MARGIN, area["height"] - height - MARGIN),
-        (MARGIN, MARGIN),
-        (area["width"] - width - MARGIN, MARGIN),
-    )
-    wid = str(win["id"])
-    niri("action", "move-window-to-floating", "--id", wid)
-    niri("action", "set-window-width", "--id", wid, str(width))
-    niri("action", "set-window-height", "--id", wid, str(height))
-    x, y = positions[state["corner"]]
-    niri("action", "move-floating-window", "--id", wid, "-x", str(x), "-y", str(y))
 
 
 def require_window():
@@ -108,40 +68,34 @@ def require_window():
     return win
 
 
+def apply(win, state):
+    action("window-focus:" + str(win["id"]))
+    if not win.get("floating"):
+        action("window-toggle-floating")
+    action("window-set-width:" + str(SIZES[state["size"]]))
+
+
 def main():
     command = sys.argv[1] if len(sys.argv) > 1 else "status"
     if command == "status":
         status()
         return
+
     state = load_state()
     win = require_window()
     if command == "size":
         state["size"] = (state["size"] + 1) % len(SIZES)
-    elif command == "corner":
-        state["corner"] = (state["corner"] + 1) % len(CORNERS)
+        save_state(state)
+        apply(win, state)
+        print(SIZE_NAMES[state["size"]])
     elif command == "apply":
-        if backend() == "umbriel":
-            if not win.get("floating"):
-                umbriel_action("window-focus:" + str(win["id"]))
-                umbriel_action("window-toggle-floating")
-            return
+        apply(win, state)
     elif command == "focus":
-        if backend() == "umbriel":
-            umbriel_action("window-focus:" + str(win["id"]))
-        else:
-            niri("action", "focus-window", "--id", str(win["id"]))
-        return
+        action("window-focus:" + str(win["id"]))
     elif command == "close":
-        if backend() == "umbriel":
-            umbriel_action("window-close:" + str(win["id"]))
-        else:
-            niri("action", "close-window", "--id", str(win["id"]))
-        return
+        action("window-close:" + str(win["id"]))
     else:
-        raise RuntimeError("Erwartet: status | apply | size | corner | focus | close")
-    save_state(state)
-    geometry(win, state)
-    print(("klein", "mittel", "gross")[state["size"]] + " · " + CORNERS[state["corner"]])
+        raise RuntimeError("Expected: status | apply | size | focus | close")
 
 
 if __name__ == "__main__":

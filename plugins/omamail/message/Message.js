@@ -462,6 +462,12 @@ function formatSize(bytes) {
   return (value / (1024 * 1024)).toFixed(value < 10485760 ? 1 : 0) + " MB"
 }
 
+function formatCount(count, singular) {
+  var amount = Math.max(0, Math.floor(Number(count) || 0))
+  var noun = String(singular || "item")
+  return amount + " " + noun + (amount === 1 ? "" : "s")
+}
+
 // ------------------------------------------------------ RFC 822 → payload
 //
 // Gmail hands back a message already taken apart: a headers array, a MIME
@@ -763,6 +769,8 @@ function summarize(message, now) {
     messageId: headerValue(message, "Message-ID"),
     to: parseAddressList(headerValue(message, "To")),
     cc: parseAddressList(headerValue(message, "Cc")),
+    bcc: parseAddressList(headerValue(message, "Bcc")),
+    inReplyTo: headerValue(message, "In-Reply-To"),
     subject: subject || "(no subject)",
     snippet: decodeSnippet(message && message.snippet),
     date: date,
@@ -776,6 +784,34 @@ function summarize(message, now) {
     isDraft: hasLabel(message, "DRAFT"),
     labelIds: labelIds(message).slice(),
     sizeEstimate: Math.max(0, Math.floor(Number(message && message.sizeEstimate) || 0))
+  }
+}
+
+function draftAddressText(addresses) {
+  var list = Array.isArray(addresses) ? addresses : []
+  var out = []
+  for (var i = 0; i < list.length; i++) {
+    var email = String(list[i] && list[i].email ? list[i].email : "").trim()
+    if (email !== "") out.push(email)
+  }
+  return out.join(", ")
+}
+
+// A full draft read has the same provider-neutral summary and body as any
+// message. Compose needs the addresses as editable text rather than row data.
+function draftFields(summary, body) {
+  var source = summary || ({})
+  var subject = String(source.subject || "")
+  return {
+    mode: "draft",
+    from: String(source.from && source.from.email ? source.from.email : ""),
+    to: draftAddressText(source.to),
+    cc: draftAddressText(source.cc),
+    bcc: draftAddressText(source.bcc),
+    subject: subject === "(no subject)" ? "" : subject,
+    body: String(body || ""),
+    threadId: String(source.threadId || ""),
+    inReplyTo: String(source.inReplyTo || "")
   }
 }
 
@@ -805,10 +841,22 @@ function encodedPhrase(text) {
 // Written by hand rather than through `foldHeader` for the reason above. The
 // address still loses its line breaks, so a display name cannot smuggle a
 // second header in either.
-function fromHeader(email, displayName) {
+// One address as a header *value*: `"Name" <a@b.com>`, or the bare address when
+// there is no name to put in front of it.
+//
+// Split out from `fromHeader` because a provider composing a message rather
+// than parsing one needs the value without a field name — HEY's client builds a
+// To line this way, and pasting `fromHeader`'s output into one produced
+// `To: From: "Name" <a@b.com>`, which `parseAddress` then read as a display
+// name of `From: "Name"`.
+function addressHeader(email, displayName) {
   var address = headerSafe(email).trim()
   var phrase = encodedPhrase(displayName)
-  return "From: " + (phrase === "" ? address : phrase + " <" + address + ">")
+  return phrase === "" ? address : phrase + " <" + address + ">"
+}
+
+function fromHeader(email, displayName) {
+  return "From: " + addressHeader(email, displayName)
 }
 
 function foldHeader(name, value) {
@@ -855,6 +903,24 @@ function base64Body(text) {
   return wrapped.join("\r\n")
 }
 
+// Provider attachment bodies are base64url. MIME uses standard base64, but
+// changing alphabets does not require decoding the binary file through a text
+// string. Doing that would corrupt every byte sequence that is not UTF-8.
+function mimeBase64(data) {
+  var encoded = String(data || "").replace(/[\r\n\s]/g, "")
+    .replace(/-/g, "+").replace(/_/g, "/")
+  while (encoded.length % 4 !== 0) encoded += "="
+  var wrapped = []
+  for (var i = 0; i < encoded.length; i += 76) wrapped.push(encoded.substr(i, 76))
+  return wrapped.join("\r\n")
+}
+
+function attachmentType(value) {
+  var type = String(value || "").split(";")[0].trim().toLowerCase()
+  return /^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+$/.test(type)
+    ? type : "application/octet-stream"
+}
+
 // The separator only has to be a string the parts do not contain, and every
 // part here is base64 — an alphabet with no "_" in it, so a boundary carrying
 // one cannot occur inside a body however long it is. The caller may name it,
@@ -879,6 +945,7 @@ function buildRawMessage(fields) {
   if (values.from) lines.push(fromHeader(values.from, values.fromName))
   lines.push(foldHeader("To", values.to || ""))
   if (values.cc) lines.push(foldHeader("Cc", values.cc))
+  if (values.bcc) lines.push(foldHeader("Bcc", values.bcc))
   lines.push(foldHeader("Subject", values.subject || ""))
   var inReplyTo = referenceValue(values.inReplyTo)
   if (inReplyTo) {
@@ -889,11 +956,42 @@ function buildRawMessage(fields) {
 
   var calendar = values.calendar && String(values.calendar.text || "") !== ""
     ? values.calendar : null
-  if (!calendar) {
+  var attachments = Array.isArray(values.attachments) ? values.attachments : []
+  var included = []
+  for (var attachmentIndex = 0; attachmentIndex < attachments.length; attachmentIndex++) {
+    var attachment = attachments[attachmentIndex] || ({})
+    if (attachment.data === undefined || attachment.data === null) continue
+    included.push(attachment)
+  }
+  if (!calendar && included.length === 0) {
     lines.push("Content-Type: text/plain; charset=UTF-8")
     lines.push("Content-Transfer-Encoding: base64")
     lines.push("")
     return lines.join("\r\n") + "\r\n" + base64Body(values.body) + "\r\n"
+  }
+
+  if (included.length > 0) {
+    var mixedBoundary = mimeBoundary(values.boundary)
+    lines.push("Content-Type: multipart/mixed; boundary=\"" + mixedBoundary + "\"")
+    lines.push("")
+    lines.push("--" + mixedBoundary)
+    lines.push("Content-Type: text/plain; charset=UTF-8")
+    lines.push("Content-Transfer-Encoding: base64")
+    lines.push("")
+    lines.push(base64Body(values.body))
+    for (var includedIndex = 0; includedIndex < included.length; includedIndex++) {
+      var file = included[includedIndex]
+      var filename = String(file.filename || "attachment")
+      lines.push("--" + mixedBoundary)
+      lines.push("Content-Type: " + attachmentType(file.mimeType)
+        + "; name=" + encodedPhrase(filename))
+      lines.push("Content-Transfer-Encoding: base64")
+      lines.push("Content-Disposition: attachment; filename=" + encodedPhrase(filename))
+      lines.push("")
+      lines.push(mimeBase64(file.data))
+    }
+    lines.push("--" + mixedBoundary + "--")
+    return lines.join("\r\n") + "\r\n"
   }
 
   // `multipart/alternative`, not `mixed`: the calendar part and the sentence
@@ -921,5 +1019,12 @@ function buildRawMessage(fields) {
 function buildSendPayload(fields) {
   var payload = { raw: encodeBase64Url(buildRawMessage(fields)) }
   if (fields && fields.threadId) payload.threadId = String(fields.threadId)
+  var files = Array.isArray(fields && fields.attachments) ? fields.attachments : []
+  var paths = []
+  for (var i = 0; i < files.length; i++) {
+    if (files[i] && files[i].path)
+      paths.push({ path: String(files[i].path), filename: String(files[i].filename || "") })
+  }
+  if (paths.length > 0) payload.attachments = paths
   return payload
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install or preview the nbshell greetd frontend.
+# Install or preview the Umbriel-hosted nbshell Orbital greetd frontend.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,26 +11,26 @@ else
 fi
 QML_SOURCE="${NBSHELL_GREETER_QML_SOURCE:-$ROOT/greeter/qml}"
 TEST_ROOT="${NBSHELL_GREETER_TEST_ROOT:-}"
-if [[ -n $TEST_ROOT ]]; then
-    if [[ $TEST_ROOT != /* ]]; then
-        printf '%s\n' "NBSHELL_GREETER_TEST_ROOT must be an absolute path." >&2
-        exit 1
-    fi
-    TARGET="$TEST_ROOT/etc/greetd"
-    PAM_TARGET="$TEST_ROOT/etc/pam.d"
-    DATA="$TEST_ROOT/usr/local/share/nbshell"
-else
-    TARGET=/etc/greetd
-    PAM_TARGET=/etc/pam.d
-    DATA=/usr/local/share/nbshell
+if [[ -n $TEST_ROOT && $TEST_ROOT != /* ]]; then
+    printf '%s\n' "NBSHELL_GREETER_TEST_ROOT must be an absolute path." >&2
+    exit 1
 fi
+
+prefix="${TEST_ROOT:-}"
+TARGET="$prefix/etc/greetd"
+PAM_TARGET="$prefix/etc/pam.d"
+DATA="$prefix/usr/local/share/nbshell"
+LIBEXEC="$prefix/usr/local/libexec"
+SYSTEM_BIN="$prefix/usr/local/bin"
 QML_TARGET="$DATA/greeter"
 CONFIG="$TARGET/config.toml"
 BACKUP="$TARGET/config.toml.before-nbshell-greeter"
+RECOVERY="$TARGET/config.toml.nbshell-recovery"
+GREETER_CONFIG="$TARGET/nbshell-greeter.toml"
+GREETER_LAUNCHER="$LIBEXEC/nbshell-greeter-session"
 WALLPAPER="${NBSHELL_GREETER_WALLPAPER:-}"
 MODE="${1:-install}"
-REQUESTED_FRONTEND="${2:-}"
-AUTOLOGIN_ARG="${3:-}"
+AUTOLOGIN_ARG="${2:-}"
 AUTOLOGIN=0
 ROOT_HELPER="${NBSHELL_GREETER_ROOT_HELPER:-sudo}"
 [[ $ROOT_HELPER == sudo || $ROOT_HELPER == pkexec ]] \
@@ -39,11 +39,6 @@ ROOT_HELPER="${NBSHELL_GREETER_ROOT_HELPER:-sudo}"
 fail() { printf '\033[31m%s\033[0m\n' "$*" >&2; exit 1; }
 ok() { printf '\033[32m%s\033[0m\n' "$*"; }
 warn() { printf '\033[33m%s\033[0m\n' "$*" >&2; }
-if [[ $AUTOLOGIN_ARG == --autologin ]]; then
-    AUTOLOGIN=1
-elif [[ -n $AUTOLOGIN_ARG ]]; then
-    fail "Usage: ./setup-greeter.sh install [orbital|regreet] [--autologin]"
-fi
 as_root() {
     if [[ -n $TEST_ROOT ]]; then
         "$@"
@@ -54,68 +49,55 @@ as_root() {
     fi
 }
 
-[ "$(id -u)" != 0 ] || fail "Run this tool as your normal user, not root."
+[[ $(id -u) != 0 ]] || fail "Run this tool as your normal user, not root."
 command -v pacman >/dev/null || fail "The automatic greeter setup currently targets Arch Linux."
-command -v niri >/dev/null || fail "Niri is required for the isolated greetd frontend session."
 case "$MODE" in
     install|sync|preview|status) ;;
-    activate)
-        [[ $REQUESTED_FRONTEND == orbital || $REQUESTED_FRONTEND == regreet ]] \
-            || fail "Usage: ./setup-greeter.sh activate orbital|regreet"
-        ;;
-    *) fail "Usage: ./setup-greeter.sh [install [orbital|regreet] [--autologin]|sync|preview|status|activate orbital|regreet]" ;;
+    *) fail "Usage: ./setup-greeter.sh [install [--autologin]|sync|preview|status]" ;;
 esac
-if [[ $MODE == install && -n $REQUESTED_FRONTEND && $REQUESTED_FRONTEND != orbital && $REQUESTED_FRONTEND != regreet ]]; then
-    fail "Usage: ./setup-greeter.sh install [orbital|regreet]"
+if [[ $AUTOLOGIN_ARG == --autologin ]]; then
+    AUTOLOGIN=1
+elif [[ -n $AUTOLOGIN_ARG ]]; then
+    fail "Usage: ./setup-greeter.sh install [--autologin]"
 fi
-if [[ $AUTOLOGIN == 1 && $MODE != install ]]; then
-    fail "--autologin is valid only with install."
-fi
-
-active_frontend() {
-    if [[ -r $TARGET/nbshell-greeter.kdl ]] && grep -Fq '/usr/bin/quickshell -p /usr/local/share/nbshell/greeter' "$TARGET/nbshell-greeter.kdl"; then
-        printf 'orbital\n'
-    else
-        printf 'regreet\n'
-    fi
-}
+[[ $AUTOLOGIN == 0 || $MODE == install ]] || fail "--autologin is valid only with install."
 
 if [[ $MODE == status ]]; then
-    printf 'Frontend  %s\n' "$(active_frontend)"
-    printf 'greetd    %s\n' "$(systemctl is-active greetd 2>/dev/null || true)"
-    printf 'Config    %s\n' "$CONFIG"
+    printf 'Frontend  orbital\n'
+    printf 'Compositor Umbriel\n'
+    printf 'greetd     %s\n' "$(systemctl is-active greetd 2>/dev/null || true)"
+    printf 'Config     %s\n' "$CONFIG"
+    printf 'Recovery   %s\n' "$RECOVERY"
     if [[ -r $QML_TARGET/shell.qml && -r $QML_TARGET/config.json ]]; then
-        printf 'Orbital   installed (%s)\n' "$QML_TARGET"
+        printf 'Orbital    installed (%s)\n' "$QML_TARGET"
     else
-        printf 'Orbital   not installed (%s)\n' "$QML_TARGET"
+        printf 'Orbital    not installed (%s)\n' "$QML_TARGET"
     fi
-    if grep -Fq '[initial_session]' "$CONFIG" 2>/dev/null; then
-        printf 'Boot       autologin (greeter appears after logout)\n'
-    else
-        printf 'Boot       greeter\n'
-    fi
+    grep -Fq '[initial_session]' "$CONFIG" 2>/dev/null \
+        && printf 'Boot       autologin (greeter appears after logout)\n' \
+        || printf 'Boot       greeter\n'
     exit 0
 fi
 
-case "$MODE" in
-    install) FRONTEND="${REQUESTED_FRONTEND:-orbital}" ;;
-    activate) FRONTEND="$REQUESTED_FRONTEND" ;;
-    sync) FRONTEND="$(active_frontend)" ;;
-    preview) FRONTEND=orbital ;;
-esac
-
 [[ -f $THEME_RENDERER ]] || fail "The installed nbshell greeter renderer is missing."
-if [[ $FRONTEND == orbital ]]; then
-    [[ -f $QML_SOURCE/shell.qml ]] || fail "The Orbital QML frontend is missing. Run install.sh first."
-    command -v quickshell >/dev/null || fail "Quickshell was not installed."
+[[ -f $QML_SOURCE/shell.qml ]] || fail "The Orbital QML frontend is missing. Run install.sh first."
+command -v quickshell >/dev/null || fail "Quickshell was not installed."
+command -v umbriel >/dev/null || fail "Umbriel is required to validate the greeter profile."
+if [[ -z $TEST_ROOT ]]; then
+    [[ -x /usr/local/bin/umbriel && -x /usr/local/bin/start-umbriel ]] \
+        || fail "Install the root-owned Umbriel build first with ./setup-umbriel.sh."
 fi
 
 stage="$(mktemp -d "${TMPDIR:-/tmp}/nbshell-greeter.XXXXXX")"
 trap 'rm -rf -- "$stage"' EXIT
-generated_wallpaper="$(python3 "$THEME_RENDERER" "$stage" --user "$USER" --frontend "$FRONTEND")"
-[ -n "$WALLPAPER" ] || WALLPAPER="$generated_wallpaper"
-[ -f "$WALLPAPER" ] || fail "No readable wallpaper found. Set NBSHELL_GREETER_WALLPAPER to an image file."
-niri validate -c "$stage/niri.kdl"
+renderer_env=(env)
+if [[ -n $TEST_ROOT ]]; then
+    renderer_env+=(NBSHELL_UMBRIEL_LAUNCHER="$SYSTEM_BIN/start-umbriel")
+fi
+generated_wallpaper="$("${renderer_env[@]}" python3 "$THEME_RENDERER" "$stage" --user "$USER" --frontend orbital)"
+[[ -n $WALLPAPER ]] || WALLPAPER="$generated_wallpaper"
+[[ -f $WALLPAPER ]] || fail "No readable wallpaper found. Set NBSHELL_GREETER_WALLPAPER to an image file."
+umbriel validate -c "$stage/umbriel.toml"
 
 if [[ $MODE == preview ]]; then
     python3 - "$stage/config.json" "$WALLPAPER" <<'PY'
@@ -131,31 +113,22 @@ PY
         quickshell -p "$QML_SOURCE"
 fi
 
-if [[ $MODE == install ]]; then
-    if [[ -z $TEST_ROOT ]]; then
-        packages=(greetd-regreet)
-        [[ $FRONTEND != orbital ]] || packages+=(quickshell)
-        as_root pacman -S --needed "${packages[@]}"
-    fi
+if [[ $MODE == install && -z $TEST_ROOT ]]; then
+    as_root pacman -S --needed greetd quickshell
 fi
-command -v regreet >/dev/null || fail "ReGreet is required as the recovery frontend."
 
-as_root install -d -m 755 "$TARGET" "$PAM_TARGET" "$DATA"
+as_root install -d -m 755 "$TARGET" "$PAM_TARGET" "$DATA" "$LIBEXEC" "$QML_TARGET"
 if [[ -f $CONFIG && ! -f $BACKUP ]]; then
     as_root install -m 644 "$CONFIG" "$BACKUP"
 fi
-as_root install -m 644 "$ROOT/greeter/regreet.toml" "$TARGET/regreet.toml"
 as_root install -m 644 "$ROOT/greeter/nbshell-greetd.pam" "$PAM_TARGET/nbshell-greetd"
-as_root install -m 644 "$stage/regreet.css" "$TARGET/regreet.css"
-as_root install -m 644 "$stage/fingerprint.svg" "$DATA/fingerprint.svg"
-if [[ $FRONTEND == orbital ]]; then
-    as_root install -d -m 755 "$QML_TARGET"
-    as_root install -m 644 "$stage/config.json" "$QML_TARGET/config.json"
-    as_root install -m 644 \
-        "$QML_SOURCE/shell.qml" "$QML_SOURCE/GreeterView.qml" \
-        "$QML_SOURCE/OrbitalClock.qml" "$QML_SOURCE/ClockMath.js" \
-        "$QML_SOURCE/qmldir" "$QML_TARGET/"
-fi
+as_root install -m 755 "$ROOT/greeter/nbshell-greeter-session" "$GREETER_LAUNCHER"
+as_root install -m 644 "$stage/umbriel.toml" "$GREETER_CONFIG"
+as_root install -m 644 "$stage/config.json" "$QML_TARGET/config.json"
+as_root install -m 644 \
+    "$QML_SOURCE/shell.qml" "$QML_SOURCE/GreeterView.qml" \
+    "$QML_SOURCE/OrbitalClock.qml" "$QML_SOURCE/ClockMath.js" \
+    "$QML_SOURCE/qmldir" "$QML_TARGET/"
 
 case "${WALLPAPER##*.}" in
     jpg|JPG|jpeg|JPEG)
@@ -169,6 +142,17 @@ case "${WALLPAPER##*.}" in
         ;;
 esac
 
+recovery_config="$stage/recovery.toml"
+cat >"$recovery_config" <<'EOF'
+[terminal]
+vt = 1
+
+[default_session]
+user = "greeter"
+command = "/usr/bin/agreety --cmd /bin/sh"
+EOF
+as_root install -m 644 "$recovery_config" "$RECOVERY"
+
 if [[ $MODE == install ]]; then
     temporary_config="$stage/config.toml"
     {
@@ -181,15 +165,13 @@ if [[ $MODE == install ]]; then
             '' \
             '[default_session]' \
             'user = "greeter"' \
-            'command = "dbus-run-session niri --config /etc/greetd/nbshell-greeter.kdl"'
+            'command = "/usr/local/libexec/nbshell-greeter-session orbital"'
         if [[ $AUTOLOGIN == 1 ]]; then
-            [[ -x $HOME/.local/bin/start-umbriel ]] \
-                || fail "--autologin requires $HOME/.local/bin/start-umbriel."
             printf '%s\n' \
                 '' \
                 '[initial_session]' \
                 "user = \"$USER\"" \
-                "command = \"$HOME/.local/bin/start-umbriel\""
+                'command = "/usr/local/bin/start-umbriel"'
         fi
     } >"$temporary_config"
 fi
@@ -197,20 +179,20 @@ fi
 if [[ -z $TEST_ROOT ]]; then
     as_root systemd-tmpfiles --create
 fi
-as_root test -x /usr/bin/regreet
+as_root test -x "$SYSTEM_BIN/umbriel"
+as_root test -x "$SYSTEM_BIN/start-umbriel"
+as_root test -x "$GREETER_LAUNCHER"
 as_root test -r "$PAM_TARGET/nbshell-greetd"
-as_root test -r "$TARGET/regreet.toml"
-as_root test -r "$TARGET/regreet.css"
+as_root test -r "$GREETER_CONFIG"
+as_root test -r "$RECOVERY"
 as_root test -r "$DATA/greeter-wallpaper.jpg"
-if [[ $FRONTEND == orbital ]]; then
-    as_root test -x /usr/bin/quickshell
-    as_root test -r "$QML_TARGET/config.json"
-    as_root test -r "$QML_TARGET/shell.qml"
-fi
+as_root test -x "$prefix/usr/bin/quickshell"
+as_root test -x "$prefix/usr/bin/agreety"
+as_root test -r "$QML_TARGET/config.json"
+as_root test -r "$QML_TARGET/shell.qml"
 
-# Commit the frontend switch only after every dependency has been installed and
-# verified. A failed copy above therefore leaves the previous bootable frontend.
-as_root install -m 644 "$stage/niri.kdl" "$TARGET/nbshell-greeter.kdl"
+# Commit the boot selector only after compositor, frontend, PAM, wallpaper and
+# independent agreety recovery payloads have all been verified.
 if [[ $MODE == install ]]; then
     as_root install -m 644 "$temporary_config" "$CONFIG"
     if [[ -n $TEST_ROOT ]]; then
@@ -224,21 +206,18 @@ if [[ $MODE == install ]]; then
     fi
 fi
 
+# Retired frontend files are removed only after the new path is complete.
+as_root rm -f "$TARGET/nbshell-greeter.kdl" "$TARGET/regreet.toml" "$TARGET/regreet.css"
+
 case "$MODE" in
     sync)
-        ok "The $FRONTEND greeter now matches the current nbshell theme and wallpaper."
-        ;;
-    activate)
-        ok "The $FRONTEND frontend is staged for the next greetd start."
-        printf '%s\n' "Reboot to activate it; the current graphical session was not interrupted."
+        ok "The Orbital greeter now matches the current nbshell theme and wallpaper."
         ;;
     install)
-        ok "nbshell $FRONTEND greeter installed."
+        ok "The Umbriel-hosted nbshell Orbital greeter is staged."
         printf '%s\n' \
-            "It becomes active after a reboot; greetd cannot reload its running configuration." \
-            "The current session was not interrupted." \
-            "Recovery frontend: ./setup-greeter.sh activate regreet" \
-            "Recovery backup: $BACKUP" \
-            "TTY recovery: Ctrl+Alt+F2, then copy the backup back to $CONFIG."
+            "It becomes active after a reboot; greetd and the current session were not restarted." \
+            "Independent recovery: copy $RECOVERY to $CONFIG from a TTY." \
+            "Historical backup: $BACKUP"
         ;;
 esac

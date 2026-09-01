@@ -1,29 +1,18 @@
 import QtQuick
-import QtQuick.Effects
+
 import Quickshell
 import Quickshell.Wayland
 import qs.Common
 import qs.Services
 
-// Hintergrundbild, ein Fenster je Bildschirm -- und daneben eine zweite,
-// weichgezeichnete Flaeche fuer niris Uebersicht.
+// Wallpaper surface, one window per output. Umbriel owns overview styling.
 //
 // Das Bild haengt am Theme: jedes Omarchy-Theme bringt seine mit, und
 // scripts/themes.sh sucht sie an den drei bekannten Stellen (siehe README).
 // Wechselt das Theme, wechselt das Bild -- ueberblendet, nicht geschnitten.
 //
-// Standardmaessig AUS. Wer DMS daneben laufen laesst, haette sonst zwei
-// Hintergruende auf derselben Ebene. Einschalten mit `nbshell wallpaper on`.
-//
-// **Die Unschaerfe in der Uebersicht kann niri nicht selbst.** Es zeigt dort
-// nur, was auf einer Hintergrundflaeche liegt, die als
-//
-//     layer-rule { match namespace="nbshell:wallpaper-blur"
-//                  place-within-backdrop true }
-//
-// markiert ist (steht in nbshell-takeover.kdl). Deshalb dieselbe Loesung wie in
-// DMS: eine fertig verwischte Kopie bereithalten. Sie liegt hinter der scharfen
-// und ist im Alltag nie zu sehen -- erst die Uebersicht holt sie hervor.
+// Enabled by default; the user can still disable it with `nbshell wallpaper off`.
+
 Scope {
     id: root
 
@@ -183,59 +172,4 @@ Scope {
         }
     }
 
-    // ── Die verwischte Kopie fuer die Uebersicht ──────────────────────────
-
-    Variants {
-        // Niri needs a dedicated blurred backdrop layer. Umbriel has native
-        // overview styling, exported by ThemeExport instead.
-        model: (Config.wallpaperEnabled && Config.wallpaperBlur && !Compositor.isUmbriel) ? Quickshell.screens : []
-
-        delegate: PanelWindow {
-            id: blurWin
-
-            required property var modelData
-
-            readonly property string source: Config.value("wallpaperOverride", "") || (ThemeIndex.current?.wallpaper ?? "")
-
-            screen: modelData
-            color: Theme.bg
-
-            WlrLayershell.namespace: "nbshell:wallpaper-blur"
-            WlrLayershell.layer: WlrLayershell.Background
-            exclusionMode: ExclusionMode.Ignore
-
-            anchors.left: true
-            anchors.right: true
-            anchors.top: true
-            anchors.bottom: true
-
-            mask: Region {}
-
-            Image {
-                id: blurSource
-
-                anchors.fill: parent
-                source: blurWin.source ? "file://" + blurWin.source : ""
-                fillMode: Image.PreserveAspectCrop
-                asynchronous: true
-                cache: false
-                sourceSize.width: Math.max(1, Math.ceil(blurWin.width * blurWin.screen.devicePixelRatio))
-                sourceSize.height: Math.max(1, Math.ceil(blurWin.height * blurWin.screen.devicePixelRatio))
-                // Nur die Vorlage fuer den Effekt -- selbst gezeichnet wird sie
-                // nicht.
-                visible: false
-            }
-
-            MultiEffect {
-                anchors.fill: parent
-                source: blurSource
-                blurEnabled: true
-                blur: 1.0
-                blurMax: Config.wallpaperBlurAmount
-                // Ohne das waechst die Flaeche um den Weichzeichnerrand und
-                // sitzt nicht mehr passgenau auf dem Bildschirm.
-                autoPaddingEnabled: false
-            }
-        }
-    }
 }

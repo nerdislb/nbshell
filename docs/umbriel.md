@@ -1,152 +1,111 @@
 # Umbriel compositor
 
-nbshell uses [Umbriel](https://github.com/noctalia-dev/umbriel) as its
-recommended daily compositor. Umbriel replaces the compositor, not Quickshell
-or the nbshell interface; Niri remains installed as a recovery fallback.
+nbshell uses [Umbriel](https://github.com/noctalia-dev/umbriel) as its supported
+Wayland compositor. Umbriel owns window management, workspaces, output
+configuration, Xwayland, compositor motion, and the screenshot/screencast
+portal; Quickshell provides the nbshell interface.
 
-Umbriel describes its configuration and behavior as actively evolving. That is
-why nbshell keeps its Niri backend, configuration, and greeter entry working
-instead of treating the main-compositor decision as irreversible.
+## Installation model
 
-## Current milestone
+`./setup.sh` builds the reviewed Umbriel and portal revisions, runs both Meson
+test suites, and installs the root-owned stack below `/usr/local`. The system
+session entry is `/usr/share/wayland-sessions/umbriel.desktop` and launches
+`/usr/local/bin/start-umbriel`.
 
-The shell now detects `UMBRIEL_SOCKET` and exposes one compositor-neutral
-service to its UI. The first Umbriel adapter supports:
+The currently reviewed pair is recorded in `setup-umbriel.sh` and
+`shell/Catalog/external-sources.json`. `nbshell upstream-audit` reports newer
+upstream commits for review but never imports or installs them automatically.
 
-- live window, focus, and keyboard-layout events through Umbriel JSON IPC;
-- complete workspace display (including empty workspaces) and switching through
-  the standard `ext-workspace-v1` protocol;
-- notification window activation and logout;
-- shell key bindings and the main floating-window rules;
-- provider-neutral WhatsApp launch and focus through `Mod+Shift+M`;
-- native scrolling/dwindle switching through `Mod+Backspace`;
-- live multi-display mode, scale, transform, placement, and enable controls;
-- screenshots and screen sharing through xdg-desktop-portal-umbriel;
-- native idle DPMS and focused-output selection for screen recordings;
-- top-left hot corner, `Mod+Tab`, and four-finger swipe for Umbriel's overview;
-- theme-synchronized Umbriel colors, borders, and corner radius.
-
-Umbriel's native dwindle layout is used as the compositor equivalent of the
-nbshell grid toggle. Exact runtime resizing and corner cycling of an already
-open PiP window remains Niri-only because Umbriel currently exposes no floating
-window geometry action; the opening rule still makes PiP floating and places it
-in the lower-right corner.
-
-The primary keyboard vocabulary matches the Niri profile: `Mod+F` maximizes,
-`Mod+Shift+F` toggles fullscreen, `Mod+Shift+V` toggles floating, `Mod+Tab`
-opens the overview, and `Mod+O` pins the shell island. Launcher, theme, bar,
-audio, workspace, output, width, wheel-navigation, DPMS, and session bindings
-use their established Niri chords where Umbriel provides an equivalent action.
-
-## Motion ownership
-
-Umbriel owns normal application-window motion. The installed profile uses a
-short asymmetric sequence: a 180 ms pop-in for opening, a 120 ms fade for
-closing, a 220 ms `snappy` move/resize transition, and separate workspace,
-overview, and focus-border timings. This gives entry enough time to orient the
-eye while keeping dismissal immediate.
-
-nbshell owns motion inside its Quickshell surfaces. Bar popouts, menus, and
-overlays animate their inner opacity, scale, and offset inside stable Wayland
-geometry, keep lazy content mounted until exit completes, and then unload it.
-Umbriel layer-shell fades are deliberately disabled to prevent a second
-compositor animation from stacking on the QML transition. The Reduced motion
-profile snaps both finite transitions and recurring shell attention effects.
-
-## Install the complete stack
-
-On Arch Linux, the normal setup installs build dependencies, builds Umbriel and
-its portal from their official repositories, installs them below `~/.local`,
-adds the login-session entry, deploys nbshell, and retains Niri:
-
-```bash
-./setup.sh
-```
-
-Use `./setup-umbriel.sh` to add Umbriel to an existing files-only/Niri setup,
-or `./setup.sh --niri-only` to deliberately skip the recommended compositor.
-
-The script refuses to overwrite a source checkout with local changes. It adds
-only the Umbriel session entry to `/usr/share/wayland-sessions`; it does not
-remove or modify the Niri entry.
-
-## Updates
-
-Dashboard → Tools → **Desktop updates** checks the installed Umbriel and portal
-commits against the official noctalia-dev repositories. An update is offered
-only when both source trees are clean and still point to the expected origins.
-The updater fast-forwards, builds, runs each project's Meson tests, and installs
-to `~/.local`; it never restarts the compositor underneath the current session.
-Log out and back in when the update finishes.
-
-The equivalent terminal commands are:
-
-```bash
-nbshell update                 # check nbshell, Umbriel, and the portal
-nbshell update umbriel         # update only the compositor stack
-nbshell update all             # install every available desktop update
-```
-
-These two projects are source builds, not AUR-managed packages. Distribution
-and AUR packages remain under the separate **System updates** action.
-
-## Safe nested test
-
-After installing the stack, run:
+A files-only installation expects Umbriel to exist already:
 
 ```bash
 ./install.sh
+nbshell switch on
+```
+
+## Configuration
+
+nbshell writes only its own files below `~/.config/umbriel`:
+
+- `nbshell.toml` — key bindings and window/layer rules;
+- `nbshell-colors.toml` — active semantic palette;
+- `nbshell-motion.toml` — motion profile;
+- `nbshell-overview.toml` — overview backdrop;
+- `nbshell-cursor.toml` — cursor theme and size;
+- `nbshell-outputs.toml` — persistent output state.
+
+The personal `config.toml` includes the nbshell files; unrelated user settings
+are not rewritten. Validate after any manual change:
+
+```bash
+umbriel validate
+umbriel msg config-reload
+```
+
+## Window and workspace workflow
+
+Umbriel provides scrolling, dwindle, and master layouts. `Mod+Backspace` or
+`nbshell layout toggle` cycles the focused workspace; choose one directly with:
+
+```bash
+nbshell layout scrolling
+nbshell layout dwindle
+nbshell layout master
+```
+
+The default vocabulary uses `Mod+F` for maximize, `Mod+Shift+F` for fullscreen,
+`Mod+Shift+V` for floating, `Mod+Tab` for overview, and `Mod+O` for the shell
+island. `Mod+K` opens the searchable view of the active Umbriel bindings.
+
+## Outputs and capture
+
+The display panel reads live output state through `wlr-randr`, applies changes
+through Umbriel-compatible output management, and persists accepted values in
+`nbshell-outputs.toml`. Mode changes are transactional: rejected DRM modes
+restore the prior live and saved state.
+
+nbshell uses `grim`, `slurp`, and `wf-recorder` for explicit capture actions.
+Umbriel's portal serves application-driven screenshots and screencasts. The
+window selector uses Umbriel's window geometry instead of compositor-specific
+screen scraping.
+
+## PiP
+
+Zen Picture-in-Picture windows open floating in the lower-right corner through
+an Umbriel window rule. The PIP module and `Mod+Alt+P` cycle the floating window
+width with Umbriel IPC. Umbriel does not currently expose arbitrary corner
+movement for an already open floating window; move it directly with the normal
+floating-window pointer controls.
+
+## Login and recovery
+
+The Orbital greetd frontend runs in an isolated root-owned Umbriel instance.
+Only `/usr/local/bin/start-umbriel` is allowed as a graphical login session.
+An independent agreety configuration is staged at
+`/etc/greetd/config.toml.nbshell-recovery`; it does not depend on Umbriel,
+Quickshell, the wallpaper, or Orbital QML.
+
+The native in-session locker remains a separate `WlSessionLock` process in
+`nbshell-lock.service`. Suspend waits for compositor-confirmed secure coverage.
+TTY recovery remains available when the graphical session cannot start.
+
+## Updating
+
+```bash
+nbshell update
+nbshell update umbriel
+```
+
+The updater accepts only clean checkouts with expected origins, checks out the
+reviewed revision pair, builds and tests both projects, then installs both. The
+running compositor is not restarted; the new binary becomes active at the next
+login.
+
+Use the nested profile for a non-DRM development smoke test:
+
+```bash
 nbshell compositor nested
 ```
 
-The command starts Umbriel inside the current desktop and runs a copied
-Quickshell configuration inside it. The copied path gives the nested shell a
-separate instance identity, so it cannot replace the normal nbshell process.
-Umbriel uses `Alt` as `Mod` in this nested profile. Close the experiment with
-`Alt+Escape`.
-
-The command does not modify the active Niri configuration.
-
-## Native Umbriel session
-
-The installer places the integration files in `~/.config/umbriel/`:
-
-- `nbshell-colors.toml` — generated from the active nbshell theme;
-- `nbshell.toml` — shell bindings and window/layer rules;
-- `nbshell-nested.toml` — isolated development profile.
-- `nbshell-outputs.toml` — display settings managed by the shell.
-- `nbshell-cursor.toml` — live cursor theme and size from Settings.
-- `nbshell-overview.toml` — theme-aware native overview backdrop styling.
-
-The Settings entries for cursor theme and size update Umbriel and GTK live.
-Niri keeps its own generated cursor include for fallback sessions. The
-Niri-specific **Blur overview** setting is presented as **Overview backdrop**
-on Umbriel and controls the native overview tint and workspace-card background;
-Umbriel does not need nbshell's additional blurred wallpaper layer.
-
-Umbriel supervises its own Xwayland Satellite process. The setup installs a
-systemd condition that keeps Arch's separately enabled
-`xwayland-satellite.service` available for Niri without starting a duplicate
-inside Umbriel sessions.
-
-If no Umbriel configuration exists, nbshell creates this minimal entry point:
-
-```toml
-[include]
-files = ["nbshell-colors.toml", "nbshell.toml"]
-```
-
-Log out and choose **Umbriel** in the greeter for normal use. The session
-starts the normal `graphical-session.target`, so the enabled nbshell service and
-portal start with the compositor. Choose **Niri** in the greeter to return to
-the established session. Nested validation covers rendering, IPC, outputs,
-workspaces, Xwayland startup, and portal screenshots; a native session is still
-required to validate DRM, suspend, locking, and the complete streaming workflow
-on each new hardware configuration. Choose **Niri** if an Umbriel update blocks
-login or a compositor-specific workflow.
-
-When suspend is started through nbshell, the lock helper records Umbriel's
-assigned windows before the outputs disappear. After resume it reattaches only
-windows that lost that prior workspace and restores the previous focus. This
-works around an early Umbriel output-recreation edge case without changing
-scratchpad windows or otherwise healthy workspace state.
+A real login is still required to validate DRM, suspend/resume, locking,
+multi-monitor behavior, and streaming on each hardware configuration.

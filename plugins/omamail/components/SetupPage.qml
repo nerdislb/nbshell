@@ -1,6 +1,7 @@
 import QtQuick
 import qs.Commons
 import qs.Ui
+import "../providers/Registry.js" as Provider
 
 // Connecting a mailbox, as two steps instead of a wall of instructions.
 //
@@ -17,6 +18,7 @@ Column {
   required property color textColor
   required property color dimColor
   required property color dangerColor
+  required property color accentColor
   required property string panelFontFamily
   property bool canLeave: false
   property int accountCount: 1
@@ -45,7 +47,7 @@ Column {
   // actually using rather than going blank after a save.
   function syncFromStore() {
     if (!auth) return
-    clientIdField.text = auth.clientId
+    clientIdField.text = String(auth.clientId || "")
     clientSecretField.text = auth.credentials ? String(auth.credentials.clientSecret || "") : ""
   }
 
@@ -84,47 +86,17 @@ Column {
 
   // ------------------------------------------------------------------ hero
 
-  Item {
+  ProviderHero {
     width: parent.width
-    implicitHeight: Math.max(heroIcon.height, heroText.implicitHeight)
-
-    GmailIcon {
-      id: heroIcon
-      anchors.left: parent.left
-      anchors.top: parent.top
-      anchors.topMargin: Style.space(2)
-      iconSize: Style.font.displayLarge
-      color: root.textColor
-    }
-
-    Column {
-      id: heroText
-      anchors.left: heroIcon.right
-      anchors.leftMargin: Style.space(14)
-      anchors.right: parent.right
-      anchors.top: parent.top
-      spacing: Style.space(4)
-
-      Text {
-        width: parent.width
-        text: root.addingMailbox ? "Add a mailbox" : "Connect your mailbox"
-        color: root.textColor
-        font.family: root.panelFontFamily
-        font.pixelSize: Style.font.heading
-        font.bold: true
-      }
-
-      Text {
-        width: parent.width
-        text: root.addingMailbox
-          ? "Signing in with the OAuth client you already set up. Pick the Google account you want to add."
-          : "Google issues Gmail API access per project, so this app signs in with an OAuth client you own. About two minutes, once."
-        color: root.dimColor
-        font.family: root.panelFontFamily
-        font.pixelSize: Style.font.bodySmall
-        wrapMode: Text.WordWrap
-      }
-    }
+    providerId: "gmail"
+    // The brand is in the heading because the heading is half the link, and
+    // "Connect your mailbox" named no service at all.
+    title: root.addingMailbox ? "Add a Gmail mailbox" : "Connect your Gmail mailbox"
+    detail: "Google issues Gmail API access per project, so this app signs in with an OAuth client you own. About two minutes, once."
+    textColor: root.textColor
+    dimColor: root.dimColor
+    panelFontFamily: root.panelFontFamily
+    onWebsiteRequested: if (root.service) root.service.openProviderWebsite("gmail")
   }
 
   // Missing dependencies come first: neither step below can finish without
@@ -134,9 +106,9 @@ Column {
     visible: root.toolsMissing
     implicitHeight: missingText.implicitHeight + Style.space(20)
     radius: Style.cornerRadius
-    color: Style.normalFillFor(root.textColor, Color.accent)
+    color: Style.normalFillFor(root.textColor, root.accentColor)
     border.width: 1
-    border.color: Style.hoverBorderFor(root.textColor, Color.accent)
+    border.color: Style.hoverBorderFor(root.textColor, root.accentColor)
 
     Text {
       id: missingText
@@ -199,12 +171,12 @@ Column {
 
       TextField {
         id: clientIdField
+        accessibleName: "Google OAuth client ID"
         width: parent.width
         foreground: root.textColor
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.bodySmall
         placeholderText: "Client ID — 000000-xxxx.apps.googleusercontent.com"
-        accessibleName: "Google OAuth client ID"
         onAccepted: clientSecretField.forceActiveFocus()
       }
 
@@ -214,6 +186,7 @@ Column {
 
         TextField {
           id: clientSecretField
+          accessibleName: "Google OAuth client secret"
           anchors.left: parent.left
           anchors.right: parent.right
           // Masked by default, because a credential on a shoulder-surfable
@@ -225,7 +198,6 @@ Column {
           font.family: root.panelFontFamily
           font.pixelSize: Style.font.bodySmall
           placeholderText: "Client secret — optional"
-          accessibleName: "Google OAuth client secret"
           onAccepted: root.save()
         }
 
@@ -355,7 +327,7 @@ Column {
     visible: !!root.auth && root.auth.lastError !== ""
     textFormat: Text.PlainText
     text: root.auth ? root.auth.lastError : ""
-    color: Color.urgent
+    color: root.dangerColor
     font.family: root.panelFontFamily
     font.pixelSize: Style.font.caption
     wrapMode: Text.WordWrap
@@ -424,7 +396,7 @@ Column {
         anchors.top: parent.top
         visible: !step.done
         text: step.number
-        color: step.active ? Color.accent : root.dimColor
+        color: step.active ? root.accentColor : root.dimColor
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.bodySmall
         font.bold: step.active
@@ -436,7 +408,7 @@ Column {
         visible: step.done
         name: "check"
         iconSize: Style.font.bodySmall
-        color: Color.accent
+        color: root.accentColor
       }
     }
 

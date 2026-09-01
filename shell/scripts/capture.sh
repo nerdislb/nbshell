@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
-# Helfer fuer das DMS-Widget "Screen Capture".
+# Capture helper for nbshell.
 #
-# Die Aufnahme selbst macht das Widget: es schickt niri per IPC eine
-# Screenshot-Aktion mit einem festen Pfad. Alles, was danach kommt --
+# The shell requests capture through the Umbriel-compatible helper with a fixed
+# output path. Everything after capture --
 # warten, benachrichtigen, Editor oeffnen, OCR, Bildschirmaufnahme --
 # steht hier, weil es Shell-Arbeit ist und sich so auch auf eine Taste
 # legen laesst.
@@ -29,7 +29,7 @@ APP="Screen Capture"
 have() { command -v "$1" >/dev/null 2>&1; }
 
 note() {
-	# -a setzt den App-Namen, damit DMS die Meldungen gruppiert.
+	# -a sets the stable application name used for notification grouping.
 	notify-send -a "$APP" "$@" >/dev/null 2>&1
 }
 
@@ -103,7 +103,7 @@ open_editor() {
 	esac
 }
 
-# niris Auswahl darf dauern (der Nutzer sucht sich das Fenster in Ruhe aus),
+# Die Umbriel-Auswahl darf dauern (der Nutzer sucht sich das Fenster in Ruhe aus),
 # deshalb bis zu zwei Minuten. Wer abbricht, hinterlaesst gar keine Datei --
 # dann endet das Skript ohne Meldung.
 wait_for_file() {
@@ -142,8 +142,8 @@ cmd_ocr() {
 	need tesseract "tesseract tesseract-data-deu tesseract-data-eng"
 	wait_for_file "$file" || exit 0
 
-	# niri legt das Bild selbst in die Zwischenablage. Kurz warten, sonst
-	# ueberschreibt es hinterher den Text, den wir gleich hineinlegen.
+	# Wait for the compositor capture path to release the clipboard before OCR
+	# replaces it with text.
 	sleep 0.4
 
 	local text
@@ -252,15 +252,11 @@ cmd_rec_start() {
 		# Ohne -o nimmt wf-recorder irgendeinen Ausgang; wir wollen den,
 		# auf dem der Nutzer gerade arbeitet.
 		local out
-		if [[ -n ${UMBRIEL_SOCKET:-} || ${XDG_CURRENT_DESKTOP,,} == *umbriel* ]]; then
-			out=$(umbriel windows --json 2>/dev/null |
-				jq -r '[.[] | select(.focused == true)][0].workspace // empty | split(":")[:-1] | join(":")' 2>/dev/null)
-			if [[ -z $out ]]; then
-				out=$(wlr-randr --json 2>/dev/null |
-					jq -r '[.[] | select(.enabled == true)][0].name // empty' 2>/dev/null)
-			fi
-		else
-			out=$(niri msg -j focused-output 2>/dev/null | jq -r '.name // empty' 2>/dev/null)
+		out=$(umbriel workspaces --json 2>/dev/null |
+			jq -r '[.[] | select(.focused == true)][0].output // empty' 2>/dev/null)
+		if [[ -z $out ]]; then
+			out=$(wlr-randr --json 2>/dev/null |
+				jq -r '[.[] | select(.enabled == true)][0].name // empty' 2>/dev/null)
 		fi
 		[[ -n $out ]] && args+=(-o "$out")
 	fi

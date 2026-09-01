@@ -2,15 +2,39 @@
   "schemaVersion": 2,
   "id": "omamail",
   "name": "Mail",
-  "version": "0.2.0",
+  "version": "0.6.0",
   "author": "Jason Lee <huacnlee@gmail.com>",
   "license": "MIT",
   "repository": "https://github.com/huacnlee/omamail",
   "dependencies": {
-    "commands": ["curl", "secret-tool", "socat", "openssl", "xdg-open"],
-    "packages": ["curl", "libsecret", "socat", "openssl", "xdg-utils"]
+    "commands": [
+      "curl",
+      "secret-tool",
+      "socat",
+      "openssl",
+      "xdg-open",
+      "python3",
+      "file",
+      "wl-paste",
+      "zenity",
+      "xclip",
+      "notify-send"
+    ],
+    "packages": [
+      "curl",
+      "libsecret",
+      "socat",
+      "openssl",
+      "xdg-utils",
+      "python",
+      "file",
+      "wl-clipboard",
+      "zenity",
+      "xclip",
+      "libnotify"
+    ]
   },
-  "description": "Read, triage, and reply to Gmail and IMAP mail in a native nbshell window.",
+  "description": "Read, triage, compose, and manage Gmail, HEY, IMAP, SMTP, attachments, drafts, and calendars in a native nbshell window.",
   "kinds": [
     "service",
     "bar-widget",
@@ -24,24 +48,30 @@
   },
   "barWidget": {
     "displayName": "Mail",
-    "description": "Unread mail count in the bar; Gmail and IMAP mailboxes open in a native window.",
+    "description": "Unread mail and quick preview for Gmail, HEY, and IMAP accounts.",
     "category": "Communication",
-      "aliases": [
+    "aliases": [
       "mail",
       "email",
       "gmail",
+      "hey",
       "imap",
-      "inbox"
+      "inbox",
+      "e-mail",
+      "mailbox",
+      "smtp"
     ],
     "allowMultiple": false,
     "defaultSection": "right",
     "defaults": {
       "refreshIntervalSec": 120,
       "maxMessages": 25,
+      "heavyMessageRendering": "Show plain text first",
       "defaultQuery": "in:inbox",
       "notifyNewMail": "On",
       "oauthPort": 9481,
-      "openOnClick": "Window"
+      "undoSendSeconds": 10,
+      "contactSuggestions": "Off"
     },
     "schema": [
       {
@@ -64,11 +94,22 @@
         "defaultValue": 25
       },
       {
+        "key": "heavyMessageRendering",
+        "type": "enum",
+        "label": "Heavy message rendering",
+        "options": [
+          "Show plain text first",
+          "Always render"
+        ],
+        "defaultValue": "Show plain text first",
+        "description": "Choose whether potentially expensive rich text falls back to plain text with a Show anyway action."
+      },
+      {
         "key": "defaultQuery",
         "type": "string",
         "label": "Default search",
         "defaultValue": "in:inbox",
-        "description": "Gmail accounts accept Gmail search operators; IMAP accounts accept IMAP SEARCH criteria."
+        "description": "Applies to the inbox only, and to Gmail and IMAP accounts. Gmail takes any Gmail search operator, for example `in:inbox -category:promotions`; IMAP takes IMAP SEARCH criteria. HEY accounts always open their Imbox."
       },
       {
         "key": "notifyNewMail",
@@ -82,6 +123,17 @@
         "description": "Sends a desktop notification when a new unread message arrives in the inbox."
       },
       {
+        "key": "contactSuggestions",
+        "type": "enum",
+        "label": "Local contact suggestions",
+        "options": [
+          "Off",
+          "On"
+        ],
+        "defaultValue": "Off",
+        "description": "When enabled, Mail reads addresses from local Thunderbird and Betterbird profile databases without modifying them."
+      },
+      {
         "key": "oauthPort",
         "type": "integer",
         "label": "Sign-in callback port",
@@ -89,18 +141,17 @@
         "max": 65535,
         "step": 1,
         "defaultValue": 9481,
-        "description": "Loopback port used once during Google sign-in. IMAP accounts do not use it."
+        "description": "Loopback port used once during Google sign-in. HEY and IMAP accounts never use it. Change it only if something else already listens there."
       },
       {
-        "key": "openOnClick",
-        "type": "enum",
-        "label": "Clicking the bar icon opens",
-        "options": [
-          "Window",
-          "Quick preview"
-        ],
-        "defaultValue": "Window",
-        "description": "The full window, or a small card with the most recent unread mail."
+        "key": "undoSendSeconds",
+        "type": "integer",
+        "label": "Undo send window (seconds)",
+        "min": 0,
+        "max": 60,
+        "step": 1,
+        "defaultValue": 10,
+        "description": "Delays outgoing mail so you can cancel it. Set this to 0 to send immediately."
       }
     ]
   }

@@ -39,19 +39,8 @@ def unit_state(name: str) -> str:
     return value or "unavailable"
 
 
-def backend() -> str:
-    if os.environ.get("UMBRIEL_SOCKET") or os.environ.get("XDG_CURRENT_DESKTOP", "").lower() == "umbriel":
-        return "umbriel"
-    if os.environ.get("NIRI_SOCKET"):
-        return "niri"
-    return "unknown"
-
-
 def collect() -> dict:
-    active_backend = backend()
-    outputs = json_run(["umbriel", "outputs", "--json"]) if active_backend == "umbriel" else None
-    if active_backend == "niri":
-        outputs = json_run(["niri", "msg", "--json", "outputs"])
+    outputs = json_run(["umbriel", "outputs", "--json"])
 
     plugin_script = RUNTIME / "scripts/plugins.sh"
     plugins = json_run(["bash", str(plugin_script), "list"]) if plugin_script.is_file() else []
@@ -73,9 +62,8 @@ def collect() -> dict:
             "distribution": run(["sh", "-c", ". /etc/os-release && printf '%s' \"$PRETTY_NAME\""]),
         },
         "desktop": {
-            "backend": active_backend,
+            "backend": "umbriel",
             "umbrielVersion": run(["umbriel", "--version"]),
-            "niriVersion": run(["niri", "--version"]),
             "nbshellVersion": (RUNTIME / "VERSION").read_text().strip() if (RUNTIME / "VERSION").is_file() else "unknown",
             "theme": config.get("theme", "unknown"),
             "barMode": config.get("mode", "unknown"),
@@ -101,11 +89,11 @@ def collect() -> dict:
             "config": str(CONFIG_HOME / "nbshell"),
             "runtime": str(RUNTIME),
             "umbriel": str(CONFIG_HOME / "umbriel/config.toml"),
-            "niriFallback": str(CONFIG_HOME / "niri/config.kdl"),
+
         },
         "tools": {
             name: bool(shutil.which(name))
-            for name in ("qs", "umbriel", "niri", "grim", "slurp", "wf-recorder", "ffmpeg", "fd")
+            for name in ("qs", "umbriel", "grim", "slurp", "wf-recorder", "ffmpeg", "fd")
         },
     }
 
@@ -132,7 +120,7 @@ def markdown(data: dict) -> str:
         f"- Backend: **{desktop['backend']}**",
         f"- nbshell: `{desktop['nbshellVersion']}`",
         f"- Umbriel: `{desktop['umbrielVersion'] or 'unavailable'}`",
-        f"- Niri fallback: `{desktop['niriVersion'] or 'unavailable'}`",
+
         f"- Appearance: `{desktop['theme']}` / `{desktop['barMode']}` / `{desktop['barEdge']}`",
         f"- Detected outputs: {output_count}",
         "",

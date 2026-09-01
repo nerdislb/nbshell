@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import qs.Common
 import qs.Widgets
+import qs.Ui as CompatUi
 
 PanelWindow {
     id: root
@@ -73,7 +74,7 @@ PanelWindow {
                     spacing: Theme.spaceLg
 
                     Line { text: "NBSHELL UI GALLERY"; color: Theme.fg; font.pixelSize: Theme.fontHeading; font.bold: true }
-                    Line { text: "Shared typography, spacing, accessibility, and interaction states"; color: Theme.fgDim; font.pixelSize: Theme.fontSubtitle }
+                    Line { width: parent.width; text: "Shared typography, spacing, accessibility, and interaction states"; color: Theme.fgDim; font.pixelSize: Theme.fontSubtitle; wrapMode: Text.WordWrap }
 
                     SectionHeader { width: parent.width; text: "Typography"; detail: Theme.fontFamily }
                     Row {
@@ -108,6 +109,13 @@ PanelWindow {
                         ActionButton { text: "SYNC"; busy: true }
                         ActionButton { text: "REMOVE"; tone: "danger" }
                         ActionButton { width: viewport.width; text: "A LONG ACTION LABEL THAT MUST REMAIN READABLE" }
+                    }
+
+                    SectionHeader { width: parent.width; text: "Compatibility inputs"; detail: "qs.Ui · keyboard · accessibility" }
+                    Row {
+                        spacing: Theme.spaceLg
+                        CompatUi.ToggleSwitch { checked: true; accessibleName: "Example setting" }
+                        CompatUi.NumberField { label: "Seconds"; from: 0; to: 60; value: 10; enabled: false }
                     }
 
                     SectionHeader { width: parent.width; text: "Rows"; detail: "static text · selected · interactive focus" }

@@ -3,8 +3,7 @@ Description=nbshell
 Documentation=https://github.com/nerdislb/nbshell
 PartOf=graphical-session.target
 After=graphical-session.target
-# Ohne Sitzung kein Sinn: niri startet die Unit mit, siehe das Drop-in, das
-# `nbshell switch on` anlegt.
+# Umbriel starts graphical-session.target; `nbshell switch on` enables this unit.
 Requisite=graphical-session.target
 
 [Service]

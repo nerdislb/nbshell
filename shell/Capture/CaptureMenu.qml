@@ -8,8 +8,8 @@ import qs.Widgets
 // Das Aufnahme-Menue -- Omarchys Capture-Menue, hier als nbshell-Overlay.
 //
 // Wie das Power-Menue: Liste mit Buchstaben davor, Enter bestaetigt. Nach der
-// Wahl schliesst es SOFORT und wartet kurz, bevor es ausloest -- niri friert
-// das Bild ein, sobald die Aktion ankommt, und ohne Pause haengt das halb
+// The selection closes immediately and waits briefly before capture so the
+// overlay is no longer present in the resulting frame.
 // verschwundene Menue mit im Screenshot.
 PanelWindow {
     id: root

@@ -27,54 +27,11 @@ warn() { printf '\033[33m%s\033[0m\n' "$1"; }
 die() { printf '\033[31m%s\033[0m\n' "$1" >&2; exit 1; }
 
 # ── Eigenstaendig ein- und ausschalten ───────────────────────────────────
-NIRI_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/niri"
-UNIT_DROPIN="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/niri.service.d/nbshell.conf"
 GHOSTTY="${XDG_CONFIG_HOME:-$HOME/.config}/ghostty/config"
 ALACRITTY="${XDG_CONFIG_HOME:-$HOME/.config}/alacritty/alacritty.toml"
-TAKEOVER="nbshell-takeover.kdl"
-COLORS="nbshell-colors.kdl"
-INCLUDE_LINE="include \"$TAKEOVER\""
-COLORS_LINE="include \"$COLORS\""
 
 compositor_name() {
-    if [ -n "${NBSHELL_COMPOSITOR:-}" ]; then
-        printf '%s\n' "${NBSHELL_COMPOSITOR,,}"
-    elif [ -n "${UMBRIEL_SOCKET:-}" ] || [[ "${XDG_CURRENT_DESKTOP:-}" == *[Uu]mbriel* ]]; then
-        echo umbriel
-    else
-        echo niri
-    fi
-}
-
-niri_include() {
-    local cfg="$NIRI_DIR/config.kdl"
-    mkdir -p "$NIRI_DIR"
-    if [ ! -f "$cfg" ]; then
-        printf '// Standalone niri configuration created by nbshell\n' > "$cfg"
-    fi
-    grep -qF "$INCLUDE_LINE" "$cfg" && return 0
-    cp "$cfg" "$cfg.vor-nbshell"
-    # Die Farbdatei zuerst schreiben lassen -- ein include auf eine fehlende
-    # Datei macht die ganze Config ungueltig.
-    ipc theme write >/dev/null 2>&1 || true
-    printf '\n// nbshell key bindings and window borders\n%s\n' "$INCLUDE_LINE" >> "$cfg"
-    [ -f "$NIRI_DIR/$COLORS" ] && printf '%s\n' "$COLORS_LINE" >> "$cfg"
-    if ! niri validate >/dev/null 2>&1; then
-        mv "$cfg.vor-nbshell" "$cfg"
-        echo "niri configuration became invalid -- reverted." >&2
-        return 1
-    fi
-    echo "  niri:   $INCLUDE_LINE added (backup: config.kdl.vor-nbshell)"
-}
-
-niri_exclude() {
-    local cfg="$NIRI_DIR/config.kdl"
-    grep -qF "$INCLUDE_LINE" "$cfg" || return 0
-    cp "$cfg" "$cfg.vor-nbshell"
-    grep -vF "$INCLUDE_LINE" "$cfg" | grep -vF "$COLORS_LINE" | grep -v "^// nbshell key bindings and window borders" | grep -v "^// nbshell uebernimmt DMS-Tastenkuerzel" | grep -v "^// (nbshell switch off removed beides)" > "$cfg.neu"
-    mv "$cfg.neu" "$cfg"
-    niri validate >/dev/null 2>&1 || { mv "$cfg.vor-nbshell" "$cfg"; echo "reverted." >&2; return 1; }
-    echo "  niri:   $INCLUDE_LINE removed"
+    echo umbriel
 }
 
 # ghostty liest genau EINE Themedatei. Solange DMS laeuft, schreibt matugen
@@ -105,16 +62,15 @@ alacritty_theme() {
 
 # ── Mauszeiger ───────────────────────────────────────────────────────────
 #
-# Gesetzt wird die CONFIG, nicht die niri-Datei: dort haengt seit dem
-# Optionsmenue ein Dienst dran (Services/Cursor.qml), der beides nachzieht --
-# niri und GTK. Wer hier direkt schriebe, haette zwei Wahrheiten, und die
+# Set the nbshell configuration, whose cursor service updates Umbriel and GTK.
+# Writing compositor files here would create two sources of truth, and the
 # naechste Aenderung im Menue ueberschriebe sie wortlos.
 CURSOR_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/cursors.sh"
 KEYS_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/keys.py"
 PIP_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/zen-pip.py"
 AGENT_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/agents.py"
 GAMING_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/gaming.sh"
-GRID_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/grid-layout.py"
+
 BROWSER_THEME_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/browser-theme.sh"
 OMACUT_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/omacut.sh"
 SHELL_UPDATE_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/nbshell-update.py"
@@ -140,12 +96,6 @@ cursor_status() {
     bash "$CURSOR_TOOL" list | python3 -c 'import json,sys; [print("  "+t) for t in json.load(sys.stdin)]'
     echo
     echo "Install more cursor themes through your package manager."
-    if [ -f "$NIRI_DIR/dms/cursor.kdl" ] && [ ! -s "$NIRI_DIR/dms/cursor.kdl" ]; then
-        echo
-        warn "niri also includes dms/cursor.kdl, but the file is EMPTY."
-        warn "This is a harmless DMS remnant. To clean it up, remove"
-        warn "its include line from config.kdl."
-    fi
 }
 
 cursor_set() {
@@ -261,14 +211,8 @@ print(round(max(1.0, round(base * want / ref) / base), 3))
     return 0
 }
 
-# Damit nbshell nach dem Anmelden von selbst da ist. Dasselbe Muster, das DMS
-# benutzt: ein Drop-in an niri.service, das die Unit mitzieht. Eine EIGENE
-# Datei -- dms.conf bleibt unangetastet, damit der Rueckweg frei bleibt.
+# Umbriel starts graphical-session.target; nbshell.service attaches there.
 autostart_on() {
-    if [ "$(compositor_name)" = "niri" ]; then
-        mkdir -p "$(dirname "$UNIT_DROPIN")"
-        printf '[Unit]\nWants=nbshell.service\n' > "$UNIT_DROPIN"
-    fi
     systemctl --user daemon-reload 2>/dev/null
     systemctl --user enable nbshell.service >/dev/null 2>&1
     # Laeuft schon eine von Hand gestartete Instanz, uebernimmt sie die Unit
@@ -279,7 +223,6 @@ autostart_on() {
 }
 
 autostart_off() {
-    rm -f "$UNIT_DROPIN"
     systemctl --user disable nbshell.service >/dev/null 2>&1
     systemctl --user daemon-reload 2>/dev/null
     echo "  nbshell: will no longer start automatically (still running now)"
@@ -291,7 +234,7 @@ autostart_off() {
 # das Fenster mit der Passwortabfrage aufmacht -- ohne ihn scheitert `pkexec`
 # still, und die Anwendung, die nach Rechten gefragt hat, meldet bestenfalls
 # "nicht berechtigt". Unter einem Desktop bringt die Umgebung ihn mit; unter
-# niri bringt ihn niemand mit, und man merkt es erst, wenn etwas nicht geht.
+# a minimal Umbriel session brings none, and failures otherwise look silent.
 #
 # nbshell hat keinen eigenen -- Quickshell hat keine Anbindung an polkit --,
 # also wird ein vorhandener eingeschaltet. `hyprpolkitagent` ist die naechste
@@ -330,18 +273,16 @@ polkit_status() {
     if unit="$(polkit_unit)"; then
         printf 'Agent            %s (%s)\n' "$unit" "$(systemctl --user is-active "$unit" 2>/dev/null)"
     elif polkit_running; then
-        printf 'Agent            laeuft (ohne Unit, von Hand gestartet)\n'
+        printf 'Agent            running (no unit, started manually)\n'
     else
-        printf 'Agent            keiner -- pacman -S hyprpolkitagent\n'
+        printf 'Agent            none -- pacman -S hyprpolkitagent\n'
     fi
 }
 
 switch_on() {
     echo "Enabling nbshell:"
-    local compositor
-    compositor="$(compositor_name)"
-    if [ "$compositor" = "niri" ] && [ ! -f "$NIRI_DIR/$TAKEOVER" ]; then
-        echo "  $TAKEOVER is missing -- run ./install.sh first." >&2
+    if [ ! -f "${XDG_CONFIG_HOME:-$HOME/.config}/umbriel/nbshell.toml" ]; then
+        echo "  Umbriel integration is missing -- run ./install.sh first." >&2
         return 1
     fi
     # Reine Migrationshilfe: auf neuen Installationen existiert diese Unit
@@ -351,11 +292,7 @@ switch_on() {
         systemctl --user reset-failed dms.service 2>/dev/null || true
         systemctl --user mask dms.service >/dev/null 2>&1 && echo "  Old DMS: masked"
     fi
-    if [ "$compositor" = "niri" ]; then
-        niri_include || true
-    else
-        echo "  umbriel: include \"nbshell.toml\" from ~/.config/umbriel/config.toml"
-    fi
+    echo "  umbriel: include \"nbshell.toml\" from ~/.config/umbriel/config.toml"
     ipc notify server on >/dev/null && echo "  nbshell: notification server enabled"
     ipc wallpaper on >/dev/null && echo "  nbshell: wallpaper enabled"
     ghostty_theme nbcolors
@@ -369,31 +306,23 @@ switch_off() {
     ipc notify server off >/dev/null && echo "  nbshell: notification server disabled"
     ipc wallpaper off >/dev/null && echo "  nbshell: wallpaper disabled"
     autostart_off
-    niri_exclude || true
     systemctl --user stop nbshell.service 2>/dev/null || true
 }
 
 switch_status() {
-    local compositor
-    compositor="$(compositor_name)"
-    printf 'Compositor         %s\n' "$compositor"
+    printf 'Compositor         umbriel\n'
     if systemctl --user cat dms.service >/dev/null 2>&1; then
         printf 'Legacy DMS          %s\n' "$(systemctl --user is-active dms.service 2>/dev/null; systemctl --user is-enabled dms.service 2>/dev/null | tr '\n' ' ')"
     fi
     printf 'Notification server %s\n' "$(busctl --user list 2>/dev/null | awk '/^org.freedesktop.Notifications/ {print $2" ("$3")"}')"
-    if [ "$compositor" = "umbriel" ]; then
-        printf 'Umbriel assets     %s\n' "$([ -f "${XDG_CONFIG_HOME:-$HOME/.config}/umbriel/nbshell.toml" ] && echo installed || echo missing)"
-    else
-        printf 'Niri bindings      %s\n' "$([ -f "$NIRI_DIR/config.kdl" ] && grep -qF "$INCLUDE_LINE" "$NIRI_DIR/config.kdl" && echo "nbshell" || echo "not included")"
-        printf 'Window borders     %s\n' "$([ -f "$NIRI_DIR/config.kdl" ] && grep -qF "$COLORS_LINE" "$NIRI_DIR/config.kdl" && echo "nbshell" || echo "not included")"
-    fi
+    printf 'Umbriel assets     %s\n' "$([ -f "${XDG_CONFIG_HOME:-$HOME/.config}/umbriel/nbshell.toml" ] && echo installed || echo missing)"
     printf 'nbshell autostart  %s (%s)\n' "$(systemctl --user is-enabled nbshell.service 2>/dev/null || echo off)" "$(systemctl --user is-active nbshell.service 2>/dev/null || true)"
     polkit_status
 }
 
 usage() {
     cat <<'USAGE'
-nbshell -- an independent Quickshell desktop shell for Wayland compositors
+nbshell -- an independent Quickshell desktop shell for Umbriel
 
   nbshell start [-d]        start the shell (-d runs in the background)
   nbshell stop              stop the shell
@@ -458,7 +387,7 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
 
   nbshell modules           arrange bar modules
   nbshell settings          open appearance and behavior settings
-  nbshell display           open display management (Niri-first)
+  nbshell display           open Umbriel display management
   nbshell display status    list connected outputs as JSON
   nbshell display set <output> mode|scale|transform|enabled <value>
                             configure display properties
@@ -535,14 +464,9 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
                             install an optional gaming tool
   nbshell gaming remove <item>
                             remove an installed gaming tool
-  nbshell grid toggle       toggle the workspace-local 2x2 scrolling layout
-  nbshell grid on|off|status
-                            control workspace-local 2x2 scrolling layout
-  nbshell grid backend stable|atomic|status
-                            select grid layout compositor backend
-  nbshell grid compositor stable|atomic|status
-                            alias for grid backend selection
-  nbshell compositor status  show the detected compositor backend
+  nbshell layout scrolling|dwindle|master|toggle
+                            select or cycle the Umbriel workspace layout
+  nbshell compositor status  show the supported compositor
   nbshell compositor nested  run the isolated Umbriel development profile
 
   nbshell todo              list tasks
@@ -584,6 +508,7 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell plugin-manager    open installed plugins and the store
   nbshell popout <name>     open a module popout
   nbshell extension toggle <id>  toggle a plugin panel or overlay
+  nbshell mail [open|handler]     open Mail or explicitly claim mailto: links
   nbshell translate         toggle the optional Quick Translate overlay
   nbshell emoji             search emoji and copy the selection
   nbshell hub               system, plugin, and integration status
@@ -592,14 +517,12 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell greeter sync      match the active greeter to theme and wallpaper
   nbshell greeter preview   preview Orbital without authentication or power actions
   nbshell greeter status    show the staged greetd frontend
-  nbshell greeter install orbital|regreet
-                            install Orbital or ReGreet frontend
-  nbshell greeter activate orbital|regreet
-                            activate staged greetd frontend
+  nbshell greeter install [--autologin]
+                            install the Umbriel-hosted Orbital frontend
   nbshell media playpause|next|previous|status
                             control media playback
   nbshell dictate           toggle local voice dictation
-  nbshell pip status|apply|size|corner|focus|close
+  nbshell pip status|apply|size|focus|close
                             control Zen's native Picture-in-Picture
   nbshell browser-theme status|setup|apply|setup-zen-live|doctor-zen-live
                             sync nbshell colors to Zen and Brave
@@ -624,8 +547,8 @@ nbshell -- an independent Quickshell desktop shell for Wayland compositors
   nbshell state             show open surfaces
   nbshell status            show bar status
 
-  nbshell switch on         enable autostart and niri integration
-  nbshell switch off        disable autostart and niri integration
+  nbshell switch on         enable autostart and Umbriel integration
+  nbshell switch off        disable autostart and Umbriel integration
   nbshell switch status     show autostart and integration status
 
   nbshell nearby scan       find nearby LocalSend devices
@@ -780,6 +703,18 @@ case "$cmd" in
             *) echo "Usage: nbshell whatsapp setup|auth|status|demo|provider whatsapp|prettyzap" >&2; exit 2 ;;
         esac
         ;;
+    mail)
+        case "${1:-open}" in
+            open|toggle) ipc plugin "${1:-open}" omamail ;;
+            handler|setup-handler)
+                mail_dir="$CONFIG_DIR/plugins/omamail"
+                [ -x "$mail_dir/scripts/install-mailto.sh" ] || die "Mail is not installed."
+                "$mail_dir/scripts/install-mailto.sh" "$mail_dir" --claim-default
+                echo "Mail is now the default mailto: handler."
+                ;;
+            *) die "usage: nbshell mail [open|toggle|handler]" ;;
+        esac
+        ;;
     aether)
         bash "$AETHER_TOOL" "${1:-status}"
         ;;
@@ -872,7 +807,7 @@ print(json.dumps({"schemaVersion": 1, "commands": rows}, indent=2))'
     keys|tasten)
         case "${1:-fenster}" in
             # Die Liste kommt DIREKT aus dem Skript, nicht ueber die Shell:
-            # sie liest niris Konfiguration, nicht den Zustand der Shell -- und
+            # it reads Umbriel's configuration, not shell state, and
             # soll deshalb auch antworten, wenn nbshell gar nicht laeuft.
             liste|list)
                 python3 "$KEYS_TOOL" | python3 -c '
@@ -1045,15 +980,11 @@ for b in d["binds"]:
     gaming|games)
         bash "$GAMING_TOOL" "${1:-status}" "${2:-}"
         ;;
-    grid)
-        if [ "$(compositor_name)" = "umbriel" ]; then
-            case "${1:-toggle}" in
-                toggle) umbriel msg workspace-set-layout:toggle ;;
-                *) echo "Umbriel currently supports: nbshell grid toggle" >&2; exit 2 ;;
-            esac
-        else
-            python3 "$GRID_TOOL" "${1:-toggle}" "${2:-}"
-        fi
+    layout)
+        case "${1:-toggle}" in
+            scrolling|dwindle|master|toggle) umbriel msg "workspace-set-layout:${1:-toggle}" ;;
+            *) echo "Usage: nbshell layout scrolling|dwindle|master|toggle" >&2; exit 2 ;;
+        esac
         ;;
     compositor)
         case "${1:-status}" in
@@ -1095,7 +1026,13 @@ for b in d["binds"]:
         ipc popout toggle "${1:?name is required}"
         ;;
     extension)
-        ipc plugin "${1:-toggle}" "${2:?plugin ID is required}"
+        extension_action="${1:-toggle}"
+        extension_id="${2:?plugin ID is required}"
+        if [ "$extension_action" = open ] && [ -n "${3:-}" ]; then
+            ipc plugin openWithPayload "$extension_id" "$3"
+        else
+            ipc plugin "$extension_action" "$extension_id"
+        fi
         ;;
     translate|uebersetzen)
         ipc plugin toggle shaun.quick-translate
@@ -1167,7 +1104,7 @@ for b in d["binds"]:
             drop|rm)     ipc habits drop "${2:?number is required}" ;;
             add)
                 shift
-                [ $# -gt 0 ] || { echo "text is required (z.B. joggen // workout)" >&2; exit 2; }
+                [ $# -gt 0 ] || { echo "text is required (for example: running // workout)" >&2; exit 2; }
                 text="$*"
                 text="${text//%/%25}"
                 text="${text//,/%2C}"
@@ -1197,11 +1134,6 @@ for b in d["binds"]:
         case "${1:-menu}" in
             menu|lock|logout|suspend) ipc power "${1:-menu}" ;;
             display-off)
-                # A compositor-native keybind fires before its keys are
-                # released. Umbriel treats those release events as activity
-                # and immediately wakes a freshly powered-off output, so let
-                # the chord settle before sending the DPMS action.
-                sleep 0.35
                 # Umbriel intentionally gives spawned keybind commands a
                 # minimal environment. Reconstruct its documented per-display
                 # socket path when XDG_RUNTIME_DIR/UMBRIEL_SOCKET are absent.
@@ -1209,14 +1141,14 @@ for b in d["binds"]:
                 local_wayland="${WAYLAND_DISPLAY:-wayland-0}"
                 local_umbriel_socket="${UMBRIEL_SOCKET:-$local_runtime/umbriel-$local_wayland.sock}"
                 local_umbriel_bin="$(command -v umbriel 2>/dev/null || true)"
-                [ -n "$local_umbriel_bin" ] || local_umbriel_bin="$HOME/.local/bin/umbriel"
+                [ -n "$local_umbriel_bin" ] || local_umbriel_bin="/usr/local/bin/umbriel"
                 if [ -x "$local_umbriel_bin" ] \
                     && [ -S "$local_umbriel_socket" ] \
                     && XDG_RUNTIME_DIR="$local_runtime" UMBRIEL_SOCKET="$local_umbriel_socket" \
                         "$local_umbriel_bin" msg dpms-off 2>/dev/null; then
                     :
                 else
-                    /usr/bin/niri msg action power-off-monitors
+                    die "Umbriel IPC is unavailable"
                 fi
                 ;;
             *) ipc power menu ;;
@@ -1240,12 +1172,11 @@ for b in d["binds"]:
         ;;
     greeter)
         case "${1:-}" in
-            install) "$GREETER_SETUP" install "${2:-orbital}" "${3:-}" ;;
+            install) "$GREETER_SETUP" install "${2:-}" ;;
             sync) "$GREETER_SETUP" sync ;;
             preview) "$GREETER_SETUP" preview ;;
             status) "$GREETER_SETUP" status ;;
-            activate) "$GREETER_SETUP" activate "${2:-}" ;;
-            *) die "usage: nbshell greeter install orbital|regreet|sync|preview|status|activate orbital|regreet" ;;
+            *) die "usage: nbshell greeter install [--autologin]|sync|preview|status" ;;
         esac
         ;;
     video-trimmer|trim-video)

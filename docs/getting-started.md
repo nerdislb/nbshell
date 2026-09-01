@@ -24,8 +24,8 @@ cd nbshell
 ./setup.sh
 ```
 
-The default profile installs Umbriel, its portal, the shell baseline, and Niri
-as a recovery fallback. It lists missing packages before calling sudo. Optional
+The default profile installs Umbriel, its portal, and the shell baseline. It
+lists missing packages before calling sudo. Optional
 modules remain visible but disabled when their tools are unavailable. To
 install the full capture, calendar, sync, power, and hardware tool set, use:
 
@@ -33,14 +33,14 @@ install the full capture, calendar, sync, power, and hardware tool set, use:
 ./setup.sh --full
 ```
 
-Refresh shell autostart and the Niri fallback integration:
+Enable or refresh shell autostart and the Umbriel integration:
 
 ```bash
 nbshell switch on
 ```
 
-Log out and select **Umbriel**. Select **Niri** if the primary session needs
-recovery. To try the shell immediately in the current session instead, run:
+Log out and select **Umbriel**. To try the shell immediately in the current
+session instead, run:
 
 ```bash
 nbshell start -d
@@ -55,24 +55,23 @@ On a minimal, updated Arch installation with a normal user, working graphics,
 network access, `git`, and `sudo`, the default `./setup.sh` flow does the
 following:
 
-1. Installs Quickshell, Niri, the shell's core service dependencies, and the
+1. Installs Quickshell, the shell's core service dependencies, and the
    Umbriel build/runtime dependencies from Arch repositories.
 2. Clones the official Umbriel and xdg-desktop-portal-umbriel repositories to
    `~/.cache/nbshell/umbriel-sources`, builds them in release mode, runs their
-   Meson tests, and installs them below `~/.local`.
+   Meson tests, and installs the root-owned stack below `/usr/local`.
 3. Deploys nbshell atomically to `~/.config/quickshell/nbshell`, creates the
-   Umbriel and Niri integration includes, and preserves existing personal
+   Umbriel integration includes, and preserves existing personal
    configuration on later runs.
-4. Adds the Umbriel greeter session and keeps the distribution's Niri session
-   available for recovery. Umbriel owns Xwayland Satellite in its session;
-   Niri may keep its separate service without starting a duplicate.
+4. Adds the root-owned Umbriel session and stages Orbital with an independent
+   agreety/TTY recovery configuration when requested.
 5. Installs the Umbriel screenshot/screencast portal and keeps compositor,
    nbshell-release, system-package, and plugin updates as separate paths.
 
 The installer does not configure private accounts, copy secrets, remove an
 existing desktop, or choose hardware drivers. Use `./setup.sh --full` for the
-larger optional tool set and `./setup.sh --niri-only` when Umbriel should not be
-built. After setup, run `nbshell switch on`, log out, and choose Umbriel. A
+larger optional tool set. After setup, run `nbshell switch on`, log out, and
+choose Umbriel. A
 machine without a display manager can start the installed session from a TTY
 with `start-umbriel`; the optional `./setup-greeter.sh` path assumes greetd is
 already installed.
@@ -83,7 +82,6 @@ already installed.
 nbshell switch status
 nbshell status
 umbriel validate
-niri validate
 ```
 
 Open the main interfaces:
@@ -98,7 +96,7 @@ nbshell keys
 
 ## Existing configuration
 
-The installer keeps existing Umbriel and Niri configurations and uses separate
+The installer keeps existing Umbriel configuration and uses separate
 nbshell-owned includes. Existing `~/.config/nbshell/config.json` settings are
 also kept during updates.
 
@@ -145,16 +143,17 @@ Plugin updates remain in the plugin manager.
 
 ## Default login screen on fresh setups
 
-nbshell can replace an existing greetd frontend with either the established
-ReGreet recovery client or the native Orbital QML frontend. Both authenticate
-exclusively through greetd and the dedicated `/etc/pam.d/nbshell-greetd`
-service; nbshell does not implement PAM, store passwords, or launch arbitrary
-commands. The dedicated service includes the distribution's
+nbshell can install the native Orbital QML frontend for greetd. Authentication
+remains exclusively with greetd and the dedicated
+`/etc/pam.d/nbshell-greetd` service; nbshell does not implement PAM, store
+passwords, or launch arbitrary commands. An independent compositor-free
+agreety configuration remains available for recovery. The dedicated service
+includes the distribution's
 `system-local-login` stack but deliberately omits `pam_fprintd`: greetd exposes
 one serial PAM conversation, so a fingerprint-first stack can block the
 password field instead of offering a real method switch. Existing PAM service
-files are left untouched. Niri and Umbriel remain in a root-owned session
-allowlist.
+files are left untouched. Only the root-owned Umbriel launcher appears in the
+graphical session allowlist.
 
 The normal `./setup.sh` path offers Orbital by default on a fresh nbshell
 installation. Passing `--yes` accepts it; use `--no-greeter` to retain the
@@ -162,12 +161,12 @@ current display-manager frontend. Updates never replace an existing frontend.
 To opt in later, or to install Orbital deliberately on an existing system, run:
 
 ```bash
-./setup-greeter.sh install orbital
+./setup-greeter.sh install
 ```
 
 Fresh installations do not enable autologin: Orbital is the authenticated boot
 screen. Personal systems that deliberately want Umbriel autologin must request
-it separately with `./setup-greeter.sh install orbital --autologin`. If no
+it separately with `./setup-greeter.sh install --autologin`. If no
 other display manager is enabled, setup enables `greetd.service` for the next
 boot; an existing display manager is never disabled automatically.
 
@@ -185,19 +184,18 @@ currently staged frontend:
 nbshell greeter sync
 ```
 
-Inspect or switch the staged frontend without restarting the current graphical
-session:
+Inspect the staged frontend without restarting the current graphical session:
 
 ```bash
 nbshell greeter status
-nbshell greeter activate orbital
-nbshell greeter activate regreet
 ```
 
-The sync updates only public root-owned QML/CSS, compositor color, session
+The sync updates only public root-owned QML, compositor color, session
 allowlist, the copied wallpaper, and nbshell's own password-first PAM service.
-It does not rewrite existing PAM services. ReGreet remains installed as the
-recovery frontend.
+It does not rewrite existing PAM services. The recovery file
+`/etc/greetd/config.toml.nbshell-recovery` starts `/usr/bin/agreety` with the
+system shell and does not depend on Umbriel, Quickshell, the wallpaper, or
+Orbital's QML files.
 
 The installer keeps a recovery copy at
 `/etc/greetd/config.toml.before-nbshell-greeter` and does not interrupt the
@@ -210,10 +208,10 @@ frontend already loaded by greetd.
 ```bash
 nbshell log
 umbriel validate
-niri validate
 nbshell switch status
 ```
 
-Choose Niri in the greeter to bypass an Umbriel regression. Run `nbshell switch off`
-to return to the previous shell integration without deleting personal
-nbshell settings.
+If Umbriel cannot start, switch to a TTY, inspect the compositor and nbshell
+journals, run `umbriel validate`, correct the configuration, and restart the
+session. `nbshell switch off` disables shell integration without deleting
+personal nbshell settings.

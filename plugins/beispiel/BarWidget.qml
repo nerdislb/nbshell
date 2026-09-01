@@ -11,7 +11,7 @@ import qs.Widgets
 //
 //   qs.Common    Config, Theme, Icons, Runtime
 //   qs.Widgets   Cell, Popout, IconText, Glyph, LevelBar, MenuView
-//   qs.Services  Niri, Audio, Net, Bt, Notify, MediaService, Calendar, …
+//   qs.Services  Compositor, Audio, Net, Bt, Notify, MediaService, Calendar, …
 //
 // Die Wurzel muss `Cell` sein (oder etwas mit denselben Eigenschaften): die
 // Leiste liest davon `shown`, `implicitWidth` und `implicitHeight`.

@@ -8,8 +8,8 @@ import qs.Common
 // Gibt die Palette nach aussen weiter, damit ein Themewechsel nicht an der
 // Leiste aufhoert.
 //
-// Bisher hat das matugen ueber DMS erledigt; ohne DMS faerbt sonst niemand
-// mehr das Terminal mit. Geschrieben wird eine ghostty-Themedatei -- und
+// nbshell writes the terminal palette itself. Geschrieben wird eine
+// ghostty-Themedatei -- und
 // danach ein eigenes Skript, falls es eines gibt: alles Weitere (btop, fuzzel,
 // was auch immer) gehoert dorthin und nicht in die Shell.
 Singleton {
@@ -18,7 +18,6 @@ Singleton {
     readonly property bool enabled: Config.value("themeExport", true)
 
     readonly property string ghosttyPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ghostty/themes/nbcolors"
-    readonly property string niriPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/niri/nbshell-colors.kdl"
     readonly property string umbrielPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/umbriel/nbshell-colors.toml"
     readonly property string umbrielOverviewPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/umbriel/nbshell-overview.toml"
     readonly property string umbrielMotionPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/umbriel/nbshell-motion.toml"
@@ -84,25 +83,6 @@ Singleton {
         return out;
     }
 
-    // Fensterrahmen, Fokusring und Verwandte. niri liest das ueber einen
-    // include; geschrieben wird dieselbe Form, die auch DMS benutzt -- nur
-    // eben aus Omarchys Palette statt aus matugen.
-    function niriColors() {
-        const c = Theme.c;
-        const active = String(Theme.accent);
-        const inactive = c.muted ?? c.dark_foreground ?? "#555555";
-        const urgent = c.red ?? "#ff0000";
-
-        var out = "// Von nbshell geschrieben -- Theme: " + Config.theme + "\n";
-        out += "// Do not edit manually; every theme change overwrites this file.\n\n";
-        out += "layout {\n";
-        out += "    focus-ring {\n        active-color \"" + active + "\"\n        inactive-color \"" + inactive + "\"\n        urgent-color \"" + urgent + "\"\n    }\n\n";
-        out += "    border {\n        active-color \"" + active + "\"\n        inactive-color \"" + inactive + "\"\n        urgent-color \"" + urgent + "\"\n    }\n\n";
-        out += "    tab-indicator {\n        active-color \"" + active + "\"\n        inactive-color \"" + inactive + "\"\n        urgent-color \"" + urgent + "\"\n    }\n\n";
-        out += "    insert-hint {\n        color \"" + active + "80\"\n    }\n";
-        out += "}\n";
-        return out;
-    }
 
     function umbrielColors() {
         const c = Theme.c;
@@ -169,7 +149,6 @@ Singleton {
         if (!enabled)
             return;
         ghostty.setText(ghosttyTheme());
-        niri.setText(niriColors());
         umbriel.setText(umbrielColors());
         palette.setText(paletteShell());
         // Das Skript bekommt Name und Modus mit, damit es nicht selbst in der
@@ -256,12 +235,6 @@ Singleton {
         printErrors: false
     }
 
-    FileView {
-        id: niri
-        path: root.niriPath
-        atomicWrites: true
-        printErrors: false
-    }
 
     FileView {
         id: umbriel

@@ -25,7 +25,7 @@ def run(*args, cwd):
 
 with tempfile.TemporaryDirectory() as name:
     source_root = pathlib.Path(name)
-    for project, remote in UPDATE.PROJECTS:
+    for project, remote, _revision in UPDATE.PROJECTS:
         checkout = source_root / project
         checkout.mkdir()
         run("git", "init", "-q", cwd=checkout)
@@ -37,6 +37,13 @@ with tempfile.TemporaryDirectory() as name:
         run("git", "remote", "add", "origin", remote, cwd=checkout)
 
     os.environ["NBSHELL_UMBRIEL_SOURCE_DIR"] = str(source_root)
+    setattr(UPDATE, "PROJECTS", tuple(
+        (name, url, subprocess.check_output(
+            ["git", "-C", str(source_root / name), "rev-parse", "HEAD"],
+            text=True,
+        ).strip())
+        for name, url, _ in UPDATE.PROJECTS
+    ))
     clean = UPDATE.status(fetch=False)
     assert clean["ok"] and clean["installed"] and clean["installable"]
     assert not clean["available"]

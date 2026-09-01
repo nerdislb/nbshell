@@ -19,11 +19,13 @@ var DEFAULT_PORT = 9481
 var CALLBACK_PATH = "/oauth2callback"
 
 // gmail.modify is read plus label/trash changes — it deliberately cannot
-// permanently delete. gmail.send is what reply and compose need. Neither
-// grants access to the account profile beyond the mailbox address.
+// permanently delete. gmail.send is what reply and compose need.
+// calendar.events reads calendars and creates events without broader account
+// access.
 var SCOPES = [
   "https://www.googleapis.com/auth/gmail.modify",
-  "https://www.googleapis.com/auth/gmail.send"
+  "https://www.googleapis.com/auth/gmail.send",
+  "https://www.googleapis.com/auth/calendar.events"
 ]
 
 function normalizedPort(value) {
@@ -81,6 +83,9 @@ function authorizationUrl(options) {
     code_challenge_method: "S256",
     state: settings.state,
     access_type: "offline",
+    // Google joins these permissions to an existing grant. This matters when
+    // an upgrade adds Calendar to a mailbox that already granted Gmail.
+    include_granted_scopes: "true",
     // Without this Google returns a refresh token only on the very first
     // consent, so a user who reinstalls the plugin would be stuck with an
     // access token that expires in an hour and never comes back.
@@ -183,6 +188,21 @@ function parseTokenResponse(status, text, previousRefreshToken) {
     expiresIn: Math.max(60, Number(payload.expires_in) || 3600),
     scope: String(payload.scope || "")
   }
+}
+
+// A saved grant stops being a session only when Google says the grant itself
+// is invalid. Timeouts, transport failures and server errors leave it intact
+// and must be retried when the network is usable again.
+function refreshFailureDisposition(result) {
+  return result && result.invalidGrant ? "signed_out" : "retry"
+}
+
+// Start quickly for a network transition, then back off to one request every
+// five minutes during a longer outage. A successful refresh resets the caller's
+// attempt counter.
+function refreshRetryDelay(attempt) {
+  var count = Math.max(0, Math.floor(Number(attempt)) || 0)
+  return Math.min(300000, 5000 * Math.pow(2, count))
 }
 
 // A grant is only useful if it came back with everything the panel needs. A
@@ -326,10 +346,10 @@ function httpResponse(statusLine, body) {
 
 function successResponse(theme) {
   return httpResponse("200 OK", themedPage(theme, {
-    title: "Mail",
+    title: "Omamail",
     heading: "Mailbox connected",
     failed: false,
-    body: "<p>Mail can read this mailbox now. "
+    body: "<p>Omamail can read this mailbox now. "
       + "Switch back to the window \u2014 your mail is already loading.</p>"
       + "<p>This tab closes itself. If it stays open, it is safe to close.</p>"
       + "<script>setTimeout(function(){window.close()},600)<\/script>"
@@ -343,6 +363,6 @@ function failureResponse(theme, reason) {
     heading: "Sign-in did not finish",
     failed: true,
     body: "<p>" + (detail ? escapeHtml(detail) : "Google did not complete the authorization.") + "</p>"
-      + "<p>Close this tab and try again from the Mail window.</p>"
+      + "<p>Close this tab and try again from the Omamail window.</p>"
   }))
 }

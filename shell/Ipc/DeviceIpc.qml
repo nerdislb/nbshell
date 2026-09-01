@@ -52,7 +52,7 @@ Scope {
             return "automation off";
         }
 
-        // Von Hand starten -- zum Ansehen, und fuer eine Taste in niri.
+        // Start manually for preview or from an Umbriel key binding.
         function saver(): string {
             Idle.startSaver();
             return "screen saver running";

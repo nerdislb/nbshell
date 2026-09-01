@@ -14,6 +14,7 @@ Column {
   id: root
 
   required property var service
+  required property var calendarController
   required property color textColor
   required property color dimColor
   required property color accentColor
@@ -43,6 +44,178 @@ Column {
     font.family: root.panelFontFamily
     font.pixelSize: Style.font.heading
     font.bold: true
+  }
+
+  // --------------------------------------------------------------- reading
+
+  Text {
+    text: "READING"
+    color: root.dimColor
+    font.family: root.panelFontFamily
+    font.pixelSize: Style.font.caption
+    font.letterSpacing: 1
+  }
+
+  Rectangle {
+    width: parent.width
+    implicitHeight: Math.max(imagesText.implicitHeight, imagesSwitch.implicitHeight)
+      + Style.space(16)
+    radius: Style.cornerRadius
+    color: Style.normalFillFor(root.textColor, root.accentColor)
+
+    Column {
+      id: imagesText
+      anchors.left: parent.left
+      anchors.leftMargin: Style.space(12)
+      anchors.right: imagesSwitch.left
+      anchors.rightMargin: Style.space(10)
+      anchors.verticalCenter: parent.verticalCenter
+      spacing: Style.space(2)
+
+      Text {
+        width: parent.width
+        text: "Always show remote images"
+        color: root.textColor
+        font.family: root.panelFontFamily
+        font.pixelSize: Style.font.bodySmall
+      }
+
+      Text {
+        width: parent.width
+        // The cost, in the words of what it actually tells whom. Off, the
+        // reader asks about each message and the answer covers that one.
+        text: "Loading an image tells its host that this address opened the "
+          + "message, and when"
+        color: root.dimColor
+        font.family: root.panelFontFamily
+        font.pixelSize: Style.font.caption
+        wrapMode: Text.WordWrap
+      }
+    }
+
+    ToggleSwitch {
+      id: imagesSwitch
+      accessibleName: "Always load remote images"
+      anchors.right: parent.right
+      anchors.rightMargin: Style.space(10)
+      anchors.verticalCenter: parent.verticalCenter
+      checked: !!root.service && root.service.alwaysShowImages
+      foreground: root.textColor
+      accent: root.accentColor
+      onToggled: if (root.service) root.service.setAlwaysShowImages(!root.service.alwaysShowImages)
+    }
+  }
+
+  Rectangle {
+    width: parent.width
+    implicitHeight: Math.max(heavyText.implicitHeight, heavySwitch.implicitHeight)
+      + Style.space(16)
+    radius: Style.cornerRadius
+    color: Style.normalFillFor(root.textColor, root.accentColor)
+
+    Column {
+      id: heavyText
+      anchors.left: parent.left
+      anchors.leftMargin: Style.space(12)
+      anchors.right: heavySwitch.left
+      anchors.rightMargin: Style.space(10)
+      anchors.verticalCenter: parent.verticalCenter
+      spacing: Style.space(2)
+
+      Text {
+        width: parent.width
+        text: "Always render heavy messages"
+        color: root.textColor
+        font.family: root.panelFontFamily
+        font.pixelSize: Style.font.bodySmall
+      }
+
+      Text {
+        width: parent.width
+        text: "Renders without falling back first; layout can stall the shell while it works"
+        color: root.dimColor
+        font.family: root.panelFontFamily
+        font.pixelSize: Style.font.caption
+        wrapMode: Text.WordWrap
+      }
+    }
+
+    ToggleSwitch {
+      id: heavySwitch
+      accessibleName: "Always render heavy messages"
+      anchors.right: parent.right
+      anchors.rightMargin: Style.space(10)
+      anchors.verticalCenter: parent.verticalCenter
+      checked: !!root.service && root.service.alwaysRenderHeavyMessages
+      foreground: root.textColor
+      accent: root.accentColor
+      onToggled: if (root.service)
+        root.service.setAlwaysRenderHeavyMessages(!root.service.alwaysRenderHeavyMessages)
+    }
+  }
+
+  // --------------------------------------------------------------- writing
+
+  Text {
+    text: "WRITING"
+    color: root.dimColor
+    font.family: root.panelFontFamily
+    font.pixelSize: Style.font.caption
+    font.letterSpacing: 1
+  }
+
+  Rectangle {
+    width: parent.width
+    implicitHeight: Math.max(undoText.implicitHeight, undoSeconds.implicitHeight)
+      + Style.space(16)
+    radius: Style.cornerRadius
+    color: Style.normalFillFor(root.textColor, root.accentColor)
+
+    Column {
+      id: undoText
+      anchors.left: parent.left
+      anchors.leftMargin: Style.space(12)
+      anchors.right: undoSeconds.left
+      anchors.rightMargin: Style.space(16)
+      anchors.verticalCenter: parent.verticalCenter
+      spacing: Style.space(2)
+
+      Text {
+        width: parent.width
+        text: "Undo send window"
+        color: root.textColor
+        font.family: root.panelFontFamily
+        font.pixelSize: Style.font.bodySmall
+      }
+
+      Text {
+        width: parent.width
+        text: "Mail waits before delivery. Press Alt+Z or select Undo to cancel. Set 0 to send now."
+        color: root.dimColor
+        font.family: root.panelFontFamily
+        font.pixelSize: Style.font.caption
+        wrapMode: Text.WordWrap
+      }
+    }
+
+    NumberField {
+      id: undoSeconds
+      anchors.right: parent.right
+      anchors.rightMargin: Style.space(12)
+      anchors.verticalCenter: parent.verticalCenter
+      label: "Seconds"
+      from: 0
+      to: 60
+      stepSize: 1
+      value: root.service ? root.service.undoSendSeconds : 10
+      foreground: root.textColor
+      accent: root.accentColor
+      fontFamily: root.panelFontFamily
+      fontSize: Style.font.bodySmall
+      onModified: function(next) {
+        if (root.service) root.service.setUndoSendSeconds(next)
+      }
+    }
   }
 
   // ------------------------------------------------------------- mailboxes
@@ -100,7 +273,7 @@ Column {
             text: {
               if (row.modelData.error !== undefined && row.modelData.error !== "")
                 return row.modelData.error
-              if (!row.modelData.signedIn) return "Not signed in yet"
+              if (!row.modelData.signedIn) return "Signed out"
               var count = row.modelData.unread
               var unread = count === 0 ? "No unread mail"
                 : (count === 1 ? "1 unread message" : count + " unread messages")
@@ -135,11 +308,26 @@ Column {
 
   IconTextButton {
     iconName: "plus"
-    text: "Add a mailbox"
+    text: "Add a mailbox..."
     foreground: root.textColor
     fontFamily: root.panelFontFamily
-    tooltipText: "Sign in to another Gmail account"
+    tooltipText: "Add another mail account"
     onClicked: root.addRequested()
+  }
+
+  PanelSeparator {
+    width: parent.width
+    foreground: root.textColor
+  }
+
+  CalendarSettings {
+    width: parent.width
+    controller: root.calendarController
+    textColor: root.textColor
+    dimColor: root.dimColor
+    accentColor: root.accentColor
+    urgentColor: root.urgentColor
+    panelFontFamily: root.panelFontFamily
   }
 
   PanelSeparator {
@@ -172,7 +360,7 @@ Column {
       Text {
         width: parent.width
         text: root.auth && root.auth.credentialsPresent
-          ? root.auth.clientDescription : "No client yet"
+          ? String(root.auth.clientDescription || "Google OAuth client") : "No client yet"
         color: root.textColor
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.bodySmall

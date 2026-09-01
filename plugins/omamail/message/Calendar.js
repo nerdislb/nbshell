@@ -191,6 +191,64 @@ function parse(text) {
   return root
 }
 
+// Replace selected top-level properties in the one VEVENT named by UID while
+// leaving every other line alone. CalDAV PUT replaces the whole resource, so
+// rebuilding a small event from parsed fields would erase alarms, attendees,
+// timezone definitions and server extensions the editor never showed. Nested
+// components such as VALARM are deliberately outside the replacement depth.
+function rewriteEvent(text, uid, replacementLines, propertyNames) {
+  var lines = unfoldLines(text)
+  var wantedUid = String(uid || "")
+  var matches = []
+  var start = -1
+  var depth = 0
+  var foundUid = ""
+  for (var i = 0; i < lines.length; i++) {
+    var parsed = parseProperty(lines[i])
+    if (!parsed) continue
+    if (start < 0 && parsed.name === "BEGIN"
+        && String(parsed.value || "").toUpperCase() === "VEVENT") {
+      start = i
+      depth = 1
+      foundUid = ""
+      continue
+    }
+    if (start < 0) continue
+    if (parsed.name === "BEGIN") { depth++; continue }
+    if (parsed.name === "END") {
+      if (depth === 1 && String(parsed.value || "").toUpperCase() === "VEVENT") {
+        if (foundUid === wantedUid) matches.push({ start: start, end: i })
+        start = -1
+        depth = 0
+        foundUid = ""
+      } else {
+        depth--
+      }
+      continue
+    }
+    if (depth === 1 && parsed.name === "UID") foundUid = unescapeText(parsed.value).trim()
+  }
+  if (matches.length !== 1) return ""
+
+  var replace = {}
+  var names = Array.isArray(propertyNames) ? propertyNames : []
+  for (var n = 0; n < names.length; n++) replace[String(names[n]).toUpperCase()] = true
+  var target = matches[0]
+  var out = lines.slice(0, target.start + 1)
+  depth = 1
+  for (var lineIndex = target.start + 1; lineIndex < target.end; lineIndex++) {
+    var property = parseProperty(lines[lineIndex])
+    if (property && property.name === "BEGIN") depth++
+    if (!(property && depth === 1 && replace[property.name] === true))
+      out.push(lines[lineIndex])
+    if (property && property.name === "END") depth--
+  }
+  var additions = Array.isArray(replacementLines) ? replacementLines : []
+  for (var addition = 0; addition < additions.length; addition++) out.push(additions[addition])
+  out.push(lines[target.end])
+  return out.concat(lines.slice(target.end + 1)).join("\r\n") + "\r\n"
+}
+
 function childNamed(component, name) {
   var children = component && Array.isArray(component.children) ? component.children : []
   var wanted = String(name || "").toUpperCase()
@@ -424,6 +482,40 @@ function timezoneFor(calendar, tzid) {
   return null
 }
 
+var timezoneDocumentCache = {}
+var timezoneDocumentKeys = []
+
+function timezoneDocument(blocks) {
+  var values = Array.isArray(blocks) ? blocks : []
+  if (values.length === 0) return null
+  var key = values.join("\r\n")
+  if (timezoneDocumentCache[key]) return timezoneDocumentCache[key]
+  var document = parse(["BEGIN:VCALENDAR"].concat(values, ["END:VCALENDAR"]).join("\r\n"))
+  if (!document) return null
+  timezoneDocumentCache[key] = document
+  timezoneDocumentKeys.push(key)
+  if (timezoneDocumentKeys.length > 16) {
+    var oldest = timezoneDocumentKeys.shift()
+    delete timezoneDocumentCache[oldest]
+  }
+  return document
+}
+
+function dateFieldsFromLine(line) {
+  var found = parseProperty(line)
+  return found ? parseDateValue(found.value) : null
+}
+
+// Recurrence expansion walks calendar dates, then asks this function for each
+// date's absolute moment. Inline VTIMEZONE rules remain authoritative. A zone
+// with no rules uses the same unresolved UTC placeholder on every machine.
+function timeInZone(fields, tzid, blocks) {
+  var offset = zoneOffsetMinutes(timezoneFor(timezoneDocument(blocks), tzid), fields)
+  if (offset !== null)
+    return { ms: naiveKey(fields) - offset * 60000, resolved: true }
+  return { ms: naiveKey(fields), resolved: false }
+}
+
 // A moment, and how sure this is of it. `resolved` false means the wall clock
 // is right and the zone is a guess — which the card says out loud rather than
 // showing a converted time it cannot stand behind.
@@ -449,11 +541,11 @@ function resolveTime(found, calendar) {
     if (offset !== null) {
       return { ms: naiveKey(fields) - offset * 60000, allDay: false, tzid: tzid, resolved: true }
     }
-    // A named zone with no VTIMEZONE beside it. The wall clock is what the
-    // organiser wrote; saying which clock it is beats converting it wrongly.
+    // QML has no IANA timezone database API. Keep the wall fields as a stable
+    // UTC placeholder and mark them unresolved. Using `new Date(...)` here
+    // would silently reinterpret them in each machine's local zone.
     return {
-      ms: new Date(fields.year, fields.month - 1, fields.day,
-        fields.hour, fields.minute, fields.second).getTime(),
+      ms: naiveKey(fields),
       allDay: false, tzid: tzid, resolved: false
     }
   }
@@ -668,6 +760,26 @@ function invitationFrom(text, fallbackMethod) {
   var event = childNamed(calendar, "VEVENT")
   if (!event) return null
 
+  return eventFromComponent(calendar, event, fallbackMethod)
+}
+
+// Calendar feeds may carry more than one VEVENT. Keep their conversion on the
+// same path as invitations so a time zone or all-day event cannot mean one
+// thing in mail and another thing in the calendar view.
+function eventsFrom(text, fallbackMethod) {
+  var calendar = parse(text)
+  if (!calendar || calendar.name !== "VCALENDAR") return []
+  var components = childrenNamed(calendar, "VEVENT")
+  var events = []
+  for (var i = 0; i < components.length; i++) {
+    var event = eventFromComponent(calendar, components[i], fallbackMethod)
+    if (event) events.push(event)
+  }
+  return events
+}
+
+function eventFromComponent(calendar, event, fallbackMethod) {
+
   var uid = textOf(event, "UID")
   if (uid === "") return null
 
@@ -686,6 +798,19 @@ function invitationFrom(text, fallbackMethod) {
   }
 
   var recurrence = property(event, "RRULE")
+  var recurrenceId = resolveTime(property(event, "RECURRENCE-ID"), calendar)
+  var excluded = []
+  var exclusionLines = properties(event, "EXDATE")
+  for (var exclusionIndex = 0; exclusionIndex < exclusionLines.length; exclusionIndex++) {
+    var values = String(exclusionLines[exclusionIndex].value || "").split(",")
+    for (var valueIndex = 0; valueIndex < values.length; valueIndex++) {
+      var excludedAt = resolveTime({
+        name: "EXDATE", params: exclusionLines[exclusionIndex].params,
+        value: values[valueIndex], raw: exclusionLines[exclusionIndex].raw
+      }, calendar)
+      if (excludedAt) excluded.push(excludedAt.ms)
+    }
+  }
 
   return {
     method: normalizedMethod(textOf(calendar, "METHOD")) || normalizedMethod(fallbackMethod),
@@ -700,6 +825,9 @@ function invitationFrom(text, fallbackMethod) {
     start: start,
     end: end,
     recurrence: recurrence ? describeRecurrence(recurrence.value) : "",
+    recurrenceRule: recurrence ? String(recurrence.value || "") : "",
+    recurrenceIdMs: recurrenceId ? recurrenceId.ms : 0,
+    excludedMs: excluded,
     meetLink: conferenceLink(event),
     // Kept verbatim for the reply. A DTSTART rebuilt out of the moment this
     // parser settled on would answer a question the organiser did not ask; the
@@ -768,23 +896,30 @@ function fromAttachment(part, data) {
 
 // ------------------------------------------------------------- formatting
 
-function clockOf(ms) {
+function clockOf(ms, utc) {
   var at = new Date(ms)
-  return twoDigits(at.getHours()) + ":" + twoDigits(at.getMinutes())
+  return twoDigits(utc ? at.getUTCHours() : at.getHours()) + ":"
+    + twoDigits(utc ? at.getUTCMinutes() : at.getMinutes())
 }
 
-function dayOf(ms) {
+function dayOf(ms, utc) {
   var at = new Date(ms)
-  return Mail.WEEKDAYS[at.getDay()] + ", " + Mail.MONTHS[at.getMonth()] + " "
-    + at.getDate() + ", " + at.getFullYear()
+  var day = utc ? at.getUTCDay() : at.getDay()
+  var month = utc ? at.getUTCMonth() : at.getMonth()
+  var date = utc ? at.getUTCDate() : at.getDate()
+  var year = utc ? at.getUTCFullYear() : at.getFullYear()
+  return Mail.WEEKDAYS[day] + ", " + Mail.MONTHS[month] + " " + date + ", " + year
 }
 
-function sameDay(first, second) {
+function sameDay(first, second, utc) {
   var left = new Date(first)
   var right = new Date(second)
-  return left.getFullYear() === right.getFullYear()
-    && left.getMonth() === right.getMonth()
-    && left.getDate() === right.getDate()
+  return (utc ? left.getUTCFullYear() : left.getFullYear())
+      === (utc ? right.getUTCFullYear() : right.getFullYear())
+    && (utc ? left.getUTCMonth() : left.getMonth())
+      === (utc ? right.getUTCMonth() : right.getMonth())
+    && (utc ? left.getUTCDate() : left.getDate())
+      === (utc ? right.getUTCDate() : right.getDate())
 }
 
 // "Fri, Aug 21, 2026 · 14:00 – 15:00", and the honest variants of it: an
@@ -795,6 +930,7 @@ function formatWhen(invite) {
   var start = invite && invite.start ? invite.start : null
   if (!start) return ""
   var end = invite && invite.end ? invite.end : null
+  var unresolved = !start.resolved && start.tzid !== ""
 
   if (start.allDay) {
     // An all-day DTEND is the first day *after* the event, so a one-day
@@ -805,13 +941,13 @@ function formatWhen(invite) {
     return dayOf(start.ms) + " · all day"
   }
 
-  var text = dayOf(start.ms) + " · " + clockOf(start.ms)
+  var text = dayOf(start.ms, unresolved) + " · " + clockOf(start.ms, unresolved)
   if (end && end.ms > start.ms) {
-    text += sameDay(start.ms, end.ms)
-      ? " – " + clockOf(end.ms)
-      : " – " + dayOf(end.ms) + " " + clockOf(end.ms)
+    text += sameDay(start.ms, end.ms, unresolved)
+      ? " – " + clockOf(end.ms, unresolved)
+      : " – " + dayOf(end.ms, unresolved) + " " + clockOf(end.ms, unresolved)
   }
-  if (!start.resolved && start.tzid !== "") text += " (" + start.tzid + ")"
+  if (unresolved) text += " (" + start.tzid + ")"
   return text
 }
 

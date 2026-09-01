@@ -49,7 +49,7 @@ Variants {
         WlrLayershell.namespace: "nbshell:notifications"
         WlrLayershell.layer: WlrLayershell.Overlay
         // Toasts duerfen niemals Tastaturfokus anfordern. Mit OnDemand nahm
-        // Niri 26.04 beim Mappen des neuen Layer-Fensters Herdr bereits den
+        // Requesting focus while mapping a notification layer can steal the
         // aktiven Sitz weg, obwohl niemand die Karte angeklickt hatte. Pointer-
         // Eingaben (Hover, Aktionen, Rechtsklick) brauchen keinen Keyboard-
         // Fokus; nur die bewusst geoeffnete NotificationCenter-Oberflaeche
@@ -63,7 +63,7 @@ Variants {
 
         // Fenster genau so gross wie der Kartenstapel -- KEINE Maske: eine
         // Region-Maske (egal ob `item:` oder explizite Koordinaten) liefert
-        // unter niri keinen Eingabebereich, also kein Hover und keine Klicks
+        // no reliable input region here, so hover and action clicks would fail
         // auf den Aktionsknoepfen. Stattdessen nimmt das ganze Fenster
         // Eingaben an und wird per `margins.*` unter die Leiste und vom Rand
         // weg geschoben, damit es nur dort blockiert, wo wirklich eine Karte

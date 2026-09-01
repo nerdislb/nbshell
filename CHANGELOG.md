@@ -6,8 +6,15 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+## [0.1.0-beta.7] - 2026-08-31
+
 ### Added
 
+- Public support, privacy, and private security-reporting policies now use the
+  verified `nbsystems.dev` role addresses.
+- The plugin golden path now includes a stable design contract, shared native
+  and compatibility APIs, real panel/overlay/service/bar templates, strict
+  design checks, and an expanded live UI Gallery.
 - Hermarchy is available as a restrained near-black nbshell theme with a more
   colorful Catppuccin-leaning semantic palette and three original converted wallpapers.
   Its optional compact comparison widget is disabled by default and reuses the
@@ -16,6 +23,50 @@ configuration and plugin interfaces before `1.0.0`.
   in the compact widget or Agent Center; the original AI popout remains focused
   on provider limits, usage history, and non-Hermes agent activity. The theme
   hook continues to update Hermes itself.
+
+### Changed
+
+- nbshell now supports Umbriel exclusively. The former fallback backend,
+  compositor-specific grid controller, duplicate configuration payloads, and
+  related installer paths have been removed. Workspace layout control now uses
+  Umbriel's native scrolling, dwindle, and master modes.
+- Umbriel and its portal are installed as one root-owned reviewed stack below
+  `/usr/local`, allowing user sessions and the isolated greetd frontend to use
+  the same validated binaries.
+- Orbital now runs inside an isolated Umbriel greeter profile. A compositor-free
+  agreety configuration provides the independent recovery path.
+- GitHub workflows and the documentation toolchain now use their current
+  supported releases through immutable action revisions. Tag publication now
+  waits for the complete validation workflow instead of release metadata alone.
+- The optional native WhatsApp client now tracks upstream 0.11.2, adding
+  account controls, safer cross-account and media handling, keyboard reply
+  actions, and guarded local-notification clearing while retaining nbshell's
+  responsive layout and bounded refresh path.
+- Mail now tracks upstream 0.6.0 with HEY and IMAP providers, attachments,
+  drafts and undo-send, calendar views and event editing, bounded remote-image
+  handling, and native `mailto:` routing through nbshell.
+- The optional Omazen bridge now tracks the Rust-based 1.5.0 generation. A
+  narrow tested compatibility patch supports Arch only in nbshell's explicit
+  external-palette-provider mode, and installation builds and tests the pinned
+  source before replacing an existing bridge.
+- The optional Hermes pilot now tracks upstream `936b970` on Hermes 0.20.6.
+  Its locked all-feature environment and isolated security audit complete
+  without known vulnerabilities; existing nbshell permission profiles and the
+  13-tool broker boundary remain unchanged.
+- The retired Node/Baileys WhatsApp bridge and built-in widget have been removed;
+  existing widget slots migrate to the selected wacli or PrettyZap provider.
+- Umbriel and its portal now install as one reviewed, immutable revision pair;
+  both projects must build and pass tests before either is installed.
+- Video Trimmer installation now builds an explicit reviewed revision instead
+  of an unreviewed moving branch.
+- Pit Wall metadata now points to its actual maintained upstream repository.
+
+### Fixed
+
+- The UI Gallery remains fully keyboard-scrollable at large text sizes through
+  arrows, J/K, Page Up/Down, Home, and End, with Escape preserved.
+- Long WhatsApp drafts remain reachable in both the full client and compact
+  composer, and setup defers a shell restart when invoked from nbshell itself.
 
 ## [0.1.0-beta.6] - 2026-08-30
 
@@ -377,7 +428,8 @@ First public beta candidate.
   declared dependencies before activation.
 - Credentials remain outside the repository and plugin configuration.
 
-[Unreleased]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.6...HEAD
+[Unreleased]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.7...HEAD
+[0.1.0-beta.7]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.6...v0.1.0-beta.7
 [0.1.0-beta.6]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.5...v0.1.0-beta.6
 [0.1.0-beta.5]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.4...v0.1.0-beta.5
 [0.1.0-beta.4]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.3...v0.1.0-beta.4

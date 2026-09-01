@@ -118,6 +118,19 @@ function trashPath(id) { return "/users/me/messages/" + encode(id) + "/trash" }
 function untrashPath(id) { return "/users/me/messages/" + encode(id) + "/untrash" }
 function batchModifyPath() { return "/users/me/messages/batchModify" }
 function sendPath() { return "/users/me/messages/send" }
+function draftsPath() { return "/users/me/drafts" }
+function draftPath(id) { return "/users/me/drafts/" + encode(id) }
+
+function sendBody(payload) {
+  var source = payload || {}
+  var body = { raw: String(source.raw || "") }
+  if (source.threadId) body.threadId = String(source.threadId)
+  return body
+}
+
+function draftBody(payload) {
+  return { message: sendBody(payload) }
+}
 function threadPath(id) { return "/users/me/threads/" + encode(id) }
 function labelsPath() { return "/users/me/labels" }
 function labelPath(id) { return "/users/me/labels/" + encode(id) }
@@ -291,6 +304,13 @@ function isSendAsAllowed(aliases, email) {
 // to map one to the other from the API. Index 0 is right for the common
 // single-account case and wrong in a way the user can see and fix, which beats
 // a link that silently opens somebody else's mailbox.
+// The mailbox itself, rather than a message or a search in it. Gmail's web UI
+// opens on whatever the user last had; there is nothing to point it at.
+function webHomeUrl(accountIndex) {
+  var index = Math.max(0, Math.floor(Number(accountIndex) || 0))
+  return WEB_BASE + "/" + index + "/"
+}
+
 function webMessageUrl(messageId, accountIndex) {
   var index = Math.max(0, Math.floor(Number(accountIndex) || 0))
   return WEB_BASE + "/" + index + "/#all/" + encode(messageId)

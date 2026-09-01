@@ -18,10 +18,10 @@ Item {
   property real pulse: 0.5
 
   SequentialAnimation on pulse {
-    running: root.visible
+    running: root.visible && !Style.motion.reduced
     loops: Animation.Infinite
-    NumberAnimation { to: 1.0; duration: 900; easing.type: Easing.InOutQuad }
-    NumberAnimation { to: 0.45; duration: 900; easing.type: Easing.InOutQuad }
+    NumberAnimation { to: 1.0; duration: Style.motion.loopFast; easing.type: Easing.InOutQuad }
+    NumberAnimation { to: 0.45; duration: Style.motion.loopFast; easing.type: Easing.InOutQuad }
   }
 
   Column {

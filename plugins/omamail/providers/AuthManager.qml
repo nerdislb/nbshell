@@ -58,10 +58,16 @@ Item {
   property string grantedScope: ""
   property bool loggedIn: false
   property bool sessionChecked: false
+  // True after the keyring yielded a refresh token, even while a temporary
+  // network failure prevents it from becoming an access token. This is not a
+  // signed-out account: the saved grant is still the route back to ready.
+  property bool savedSessionPresent: false
+  readonly property bool recoveringSession: savedSessionPresent && !loggedIn
+  property int refreshRetryAttempt: 0
   property bool loginBusy: false
   property bool refreshBusy: false
   property bool credentialsWriteBusy: false
-  readonly property bool sessionBusy: refreshBusy || secretLookup.running
+  readonly property bool sessionBusy: refreshBusy || lookupRunning
   property string lastError: ""
 
   // Everything the sign-in needs that Omarchy does not guarantee is present.
@@ -73,6 +79,10 @@ Item {
   property var tokenWaiters: []
   property string lookupPurpose: ""
   property bool lookupHandled: false
+  property var lookupAttributes: []
+  property var savedTokenAttributes: []
+  // One lookup at a time, whichever of the two processes is carrying it.
+  readonly property bool lookupRunning: secretLookup.running || legacySearch.running
   property string keyringWriteToken: ""
   property string credentialsWritePayload: ""
 
@@ -136,7 +146,7 @@ Item {
     var next = tokenWaiters.slice()
     next.push(callback)
     tokenWaiters = next
-    if (refreshBusy || secretLookup.running) return
+    if (refreshBusy || lookupRunning) return
 
     lookupPurpose = "request"
     startSecretLookup()
@@ -145,11 +155,12 @@ Item {
   function restoreSession() {
     sessionChecked = false
     if (!credentialsPresent) {
+      savedSessionPresent = false
       sessionChecked = true
       resetMemorySession()
       return
     }
-    if (secretLookup.running || refreshBusy) return
+    if (lookupRunning || refreshBusy) return
     lookupPurpose = "restore"
     startSecretLookup()
   }
@@ -184,6 +195,9 @@ Item {
       // A different client means a different keyring entry and a different
       // grant; whatever is in memory belongs to the old one.
       resetMemorySession()
+      savedSessionPresent = false
+      refreshRetryAttempt = 0
+      refreshRetry.stop()
       sessionChecked = false
       if (Credentials.isConfigured(loaded)) restoreSession()
       else sessionChecked = true
@@ -192,12 +206,11 @@ Item {
 
   // -------------------------------------------------------------- keyring
 
-  // An install that predates multi-account stored its token under the client id
-  // alone. Reading that once, and rewriting under the new attributes, is the
-  // difference between an upgrade and a silent sign-out.
+  // Older grants are detected so the panel can ask for Calendar permission.
+  // Their tokens stay in the keyring and are never treated as current grants.
   property bool triedLegacyLookup: false
   property int secretLookupStage: 0
-  property var renamedAttributesToClear: []
+  property var legacyAttributes: []
 
   // Two keyring entries are not tied to an address: the pre-multi-account one
   // keyed by client alone, and the one written for a mailbox that had not
@@ -225,8 +238,8 @@ Item {
     lookupHandled = false
     triedLegacyLookup = false
     secretLookupStage = 0
-    secretLookup.command = ["secret-tool", "lookup"].concat(
-      Credentials.keyringAttributes(clientId, accountId))
+    lookupAttributes = Credentials.refreshTokenAttributes(clientId, accountId, 0)
+    secretLookup.command = ["secret-tool", "lookup"].concat(lookupAttributes)
     secretLookup.running = true
   }
 
@@ -234,14 +247,17 @@ Item {
     lookupHandled = false
     secretLookupStage++
     var attributes = []
-    if (secretLookupStage === 1 && mayAdoptLegacyToken) {
+    if (secretLookupStage === 1) {
+      triedLegacyLookup = false
+      attributes = Credentials.previousGrantKeyringAttributes(clientId, accountId)
+    } else if (secretLookupStage === 2 && mayAdoptLegacyToken) {
       triedLegacyLookup = true
       attributes = Credentials.legacyKeyringAttributes(clientId)
-    } else if (secretLookupStage <= 2) {
-      secretLookupStage = 2
+    } else if (secretLookupStage <= 3) {
+      secretLookupStage = 3
       triedLegacyLookup = false
       attributes = Credentials.renamedKeyringAttributes(clientId, accountId)
-    } else if (secretLookupStage === 3 && mayAdoptLegacyToken) {
+    } else if (secretLookupStage === 4 && mayAdoptLegacyToken) {
       triedLegacyLookup = true
       attributes = Credentials.renamedLegacyKeyringAttributes(clientId)
     }
@@ -249,7 +265,38 @@ Item {
       handleSecretLookup("")
       return
     }
+    // A legacy read looks before it leaps. Its attributes are a wildcard over
+    // "account", so asking for the token outright can answer with a named
+    // mailbox's. See Credentials.hasLoneLegacyEntry.
+    if (triedLegacyLookup) {
+      legacySearch.reset()
+      legacyAttributes = attributes
+      legacySearch.command = ["secret-tool", "search", "--all"].concat(attributes)
+      legacySearch.running = true
+      return
+    }
+    lookupAttributes = attributes
     secretLookup.command = ["secret-tool", "lookup"].concat(attributes)
+    secretLookup.running = true
+  }
+
+  // The legacy entry's token, asked for only once the search has said that
+  // entry is the one a lookup would answer with. Refusing is not an error:
+  // what a mailbox with no token of its own gets is the next stage, and then
+  // the sign-in button.
+  //
+  // A search that did not exit cleanly is refused as well. Fail-closed covers
+  // the ordinary failures on its own, since a search that found nothing counts
+  // no matches, but a killed one can leave a whole record on stdout with its
+  // attributes cut short.
+  function readLegacyToken(exitCode, matches, attributed, named) {
+    if (exitCode !== 0 || !Credentials.hasLoneLegacyEntry(matches, attributed, named)) {
+      handleSecretLookup("")
+      return
+    }
+    lookupHandled = false
+    lookupAttributes = legacyAttributes
+    secretLookup.command = ["secret-tool", "lookup"].concat(legacyAttributes)
     secretLookup.running = true
   }
 
@@ -257,23 +304,37 @@ Item {
     if (lookupHandled) return
     lookupHandled = true
     var token = String(raw || "").trim()
-    if (!token && secretLookupStage < 3 && clientId !== "") {
+    if (!token && secretLookupStage < 4 && clientId !== "") {
       startNextSecretLookup()
       return
     }
     var purpose = lookupPurpose
     lookupPurpose = ""
     if (!token) {
+      savedSessionPresent = false
       resetMemorySession()
       sessionChecked = true
       if (purpose === "request") finishWaiters("", "Sign in to Gmail first")
       return
     }
-    renamedAttributesToClear = secretLookupStage >= 2
-      ? (secretLookupStage === 3
-        ? Credentials.renamedLegacyKeyringAttributes(clientId)
-        : Credentials.renamedKeyringAttributes(clientId, accountId))
-      : []
+    // Every fallback entry predates the Calendar grant marker. Refreshing it
+    // would report a live Gmail session while Calendar returns 403. Keep the
+    // saved token for Google's incremental consent flow, but require sign-in.
+    if (secretLookupStage > 0) {
+      token = ""
+      savedSessionPresent = false
+      savedTokenAttributes = []
+      refreshRetryAttempt = 0
+      refreshRetry.stop()
+      resetMemorySession()
+      sessionChecked = true
+      lastError = "Sign in again to add Google Calendar permission"
+      if (purpose === "request") finishWaiters("", lastError)
+      else sessionUnavailable(lastError)
+      return
+    }
+    savedSessionPresent = true
+    savedTokenAttributes = lookupAttributes.slice()
     refreshWithToken(token, purpose)
   }
 
@@ -307,23 +368,50 @@ Item {
     keyringStore.running = true
   }
 
-  function clearStoredToken() {
+  function clearStoredToken(attributes) {
     if (keyringClear.running || !clientId) return
-    keyringClear.command = ["secret-tool", "clear"].concat(
-      Credentials.keyringAttributes(clientId, accountId))
+    var selected = attributes && attributes.length
+      ? attributes : Credentials.keyringAttributes(clientId, accountId)
+    keyringClear.command = ["secret-tool", "clear"].concat(selected)
     keyringClear.running = true
   }
 
   // ---------------------------------------------------------------- tokens
 
+  // How long the token endpoint may hang before the sign-in gives up on it.
+  //
+  // Qt's QML XMLHttpRequest has no `timeout` and no `ontimeout`; a `Timer`
+  // calling `abort()` is what there is. See `GmailApiClient.requestTimeoutMs`
+  // for the measurements, and for why thirty seconds.
+  //
+  // This one matters more than a list load does: a session restore that never
+  // answers leaves `sessionChecked` false, and the panel waits on it for a
+  // session that is never coming.
+  readonly property int tokenTimeoutMs: 30000
+
   function postTokenRequest(body, previousRefreshToken, callback) {
     var serial = ++tokenRequestSerial
     var request = new XMLHttpRequest()
     tokenRequest = request
+
+    var deadline = tokenDeadlineComponent.createObject(root, { interval: tokenTimeoutMs })
+    function disarm() {
+      if (!deadline) return
+      deadline.stop()
+      deadline.destroy()
+      deadline = null
+    }
+
     request.onreadystatechange = function() {
       if (request.readyState !== XMLHttpRequest.DONE) return
+      disarm()
       if (serial !== root.tokenRequestSerial) return
       if (root.tokenRequest === request) root.tokenRequest = null
+      // `abort()` drives readyState to DONE with status 0, so a request the
+      // deadline gave up on lands here as the failure it is —
+      // `parseTokenResponse` already reads a zero status as "could not reach
+      // Google", which is the honest thing to tell somebody whose network went
+      // away mid sign-in.
       var result = OAuth.parseTokenResponse(request.status, request.responseText,
         previousRefreshToken)
       if (typeof callback === "function") callback(result)
@@ -331,6 +419,22 @@ Item {
     request.open("POST", OAuth.TOKEN_URL)
     request.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
     request.send(body)
+
+    if (deadline) {
+      deadline.triggered.connect(function() {
+        if (!root) return
+        if (request.abort) request.abort()
+      })
+      deadline.start()
+    }
+  }
+
+  Component {
+    id: tokenDeadlineComponent
+
+    Timer {
+      repeat: false
+    }
   }
 
   function refreshWithToken(refreshToken, purpose) {
@@ -347,9 +451,17 @@ Item {
       if (!result.ok) {
         root.resetMemorySession()
         root.lastError = root.safeError(result.error)
-        // A revoked or expired grant is never coming back. Dropping it here
-        // means the panel offers "Sign in" instead of retrying forever.
-        if (result.invalidGrant) root.clearStoredToken()
+        if (OAuth.refreshFailureDisposition(result) === "signed_out") {
+          // A revoked or expired grant is never coming back. Dropping it here
+          // means the panel offers "Sign in" instead of retrying forever.
+          root.savedSessionPresent = false
+          refreshRetry.stop()
+          root.clearStoredToken(root.savedTokenAttributes)
+        } else {
+          // The keyring token is still valid evidence of a saved session. Keep
+          // it and retry until the network can exchange it for an access token.
+          root.scheduleRefreshRetry()
+        }
         if (purpose === "request") root.finishWaiters("", root.lastError)
         else root.sessionUnavailable(root.lastError)
         return
@@ -360,13 +472,13 @@ Item {
   }
 
   function acceptToken(result) {
-    // Rewriting after a legacy read is what completes the migration; without it
-    // the old entry stays authoritative and a second account would still clash.
-    if (triedLegacyLookup && !result.refreshToken) triedLegacyLookup = false
     accessToken = result.accessToken
     accessTokenExpiresAt = Date.now() + result.expiresIn * 1000
     if (result.scope) grantedScope = result.scope
     loggedIn = true
+    savedSessionPresent = true
+    refreshRetryAttempt = 0
+    refreshRetry.stop()
     lastError = ""
     if (result.refreshToken) storeRefreshToken(result.refreshToken)
   }
@@ -389,6 +501,13 @@ Item {
     exchangingCode = false
     pkceGenerator.command = [pluginDir + "/scripts/pkce.sh"]
     pkceGenerator.running = true
+  }
+
+  function scheduleRefreshRetry() {
+    if (!savedSessionPresent || refreshRetry.running) return
+    refreshRetry.interval = OAuth.refreshRetryDelay(refreshRetryAttempt)
+    refreshRetryAttempt++
+    refreshRetry.start()
   }
 
   function handlePkce(raw) {
@@ -467,15 +586,21 @@ Item {
         root.sessionUnavailable(root.lastError)
         return
       }
-      root.acceptToken(result)
-      root.sessionChecked = true
-
       // A user can untick individual permissions on Google's consent screen.
       // The resulting token works for reading and fails at the first archive,
       // which is a far worse experience than saying so now.
       var missing = OAuth.missingScopes(result.scope, root.scopes)
-      if (missing.length > 0) root.lastError = OAuth.missingScopeMessage(missing)
+      if (missing.length > 0) {
+        root.resetMemorySession()
+        root.sessionChecked = true
+        root.lastError = OAuth.missingScopeMessage(missing)
+        root.finishWaiters("", root.lastError)
+        root.sessionUnavailable(root.lastError)
+        return
+      }
 
+      root.acceptToken(result)
+      root.sessionChecked = true
       root.finishWaiters(root.accessToken, "")
       root.loginSucceeded()
     })
@@ -517,6 +642,9 @@ Item {
 
   function logout() {
     cancelLogin()
+    refreshRetry.stop()
+    refreshRetryAttempt = 0
+    savedSessionPresent = false
     resetMemorySession()
     sessionChecked = true
     grantedScope = ""
@@ -608,6 +736,12 @@ Item {
     onTriggered: root.failLogin("Google sign-in took too long. Please try again")
   }
 
+  Timer {
+    id: refreshRetry
+    repeat: false
+    onTriggered: root.restoreSession()
+  }
+
   Process {
     id: pkceGenerator
     stdout: SplitParser {
@@ -652,6 +786,45 @@ Item {
     }
   }
 
+  // Whether a legacy entry is there at all. The matches come back on stdout
+  // and their attributes on stderr, so the two are counted apart and neither
+  // is read as the other's.
+  //
+  // Counted line by line rather than collected: a search keyed on the client
+  // alone loads every matching mailbox's token, and stdout carries all of
+  // them. Nothing here needs a secret, only how many of each line there were,
+  // so none is held.
+  Process {
+    id: legacySearch
+    property int matchCount: 0
+    property int attributedCount: 0
+    property int namedCount: 0
+
+    function reset() {
+      matchCount = 0
+      attributedCount = 0
+      namedCount = 0
+    }
+
+    stdout: SplitParser {
+      splitMarker: "\n"
+      onRead: function(line) {
+        if (Credentials.isKeyringMatchLine(line)) legacySearch.matchCount++
+      }
+    }
+    stderr: SplitParser {
+      splitMarker: "\n"
+      onRead: function(line) {
+        if (Credentials.isKeyringAttributedLine(line)) legacySearch.attributedCount++
+        if (Credentials.isKeyringNamedLine(line)) legacySearch.namedCount++
+      }
+    }
+    onExited: function(exitCode) {
+      root.readLegacyToken(exitCode, matchCount, attributedCount, namedCount)
+      reset()
+    }
+  }
+
   Process {
     id: keyringStore
     stdinEnabled: true
@@ -665,11 +838,6 @@ Item {
       root.keyringWriteToken = ""
       if (exitCode !== 0)
         root.lastError = "Signed in, but the session could not be saved. You may need to sign in again after a restart"
-      if (exitCode === 0 && root.renamedAttributesToClear.length && !keyringClear.running) {
-        keyringClear.command = ["secret-tool", "clear"].concat(root.renamedAttributesToClear)
-        root.renamedAttributesToClear = []
-        keyringClear.running = true
-      }
       if (root.logoutPendingClear) {
         root.logoutPendingClear = false
         root.clearStoredToken()

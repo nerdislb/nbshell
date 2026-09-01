@@ -13,7 +13,7 @@
 #   setup.sh --with-legacy-dotfiles  alte DMS-Dotfiles zusaetzlich uebernehmen
 #   setup.sh --no-aur         den AUR helper nicht bauen
 #   setup.sh --with-hardware  auch die Hardware-Packages der Paketliste
-#   setup.sh --niri-only      Umbriel nicht bauen; Niri-Fallback direkt nutzen
+
 #   setup.sh --with-greeter   Orbital auch bei einer bestehenden Installation einrichten
 #   setup.sh --no-greeter     Greeter bei einer Neuinstallation nicht einrichten
 #   setup.sh --yes            nichts fragen, alles ja
@@ -31,7 +31,6 @@ WITH_AUR=1
 WITH_HARDWARE=0
 WITH_OPTIONAL=0
 ASSUME_YES=0
-WITH_UMBRIEL=1
 GREETER_MODE=auto
 
 # Capture this before install.sh creates the normal user configuration. Automatic
@@ -58,7 +57,7 @@ while [ $# -gt 0 ]; do
 	--no-dotfiles) WITH_DOTFILES=0 && shift ;;
 	--no-aur) WITH_AUR=0 && shift ;;
 	--with-hardware) WITH_HARDWARE=1 && shift ;;
-	--niri-only) WITH_UMBRIEL=0 && shift ;;
+
 	--with-greeter)
 		[ "$GREETER_MODE" != "off" ] || { printf '%s\n' "--with-greeter and --no-greeter cannot be combined." >&2; exit 2; }
 		GREETER_MODE=on && shift
@@ -73,14 +72,14 @@ while [ $# -gt 0 ]; do
 		cat <<'USAGE'
 setup.sh -- install nbshell packages, files, and services.
 
-  setup.sh                  install Umbriel + nbshell, with Niri fallback
+  setup.sh                  install Umbriel and nbshell
   setup.sh --no-packages    install files only (same as install.sh)
   setup.sh --full           install all optional desktop tools
   setup.sh --with-legacy-dotfiles
                             optionally migrate old DMS dotfiles
   setup.sh --no-aur         do not offer to install an AUR helper
   setup.sh --with-hardware  include hardware-specific legacy packages
-  setup.sh --niri-only      skip Umbriel and install the Niri fallback only
+
   setup.sh --with-greeter   install Orbital even on an existing nbshell system
   setup.sh --no-greeter     keep the current display-manager frontend
   setup.sh --yes            accept normal package and service prompts
@@ -135,7 +134,7 @@ ask() {
 # unten ist ein Sonderfall.
 
 # Ohne das running nichts.
-PKG_BASIS=(quickshell niri ttf-jetbrains-mono-nerd python jq git curl patch)
+PKG_BASIS=(quickshell ttf-jetbrains-mono-nerd python jq git curl patch)
 
 # Woher die Bausteine ihre Zahlen haben. Quickshell spricht mit diesen
 # Servicesn ueber DBus, `pactl` braucht die Aufnahme fuer den audio.
@@ -153,7 +152,7 @@ PKG_SYSTEM=(networkmanager bluez bluez-utils pipewire pipewire-pulse wireplumber
 #   hyprpolkitagent das Fenster, das nach dem Passwort fragt, wenn ein Programm
 #                  Rechte will. polkitd selbst fragt NIEMANDEN -- ohne einen
 #                  Agenten in der Sitzung scheitert jede Anfrage still. Ein
-#                  Desktop bringt ihn mit, niri nicht.
+#                  A minimal compositor session does not provide one.
 #   qrencode       WLAN als QR-Code im Control Center
 #   speedtest-cli  Durchsatz messen, ebenda
 #   imagemagick    Wallpaper-Streifen fuer transparenten Bar-Kontrast abtasten
@@ -177,7 +176,7 @@ if [ $WITH_OPTIONAL -eq 1 ]; then
 else
 	ALLE=("${PKG_BASIS[@]}" "${PKG_SYSTEM[@]}" "${PKG_CORE[@]}")
 fi
-[ "$WANT_GREETER_SETUP" = "0" ] || ALLE+=(greetd-regreet)
+[ "$WANT_GREETER_SETUP" = "0" ] || ALLE+=(greetd imagemagick)
 
 if [ $WITH_PACKAGES -eq 1 ]; then
 	command -v pacman >/dev/null || die "pacman was not found. This installer targets Arch Linux. On other systems, use --no-packages and install the listed dependencies manually."
@@ -413,6 +412,15 @@ if [ $WITH_DOTFILES -eq 1 ]; then
 	fi
 fi
 
+# Umbriel is the only supported compositor. Build and test its pinned stack
+# before deploying shell files that depend on it.
+if [ "$WITH_PACKAGES" = "1" ]; then
+	head2 "Umbriel compositor"
+	"$SRC/setup-umbriel.sh" --skip-shell-install
+else
+	warn "Umbriel build skipped by --no-packages; an existing Umbriel installation is required."
+fi
+
 # ── Files ──────────────────────────────────────────────────────────────
 #
 # Den Rest kann install.sh schon: Shell, Themes, Config, Plugins, Unit,
@@ -434,37 +442,25 @@ if [ "$WITH_PACKAGES" = "1" ]; then
 		"$LOCKER_SETUP"
 fi
 
-# Umbriel is nbshell's recommended compositor. Niri stays installed and keeps
-# its generated integration as a recovery session. Files-only installs cannot
-# build a compositor, so they retain both configs and leave that choice to the
-# system administrator.
-if [ "$WITH_UMBRIEL" = "1" ]; then
-	if [ "$WITH_PACKAGES" = "1" ]; then
-		head2 "Umbriel (recommended compositor)"
-		"$SRC/setup-umbriel.sh" --skip-shell-install
-	else
-		warn "Umbriel build skipped by --no-packages; run ./setup-umbriel.sh when its dependencies are available."
-	fi
-fi
 
 # A complete fresh setup uses the native Orbital login screen by default. The
 # installed payload is deliberately exercised here instead of the checkout copy.
 # Existing installations are left untouched unless --with-greeter was explicit;
-# ReGreet remains installed as the independent recovery frontend either way.
+# agreety provides the independent text recovery path.
 if [ "$WANT_GREETER_SETUP" = "1" ]; then
 	head2 "Login screen"
 	greeter_ready=1
-	for command in niri quickshell regreet; do
+	for command in umbriel start-umbriel quickshell agreety; do
 		command -v "$command" >/dev/null 2>&1 || greeter_ready=0
 	done
 	if [ "$greeter_ready" = "0" ] && [ "$GREETER_MODE" = "auto" ]; then
-		warn "Orbital skipped because its packages were not installed. Run nbshell greeter install orbital later."
+		warn "Orbital skipped because its dependencies were not installed. Run nbshell greeter install later."
 	elif [ "$GREETER_MODE" = "on" ] || ask "Install the Orbital login screen?" y; then
 		GREETER_SETUP="${XDG_DATA_HOME:-$HOME/.local/share}/nbshell/setup-greeter.sh"
 		[ -x "$GREETER_SETUP" ] || die "The installed greeter setup payload is missing: $GREETER_SETUP"
-		"$GREETER_SETUP" install orbital
+		"$GREETER_SETUP" install
 	else
-		warn "Orbital skipped. Run nbshell greeter install orbital later."
+		warn "Orbital skipped. Run nbshell greeter install later."
 	fi
 fi
 
@@ -474,8 +470,7 @@ if [ $WITH_PACKAGES -eq 1 ]; then
 	# Befehl im PATH.
 	head2 "Final check"
 	fehlt=0
-	check_commands=(qs niri python3 jq git curl wl-copy wl-paste notify-send xdg-open pactl)
-	[ "$WITH_UMBRIEL" = "1" ] && check_commands+=(umbriel start-umbriel)
+	check_commands=(qs umbriel start-umbriel python3 jq git curl wl-copy wl-paste notify-send xdg-open pactl)
 	if [ $WITH_OPTIONAL -eq 1 ]; then
 		check_commands+=(hyprlock tuned-adm khal vdirsyncer grim wf-recorder slurp satty
 			swappy tesseract checkupdates fakeroot)
@@ -491,12 +486,7 @@ fi
 
 echo
 echo "Next steps:"
-if [ "$WITH_UMBRIEL" = "1" ] && [ "$WITH_PACKAGES" = "1" ]; then
-	echo "  Log out and choose Umbriel for the recommended session."
-	echo "  Choose Niri from the greeter whenever the primary session needs recovery."
-else
-	echo "  This run did not build Umbriel; use Niri now or run ./setup-umbriel.sh."
-fi
-echo "  nbshell switch on      refresh autostart and the Niri fallback integration"
+echo "  Log out and choose Umbriel."
+echo "  nbshell switch on      refresh autostart and the Umbriel integration"
 echo
 echo "Calendar accounts require separate khal/vdirsyncer configuration; see README.md."

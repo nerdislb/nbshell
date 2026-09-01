@@ -9,6 +9,9 @@ printf '%s' "$REPORT" | jq -e '
     (.desktop.backend | type == "string") and
     (.extensions.installed | type == "array") and
     (.tools | type == "object") and
+    (.desktop | has("niriVersion") | not) and
+    (.paths | has("niriFallback") | not) and
+    (.tools | has("niri") | not) and
     (.services.memoryGuard.protected | type == "boolean") and
     (has("clipboard") | not) and
     (has("notifications") | not) and

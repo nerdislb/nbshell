@@ -18,6 +18,7 @@ Column {
   required property color textColor
   required property color dimColor
   required property color dangerColor
+  required property color accentColor
   required property string panelFontFamily
   property bool canLeave: false
   property int accountCount: 1
@@ -39,14 +40,14 @@ Column {
   spacing: Style.space(16)
 
   function currentSettings() {
-    return {
+    return Imap.setupSettings({
+      address: addressField.text,
       imapHost: imapHostField.text.trim(),
-      imapPort: imapPortField.text.trim() === "" ? 993 : Number(imapPortField.text.trim()),
+      imapPort: imapPortField.text,
       smtpHost: smtpHostField.text.trim(),
-      smtpPort: smtpPortField.text.trim() === "" ? 465 : Number(smtpPortField.text.trim()),
-      username: (usernameField.text.trim() || addressField.text.trim()),
-      insecure: false
-    }
+      smtpPort: smtpPortField.text,
+      username: usernameField.text
+    })
   }
 
   // The address drives the servers until the user takes them over. Once a field
@@ -164,9 +165,9 @@ Column {
     visible: root.toolsMissing
     implicitHeight: missingText.implicitHeight + Style.space(20)
     radius: Style.cornerRadius
-    color: Style.normalFillFor(root.textColor, Color.accent)
+    color: Style.normalFillFor(root.textColor, root.accentColor)
     border.width: 1
-    border.color: Style.hoverBorderFor(root.textColor, Color.accent)
+    border.color: Style.hoverBorderFor(root.textColor, root.accentColor)
 
     Text {
       id: missingText
@@ -193,12 +194,12 @@ Column {
 
     TextField {
       id: addressField
+      accessibleName: "Email address"
       width: parent.width
       foreground: root.textColor
       font.family: root.panelFontFamily
       font.pixelSize: Style.font.bodySmall
       placeholderText: "Email address — you@example.com"
-      accessibleName: "Email address"
       onTextChanged: root.applySuggestion()
       onAccepted: passwordField.forceActiveFocus()
     }
@@ -222,6 +223,7 @@ Column {
 
       TextField {
         id: passwordField
+        accessibleName: "Mailbox password"
         anchors.left: parent.left
         anchors.right: parent.right
         // Masked by default: this window is shoulder-surfable. Readable on
@@ -233,7 +235,6 @@ Column {
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.bodySmall
         placeholderText: "Password, or app password"
-        accessibleName: "Mailbox password"
         onAccepted: root.signIn()
       }
 
@@ -258,7 +259,7 @@ Column {
       width: parent.width
       visible: text !== ""
       text: ""
-      color: Color.urgent
+      color: root.dangerColor
       font.family: root.panelFontFamily
       font.pixelSize: Style.font.caption
       wrapMode: Text.WordWrap
@@ -294,23 +295,23 @@ Column {
 
         TextField {
           id: imapHostField
+          accessibleName: "IMAP server"
           width: parent.width - imapPortField.width - parent.spacing
           foreground: root.textColor
           font.family: root.panelFontFamily
           font.pixelSize: Style.font.bodySmall
           placeholderText: "IMAP server"
-          accessibleName: "IMAP server"
           onTextEdited: root.serversTouched = true
         }
 
         TextField {
           id: imapPortField
+          accessibleName: "IMAP port"
           width: Style.space(90)
           foreground: root.textColor
           font.family: root.panelFontFamily
           font.pixelSize: Style.font.bodySmall
           placeholderText: "IMAP port"
-          accessibleName: "IMAP port"
           onTextEdited: root.serversTouched = true
         }
       }
@@ -321,24 +322,23 @@ Column {
 
         TextField {
           id: smtpHostField
+          accessibleName: "SMTP server"
           width: parent.width - smtpPortField.width - parent.spacing
           foreground: root.textColor
           font.family: root.panelFontFamily
           font.pixelSize: Style.font.bodySmall
           placeholderText: "SMTP server — leave empty to read only"
-          accessibleName: "SMTP server"
-          accessibleDescription: "Leave empty to configure a read-only mailbox"
           onTextEdited: root.serversTouched = true
         }
 
         TextField {
           id: smtpPortField
+          accessibleName: "SMTP port"
           width: Style.space(90)
           foreground: root.textColor
           font.family: root.panelFontFamily
           font.pixelSize: Style.font.bodySmall
           placeholderText: "SMTP port"
-          accessibleName: "SMTP port"
           onTextEdited: root.serversTouched = true
         }
       }
@@ -348,13 +348,12 @@ Column {
       // to keep out of the way.
       TextField {
         id: usernameField
+        accessibleName: "Username"
         width: parent.width
         foreground: root.textColor
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.bodySmall
         placeholderText: "Username — only if it is not the address"
-        accessibleName: "Username"
-        accessibleDescription: "Only needed when the login name differs from the email address"
       }
     }
 
@@ -374,7 +373,7 @@ Column {
 
     Button {
       visible: !root.signedIn
-      text: root.busy ? "Checking…" : "Connect the mailbox"
+      text: root.busy ? "Checking" : "Connect the mailbox"
       enabled: !root.busy && addressField.text.trim() !== "" && passwordField.text !== ""
       foreground: root.textColor
       bordered: true

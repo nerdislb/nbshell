@@ -13,7 +13,7 @@ import qs.Common
 // die der Blick in Omarchys Plugin-Katalog zutage gefoerdert hat.
 //
 // Gebraucht wird dafuer KEIN Zusatzprogramm. Quickshell spricht das
-// Wayland-Protokoll `ext-idle-notify` selbst (`IdleMonitor`), und niri kann es.
+// standard Wayland `ext-idle-notify` protocol directly (`IdleMonitor`).
 // swayidle oder hypridle waeren ein zweiter Daemon mit einer zweiten
 // Konfiguration, die man vergisst, wenn man hier etwas aendert.
 //
@@ -21,7 +21,7 @@ import qs.Common
 //
 //   dimmen      der Bildschirm wird dunkler, aber man sieht noch alles.
 //               Ein Tastendruck holt die alte Helligkeit zurueck.
-//   ausschalten DPMS aus. niri schaltet bei der naechsten Eingabe selbst
+//   ausschalten DPMS aus. Umbriel wakes outputs on the next input event.
 //               wieder ein.
 //   sperren     `lockCommand` -- derselbe, den auch das Sitzungsmenue nimmt.
 //
@@ -129,7 +129,7 @@ Singleton {
     readonly property string saverScript: Qt.resolvedUrl("../scripts/screensaver.sh").toString().replace("file://", "")
     readonly property string terminal: Config.value("terminal", "") || Quickshell.env("TERMINAL") || "ghostty"
 
-    // Der Titel muss BEIM OEFFNEN stehen, nicht danach: niri wertet seine
+    // The title must exist when the window opens because Umbriel evaluates its
     // Fensterregel aus, sobald das Fenster auftaucht -- zu dem Zeitpunkt hiess
     // es noch "ghostty", und `open-fullscreen` griff nie. Dass das Skript den
     // Titel spaeter selbst setzt, kam fuer die Regel zu spaet; deshalb sagt es
@@ -137,7 +137,7 @@ Singleton {
     //
     // `--fullscreen` obendrauf, weil es der kuerzeste Weg ist und nicht von
     // einer Regel in einer fremden Datei abhaengt. Terminals, die die Flaggen
-    // nicht kennen, bekommen sie nicht -- fuer die bleibt die niri-Regel.
+    // do not understand them simply receive no extra flags.
     readonly property bool ghostty: root.terminal.indexOf("ghostty") >= 0
 
     function startSaver() {
@@ -194,16 +194,11 @@ Singleton {
         timeout: root.offAfter
         respectInhibitors: true
 
-        // Eingeschaltet wird nicht von hier: niri weckt die Bildschirme bei
-        // der naechsten Eingabe selbst. Ein `power-on-monitors` von uns kaeme
-        // entweder zu frueh (waehrend noch niemand etwas tut) oder zu spaet.
+        // Umbriel wakes outputs on the next input event.
         onIsIdleChanged: {
             if (!offMonitor.isIdle)
                 return;
-            if (Compositor.isUmbriel)
-                Quickshell.execDetached(["umbriel", "msg", "dpms-off"]);
-            else
-                Compositor.action(["power-off-monitors"]);
+            Quickshell.execDetached(["umbriel", "msg", "dpms-off"]);
         }
     }
 

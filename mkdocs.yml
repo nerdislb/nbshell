@@ -1,6 +1,5 @@
 site_name: nbshell Manual
-site_description: User guide for the nbshell desktop on Niri
-site_url: https://nerdislb.github.io/nbshell/
+site_description: User guide for the nbshell desktop on Umbriel
 repo_url: https://github.com/nerdislb/nbshell
 repo_name: nerdislb/nbshell
 edit_uri: edit/main/docs/
@@ -39,9 +38,11 @@ nav:
   - Compatibility: compatibility.md
   - Join the beta: beta-invitation.md
   - Beta testing: beta-testing.md
-  - Grid-scroll: grid-scroll.md
+
   - Umbriel compositor: umbriel.md
   - Troubleshooting: troubleshooting.md
+  - Library, search, and demos: library-search-and-demos.md
+  - Performance: performance.md
   - Phone webcam: phone-webcam.md
   - Video trimming: video-trimming.md
   - Browser themes: browser-themes.md

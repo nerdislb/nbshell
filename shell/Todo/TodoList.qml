@@ -138,7 +138,7 @@ PanelWindow {
         id: box
         accentBorder: true
 
-        // Mittig oben -- bis jemand ihn wegzieht. niri kann dieses Fenster
+        // Centered at the top. Umbriel treats this as a layer-shell surface and
         // nicht verschieben: es ist eine Layer-Shell-Flaeche und liegt
         // ausserhalb seiner Zustaendigkeit, Mod+Ziehen gilt nur fuer normale
         // Fenster. Also zieht der Kasten sich selbst.

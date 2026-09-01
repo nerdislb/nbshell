@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+assert_not_grep() {
+    local status
+    if grep "$@"; then
+        printf 'Unexpected grep match: %s\n' "$*" >&2
+        return 1
+    else
+        status=$?
+        if [ "$status" -ne 1 ]; then
+            printf 'grep failed with status %s: %s\n' "$status" "$*" >&2
+            return "$status"
+        fi
+    fi
+}
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SERVICE="$ROOT/shell/Services/PowerService.qml"
 BATTERY="$ROOT/shell/Bar/Widgets/Battery.qml"
@@ -12,6 +26,6 @@ grep -Fq '{ "label": "Performance", "value": "throughput-performance" }' "$SERVI
 grep -Fq 'options: PowerService.profileOptions' "$BATTERY"
 grep -Fq 'value": PowerService.activeProfileLabel' "$BATTERY"
 grep -Fq 'unknown mode; use powersaver, balanced, or performance' "$IPC"
-! grep -Fq 'more profiles: tuned-adm list' "$BATTERY"
+assert_not_grep -Fq 'more profiles: tuned-adm list' "$BATTERY"
 
 echo "Three power modes and aliases: OK"

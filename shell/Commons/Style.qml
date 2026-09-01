@@ -52,6 +52,13 @@ QtObject {
     readonly property real numberFieldWidth: Theme.cellW * 16
     readonly property real searchablePopupMinHeight: Theme.cellH * 14
   }
+  readonly property QtObject motion: QtObject {
+    readonly property int effects: Theme.motionEffectsDefault
+    readonly property int attention: Theme.motionAttention
+    readonly property int loopFast: Theme.motionLoopFast
+    readonly property int loopSlow: Theme.motionLoopSlow
+    readonly property bool reduced: Theme.reducedMotion
+  }
   readonly property QtObject bar: QtObject {
     readonly property real iconCanvas: Theme.barIconCanvas
     readonly property real iconFont: Theme.fontBody

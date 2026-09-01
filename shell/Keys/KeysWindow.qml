@@ -131,7 +131,7 @@ PanelWindow {
                     rowWidth: parent.width
                     icon: Icons.keyboard
                     title: root.query !== "" ? root.query : "Keyboard shortcuts"
-                    subtitle: (Compositor.isUmbriel ? "Umbriel" : "Niri") + " · type to search"
+                    subtitle: "Umbriel · type to search"
                     badge: Binds.loading ? "…" : String(Binds.list.length)
                 }
 

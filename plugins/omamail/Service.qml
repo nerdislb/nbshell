@@ -2,9 +2,16 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "account"
+import "calendar"
 
 import "account/Accounts.js" as Accounts
+import "account/Model.js" as Model
+import "compose/Senders.js" as Senders
 import "providers/Registry.js" as Provider
+
+import "calendar/Sources.js" as CalendarSources
+import "message/Outbox.js" as Outbox
+import "message/Html.js" as Html
 
 // Every mailbox on this machine, and whichever one is on screen.
 //
@@ -40,11 +47,31 @@ Item {
   readonly property var defaultSettingValues: ({
     refreshIntervalSec: 120,
     maxMessages: 25,
+    heavyMessageRendering: Html.HEAVY_MESSAGE_RENDERING_DEFAULT,
     defaultQuery: "in:inbox",
     notifyNewMail: "On",
-    oauthPort: 9481
+    contactSuggestions: "Off",
+    oauthPort: 9481,
+    undoSendSeconds: 10
   })
   property var settings: defaultSettingValues
+  readonly property int undoSendSeconds: Outbox.normalizeDelay(
+    settings ? settings.undoSendSeconds : Outbox.DEFAULT_DELAY_SECONDS)
+  readonly property bool alwaysRenderHeavyMessages: Html.alwaysRenderHeavyMessages(
+    settings ? settings.heavyMessageRendering : null)
+  readonly property bool contactSuggestionsEnabled: settings
+    && String(settings.contactSuggestions || "Off") === "On"
+
+  // This is opt-in: local mail-client profiles can reveal a private address
+  // book even though the helper reads them without modification.
+  property var recipientContacts: []
+
+  function refreshRecipientContacts() {
+    if (!contactSuggestionsEnabled || contactReader.running || pluginDir === "") return
+    contactReader.command = [pluginDir + "/scripts/contact-suggestions.py"]
+    contactReader.running = true
+  }
+
 
   function applySettings(values) {
     var next = ({})
@@ -55,6 +82,28 @@ Item {
       next[name] = source[name]
     }
     if (JSON.stringify(next) !== JSON.stringify(settings)) settings = next
+    if (contactSuggestionsEnabled) refreshRecipientContacts()
+    else recipientContacts = []
+  }
+
+  function persistSetting(name, value) {
+    var next = ({})
+    for (var key in settings) if (key !== "id") next[key] = settings[key]
+    next[name] = value
+    applySettings(next)
+
+    var entry = ({ id: pluginId })
+    for (var field in next) entry[field] = next[field]
+    if (shell && typeof shell.updateEntryInline === "function")
+      shell.updateEntryInline(pluginId, entry)
+  }
+
+  function setUndoSendSeconds(value) {
+    persistSetting("undoSendSeconds", Outbox.normalizeDelay(value))
+  }
+
+  function setAlwaysRenderHeavyMessages(value) {
+    persistSetting("heavyMessageRendering", Html.heavyMessageRendering(value))
   }
 
   // ---------------------------------------------------------- the accounts
@@ -66,6 +115,8 @@ Item {
   readonly property int accountCount: Accounts.count(accountList)
   readonly property bool hasSavedAccounts: Accounts.hasSavedAccounts(accountList)
   readonly property string activeAccountId: accountList ? accountList.activeId : ""
+  readonly property string calendarAccountId: current && String(current.accountId || "") !== ""
+    ? String(current.accountId) : "__no_google_account__"
 
   // The instance whose mailbox is on screen. Everything below forwards to it.
   property var current: null
@@ -108,26 +159,40 @@ Item {
   }
 
   // The whole point of switching is that it is instant, which it is because
-  // each account keeps its own cache on disk.
+  // each account keeps its own cache on disk. A queued send belongs to its
+  // account host and remains reachable after the visible account changes.
   function switchTo(id) {
-    if (String(id) === activeAccountId && activeIndex < 0) return
+    // A notification can outlive the account it names. Refuse it before it can
+    // disturb either the visible account or what is persisted on disk.
+    if (!Accounts.find(accountList, id)) return false
+    // The saved account can already be active while Add account has put its
+    // draft on screen. Switching back still has work to do, just no file write.
+    if (String(id) === activeAccountId) {
+      if (activeIndex >= 0) {
+        activeIndex = -1
+        refreshCurrent()
+      }
+      return true
+    }
     activeIndex = -1
     accountList = Accounts.setActive(accountList, id)
     saveAccounts()
     refreshCurrent()
+    return true
   }
 
   // The switcher selects by position, because that is the only handle a mailbox
   // without an address has.
   function switchToIndex(index) {
     var accounts = accountList ? accountList.accounts : []
-    if (index < 0 || index >= accounts.length) return
+    if (index < 0 || index >= accounts.length) return false
+    if (index === indexOfActiveAccount()) return true
     if (accounts[index].id !== "") {
-      switchTo(accounts[index].id)
-      return
+      return switchTo(accounts[index].id)
     }
     activeIndex = index
     refreshCurrent()
+    return true
   }
 
   // The provider is chosen before the row exists, because it decides which
@@ -259,6 +324,11 @@ Item {
 
   function saveAccounts() {
     if (!accountsLoaded) return
+    // A nameless row is setup state, never a mailbox. There is no legitimate
+    // path that persists only one — Add waits for configureAccount, and the UI
+    // does not remove the final saved account — so refusing this write is the
+    // last line of defence against replacing every account with first-run.
+    if (!Accounts.hasSavedAccounts(accountList)) return
     if (accountsWriter.running) {
       accountsSaveQueued = true
       return
@@ -270,6 +340,11 @@ Item {
   }
 
   function applyAccounts(raw) {
+    // FileView can report a failed read while an atomically replaced watched
+    // file is settling. First run still gets its placeholder below, but once a
+    // real list is in memory an unreadable instant must not erase the UI and
+    // become the next value written back to disk.
+    if (accountsLoaded && !Accounts.isSerializedList(raw)) return
     var loaded = Accounts.load(raw)
     // First run, or an install that predates several accounts: one nameless
     // row so the existing credentials file still has somewhere to live.
@@ -299,20 +374,72 @@ Item {
   // the window cannot recompute lives here.
 
   property bool sidebarCollapsed: false
+  // Somebody who needed the text bigger needs it bigger for their mail, not for
+  // the message that made them reach for it. The same goes for `bodyMode`:
+  // both of these are ways of reading mail, not ways of reading one message.
+  property real bodyZoom: 1.0
+  // How a message is read: rebuilt for reading, the sender's own formatting, or
+  // text. Reading is the default because it is the one that answers the same
+  // way for every sender — a newsletter, a receipt and a reply all arrive as
+  // this window's type at this window's measure — and the other two are there
+  // for the messages whose own layout is carrying something.
+  property string bodyMode: "reader"
+  // Off until somebody says otherwise, and then it stays said. Loading a
+  // remote image tells its host that this address opened this message, at this
+  // moment — the reason the answer was once asked for one message at a time.
+  // Asked for every message, it is a decision somebody makes once and should
+  // not be asked to make again on the next one; the switch that turns it on is
+  // in Settings, which is also the only place that can turn it back off.
+  property bool alwaysShowImages: false
   property bool windowPrefsLoaded: false
   property string windowWritePayload: ""
+  property bool restoreWindow: false
+  property int restoreAttempts: 0
 
   function applyWindowPrefs(raw) {
-    var parsed = null
-    try { parsed = JSON.parse(String(raw || "")) } catch (e) { parsed = null }
-    if (parsed && typeof parsed === "object")
-      sidebarCollapsed = parsed.sidebarCollapsed === true
+    var prefs = Model.windowPrefs(raw)
+    sidebarCollapsed = prefs.sidebarCollapsed
+    bodyZoom = prefs.bodyZoom
+    bodyMode = prefs.bodyMode
+    alwaysShowImages = prefs.alwaysShowImages
+    restoreWindow = prefs.windowOpen
+    restoreAttempts = 0
     windowPrefsLoaded = true
+    if (restoreWindow) Qt.callLater(root.reopenWindow)
+    else if (windowOpen) saveWindowPrefs()
   }
 
+  function reopenWindow() {
+    if (!restoreWindow || windowOpen) return
+    if (restoreAttempts > 10) return
+    restoreAttempts = restoreAttempts + 1
+    if (!shell || typeof shell.summon !== "function") {
+      restoreTimer.start()
+      return
+    }
+    var ok = shell.summon(pluginId, "{}")
+    if (!ok) restoreTimer.start()
+  }
+
+  // A toggle is written the moment it is made; a zoom is dragged, and Ctrl and
+  // the wheel walk through a dozen values in a second. So the first change goes
+  // out immediately and anything arriving while that write is still running
+  // waits for the scrolling to stop — dropping those, which is what a bare
+  // `running` guard does, loses the one value the user settled on.
   function saveWindowPrefs() {
-    if (!windowPrefsLoaded || windowWriter.running) return
-    windowWritePayload = JSON.stringify({ sidebarCollapsed: sidebarCollapsed })
+    if (!windowPrefsLoaded) return
+    if (windowWriter.running) {
+      windowPrefsSettling.restart()
+      return
+    }
+    windowPrefsSettling.stop()
+    windowWritePayload = JSON.stringify({
+      sidebarCollapsed: sidebarCollapsed,
+      bodyZoom: bodyZoom,
+      bodyMode: bodyMode,
+      alwaysShowImages: alwaysShowImages,
+      windowOpen: windowOpen || restoreWindow
+    })
     windowWriter.command = [pluginDir + "/scripts/config-store.sh", "window.json"]
     windowWriter.running = true
   }
@@ -322,6 +449,33 @@ Item {
     if (next === sidebarCollapsed) return
     sidebarCollapsed = next
     saveWindowPrefs()
+  }
+
+  function setBodyZoom(value) {
+    var next = Model.clampZoom(value)
+    if (next === bodyZoom) return
+    bodyZoom = next
+    saveWindowPrefs()
+  }
+
+  function setBodyMode(value) {
+    // The message on screen is not read again for this: all three readings came
+    // off the one parse when the body arrived, so choosing between them is a
+    // preference and nothing else.
+    var next = Html.bodyModeOf(value, bodyMode)
+    if (next === bodyMode) return
+    bodyMode = next
+    saveWindowPrefs()
+  }
+
+  function setAlwaysShowImages(value) {
+    var next = value === true
+    if (next === alwaysShowImages) return
+    alwaysShowImages = next
+    saveWindowPrefs()
+    // The message on screen is the one the answer was given about, so it
+    // answers now rather than at the next message.
+    if (next && current) current.showRemoteImages()
   }
   signal duplicateAccount(string email)
 
@@ -334,6 +488,11 @@ Item {
   // to send the whole window back to the beginning.
   property bool anyAccountReady: false
 
+  // Instantiator.objectAt is not a property. sendIdentities has to watch
+  // something recount() updates, or From is computed once with no hosts
+  // and never lists the other signed-in mailboxes.
+  property int hostsEpoch: 0
+
   function recount() {
     var total = 0
     var signedIn = false
@@ -345,6 +504,7 @@ Item {
     }
     unreadTotal = total
     anyAccountReady = signedIn
+    hostsEpoch += 1
   }
 
   // The bar answers for all of them: a badge that counted only the mailbox you
@@ -380,15 +540,46 @@ Item {
     return out
   }
 
+  readonly property alias calendarController: sharedCalendar
+
+  function openCalendarEditor() {
+    var url = CalendarSources.calendarEditorUrl(sharedCalendar.sourceList)
+    if (url !== "") Quickshell.execDetached(["xdg-open", url])
+  }
+
   // ------------------------------------------------------------- forwarding
 
   property bool windowOpen: false
-  onWindowOpenChanged: if (current) current.windowOpen = windowOpen
+  onWindowOpenChanged: {
+    if (current) current.windowOpen = windowOpen
+    if (windowOpen) restoreWindow = false
+    saveWindowPrefs()
+  }
 
   readonly property var auth: current ? current.auth : null
   readonly property bool ready: !!current && current.ready
   readonly property string accountEmail: current ? current.accountEmail : ""
   readonly property var sendAsAliases: current ? current.availableSendAsAliases : []
+  // Every address a new message may be sent as, across signed-in mailboxes.
+  // Compose reads this and hides the ones that do not belong on a reply.
+  readonly property var sendIdentities: {
+    var _epoch = hostsEpoch
+    var mailboxes = []
+    var accounts = accountList ? accountList.accounts : []
+    var i
+    for (i = 0; i < accounts.length; i++) {
+      var host = accountHosts.objectAt(i)
+      mailboxes.push({
+        id: accounts[i].id,
+        email: host && host.accountEmail ? host.accountEmail : accounts[i].email,
+        label: Accounts.label(accounts[i]),
+        ready: !!(host && host.ready),
+        canSend: !!(host && host.canSend),
+        aliases: host ? host.availableSendAsAliases : []
+      })
+    }
+    return Senders.identities(mailboxes)
+  }
   readonly property string accountAddress: {
     var accounts = accountList ? accountList.accounts : []
     var index = activeIndex >= 0 ? activeIndex : indexOfActiveAccount()
@@ -409,12 +600,15 @@ Item {
   readonly property bool canStar: !current || current.canStar
   readonly property bool hasLabels: !current || current.hasLabels
   readonly property bool canOpenOnWeb: !current || current.canOpenOnWeb
+  readonly property bool canOpenWebInbox: !!current && current.canOpenWebInbox
+  readonly property var unavailableActions: current ? current.unavailableActions : []
   readonly property bool canSend: !current || current.canSend
   readonly property string mailboxKey: current ? current.mailboxKey : "inbox"
   readonly property string searchQuery: current ? current.searchQuery : ""
   readonly property string rawQuery: current ? current.rawQuery : ""
   readonly property bool listLoading: !!current && current.listLoading
   readonly property bool listLoaded: !!current && current.listLoaded
+  readonly property bool serverSearchLoading: !!current && current.serverSearchLoading
   readonly property bool hasMore: !!current && current.hasMore
   readonly property string resultSummary: current ? current.resultSummary : ""
   readonly property string selectedId: current ? current.selectedId : ""
@@ -422,6 +616,10 @@ Item {
   readonly property var selectedBody: current ? current.selectedBody : ({ text: "", source: "" })
   readonly property string selectedHtml: current ? current.selectedHtml : ""
   readonly property var selectedDocument: current ? current.selectedDocument : null
+  readonly property var selectedReaderDocument: current ? current.selectedReaderDocument : null
+  readonly property bool selectedReaderTooHeavy: !!current && current.selectedReaderTooHeavy
+  readonly property bool selectedReaderEmpty: !current || current.selectedReaderEmpty
+  readonly property int selectedReaderRemoteImages: current ? current.selectedReaderRemoteImages : 0
   readonly property var selectedImages: current ? current.selectedImages : []
   readonly property int selectedBlockedImages: current ? current.selectedBlockedImages : 0
   readonly property int selectedRemoteImages: current ? current.selectedRemoteImages : 0
@@ -439,7 +637,18 @@ Item {
   readonly property string unsubscribeDetail: current ? current.unsubscribeDetail : ""
   readonly property bool unsubscribing: !!current && current.unsubscribing
   readonly property bool detailLoading: !!current && current.detailLoading
+  readonly property bool detailPainted: !!current && current.detailPainted
   readonly property bool sending: !!current && current.sending
+  readonly property var pendingSendHost: {
+    for (var i = 0; i < accountHosts.count; i++) {
+      var host = accountHosts.objectAt(i)
+      if (host && host.sendPending) return host
+    }
+    return null
+  }
+  readonly property bool sendPending: !!pendingSendHost
+  readonly property int sendSecondsRemaining: pendingSendHost
+    ? pendingSendHost.sendSecondsRemaining : 0
   readonly property string lastError: current ? current.lastError : ""
   readonly property string actionStatus: current ? current.actionStatus : ""
   readonly property string signInProgress: current ? current.signInProgress : ""
@@ -449,7 +658,9 @@ Item {
   function loadMore() { if (current) current.loadMore() }
   function select(id) { if (current) current.select(id) }
   function clearSelection() { if (current) current.clearSelection() }
-  function showRemoteImages() { if (current) current.showRemoteImages() }
+  // The notice's own button, which is the switch: what it turns on is every
+  // message, and it says so.
+  function showRemoteImages() { setAlwaysShowImages(true) }
   function rsvp(response) { if (current) current.rsvp(response) }
   function unsubscribe() { if (current) current.unsubscribe() }
   function cursorOffset(cursorId, delta) {
@@ -458,10 +669,45 @@ Item {
   function selectMailbox(key) { if (current) current.selectMailbox(key) }
   function search(text) { if (current) current.search(text) }
   function selectLabel(name) { if (current) current.selectLabel(name) }
-  function act(id, action, quiet) { if (current) current.act(id, action, quiet) }
+  function act(id, action, quiet) {
+    return current ? current.act(id, action, quiet) : false
+  }
   function toggleStar(id) { if (current) current.toggleStar(id) }
   function markAllRead() { if (current) current.markAllRead() }
-  function send(fields) { if (current) current.send(fields) }
+  function send(fields) { return current ? current.send(fields) : false }
+  function saveDraft(fields, callback) {
+    var values = fields || ({})
+    var target = String(values.accountId || "")
+    var host = target !== "" ? findAccount(target) : current
+    if (!host) {
+      if (typeof callback === "function") callback(null, "The mailbox for this draft is unavailable")
+      return null
+    }
+    return host.saveDraft(values, callback)
+  }
+  function fail(text) { if (current) current.fail(text) }
+  function note(text) { if (current) current.note(text) }
+  function undoSend() {
+    var host = pendingSendHost
+    if (!host) return false
+    if (host !== current) {
+      for (var i = 0; i < accountHosts.count; i++) {
+        if (accountHosts.objectAt(i) === host) {
+          switchToIndex(i)
+          break
+        }
+      }
+    }
+    return host.undoSend()
+  }
+  function loadAttachments(messageId, attachments, callback) {
+    if (current) return current.loadAttachments(messageId, attachments, callback)
+    if (typeof callback === "function") callback([], "No mailbox is selected")
+    return null
+  }
+  function openAttachment(messageId, attachment) {
+    if (current) current.openAttachment(messageId, attachment)
+  }
   function preferredSendAs(recipients) {
     return current ? current.preferredSendAs(recipients) : null
   }
@@ -506,6 +752,25 @@ Item {
   }
   function openInBrowser(id) { if (current) current.openInBrowser(id) }
   function openWebInbox() { if (current) current.openWebInbox() }
+
+  // The service's own website, from the setup page's hero — where everything
+  // this window deliberately does not do still lives: HEY's Screener, Gmail's
+  // filters and forwarding.
+  //
+  // Asked for by provider rather than by account: the page that offers it is
+  // about a kind of mailbox, and during an add it is about one that has no
+  // address yet.
+  function openProviderWebsite(id) {
+    var url = Provider.webHomeUrl(id)
+    if (url !== "") Quickshell.execDetached(["xdg-open", url])
+  }
+
+  // The program a provider runs on, which is a different address from the
+  // service — HEY is hey.com, and the client that reaches it is a repository.
+  function openProviderClient(id) {
+    var url = Provider.clientUrl(id)
+    if (url !== "") Quickshell.execDetached(["xdg-open", url])
+  }
   function openCloudConsole() { if (current) current.openCloudConsole() }
   function openGmailApiPage() { if (current) current.openGmailApiPage() }
 
@@ -520,9 +785,27 @@ Item {
   }
   function openConsentScreen() { if (current) current.openConsentScreen() }
 
+  function withGoogleAccessToken(accountId, callback) {
+    var accounts = accountList && accountList.accounts ? accountList.accounts : []
+    for (var i = 0; i < accounts.length; i++) {
+      if (accounts[i] && accounts[i].id === accountId && accounts[i].provider === "gmail") {
+        var host = accountHosts.objectAt(i)
+        if (host) { host.withAccessToken(callback); return }
+      }
+    }
+    callback("", "The Google calendar account is not signed in")
+  }
+
   signal replySent()
 
   // ------------------------------------------------------------- instances
+
+  CalendarController {
+    id: sharedCalendar
+    service: root
+    pluginDir: root.pluginDir
+    accountId: root.calendarAccountId
+  }
 
   // The model is a COUNT, not the array. An Instantiator rebuilds every
   // delegate when its model changes identity, and this list is reassigned
@@ -553,6 +836,9 @@ Item {
       // only the first one may claim it.
       mayAdoptLegacyToken: index === 0 && (!entry || entry.provider === "gmail")
       settings: root.settings
+      // Every mailbox obeys the one answer: it is about what the reader is
+      // willing to tell a sender, not about which account the mail came to.
+      alwaysShowImages: root.alwaysShowImages
 
       onAccountIdentified: function(email) { root.nameAccount(index, email) }
       onReadyChanged: root.recount()
@@ -577,6 +863,19 @@ Item {
     onLoaded: root.applyWindowPrefs(text())
     // No file yet is the ordinary first-run state, not an error.
     onLoadFailed: root.applyWindowPrefs("")
+  }
+
+  Timer {
+    id: windowPrefsSettling
+    interval: 500
+    onTriggered: root.saveWindowPrefs()
+  }
+
+  Timer {
+    id: restoreTimer
+    interval: 200
+    repeat: false
+    onTriggered: root.reopenWindow()
   }
 
   Process {
@@ -618,5 +917,21 @@ Item {
       root.accountsWritePayload = ""
       if (root.accountsSaveQueued) root.saveAccounts()
     }
+  }
+
+  Process {
+    id: contactReader
+    stdout: StdioCollector { waitForEnd: true }
+    stderr: StdioCollector { waitForEnd: true }
+    onExited: function(exitCode) {
+      if (exitCode !== 0) return
+      var parsed = null
+      try { parsed = JSON.parse(String(stdout.text || "[]")) } catch (e) { parsed = null }
+      if (Array.isArray(parsed)) root.recipientContacts = parsed
+    }
+  }
+
+  Component.onCompleted: {
+    Qt.callLater(root.refreshRecipientContacts)
   }
 }

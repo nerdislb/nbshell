@@ -115,7 +115,7 @@ Singleton {
         out.push(entry("Lock", "lock the screen", "Session", () => Session.run("lock")));
         out.push(entry("Suspend", "suspend", "Session", () => Session.run("suspend")));
         out.push(entry("Hibernate", "hibernate", "Session", () => Session.run("hibernate"), true));
-        out.push(entry("Log out", "quit niri", "Session", () => Session.run("logout"), true));
+        out.push(entry("Log out", "end Umbriel session", "Session", () => Session.run("logout"), true));
         out.push(entry("Restart", "reboot", "Session", () => Session.run("reboot"), true));
         out.push(entry("Power off", "poweroff", "Session", () => Session.run("poweroff"), true));
 

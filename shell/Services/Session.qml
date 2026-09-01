@@ -12,7 +12,7 @@ import qs.Common
 //   sperren     Hyprlock/PAM, gestaltet durch nbshells sicheren Wrapper.
 //               nbshell baut BEWUSST keinen eigenen: ein Fehler darin sperrt
 //               einen aus dem eigenen Rechner aus.
-//   abmelden    `niri msg action quit`, damit niri sauber herunterfaehrt.
+//   abmelden    Umbriel `session-quit`, for a clean compositor shutdown.
 //   Rest        systemctl -- das kennt jede Distribution.
 Singleton {
     id: root

@@ -200,13 +200,19 @@ Item {
 
   // ---------------------------------------------------------------- reads
 
-  // IMAP has no page token: SEARCH answers with every matching UID at once. So
-  // the "token" is an offset into that answer, and the count it reports is
-  // exact rather than the estimate Gmail returns.
-  //
-  // Newest first, which is the order the list is read in and the reverse of the
-  // order UIDs are assigned in.
-  function listMessages(query, maxResults, pageToken, callback) {
+  // IMAP has no page token, so the "token" is an offset into the matching UIDs.
+  // Non-interactive reads take a complete UID snapshot for an exact answer.
+  // An interactive search instead learns only the highest UID and searches its
+  // first bounded numeric range immediately. If that does not fill the page,
+  // a UID snapshot makes the remaining ranges follow messages rather than UID
+  // numbers and sends all of their searches through one reused connection.
+  // A single page-sized FETCH answers only when every header in it has arrived.
+  // Small batches let the first rows paint earlier; two at a time avoids making
+  // a large result page open a connection per message.
+  readonly property int streamedSummaryBatch: 5
+  readonly property int streamedSummaryConcurrency: 2
+
+  function listMessages(query, maxResults, pageToken, callback, progress) {
     var handle = newHandle()
     var parsed = Imap.parseQuery(query)
     var limit = Math.max(1, Math.min(100, Math.floor(Number(maxResults)) || 25))
@@ -219,29 +225,137 @@ Item {
         return
       }
       var folder = root.folderFor(parsed.folder)
-      root.run(folder, [Imap.searchCommand(Imap.normalizeCriteria(parsed.criteria))],
-        function(text, error) {
+      var criteria = Imap.normalizeCriteria(parsed.criteria)
+
+      function pageOf(uids, hasUnscanned) {
+        var result = Imap.searchPage(uids, offset, limit, hasUnscanned)
+        var ids = []
+        for (var i = 0; i < result.uids.length; i++)
+          ids.push(Imap.messageId(result.uids[i], folder))
+        return {
+          ids: ids,
+          // IMAP has no server-side conversation id. Threading falls back to
+          // References, which is what every other IMAP client does.
+          threadIds: [],
+          nextPageToken: result.nextOffset,
+          estimate: result.estimate
+        }
+      }
+
+      function finish(uids, error, hasUnscanned, prefixSettled) {
+        if (handle.aborted) return
+        if (typeof callback !== "function") return
+        // A connection failure before SEARCH answered says nothing about the
+        // cached preview. Returning an empty page there would falsely turn the
+        // failure into an authoritative empty result and wipe the preview.
+        if (error && prefixSettled !== true) {
+          callback(null, error)
+          return
+        }
+        // A failed continuation still has an authoritative settled prefix.
+        // It deliberately carries no next token: the ordinary offset would
+        // skip matches in the unscanned gap if the user pressed Load more.
+        callback(pageOf(uids, error ? false : hasUnscanned), error || "")
+      }
+
+      // The first numeric range can paint without the complete UID snapshot
+      // that used to hold every visible result back. Walking numeric ranges to
+      // UID 1 would make a sparse, long-lived mailbox reconnect hundreds of
+      // times, though, so an under-filled first range falls back to one snapshot
+      // and one multi-command connection for everything older.
+      if (typeof progress === "function" && criteria !== "") {
+        root.run(folder, [Imap.uidCeilingCommand()], function(ceilingText, ceilingError) {
           if (handle.aborted) return
-          if (typeof callback !== "function") return
-          if (error) {
-            callback(null, error)
+          if (ceilingError) {
+            finish([], ceilingError, false, false)
             return
           }
-          var uids = Imap.parseSearch(text)
-          // Ascending from the server; the newest message has the highest UID.
-          uids.reverse()
-          var page = uids.slice(offset, offset + limit)
-          var ids = []
-          for (var i = 0; i < page.length; i++) ids.push(Imap.messageId(page[i], folder))
-          callback({
-            ids: ids,
-            // IMAP has no server-side conversation id. Threading falls back to
-            // References, which is what every other IMAP client does.
-            threadIds: [],
-            nextPageToken: offset + limit < uids.length ? String(offset + limit) : "",
-            estimate: uids.length
-          }, "")
+          var ceiling = Imap.parseUidList(ceilingText)
+          var nextUid = ceiling.length > 0 ? ceiling[ceiling.length - 1] : 0
+          var found = []
+          var emitted = {}
+
+          function report(hasUnscanned) {
+            var partial = pageOf(found, hasUnscanned)
+            var ids = []
+            for (var i = 0; i < partial.ids.length; i++) {
+              if (emitted[partial.ids[i]]) continue
+              emitted[partial.ids[i]] = true
+              ids.push(partial.ids[i])
+            }
+            if (ids.length > 0) progress({
+              ids: ids,
+              threadIds: [],
+              nextPageToken: partial.nextPageToken,
+              estimate: partial.estimate
+            })
+            return partial
+          }
+
+          function searchSnapshotRemainder() {
+            if (handle.aborted) return
+            root.run(folder, [Imap.uidListCommand()], function(snapshotText, snapshotError) {
+              if (handle.aborted) return
+              if (snapshotError) {
+                finish(found, snapshotError, false, true)
+                return
+              }
+              var snapshot = Imap.parseUidList(snapshotText)
+              var commands = Imap.searchCommands(criteria, snapshot, nextUid)
+              if (commands.length === 0) {
+                finish(found, "", false)
+                return
+              }
+              root.run(folder, commands, function(searchText, searchError) {
+                if (handle.aborted) return
+                if (!searchError) found = found.concat(Imap.parseSearch(searchText))
+                finish(found, searchError, false, true)
+              }, handle)
+            }, handle)
+          }
+
+          var window = Imap.searchWindow(criteria, nextUid)
+          if (window.command === "") {
+            finish(found, "", false)
+            return
+          }
+          nextUid = window.nextUid
+          root.run(folder, [window.command], function(searchText, searchError) {
+            if (handle.aborted) return
+            if (searchError) {
+              finish(found, searchError, false, false)
+              return
+            }
+            found = found.concat(Imap.parseSearch(searchText))
+            var partial = report(nextUid > 0)
+            if (partial.ids.length >= limit || nextUid === 0)
+              finish(found, "", nextUid > 0)
+            else
+              searchSnapshotRemainder()
+          }, handle)
         }, handle)
+        return
+      }
+
+      // Counts and ordinary mailbox pages need an exact answer and have no
+      // progressive list to paint, so they retain the one complete
+      // snapshot and the connection-efficient multi-command search.
+      root.run(folder, [Imap.uidListCommand()], function(snapshotText, snapshotError) {
+        if (handle.aborted) return
+        if (snapshotError) {
+          finish([], snapshotError, false)
+          return
+        }
+        var snapshot = Imap.parseUidList(snapshotText)
+        var commands = Imap.searchCommands(criteria, snapshot)
+        if (criteria === "" || commands.length === 0) {
+          finish(criteria === "" ? snapshot : [], "", false)
+          return
+        }
+        root.run(folder, commands, function(searchText, searchError) {
+          finish(Imap.parseSearch(searchText), searchError, false)
+        }, handle)
+      }, handle)
     })
     return handle
   }
@@ -249,9 +363,10 @@ Item {
   // A whole page in one round trip. Gmail costs one request per message here;
   // IMAP fetches the lot with a single UID FETCH, which is the one place this
   // provider is comfortably faster than the other.
-  function getMessages(ids, full, callback, existingHandle) {
+  function getMessages(ids, full, callback, existingHandle, progress) {
     var handle = existingHandle || newHandle()
-    var groups = Imap.groupByFolder(ids)
+    var streaming = full !== true && typeof progress === "function"
+    var groups = Imap.groupByFolder(ids, streaming ? streamedSummaryBatch : 0)
     if (groups.length === 0) {
       if (typeof callback === "function") callback([], "")
       return handle
@@ -260,6 +375,9 @@ Item {
     var results = []
     var remaining = groups.length
     var firstError = ""
+    var nextGroup = 0
+    var activeGroups = 0
+    var concurrency = streaming ? streamedSummaryConcurrency : groups.length
 
     function finish() {
       if (handle.aborted) return
@@ -273,32 +391,52 @@ Item {
       for (var j = 0; j < list.length; j++) {
         if (byId[list[j]]) ordered.push(byId[list[j]])
       }
-      callback(ordered, ordered.length > 0 ? "" : firstError)
+      // A partial FETCH must stay visible to the caller as a failure. It may
+      // draw the rows that arrived, but it cannot safely page past the ones
+      // that did not.
+      callback(ordered, firstError)
     }
 
-    for (var g = 0; g < groups.length; g++) {
-      (function(group) {
-        // Headers for a list row, the whole message for a reader. Both are one
-        // command for the whole group, which is where this provider is
-        // comfortably faster than Gmail's one-request-per-message.
-        var command = full
-          ? Imap.fullFetchCommand(group.uids)
-          : Imap.summaryFetchCommand(group.uids)
+    function startGroup(group) {
+      // Headers for a list row, the whole message for a reader. Both are one
+      // command for the whole group, which is where this provider is
+      // comfortably faster than Gmail's one-request-per-message.
+      var command = full
+        ? Imap.fullFetchCommand(group.uids)
+        : Imap.summaryFetchCommand(group.uids)
 
-        var child = root.run(group.folder, [command], function(text, error) {
-          if (handle.aborted) return
-          if (error && !firstError) firstError = error
-          if (!error) {
-            var fetched = Imap.parseFetch(text)
-            for (var i = 0; i < fetched.length; i++)
-              results.push(root.toMessage(fetched[i], group.folder, full))
+      var child = root.run(group.folder, [command], function(text, error) {
+        if (handle.aborted) return
+        if (error && !firstError) firstError = error
+        if (!error) {
+          var fetched = Imap.parseFetch(text)
+          var completed = []
+          for (var i = 0; i < fetched.length; i++) {
+            var message = root.toMessage(fetched[i], group.folder, full)
+            results.push(message)
+            completed.push(message)
           }
-          remaining--
-          if (remaining === 0) finish()
-        })
-        handle.children.push(child)
-      })(groups[g])
+          if (completed.length > 0 && typeof progress === "function")
+            progress(completed)
+        }
+        activeGroups--
+        remaining--
+        if (remaining === 0) finish()
+        else startAvailableGroups()
+      })
+      handle.children.push(child)
     }
+
+    function startAvailableGroups() {
+      if (handle.aborted) return
+      while (activeGroups < concurrency && nextGroup < groups.length) {
+        var group = groups[nextGroup++]
+        activeGroups++
+        startGroup(group)
+      }
+    }
+
+    startAvailableGroups()
     return handle
   }
 
@@ -551,6 +689,72 @@ Item {
   }
 
   // ----------------------------------------------------------------- send
+
+  function saveDraft(payload, callback) {
+    var handle = newHandle()
+    var raw = payload && payload.raw ? String(payload.raw) : ""
+    if (raw === "") {
+      if (typeof callback === "function") callback(null, "There is no draft to save")
+      return handle
+    }
+
+    ensureFolders(function(folderError) {
+      if (handle.aborted) return
+      if (folderError) {
+        if (typeof callback === "function") callback(null, folderError)
+        return
+      }
+      var folder = root.special["\\drafts"] || ""
+      if (folder === "") {
+        if (typeof callback === "function")
+          callback(null, "This server did not report a Drafts folder")
+        return
+      }
+
+      root.inFlight++
+      auth.withCredentials(function(credentials, credentialError) {
+        if (!root) return
+        if (handle.aborted) {
+          root.inFlight = Math.max(0, root.inFlight - 1)
+          return
+        }
+        if (!credentials) {
+          root.inFlight = Math.max(0, root.inFlight - 1)
+          if (typeof callback === "function") callback(null, credentialError || "Not signed in")
+          return
+        }
+        var url = Imap.imapUrl(auth.settings, folder)
+        var message = Mail.decodeBase64Url(raw)
+        var fields = [Mail.encodeBase64(url), Mail.encodeBase64(credentials),
+          Mail.encodeBase64(message)]
+        var process = transportComponent.createObject(root, {
+          command: [root.transport],
+          requestLine: "imap-append " + fields.join(" ")
+        })
+        if (!process) {
+          root.inFlight = Math.max(0, root.inFlight - 1)
+          if (typeof callback === "function") callback(null, "Could not start the mail transport")
+          return
+        }
+        handle.process = process
+        process.finished.connect(function(status, out, err) {
+          if (!root) return
+          if (handle.process === process) handle.process = null
+          process.destroy()
+          root.inFlight = Math.max(0, root.inFlight - 1)
+          if (handle.aborted || typeof callback !== "function") return
+          if (status !== 0) {
+            var detail = Imap.decodeResponse(err, Mail.base64ToBytes, Mail.bytesToLatin1)
+            callback(null, Imap.responseError(status, detail, "The draft could not be saved"))
+            return
+          }
+          callback({}, "")
+        })
+        process.running = true
+      })
+    })
+    return handle
+  }
 
   // `MailAccount` builds the same payload for either provider: a base64url
   // `raw` field, because that is what Gmail's send endpoint takes. SMTP wants

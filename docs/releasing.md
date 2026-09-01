@@ -16,6 +16,7 @@ change before version 1.0.
    find shell -type f -name '*.py' -exec python3 -m py_compile {} +
    ./tests/release-audit.sh
    ./tests/plugin-validation.sh
+   make -C plugins/omamail test
    ./tests/fresh-install.sh
    ./tests/qml.sh
    ./tests/motion.sh
@@ -27,11 +28,11 @@ change before version 1.0.
    ./tests/browser-theme.sh
    ./tests/hermes-theme.sh
    python3 ./tests/hermarchy-theme.py
-   python3 ./tests/grid-layout.py
+
    python3 ./tests/lockscreen.py
    bash ./tests/performance-smoke.sh
    python3 ./tests/shell-update.py
-   python3 ./tests/compositor-backends.py
+   python3 ./tests/umbriel-contracts.py
    python3 ./tests/umbriel-update.py
    python3 ./tests/phone_auth.py
    python3 ./tests/ai-local-stats.py
@@ -41,10 +42,11 @@ change before version 1.0.
    python3 ./tests/hermes-team.py
    python3 ./tests/hermes-brain.py
    python3 ./tests/cli-consistency.py
-   python3 -m unittest -v tests.accessibility.test_atspi_probe
+   python3 ./tests/accessibility/test_atspi_probe.py
    ./tests/greeter.sh
    mkdocs build --strict
    git diff --check
+   git diff --check "$(git describe --tags --abbrev=0)"..HEAD
    ```
 
    The AT-SPI unit suite validates the probe's privacy, serialization, and
@@ -52,9 +54,8 @@ change before version 1.0.
    Quickshell's current proxied-window integration still exports only an empty
    application root, as documented in the accessibility probe guide.
 
-3. Install and test the candidate inside a real Umbriel session, then verify
-   that the Niri recovery session still starts, using the
-   [beta checklist](beta-testing.md).
+3. Install and test the candidate inside a real Umbriel session, including the
+   independent agreety/TTY recovery path, using the [beta checklist](beta-testing.md).
 4. Push the commit and wait for the validation workflow.
 5. Create and push the matching annotated tag. Sign it when a configured GPG
    key is available; otherwise use the same annotated form as the existing

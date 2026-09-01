@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -uo pipefail
+set -euo pipefail
 
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 PALETTE="$CONFIG_HOME/nbshell/palette.sh"
@@ -10,6 +10,14 @@ BRAVE_FLAGS_END='# nbshell browser theme end'
 IMPORT='@import url("nbshell-theme.css"); /* managed by nbshell */'
 OMAZEN_COLORS="${NBSHELL_OMAZEN_COLORS:-$CONFIG_HOME/nbshell/omazen-colors.toml}"
 OMAZEN_PROGRAM_DIR="${NBSHELL_OMAZEN_PROGRAM_DIR:-/opt/zen-browser-bin}"
+OMAZEN_REVISION=2cd7c5d421d064801b547911930b02dd40a60337
+OMAZEN_REPOSITORY=https://github.com/hemagome/omazen.git
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f $SCRIPT_DIR/../integrations/omazen/nbshell-external-provider-arch.patch ]]; then
+	OMAZEN_PATCH="$SCRIPT_DIR/../integrations/omazen/nbshell-external-provider-arch.patch"
+else
+	OMAZEN_PATCH="$SCRIPT_DIR/../../integrations/omazen/nbshell-external-provider-arch.patch"
+fi
 
 die() { printf 'nbshell browser theme: %s\n' "$1" >&2; exit 1; }
 
@@ -96,9 +104,29 @@ remove_legacy_zen_import() {
 setup_zen_live() {
 	write_omazen_colors
 	run_omazen setup
+	run_omazen doctor >/dev/null || die "Omazen setup did not pass its post-install doctor; the restart fallback remains active"
 	remove_legacy_zen_import
 	printf 'Zen live theme integration installed. Restart Zen once to load the privileged bridge.\n'
 }
+
+install_zen_live() (
+	command -v git >/dev/null 2>&1 || die "git is required to build Omazen"
+	command -v rustup >/dev/null 2>&1 || die "rustup with toolchain 1.98.0 is required to build Omazen"
+	[[ -f $OMAZEN_PATCH ]] || die "the nbshell Omazen compatibility patch is missing"
+	local stage
+	stage=$(mktemp -d "${TMPDIR:-/tmp}/nbshell-omazen.XXXXXX")
+	trap 'rm -rf -- "$stage"' EXIT
+	git clone --no-checkout "$OMAZEN_REPOSITORY" "$stage/source"
+	git -C "$stage/source" checkout --detach "$OMAZEN_REVISION"
+	patch -d "$stage/source" -p1 <"$OMAZEN_PATCH"
+	cd "$stage/source"
+	rustup run 1.98.0 cargo test --locked
+	rustup run 1.98.0 cargo build --release --locked
+	OMAZEN_BIN="$stage/source/target/release/omazen-rust" tests/test.sh
+	OMAZEN_RUST_BINARY="$stage/source/target/release/omazen-rust" \
+		OMAZEN_ACTIVE_COLORS="$OMAZEN_COLORS" OMAZEN_SKIP_THEME_HOOK=1 ./install.sh
+	printf '%s\n' "Omazen 1.5.0 installed for nbshell's external palette provider. Restart Zen once."
+)
 
 doctor_zen_live() {
 	write_omazen_colors
@@ -241,6 +269,7 @@ setup)
 	;;
 setup-zen) setup_zen ;;
 setup-zen-live) setup_zen_live ;;
+install-zen-live) install_zen_live ;;
 doctor-zen-live) doctor_zen_live ;;
 setup-brave) setup_brave ;;
 apply)
@@ -248,5 +277,5 @@ apply)
 	apply_brave
 	;;
 status) status ;;
-*) die "usage: browser-theme.sh status|setup|setup-zen|setup-zen-live|doctor-zen-live|setup-brave|apply" ;;
+*) die "usage: browser-theme.sh status|setup|setup-zen|install-zen-live|setup-zen-live|doctor-zen-live|setup-brave|apply" ;;
 esac

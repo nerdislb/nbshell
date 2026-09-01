@@ -1,9 +1,13 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls as QQC
+import Quickshell
+import Quickshell.Io
 import qs.Commons
 import qs.Ui
 import "../message/Message.js" as Mail
+import "../compose/Recipients.js" as Recipients
+import "../compose/Senders.js" as Senders
 
 // Composing takes over the whole content area of the one window rather than
 // opening a second one: Omarchy's panel mechanism would give an extra window
@@ -13,7 +17,7 @@ import "../message/Message.js" as Mail
 // Compose, reply, reply-all and forward are the same form with different
 // starting values, so `begin()` fills the fields and everything after that is
 // one code path.
-Item {
+DropArea {
   id: root
 
   required property var service
@@ -22,48 +26,179 @@ Item {
   required property color accentColor
   required property color dimColor
   required property color dimmerColor
+  required property color popupBackgroundColor
+  required property color popupBorderColor
   required property string panelFontFamily
 
+  readonly property int formInset: Style.space(18)
+  readonly property int formLabelWidth: Style.space(52)
+  readonly property int formLabelGap: Style.space(10)
+
   property bool opened: false
+  property bool parkedForSend: false
+  // The timer owns this draft while the visible composer remains free.
+  property var pendingDraft: null
+  // Undo temporarily replaces a newer draft. Closing or resending returns here.
+  property var interruptedDraft: null
+  // A failed provider save stays reachable after Back or Escape.
+  property var recoveryDrafts: []
+  property string accountId: ""
+  property int restoreRevision: 0
+  property real restoreFlashOpacity: 0
   property string mode: "new"
   property string threadId: ""
   property string inReplyTo: ""
   property bool ccVisible: false
+  property bool bccVisible: false
   property string fromEmail: ""
   property var replyRecipients: []
   property bool fromWasChosen: false
+  property var toSuggestions: []
+  property var ccSuggestions: []
+  property var bccSuggestions: []
+  property var originalAttachments: []
+  property var forwardedAttachments: []
+  property bool forwardAttachmentsLoading: false
+  property string forwardAttachmentError: ""
+  property int forwardLoadSerial: 0
+  property var draftAttachments: []
+  property var attachJobs: []
+  property bool attaching: false
+  property bool pasteInFlight: false
+
+  readonly property string attachScript: service && service.pluginDir
+    ? service.pluginDir + "/scripts/attachment.sh" : ""
+  readonly property string composeDir: {
+    var cache = Quickshell.env("XDG_CACHE_HOME")
+    var home = Quickshell.env("HOME")
+    var rootDir = cache !== "" ? cache : (home + "/.cache")
+    return rootDir + "/omamail/compose"
+  }
+
+  readonly property var contactBook: root.service
+    && Array.isArray(root.service.recipientContacts)
+    ? root.service.recipientContacts : []
 
   readonly property var fromAliases: {
     if (!root.service || !Array.isArray(root.service.sendAsAliases)) return []
     return root.service.sendAsAliases
   }
 
+  readonly property var fromIdentities: Senders.visible(
+    root.service ? root.service.sendIdentities : [],
+    root.service ? String(root.service.activeAccountId || "") : "",
+    root.mode)
+
+  readonly property bool canChooseFrom: fromIdentities.length > 1
+
   readonly property string title: {
-    if (mode === "reply") return "REPLY"
-    if (mode === "replyAll") return "REPLY ALL"
-    if (mode === "forward") return "FORWARD"
-    return "NEW MESSAGE"
-  }
-  readonly property string iconName: {
-    if (mode === "reply") return "reply"
-    if (mode === "replyAll") return "replyAll"
-    if (mode === "forward") return "forward"
-    return "unread"
+    if (mode === "reply") return "Reply"
+    if (mode === "replyAll") return "Reply all"
+    if (mode === "forward") return "Forward"
+    if (mode === "draft") return "Draft"
+    return "New message"
   }
 
-  function reset() {
+  function forgetOwned(attachments) {
+    var owned = Array.isArray(attachments) ? attachments : []
+    for (var i = 0; i < owned.length; i++) {
+      if (owned[i] && owned[i].owned && owned[i].path)
+        enqueueAttach("forget", owned[i].path)
+    }
+  }
+
+  function clearCurrentDraft(forgetAttachments) {
+    forwardLoadSerial++
     fromMenu.close()
     toField.text = ""
     ccField.text = ""
+    bccField.text = ""
     subjectField.text = ""
     bodyEdit.text = ""
+    accountId = ""
     mode = "new"
     threadId = ""
     inReplyTo = ""
     ccVisible = false
+    bccVisible = false
     fromEmail = ""
     replyRecipients = []
     fromWasChosen = false
+    toSuggestions = []
+    ccSuggestions = []
+    bccSuggestions = []
+    originalAttachments = []
+    forwardedAttachments = []
+    forwardAttachmentsLoading = false
+    forwardAttachmentError = ""
+    var owned = draftAttachments
+    draftAttachments = []
+    attachJobs = []
+    attaching = false
+    pasteInFlight = false
+    if (forgetAttachments) forgetOwned(owned)
+  }
+
+  function snapshotDraft() {
+    return ({
+      to: toField.text,
+      cc: ccField.text,
+      bcc: bccField.text,
+      subject: subjectField.text,
+      body: bodyEdit.text,
+      accountId: accountId,
+      mode: mode,
+      threadId: threadId,
+      inReplyTo: inReplyTo,
+      ccVisible: ccVisible,
+      bccVisible: bccVisible,
+      fromEmail: fromEmail,
+      replyRecipients: replyRecipients.slice(),
+      fromWasChosen: fromWasChosen,
+      originalAttachments: originalAttachments.slice(),
+      forwardedAttachments: forwardedAttachments.slice(),
+      draftAttachments: draftAttachments.slice()
+    })
+  }
+
+  function restoreDraft(draft) {
+    var saved = draft || ({})
+    mode = String(saved.mode || "new")
+    accountId = String(saved.accountId || "")
+    threadId = String(saved.threadId || "")
+    inReplyTo = String(saved.inReplyTo || "")
+    ccVisible = saved.ccVisible === true
+    bccVisible = saved.bccVisible === true
+    fromEmail = String(saved.fromEmail || "")
+    replyRecipients = Array.isArray(saved.replyRecipients)
+      ? saved.replyRecipients.slice() : []
+    fromWasChosen = saved.fromWasChosen === true
+    originalAttachments = Array.isArray(saved.originalAttachments)
+      ? saved.originalAttachments.slice() : []
+    forwardedAttachments = Array.isArray(saved.forwardedAttachments)
+      ? saved.forwardedAttachments.slice() : []
+    draftAttachments = Array.isArray(saved.draftAttachments)
+      ? saved.draftAttachments.slice() : []
+    toField.text = String(saved.to || "")
+    ccField.text = String(saved.cc || "")
+    bccField.text = String(saved.bcc || "")
+    subjectField.text = String(saved.subject || "")
+    bodyEdit.text = String(saved.body || "")
+    opened = true
+  }
+
+  function reset() {
+    clearCurrentDraft(true)
+    forgetOwned(pendingDraft ? pendingDraft.draftAttachments : [])
+    forgetOwned(interruptedDraft ? interruptedDraft.draftAttachments : [])
+    for (var i = 0; i < recoveryDrafts.length; i++)
+      forgetOwned(recoveryDrafts[i] ? recoveryDrafts[i].draftAttachments : [])
+    pendingDraft = null
+    interruptedDraft = null
+    recoveryDrafts = []
+    parkedForSend = false
+    restoreRevision = 0
+    restoreFlashOpacity = 0
   }
 
   function selectPreferredFrom() {
@@ -71,10 +206,16 @@ Item {
     fromEmail = choice ? String(choice.email || "") : ""
   }
 
-  function chooseFrom(email) {
-    fromEmail = String(email || "")
+  function chooseFrom(identity) {
+    var row = identity && typeof identity === "object" ? identity : ({ email: identity })
+    fromEmail = String(row.email || "")
     fromWasChosen = true
     fromMenu.close()
+    var accountId = String(row.accountId || "")
+    if (accountId === "" || !root.service) return
+    root.accountId = accountId
+    if (String(root.service.activeAccountId || "") === accountId) return
+    if (typeof root.service.switchTo === "function") root.service.switchTo(accountId)
   }
 
   function placeFromMenu() {
@@ -105,9 +246,82 @@ Item {
     return kept.join(", ")
   }
 
-  function begin(nextMode, summary, bodyText) {
-    reset()
+  function updateRecipientSuggestions() {
+    toSuggestions = toField.activeFocus
+      ? Recipients.suggest(contactBook, toField.text, 5) : []
+    ccSuggestions = ccField.activeFocus
+      ? Recipients.suggest(contactBook, ccField.text, 5) : []
+    bccSuggestions = bccField.activeFocus
+      ? Recipients.suggest(contactBook, bccField.text, 5) : []
+  }
+
+  function acceptTo(contact) {
+    toField.text = Recipients.accept(toField.text, contact)
+    toSuggestions = []
+    toField.forceActiveFocus()
+  }
+
+  function acceptCc(contact) {
+    ccField.text = Recipients.accept(ccField.text, contact)
+    ccSuggestions = []
+    ccField.forceActiveFocus()
+  }
+
+  function acceptBcc(contact) {
+    bccField.text = Recipients.accept(bccField.text, contact)
+    bccSuggestions = []
+    bccField.forceActiveFocus()
+  }
+
+  function focusAfterTo() {
+    if (root.ccVisible) ccField.forceActiveFocus()
+    else if (root.bccVisible) bccField.forceActiveFocus()
+    else subjectField.forceActiveFocus()
+  }
+
+  function focusAfterCc() {
+    if (root.bccVisible) bccField.forceActiveFocus()
+    else subjectField.forceActiveFocus()
+  }
+
+  function loadForwardAttachments() {
+    if (!service || originalAttachments.length === 0) return
+    var serial = ++forwardLoadSerial
+    forwardAttachmentsLoading = true
+    forwardAttachmentError = ""
+    forwardedAttachments = []
+    service.loadAttachments(service.selectedId, originalAttachments,
+      function(loaded, error) {
+        if (serial !== root.forwardLoadSerial || !root.opened || root.mode !== "forward") return
+        root.forwardAttachmentsLoading = false
+        root.forwardAttachmentError = String(error || "")
+        root.forwardedAttachments = error ? [] : loaded
+      })
+  }
+
+  function loadDraftAttachments(messageId, attachments) {
+    var listed = Array.isArray(attachments) ? attachments.slice() : []
+    originalAttachments = listed
+    if (!service || listed.length === 0) return
+    var serial = ++forwardLoadSerial
+    forwardAttachmentsLoading = true
+    forwardAttachmentError = ""
+    service.loadAttachments(messageId, listed, function(loaded, error) {
+      if (serial !== root.forwardLoadSerial || !root.opened || root.mode !== "draft") return
+      root.forwardAttachmentsLoading = false
+      root.forwardAttachmentError = String(error || "")
+      if (error) {
+        if (root.service && typeof root.service.fail === "function") root.service.fail(error)
+        return
+      }
+      root.draftAttachments = Array.isArray(loaded) ? loaded : []
+    })
+  }
+
+  function begin(nextMode, summary, bodyText, attachments) {
+    clearCurrentDraft(true)
     mode = String(nextMode || "new")
+    accountId = root.service ? String(root.service.activeAccountId || "") : ""
     opened = true
 
     if (summary && mode !== "new") {
@@ -125,6 +339,8 @@ Item {
 
       if (mode === "forward") {
         subjectField.text = "Fwd: " + summary.subject
+        originalAttachments = Array.isArray(attachments) ? attachments.slice() : []
+        if (originalAttachments.length > 0) loadForwardAttachments()
       } else {
         toField.text = replyTo
         subjectField.text = Mail.replySubject(summary.subject)
@@ -137,10 +353,34 @@ Item {
     }
 
     selectPreferredFrom()
+    if (root.service) root.service.refreshRecipientContacts()
 
     // Focus is not placed here. Opening this changes the window's key context,
     // and the context is what moves the keyboard — one mechanism, so the two
     // cannot disagree about where the typing goes.
+  }
+
+  // A mailto: link is a new message with the fields already named. Reply and
+  // forward stay on `begin`; they fill from a message, not from a URL.
+  function beginDraft(draft, messageId, attachments) {
+    begin("new", null, "", [])
+    var values = draft || ({})
+    mode = String(values.mode || "new") === "draft" ? "draft" : "new"
+    threadId = String(values.threadId || "")
+    inReplyTo = String(values.inReplyTo || "")
+    toField.text = String(values.to || "")
+    ccField.text = String(values.cc || "")
+    ccVisible = ccField.text !== ""
+    bccField.text = String(values.bcc || "")
+    bccVisible = bccField.text !== ""
+    subjectField.text = String(values.subject || "")
+    bodyEdit.text = String(values.body || "")
+    var chosenFrom = String(values.from || "")
+    if (chosenFrom !== "") {
+      fromEmail = chosenFrom
+      fromWasChosen = true
+    }
+    if (mode === "draft") loadDraftAttachments(messageId, attachments)
   }
 
   // Where the keyboard goes when composing becomes the context. A reply starts
@@ -149,31 +389,326 @@ Item {
     if (mode === "reply" || mode === "replyAll") {
       bodyEdit.forceActiveFocus()
       bodyEdit.cursorPosition = 0
-    } else {
+    } else if (toField.text === "") {
       toField.forceActiveFocus()
+    } else if (subjectField.text === "") {
+      subjectField.forceActiveFocus()
+    } else {
+      bodyEdit.forceActiveFocus()
     }
   }
 
+  // The Back control asks the window to save. Discard stays local and
+  // destructive. The window owns the save because it owns the provider.
+  signal closed()
+  signal closeRequested()
+  signal sendQueued()
+
   function finish() {
-    reset()
+    clearCurrentDraft(true)
+    if (interruptedDraft) {
+      var held = interruptedDraft
+      interruptedDraft = null
+      restoreDraft(held)
+      return
+    }
+    if (recoveryDrafts.length > 0) {
+      var queued = recoveryDrafts.slice()
+      var recovered = queued.shift()
+      recoveryDrafts = queued
+      restoreDraft(recovered)
+      restoreRevision++
+      restoreFlash.restart()
+      return
+    }
     opened = false
+    closed()
+  }
+
+  function hasMeaningfulDraft() {
+    if (String(toField.text || "").trim() !== "") return true
+    if (String(ccField.text || "").trim() !== "") return true
+    if (String(bccField.text || "").trim() !== "") return true
+    if (String(subjectField.text || "").trim() !== "") return true
+    if (String(bodyEdit.text || "").trim() !== "") return true
+    return allOutgoingAttachments().length > 0
+  }
+
+  function fieldsForDraft(saved) {
+    var draft = saved || ({})
+    var attachments = []
+    var forwarded = draft.mode === "forward" && Array.isArray(draft.forwardedAttachments)
+      ? draft.forwardedAttachments : []
+    var owned = Array.isArray(draft.draftAttachments) ? draft.draftAttachments : []
+    var i
+    for (i = 0; i < forwarded.length; i++) attachments.push(forwarded[i])
+    for (i = 0; i < owned.length; i++) attachments.push(owned[i])
+    return ({
+      accountId: String(draft.accountId || ""),
+      from: String(draft.fromEmail || ""),
+      to: String(draft.to || ""),
+      cc: String(draft.cc || ""),
+      bcc: String(draft.bcc || ""),
+      subject: String(draft.subject || ""),
+      body: String(draft.body || ""),
+      attachments: attachments,
+      threadId: draft.mode === "forward" ? "" : String(draft.threadId || ""),
+      inReplyTo: draft.mode === "forward" ? "" : String(draft.inReplyTo || "")
+    })
+  }
+
+  function detachForSave() {
+    var saved = snapshotDraft()
+    clearCurrentDraft(false)
+    if (interruptedDraft) {
+      var held = interruptedDraft
+      interruptedDraft = null
+      restoreDraft(held)
+    } else {
+      opened = false
+      closed()
+    }
+    return saved
+  }
+
+  function completeDetachedSave(saved) {
+    forgetOwned(saved && saved.draftAttachments ? saved.draftAttachments : [])
+  }
+
+  function recoverDetachedSave(saved) {
+    if (!saved) return
+    if (!opened) {
+      restoreDraft(saved)
+      restoreRevision++
+      restoreFlash.restart()
+      return
+    }
+    var queued = recoveryDrafts.slice()
+    queued.push(saved)
+    recoveryDrafts = queued
+  }
+
+  function parkForSend() {
+    pendingDraft = snapshotDraft()
+    clearCurrentDraft(false)
+    opened = false
+    parkedForSend = true
+    if (interruptedDraft) {
+      var held = interruptedDraft
+      interruptedDraft = null
+      restoreDraft(held)
+    } else {
+      sendQueued()
+    }
+  }
+
+  function resumePendingSend() {
+    if (!parkedForSend || !pendingDraft) return false
+    if (opened) interruptedDraft = snapshotDraft()
+    clearCurrentDraft(false)
+    var draft = pendingDraft
+    pendingDraft = null
+    parkedForSend = false
+    restoreDraft(draft)
+    restoreRevision++
+    restoreFlash.restart()
+    return true
+  }
+
+  function interruptedFields() {
+    var saved = interruptedDraft
+    if (!saved) return null
+    return fieldsForDraft(saved)
+  }
+
+  function completeInterruptedSave(expected) {
+    if (!interruptedDraft || interruptedDraft !== expected) return false
+    forgetOwned(interruptedDraft.draftAttachments)
+    interruptedDraft = null
+    return true
+  }
+
+  function completePendingSend() {
+    if (!parkedForSend || !pendingDraft) return false
+    forgetOwned(pendingDraft.draftAttachments)
+    pendingDraft = null
+    parkedForSend = false
+    return true
+  }
+
+  function cancelOrFinish() {
+    closeRequested()
   }
 
   function submit() {
-    if (!service) return
-    service.send(({
+    // The send key is answered by action id, and the compose keyboard context
+    // also covers the calendar event form — a composer that is not open must
+    // not answer it, or a draft parked for the undo window would send twice.
+    if (!opened || !service) return
+    if (forwardAttachmentsLoading || forwardAttachmentError !== "") return
+    var accepted = service.send(({
       from: root.fromEmail,
       to: toField.text,
       cc: ccField.text,
+      bcc: bccField.text,
       subject: subjectField.text,
       body: bodyEdit.text,
+      attachments: root.allOutgoingAttachments(),
       // A forward starts a new conversation; a reply must stay in the old one.
       threadId: root.mode === "forward" ? "" : root.threadId,
       inReplyTo: root.mode === "forward" ? "" : root.inReplyTo
     }))
+    if (accepted === true) parkForSend()
+  }
+
+  function allOutgoingAttachments() {
+    var out = []
+    var forwarded = root.mode === "forward" ? root.forwardedAttachments : []
+    var i
+    for (i = 0; i < forwarded.length; i++) out.push(forwarded[i])
+    for (i = 0; i < root.draftAttachments.length; i++) out.push(root.draftAttachments[i])
+    return out
+  }
+
+  function chooseFiles() {
+    enqueueAttach("pick")
+  }
+
+  function paste() {
+    if (root.pasteInFlight) return
+    root.pasteInFlight = true
+    enqueueAttach("clipboard", "")
+  }
+
+  function pasteKey(event) {
+    if (!event) return
+    if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_V) {
+      event.accepted = true
+      root.paste()
+    }
+  }
+
+  function pasteText() {
+    if (toField.activeFocus) toField.paste()
+    else if (ccField.activeFocus) ccField.paste()
+    else if (bccField.activeFocus) bccField.paste()
+    else if (subjectField.activeFocus) subjectField.paste()
+    else bodyEdit.paste()
+  }
+
+  function enqueueAttach(mode, path) {
+    var jobs = root.attachJobs.slice()
+    jobs.push({ mode: String(mode || "read"), path: String(path || "") })
+    root.attachJobs = jobs
+    pumpAttach()
+  }
+
+  function pumpAttach() {
+    if (attacher.running || root.attachJobs.length === 0) return
+    if (root.attachScript === "") {
+      root.attachJobs = []
+      if (service && typeof service.fail === "function")
+        service.fail("The attachment helper is missing")
+      return
+    }
+    var job = root.attachJobs[0]
+    var rest = root.attachJobs.slice(1)
+    root.attachJobs = rest
+    root.attaching = true
+    attacher.jobMode = job.mode
+    if (job.mode === "clipboard")
+      attacher.command = [root.attachScript, "clipboard", root.composeDir]
+    else if (job.mode === "pick")
+      attacher.command = [root.attachScript, "pick"]
+    else if (job.mode === "forget")
+      attacher.command = [root.attachScript, "forget", root.composeDir, job.path]
+    else
+      attacher.command = [root.attachScript, "read", job.path]
+    attacher.running = true
+  }
+
+  function finishAttach(mode, text) {
+    var result = null
+    try { result = JSON.parse(String(text || "")) }
+    catch (e) { result = null }
+
+    if (mode === "clipboard") root.pasteInFlight = false
+
+    if (mode === "forget") {
+      root.attaching = root.attachJobs.length > 0
+      pumpAttach()
+      return
+    }
+
+    if (mode === "pick" || (mode === "clipboard" && result && result.ok === true
+        && Array.isArray(result.paths))) {
+      root.attaching = root.attachJobs.length > 0
+      if (result && result.ok === true && Array.isArray(result.paths)) {
+        for (var p = 0; p < result.paths.length; p++)
+          enqueueAttach("read", String(result.paths[p] || ""))
+      }
+      pumpAttach()
+      return
+    }
+
+    if (mode === "clipboard" && result && result.ok !== true
+        && String(result.error || "") === "no-image") {
+      root.attaching = root.attachJobs.length > 0
+      root.pasteText()
+      pumpAttach()
+      return
+    }
+
+    if (!result || result.ok !== true) {
+      root.attaching = root.attachJobs.length > 0
+      if (service && typeof service.fail === "function")
+        service.fail(result && result.error ? String(result.error)
+          : "That file could not be attached")
+      pumpAttach()
+      return
+    }
+
+    var entry = ({
+      filename: String(result.filename || "attachment"),
+      mimeType: String(result.mimeType || "application/octet-stream"),
+      size: Math.max(0, Math.floor(Number(result.size) || 0)),
+      data: String(result.data || ""),
+      path: String(result.path || ""),
+      owned: mode === "clipboard"
+    })
+    var next = root.draftAttachments.slice()
+    next.push(entry)
+    root.draftAttachments = next
+    root.attaching = root.attachJobs.length > 0
+    pumpAttach()
+  }
+
+  function removeAttachment(at) {
+    var list = root.draftAttachments.slice()
+    if (at < 0 || at >= list.length) return
+    var entry = list[at]
+    list.splice(at, 1)
+    root.draftAttachments = list
+    if (entry && entry.owned && entry.path)
+      enqueueAttach("forget", entry.path)
+  }
+
+  function attachDroppedUrls(urls) {
+    var list = urls || []
+    for (var i = 0; i < list.length; i++) {
+      var url = String(list[i] || "")
+      var path = url.indexOf("file://") === 0 ? decodeURIComponent(url.substring(7)) : url
+      if (path !== "") enqueueAttach("read", path)
+    }
   }
 
   anchors.fill: parent
+  keys: ["text/uri-list"]
+  onDropped: function(drop) {
+    if (!drop.hasUrls) return
+    drop.acceptProposedAction()
+    root.attachDroppedUrls(drop.urls)
+  }
   // Only while it is actually in use. A component that declares `focus: true`
   // owns the window's focus even when invisible — Qt does not exclude hidden
   // items — and an owner that accepts keys is a sink. This swallowed every
@@ -184,67 +719,55 @@ Item {
   onFromAliasesChanged: {
     if (opened && !fromWasChosen) selectPreferredFrom()
   }
+  onContactBookChanged: updateRecipientSuggestions()
+
+  SequentialAnimation {
+    id: restoreFlash
+    running: false
+    NumberAnimation {
+      target: root
+      property: "restoreFlashOpacity"
+      from: 0.32
+      to: 0
+      duration: Style.motion.attention
+      easing.type: Easing.OutCubic
+    }
+  }
 
   // ----------------------------------------------------------- header
   //
-  // There is no client-side titlebar under Hyprland, so the window has to
-  // say what it is itself.
+  // One compact title band. Back is the exit path and the title names the
+  // draft; splitting them into two stacked bands gave one short decision the
+  // hierarchy of a whole settings page.
   Item {
     id: head
     anchors.top: parent.top
     anchors.left: parent.left
     anchors.right: parent.right
-    height: backBar.implicitHeight + Style.space(14) + titleRow.implicitHeight
-      + Style.space(24)
+    height: Style.space(44)
 
-    // Its own line, level with the reader's and the setup page's. Sharing a
-    // line with the title made it read as part of the title on this page and
-    // as a page control on the others.
     BackBar {
       id: backBar
       anchors.left: parent.left
       anchors.leftMargin: Style.space(14)
-      anchors.top: parent.top
-      anchors.topMargin: Style.space(12)
+      anchors.verticalCenter: parent.verticalCenter
       textColor: root.textColor
       dimColor: root.dimColor
       panelFontFamily: root.panelFontFamily
-      onActivated: root.finish()
+      onActivated: root.cancelOrFinish()
     }
 
     Row {
       id: titleRow
-      anchors.left: parent.left
-      anchors.leftMargin: Style.space(14)
-      anchors.right: parent.right
-      anchors.rightMargin: Style.space(18)
-      anchors.top: backBar.bottom
-      anchors.topMargin: Style.space(14)
+      anchors.horizontalCenter: parent.horizontalCenter
+      anchors.verticalCenter: parent.verticalCenter
       spacing: Style.space(10)
-
-      ActionIcon {
-        anchors.verticalCenter: parent.verticalCenter
-        name: root.iconName
-        iconSize: Style.font.icon
-        color: root.textColor
-      }
 
       PanelSectionHeader {
         anchors.verticalCenter: parent.verticalCenter
         text: root.title
         foreground: root.textColor
         fontFamily: root.panelFontFamily
-      }
-
-      Text {
-        anchors.verticalCenter: parent.verticalCenter
-        visible: root.mode !== "new"
-        textFormat: Text.PlainText
-        text: subjectField.text
-        color: root.dimmerColor
-        font.family: root.panelFontFamily
-        font.pixelSize: Style.font.caption
-        elide: Text.ElideRight
       }
     }
 
@@ -262,9 +785,14 @@ Item {
 
   Column {
     id: fields
+    objectName: "compose-fields"
     anchors.top: head.bottom
     anchors.left: parent.left
     anchors.right: parent.right
+    // Suggestions extend below this column into the message body. Raising only
+    // the row cannot cross the sibling boundary, so the body painted over the
+    // popup even though the popup itself had a high z value.
+    z: 10
 
     Item {
       width: parent.width
@@ -273,9 +801,9 @@ Item {
       Text {
         id: fromLabel
         anchors.left: parent.left
-        anchors.leftMargin: Style.space(18)
+        anchors.leftMargin: root.formInset
         anchors.verticalCenter: parent.verticalCenter
-        width: Style.space(52)
+        width: root.formLabelWidth
         horizontalAlignment: Text.AlignRight
         text: "From"
         color: root.dimColor
@@ -289,25 +817,27 @@ Item {
       // padding, so the two read as one control.
       Button {
         id: fromButton
-        readonly property real trailing: root.fromAliases.length > 1
+        accessibleName: "Change sender. Current sender: " + root.fromEmail
+        objectName: "compose-from-button"
+        readonly property real trailing: root.canChooseFrom
           ? Style.font.iconSmall + Style.spacing.controlGap : 0
 
         anchors.left: fromLabel.right
-        anchors.leftMargin: Style.space(10)
+        anchors.leftMargin: root.formLabelGap
         anchors.verticalCenter: parent.verticalCenter
         width: Math.min(implicitWidth + trailing,
           parent.width - fromLabel.width - Style.space(46))
         text: root.fromEmail
-        accessibleName: root.fromAliases.length > 1
-          ? "Change sender. Current sender: " + root.fromEmail
-          : "Sender: " + root.fromEmail
         foreground: root.textColor
         accent: root.accentColor
+        background: Style.normalFillFor(root.textColor, root.accentColor)
+        bordered: true
         fontFamily: root.panelFontFamily
         fontSize: Style.font.bodySmall
+        verticalPadding: Style.spacing.inputPaddingY
         leftAlign: true
         selected: fromMenu.opened
-        enabled: root.fromAliases.length > 1
+        enabled: root.canChooseFrom
         onClicked: fromMenu.opened ? fromMenu.close() : fromMenu.open()
 
         // The kit's own chevron is a font glyph, which at this size renders
@@ -317,7 +847,8 @@ Item {
           anchors.right: parent.right
           anchors.rightMargin: fromButton.horizontalPadding
           anchors.verticalCenter: parent.verticalCenter
-          visible: root.fromAliases.length > 1
+          visible: root.canChooseFrom
+          enabled: false
           name: "chevronDown"
           iconSize: Style.font.iconSmall
           color: root.dimColor
@@ -333,6 +864,7 @@ Item {
 
     Item {
       width: parent.width
+      z: root.toSuggestions.length > 0 ? 100 : 0
       // The field plus the same breathing room it carries inside itself, so
       // its border is not crowded against the rules above and below. Derived
       // rather than a fixed height: the field grows with the theme's font
@@ -342,9 +874,9 @@ Item {
       Text {
         id: toLabel
         anchors.left: parent.left
-        anchors.leftMargin: Style.space(18)
+        anchors.leftMargin: root.formInset
         anchors.verticalCenter: parent.verticalCenter
-        width: Style.space(52)
+        width: root.formLabelWidth
         horizontalAlignment: Text.AlignRight
         text: "To"
         color: root.dimColor
@@ -352,24 +884,43 @@ Item {
         font.pixelSize: Style.font.caption
       }
 
-      Button {
-        id: ccToggle
+      Row {
+        id: copyToggles
         anchors.right: parent.right
         anchors.rightMargin: Style.space(18)
         anchors.verticalCenter: parent.verticalCenter
-        text: "Cc"
-        accessibleName: root.ccVisible ? "Hide Cc field" : "Show Cc field"
-        foreground: root.ccVisible ? root.textColor : root.dimColor
-        bordered: false
-        fontSize: Style.font.caption
-        onClicked: root.ccVisible = !root.ccVisible
+        spacing: Style.space(4)
+
+        Button {
+          id: ccToggle
+          accessibleName: root.ccVisible ? "Hide Cc field" : "Show Cc field"
+          objectName: "compose-cc-toggle"
+          text: "Cc"
+          foreground: root.ccVisible ? root.textColor : root.dimColor
+          bordered: false
+          fontSize: Style.font.caption
+          onClicked: root.ccVisible = !root.ccVisible
+        }
+
+        Button {
+          id: bccToggle
+          accessibleName: root.bccVisible ? "Hide Bcc field" : "Show Bcc field"
+          objectName: "compose-bcc-toggle"
+          text: "Bcc"
+          foreground: root.bccVisible ? root.textColor : root.dimColor
+          bordered: false
+          fontSize: Style.font.caption
+          onClicked: root.bccVisible = !root.bccVisible
+        }
       }
 
       TextField {
         id: toField
+        accessibleName: "To"
+        objectName: "compose-to-field"
         anchors.left: toLabel.right
-        anchors.leftMargin: Style.space(10)
-        anchors.right: ccToggle.left
+        anchors.leftMargin: root.formLabelGap
+        anchors.right: copyToggles.left
         anchors.rightMargin: Style.space(8)
         anchors.verticalCenter: parent.verticalCenter
         foreground: root.textColor
@@ -377,8 +928,42 @@ Item {
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.bodySmall
         placeholderText: "recipient@example.com"
-        accessibleName: "To"
-        onAccepted: subjectField.forceActiveFocus()
+        onTextChanged: root.updateRecipientSuggestions()
+        onActiveFocusChanged: root.updateRecipientSuggestions()
+        Keys.priority: Keys.BeforeItem
+        Keys.onPressed: function(event) {
+          root.pasteKey(event)
+          if (event.accepted) return
+          if (root.toSuggestions.length === 0) return
+          if (event.key === Qt.Key_Down) {
+            toSuggestionsPopup.moveSelection(1)
+            event.accepted = true
+          } else if (event.key === Qt.Key_Up) {
+            toSuggestionsPopup.moveSelection(-1)
+            event.accepted = true
+          }
+        }
+        onAccepted: {
+          if (root.toSuggestions.length > 0) toSuggestionsPopup.acceptSelection()
+          else root.focusAfterTo()
+        }
+      }
+
+      RecipientSuggestions {
+        id: toSuggestionsPopup
+        objectName: "compose-to-suggestions"
+        x: toField.x
+        y: parent.height - Style.space(2)
+        width: toField.width
+        z: 60
+        contacts: root.toSuggestions
+        textColor: root.textColor
+        dimColor: root.dimColor
+        accentColor: root.accentColor
+        popupBackgroundColor: root.popupBackgroundColor
+        popupBorderColor: root.popupBorderColor
+        panelFontFamily: root.panelFontFamily
+        onChosen: function(contact) { root.acceptTo(contact) }
       }
 
       PanelSeparator {
@@ -391,6 +976,7 @@ Item {
     Item {
       visible: root.ccVisible
       width: parent.width
+      z: root.ccSuggestions.length > 0 ? 100 : 0
       // The field plus the same breathing room it carries inside itself, so
       // its border is not crowded against the rules above and below. Derived
       // rather than a fixed height: the field grows with the theme's font
@@ -400,9 +986,9 @@ Item {
       Text {
         id: ccLabel
         anchors.left: parent.left
-        anchors.leftMargin: Style.space(18)
+        anchors.leftMargin: root.formInset
         anchors.verticalCenter: parent.verticalCenter
-        width: Style.space(52)
+        width: root.formLabelWidth
         horizontalAlignment: Text.AlignRight
         text: "Cc"
         color: root.dimColor
@@ -412,8 +998,10 @@ Item {
 
       TextField {
         id: ccField
+        accessibleName: "Cc"
+        objectName: "compose-cc-field"
         anchors.left: ccLabel.right
-        anchors.leftMargin: Style.space(10)
+        anchors.leftMargin: root.formLabelGap
         anchors.right: parent.right
         anchors.rightMargin: Style.space(18)
         anchors.verticalCenter: parent.verticalCenter
@@ -421,8 +1009,118 @@ Item {
         accent: root.accentColor
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.bodySmall
-        accessibleName: "Cc"
-        onAccepted: subjectField.forceActiveFocus()
+        onTextChanged: root.updateRecipientSuggestions()
+        onActiveFocusChanged: root.updateRecipientSuggestions()
+        Keys.priority: Keys.BeforeItem
+        Keys.onPressed: function(event) {
+          root.pasteKey(event)
+          if (event.accepted) return
+          if (root.ccSuggestions.length === 0) return
+          if (event.key === Qt.Key_Down) {
+            ccSuggestionsPopup.moveSelection(1)
+            event.accepted = true
+          } else if (event.key === Qt.Key_Up) {
+            ccSuggestionsPopup.moveSelection(-1)
+            event.accepted = true
+          }
+        }
+        onAccepted: {
+          if (root.ccSuggestions.length > 0) ccSuggestionsPopup.acceptSelection()
+          else root.focusAfterCc()
+        }
+      }
+
+      RecipientSuggestions {
+        id: ccSuggestionsPopup
+        x: ccField.x
+        y: parent.height - Style.space(2)
+        width: ccField.width
+        z: 60
+        contacts: root.ccSuggestions
+        textColor: root.textColor
+        dimColor: root.dimColor
+        accentColor: root.accentColor
+        popupBackgroundColor: root.popupBackgroundColor
+        popupBorderColor: root.popupBorderColor
+        panelFontFamily: root.panelFontFamily
+        onChosen: function(contact) { root.acceptCc(contact) }
+      }
+
+      PanelSeparator {
+        anchors.bottom: parent.bottom
+        width: parent.width
+        foreground: root.textColor
+      }
+    }
+
+    Item {
+      visible: root.bccVisible
+      width: parent.width
+      z: root.bccSuggestions.length > 0 ? 100 : 0
+      implicitHeight: bccField.implicitHeight + Style.space(14)
+
+      Text {
+        id: bccLabel
+        anchors.left: parent.left
+        anchors.leftMargin: root.formInset
+        anchors.verticalCenter: parent.verticalCenter
+        width: root.formLabelWidth
+        horizontalAlignment: Text.AlignRight
+        text: "Bcc"
+        color: root.dimColor
+        font.family: root.panelFontFamily
+        font.pixelSize: Style.font.caption
+      }
+
+      TextField {
+        id: bccField
+        accessibleName: "Bcc"
+        objectName: "compose-bcc-field"
+        anchors.left: bccLabel.right
+        anchors.leftMargin: root.formLabelGap
+        anchors.right: parent.right
+        anchors.rightMargin: Style.space(18)
+        anchors.verticalCenter: parent.verticalCenter
+        foreground: root.textColor
+        accent: root.accentColor
+        font.family: root.panelFontFamily
+        font.pixelSize: Style.font.bodySmall
+        onTextChanged: root.updateRecipientSuggestions()
+        onActiveFocusChanged: root.updateRecipientSuggestions()
+        Keys.priority: Keys.BeforeItem
+        Keys.onPressed: function(event) {
+          root.pasteKey(event)
+          if (event.accepted) return
+          if (root.bccSuggestions.length === 0) return
+          if (event.key === Qt.Key_Down) {
+            bccSuggestionsPopup.moveSelection(1)
+            event.accepted = true
+          } else if (event.key === Qt.Key_Up) {
+            bccSuggestionsPopup.moveSelection(-1)
+            event.accepted = true
+          }
+        }
+        onAccepted: {
+          if (root.bccSuggestions.length > 0) bccSuggestionsPopup.acceptSelection()
+          else subjectField.forceActiveFocus()
+        }
+      }
+
+      RecipientSuggestions {
+        id: bccSuggestionsPopup
+        objectName: "compose-bcc-suggestions"
+        x: bccField.x
+        y: parent.height - Style.space(2)
+        width: bccField.width
+        z: 60
+        contacts: root.bccSuggestions
+        textColor: root.textColor
+        dimColor: root.dimColor
+        accentColor: root.accentColor
+        popupBackgroundColor: root.popupBackgroundColor
+        popupBorderColor: root.popupBorderColor
+        panelFontFamily: root.panelFontFamily
+        onChosen: function(contact) { root.acceptBcc(contact) }
       }
 
       PanelSeparator {
@@ -443,9 +1141,9 @@ Item {
       Text {
         id: subjectLabel
         anchors.left: parent.left
-        anchors.leftMargin: Style.space(18)
+        anchors.leftMargin: root.formInset
         anchors.verticalCenter: parent.verticalCenter
-        width: Style.space(52)
+        width: root.formLabelWidth
         horizontalAlignment: Text.AlignRight
         text: "Subject"
         color: root.dimColor
@@ -455,8 +1153,10 @@ Item {
 
       TextField {
         id: subjectField
+        accessibleName: "Subject"
+        objectName: "compose-subject-field"
         anchors.left: subjectLabel.right
-        anchors.leftMargin: Style.space(10)
+        anchors.leftMargin: root.formLabelGap
         anchors.right: parent.right
         anchors.rightMargin: Style.space(18)
         anchors.verticalCenter: parent.verticalCenter
@@ -465,8 +1165,91 @@ Item {
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.bodySmall
         placeholderText: "Subject"
-        accessibleName: "Subject"
+        KeyNavigation.tab: bodyEdit
         onAccepted: bodyEdit.forceActiveFocus()
+        Keys.priority: Keys.BeforeItem
+        Keys.onPressed: function(event) { root.pasteKey(event) }
+      }
+
+      PanelSeparator {
+        anchors.bottom: parent.bottom
+        width: parent.width
+        foreground: root.textColor
+      }
+    }
+
+    Item {
+      visible: root.mode === "forward" && root.originalAttachments.length > 0
+      width: parent.width
+      implicitHeight: attachmentSummary.implicitHeight + Style.space(14)
+
+      Text {
+        id: attachmentLabel
+        anchors.left: parent.left
+        anchors.leftMargin: root.formInset
+        anchors.top: parent.top
+        anchors.topMargin: Style.space(9)
+        width: root.formLabelWidth
+        horizontalAlignment: Text.AlignRight
+        text: "Files"
+        color: root.dimColor
+        font.family: root.panelFontFamily
+        font.pixelSize: Style.font.caption
+      }
+
+      Column {
+        id: attachmentSummary
+        anchors.left: attachmentLabel.right
+        anchors.leftMargin: root.formLabelGap
+        anchors.right: retryAttachments.left
+        anchors.rightMargin: Style.space(8)
+        anchors.top: parent.top
+        anchors.topMargin: Style.space(7)
+        spacing: Style.space(3)
+
+        Text {
+          width: parent.width
+          text: root.forwardAttachmentsLoading
+            ? "Loading original attachments..."
+            : (root.forwardAttachmentError !== ""
+              ? root.forwardAttachmentError
+              : Mail.formatCount(root.forwardedAttachments.length, "original attachment")
+                + " will be forwarded")
+          textFormat: Text.PlainText
+          color: root.forwardAttachmentError !== "" ? root.accentColor : root.textColor
+          font.family: root.panelFontFamily
+          font.pixelSize: Style.font.bodySmall
+          wrapMode: Text.WordWrap
+        }
+
+        Repeater {
+          model: root.originalAttachments
+          Text {
+            required property var modelData
+            width: attachmentSummary.width
+            textFormat: Text.PlainText
+            text: String(modelData.filename || "attachment") + "  "
+              + Mail.formatSize(modelData.size)
+            color: root.dimColor
+            font.family: root.panelFontFamily
+            font.pixelSize: Style.font.caption
+            elide: Text.ElideMiddle
+          }
+        }
+      }
+
+      Button {
+        id: retryAttachments
+        visible: root.forwardAttachmentError !== ""
+        anchors.right: parent.right
+        anchors.rightMargin: Style.space(18)
+        anchors.top: parent.top
+        anchors.topMargin: Style.space(6)
+        text: "Retry"
+        foreground: root.textColor
+        bordered: false
+        fontSize: Style.font.caption
+        onClicked: root.loadForwardAttachments()
       }
 
       PanelSeparator {
@@ -477,8 +1260,18 @@ Item {
     }
   }
 
+  Rectangle {
+    objectName: "compose-fields-restore-flash"
+    anchors.fill: fields
+    z: 20
+    enabled: false
+    color: root.accentColor
+    opacity: root.restoreFlashOpacity
+  }
+
   QQC.Popup {
     id: fromMenu
+    objectName: "compose-from-menu"
     width: Math.min(Style.space(360), root.width - Style.space(36))
     implicitHeight: Math.min(fromRows.implicitHeight + Style.space(8), Style.space(260))
     padding: Style.space(4)
@@ -490,16 +1283,17 @@ Item {
     onOpened: root.placeFromMenu()
     background: Rectangle {
       radius: Style.cornerRadius
-      color: Color.popups.background
+      color: Qt.rgba(root.popupBackgroundColor.r, root.popupBackgroundColor.g,
+        root.popupBackgroundColor.b, 1)
       border.width: 1
-      border.color: Color.popups.border
+      border.color: root.popupBorderColor
     }
 
     contentItem: ListView {
       id: fromRows
       implicitHeight: contentHeight
       clip: true
-      model: root.fromAliases
+      model: root.fromIdentities
 
       delegate: Rectangle {
         id: fromRow
@@ -537,7 +1331,7 @@ Item {
             width: parent.width
             visible: text !== ""
             textFormat: Text.PlainText
-            text: String(fromRow.modelData.displayName || "")
+            text: Senders.subtitle(fromRow.modelData)
             color: root.dimColor
             font.family: root.panelFontFamily
             font.pixelSize: Style.font.caption
@@ -545,8 +1339,8 @@ Item {
           }
         }
 
-        HoverHandler { id: fromHover; cursorShape: Qt.PointingHandCursor }
-        TapHandler { onTapped: root.chooseFrom(fromRow.modelData.email) }
+        HoverHandler { id: fromHover }
+        TapHandler { onTapped: root.chooseFrom(fromRow.modelData) }
       }
     }
   }
@@ -557,10 +1351,11 @@ Item {
   // window ground; the rows above already carry the structure.
   Flickable {
     id: bodyFlick
+    objectName: "compose-body"
     anchors.top: fields.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    anchors.bottom: actions.top
+    anchors.bottom: attachStrip.top
     anchors.leftMargin: Style.space(18)
     anchors.rightMargin: Style.space(18)
     anchors.topMargin: Style.space(12)
@@ -572,6 +1367,8 @@ Item {
 
     TextEdit {
       id: bodyEdit
+      objectName: "compose-body-editor"
+      activeFocusOnTab: true
       width: bodyFlick.width
       // Tall enough to fill the visible area even when the draft is short.
       // A TextEdit sized to its text leaves the space below it belonging to
@@ -586,6 +1383,114 @@ Item {
       selectedTextColor: root.textColor
       font.family: root.panelFontFamily
       font.pixelSize: Style.font.bodySmall
+      Keys.priority: Keys.BeforeItem
+      Keys.onPressed: root.pasteKey(event)
+    }
+  }
+
+  Rectangle {
+    objectName: "compose-body-restore-flash"
+    anchors.fill: bodyFlick
+    z: bodyFlick.z + 1
+    enabled: false
+    color: root.accentColor
+    opacity: root.restoreFlashOpacity
+  }
+
+  Item {
+    id: attachStrip
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: actions.top
+    height: root.draftAttachments.length > 0
+      ? Math.min(attachFlick.contentHeight, Style.space(240)) + Style.space(12)
+      : 0
+
+    Flickable {
+      id: attachFlick
+      anchors.fill: parent
+      anchors.leftMargin: Style.space(18)
+      anchors.rightMargin: Style.space(18)
+      anchors.topMargin: Style.space(4)
+      visible: root.draftAttachments.length > 0
+      clip: true
+      contentWidth: width
+      contentHeight: attachList.height
+      boundsBehavior: Flickable.StopAtBounds
+      ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+      Column {
+        id: attachList
+        width: attachFlick.width
+        spacing: Style.space(8)
+
+        Repeater {
+          model: root.draftAttachments
+
+          Column {
+            id: attachItem
+            required property var modelData
+            required property int index
+            width: attachList.width
+            spacing: Style.space(4)
+
+            Image {
+              visible: String(attachItem.modelData.mimeType || "").indexOf("image/") === 0
+                && String(attachItem.modelData.path || "") !== ""
+              width: parent.width
+              height: visible
+                ? Math.min(Math.max(sourceSize.height, Style.space(72)), Style.space(200))
+                : 0
+              fillMode: Image.PreserveAspectFit
+              asynchronous: true
+              cache: false
+              source: visible ? ("file://" + String(attachItem.modelData.path || "")) : ""
+            }
+
+            Row {
+              spacing: Style.space(6)
+              width: parent.width
+
+              ActionIcon {
+                anchors.verticalCenter: parent.verticalCenter
+                name: "attachment"
+                iconSize: Style.font.iconSmall
+                color: root.dimColor
+              }
+
+              Text {
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.max(0, parent.width - Style.space(120))
+                textFormat: Text.PlainText
+                text: String(attachItem.modelData.filename || "attachment")
+                color: root.textColor
+                font.family: root.panelFontFamily
+                font.pixelSize: Style.font.caption
+                elide: Text.ElideMiddle
+              }
+
+              Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: Mail.formatSize(attachItem.modelData.size)
+                color: root.dimmerColor
+                font.family: root.panelFontFamily
+                font.pixelSize: Style.font.caption
+              }
+
+              IconButton {
+                anchors.verticalCenter: parent.verticalCenter
+                iconName: "close"
+                tooltipText: "Remove"
+                foreground: root.dimColor
+                hoverColor: root.textColor
+                fontFamily: root.panelFontFamily
+                iconSize: Style.font.iconSmall
+                onClicked: root.removeAttachment(attachItem.index)
+              }
+            }
+          }
+        }
+      }
     }
   }
 
@@ -613,11 +1518,22 @@ Item {
       IconTextButton {
         iconName: "send"
         tooltipText: "Send · Ctrl+Enter"
-        text: root.service && root.service.sending ? "Sending…" : "Send"
+        text: root.service && root.service.sending ? "Sending" : "Send"
         foreground: root.textColor
         fontFamily: root.panelFontFamily
-        enabled: !!root.service && !root.service.sending
+        enabled: !!root.service && !root.service.sending && !root.service.sendPending
+          && !root.forwardAttachmentsLoading && root.forwardAttachmentError === ""
         onClicked: root.submit()
+      }
+
+      IconTextButton {
+        iconName: "attachment"
+        tooltipText: "Attach files..."
+        text: root.attaching ? "Attaching" : "Attach..."
+        foreground: root.textColor
+        fontFamily: root.panelFontFamily
+        enabled: !!root.service && !root.attaching
+        onClicked: root.chooseFiles()
       }
 
       Button {
@@ -629,14 +1545,16 @@ Item {
       }
     }
 
-    Text {
-      anchors.right: parent.right
-      anchors.rightMargin: Style.space(18)
-      anchors.verticalCenter: parent.verticalCenter
-      text: "Ctrl+Enter sends · Esc closes"
-      color: root.dimmerColor
-      font.family: root.panelFontFamily
-      font.pixelSize: Style.font.caption
+  }
+
+  Process {
+    id: attacher
+    property string jobMode: ""
+    stdinEnabled: false
+    stdout: StdioCollector { id: attachOut; waitForEnd: true }
+    stderr: StdioCollector { waitForEnd: true }
+    onExited: function(exitCode) {
+      root.finishAttach(jobMode, String(attachOut.text || ""))
     }
   }
 

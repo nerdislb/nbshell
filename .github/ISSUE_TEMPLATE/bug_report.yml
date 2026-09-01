@@ -27,7 +27,7 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: Arch-based distribution, niri version, Quickshell version, and nbshell revision.
+      description: Arch-based distribution, active compositor and version, Quickshell version, and nbshell revision.
     validations:
       required: true
   - type: textarea

@@ -47,20 +47,23 @@ if ! gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/nu
 fi
 
 # Project ids are globally unique, so a fixed default would collide for the
-# second person who runs this.
+# second person who runs this. Read a fixed three bytes rather than piping an
+# endless `tr </dev/urandom` into `head`: there `head` closes the pipe first,
+# `tr` dies of SIGPIPE, and under `pipefail` the whole script exits 141 without
+# printing anything.
 if [[ -z $project_id ]]; then
-  project_id="omamail-$(tr -dc 'a-z0-9' </dev/urandom | head -c 6)"
+  project_id="omamail-$(od -An -tx1 -N3 /dev/urandom | tr -d ' \n')"
 fi
 
 if gcloud projects describe "$project_id" >/dev/null 2>&1; then
   printf 'Reusing existing project %s\n' "$project_id"
 else
   printf 'Creating project %s…\n' "$project_id"
-  gcloud projects create "$project_id" --name="Mail"
+  gcloud projects create "$project_id" --name="Omamail"
 fi
 
-printf 'Enabling the Gmail API…\n'
-gcloud services enable gmail.googleapis.com --project="$project_id"
+printf 'Enabling the Gmail and Google Calendar APIs…\n'
+gcloud services enable gmail.googleapis.com calendar-json.googleapis.com --project="$project_id"
 
 consent_url="https://console.cloud.google.com/auth/overview?project=$project_id"
 clients_url="https://console.cloud.google.com/auth/clients/create?project=$project_id"
@@ -78,7 +81,7 @@ Done with the part gcloud can do. Two steps are left, and both are console-only:
      $consent_url
 
   2. Create an OAuth client, application type "Desktop app", then paste its
-     client ID into Mail.
+     client ID into Omamail.
 
      $clients_url
 

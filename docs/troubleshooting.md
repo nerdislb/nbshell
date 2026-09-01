@@ -5,7 +5,7 @@
 ```bash
 nbshell status
 nbshell switch status
-niri validate
+umbriel validate
 nbshell log
 ```
 
@@ -13,7 +13,7 @@ If the bar disappeared after an update, reinstall the tracked files and
 restart the service:
 
 ```bash
-cd ~/nbshell
+cd ~/projects/nbshell
 git pull --ff-only
 ./install.sh
 nbshell restart
@@ -25,10 +25,8 @@ nbshell restart
 nbshell switch off
 ```
 
-This disables the nbshell user service and removes its Niri include. It does
+This disables the nbshell user service and its Umbriel integration. It does
 not delete personal themes, settings, tasks, plugins, or application data.
-The installer keeps a `config.kdl.vor-nbshell` backup when it first changes the
-Niri include.
 
 ## A module is empty
 
@@ -111,6 +109,9 @@ and other personal data first.
 
 ## Report a useful bug
 
-Include the nbshell revision, Niri and Quickshell versions, graphics hardware,
-display layout, exact reproduction steps, and sanitized logs. Security issues
-belong in GitHub's private vulnerability reporting flow, not a public issue.
+Include the nbshell revision, Umbriel and Quickshell versions, graphics
+hardware, display layout, exact reproduction
+steps, and sanitized logs. Security issues belong in the private reporting
+flow described in
+[SECURITY.md](https://github.com/nerdislb/nbshell/blob/main/SECURITY.md), not a
+public issue.

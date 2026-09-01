@@ -1,0 +1,89 @@
+diff --git a/crates/omazen-cli/src/main.rs b/crates/omazen-cli/src/main.rs
+index 10c5e55..3e28784 100644
+--- a/crates/omazen-cli/src/main.rs
++++ b/crates/omazen-cli/src/main.rs
+@@ -373,11 +373,16 @@ fn doctor(json: bool) -> Result<(), String> {
+         ..DoctorReport::default()
+     };
+     let platform = platform_summary(&paths.os_release_file);
+-    if platform_supported(&paths.os_release_file) {
+-        report.pass(format!("supported platform: {platform}"));
++    if platform_supported_for(&paths) {
++        let mode = if paths.skip_theme_hook && !platform_supported(&paths.os_release_file) {
++            "supported external-provider platform"
++        } else {
++            "supported platform"
++        };
++        report.pass(format!("{mode}: {platform}"));
+     } else {
+         report.fail(format!(
+-            "unsupported platform: {platform}; supported platform is Omarchy Quattro (4.x)"
++            "unsupported platform: {platform}; supported platform is Omarchy Quattro (4.x) or Arch Linux in external-provider mode"
+         ));
+     }
+
+@@ -590,6 +595,12 @@ fn platform_supported(path: &Path) -> bool {
+             == Some("4")
+ }
+
++fn platform_supported_for(paths: &RuntimePaths) -> bool {
++    platform_supported(&paths.os_release_file)
++        || (paths.skip_theme_hook
++            && os_release_value(&paths.os_release_file, "ID").as_deref() == Some("arch"))
++}
++
+ fn version_at_least(have: &str, wanted: &str) -> bool {
+     fn parts(version: &str) -> Vec<u64> {
+         version
+@@ -1287,9 +1298,9 @@ fn setup() -> Result<(), String> {
+ }
+
+ fn check_supported_install(paths: &RuntimePaths) -> Result<(), String> {
+-    if !platform_supported(&paths.os_release_file) {
++    if !platform_supported_for(paths) {
+         return Err(format!(
+-            "unsupported platform: {}; Omazen requires Omarchy Quattro (4.x)",
++            "unsupported platform: {}; Omazen requires Omarchy Quattro (4.x), or Arch Linux in external-provider mode",
+             platform_summary(&paths.os_release_file)
+         ));
+     }
+diff --git a/tests/test.sh b/tests/test.sh
+index 85add9a..8ab4068 100755
+--- a/tests/test.sh
++++ b/tests/test.sh
+@@ -49,6 +49,7 @@ FAKE_HOOKS="$FAKE_HOME/.config/omarchy/hooks"
+ FAKE_COLORS="$FAKE_HOME/.local/state/omarchy/current/theme/colors.toml"
+ FAKE_OS_RELEASE="$TEST_ROOT/os-release"
+ FAKE_OLD_OS_RELEASE="$TEST_ROOT/os-release-v3"
++FAKE_ARCH_OS_RELEASE="$TEST_ROOT/os-release-arch"
+
+ mkdir -p "$FAKE_ZEN/defaults/pref" "$FAKE_PROFILE/chrome" "$(dirname -- "$FAKE_COLORS")"
+ printf '[App]\nVersion=1.21.15b\n' >"$FAKE_ZEN/application.ini"
+@@ -67,6 +68,12 @@ ID=omarchy
+ VERSION_ID="3.8.4"
+ BUILD_ID="3.8.4"
+ EOF
++cat >"$FAKE_ARCH_OS_RELEASE" <<'EOF'
++NAME="Arch Linux"
++PRETTY_NAME="Arch Linux"
++ID=arch
++BUILD_ID=rolling
++EOF
+ printf 'keep-user-chrome\n' >"$FAKE_PROFILE/chrome/userChrome.css"
+ printf 'keep-user-js\n' >"$FAKE_PROFILE/user.js"
+ cp "$FAKE_PROFILE/chrome/userChrome.css" "$TEST_ROOT/userChrome.before"
+@@ -168,6 +175,14 @@ grep -Fq '[PASS] supported platform: Omarchy 4.0.1 (omarchy)' <<<"$doctor_output
+   fail "doctor reported supported platform"
+ pass "status and doctor report the supported platform"
+
++arch_doctor=$(OMAZEN_SKIP_THEME_HOOK=1 run_omazen_with_os_release "$FAKE_ARCH_OS_RELEASE" doctor)
++grep -Fq '[PASS] supported external-provider platform: Arch Linux rolling (arch)' <<<"$arch_doctor" || \
++  fail "doctor rejected Arch external-provider mode"
++if run_omazen_with_os_release "$FAKE_ARCH_OS_RELEASE" doctor >/dev/null 2>&1; then
++  fail "doctor accepted Arch without external-provider mode"
++fi
++pass "Arch is supported only for external palette providers"
++
+ doctor_json=$(run_omazen doctor --json)
+ printf '%s\n' "$doctor_json" | node -e '
+   const fs = require("node:fs");

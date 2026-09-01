@@ -64,6 +64,8 @@ deepEqual(cache.dehydrate(null), [])
 assert.strictEqual(cache.queryKey("in:inbox", 25), "in:inbox|25")
 assert.strictEqual(cache.queryKey("  in:inbox  ", 25), "in:inbox|25")
 assert.strictEqual(cache.queryKey("", 25), "|25")
+assert.strictEqual(cache.queryFromKey("in:inbox|25"), "in:inbox")
+assert.strictEqual(cache.queryFromKey("a|query|100"), "a|query")
 // The page size is part of the key: the same query at a different size is a
 // different result set, not a stale one.
 assert.notStrictEqual(cache.queryKey("in:inbox", 25), cache.queryKey("in:inbox", 50))
@@ -90,6 +92,81 @@ store = cache.putQuery(store, "in:inbox|25", { summaries: [], estimate: 0, nextP
 assert.strictEqual(cache.getQuery(store, "in:inbox|25").summaries.length, 0)
 assert.strictEqual(Object.keys(store.queries).length, 1)
 
+// A query nobody has made before still gets an immediate answer from every
+// cached page. All words must occur, but they may occur in different fields.
+let searchable = cache.emptyStore()
+searchable = cache.putQuery(searchable, "in:inbox|25", {
+  summaries: [
+    summary("older", NOW - 2000, {
+      from: { name: "Jane Doe", email: "jane@example.com", display: "Jane Doe" },
+      subject: "Quarterly invoice",
+      snippet: "Ready for review",
+      to: [{ name: "Buyer", email: "buyer@example.org", display: "Buyer" }]
+    }),
+    summary("newer", NOW - 1000, { subject: "Invoice approved", snippet: "Jane signed it" })
+  ],
+  estimate: 2,
+  nextPageToken: ""
+}, NOW)
+// A newer cached copy of one id wins over the older flags and is not repeated.
+searchable = cache.putQuery(searchable, "is:unread|25", {
+  summaries: [summary("older", NOW - 2000, {
+    from: { name: "Jane Doe", email: "jane@example.com", display: "Jane Doe" },
+    subject: "Quarterly invoice",
+    snippet: "Ready for review",
+    unread: false
+  })],
+  estimate: 1,
+  nextPageToken: ""
+}, NOW + 1)
+
+deepEqual(cache.searchSummaries(searchable, "jane invoice").map(row => row.id),
+  ["newer", "older"], "local results are deduplicated and newest first")
+assert.strictEqual(cache.searchSummaries(searchable, "jane invoice")[1].unread, false,
+  "the newest cached copy supplies the row")
+deepEqual(cache.searchSummaries(searchable, "buyer@example.org").map(row => row.id), ["older"],
+  "recipients are searchable too")
+deepEqual(cache.searchSummaries(searchable, '"quarterly invoice"').map(row => row.id), ["older"])
+deepEqual(cache.searchSummaries(searchable, "from:jane"), [],
+  "provider operators are not guessed by the local fallback")
+deepEqual(cache.searchSummaries(searchable, ""), [])
+
+// The provider decides which cached mailboxes its server search can reach.
+// The newest copy decides scope: once a row is known to have moved to Trash,
+// an older Inbox copy must not resurrect it as a local result.
+let scoped = cache.emptyStore()
+scoped = cache.putQuery(scoped, "in:inbox|25", {
+  summaries: [summary("moved", NOW - 3000, { subject: "Scoped invoice" }),
+    summary("kept", NOW - 2000, { subject: "Scoped invoice" })],
+  estimate: 2,
+  nextPageToken: ""
+}, NOW)
+scoped = cache.putQuery(scoped, "in:trash|25", {
+  summaries: [summary("moved", NOW - 3000,
+    { subject: "Scoped invoice", labelIds: ["TRASH"] })],
+  estimate: 1,
+  nextPageToken: ""
+}, NOW + 1)
+deepEqual(cache.searchSummaries(scoped, "scoped invoice", function(sourceQuery) {
+  return sourceQuery !== "in:trash"
+}).map(row => row.id), ["kept"], "an out-of-scope newest copy excludes the id")
+
+// Query entries are the part rewritten on the GUI thread. A cap keeps one
+// enthusiastic Load-more session from turning every save into megabytes, and
+// its stale continuation token is dropped because it follows omitted rows.
+const tooMany = []
+for (let i = 0; i < cache.MAX_SUMMARIES_PER_QUERY + 5; i++)
+  tooMany.push(summary("cap-" + i, NOW - i))
+let cappedStore = cache.putQuery(cache.emptyStore(), "in:anywhere|25", {
+  summaries: tooMany,
+  estimate: tooMany.length,
+  nextPageToken: "after-omitted-rows"
+}, NOW)
+const cappedQuery = cache.getQuery(cappedStore, "in:anywhere|25")
+assert.strictEqual(cappedQuery.summaries.length, cache.MAX_SUMMARIES_PER_QUERY)
+assert.strictEqual(cappedQuery.nextPageToken, "")
+assert.strictEqual(cappedQuery.estimate, tooMany.length)
+
 // ---------------------------------------------------------------- pruning
 //
 // This store is rewritten whole every time it is saved, so it has to stay small
@@ -105,6 +182,16 @@ big = cache.prune(big)
 assert.strictEqual(Object.keys(big.queries).length, cache.MAX_QUERIES)
 assert.ok(cache.getQuery(big, "q0|25") === null, "the oldest goes first")
 assert.ok(cache.getQuery(big, "q" + (cache.MAX_QUERIES + 5) + "|25") !== null, "the newest stays")
+
+// Pruning also repairs an oversized entry written by the previous build.
+big.queries["oversized|25"] = {
+  summaries: cache.dehydrate(tooMany), estimate: tooMany.length,
+  nextPageToken: "unsafe", at: NOW + 100
+}
+big = cache.prune(big)
+assert.strictEqual(big.queries["oversized|25"].summaries.length,
+  cache.MAX_SUMMARIES_PER_QUERY)
+assert.strictEqual(big.queries["oversized|25"].nextPageToken, "")
 
 
 // ---------------------------------------------------------------- account
@@ -278,5 +365,37 @@ assert.strictEqual(reloaded.version, cache.VERSION)
     { text: "t", source: "plain", html: "", attachments: [], images: [],
       invite: null, unsubscribe: null })
 }
+
+// ------------------------------------- what the cache says about a read row
+//
+// An action changes the list on screen and now writes it back here, because
+// anything that paints from this copy — the next load, a mailbox switched away
+// from and back, the window reopened — otherwise put the old state on screen: a
+// message read a moment ago, bold again. So the flags an action moves have to
+// survive the trip to disk and back.
+
+const readRow = {
+  id: "18f3a", subject: "Lunch", snippet: "Are you free",
+  from: { name: "Jane", email: "jane@example.com" }, to: [], cc: [],
+  date: new Date("2026-08-20T10:00:00Z"), time: "10:00", fullTime: "Aug 20, 2026 10:00",
+  unread: false, starred: true, inInbox: true, labelIds: ["INBOX", "STARRED"]
+}
+
+const throughDisk = cache.hydrate(
+  cache.getQuery(
+    cache.load(cache.serialize(
+      cache.putQuery(cache.emptyStore(), "k",
+        { summaries: [readRow], estimate: 1, nextPageToken: "" }, 1000))),
+    "k").summaries)[0]
+
+assert.strictEqual(throughDisk.unread, false, "a row read before the write stays read")
+assert.strictEqual(throughDisk.starred, true)
+deepEqual(throughDisk.labelIds, ["INBOX", "STARRED"])
+assert.strictEqual(throughDisk.date.getTime(), readRow.date.getTime(),
+  "and the date is a Date again, because relativeTime asks it for one")
+
+// The other way too, so this is a round trip rather than a default.
+const unreadRow = { id: "18f3b", date: new Date("2026-08-20T11:00:00Z"), unread: true }
+assert.strictEqual(cache.hydrate(cache.dehydrate([unreadRow]))[0].unread, true)
 
 console.log("test_cache.js ok")

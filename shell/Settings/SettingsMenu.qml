@@ -392,7 +392,7 @@ Item {
         {
             "key": "wallpaperBlur",
             "def": true,
-            "label": Compositor.isUmbriel ? "Overview backdrop" : "Blur overview",
+            "label": "Overview backdrop",
             "values": [true, false]
         },
         {

@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=nbshell
-Comment=Desktop shell for Niri
+Comment=Desktop shell for Umbriel
 Exec=nbshell start -d
 Icon=preferences-desktop
 Terminal=false

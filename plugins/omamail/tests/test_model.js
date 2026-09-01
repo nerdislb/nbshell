@@ -12,12 +12,17 @@ assert.strictEqual(model.setupState({ toolsPresent: false }), "tools_missing")
 assert.strictEqual(model.setupState({ toolsPresent: true, credentialsPresent: false }), "no_credentials")
 assert.strictEqual(model.setupState({ toolsPresent: true, credentialsPresent: true, signedIn: false }), "signed_out")
 assert.strictEqual(model.setupState({ toolsPresent: true, credentialsPresent: true, signingIn: true }), "signing_in")
+assert.strictEqual(model.setupState({ toolsPresent: true, credentialsPresent: true,
+  recoveringSession: true, signedIn: false }), "reconnecting")
 assert.strictEqual(model.setupState({ toolsPresent: true, credentialsPresent: true, signedIn: true }), "ready")
 assert.strictEqual(model.setupState(null), "tools_missing")
 
 // Missing tools have to be named. "Something is missing" is not actionable.
 assert.ok(model.setupDetail("tools_missing", ["socat", "secret-tool"]).indexOf("socat, secret-tool") > 0)
 assert.strictEqual(model.setupHeadline("ready"), "")
+assert.strictEqual(model.setupHeadline("reconnecting"), "Reconnecting to Gmail…")
+assert.ok(model.setupDetail("reconnecting").indexOf("retry automatically") > 0)
+assert.strictEqual(model.setupActionLabel("reconnecting"), "")
 assert.strictEqual(model.setupHeadline("signed_out"), "Sign in to Gmail",
   "an account with no provider recorded is a Gmail account")
 assert.strictEqual(model.setupHeadline("signed_out", "IMAP"), "Sign in to IMAP")
@@ -101,8 +106,45 @@ deepEqual(model.replaceById(list, { id: "b", unread: true }).map(entry => entry.
 assert.strictEqual(model.indexById(list, "c"), 2)
 assert.strictEqual(model.indexById(list, "zzz"), -1)
 assert.strictEqual(model.indexById(null, "a"), -1)
+assert.strictEqual(model.messageById(list, [{ id: "preview" }], "preview").id, "preview")
+assert.strictEqual(model.messageById(list, [{ id: "preview" }], "a").id, "a")
+assert.strictEqual(model.messageById(list, [{ id: "preview" }], "missing"), null)
 assert.strictEqual(model.unreadCount(list), 2)
 assert.strictEqual(model.unreadCount([]), 0)
+
+// Local search rows stay visible while live metadata arrives. A live copy
+// replaces the cached one, a new result takes its chronological place, and a
+// request finishing twice cannot draw the same id twice.
+const cachedSearch = [
+  { id: "old", subject: "cached", date: new Date("2026-08-20T10:00:00Z") },
+  { id: "same", subject: "stale", date: new Date("2026-08-22T10:00:00Z") }
+]
+const liveSearch = [
+  { id: "new", subject: "live", date: new Date("2026-08-24T10:00:00Z") },
+  { id: "same", subject: "fresh", date: new Date("2026-08-22T10:00:00Z") }
+]
+const searchMerged = model.mergeSearchResults(cachedSearch, liveSearch)
+deepEqual(searchMerged.map(entry => entry.id), ["new", "same", "old"])
+assert.strictEqual(searchMerged[1].subject, "fresh")
+deepEqual(model.mergeSearchResults(null, liveSearch).map(entry => entry.id), ["new", "same"])
+
+// The union is only the in-flight preview. A settled server page removes a
+// cached false positive, replaces confirmed stale metadata, and may use a
+// confirmed cached row when that row's metadata request failed.
+const settledSearch = model.settledSearchResults([], cachedSearch, liveSearch,
+  ["new", "same"], false)
+deepEqual(settledSearch.map(entry => entry.id), ["new", "same"])
+assert.strictEqual(settledSearch[1].subject, "fresh")
+deepEqual(model.settledSearchResults([], cachedSearch, [], ["same"], false)
+  .map(entry => entry.id), ["same"], "a server-confirmed cached row may fill in")
+deepEqual(model.settledSearchResults([], cachedSearch, liveSearch, [], false), [],
+  "an empty server answer removes every preview row")
+deepEqual(model.settledSearchResults([{ id: "page-1" }], cachedSearch,
+  liveSearch, ["new"], true).map(entry => entry.id), ["new", "page-1"],
+  "an appended authoritative page keeps the pages already settled")
+deepEqual(model.missingSearchSummaryIds(liveSearch, ["new", "same"]), [])
+deepEqual(model.missingSearchSummaryIds(liveSearch, ["new", "missing", "same"]),
+  ["missing"], "a partial metadata answer names the paging hole")
 
 // ---------------------------------------------------------------- the bar
 
@@ -151,14 +193,16 @@ assert.strictEqual(model.resultSummary([], 0, false), "No messages")
 assert.strictEqual(model.resultSummary([{}], 1, false), "1 message")
 assert.strictEqual(model.resultSummary([{}, {}], 2, false), "2 messages")
 assert.strictEqual(model.resultSummary([{}, {}], 87, true), "2 of about 87")
-// Gmail's estimate can come back lower than the page it just returned.
-assert.strictEqual(model.resultSummary([{}, {}, {}], 1, true), "3 of about 3")
+// An estimate no larger than the page it came with is not a total: Gmail's can
+// come back low, and a listing that carries none at all — HEY's box index — is
+// counted as what was read. Either way "3 of about 3" would be a claim nobody
+// made, and there is a Load more below saying the rest exists.
+assert.strictEqual(model.resultSummary([{}, {}, {}], 1, true), "3 messages so far")
+assert.strictEqual(model.resultSummary([{}, {}, {}], 3, true), "3 messages so far")
 
-assert.strictEqual(model.statusSummary("Checking for mail…", "25 of about 80", true),
-  "Checking for mail…", "loading status must not compete with stale pagination")
-assert.strictEqual(model.statusSummary("Synced just now", "25 messages", false),
-  "Synced just now  ·  25 messages")
-assert.strictEqual(model.statusSummary("", "No messages", false), "No messages")
+assert.strictEqual(model.statusSummary("Checking for mail"), "Checking for mail")
+assert.strictEqual(model.statusSummary("Synced just now"), "Synced just now")
+assert.strictEqual(model.statusSummary(""), "")
 
 assert.strictEqual(model.truncate("short", 20), "short")
 assert.strictEqual(model.truncate("a much longer string", 10), "a much lo…")
@@ -338,4 +382,148 @@ assert.strictEqual(model.wrappedIndex(0, 1, 1), 0, "one mailbox has nowhere to g
 assert.strictEqual(model.wrappedIndex(0, 1, 0), 0, "and no mailboxes must not divide by zero")
 assert.strictEqual(model.wrappedIndex(-1, 1, 3), 0)
 
+// ------------------------------------------- what a provider cannot honour
+//
+// The panel hides the buttons for these, and for two providers that was the
+// whole of it. A key is not a button: `e` and `s` are bound in every mail
+// context, so on a mailbox with neither archive nor star they reached the
+// action anyway — the row left the list and the note said "Archived", for a
+// request no server ever saw.
+
+assert.strictEqual(model.actionCapability("archive"), "archive")
+assert.strictEqual(model.actionCapability("unarchive"), "archive")
+assert.strictEqual(model.actionCapability("star"), "star")
+assert.strictEqual(model.actionCapability("unstar"), "star")
+assert.strictEqual(model.actionCapability("spam"), "spam")
+assert.strictEqual(model.actionCapability("trash"), "", "every provider can trash")
+assert.strictEqual(model.actionCapability("markRead"), "")
+
+// Named after the thing the service does not have rather than after the key:
+// "e does nothing here" answers a question nobody asked.
+assert.strictEqual(model.actionUnavailable("archive", "HEY"), "HEY has no archive")
+assert.strictEqual(model.actionUnavailable("star", "HEY"), "HEY has no star")
+assert.strictEqual(model.actionUnavailable("spam", "IMAP"),
+  "IMAP has no junk verb to report to")
+assert.strictEqual(model.actionUnavailable("trash", "HEY"), "")
+
+deepEqual(model.unavailableActions({ archive: true, star: true, spam: true }), [])
+deepEqual(model.unavailableActions({ archive: false, star: false }), ["archive", "star"])
+deepEqual(model.unavailableActions(null), ["archive", "star"],
+  "an unknown provider offers nothing it cannot prove")
+
 console.log("test_model.js ok")
+
+// ------------------------------------------------------------- reading zoom
+
+// A step lands on a twentieth, so the same scroll back returns to where it was
+// and a saved zoom reads back as the one that was set.
+assert.strictEqual(model.zoomAfterStep(1, 0.1), 1.1)
+assert.strictEqual(model.zoomAfterStep(1.1, -0.1), 1)
+assert.strictEqual(model.zoomAfterStep(1.37, 0), 1.35)
+// The bounds hold however hard the wheel is turned.
+assert.strictEqual(model.zoomAfterStep(2.5, 0.1), 2.5)
+assert.strictEqual(model.zoomAfterStep(0.6, -0.1), 0.6)
+assert.strictEqual(model.zoomAfterStep(99, 0), 2.5)
+
+// What comes back off disk is a file somebody could have edited by hand, and
+// the answer to anything that is not a number is the size it shipped at.
+assert.strictEqual(model.clampZoom(undefined), 1)
+assert.strictEqual(model.clampZoom(null), 1)
+assert.strictEqual(model.clampZoom("nonsense"), 1)
+assert.strictEqual(model.clampZoom(0), 0.6, "but zero is a number, and clamps")
+assert.strictEqual(model.clampZoom("1.5"), 1.5, "including one written as text")
+
+deepEqual(model.windowPrefs(""), {
+  sidebarCollapsed: false, bodyZoom: 1, bodyMode: "reader",
+  alwaysShowImages: false, windowOpen: false
+})
+assert.strictEqual(model.windowPrefs('{"plainTextForced":true}').bodyMode, "plain",
+  "the old two-mode preference migrates to the three-mode setting")
+assert.strictEqual(model.windowPrefs('{"bodyMode":"original"}').bodyMode, "original")
+assert.strictEqual(model.windowPrefs('{"bodyMode":"unknown"}').bodyMode, "reader")
+assert.strictEqual(model.windowPrefs('{"windowOpen":true}').windowOpen, true)
+assert.strictEqual(model.windowPrefs('{"windowOpen":"yes"}').windowOpen, false)
+
+// ------------------------------------------------- what a detail read carries
+//
+// A detail read is authoritative about everything it carries and silent about
+// the rest. HEY is why: `hey threads` answers with a conversation's entries and
+// no subject line of its own, so a message opened before its list had loaded
+// would have replaced the subject the cache knew with "(no subject)".
+
+const listed = {
+  id: "1:2",
+  subject: "Lunch on Friday",
+  from: { name: "Jane", email: "jane@example.com" },
+  snippet: "Are you free",
+  date: new Date("2026-08-20T10:00:00Z"),
+  time: "10:00",
+  fullTime: "Aug 20, 2026 10:00"
+}
+const bodyless = {
+  id: "1:2",
+  subject: "(no subject)",
+  from: { name: "", email: "" },
+  snippet: "",
+  date: null,
+  time: "",
+  fullTime: "",
+  unread: false
+}
+
+const merged = model.detailSummary(listed, bodyless)
+assert.strictEqual(merged.subject, "Lunch on Friday")
+assert.strictEqual(merged.from.email, "jane@example.com")
+assert.strictEqual(merged.snippet, "Are you free")
+assert.strictEqual(merged.time, "10:00")
+// Everything the detail did carry still wins: the row is the fallback, not the
+// answer.
+assert.strictEqual(merged.unread, false)
+
+const full = model.detailSummary(listed, {
+  id: "1:2", subject: "Re: Lunch on Friday",
+  from: { name: "Jane", email: "jane@example.com" },
+  snippet: "Yes", date: new Date("2026-08-21T10:00:00Z"), time: "10:00", fullTime: "x"
+})
+assert.strictEqual(full.subject, "Re: Lunch on Friday", "a detail read that knows wins")
+assert.strictEqual(full.snippet, "Yes")
+
+// A message not in the list has nothing to fall back to, which is the ordinary
+// case rather than an error.
+assert.strictEqual(model.detailSummary(null, bodyless).subject, "(no subject)")
+assert.strictEqual(model.detailSummary(listed, null), listed)
+
+// ------------------------------------------------------ a CLI-shaped sign-in
+//
+// A provider whose sign-in is a program of its own says which program: the
+// generic sentence sends somebody looking through Omarchy for a package this
+// plugin never named.
+
+assert.strictEqual(model.setupHeadline("tools_missing", "HEY", "cli"),
+  "Install the HEY CLI")
+assert.strictEqual(model.setupHeadline("tools_missing", "Gmail", "oauth"),
+  "Missing system tools")
+assert.strictEqual(model.setupHeadline("no_credentials", "HEY", "cli"), "Sign in to HEY")
+assert.strictEqual(model.setupHeadline("signing_in", "HEY", "cli"), "Waiting for HEY…")
+// HEY is a brand word: upper case in prose, lower case only where it is the
+// command being run. A string that says "hey" about the product is a typo.
+assert.ok(model.setupDetail("tools_missing", ["hey"], "", "HEY", "cli").indexOf("HEY CLI") >= 0)
+assert.ok(model.setupDetail("signed_out", [], "", "HEY", "cli").indexOf("The HEY CLI") === 0)
+assert.ok(model.setupDetail("no_credentials", [], "", "HEY", "cli").indexOf("never sees") >= 0)
+assert.strictEqual(model.setupActionLabel("tools_missing", "HEY", "cli"), "Check again")
+assert.strictEqual(model.setupActionLabel("no_credentials", "HEY", "cli"), "Sign in to HEY...")
+
+// The setup page is chosen by the provider being edited, falling back to the
+// one on screen.
+assert.strictEqual(model.setupProvider("hey", "gmail"), "hey")
+assert.strictEqual(model.setupProvider("", "hey"), "hey")
+
+// Switching accounts keeps the mailbox the person was using when the target
+// provider offers the same one. Provider-specific mailboxes do not get
+// invented on a provider that has no such destination.
+assert.strictEqual(model.mailboxAfterAccountSwitch("unread", [
+  { key: "inbox" }, { key: "unread" }, { key: "all" }
+]), "unread")
+assert.strictEqual(model.mailboxAfterAccountSwitch("starred", [
+  { key: "inbox" }, { key: "unread" }
+]), "")

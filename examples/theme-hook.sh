@@ -170,7 +170,7 @@ fi
 
 # ── Was hier NICHT hingehoert ────────────────────────────────────────────
 #
-#   ghostty, niri   macht nbshell selbst (Services/ThemeExport.qml)
+#   ghostty, Umbriel   handled by nbshell itself (Services/ThemeExport.qml)
 #   nvim            ein Colorscheme ist ein Plugin, keine Palette. Wer will,
 #                   waehlt hier per `sed` ein anderes in seiner LazyVim-Config
 #                   und ruft `nvim --server … --remote-send` -- das ist aber

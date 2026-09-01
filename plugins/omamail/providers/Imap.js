@@ -1,5 +1,7 @@
 .pragma library
 
+.import "ImapProtocol.js" as Protocol
+
 // What an IMAP mailbox is, as far as the panel is concerned.
 //
 // The protocol itself is `ImapProtocol.js` and the transport is
@@ -46,6 +48,7 @@ var MAILBOXES = [
   { key: "unread", label: "Unread", icon: "unread", query: "folder:INBOX UNSEEN" },
   { key: "starred", label: "Flagged", icon: "star", query: "folder:INBOX FLAGGED" },
   { key: "sent", label: "Sent", icon: "send", query: "folder:\\Sent" },
+  { key: "drafts", label: "Drafts", icon: "compose", query: "folder:\\Drafts" },
   { key: "archive", label: "Archive", icon: "archive", query: "folder:\\Archive", optional: true },
   { key: "trash", label: "Trash", icon: "trash", query: "folder:\\Trash", optional: true }
 ]
@@ -57,6 +60,13 @@ var MAILBOXES = [
 function searchQuery(text) {
   var value = String(text === undefined || text === null ? "" : text).trim()
   return value === "" ? "" : "folder:INBOX TEXT " + JSON.stringify(value)
+}
+
+// Standard IMAP SEARCH has one selected folder. A typed search selects INBOX,
+// so a cached Sent, Trash or user-folder row cannot be an early result however
+// well its subject happens to match.
+function cachedSummaryInSearch(sourceQuery, summary) {
+  return Protocol.parseQuery(sourceQuery).folder.toUpperCase() === "INBOX"
 }
 
 // Selecting a folder in the sidebar. This cannot go through `searchQuery`: a

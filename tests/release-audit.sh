@@ -20,6 +20,9 @@ if f"## [{version}]" not in changelog:
 
 required_release_files = (
     "LICENSE",
+    "PRIVACY.md",
+    "SECURITY.md",
+    "SUPPORT.md",
     "THIRD_PARTY.md",
     "LICENSES/THIRD_PARTY_MIT.md",
     "themes/ATTRIBUTION.md",
@@ -27,6 +30,35 @@ required_release_files = (
 for name in required_release_files:
     if not (root / name).is_file():
         raise SystemExit(f"required release file is missing: {name}")
+
+retired_payloads = (
+    "niri",
+    "greeter/niri.kdl",
+    "greeter/regreet.toml",
+    "greeter/regreet.css",
+    "shell/Services/Niri.qml",
+    "shell/scripts/grid-layout.py",
+    "tests/grid-layout.py",
+    "docs/grid-scroll.md",
+    "native/umbriel-workspaces.c",
+)
+for name in retired_payloads:
+    if (root / name).exists():
+        raise SystemExit(f"retired compositor payload is still tracked: {name}")
+
+greeter_renderer = (root / "shell/scripts/greeter-theme.py").read_text(encoding="utf-8")
+if "regreet" in greeter_renderer.lower():
+    raise SystemExit("greeter renderer still contains retired ReGreet output")
+
+contact_contracts = {
+    "SUPPORT.md": "support@nbsystems.dev",
+    "PRIVACY.md": "privacy@nbsystems.dev",
+    "SECURITY.md": "security@nbsystems.dev",
+}
+for name, address in contact_contracts.items():
+    text = (root / name).read_text(encoding="utf-8")
+    if address not in text:
+        raise SystemExit(f"{name} is missing its public role address")
 
 # A removed feature once left its deleted test referenced by CI, making every
 # otherwise healthy push fail only on GitHub. Keep workflow test paths honest.

@@ -8,19 +8,9 @@ import qs.Common
 
 // Benachrichtigungen.
 //
-// Hier haengt der Server selbst -- nbshell meldet sich als
-// org.freedesktop.Notifications an. Diesen Namen bekommt genau EIN Prozess:
-// das ist die eine Stelle, an der sich zwei Shells nicht vertragen.
-//
-// Deshalb ist er VORGABEMAESSIG AUS (`notifications` in der Config).
-// Der Grund ist haerter als "sie stoeren sich": `dms.service` ist
-// `Type=dbus` mit `BusName=org.freedesktop.Notifications` -- systemd haelt DMS
-// erst fuer gestartet, wenn dieser Name auftaucht. Nimmt nbshell ihn, bleibt
-// die DMS-Unit ewig in "activating" haengen und wird schliesslich als
-// fehlgeschlagen neu gestartet, obwohl der Prozess laeuft.
-//
-// Umschalten also bewusst: `nbshell notify server on`, und dazu
-// `systemctl --user stop dms.service`.
+// nbshell owns org.freedesktop.Notifications in its supported Umbriel session.
+// The server is enabled by default and can be disabled explicitly with
+// `nbshell notify server off`.
 //
 // `keepOnReload: false`: nach dem Neuladen der QML-Dateien faengt die Liste
 // leer an, statt Karteileichen aus der vorigen Runde zu behalten.
@@ -43,7 +33,7 @@ import qs.Common
 Singleton {
     id: root
 
-    readonly property bool enabled: Config.value("notifications", false)
+    readonly property bool enabled: Config.value("notifications", true)
 
     readonly property bool dnd: Config.value("dnd", false)
     readonly property int popupTimeout: Config.value("notifyTimeout", 6000)

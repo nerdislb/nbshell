@@ -8,10 +8,8 @@ import qs.Common
 // Bildschirmaufnahme -- uebernommen aus dem DMS-Plugin `screenCapture`
 // (github.com/nerdislb/screen-capture, gleiche Hand, gleiche Lizenz).
 //
-// Die Auswahl macht **niris eigene Screenshot-Oberflaeche**, nicht slurp: sie
-// friert das Bild ein UND kennt die Fenster. Unter niri kommt sonst niemand an
-// Fensterkoordinaten -- `niri msg windows` liefert Groessen, aber keine Lage
-// auf dem Bildschirm.
+// Region capture uses slurp; window capture uses Umbriel's exact window
+// geometry exposed through the shared compositor service.
 //
 // Alles nach dem Ausloesen (warten, melden, Editor, OCR, Aufnahme) macht
 // capture.sh: das ist Shell-Arbeit und laesst sich so auch auf eine Taste
@@ -78,8 +76,7 @@ Singleton {
         Quickshell.execDetached([root.script].concat(args));
     }
 
-    // Der Zielordner muss stehen, BEVOR niri schreibt -- sonst geht die
-    // Aufnahme ins Leere.
+    // The target directory must exist before the compositor writes the image.
     function shoot(kind) {
         const path = shotDir + "/screenshot-" + stamp() + ".png";
         Quickshell.execDetached(["sh", "-c", "mkdir -p " + JSON.stringify(shotDir)]);
@@ -94,14 +91,10 @@ Singleton {
         Quickshell.execDetached(["sh", "-c", "mkdir -p " + JSON.stringify(shotDir)]);
         if (!Compositor.available)
             return false;
-        if (Compositor.isNiri) {
-            Compositor.action(["screenshot-window", "--id", String(windowId), "--path", path]);
-        } else {
-            const win = Compositor.windows.find(candidate => String(candidate.id) === String(windowId));
-            if (!win)
-                return false;
-            run(["shot", "window", path, String(win.x) + "," + String(win.y) + " " + String(win.w) + "x" + String(win.h)]);
-        }
+        const win = Compositor.windows.find(candidate => String(candidate.id) === String(windowId));
+        if (!win)
+            return false;
+        run(["shot", "window", path, String(win.x) + "," + String(win.y) + " " + String(win.w) + "x" + String(win.h)]);
         run(["post", path, editor, autoEdit ? "1" : "0", notifyOn ? "1" : "0"]);
         return true;
     }
@@ -158,22 +151,11 @@ Singleton {
         ]);
     }
 
-    // `niri msg action` statt IPC von Hand: siehe die Erklaerung in
-    // The compositor service owns command transport; callers only select the
-    // semantic capture action here.
+    // The helper uses Umbriel's portal and output/window geometry paths.
     function compositorShot(kind, path) {
         if (!Compositor.available)
             return false;
-        if (Compositor.isUmbriel) {
-            run(["shot", kind, path]);
-            return true;
-        }
-        var verb = "screenshot";        // die Auswahl-Oberflaeche
-        if (kind === "window")
-            verb = "screenshot-window";
-        else if (kind === "screen")
-            verb = "screenshot-screen";
-        Compositor.action([verb, "--path", path]);
+        run(["shot", kind, path]);
         return true;
     }
 

@@ -14,6 +14,7 @@ Rectangle {
   property string iconName: ""
   property string text: ""
   property string tooltipText: ""
+  property string accessibleName: ""
   property color foreground: Color.foreground
   property color accent: Color.accent
   property bool bordered: true
@@ -28,7 +29,19 @@ Rectangle {
 
   signal clicked()
 
-  readonly property bool hot: mouse.containsMouse && enabled
+  readonly property bool hot: (mouse.containsMouse || activeFocus) && enabled
+  activeFocusOnTab: enabled
+  Accessible.role: Accessible.Button
+  Accessible.name: accessibleName !== "" ? accessibleName : (text !== "" ? text : tooltipText)
+  Accessible.focusable: enabled
+  Accessible.onPressAction: if (enabled) root.clicked()
+  Keys.onPressed: function(event) {
+    if (!enabled || event.isAutoRepeat) return
+    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+      root.clicked()
+      event.accepted = true
+    }
+  }
 
   implicitWidth: row.implicitWidth + Style.spacing.controlPaddingX * 2
   implicitHeight: Style.spacing.controlHeight
@@ -70,7 +83,6 @@ Rectangle {
     id: mouse
     anchors.fill: parent
     hoverEnabled: true
-    cursorShape: Qt.PointingHandCursor
     onClicked: root.clicked()
   }
 

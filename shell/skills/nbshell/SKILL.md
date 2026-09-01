@@ -1,12 +1,11 @@
 ---
 name: nbshell
-description: Maintain or customize an installed nbshell desktop or its source repository, including Umbriel/Niri behavior, bar, menus, themes, plugins, IPC, key bindings, installation, and recovery.
+description: Maintain or customize an installed nbshell desktop or its source repository, including Umbriel behavior, bar, menus, themes, plugins, IPC, key bindings, installation, and recovery.
 ---
 
 # nbshell system skill
 
-nbshell is a Quickshell desktop shell for Umbriel on Arch Linux, with Niri
-retained as a recovery fallback. It is independent from Omarchy and
+nbshell is a Quickshell desktop shell for Umbriel on Arch Linux. It is independent from Omarchy and
 DankMaterialShell. Its public repository is normally checked out under
 `~/projects/nbshell`; installed runtime files live under
 `~/.config/quickshell/nbshell` and user state under `~/.config/nbshell`.
@@ -29,8 +28,7 @@ DankMaterialShell. Its public repository is normally checked out under
 4. Use `./install.sh` to deploy and validate source changes.
 5. Keep public UI, CLI help, examples, and documentation in English.
 6. Validate shell scripts with `bash -n`, Python with `python -m py_compile`,
-   plugins with `tests/plugin-validation.sh`, Umbriel with `umbriel validate`,
-   and the Niri fallback with `niri validate`.
+   plugins with `tests/plugin-validation.sh`, and Umbriel with `umbriel validate`.
 7. Never store API keys, stream keys, prompts, or credentials in Git.
 
 ## Stable interfaces
@@ -53,12 +51,9 @@ lives in `shell/Common/Runtime.qml`; persistent user configuration belongs in
 
 ## Compositor rules
 
-Repository-owned Umbriel bindings and rules live in `umbriel/nbshell.toml`;
-Niri recovery bindings live in `niri/nbshell-takeover.kdl`. Keep both backends
-working and route runtime behavior through `Services/Compositor.qml` or an
-explicit backend branch. Do not introduce Hyprland commands or assumptions.
-Umbriel uses its JSON IPC and `ext-workspace-v1`; Niri's event stream may stay
-open, but each command socket handles one request only.
+Repository-owned Umbriel bindings and rules live in `umbriel/nbshell.toml`.
+Runtime compositor behavior uses Umbriel's JSON IPC or standard Wayland
+protocols. Do not introduce Niri or Hyprland commands or assumptions.
 
 ## Quickshell safety
 

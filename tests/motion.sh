@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+assert_not_grep() {
+    local status
+    if grep "$@"; then
+        printf 'Unexpected grep match: %s\n' "$*" >&2
+        return 1
+    else
+        status=$?
+        if [ "$status" -ne 1 ]; then
+            printf 'grep failed with status %s: %s\n' "$status" "$*" >&2
+            return "$status"
+        fi
+    fi
+}
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 grep -Fq 'motionProfile' "$ROOT/shell/Common/Config.qml"
@@ -11,7 +25,7 @@ grep -Fq '"values": ["reduced", "standard", "expressive"]' "$ROOT/shell/Settings
 grep -Fq 'box.dismiss(() => Runtime.launcherOpen = false)' "$ROOT/shell/Launcher/Launcher.qml"
 grep -Fq 'frame.dismiss(() => Runtime.storeOpen = false)' "$ROOT/shell/Store/StoreWindow.qml"
 grep -Fq 'highlightMoveDuration: Theme.motionMove' "$ROOT/shell/Wallpaper/WallpaperPicker.qml"
-! grep -Fq 'Canvas {' "$ROOT/shell/Widgets/MotionSurface.qml"
+assert_not_grep -Fq 'Canvas {' "$ROOT/shell/Widgets/MotionSurface.qml"
 grep -Fq 'Behavior on visualOffsetY' "$ROOT/shell/Widgets/MotionSurface.qml"
 grep -Fq 'surface.enter();' "$ROOT/shell/Widgets/Popout.qml"
 grep -Fq 'surface.dismiss(root.finalizeClose)' "$ROOT/shell/Widgets/Popout.qml"
@@ -21,19 +35,19 @@ grep -Fq 'const replacingContent = visible && loader.sourceComponent !== content
 grep -Fq 'id: popupLoader' "$ROOT/shell/Widgets/Cell.qml"
 grep -Fq 'popupLoader.item.show(root.popout, root.popoutTakesKeyboard, -1);' "$ROOT/shell/Widgets/Cell.qml"
 grep -Fq 'popupLoader.item.show(root.preview, false, 700);' "$ROOT/shell/Widgets/Cell.qml"
-! grep -Fq 'id: previewLoader' "$ROOT/shell/Widgets/Cell.qml"
-! grep -Fq 'id: popoutLoader' "$ROOT/shell/Widgets/Cell.qml"
+assert_not_grep -Fq 'id: previewLoader' "$ROOT/shell/Widgets/Cell.qml"
+assert_not_grep -Fq 'id: popoutLoader' "$ROOT/shell/Widgets/Cell.qml"
 grep -Fq 'surface.cancelTransition();' "$ROOT/shell/Widgets/Popout.qml"
 grep -Fq 'function cancelTransition()' "$ROOT/shell/Widgets/MotionSurface.qml"
-! grep -Fq 'previous.close(() =>' "$ROOT/shell/Widgets/Popout.qml"
+assert_not_grep -Fq 'previous.close(() =>' "$ROOT/shell/Widgets/Popout.qml"
 grep -Fq 'root.close()' "$ROOT/shell/Widgets/Popout.qml"
 grep -Fq 'Runtime.claimPopout(Runtime.popoutToken, root.popupOutput)' "$ROOT/shell/Widgets/Cell.qml"
 grep -Fq 'root.externalPopoutEligible && root.popout !== null' "$ROOT/shell/Widgets/Cell.qml"
 grep -Fq 'externalPopoutEligible: win.expandedWidgetNames.indexOf(modelData) < 0' "$ROOT/shell/Bar/Bar.qml"
 grep -Fq 'Runtime.requestPopout("volume", Compositor.focusedOutput)' "$ROOT/shell/Ipc/DeviceIpc.qml"
 grep -Fq 'Runtime.requestPopout("control", Compositor.focusedOutput)' "$ROOT/shell/Ipc/DesktopIpc.qml"
-! grep -Fq 'function onAudioPanelOpenChanged()' "$ROOT/shell/Bar/Widgets/Volume.qml"
-! grep -Fq 'function onControlOpenChanged()' "$ROOT/shell/Bar/Widgets/Control.qml"
+assert_not_grep -Fq 'function onAudioPanelOpenChanged()' "$ROOT/shell/Bar/Widgets/Volume.qml"
+assert_not_grep -Fq 'function onControlOpenChanged()' "$ROOT/shell/Bar/Widgets/Control.qml"
 grep -Fq 'autoEnter: false' "$ROOT/shell/Widgets/Popout.qml"
 grep -Fq 'readonly property int collapseIndex: Config.rightWidgets.indexOf("sep")' "$ROOT/shell/Bar/Bar.qml"
 grep -Fq 'Config.set("rightSectionExpanded", !Config.rightSectionExpanded)' "$ROOT/shell/Bar/Bar.qml"

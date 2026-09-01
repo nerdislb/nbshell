@@ -1,24 +1,50 @@
 --- a/Service.qml
 +++ b/Service.qml
-@@ -35 +34,0 @@
+@@ -35,7 +35,6 @@
+   property bool membersPending: false
+   property bool statusPending: false
+   property bool statusReady: false
 -  property bool storeRefreshPending: false
-@@ -65,2 +63,0 @@
+   property string activeWriteKind: ""
+   property string activeWriteChatJid: ""
+   property string activeWriteAccount: ""
+@@ -71,8 +70,6 @@
+
+   readonly property bool windowOpen: appOpen || dropdownOpen
+   readonly property bool multiAccount: AccountModel.isMultiAccount(accounts)
 -  readonly property var storeDirectories:
 -    AccountModel.storeDirectories(accounts, storeDirectory)
-@@ -75,7 +71,0 @@
--  readonly property string storeDirectory: {
--    var configured = String(Quickshell.env("WACLI_STORE_DIR") || "").trim()
--    if (configured !== "") return configured
--    var stateHome = String(Quickshell.env("XDG_STATE_HOME") || "").trim()
--    if (stateHome === "") stateHome = Quickshell.env("HOME") + "/.local/state"
--    return stateHome + "/wacli"
--  }
-@@ -167,4 +156,0 @@
+   function sameChat(chat, account, jid) {
+     return AccountModel.sameChat(chat, account, jid)
+   }
+@@ -90,9 +87,6 @@
+     onRefreshRequested: { root.refreshStatus(); root.refreshChats() }
+   }
+   readonly property string helper: Quickshell.env("HOME") + "/.local/bin/omawhatsapp"
+-  readonly property string storeDirectory: AccountModel.defaultStoreDirectory(
+-    Quickshell.env("WACLI_STORE_DIR"), Quickshell.env("XDG_STATE_HOME"),
+-    Quickshell.env("HOME"))
+   readonly property int unreadCount: chats.reduce(function(total, chat) {
+     return total + Number(chat.unread || 0)
+   }, 0)
+@@ -178,10 +172,6 @@
+     statusProcess.requestedAccount = account
+     statusProcess.command = [helper, "status", "--account", account]
+     statusProcess.running = true
 -  }
 -  function refreshFromStore() {
 -    storeRefreshPending = true
 -    storeRefreshDebounce.restart()
-@@ -472,51 +457,0 @@
+   }
+   function refreshChats() {
+     if (chatsProcess.running) return
+@@ -587,58 +577,6 @@
+     function toggleApp(payload: string): string {
+       root.toggleApp(payload)
+       return "ok"
+-    }
+-  }
+-
 -  // One watcher per account store; they share the debounce below.
 -  Instantiator {
 -    id: storeWatchers
@@ -68,7 +94,14 @@
 -        root.refreshMessages()
 -        root.refreshMembers()
 -      }
--    }
--  }
-@@ -586 +520,0 @@
+     }
+   }
+
+@@ -742,7 +680,6 @@
+     onStarted: { write(payload + "\n"); payload = ""; stdinEnabled = false }
+     onExited: function(exitCode) {
+       root.loadingChats = false
 -      if (root.storeRefreshPending) storeRefreshDebounce.restart()
+       var payload = root.parseJson(chatsOutput.text)
+       if (!payload || payload.ok !== true) {
+         root.errorText = (payload && payload.error) || String(chatsError.text || "Chats could not be read.").trim()

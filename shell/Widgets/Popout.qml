@@ -35,7 +35,7 @@ PopupWindow {
     //
     // Der Preis: solange es offen ist, hat das Fenster darunter keine
     // Tastatur. Fuer ein angeklicktes Menue ist das genau richtig.
-    // WIEDER an: ohne Griff bekommt das Popup unter niri gar keine
+    // Without the grab the popup receives no reliable pointer events.
     // Zeigerereignisse -- die Liste klappt auf, aber man kann nichts
     // anfassen. Das Schliessen macht es trotzdem selbst (siehe unten): der
     // Griff wird zwar erteilt, aber beim Klick daneben nicht beendet.
@@ -56,12 +56,12 @@ PopupWindow {
 
     color: "transparent"
     // Load and lay out the content before mapping the Wayland popup. Mapping
-    // a 1x1 window and resizing it one frame later is mostly hidden by Niri,
-    // but Umbriel visibly re-anchors that intermediate surface.
+    // a 1x1 window and resizing it one frame later makes Umbriel visibly
+    // re-anchor the intermediate surface.
     visible: false
     // Muss schon VOR dem Mapping des PopupWindow wahr sein. Mit
     // `takesKeyboard && visible` wechselten Sichtbarkeit und Grab im selben
-    // Frame; niri sah das Fenster beim Erzeugen noch ohne Keyboard-Grab und
+    // frame; creating the surface before its keyboard grab can leave the text
     // reichte danach trotz aktivem TextInput keine Tasten mehr hinein.
     // Unsichtbare PopupWindows beanspruchen keinen Sitz, daher ist die
     // zusaetzliche visible-Bedingung weder noetig noch hilfreich.

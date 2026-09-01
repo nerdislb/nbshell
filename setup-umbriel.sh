@@ -4,9 +4,11 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_ROOT="${NBSHELL_UMBRIEL_SOURCE_DIR:-$HOME/.cache/nbshell/umbriel-sources}"
-PREFIX="${NBSHELL_UMBRIEL_PREFIX:-$HOME/.local}"
+PREFIX="${NBSHELL_UMBRIEL_PREFIX:-/usr/local}"
 UMBRIEL_REPO="https://github.com/noctalia-dev/umbriel.git"
 PORTAL_REPO="https://github.com/noctalia-dev/xdg-desktop-portal-umbriel.git"
+UMBRIEL_REVISION="e677dbbe2728ee65156bdbcc6775b0b36b388b64"
+PORTAL_REVISION="d996f0c2bd4e8c868c0a143f0c9ce060f3c47ed5"
 PACKAGES=(gcc git meson ninja pkgconf just wlroots0.20 wayland wayland-protocols
     libxkbcommon libinput pixman libdrm cairo pango tomlplusplus nlohmann-json jemalloc
     sdbus-cpp pipewire gtk4 wlr-randr xwayland-satellite xdg-desktop-portal)
@@ -43,22 +45,23 @@ fi
 
 mkdir -p "$SOURCE_ROOT"
 checkout() {
-    local url="$1" destination="$2"
+    local url="$1" destination="$2" revision="$3"
     if [ -d "$destination/.git" ]; then
         [ -z "$(git -C "$destination" status --porcelain)" ] || die "$destination has local changes; refusing to overwrite them."
-        git -C "$destination" pull --ff-only
-        git -C "$destination" submodule update --init --recursive
+        git -C "$destination" fetch --prune origin
     elif [ -e "$destination" ]; then
         die "$destination exists but is not a Git checkout."
     else
-        git clone --recursive "$url" "$destination"
+        git clone --no-checkout "$url" "$destination"
     fi
+    git -C "$destination" checkout --detach "$revision"
+    git -C "$destination" submodule update --init --recursive
 }
 
-checkout "$UMBRIEL_REPO" "$SOURCE_ROOT/umbriel"
-checkout "$PORTAL_REPO" "$SOURCE_ROOT/xdg-desktop-portal-umbriel"
+checkout "$UMBRIEL_REPO" "$SOURCE_ROOT/umbriel" "$UMBRIEL_REVISION"
+checkout "$PORTAL_REPO" "$SOURCE_ROOT/xdg-desktop-portal-umbriel" "$PORTAL_REVISION"
 
-build_install() {
+build_project() {
     local source="$1"
     local build="$source/build-nbshell"
     if [ -d "$build" ]; then
@@ -68,40 +71,41 @@ build_install() {
     fi
     meson compile -C "$build"
     meson test -C "$build" --print-errorlogs
-    meson install -C "$build"
 }
 
-build_install "$SOURCE_ROOT/umbriel"
-build_install "$SOURCE_ROOT/xdg-desktop-portal-umbriel"
-
-# Meson uses lib/systemd for a conventional /usr prefix. With a home prefix,
-# systemd searches share/systemd instead, so mirror the four upstream units.
-mkdir -p "$PREFIX/share/systemd/user"
-for unit in "$PREFIX"/lib/systemd/user/umbriel.service \
-    "$PREFIX"/lib/systemd/user/umbriel-session.target \
-    "$PREFIX"/lib/systemd/user/umbriel-shutdown.target \
-    "$PREFIX"/lib/systemd/user/xdg-desktop-portal-umbriel.service; do
-    [ -f "$unit" ] && install -m 644 "$unit" "$PREFIX/share/systemd/user/$(basename "$unit")"
-done
+build_project "$SOURCE_ROOT/umbriel"
+build_project "$SOURCE_ROOT/xdg-desktop-portal-umbriel"
+if [[ $PREFIX == /usr/local ]]; then
+    sudo meson install -C "$SOURCE_ROOT/umbriel/build-nbshell"
+    sudo meson install -C "$SOURCE_ROOT/xdg-desktop-portal-umbriel/build-nbshell"
+else
+    meson install -C "$SOURCE_ROOT/umbriel/build-nbshell"
+    meson install -C "$SOURCE_ROOT/xdg-desktop-portal-umbriel/build-nbshell"
+fi
 systemctl --user daemon-reload
 
-# Umbriel supervises its own xwayland-satellite. Arch's separately enabled
-# user unit is still needed by Niri, but must not start a second copy inside an
-# Umbriel session and race for the X11 display socket.
+# Remove user-local unit copies from earlier builds. They override the reviewed
+# root-owned units even when /usr/local is installed successfully.
+for unit_dir in "$HOME/.local/share/systemd/user" "$HOME/.local/lib/systemd/user"; do
+    rm -f "$unit_dir/umbriel.service" "$unit_dir/umbriel-session.target" \
+        "$unit_dir/umbriel-shutdown.target" "$unit_dir/xdg-desktop-portal-umbriel.service"
+done
+rm -f "$HOME/.local/share/wayland-sessions/umbriel.desktop"
+systemctl --user daemon-reload
+
+# Umbriel supervises xwayland-satellite itself; a separately enabled user unit
+# would race it for the X11 display socket.
 XWAYLAND_DROPIN="$HOME/.config/systemd/user/xwayland-satellite.service.d/nbshell-umbriel.conf"
-mkdir -p "$(dirname "$XWAYLAND_DROPIN")"
-printf '%s\n' \
-    '[Unit]' \
-    'ConditionEnvironment=!XDG_CURRENT_DESKTOP=umbriel' > "$XWAYLAND_DROPIN"
+systemctl --user disable --now xwayland-satellite.service >/dev/null 2>&1 || true
+rm -f "$XWAYLAND_DROPIN"
+rmdir "$(dirname "$XWAYLAND_DROPIN")" 2>/dev/null || true
 systemctl --user daemon-reload
 
 if [ "$INSTALL_SHELL" = "1" ]; then
     "$ROOT/install.sh"
 fi
 
-# greetd and most other display managers enumerate the system session folder.
-# They do not necessarily inherit ~/.local/bin in PATH, so use the absolute
-# user-prefix launcher instead of the relative Exec from upstream's desktop file.
+# greetd and other display managers enumerate the system session folder.
 SESSION_FILE="$(mktemp "${TMPDIR:-/tmp}/nbshell-umbriel-session.XXXXXX")"
 trap 'rm -f -- "$SESSION_FILE"' EXIT
 printf '%s\n' \
@@ -116,4 +120,4 @@ sudo install -m 644 "$SESSION_FILE" /usr/share/wayland-sessions/umbriel.desktop
 green "Umbriel, its portal, and the nbshell integration are installed."
 printf '%s\n' \
     "Nested test: nbshell compositor nested" \
-    "Next login: choose Umbriel (recommended); Niri remains available as recovery fallback."
+    "Next login: choose Umbriel."

@@ -7,9 +7,8 @@ import qs.Common
 
 // Der Mauszeiger.
 //
-// Anders als bei Theme oder Schriftgroesse gehoert der Zeiger nicht nbshell,
-// sondern niri -- und GTK haelt noch eine zweite Meinung dazu. Deshalb ist die
-// Config hier die Wahrheit und beide anderen Stellen werden nachgezogen,
+// Cursor settings are mirrored to Umbriel and GTK. nbshell configuration is
+// the source of truth so both consumers change together.
 // sobald sich `cursorTheme` oder `cursorSize` aendert. Wer den Wert im
 // Optionsmenue durchblaettert, sieht den Zeiger sofort wechseln.
 //
@@ -39,7 +38,7 @@ Singleton {
 
     // Beim Blaettern im Menue aendert sich der Wert bei jedem Tastendruck. Ohne
     // die kurze Ruhe schriebe jeder davon eine Datei und riefe zweimal
-    // gsettings -- und niri laedt bei jeder Aenderung seine Config neu.
+    // gsettings and one Umbriel config reload.
     Timer {
         id: settle
 

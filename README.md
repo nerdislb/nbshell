@@ -1,35 +1,30 @@
 # nbshell
 
 nbshell is an independent desktop shell for the
-[Umbriel](https://github.com/noctalia-dev/umbriel) Wayland compositor, with
-[Niri](https://github.com/YaLTeR/niri) retained as a recovery fallback. It is built with
+[Umbriel](https://github.com/noctalia-dev/umbriel) Wayland compositor. It is built with
 [Quickshell](https://quickshell.org) and takes visual inspiration from
 [Omarchy](https://omarchy.org). It does not require a full desktop environment.
 
-Umbriel is the recommended daily session. The compositor-neutral backend keeps
-the mature Niri integration installable and selectable from the greeter when a
-young Umbriel release needs recovery; see the [compositor guide](docs/umbriel.md).
-
 > nbshell is an independent project. It is not affiliated with, endorsed by,
-> or an official part of Omarchy, Umbriel, Niri, or Quickshell. Project names are used
-> only to describe inspiration and compatibility.
+> or an official part of Omarchy, Umbriel, or Quickshell. Project names are used
+> only to describe inspiration, provenance, and compatibility.
 
 The project was created with AI-assisted development. Product decisions,
 testing, and the direction of the project remain human-led.
 
-> nbshell is still under active development. It already works as a daily
-> desktop, but commands, configuration, and features may still change.
+> nbshell is an active beta; commands, configuration, and features may still
+> change before the stable release.
 
-Current prerelease: **0.1.0-beta.6**. See the
+Current prerelease: **0.1.0-beta.7**. See the
 [changelog](CHANGELOG.md) for user-facing changes.
 
-![nbshell menu over a three-window grid-scroll workspace](docs/screenshots/01-menu-grid.png)
+![nbshell menu in an Umbriel session](docs/assets/nbshell-umbriel-menu.webp)
 
 ## Why nbshell?
 
-- **Two compositor workflows:** use Umbriel's fast native scrolling/dwindle
-  layouts for daily work, or select the Niri fallback for nbshell's specialized
-  workspace-local two-window grid-scroll mode.
+- **Native Umbriel workflow:** use scrolling, dwindle, and master layouts,
+  overview, workspace controls, and output management through one integrated
+  shell workflow.
 - **One theme across the desktop:** import compatible Omarchy themes or use the
   bundled independent collection; nbshell keeps the bar, menus, terminal,
   browser accents, lock screen, and wallpaper language coherent. The optional
@@ -50,15 +45,15 @@ Current prerelease: **0.1.0-beta.6**. See the
   notifies when a manual compatibility review is needed; external QML is never
   updated automatically.
 - **Keyboard first, mouse friendly:** the searchable menu reaches nested
-  actions and installed applications, while every major surface remains
-  directly addressable from a shortcut or CLI command.
+  actions and installed applications, while major surfaces are also available
+  through documented shortcuts and CLI commands.
 - **Useful without another daemon:** one lazy Library brings installed themes,
   wallpapers, and reviewed plugins together, while launcher providers search
   windows, clipboard history, calculations, and files on demand.
 
-| Wallpaper library | Theme picker | Floating quick notes |
+| Launcher | Library | UI Gallery |
 | --- | --- | --- |
-| ![Wallpaper picker](docs/screenshots/02-wallpaper-picker.png) | ![Theme picker](docs/screenshots/04-theme-picker.png) | ![Quick notes](docs/screenshots/05-quick-notes.png) |
+| ![nbshell launcher with a generic settings query](docs/assets/nbshell-launcher.webp) | ![nbshell Library theme view](docs/assets/nbshell-library.webp) | ![nbshell shared UI Gallery](docs/assets/nbshell-ui-gallery.webp) |
 
 ## Documentation
 
@@ -68,6 +63,9 @@ Current prerelease: **0.1.0-beta.6**. See the
 - [Beta testing](docs/beta-testing.md) — clean-machine and hardware checklist
 - [Join the public beta](docs/beta-invitation.md) — tester profile, feedback, and media plan
 - [Troubleshooting](docs/troubleshooting.md) — health checks and recovery
+- [Support](SUPPORT.md) — help, diagnostics, and responsible contact paths
+- [Privacy](PRIVACY.md) — local data, network access, and external services
+- [Security](SECURITY.md) — private vulnerability reporting
 - [Plugin development](docs/plugin-development.md) — manifest, lifecycle, safety, and publishing
 - [Plugin store](docs/plugin-store.md) — catalog format and review policy
 - [Feature guide](docs/features.md) — what each part of nbshell does
@@ -84,13 +82,13 @@ online guide without turning this README into a wall of text.
 - Searchable menu, application launcher, dashboard, themes, and wallpapers
 - Clipboard history, notification center, and system tray
 - Audio mixer, media controls, Bluetooth, Wi-Fi, batteries, power profiles,
-  and persistent Umbriel/Niri display management
+  and persistent Umbriel display management
 - Floating Picture-in-Picture controls for Zen Browser
 - Optional Zen live-theme bridge after one initial browser restart
 - Native Orbital session locker with dedicated PAM authentication, secure
   lock-before-suspend, crash recovery, and Hyprlock as an independent fallback
 - Optional native Orbital greetd login screen with a password-first PAM service
-  and ReGreet recovery frontend
+  and an independent compositor-free agreety recovery configuration
 - Optional biometric phone approval for the next `sudo` or Polkit action, with
   explicit per-service activation and password authentication retained
 - Calendar, tasks, quick notes, habits, KDE Connect, Android mirroring, and a phone webcam
@@ -99,11 +97,11 @@ online guide without turning this README into a wall of text.
   using `ttfx` 0.3.2+ when available, with Python and built-in fallbacks
 - AI usage for Codex, Claude, Antigravity, and other providers
 - Curated plugin manager with optional modules, dependency details, update
-  previews, and safe cleanup of external plugins
+  previews, and managed removal of external plugins
 - Agent Center with a default-agent launcher, explicit approval profiles,
   project selection, Herdr sessions, optional Ollama/OpenCode routing, and an
   isolated multi-provider Hermes workflow with human-controlled apply and push
-- Umbriel-first key bindings, Niri fallback integration, terminal colors, and systemd autostart
+- Umbriel key bindings, terminal colors, and systemd autostart
 - Optional herdr status inside the System & Plugins dashboard
 - A release-based nbshell updater, kept separate from system and plugin updates
 
@@ -132,19 +130,14 @@ cd nbshell
 ```
 
 The script installs Umbriel and its screenshot/screencast portal from their
-official source repositories, deploys nbshell, and keeps Niri installed as a
-recovery session. It shows packages before calling `sudo`. Optional tools
+official source repositories and deploys nbshell. It shows packages before
+calling `sudo`. Optional tools
 remain discoverable but disabled. Use
 `./setup.sh --full` when you want the complete capture, calendar, sync, power,
 and hardware tool set in one pass.
 
-Use `./setup.sh --niri-only` when you deliberately want the lighter Niri-only
-fallback installation. `./setup-umbriel.sh` remains available for adding the
-recommended compositor to an existing files-only or Niri installation.
-
-When setup has finished, log out and choose **Umbriel** in the greeter. The
-Niri entry remains available for recovery. Refresh both shell autostart and the
-fallback integration with:
+When setup has finished, log out and choose **Umbriel** in the greeter. Refresh
+shell autostart and the compositor integration with:
 
 ```bash
 nbshell switch on
@@ -178,9 +171,9 @@ keep an existing desktop usable if installation is interrupted or the new
 shell does not stay active. It reports missing programs but does not install
 packages.
 
-The installer keeps an existing Niri configuration. If none exists, it creates
-a small valid `~/.config/niri/config.kdl`. Existing personal nbshell settings
-are not overwritten during later installations.
+The installer keeps an existing Umbriel configuration and writes only
+nbshell-owned includes. Existing personal nbshell settings are not overwritten
+during later installations.
 
 ## First commands
 
@@ -215,9 +208,9 @@ nbshell whatsapp provider whatsapp
 ```
 
 Zen Browser opens its native Picture-in-Picture window with `Ctrl+Shift+]`.
-nbshell makes that window floating and remembers its size and corner. Use the
-`PIP` module or `Mod+Alt+P` to change its size. Use `Mod+Alt+Shift+P` to move it
-to another corner.
+nbshell makes that window floating and remembers its size. Use the `PIP` module
+or `Mod+Alt+P` to cycle its Umbriel width; move it directly with Umbriel's
+floating-window pointer controls.
 
 ## Wallpapers
 
@@ -246,8 +239,8 @@ remembers the selected scope.
 Open `Displays` from the main menu, the Control Center, or run
 `nbshell display`. The panel uses modes reported by the active compositor and can change each
 output's resolution, scale, orientation, enabled state, and position relative
-to another display. Changes apply live through Niri or `wlr-randr` and are
-saved in compositor-specific generated includes; nbshell never rewrites the
+to another display. Changes apply live through Umbriel and are saved in
+nbshell-owned Umbriel includes; nbshell never rewrites the
 rest of your compositor configuration. It refuses to turn off the only active
 output.
 
@@ -260,35 +253,11 @@ nbshell display set DP-1 transform 90
 nbshell display place DP-1 right eDP-1
 ```
 
-## Grid-scroll layout
+## Workspace layouts
 
-Press `Mod+Backspace` to toggle a workspace-local grid on top of Niri's
-scrolling layout. One or two tiled windows keep the normal Niri layout. The
-third window creates a vertically split column beside one full-height column;
-the fourth completes a 2x2 grid. The same progression repeats to the right in
-groups of four. Floating windows and other workspaces are left alone.
-
-Press `Mod+Backspace` again to return every tiled window on that workspace to
-its own 50% column. The mode is intentionally session-local and does not alter
-application data or Niri itself.
-
-```bash
-nbshell grid status
-nbshell grid on
-nbshell grid off
-nbshell grid backend status
-```
-
-The controller follows Niri's event stream and only reacts to window or
-workspace changes. It waits for every compositor-confirmed layout transition,
-so opening and closing windows remains deterministic on slower systems too.
-Niri currently exposes these layout operations as individual IPC actions; a
-future atomic batch API would let nbshell remove the last intermediate frame
-from uncommon full regrouping operations.
-
-An opt-in atomic backend and its compositor prototype are documented in
-[Grid-scroll development](docs/grid-scroll.md). Stock Niri and the stable
-backend remain the default and recovery path.
+Press `Mod+Backspace` or run `nbshell layout toggle` to cycle Umbriel's
+scrolling, dwindle, and master layouts for the focused workspace. Select one
+directly with `nbshell layout scrolling|dwindle|master`.
 
 ## AI agents and local models
 
@@ -519,8 +488,9 @@ nbshell gaming remove steam
 - AUR update counts require `paru` or `yay`.
 - Umbriel and `xdg-desktop-portal-umbriel` are tracked separately from AUR
   packages. The Desktop updates panel compares clean local checkouts with the
-  official noctalia-dev Git repositories, then builds, tests, and installs both
-  below `~/.local`. A compositor update takes effect after the next login.
+  official noctalia-dev Git repositories, then builds and tests both before
+  installing the reviewed root-owned stack below `/usr/local`. A compositor
+  update takes effect after the next login.
 - After a successful dashboard update, nbshell recommends a restart only when
   core components such as the kernel, systemd, glibc, firmware, or graphics
   drivers changed. The dashboard keeps the English `Restart recommended`
@@ -533,12 +503,13 @@ nbshell gaming remove steam
   control, so Voxtype's evdev hotkey can remain disabled.
 - Mail is bundled but disabled by default. Enable it with
   `nbshell plugin enable omamail`, restart nbshell, and open it with
-  `Mod+Ctrl+Shift+G`. Gmail uses the official Gmail API and its setup page
-  guides you through creating your own Google OAuth client. IMAP/SMTP accounts
-  work with Fastmail, iCloud, Outlook, Yahoo, Zoho, GMX, Proton Bridge, and
-  custom servers. Refresh tokens and mail passwords stay in the desktop
-  keyring. Runtime tools are `curl`, `socat`, `openssl`, `xdg-open`, and
-  `secret-tool` from `libsecret`.
+  `Mod+Ctrl+Shift+G` or `nbshell mail`. Gmail uses the official Gmail API;
+  HEY uses the separately installed official HEY CLI; IMAP/SMTP supports
+  Fastmail, iCloud, Outlook, Yahoo, Zoho, GMX, Proton Bridge, and custom
+  servers. Google Calendar and CalDAV views are integrated. Refresh tokens and
+  mail passwords stay in the desktop keyring, local contact suggestions are
+  opt-in, and Mail claims `mailto:` links only after `nbshell mail handler`.
+  Runtime tools and packages are declared by the plugin manifest.
 - The native YouTube Music player is also bundled and disabled by default.
   Install `mpv` and `yt-dlp`, enable it with `nbshell plugin enable ytmusic`,
   restart nbshell, then press `Mod+Ctrl+Shift+M`. First launch creates an
@@ -547,7 +518,7 @@ nbshell gaming remove steam
   the built-in request-header paste flow remains a fallback. Authentication
   files are stored with mode `0600`.
 
-## Updating
+## Updating a source checkout
 
 ```bash
 cd nbshell
@@ -562,7 +533,7 @@ nbshell restart
 nbshell switch off
 ```
 
-This disables nbshell autostart and removes its niri integration. It does not
+This disables nbshell autostart and its Umbriel integration. It does not
 delete your personal configuration or themes.
 
 ## Getting help
@@ -574,7 +545,8 @@ Report security problems privately as described in [SECURITY.md](SECURITY.md).
 ## Credits and license
 
 nbshell takes visual and workflow inspiration from Omarchy, but it is an
-independent implementation for niri and Quickshell. Theme sources are listed in
+independent Quickshell desktop for Umbriel.
+Theme sources are listed in
 [themes/ATTRIBUTION.md](themes/ATTRIBUTION.md). Reused or adapted components
 are documented in [THIRD_PARTY.md](THIRD_PARTY.md), with retained license texts
 under [`LICENSES/`](LICENSES/THIRD_PARTY_MIT.md).

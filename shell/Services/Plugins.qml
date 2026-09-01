@@ -48,14 +48,14 @@ Singleton {
         {
             "id": "workspaces",
             "name": "Workspaces",
-            "description": "niri workspaces",
-            "category": "niri"
+            "description": "Umbriel workspaces",
+            "category": "Desktop"
         },
         {
             "id": "window",
             "name": "Window title",
             "description": "what currently has focus",
-            "category": "niri"
+            "category": "Desktop"
         },
         {
             "id": "clock",
@@ -103,7 +103,7 @@ Singleton {
             "id": "layout",
             "name": "Keyboard layout",
             "description": "two-letter layout indicator",
-            "category": "niri"
+            "category": "Desktop"
         },
         {
             "id": "tray",
@@ -189,12 +189,7 @@ Singleton {
             "description": "Tailnet status, online devices, and addresses",
             "category": "Network"
         },
-        {
-            "id": "whatsapp",
-            "name": "WhatsApp",
-            "description": "unread messages, chat history, and direct replies",
-            "category": "Network"
-        },
+
         {
             "id": "sep",
             "name": "Separator",

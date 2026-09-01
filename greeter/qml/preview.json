@@ -15,7 +15,6 @@
   "showPowerActions": true,
   "autoStartAuthentication": false,
   "sessions": [
-    {"name": "Umbriel", "command": ["/bin/true"]},
-    {"name": "Niri", "command": ["/bin/true"]}
+    {"name": "Umbriel", "command": ["/bin/true"]}
   ]
 }

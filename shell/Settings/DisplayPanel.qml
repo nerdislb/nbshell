@@ -220,7 +220,7 @@ PanelWindow {
                                 enabled: root.display && (!root.display.enabled || Displays.outputs.filter(row => row.enabled).length > 1)
                                 onTriggered: Displays.setValue(root.display.name, "enabled", !root.display.enabled)
                             }
-                            Line { anchors.verticalCenter: parent.verticalCenter; text: Displays.outputs.filter(row => row.enabled).length <= 1 ? "The only active output cannot be turned off." : "Changes apply live and persist across Niri restarts."; color: Theme.fgDim }
+                            Line { anchors.verticalCenter: parent.verticalCenter; text: Displays.outputs.filter(row => row.enabled).length <= 1 ? "The only active output cannot be turned off." : "Changes apply live and persist across Umbriel restarts."; color: Theme.fgDim }
                         }
                     }
                 }

@@ -1,5 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
+assert_not_grep() {
+    local status
+    if grep "$@"; then
+        printf 'Unexpected grep match: %s\n' "$*" >&2
+        return 1
+    else
+        status=$?
+        if [ "$status" -ne 1 ]; then
+            printf 'grep failed with status %s: %s\n' "$status" "$*" >&2
+            return "$status"
+        fi
+    fi
+}
 trap 'status=$?; printf "::error title=Fresh install failure::line %s: %s (exit %s)\\n" "${BASH_LINENO[0]:-unknown}" "$BASH_COMMAND" "$status" >&2' ERR
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -44,6 +58,7 @@ chmod +x "$FAKE_BIN/systemctl" "$FAKE_BIN/systemd-run" "$FAKE_BIN/qs"
 export HOME="$TEST_HOME"
 export XDG_CONFIG_HOME="$TEST_HOME/.config"
 export XDG_DATA_HOME="$TEST_HOME/.local/share"
+export XDG_CACHE_HOME="$TEST_HOME/.cache"
 export XDG_BIN_HOME="$TEST_HOME/.local/bin"
 export FAKE_SYSTEMD_STATE="$WORK/systemd-state"
 # Tests run inside the developer's real nbshell.service cgroup; force the normal
@@ -51,6 +66,9 @@ export FAKE_SYSTEMD_STATE="$WORK/systemd-state"
 export NBSHELL_INSTALL_DEFER_RESTART=0
 export PATH="$FAKE_BIN:/usr/bin:/bin"
 mkdir -p "$FAKE_SYSTEMD_STATE"
+mkdir -p "$XDG_CONFIG_HOME/omarchy-gmail" "$XDG_CACHE_HOME/omarchy-gmail"
+printf 'legacy-config\n' >"$XDG_CONFIG_HOME/omarchy-gmail/credentials.json"
+printf 'legacy-cache\n' >"$XDG_CACHE_HOME/omarchy-gmail/inbox.json"
 
 assert_no_reservations() {
     test -z "$(find "$XDG_CONFIG_HOME/quickshell" -maxdepth 1 -type d \
@@ -65,6 +83,10 @@ assert_no_reservations
 test -f "$XDG_CONFIG_HOME/quickshell/nbshell/integrations/omawhatsapp/manifest.json"
 test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/VERSION")" = "$(cat "$ROOT/VERSION")"
 test -f "$XDG_CONFIG_HOME/nbshell/config.json"
+test -f "$XDG_CONFIG_HOME/omamail/credentials.json"
+test -f "$XDG_CACHE_HOME/omamail/inbox.json"
+test ! -e "$XDG_CONFIG_HOME/omarchy-gmail"
+test ! -e "$XDG_CACHE_HOME/omarchy-gmail"
 test -f "$XDG_CONFIG_HOME/systemd/user/nbshell.service"
 grep -Fq 'MALLOC_CONF=thp:never,narenas:4,dirty_decay_ms:3000' "$XDG_CONFIG_HOME/systemd/user/nbshell.service"
 grep -Fq 'Slice=session.slice' "$XDG_CONFIG_HOME/systemd/user/nbshell.service"
@@ -72,13 +94,11 @@ test -f "$XDG_CONFIG_HOME/systemd/user/nbshell-lock.service"
 grep -Fq 'Slice=session.slice' "$XDG_CONFIG_HOME/systemd/user/nbshell-lock.service"
 grep -Fq 'Restart=on-failure' "$XDG_CONFIG_HOME/systemd/user/nbshell-lock.service"
 grep -Fq 'ExecStopPost=/usr/bin/rm -f %t/nbshell-lock-ready' "$XDG_CONFIG_HOME/systemd/user/nbshell-lock.service"
-! grep -Fq 'PartOf=nbshell.service' "$XDG_CONFIG_HOME/systemd/user/nbshell-lock.service"
+assert_not_grep -Fq 'PartOf=nbshell.service' "$XDG_CONFIG_HOME/systemd/user/nbshell-lock.service"
 test -f "$XDG_CONFIG_HOME/systemd/user/nbshell-umbriel-resume-guard.service"
 grep -Fq 'Slice=session.slice' "$XDG_CONFIG_HOME/systemd/user/nbshell-umbriel-resume-guard.service"
 test ! -e "$XDG_CONFIG_HOME/systemd/user/nbshell-agent-host.service"
-test -f "$XDG_CONFIG_HOME/niri/config.kdl"
-test -f "$XDG_CONFIG_HOME/niri/nbshell-takeover.kdl"
-test -f "$XDG_CONFIG_HOME/niri/nbshell-outputs.kdl"
+test ! -e "$XDG_CONFIG_HOME/niri"
 test -f "$XDG_CONFIG_HOME/umbriel/nbshell.toml"
 test -f "$XDG_CONFIG_HOME/umbriel/nbshell-motion.toml"
 test -f "$XDG_CONFIG_HOME/umbriel/nbshell-colors.toml"
@@ -87,9 +107,7 @@ test -f "$XDG_CONFIG_HOME/umbriel/nbshell-outputs.toml"
 test -f "$XDG_CONFIG_HOME/umbriel/nbshell-cursor.toml"
 test -f "$XDG_CONFIG_HOME/umbriel/nbshell-overview.toml"
 test -f "$XDG_CONFIG_HOME/umbriel/config.toml"
-test -f "$XDG_DATA_HOME/nbshell/native/umbriel-workspaces.c"
 grep -Fq 'bubblewrap' "$ROOT/setup.sh"
-test -x "$XDG_DATA_HOME/nbshell/bin/umbriel-workspaces"
 test -x "$XDG_BIN_HOME/nbshell"
 test -x "$XDG_BIN_HOME/nbshell-install-recover"
 test -x "$XDG_DATA_HOME/nbshell/setup-greeter.sh"
@@ -132,22 +150,6 @@ done
     .skills | length == 4 and all(.ready == true)
 ' >/dev/null
 
-# The recovery frontend must remain activatable through the installed payload,
-# not only from a source checkout. Run the integration where its compositor
-# dependencies are available; minimal CI still verifies the exact payload.
-if command -v niri >/dev/null && command -v regreet >/dev/null; then
-    GREETER_ROOT="$WORK/installed-greeter-root"
-    mkdir -p "$GREETER_ROOT/etc/greetd" "$GREETER_ROOT/etc/pam.d"
-    printf 'original config\n' >"$GREETER_ROOT/etc/greetd/config.toml"
-    printf 'original pam\n' >"$GREETER_ROOT/etc/pam.d/greetd"
-    NBSHELL_GREETER_TEST_ROOT="$GREETER_ROOT" \
-    NBSHELL_GREETER_WALLPAPER="$ROOT/docs/screenshots/01-menu-grid.png" \
-        "$XDG_BIN_HOME/nbshell" greeter install regreet >/dev/null
-    grep -Fq '/usr/bin/regreet' "$GREETER_ROOT/etc/greetd/nbshell-greeter.kdl"
-    ! grep -Fq '[initial_session]' "$GREETER_ROOT/etc/greetd/config.toml"
-    cmp -s "$GREETER_ROOT/etc/pam.d/nbshell-greetd" "$ROOT/greeter/nbshell-greetd.pam"
-    cmp -s "$GREETER_ROOT/etc/pam.d/greetd" <(printf 'original pam\n')
-fi
 
 # User configuration and custom plugins must survive an update.
 jq '.testMarker = "keep"' "$XDG_CONFIG_HOME/nbshell/config.json" >"$WORK/config.json"

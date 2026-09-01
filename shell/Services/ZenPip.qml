@@ -12,7 +12,7 @@ Singleton {
     property bool floating: false
     property string windowId: ""
     property string sizeName: "small"
-    property string cornerName: "bottom-right"
+
 
     function refresh() {
         if (!statusProc.running)
@@ -52,7 +52,7 @@ Singleton {
                     root.active = value.active === true;
                     root.floating = value.floating === true;
                     root.sizeName = value.sizeName || "small";
-                    root.cornerName = value.cornerName || "bottom-right";
+
                     const newId = value.id === null ? "" : String(value.id);
                     if (newId !== "" && newId !== root.windowId) {
                         root.windowId = newId;

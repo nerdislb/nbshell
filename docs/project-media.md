@@ -11,14 +11,14 @@ Omarchy-inspired, never as an official edition, port, or 1:1 clone.
 
 Recommended release set:
 
-1. Full desktop with the island bar and a neutral wallpaper.
-2. Launcher with a generic application query.
-3. Dashboard showing sample media and calendar data.
-4. Notification and clipboard tabs with synthetic entries.
-5. Plugin Manager on the Store tab.
-6. A short video showing island expansion, launcher, dashboard, grid-scroll,
-   display controls, and optional plugins.
+1. Full desktop with the current Umbriel menu and a bundled neutral wallpaper.
+2. Library wallpaper and theme views with no local filenames visible.
+3. Quick Notes containing synthetic text only.
+4. Umbriel overview or display controls using neutral windows and sanitized output labels.
+5. UI Gallery, Calculator, Plugin Manager, or Capture Menu without account-backed content.
 
-Keep original captures outside Git. Add compressed WebP images below
-`docs/assets/` only after reviewing every visible pixel. A 16:9 overview and
-two focused UI crops are enough for the first beta; avoid an oversized gallery.
+Do not publish Mail, WhatsApp, notification, clipboard, terminal, Agent Center,
+AI usage, network/device, calendar, task, browser, greeter, or lock-screen
+captures. Keep original captures outside Git. Add metadata-stripped WebP files
+below `docs/assets/` only after OCR and full-pixel privacy review. A 16:9 overview
+and three focused UI views are enough; avoid an oversized gallery.

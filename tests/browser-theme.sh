@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+assert_not_grep() {
+    local status
+    if grep "$@"; then
+        printf 'Unexpected grep match: %s\n' "$*" >&2
+        return 1
+    else
+        status=$?
+        if [ "$status" -ne 1 ]; then
+            printf 'grep failed with status %s: %s\n' "$status" "$*" >&2
+            return "$status"
+        fi
+    fi
+}
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TEST_DIR="$(mktemp -d)"
 trap 'rm -rf -- "$TEST_DIR"' EXIT
@@ -43,6 +57,7 @@ touch "$FAKE_OMAZEN_PROGRAM/defaults/pref/omazen-prefs.js" "$PROFILE/chrome/JS/o
 cat >"$FAKE_BIN/omazen" <<'EOF'
 #!/usr/bin/env bash
 printf '%s|%s|%s\n' "$OMAZEN_SKIP_THEME_HOOK" "$OMAZEN_ACTIVE_COLORS" "$*" >>"$OMAZEN_TEST_LOG"
+if [[ $* == doctor && ${OMAZEN_TEST_FAIL_DOCTOR:-0} == 1 ]]; then exit 1; fi
 EOF
 chmod +x "$FAKE_BIN/omazen"
 export PATH="$FAKE_BIN:$PATH"
@@ -53,9 +68,15 @@ grep -Fq '1|' "$OMAZEN_LOG"
 grep -Fq '|sync' "$OMAZEN_LOG"
 grep -Fq 'mode = "dark"' "$XDG_CONFIG_HOME/nbshell/omazen-colors.toml"
 grep -Fq 'accent = "#42a5f5"' "$XDG_CONFIG_HOME/nbshell/omazen-colors.toml"
+if OMAZEN_TEST_FAIL_DOCTOR=1 bash "$ROOT/shell/scripts/browser-theme.sh" setup-zen-live >/dev/null 2>&1; then
+    echo "setup-zen-live accepted a failed post-install doctor" >&2
+    exit 1
+fi
+grep -Fq 'managed by nbshell' "$PROFILE/chrome/userChrome.css"
 bash "$ROOT/shell/scripts/browser-theme.sh" setup-zen-live >/dev/null
 grep -Fq '|setup' "$OMAZEN_LOG"
-! grep -Fq 'managed by nbshell' "$PROFILE/chrome/userChrome.css"
+grep -Fq '|doctor' "$OMAZEN_LOG"
+assert_not_grep -Fq 'managed by nbshell' "$PROFILE/chrome/userChrome.css"
 
 # Brave follows the theme's explicit mode through the Arch launcher flags.
 POLICY="$TEST_DIR/brave-policy.json"
@@ -65,10 +86,10 @@ NBSHELL_BRAVE_POLICY="$POLICY" bash "$ROOT/shell/scripts/browser-theme.sh" apply
 grep -Fxq -- '--force-dark-mode' "$XDG_CONFIG_HOME/brave-flags.conf"
 grep -Fxq -- '--ozone-platform=wayland' "$XDG_CONFIG_HOME/brave-flags.conf"
 grep -Fq '"BrowserThemeColor":"#101820"' "$POLICY"
-! grep -Fq 'BrowserColorScheme' "$POLICY"
+assert_not_grep -Fq 'BrowserColorScheme' "$POLICY"
 sed -i "s/NB_MODE='dark'/NB_MODE='light'/" "$XDG_CONFIG_HOME/nbshell/palette.sh"
 NBSHELL_BRAVE_POLICY="$POLICY" bash "$ROOT/shell/scripts/browser-theme.sh" apply
-! grep -Fq -- '--force-dark-mode' "$XDG_CONFIG_HOME/brave-flags.conf"
+assert_not_grep -Fq -- '--force-dark-mode' "$XDG_CONFIG_HOME/brave-flags.conf"
 grep -Fxq -- '--ozone-platform=wayland' "$XDG_CONFIG_HOME/brave-flags.conf"
 grep -Fq '"BrowserThemeColor":"#263746"' "$POLICY"
 

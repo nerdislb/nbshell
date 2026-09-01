@@ -7,15 +7,17 @@ import argparse
 import json
 import os
 import pathlib
-import shutil
+
 import subprocess
 import sys
 
 PROJECTS = (
-    ("umbriel", "https://github.com/noctalia-dev/umbriel.git"),
-    ("xdg-desktop-portal-umbriel", "https://github.com/noctalia-dev/xdg-desktop-portal-umbriel.git"),
+    ("umbriel", "https://github.com/noctalia-dev/umbriel.git",
+     "e677dbbe2728ee65156bdbcc6775b0b36b388b64"),
+    ("xdg-desktop-portal-umbriel", "https://github.com/noctalia-dev/xdg-desktop-portal-umbriel.git",
+     "d996f0c2bd4e8c868c0a143f0c9ce060f3c47ed5"),
 )
-PREFIX = pathlib.Path(os.environ.get("NBSHELL_UMBRIEL_PREFIX", pathlib.Path.home() / ".local"))
+PREFIX = pathlib.Path(os.environ.get("NBSHELL_UMBRIEL_PREFIX", "/usr/local"))
 
 
 def source_root() -> pathlib.Path | None:
@@ -25,7 +27,7 @@ def source_root() -> pathlib.Path | None:
         pathlib.Path.home() / ".cache/nbshell/umbriel-sources",
     ]
     for candidate in candidates:
-        if all((candidate / name / ".git").exists() for name, _ in PROJECTS):
+        if all((candidate / name / ".git").exists() for name, _, _ in PROJECTS):
             return candidate
     return None
 
@@ -42,7 +44,7 @@ def canonical_remote(value: str) -> str:
     return value
 
 
-def project_status(path: pathlib.Path, expected_remote: str, fetch: bool = True) -> dict:
+def project_status(path: pathlib.Path, expected_remote: str, revision: str, fetch: bool = True) -> dict:
     current = git(path, "rev-parse", "HEAD")
     remote = git(path, "remote", "get-url", "origin")
     expected = canonical_remote(expected_remote)
@@ -50,16 +52,14 @@ def project_status(path: pathlib.Path, expected_remote: str, fetch: bool = True)
         return {"current": current[:8], "latest": "", "available": False, "clean": False,
                 "error": f"unexpected origin: {remote}"}
     clean = git(path, "status", "--porcelain") == ""
-    latest = current
+    latest = revision
     error = ""
     if fetch:
         try:
-            line = subprocess.run(
-                ["git", "ls-remote", expected_remote, "HEAD"], text=True, capture_output=True,
-                check=True, timeout=20,
-            ).stdout.strip()
-            if line:
-                latest = line.split()[0]
+            subprocess.run(
+                ["git", "ls-remote", expected_remote, "HEAD"], text=True,
+                capture_output=True, check=True, timeout=20,
+            )
         except (OSError, subprocess.SubprocessError) as exc:
             error = f"remote check failed: {exc}"
     return {
@@ -76,8 +76,8 @@ def status(fetch: bool = True) -> dict:
         result["error"] = "Umbriel source checkouts were not found"
         return result
     try:
-        for name, remote in PROJECTS:
-            result["projects"][name] = project_status(root / name, remote, fetch)
+        for name, remote, revision in PROJECTS:
+            result["projects"][name] = project_status(root / name, remote, revision, fetch)
         rows = list(result["projects"].values())
         result["available"] = any(row["available"] for row in rows)
         result["installable"] = all(row["clean"] and not row["error"] for row in rows)
@@ -89,7 +89,7 @@ def status(fetch: bool = True) -> dict:
     return result
 
 
-def build_install(source: pathlib.Path) -> None:
+def build_project(source: pathlib.Path) -> pathlib.Path:
     build = source / "build-nbshell"
     setup = ["meson", "setup", str(build), str(source), "--buildtype=release", f"--prefix={PREFIX}"]
     if build.is_dir():
@@ -97,7 +97,7 @@ def build_install(source: pathlib.Path) -> None:
     subprocess.run(setup, check=True)
     subprocess.run(["meson", "compile", "-C", str(build)], check=True)
     subprocess.run(["meson", "test", "-C", str(build), "--print-errorlogs"], check=True)
-    subprocess.run(["meson", "install", "-C", str(build)], check=True)
+    return build
 def install(assume_yes: bool) -> int:
     info = status(fetch=True)
     if not info["ok"] or not info["installable"]:
@@ -114,19 +114,19 @@ def install(assume_yes: bool) -> int:
         return 0
 
     root = pathlib.Path(info["sourceRoot"])
-    for name, _ in PROJECTS:
+    builds = []
+    for name, _, revision in PROJECTS:
         path = root / name
-        git(path, "pull", "--ff-only")
+        git(path, "fetch", "--prune", "origin")
+        git(path, "checkout", "--detach", revision)
         git(path, "submodule", "update", "--init", "--recursive")
-        build_install(path)
+        builds.append(build_project(path))
+    for build in builds:
+        command = ["meson", "install", "-C", str(build)]
+        if PREFIX == pathlib.Path("/usr/local"):
+            command.insert(0, "sudo")
+        subprocess.run(command, check=True)
 
-    unit_target = PREFIX / "share/systemd/user"
-    unit_target.mkdir(parents=True, exist_ok=True)
-    for name in ("umbriel.service", "umbriel-session.target", "umbriel-shutdown.target",
-                 "xdg-desktop-portal-umbriel.service"):
-        source = PREFIX / "lib/systemd/user" / name
-        if source.is_file():
-            shutil.copy2(source, unit_target / name)
     subprocess.run(["systemctl", "--user", "daemon-reload"], check=True)
     print("Umbriel stack installed. Log out and back in to start the new compositor build.")
     return 0

@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+set -eu
+
+case "${1:-}" in
+    orbital)
+        frontend='/usr/bin/quickshell -p /usr/local/share/nbshell/greeter'
+        ;;
+    *)
+        printf 'Usage: nbshell-greeter-session orbital\n' >&2
+        exit 2
+        ;;
+esac
+
+exec /usr/bin/dbus-run-session /usr/local/bin/umbriel \
+    -c /etc/greetd/nbshell-greeter.toml \
+    -s "$frontend; /usr/local/bin/umbriel msg session-quit:skip-confirmation"

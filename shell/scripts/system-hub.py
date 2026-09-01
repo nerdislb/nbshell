@@ -204,13 +204,13 @@ if __name__ == "__main__":
         if not herdr:
             raise SystemExit("Herdr is missing")
         run(herdr, "agent", "focus", sys.argv[2])
-        code, windows, _ = run("niri", "msg", "-j", "windows")
+        code, windows, _ = run("umbriel", "windows", "--json")
         try:
             candidates = json.loads(windows) if code == 0 else []
         except ValueError:
             candidates = []
         target = next((w for w in candidates if str(w.get("title", "")).lower() == "herdr"), None)
         if target:
-            run("niri", "msg", "action", "focus-window", "--id", str(target.get("id")))
+            run("umbriel", "msg", "window-focus:" + str(target.get("id")))
     else:
         raise SystemExit("Usage: system-hub.py status|herdr-focus PANE")

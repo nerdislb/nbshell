@@ -13,27 +13,11 @@ from pathlib import Path
 
 CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
 STATE_FILE = CONFIG_HOME / "nbshell" / "displays.json"
-NIRI_FILE = CONFIG_HOME / "niri" / "nbshell-outputs.kdl"
 UMBRIEL_FILE = CONFIG_HOME / "umbriel" / "nbshell-outputs.toml"
 OUTPUT_RE = re.compile(r"^[A-Za-z0-9_.:-]+$")
 MODE_RE = re.compile(r"^(auto|\d+x\d+@\d+(?:\.\d+)?)$")
 TRANSFORMS = {"normal", "90", "180", "270", "flipped", "flipped-90", "flipped-180", "flipped-270"}
 
-
-def niri_json(command: str) -> dict:
-    result = subprocess.run(["niri", "msg", "--json", command], text=True, capture_output=True, check=True)
-    value = json.loads(result.stdout)
-    return value if isinstance(value, dict) else {}
-
-
-def outputs() -> dict:
-    return niri_json("outputs")
-
-
-def backend() -> str:
-    forced = os.environ.get("NBSHELL_COMPOSITOR", "").lower()
-    desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
-    return "umbriel" if forced == "umbriel" or os.environ.get("UMBRIEL_SOCKET") or "umbriel" in desktop else "niri"
 
 
 def load_state() -> dict:
@@ -50,68 +34,41 @@ def mode_label(mode: dict) -> str:
 
 
 def status() -> dict:
-    if backend() == "umbriel":
-        result = subprocess.run(["wlr-randr", "--json"], text=True, capture_output=True, check=True)
-        rows = []
-        for row in json.loads(result.stdout):
-            position = row.get("position") or {}
-            modes = [{
-                "label": f'{int(mode.get("width", 0))}x{int(mode.get("height", 0))}@{float(mode.get("refresh", 0)):.3f}',
-                "width": int(mode.get("width", 0)), "height": int(mode.get("height", 0)),
-                "refresh": round(float(mode.get("refresh", 0)), 3),
-                "preferred": bool(mode.get("preferred")), "current": bool(mode.get("current")),
-            } for mode in row.get("modes") or []]
-            rows.append({
-                "name": str(row.get("name") or ""), "make": str(row.get("make") or ""),
-                "model": str(row.get("model") or ""), "enabled": bool(row.get("enabled")),
-                "focused": False, "x": int(position.get("x", 0)), "y": int(position.get("y", 0)),
-                "width": next((m["width"] for m in modes if m["current"]), 0),
-                "height": next((m["height"] for m in modes if m["current"]), 0),
-                "scale": float(row.get("scale", 1)), "transform": str(row.get("transform") or "normal"),
-                "vrrSupported": True, "vrrEnabled": bool(row.get("adaptive_sync")), "modes": modes,
-                "currentMode": next((m["label"] for m in modes if m["current"]), ""),
-            })
-        rows.sort(key=lambda item: (item["x"], item["y"], item["name"]))
-        return {"outputs": rows, "saved": load_state(), "backend": "umbriel"}
-    raw = outputs()
-    focused = ""
+    result = subprocess.run(["wlr-randr", "--json"], text=True, capture_output=True, check=True)
+    focused_output = ""
     try:
-        focused = str(niri_json("focused-output").get("name") or "")
-    except (subprocess.SubprocessError, ValueError):
+        workspaces = subprocess.run(
+            ["umbriel", "workspaces", "--json"], text=True, capture_output=True,
+            check=True,
+        )
+        focused_output = str(next(
+            (row.get("output") for row in json.loads(workspaces.stdout) if row.get("focused")),
+            "",
+        ))
+    except (subprocess.SubprocessError, ValueError, TypeError):
         pass
     rows = []
-    for name, row in raw.items():
-        logical = row.get("logical") or {}
-        current_index = row.get("current_mode")
-        modes = []
-        for index, mode in enumerate(row.get("modes") or []):
-            modes.append({
-                "label": mode_label(mode),
-                "width": int(mode.get("width", 0)),
-                "height": int(mode.get("height", 0)),
-                "refresh": round(int(mode.get("refresh_rate", 0)) / 1000, 3),
-                "preferred": bool(mode.get("is_preferred", False)),
-                "current": current_index == index,
-            })
+    for row in json.loads(result.stdout):
+        position = row.get("position") or {}
+        modes = [{
+            "label": f'{int(mode.get("width", 0))}x{int(mode.get("height", 0))}@{float(mode.get("refresh", 0)):.3f}',
+            "width": int(mode.get("width", 0)), "height": int(mode.get("height", 0)),
+            "refresh": round(float(mode.get("refresh", 0)), 3),
+            "preferred": bool(mode.get("preferred")), "current": bool(mode.get("current")),
+        } for mode in row.get("modes") or []]
         rows.append({
-            "name": str(name),
-            "make": str(row.get("make") or ""),
-            "model": str(row.get("model") or ""),
-            "enabled": bool(logical),
-            "focused": name == focused,
-            "x": int(logical.get("x", 0)),
-            "y": int(logical.get("y", 0)),
-            "width": int(logical.get("width", 0)),
-            "height": int(logical.get("height", 0)),
-            "scale": float(logical.get("scale", 1)),
-            "transform": str(logical.get("transform") or "Normal").lower(),
-            "vrrSupported": bool(row.get("vrr_supported", False)),
-            "vrrEnabled": bool(row.get("vrr_enabled", False)),
-            "modes": modes,
-            "currentMode": next((mode["label"] for mode in modes if mode["current"]), ""),
+            "name": str(row.get("name") or ""), "make": str(row.get("make") or ""),
+            "model": str(row.get("model") or ""), "enabled": bool(row.get("enabled")),
+            "focused": str(row.get("name") or "") == focused_output,
+            "x": int(position.get("x", 0)), "y": int(position.get("y", 0)),
+            "width": next((m["width"] for m in modes if m["current"]), 0),
+            "height": next((m["height"] for m in modes if m["current"]), 0),
+            "scale": float(row.get("scale", 1)), "transform": str(row.get("transform") or "normal"),
+            "vrrSupported": True, "vrrEnabled": bool(row.get("adaptive_sync")), "modes": modes,
+            "currentMode": next((m["label"] for m in modes if m["current"]), ""),
         })
-    rows.sort(key=lambda row: (row["x"], row["y"], row["name"]))
-    return {"outputs": rows, "saved": load_state(), "backend": "niri"}
+    rows.sort(key=lambda item: (item["x"], item["y"], item["name"]))
+    return {"outputs": rows, "saved": load_state(), "backend": "umbriel"}
 
 
 def validate_name(name: str) -> None:
@@ -121,9 +78,6 @@ def validate_name(name: str) -> None:
 
 def run_output(name: str, *args: str) -> None:
     validate_name(name)
-    if backend() == "niri":
-        subprocess.run(["niri", "msg", "output", name, *args], check=True)
-        return
     mapping = {
         "mode": ["--mode"], "scale": ["--scale"], "transform": ["--transform"],
         "on": ["--on"], "off": ["--off"],
@@ -143,7 +97,6 @@ def save_state(state: dict) -> None:
     tmp = STATE_FILE.with_suffix(".tmp")
     tmp.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n")
     tmp.replace(STATE_FILE)
-    render_kdl(state)
     render_toml(state)
 
 
@@ -161,26 +114,6 @@ def render_toml(state: dict) -> None:
     UMBRIEL_FILE.parent.mkdir(parents=True, exist_ok=True)
     tmp = UMBRIEL_FILE.with_suffix(".tmp"); tmp.write_text("\n".join(lines) + "\n"); tmp.replace(UMBRIEL_FILE)
 
-
-def render_kdl(state: dict) -> None:
-    lines = ["// Generated by nbshell display. Edit through the display panel or CLI."]
-    for name in sorted(state):
-        validate_name(name)
-        row = state[name]
-        lines.append(f'output "{name}" {{')
-        if row.get("enabled") is False:
-            lines.append("    off")
-        else:
-            if row.get("mode"): lines.append(f'    mode "{row["mode"]}"')
-            if row.get("scale") is not None: lines.append(f'    scale {float(row["scale"]):g}')
-            if row.get("transform"): lines.append(f'    transform "{row["transform"]}"')
-            if row.get("x") is not None and row.get("y") is not None:
-                lines.append(f'    position x={int(row["x"])} y={int(row["y"])}')
-        lines.append("}")
-    NIRI_FILE.parent.mkdir(parents=True, exist_ok=True)
-    tmp = NIRI_FILE.with_suffix(".tmp")
-    tmp.write_text("\n".join(lines) + "\n")
-    tmp.replace(NIRI_FILE)
 
 
 def update(name: str, key: str, value) -> None:
@@ -223,11 +156,7 @@ def set_value(name: str, key: str, value: str) -> None:
     validate_name(name)
     if key == "mode":
         if not MODE_RE.fullmatch(value): raise SystemExit("Mode must be auto or WIDTHxHEIGHT@HZ")
-        if backend() == "umbriel":
-            set_umbriel_mode(name, value)
-        else:
-            run_output(name, "mode", value)
-            update(name, "mode", value)
+        set_umbriel_mode(name, value)
     elif key == "scale":
         scale = float(value)
         if not 0.5 <= scale <= 4: raise SystemExit("Scale must be between 0.5 and 4")
@@ -244,10 +173,7 @@ def set_value(name: str, key: str, value: str) -> None:
             active = [row for row in status()["outputs"] if row["enabled"]]
             if len(active) <= 1: raise SystemExit("Refusing to turn off the only enabled output")
         update(name, "enabled", enabled)
-        if backend() == "umbriel":
-            subprocess.run(["umbriel", "msg", "config-reload"], check=True)
-        else:
-            run_output(name, "on" if enabled else "off")
+        subprocess.run(["umbriel", "msg", "config-reload"], check=True)
     else:
         raise SystemExit(f"Unknown property: {key}")
 
@@ -255,10 +181,7 @@ def set_value(name: str, key: str, value: str) -> None:
 def place(name: str, relation: str, reference: str) -> None:
     if relation == "auto":
         state = load_state(); row = dict(state.get(name) or {}); row.pop("x", None); row.pop("y", None); state[name] = row; save_state(state)
-        if backend() == "umbriel":
-            subprocess.run(["umbriel", "msg", "config-reload"], check=True)
-        else:
-            run_output(name, "position", "auto")
+        subprocess.run(["umbriel", "msg", "config-reload"], check=True)
         return
     validate_name(reference)
     rows = {row["name"]: row for row in status()["outputs"]}
@@ -271,7 +194,7 @@ def place(name: str, relation: str, reference: str) -> None:
     elif relation == "below": x, y = anchor["x"], anchor["y"] + anchor["height"]
     elif relation == "same": x, y = anchor["x"], anchor["y"]
     else: raise SystemExit("Position must be left, right, above, below, same, or auto")
-    if backend() == "umbriel" and relation != "same":
+    if relation != "same":
         # Umbriel normalizes the global output coordinate space. Supplying a
         # calculated absolute --pos can therefore be moved beside the anchor
         # even though the requested topology was above/below it. Let the

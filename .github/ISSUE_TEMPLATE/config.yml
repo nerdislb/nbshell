@@ -1,1 +1,8 @@
 blank_issues_enabled: true
+contact_links:
+  - name: General support
+    url: https://github.com/nerdislb/nbshell/blob/main/SUPPORT.md
+    about: Read the support options for usage and setup questions.
+  - name: Private security report
+    url: https://github.com/nerdislb/nbshell/security/advisories/new
+    about: Report a vulnerability privately. Do not open a public issue.

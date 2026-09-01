@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+assert_not_grep() {
+    local status
+    if grep "$@"; then
+        printf 'Unexpected grep match: %s\n' "$*" >&2
+        return 1
+    else
+        status=$?
+        if [ "$status" -ne 1 ]; then
+            printf 'grep failed with status %s: %s\n' "$status" "$*" >&2
+            return "$status"
+        fi
+    fi
+}
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SHELL_ROOT="$ROOT/shell/shell.qml"
 
@@ -11,7 +25,7 @@ grep -Fq 'requested: Runtime.dashboardOpen' "$SHELL_ROOT"
 grep -Fq 'requested: Runtime.agentCenterOpen' "$SHELL_ROOT"
 grep -Fq 'LazyLoader { active: Runtime.storeOpen; StoreWindow {} }' "$SHELL_ROOT"
 grep -Fq 'property bool mounted: false' "$ROOT/shell/Widgets/MotionLoader.qml"
-! grep -Fq 'void SearchProviders' "$SHELL_ROOT"
+assert_not_grep -Fq 'void SearchProviders' "$SHELL_ROOT"
 
 # These surfaces and handlers must remain resident for immediate desktop
 # feedback and so lazy surfaces can still be opened through IPC.
@@ -35,10 +49,15 @@ python3 - "$ROOT" <<'PY'
 import pathlib, sys
 root = pathlib.Path(sys.argv[1])
 setup = (root / "shell/scripts/omawhatsapp.sh").read_text(encoding="utf-8")
+manifest = (root / "integrations/omawhatsapp/manifest.json").read_text(encoding="utf-8")
 patch = (root / "integrations/omawhatsapp/nbshell-refresh.patch").read_text(encoding="utf-8")
 composer_patch = (root / "integrations/omawhatsapp/nbshell-composer-scroll.patch").read_text(encoding="utf-8")
+assert "source_revision=1f58d8da93565f020a63a61ad314c965cbcd8cdc" in setup
+assert '"version": "0.11.2-nbshell.1"' in manifest
 assert 'nbshell-refresh.patch' in setup
 assert 'nbshell-composer-scroll.patch' in setup
+assert 'omawhatsapp_assets.py' in setup
+assert 'value in (old, "whatsapp")' in setup
 assert "defer_shell_restart=1" in setup
 assert "Shell restart deferred until the next external restart or login." in setup
 assert composer_patch.count("+            ScrollView {") == 1
@@ -69,9 +88,9 @@ PY
 # per Pit Wall bridge sample respectively.
 grep -Fq 'path: "/proc/net/route"' "$ROOT/shell/Services/Net.qml"
 grep -Fq 'path: "/proc/net/dev"' "$ROOT/shell/Services/Net.qml"
-! grep -Fq 'ip -o route show default' "$ROOT/shell/Services/Net.qml"
+assert_not_grep -Fq 'ip -o route show default' "$ROOT/shell/Services/Net.qml"
 grep -Fq 'property var bridgeSnapshotFile: FileView {' "$ROOT/plugins/pit-wall/Service.qml"
-! grep -Fq 'command: ["/usr/bin/cat", root.bridgeSnapshot]' "$ROOT/plugins/pit-wall/Service.qml"
+assert_not_grep -Fq 'command: ["/usr/bin/cat", root.bridgeSnapshot]' "$ROOT/plugins/pit-wall/Service.qml"
 node "$ROOT/tests/net-metrics.test.js"
 
 # Package updates may require elevation, so their execution path must use

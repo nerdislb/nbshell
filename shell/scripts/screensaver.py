@@ -537,7 +537,7 @@ def main():
             return False
         return taste_liegt_an()
 
-    # Der Fenstertitel ist die Kennung, an der niri das Fenster erkennt und
+    # The window title is the identifier Umbriel uses to match the fullscreen
     # bildschirmfuellend oeffnet. Ueber die App-Kennung ginge es nicht:
     # ghostty vergibt sie fest (`com.mitchellh.ghostty`), `--class` aendert
     # daran nichts -- geprueft mit 1.3.1.

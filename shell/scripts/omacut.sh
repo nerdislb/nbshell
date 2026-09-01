@@ -2,6 +2,7 @@
 set -euo pipefail
 
 REPO_URL=https://github.com/nerdislb/omacut.git
+REVIEWED_REVISION=41e1ab77bf7d76bd0fa2b6e572ebd86f97655965
 REPO_DIR="${NBSHELL_OMACUT_DIR:-$HOME/projects/omacut}"
 BIN_DIR="${XDG_BIN_HOME:-$HOME/.local/bin}"
 DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
@@ -33,14 +34,15 @@ install_omacut() {
 	fi
 	if [[ ! -d $REPO_DIR/.git ]]; then
 		mkdir -p "$(dirname "$REPO_DIR")"
-		git clone "$REPO_URL" "$REPO_DIR"
+		git clone --no-checkout "$REPO_URL" "$REPO_DIR"
 	else
 		git -C "$REPO_DIR" diff --quiet && git -C "$REPO_DIR" diff --cached --quiet || {
 			printf 'Video Trimmer has local changes; update was skipped.\n' >&2
 			exit 1
 		}
-		git -C "$REPO_DIR" pull --ff-only
+		git -C "$REPO_DIR" fetch --prune origin
 	fi
+	git -C "$REPO_DIR" checkout --detach "$REVIEWED_REVISION"
 	"$REPO_DIR/bin/build"
 	install_files
 	printf 'Video Trimmer installed at %s/omacut\n' "$BIN_DIR"
@@ -53,6 +55,7 @@ status() {
 		printf 'Trimmer   not installed\n'
 	fi
 	printf 'Source    %s\n' "$([[ -d $REPO_DIR/.git ]] && echo "$REPO_DIR" || echo 'not cloned')"
+	printf 'Reviewed  %.8s\n' "$REVIEWED_REVISION"
 }
 
 case "${1:-status}" in

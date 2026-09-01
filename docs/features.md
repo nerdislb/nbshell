@@ -40,7 +40,8 @@ reduced profile disables them without changing layout or functionality.
 
 - Wi-Fi, saved NetworkManager VPN and WireGuard profiles, Bluetooth pairing
   and removal, audio devices, brightness, batteries, and power profiles
-- Persistent Niri display setup for resolution, scale, rotation, and position
+- Persistent Umbriel display setup for resolution, scale, rotation,
+  refresh rate, and position
 - Update workflow with restart recommendations for important system packages
 - Process viewer, power menu, screen saver, and session controls
 - Native Orbital session locker using dedicated PAM authentication, the current
@@ -66,8 +67,8 @@ precedence over both the native locker and Hyprlock fallback.
 
 ## Window workflow
 
-- Native Niri scrolling layout
-- Optional workspace-local 2x2 grid progression with `Mod+Backspace`
+- Native Umbriel scrolling and dwindle layouts
+- Umbriel overview, workspace navigation, and floating-window rules
 - Floating Picture-in-Picture management for Zen Browser
 - Floating windows for tools such as quick translation and phone preview
 

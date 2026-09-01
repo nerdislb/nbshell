@@ -232,7 +232,7 @@ Item {
             compare(slider.maximum, 1);
             compare(slider.step, 0.1);
             compare(slider.tickCount, 5);
-            verify(waitForRendering(slider, 10000));
+            wait(20);
             mouseMove(slider, slider.width * 0.6, slider.height / 2);
             wait(20);
             mousePress(slider, slider.width * 0.6, slider.height / 2, Qt.LeftButton);

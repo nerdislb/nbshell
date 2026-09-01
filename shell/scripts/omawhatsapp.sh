@@ -9,8 +9,8 @@ config_file="$config_home/nbshell/config.json"
 provider_file="$config_home/nbshell/whatsapp-provider"
 unit_dir="$config_home/systemd/user"
 bin_dir=${XDG_BIN_HOME:-$HOME/.local/bin}
-source_revision=ddd150ad0506fe6c199bfe1fd4f747219ab3c6d5
-source_sha=0d422b873241b3942476491111c5c978673fa52d39541e6f53111bcd6bf52374
+source_revision=1f58d8da93565f020a63a61ad314c965cbcd8cdc
+source_sha=02aa33b7664bf7a3cd69c95529f11f121d1d683d7a2711c3a9da9b1ebbd15aad
 wacli_version=0.17.1
 wacli_amd64_sha=cbd5e74d5b805550cc36c7479aca552970cc1b314c5c08e02367e08b785714fd
 wacli_arm64_sha=8e5d21f8d5f097e5d3a883cdb42848a9e50a7383e4de049c807cc44e6e7c81b6
@@ -47,9 +47,9 @@ with open(path, encoding="utf-8") as handle:
 old, new = ("prettyzap", "omawhatsapp") if selected == "omawhatsapp" else ("omawhatsapp", "prettyzap")
 for key in ("collapsedWidgets", "leftWidgets", "centerWidgets", "rightWidgets"):
     values = [str(value) for value in data.get(key, [])]
-    values = [new if value == old else value for value in values]
+    values = [new if value in (old, "whatsapp") else value for value in values]
     data[key] = list(dict.fromkeys(values))
-enabled = [str(value) for value in data.get("enabledPlugins", []) if str(value) not in (old, new)]
+enabled = [str(value) for value in data.get("enabledPlugins", []) if str(value) not in (old, new, "whatsapp")]
 enabled.append(new)
 data["enabledPlugins"] = enabled
 directory = os.path.dirname(path)
@@ -88,6 +88,7 @@ setup() (
     install -Dm644 "$runtime_shell/integrations/omawhatsapp/ToggleSwitch.qml" "$staged_plugin/ToggleSwitch.qml"
     install -Dm644 "$source/LICENSE" "$staged_plugin/LICENSE"
     install -Dm755 "$source/bin/omawhatsapp" "$bin_dir/omawhatsapp"
+    install -Dm644 "$source/bin/omawhatsapp_assets.py" "$bin_dir/omawhatsapp_assets.py"
     install -Dm644 "$runtime_shell/integrations/omawhatsapp/wacli-sync.service" "$unit_dir/wacli-sync.service"
     install -Dm644 "$runtime_shell/integrations/omawhatsapp/wacli-sync@.service" "$unit_dir/wacli-sync@.service"
     bash "$runtime_shell/scripts/plugins.sh" validate "$staged_plugin" >/dev/null

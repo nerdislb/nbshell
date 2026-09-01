@@ -1,7 +1,7 @@
 // The V8 half of `make bench`. See tests/bench_cases.js.
 const { load } = require("./load")
 
-const html = load("Html.js")
+const html = load("message/Html.js")
 const bench = load("tests/bench_cases.js")
 
 // Reached through plain functions rather than through the module object, so
@@ -9,6 +9,9 @@ const bench = load("tests/bench_cases.js")
 const api = {
   sanitize: function (source, options) { return html.sanitize(source, options) },
   documentFor: function (document, palette) { return html.documentFor(document, palette) },
+  readerDocumentFor: function (document, palette) {
+    return html.readerDocumentFor(document, palette)
+  },
   limits: {
     richText: html.MAX_RICH_TEXT,
     elements: html.MAX_ELEMENTS,

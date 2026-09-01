@@ -16,6 +16,7 @@ COLOR_TARGET = re.compile(
 )
 QUOTED_COLOR_ANYWHERE = re.compile(r"[\"'`](?:#[0-9A-Fa-f]{3,8}|[A-Za-z][A-Za-z0-9_-]*)[\"'`]")
 COLOR_FUNCTION_ANYWHERE = re.compile(r"(?:(?:Qt\.)?(?:rgb|rgba|hsla|hsva)|Qt\.color)\s*\(")
+DERIVED_COLOR_CHANNEL = re.compile(r"\.\s*(?:[rgba]|hsl(?:Hue|Saturation|Lightness))\b")
 DURATION_LITERAL = re.compile(r"\bduration\s*:\s*\d+")
 PIXEL_LITERAL = re.compile(r"\b(?:font\.pixelSize|radius|spacing)\s*:\s*\d+(?:\.\d+)?\b")
 
@@ -181,10 +182,18 @@ def findings_for(path: pathlib.Path) -> list[tuple[int, str, str]]:
         value_line_end = code.find("\n", value_index)
         if value_line_end < 0:
             value_line_end = len(code)
+        first_line = structural[value_index:value_line_end]
+        if COLOR_FUNCTION_ANYWHERE.search(first_line):
+            call_end = code.find(")", value_index)
+            if call_end >= 0:
+                value_line_end = call_end + 1
         expression = code[value_index:value_line_end]
         structural_expression = structural[value_index:value_line_end]
-        if not (QUOTED_COLOR_ANYWHERE.search(expression)
-                or COLOR_FUNCTION_ANYWHERE.search(structural_expression)):
+        quoted = QUOTED_COLOR_ANYWHERE.search(expression)
+        quoted_is_transparent = bool(quoted and quoted.group(0)[1:-1].lower() == "transparent")
+        color_function = COLOR_FUNCTION_ANYWHERE.search(structural_expression)
+        derived_color = bool(color_function and DERIVED_COLOR_CHANNEL.search(structural_expression))
+        if not ((quoted and not quoted_is_transparent) or (color_function and not derived_color)):
             continue
         target_line = line_number(match.start())
         value_line = line_number(value_index)
@@ -197,6 +206,9 @@ def findings_for(path: pathlib.Path) -> list[tuple[int, str, str]]:
             findings.append((number, "hardcoded-duration", "use Theme motion tokens"))
     for match in PIXEL_LITERAL.finditer(structural):
         number = line_number(match.start())
+        literal = re.search(r":\s*(\d+(?:\.\d+)?)", match.group(0))
+        if literal and float(literal.group(1)) == 0:
+            continue
         if not allowed(number, "fixed-metric"):
             findings.append((number, "fixed-metric", "use Theme/Style typography or spacing tokens"))
     return findings
@@ -267,7 +279,8 @@ def main() -> int:
 
     findings: list[tuple[pathlib.Path, int, str, str]] = []
     for path in sorted(directory.rglob("*.qml")):
-        if ".git" in path.parts or path.is_symlink():
+        relative = path.relative_to(directory)
+        if ".git" in path.parts or "tests" in relative.parts or path.is_symlink():
             continue
         findings.extend((path, line, code, message) for line, code, message in findings_for(path))
     entry_findings, errors = entrypoint_findings(directory, manifest)

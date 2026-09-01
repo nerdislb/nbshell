@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Installiert nbshell.
 #
-# Ziel ist der eine Befehl auf einem nackten Arch mit niri. Was fehlt, wird
+# Target: one command on an Umbriel-based Arch system. Missing dependencies are
 # gemeldet statt heimlich nachinstalliert -- Pakete gehoeren in die Hand des
 # Benutzers.
 set -euo pipefail
@@ -31,7 +31,8 @@ fi
 # ── Voraussetzungen ──────────────────────────────────────────────────────
 missing=()
 command -v quickshell >/dev/null 2>&1 || command -v qs >/dev/null 2>&1 || missing+=("quickshell")
-command -v niri >/dev/null 2>&1 || missing+=("niri")
+command -v umbriel >/dev/null 2>&1 || missing+=("umbriel")
+command -v start-umbriel >/dev/null 2>&1 || missing+=("start-umbriel")
 
 if [ ${#missing[@]} -gt 0 ]; then
     warn "Missing: ${missing[*]}"
@@ -79,8 +80,6 @@ missing_optional="$(
     optional_check qrencode      "Wi-Fi QR codes"             "qrencode"
     optional_check speedtest-cli "network speed tests"        "speedtest-cli"
     optional_check magick        "transparent-bar contrast"   "imagemagick"
-    optional_check node          "WhatsApp bar module"        "nodejs (>= 20)"
-    optional_check npm           "WhatsApp bridge setup"      "npm"
     optional_check patch         "WhatsApp layout integration" "patch"
     if [ "$(bash "$SRC/shell/scripts/screensaver.sh" --renderer)" != "ttfx" ]; then
         printf '  %-16s %s (%s)\n' "ttfx >= 0.3.2" "fast Rust screen-saver effects" "github.com/omacom-io/ttfx"
@@ -143,6 +142,10 @@ install -Dm755 "$SRC/resources/hermes-brain/manager.py" \
 # Remove the retired Agent Console host from installations that tested it.
 systemctl --user disable --now nbshell-agent-host.service >/dev/null 2>&1 || true
 rm -f "$UNIT_DIR/nbshell-agent-host.service"
+# Remove the retired Node/Baileys WhatsApp bridge. Its user data is preserved;
+# the supported providers are the local-first wacli client and PrettyZap.
+systemctl --user disable --now nbshell-whatsapp.service >/dev/null 2>&1 || true
+rm -f "$UNIT_DIR/nbshell-whatsapp.service"
 mkdir -p "$BIN_DIR"
 install -m 755 "$SRC/bin/nbshell-install-recover" "$BIN_DIR/nbshell-install-recover"
 systemctl --user daemon-reload 2>/dev/null || true
@@ -271,9 +274,6 @@ fi
 if [ $recovery_armed -eq 1 ] && [ $defer_service_restart -ne 1 ]; then
     systemctl --user stop nbshell-install-recovery.timer >/dev/null 2>&1 || true
 fi
-# A running grid watcher has imported the previous Python file already. Restart
-# it after replacement so layout fixes take effect without logging out.
-python3 "$SHELL_DIR/scripts/grid-layout.py" restart-watcher >/dev/null 2>&1 || true
 if [ -n "${UMBRIEL_SOCKET:-}" ]; then
     systemctl --user restart nbshell-umbriel-resume-guard.service >/dev/null 2>&1 || true
 fi
@@ -352,6 +352,13 @@ else
     echo "Plugins -> $DATA_DIR/plugins ($(find "$DATA_DIR/plugins" -maxdepth 2 -name manifest.json 2>/dev/null | wc -l) installed, existing files kept)"
 fi
 
+# Mail owns a one-time migration from its pre-0.2 `omarchy-gmail` state. Run
+# the installed, reviewed helper on both fresh and update paths; it is
+# idempotent and never touches current `omamail` state.
+if [ -x "$DATA_DIR/plugins/omamail/scripts/migrate-storage.sh" ]; then
+    "$DATA_DIR/plugins/omamail/scripts/migrate-storage.sh"
+fi
+
 # Managed plugin updates must also refresh an already installed backend copy.
 # The YouTube Music service deliberately runs outside the plugin tree, so merely
 # replacing its QML/plugin files would otherwise leave old authentication and
@@ -374,20 +381,8 @@ fi
 # Umbriel recovery guard is enabled independently above.
 green "Units   -> $UNIT_DIR (shell lifecycle, isolated locker, and Umbriel resume guard)"
 
-# ── niri-Tastenkuerzel ───────────────────────────────────────────────────
-mkdir -p "$CONFIG_HOME/niri"
-install -m 644 "$SRC/niri/nbshell-takeover.kdl" "$CONFIG_HOME/niri/nbshell-takeover.kdl"
-if [ ! -f "$CONFIG_HOME/niri/nbshell-outputs.kdl" ]; then
-    printf '// Managed by nbshell display; intentionally empty until a setting is saved.\n' > "$CONFIG_HOME/niri/nbshell-outputs.kdl"
-fi
-if [ ! -f "$CONFIG_HOME/niri/config.kdl" ]; then
-    printf '// Standalone niri configuration created by nbshell\ninclude "nbshell-takeover.kdl"\n' > "$CONFIG_HOME/niri/config.kdl"
-    green "Niri    -> $CONFIG_HOME/niri/config.kdl (created)"
-fi
-green "Binds   -> $CONFIG_HOME/niri/nbshell-takeover.kdl"
-
-# Umbriel is the recommended compositor backend. Installing its include does not
-# alter the user's active compositor or existing Umbriel configuration.
+# Umbriel is the supported compositor. Installing its include does not alter
+# unrelated user configuration.
 mkdir -p "$CONFIG_HOME/umbriel"
 install -m 644 "$SRC/umbriel/nbshell.toml" "$CONFIG_HOME/umbriel/nbshell.toml"
 install -m 644 "$SRC/umbriel/nbshell-motion.toml" "$CONFIG_HOME/umbriel/nbshell-motion.toml"
@@ -408,15 +403,51 @@ if [ ! -f "$CONFIG_HOME/umbriel/config.toml" ]; then
     printf '# Standalone Umbriel configuration created by nbshell\n[include]\nfiles = ["nbshell-colors.toml", "nbshell.toml"]\n' > "$CONFIG_HOME/umbriel/config.toml"
     green "Umbriel -> $CONFIG_HOME/umbriel/config.toml (created)"
 fi
-green "Umbriel -> $CONFIG_HOME/umbriel/nbshell.toml (recommended backend config)"
+green "Umbriel -> $CONFIG_HOME/umbriel/nbshell.toml"
 
-# Keep the tiny protocol helper outside the QML runtime so atomic shell swaps
-# cannot interrupt it. Missing compiler headers only disable empty-workspace
-# discovery; the Umbriel window IPC fallback remains available.
-NATIVE_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/nbshell/native"
-mkdir -p "$NATIVE_DATA"
-install -m 644 "$SRC/native/umbriel-workspaces.c" "$NATIVE_DATA/umbriel-workspaces.c"
-bash "$SRC/shell/scripts/build-native.sh" || warn "Umbriel workspace helper could not be built."
+# Remove only nbshell-owned artifacts from retired Niri installations. Preserve
+# every unrelated user line and file.
+NIRI_CONFIG="$CONFIG_HOME/niri/config.kdl"
+if [ -f "$NIRI_CONFIG" ]; then
+    python3 - "$NIRI_CONFIG" <<'PY'
+from pathlib import Path
+import shutil, sys
+path = Path(sys.argv[1])
+managed = {
+    'include "nbshell-takeover.kdl"',
+    'include "nbshell-outputs.kdl"',
+    'include "nbshell-cursor.kdl"',
+    'include "nbshell-colors.kdl"',
+}
+lines = path.read_text(encoding="utf-8").splitlines()
+kept = [line for line in lines if line.strip() not in managed]
+if kept != lines:
+    shutil.copy2(path, path.with_name("config.kdl.before-nbshell-umbriel-only"))
+    path.write_text("\n".join(kept) + "\n", encoding="utf-8")
+PY
+fi
+rm -f "$CONFIG_HOME/niri/nbshell-takeover.kdl" \
+    "$CONFIG_HOME/niri/nbshell-outputs.kdl" \
+    "$CONFIG_HOME/niri/nbshell-cursor.kdl" \
+    "$CONFIG_HOME/niri/nbshell-colors.kdl" \
+    "$UNIT_DIR/niri.service.d/nbshell.conf" \
+    "$UNIT_DIR/niri.service.d/nbshell-grid-atomic.conf" \
+    "$HOME/.local/lib/nbshell/niri-atomic"
+rmdir "$UNIT_DIR/niri.service.d" 2>/dev/null || true
+if [ -f "$STATE_DIR/grid-layout.pid" ]; then
+    grid_pid="$(cat "$STATE_DIR/grid-layout.pid" 2>/dev/null || true)"
+    if [[ $grid_pid =~ ^[0-9]+$ ]] && tr '\0' ' ' <"/proc/$grid_pid/cmdline" 2>/dev/null | grep -Fq 'grid-layout.py watch'; then
+        kill "$grid_pid" 2>/dev/null || true
+    fi
+fi
+rm -f "$STATE_DIR/grid-layout.json" "$STATE_DIR/grid-layout.lock" \
+    "$STATE_DIR/grid-layout.pid" "$STATE_DIR/grid-layout-backend"
+
+# Native workspace snapshots now come directly from Umbriel IPC. Remove the
+# retired protocol helper from installations that previously built it.
+rm -f "${XDG_DATA_HOME:-$HOME/.local/share}/nbshell/bin/umbriel-workspaces" \
+    "${XDG_DATA_HOME:-$HOME/.local/share}/nbshell/native/umbriel-workspaces.c"
+rmdir "${XDG_DATA_HOME:-$HOME/.local/share}/nbshell/native" 2>/dev/null || true
 
 # ── Befehl ───────────────────────────────────────────────────────────────
 mkdir -p "$BIN_DIR"
@@ -437,8 +468,8 @@ install -m 755 "$SRC/setup-greeter.sh" "$GREETER_DATA/setup-greeter.sh"
 install -m 755 "$SRC/setup-locker.sh" "$GREETER_DATA/setup-locker.sh"
 mkdir -p "$GREETER_DATA/locker"
 install -m 644 "$SRC/shell/lock/nbshell-lock.pam" "$GREETER_DATA/locker/nbshell-lock.pam"
-install -m 644 "$SRC/greeter/regreet.toml" "$GREETER_DATA/greeter/regreet.toml"
 install -m 644 "$SRC/greeter/nbshell-greetd.pam" "$GREETER_DATA/greeter/nbshell-greetd.pam"
+install -m 755 "$SRC/greeter/nbshell-greeter-session" "$GREETER_DATA/greeter/nbshell-greeter-session"
 mkdir -p "$GREETER_DATA/greeter/qml"
 install -m 644 \
     "$SRC/greeter/qml/shell.qml" \
@@ -514,7 +545,7 @@ Change the layout:
   nbshell island         floating island
   nbshell theme gruvbox
 
-Enable autostart and refresh the Niri fallback integration:
+Enable autostart and refresh the Umbriel integration:
   nbshell switch on
   nbshell switch status
 

@@ -50,7 +50,7 @@ Singleton {
                     }
                     root.error = "";
                 } catch (e) {
-                    root.error = "Could not read Niri outputs";
+                    root.error = "Could not read Umbriel outputs";
                 }
                 root.loading = false;
             }

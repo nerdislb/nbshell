@@ -24,7 +24,8 @@ Item {
   readonly property string mailboxName: searching
     ? "Search"
     : (service ? Provider.mailboxFor(service.providerId, service.mailboxKey).label : "Inbox")
-  readonly property bool empty: !!service && service.listLoaded && service.messages.length === 0
+  readonly property bool empty: !!service && service.listLoaded === true
+    && Array.isArray(service.messages) && service.messages.length === 0
 
   // The legend is the first thing to go when the pane gets tight: the heading
   // above it is the part that carries information.
@@ -48,6 +49,7 @@ Item {
       anchors.horizontalCenter: parent.horizontalCenter
       name: "gmail"
       brand: true
+      markColor: root.accentColor
       iconSize: Style.space(44)
       strokeScale: 1.0
       color: Qt.rgba(root.dimColor.r, root.dimColor.g, root.dimColor.b, 0.5)
@@ -73,9 +75,9 @@ Item {
       horizontalAlignment: Text.AlignHCenter
       text: {
         if (!root.service) return ""
-        if (root.service.listLoading && root.service.messages.length === 0) return "Fetching the mailbox…"
+        if (root.service.listLoading && root.service.messages.length === 0) return "Fetching the mailbox"
         if (root.empty) return root.searching ? "Nothing matches that search" : "Nothing here"
-        return root.service.resultSummary + " · pick one to read it"
+        return "Pick a message to read it"
       }
       color: root.dimColor
       font.family: root.panelFontFamily
@@ -137,7 +139,7 @@ Item {
       Text {
         width: parent.width
         horizontalAlignment: Text.AlignHCenter
-        text: "Ctrl+? for every shortcut"
+        text: "Ctrl+K for every shortcut"
         color: root.dimmerColor
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.caption

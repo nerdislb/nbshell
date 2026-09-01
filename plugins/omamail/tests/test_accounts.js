@@ -122,8 +122,28 @@ assert.strictEqual(accounts.count(settled), 3)
 
 let three = accounts.add(corrected, account("cid@example.com"))
 assert.strictEqual(accounts.count(three), 3)
-
 const beforeRemove = frozen(three)
+
+// Removing an account is destructive and happens in two steps. The first
+// step only describes the target; it never mutates the list. A stale target
+// is rejected when the confirmation is finally accepted.
+const removal = accounts.removalRequest(three, 0)
+deepEqual(removal, {
+  id: "ada@example.com",
+  email: "ADA@example.com",
+  index: 0
+})
+assert.strictEqual(frozen(three), beforeRemove)
+assert.strictEqual(accounts.removalRequest(three, -1), null)
+assert.strictEqual(accounts.removalRequest(three, 99), null)
+assert.strictEqual(accounts.removalRequest(one, 0), null,
+  "the only account cannot be removed")
+assert.strictEqual(accounts.removalRequest(bothPending, 1), null,
+  "a draft has no stable identity and is canceled rather than removed")
+assert.strictEqual(accounts.confirmRemoval(three, { id: "gone@example.com", index: 0 }), -1,
+  "confirmation must not remove whichever account later occupies a stale row")
+assert.strictEqual(accounts.confirmRemoval(three, removal), 0)
+
 let withoutBob = accounts.remove(three, "bob@example.com")
 assert.strictEqual(frozen(three), beforeRemove, "remove leaves its input alone")
 assert.strictEqual(accounts.count(withoutBob), 2)
@@ -176,6 +196,14 @@ deepEqual(accounts.load("{not json"), accounts.emptyList())
 deepEqual(accounts.load("[]"), accounts.emptyList(), "an array is not a list of accounts")
 deepEqual(accounts.load("null"), accounts.emptyList())
 deepEqual(accounts.load(null), accounts.emptyList())
+assert.strictEqual(accounts.isSerializedList(""), false)
+assert.strictEqual(accounts.isSerializedList("{not json"), false)
+assert.strictEqual(accounts.isSerializedList(JSON.stringify({
+  version: accounts.VERSION, accounts: []
+})), true, "a real empty first-run file is distinguishable from a failed read")
+assert.strictEqual(accounts.isSerializedList(JSON.stringify({
+  version: accounts.VERSION + 1, accounts: []
+})), false, "a newer format must not be mistaken for this build's list")
 deepEqual(accounts.load(JSON.stringify({ accounts: [] })), accounts.emptyList(), "no version at all")
 deepEqual(accounts.load(JSON.stringify({
   version: accounts.VERSION + 99,

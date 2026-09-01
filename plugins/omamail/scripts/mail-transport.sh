@@ -12,6 +12,7 @@
 # One line, fields separated by spaces:
 #
 #   imap <b64 url> <b64 user:password> <b64 command> [<b64 command> ...]
+#   imap-append <b64 url> <b64 user:password> <b64 message>
 #   smtp <b64 url> <b64 user:password> <b64 from> <b64 message> <b64 rcpt> ...
 #
 # base64 rather than the values themselves, for three reasons that each bite
@@ -47,6 +48,13 @@ decode() {
   printf '%s' "$1" | base64 -d 2>/dev/null || fail 'mail-transport.sh: bad base64 field'
 }
 
+decode_config() {
+  value=$(decode "$1")
+  clean=$(printf '%s' "$value" | tr -d '\r\n')
+  [ "$clean" = "$value" ] || fail 'mail-transport.sh: line break in curl configuration field'
+  printf '%s' "$value"
+}
+
 # curl's config format quotes with "..." and escapes with a backslash. Only two
 # characters need it, and both turn up in real passwords.
 escape() {
@@ -71,13 +79,13 @@ set -- $line
 [ $# -ge 4 ] || fail 'mail-transport.sh: usage: <mode> <url> <credentials> <arg>...'
 
 mode=$1
-url=$(decode "$2")
-credentials=$(decode "$3")
+url=$(decode_config "$2")
+credentials=$(decode_config "$3")
 shift 3
 
 case "$mode" in
-  imap|smtp) ;;
-  *) fail 'mail-transport.sh: mode must be imap or smtp' ;;
+  imap|imap-append|smtp) ;;
+  *) fail 'mail-transport.sh: mode must be imap, imap-append or smtp' ;;
 esac
 
 # The URL is built and validated by Imap.js, which has already refused anything
@@ -104,20 +112,30 @@ trap 'rm -rf "$work"' EXIT INT TERM HUP
 build_config() {
 if [ "$mode" = "smtp" ]; then
   [ $# -ge 3 ] || fail 'mail-transport.sh: smtp needs a sender, a message and a recipient'
-  sender=$(decode "$1")
+  sender=$(decode_config "$1")
   shift 2
 
   printf 'url = "%s"\n' "$escaped_url"
   printf 'noproxy = "*"\n'
   printf 'user = "%s"\n' "$escaped_credentials"
+  printf 'max-time = 60\n'
+  printf 'connect-timeout = 20\n'
   printf 'mail-from = "%s"\n' "$(escape "$sender")"
   for recipient in "$@"; do
-    printf 'mail-rcpt = "%s"\n' "$(escape "$(decode "$recipient")")"
+    printf 'mail-rcpt = "%s"\n' "$(escape "$(decode_config "$recipient")")"
   done
   # The message is the one value too large to be an argument, and curl uploads
   # from a file rather than from a string — stdin is already carrying this
   # config. It lands in the 0700 directory the trap removes on any exit.
   printf 'upload-file = "%s"\n' "$(escape "$work/message")"
+elif [ "$mode" = "imap-append" ]; then
+  printf 'url = "%s"\n' "$escaped_url"
+  printf 'noproxy = "*"\n'
+  printf 'user = "%s"\n' "$escaped_credentials"
+  printf 'max-time = 60\n'
+  printf 'connect-timeout = 20\n'
+  printf 'upload-file = "%s"\n' "$(escape "$work/message")"
+  printf 'upload-flags = "draft"\n'
 else
   # IMAP: one section per command, so a sequence — search a folder, then fetch
   # what came back — runs on a single connection. curl reuses the connection
@@ -137,7 +155,11 @@ else
     # Repeated because `next` resets this curl option with the rest.
     printf 'noproxy = "*"\n'
     printf 'user = "%s"\n' "$escaped_credentials"
-    printf 'request = "%s"\n' "$(escape "$(decode "$argument")")"
+    # These are per-transfer options too. Keeping them in every section makes
+    # every command give up eventually, rather than only the final one.
+    printf 'max-time = 60\n'
+    printf 'connect-timeout = 20\n'
+    printf 'request = "%s"\n' "$(escape "$(decode_config "$argument")")"
   done
 fi
 }
@@ -147,18 +169,20 @@ fi
 if [ "$mode" = "smtp" ]; then
   [ $# -ge 3 ] || fail 'mail-transport.sh: smtp needs a sender, a message and a recipient'
   decode "$2" > "$work/message"
+elif [ "$mode" = "imap-append" ]; then
+  [ $# -eq 1 ] || fail 'mail-transport.sh: imap-append needs one message'
+  decode "$1" > "$work/message"
 fi
 
 # curl is the last stage, so `$?` is curl's own exit code rather than the
 # config builder's.
 set +e
 build_config "$@" | curl \
+  --fail-early \
   --config - \
   --silent \
   --show-error \
   --dump-header "$work/headers" \
-  --max-time 60 \
-  --connect-timeout 20 \
   > "$work/out" 2> "$work/err"
 status=$?
 set -e

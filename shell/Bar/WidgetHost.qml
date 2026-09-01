@@ -148,8 +148,6 @@ Item {
             return kdeconnectComponent;
         case "tailscale":
             return tailscaleComponent;
-        case "whatsapp":
-            return whatsappComponent;
         case "pip":
             return zenPipComponent;
         }
@@ -300,10 +298,6 @@ Item {
         Tailscale {}
     }
 
-    Component {
-        id: whatsappComponent
-        WhatsApp {}
-    }
 
     Component {
         id: zenPipComponent

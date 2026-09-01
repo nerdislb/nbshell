@@ -37,6 +37,27 @@ XDG_CONFIG_HOME="$test_root/config" XDG_CACHE_HOME="$test_root/cache" \
 [ ! -e "$test_root/config/omarchy-gmail" ] || fail "legacy config directory remains"
 [ ! -e "$test_root/cache/omarchy-gmail" ] || fail "legacy cache directory remains"
 
+# A stale service instance from before a plugin reload must not be able to
+# replace a real account list with the first-run setup row. The writer is the
+# one boundary both old and new service code still cross.
+saved_accounts='{"version":1,"accounts":[{"id":"imap:me@example.com","email":"me@example.com"}],"activeId":"imap:me@example.com"}'
+setup_accounts='{"version":1,"accounts":[{"id":"","email":""}],"activeId":""}'
+printf '%s\n' "$saved_accounts" \
+  | XDG_CONFIG_HOME="$test_root/config" sh scripts/config-store.sh accounts.json >/dev/null
+if printf '%s\n' "$setup_accounts" \
+  | XDG_CONFIG_HOME="$test_root/config" sh scripts/config-store.sh accounts.json >/dev/null 2>&1; then
+  fail "config-store.sh replaced saved accounts with setup state"
+fi
+actual_accounts=$(cat "$test_root/config/omamail/accounts.json")
+[ "$actual_accounts" = "$saved_accounts" ] \
+  || fail "config-store.sh changed the account list after refusing setup state"
+updated_accounts='{"version":1,"accounts":[{"id":"imap:you@example.com","email":"you@example.com"}],"activeId":"imap:you@example.com"}'
+printf '%s\n' "$updated_accounts" \
+  | XDG_CONFIG_HOME="$test_root/config" sh scripts/config-store.sh accounts.json >/dev/null
+actual_accounts=$(cat "$test_root/config/omamail/accounts.json")
+[ "$actual_accounts" = "$updated_accounts" ] \
+  || fail "config-store.sh refused a replacement that still contains a saved account"
+
 # The keyring helper takes attribute pairs now, because keying a refresh token
 # on the OAuth client alone lets two accounts sharing one client overwrite each
 # other. An empty value is a secret-tool wildcard, so it is refused outright.
@@ -45,5 +66,55 @@ for bad in "" "a" "client-id "; do
     fail "keyring-store.sh accepted a malformed attribute list: '$bad'"
   fi
 done
+
+# libsecret replaces an existing item that matches the unversioned attributes
+# without adding a newly introduced attribute. Remove that old shape first so
+# a successful Calendar consent is stored as the versioned grant that restore
+# looks up on the next launch.
+mkdir -p "$test_root/bin"
+printf '%s\n' '#!/bin/sh' 'printf '\''%s\n'\'' "$*" >> "$KEYRING_CALLS"' \
+  > "$test_root/bin/secret-tool"
+chmod +x "$test_root/bin/secret-tool"
+KEYRING_CALLS="$test_root/keyring-calls" PATH="$test_root/bin:$PATH" \
+  sh scripts/keyring-store.sh \
+    service omamail kind refresh-token client-id client account me@example.com \
+    grant calendar-events-v1 <<EOF
+token
+EOF
+expected_calls='clear service omamail kind refresh-token client-id client account me@example.com
+store --label=Omamail refresh token service omamail kind refresh-token client-id client account me@example.com grant calendar-events-v1'
+actual_calls=$(cat "$test_root/keyring-calls")
+[ "$actual_calls" = "$expected_calls" ] \
+  || fail "keyring-store.sh did not replace the unversioned grant before storing the versioned one"
+
+[ -x scripts/install-mailto.sh ] || fail "scripts/install-mailto.sh must be executable"
+mailto_home=$(mktemp -d)
+mkdir -p "$mailto_home/bin"
+printf '%s\n' '#!/bin/sh' 'printf '\''%s\n'\'' "$*" >> "$MAILTO_CALLS"' >"$mailto_home/bin/xdg-mime"
+cp "$mailto_home/bin/xdg-mime" "$mailto_home/bin/xdg-settings"
+chmod +x "$mailto_home/bin/xdg-mime" "$mailto_home/bin/xdg-settings"
+MAILTO_CALLS="$mailto_home/calls" PATH="$mailto_home/bin:$PATH" \
+  XDG_DATA_HOME="$mailto_home/share" XDG_CONFIG_HOME="$mailto_home/config" \
+  sh scripts/install-mailto.sh "$(pwd)"
+desktop="$mailto_home/share/applications/omamail.desktop"
+[ -f "$desktop" ] || fail "install-mailto.sh did not write omamail.desktop"
+grep -q '^MimeType=x-scheme-handler/mailto;$' "$desktop" \
+  || fail "omamail.desktop must claim mailto"
+grep -q "^Exec=$(pwd)/scripts/mailto.sh %u$" "$desktop" \
+  || fail "omamail.desktop Exec must be the plugin mailto handler"
+grep -q "^Icon=$(pwd)/assets/omamail.svg$" "$desktop" \
+  || fail "omamail.desktop must use the Omamail mark"
+test ! -e "$mailto_home/calls" || fail "first registration changed the default mail handler without consent"
+MAILTO_CALLS="$mailto_home/calls" PATH="$mailto_home/bin:$PATH" \
+  XDG_DATA_HOME="$mailto_home/share" XDG_CONFIG_HOME="$mailto_home/config" \
+  sh scripts/install-mailto.sh "$(pwd)" --claim-default
+grep -Fq 'default omamail.desktop x-scheme-handler/mailto' "$mailto_home/calls" \
+  || fail "explicit registration did not claim mailto"
+# A second run with the file already there must not require --claim-default
+# just to keep the desktop file current.
+XDG_DATA_HOME="$mailto_home/share" XDG_CONFIG_HOME="$mailto_home/config" \
+  sh scripts/install-mailto.sh "$(pwd)"
+[ -f "$desktop" ] || fail "a second install-mailto.sh run removed omamail.desktop"
+rm -rf "$mailto_home"
 
 printf 'test_install.sh ok\n'

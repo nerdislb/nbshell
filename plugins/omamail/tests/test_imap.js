@@ -37,6 +37,22 @@ const proton = imap.suggestedSettings("jane@proton.me")
 assert.strictEqual(proton.imapHost, "127.0.0.1")
 assert.strictEqual(proton.insecure, true)
 
+// A Proton mailbox may use a custom domain, so its address cannot select the
+// Proton preset. The server fields still identify a local Bridge and must
+// produce plain local IMAP rather than implicit TLS on Bridge's STARTTLS port.
+const customDomainBridge = imap.setupSettings({
+  address: "jane@example.com",
+  username: "jane@example.com",
+  imapHost: "127.0.0.1", imapPort: "1143",
+  smtpHost: "127.0.0.1", smtpPort: "1025"
+})
+assert.strictEqual(customDomainBridge.insecure, true)
+assert.strictEqual(imap.imapUrl(customDomainBridge, "INBOX"),
+  "imap://127.0.0.1:1143/INBOX")
+assert.strictEqual(imap.smtpUrl(customDomainBridge),
+  "smtp://127.0.0.1:1025",
+  "the local SMTP half of the bridge keeps its local transport")
+
 // ------------------------------------------------------------- host safety
 //
 // Every one of these ends up inside a URL handed to an authenticated client.
@@ -93,6 +109,14 @@ assert.strictEqual(imap.imapUrl({ imapHost: "a b" }, "INBOX"), "",
 assert.strictEqual(
   imap.smtpUrl({ smtpHost: "smtp.fastmail.com", smtpPort: 465 }),
   "smtps://smtp.fastmail.com:465")
+assert.strictEqual(
+  imap.smtpUrl(imap.setupSettings({
+    address: "jane@example.com",
+    imapHost: "127.0.0.1", imapPort: 1143,
+    smtpHost: "smtp.example.com", smtpPort: 465
+  })),
+  "smtps://smtp.example.com:465",
+  "a local IMAP bridge must not permit plaintext SMTP to a remote host")
 
 // -------------------------------------------------------------- the query DSL
 
@@ -149,6 +173,13 @@ deepEqual(imap.groupByFolder(["3:INBOX", "5:Archive", "4:INBOX"]), [
 ])
 deepEqual(imap.groupByFolder(["bad", "3:INBOX"]), [{ folder: "INBOX", uids: [3] }],
   "an unparseable id is dropped rather than aimed at some default folder")
+deepEqual(imap.groupByFolder([
+  "8:INBOX", "7:INBOX", "6:INBOX", "2:Archive"
+], 2), [
+  { folder: "INBOX", uids: [8, 7] },
+  { folder: "INBOX", uids: [6] },
+  { folder: "Archive", uids: [2] }
+], "a streamed metadata read keeps each folder in small ordered batches")
 deepEqual(imap.groupByFolder([]), [])
 deepEqual(imap.groupByFolder(null), [])
 
@@ -175,9 +206,49 @@ assert.strictEqual(imap.sequenceSet(null), "")
 
 // ---------------------------------------------------------------- commands
 
-assert.strictEqual(imap.searchCommand("UNSEEN"), "UID SEARCH UNSEEN")
-assert.strictEqual(imap.searchCommand(""), "UID SEARCH ALL",
-  "empty criteria is a syntax error; ALL is what it means")
+assert.strictEqual(imap.uidListCommand(), "UID FETCH 1:* (UID)",
+  "a UID snapshot is one bounded FETCH response line per message")
+assert.strictEqual(imap.uidCeilingCommand(), "UID FETCH *:* (UID)",
+  "an interactive search learns its stable ceiling without reading every UID")
+deepEqual(imap.searchWindow("TEXT \"invoice\"", 9000), {
+  command: "UID SEARCH UID 4905:9000 TEXT \"invoice\"", nextUid: 4904
+}, "the first interactive SEARCH window starts at the newest UID")
+deepEqual(imap.searchWindow("TEXT \"invoice\"", 4904), {
+  command: "UID SEARCH UID 809:4904 TEXT \"invoice\"", nextUid: 808
+}, "the next interactive SEARCH window continues backwards")
+deepEqual(imap.searchWindow("TEXT \"invoice\"", 808), {
+  command: "UID SEARCH UID 1:808 TEXT \"invoice\"", nextUid: 0
+}, "the final interactive SEARCH window stops at UID one")
+deepEqual(imap.searchWindow("", 9000), { command: "", nextUid: 0 })
+deepEqual(imap.searchWindow("UNSEEN", 0), { command: "", nextUid: 0 })
+deepEqual(imap.searchCommands("", [1, 2, 3]), [],
+  "an unfiltered listing already has its answer in the UID snapshot")
+deepEqual(imap.searchCommands("UNSEEN", [3, 40, 9000000]), [
+  "UID SEARCH UID 3:9000000 UNSEEN"
+], "a sparse range is bounded by the number of UIDs known to exist inside it")
+deepEqual(imap.searchCommands("UNSEEN", [3, 40, 4904, 4905, 9000000], 4904), [
+  "UID SEARCH UID 3:4904 UNSEEN"
+], "the snapshot fallback does not search the streamed first window twice")
+
+const manyUids = []
+for (let uid = 1; uid <= 9000; uid++) manyUids.push(uid)
+deepEqual(imap.searchCommands("FLAGGED", manyUids), [
+  "UID SEARCH UID 4905:9000 FLAGGED",
+  "UID SEARCH UID 809:4904 FLAGGED",
+  "UID SEARCH UID 1:808 FLAGGED"
+], "SEARCH windows are bounded and the newest one answers first")
+assert.ok(imap.searchCommands("UNSEEN", manyUids)[0].indexOf("*") < 0,
+  "mail delivered after the snapshot cannot enter its last search window")
+
+deepEqual(imap.searchPage([9000, 8999, 8000], 0, 2, true), {
+  uids: [9000, 8999], nextOffset: "2", estimate: 3
+}, "an unfinished streamed search exposes its stable newest prefix")
+deepEqual(imap.searchPage([9000, 8999, 8000], 2, 2, false), {
+  uids: [8000], nextOffset: "", estimate: 3
+}, "the final window closes pagination at the real end")
+deepEqual(imap.searchPage([], 0, 25, true), {
+  uids: [], nextOffset: "25", estimate: 26
+}, "unscanned windows keep an empty partial answer open")
 
 // BODY.PEEK, never BODY: reading the list must not mark the mailbox seen.
 const summaryFetch = imap.summaryFetchCommand([7, 9])
@@ -249,10 +320,16 @@ deepEqual(imap.parseFetch(spoofed).map((m) => m.uid), [3],
 // ------------------------------------------------------------------ SEARCH
 
 deepEqual(imap.parseSearch("* SEARCH 1 4 9\r\nA1 OK SEARCH completed\r\n"), [1, 4, 9])
+deepEqual(imap.parseSearch("* SEARCH 9 4\r\n* SEARCH 4 1\r\nA1 OK\r\n"), [1, 4, 9],
+  "several windows are one sorted answer without duplicates")
 deepEqual(imap.parseSearch("* SEARCH\r\nA1 OK\r\n"), [], "nothing matched")
 deepEqual(imap.parseSearch("A1 OK SEARCH completed\r\n"), [],
   "a server may answer with no SEARCH line at all")
 deepEqual(imap.parseSearch(""), [])
+
+deepEqual(imap.parseUidList(
+  "* 3 FETCH (UID 9000000)\r\n* 1 FETCH (UID 3)\r\n* 2 FETCH (UID 40)\r\n"),
+  [3, 40, 9000000], "the UID snapshot does not depend on response order")
 
 // ------------------------------------------------------------------- FETCH
 
@@ -479,8 +556,27 @@ assert.strictEqual(imap.isFailure("A1 OK completed\r\n"), false)
 assert.strictEqual(imap.isFailure("A1 NO [AUTHENTICATIONFAILED] nope\r\n"), true)
 assert.strictEqual(imap.isFailure("A1 BAD syntax\r\n"), true)
 assert.strictEqual(imap.isFailure("* OK still going\r\n"), false, "untagged OK is not a failure")
+assert.strictEqual(imap.isFailure("* NO [ALERT] mailbox maintenance\r\n"), false,
+  "an untagged status response is not a command failure")
 assert.strictEqual(imap.failureDetail("A1 NO [AUTHENTICATIONFAILED] Invalid credentials\r\n"),
   "[AUTHENTICATIONFAILED] Invalid credentials")
+assert.strictEqual(imap.isFailure("+ NO is continuation text\r\n"), false,
+  "a continuation response is not a tagged failure")
+
+// A fetched message is an opaque literal. This is the shape of the
+// Outlook-originated message that exposed the bug: its spam verdict was read
+// as the IMAP server saying NO, and the following header was shown as the
+// error while the successfully fetched body was discarded.
+const spamHeaders = "X-Spam-Flag: NO\r\nUI-OutboundReport: notjunk:1;M01:P0:signature\r\n\r\nbody"
+const fetchedSpamHeaders =
+  "* 1 FETCH (UID 87340 BODY[] {" + spamHeaders.length + "}\r\n" + spamHeaders + ")\r\n"
+assert.strictEqual(imap.isFailure(fetchedSpamHeaders), false,
+  "NO inside a message literal is not an IMAP failure")
+assert.strictEqual(imap.failureDetail(fetchedSpamHeaders), "")
+assert.strictEqual(imap.isFailure(fetchedSpamHeaders + "A1 NO message unavailable\r\n"), true,
+  "a real tagged failure after the literal is still reported")
+assert.strictEqual(imap.failureDetail(fetchedSpamHeaders + "A1 NO message unavailable\r\n"),
+  "message unavailable")
 
 // ------------------------------------------------------------ capabilities
 

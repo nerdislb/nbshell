@@ -158,6 +158,34 @@ assert.strictEqual(message.htmlToText("<style>p{}</style>text"), "text")
 assert.strictEqual(message.formatSize(512), "512 B")
 assert.strictEqual(message.formatSize(2048), "2.0 KB")
 assert.strictEqual(message.formatSize(2 * 1024 * 1024), "2.0 MB")
+assert.strictEqual(message.formatCount(1, "original attachment"), "1 original attachment")
+assert.strictEqual(message.formatCount(2, "original attachment"), "2 original attachments")
+
+// A forwarded file is a real MIME attachment, not only a label in the draft.
+// Its provider data is already base64url, including arbitrary binary bytes.
+const forwardRaw = message.buildRawMessage({
+  from: "me@example.com",
+  to: "you@example.com",
+  subject: "Fwd: report",
+  body: "See the original file.",
+  boundary: "=_forward_test",
+  attachments: [{
+    filename: "report.pdf",
+    mimeType: "application/pdf",
+    size: 4,
+    data: "AP_-AQ"
+  }]
+})
+assert.ok(forwardRaw.includes('Content-Type: multipart/mixed; boundary="=_forward_test"'))
+assert.ok(forwardRaw.includes('Content-Disposition: attachment; filename="report.pdf"'))
+assert.ok(forwardRaw.includes("AP/+AQ=="), "attachment bytes remain intact")
+assert.strictEqual(message.attachments(message.parseRfc822(forwardRaw))[0].filename,
+  "report.pdf")
+const emptyForward = message.buildRawMessage({
+  to: "you@example.com", body: "Empty file attached", boundary: "=_empty_test",
+  attachments: [{ filename: "empty.txt", mimeType: "text/plain", size: 0, data: "" }]
+})
+assert.ok(emptyForward.includes('filename="empty.txt"'), "a zero-byte attachment is still attached")
 
 // -------------------------------------------------------------------- time
 
@@ -197,7 +225,9 @@ const resource = {
       { name: "From", value: "=?UTF-8?B?" + Buffer.from("李四", "utf8").toString("base64") + "?= <li@example.com>" },
       { name: "To", value: "me@example.com" },
       { name: "Cc", value: "team@example.com, work@example.net" },
+      { name: "Bcc", value: "hidden@example.org" },
       { name: "Subject", value: "  Invoice   for   August  " },
+      { name: "In-Reply-To", value: "<earlier@example.net>" },
       { name: "Date", value: "Wed, 19 Aug 2026 14:50:00 +0000" }
     ]
   }
@@ -211,7 +241,11 @@ assert.strictEqual(summary.from.email, "li@example.com")
 assert.strictEqual(summary.subject, "Invoice for August", "runs of whitespace collapse")
 assert.strictEqual(summary.cc.length, 2, "Cc is carried: a reply picks its alias out of it")
 assert.strictEqual(summary.cc[1].email, "work@example.net")
+deepEqual(summary.bcc || [], [{ name: "hidden", email: "hidden@example.org",
+  display: "hidden" }], "Bcc is carried when a stored draft is reopened")
+assert.strictEqual(summary.inReplyTo, "<earlier@example.net>")
 assert.strictEqual(message.summarize({ payload: { headers: [] } }, now).cc.length, 0)
+assert.strictEqual(message.summarize({ payload: { headers: [] } }, now).bcc.length, 0)
 assert.strictEqual(summary.snippet, "Your receipt is attached & ready")
 assert.strictEqual(summary.time, "10m")
 assert.strictEqual(summary.unread, true)
@@ -246,6 +280,29 @@ const withReplyTo = message.summarize({
 }, now)
 assert.strictEqual(withReplyTo.replyTo.email, "help@example.com")
 assert.strictEqual(withReplyTo.messageId, "<abc@mail.example.com>")
+
+assert.strictEqual(typeof message.draftFields, "function",
+  "stored messages need one provider-neutral path back into compose")
+deepEqual(message.draftFields({
+  from: { email: "me@example.com" },
+  to: [{ email: "first@example.com" }, { email: "second@example.com" }],
+  cc: [{ email: "copy@example.com" }],
+  bcc: [{ email: "hidden@example.com" }],
+  subject: "Saved subject",
+  threadId: "thread-7",
+  inReplyTo: "<earlier@example.com>"
+}, "Saved body"), {
+  mode: "draft",
+  from: "me@example.com",
+  to: "first@example.com, second@example.com",
+  cc: "copy@example.com",
+  bcc: "hidden@example.com",
+  subject: "Saved subject",
+  body: "Saved body",
+  threadId: "thread-7",
+  inReplyTo: "<earlier@example.com>"
+})
+assert.strictEqual(message.draftFields({ subject: "(no subject)" }, "").subject, "")
 
 // ------------------------------------------------------------ composition
 
@@ -282,6 +339,10 @@ assert.ok(message.buildRawMessage({
   from: "work@example.net", fromName: "   ", to: "jane@example.com"
 }).indexOf("From: work@example.net\r\n") === 0, "an empty name leaves a bare address")
 assert.ok(raw.indexOf("To: jane@example.com\r\n") >= 0)
+assert.ok(message.buildRawMessage({
+  to: "jane@example.com", bcc: "hidden@example.com", body: "x"
+}).indexOf("Bcc: hidden@example.com\r\n") >= 0,
+  "a mailto bcc has to leave as a Bcc header or it is not blind")
 // A non-ASCII subject has to go back out as an encoded word or Gmail rejects
 // the whole raw message.
 assert.ok(raw.indexOf("Subject: =?UTF-8?B?" + Buffer.from("你好", "utf8").toString("base64") + "?=") >= 0)
@@ -657,5 +718,17 @@ assert.strictEqual(message.extractHtml({
   deepEqual(message.extractBody(message.parseRfc822("")), { text: "", source: "" })
   deepEqual(message.attachments(message.parseRfc822("")), [])
 }
+
+// A header value is not a header line. `fromHeader` writes the whole `From:`
+// field; a provider composing a `To:` needs the address on its own, and pasting
+// one into the other produced `To: From: "Name" <a@b.com>` — which parses back
+// as a display name of `From: "Name"`.
+assert.strictEqual(message.addressHeader("jane@example.com", "Jane Roe"),
+  '"Jane Roe" <jane@example.com>')
+assert.strictEqual(message.addressHeader("jane@example.com", ""), "jane@example.com")
+assert.strictEqual(message.fromHeader("jane@example.com", "Jane Roe"),
+  'From: "Jane Roe" <jane@example.com>')
+assert.strictEqual(message.parseAddress(message.addressHeader("jane@example.com", "Jane Roe")).name,
+  "Jane Roe", "what is written comes back")
 
 console.log("test_message.js ok")

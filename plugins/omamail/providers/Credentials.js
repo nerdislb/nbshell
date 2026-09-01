@@ -328,6 +328,10 @@ function path(home) {
 var KEYRING_SERVICE = "omamail"
 var RENAMED_KEYRING_SERVICE = "omarchy-gmail"
 var KEYRING_KIND = "refresh-token"
+// A token stored before Calendar support cannot prove it carries the new
+// permission. A versioned lookup leaves that token untouched and presents the
+// sign-in flow again, where Google extends the existing grant.
+var KEYRING_GRANT = "calendar-events-v1"
 
 // secret-tool reads an empty attribute value as "match anything", which would
 // hand back some other account's token, so an account with no name yet gets a
@@ -344,14 +348,28 @@ function keyringAttributes(clientId, accountId) {
     "service", KEYRING_SERVICE,
     "kind", KEYRING_KIND,
     "client-id", id,
+    "account", accountKey(accountId) || UNNAMED_ACCOUNT,
+    "grant", KEYRING_GRANT
+  ]
+}
+
+// The account-keyed shape used before Calendar permission was added. It is
+// looked up only to explain why sign-in is required again; its token is never
+// refreshed as if it carried the current grant.
+function previousGrantKeyringAttributes(clientId, accountId) {
+  var id = trimmed(clientId)
+  if (!id) return []
+  return [
+    "service", KEYRING_SERVICE,
+    "kind", KEYRING_KIND,
+    "client-id", id,
     "account", accountKey(accountId) || UNNAMED_ACCOUNT
   ]
 }
 
 // What a single-account install stored before accounts existed. Such an entry
-// has no "account" attribute, so the lookup above never matches it: it is read
-// once with these and written back with the ones above, rather than leaving
-// the user staring at a sign-in button that used to say they were signed in.
+// has no "account" attribute. It is checked separately so the upgrade can
+// explain why the broader grant needs a new sign-in.
 function legacyKeyringAttributes(clientId) {
   var id = trimmed(clientId)
   if (!id) return []
@@ -373,10 +391,10 @@ function imapKeyringAttributes(accountId) {
     "account", id || UNNAMED_ACCOUNT]
 }
 
-// Entries from before the Omamail rename are read once and rewritten under
-// the new service name, so an upgrade keeps the user's signed-in session.
+// Entries from before the Omamail rename also predate Calendar permission.
+// Their exact old shape lets the upgrade identify them without using them.
 function renamedKeyringAttributes(clientId, accountId) {
-  var attributes = keyringAttributes(clientId, accountId)
+  var attributes = previousGrantKeyringAttributes(clientId, accountId)
   if (attributes.length) attributes[1] = RENAMED_KEYRING_SERVICE
   return attributes
 }
@@ -385,6 +403,90 @@ function renamedLegacyKeyringAttributes(clientId) {
   var attributes = legacyKeyringAttributes(clientId)
   if (attributes.length) attributes[1] = RENAMED_KEYRING_SERVICE
   return attributes
+}
+
+// The restore stages are also the locations an invalid grant must be removed
+// from. Returning the exact attribute vector keeps lookup and cleanup from
+// drifting apart as old storage names are retired.
+function refreshTokenAttributes(clientId, accountId, stage) {
+  if (stage === 1) return previousGrantKeyringAttributes(clientId, accountId)
+  if (stage === 2) return legacyKeyringAttributes(clientId)
+  if (stage === 3) return renamedKeyringAttributes(clientId, accountId)
+  if (stage === 4) return renamedLegacyKeyringAttributes(clientId)
+  return keyringAttributes(clientId, accountId)
+}
+
+// An omitted attribute is a wildcard too, not just an empty one. secret-tool
+// matches any item carrying *at least* the attributes it was asked for, so
+// both lookups above that leave "account" out match the account-keyed entries
+// as well as the nameless one they are for. On an install where two mailboxes
+// share one Cloud client, either can therefore hand back the *other*
+// mailbox's token.
+//
+// Nothing about that fails loudly. The token refreshes, Google returns no new
+// refresh token so the same one is carried through the response, and it is
+// written back under this account's key. Both mailboxes end up holding one
+// token, and the account you switch to shows the other one's inbox.
+//
+// So the legacy read asks first whether a legacy entry is there at all, with
+// `secret-tool search --all` on the same attributes. That reports one record
+// per match, but it prints the record to stdout and its attributes to
+// *stderr*:
+//
+//   stdout                                    stderr
+//   [/12]                                     attribute.service = omamail
+//   label = Omamail refresh token             attribute.kind = refresh-token
+//   secret = 1//0the-token                    attribute.client-id = 1234-abc...
+//   created = 2026-08-21 13:01:00             attribute.account = one@gmail.com
+//   schema = org.freedesktop.Secret.Generic
+//
+// Two pipes, buffered independently, so which record an attribute line belongs
+// to is not answerable from the outside: one stream can arrive whole after the
+// other. Counting is, and counting is enough, because every match prints
+// exactly one "account" attribute unless it has none.
+//
+// One line at a time rather than one buffer, so that no caller has to hold the
+// stdout of a search that loaded every matching mailbox's token.
+function isKeyringMatchLine(line) {
+  return startsWithPrefix(line, "[")
+}
+
+// Every entry this plugin stores carries a "service" attribute, and the search
+// is keyed on it, so one of these stands for every match. Fewer of them than
+// there are matches means the attribute stream did not account for all of
+// them, and an attribute that was not read cannot be an attribute that is
+// absent.
+function isKeyringAttributedLine(line) {
+  return startsWithPrefix(line, "attribute.service = ")
+}
+
+var ACCOUNT_ATTRIBUTE_PREFIX = "attribute.account = "
+
+// A mailbox that has not learned its address yet is stored under a literal
+// stand-in rather than a blank, so that entry has an "account" attribute
+// without having a name. It belongs to whichever mailbox was mid-setup, which
+// on a single-entry install is the only one there is.
+function isKeyringNamedLine(line) {
+  if (!startsWithPrefix(line, ACCOUNT_ATTRIBUTE_PREFIX)) return false
+  return String(line).substring(ACCOUNT_ATTRIBUTE_PREFIX.length) !== UNNAMED_ACCOUNT
+}
+
+function startsWithPrefix(line, prefix) {
+  return String(line === undefined || line === null ? "" : line).indexOf(prefix) === 0
+}
+
+// One match, every match accounted for, and no named account among them: the
+// only shape where the entry a lookup is about to return is certainly the
+// nameless one, because it is the only entry there is to return.
+//
+// Every other shape refuses. All-named is the case this exists for, where
+// nothing nameless is there and the wildcard would take a mailbox's own token.
+// A nameless entry beside named ones is left alone too. The lookup cannot tell
+// which entry it would return.
+function hasLoneLegacyEntry(matches, attributed, named) {
+  if (matches !== 1) return false
+  if (attributed !== matches) return false
+  return named === 0
 }
 
 // Shown under the client id in the panel so a user with several Cloud projects

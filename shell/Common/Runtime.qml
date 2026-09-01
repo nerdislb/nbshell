@@ -140,8 +140,8 @@ Singleton {
 
     // Das gerade offene Bar-Popout -- es darf nur EINS gleichzeitig geben.
     // Oeffnet man ein zweites, schliesst es hierueber das erste; sonst
-    // ueberlappen sie sich (niri beendet den Popup-Griff beim Klick daneben
-    // nicht selbst). Haelt die Popout-Instanz, nicht nur einen Zaehler.
+    // overlap because Wayland popup ownership is explicit. Holds the concrete
+    // popout instance, not only a counter.
     property var activePopout: null
 
     // Wie viele Zellen MIT Popout gerade unter der Maus stehen. Das ist der
@@ -191,7 +191,7 @@ Singleton {
     }
 
     // Hochgezaehlt, wenn alle Popouts zugehen sollen -- Esc auf der Leiste,
-    // Fensterwechsel in niri. Bewusst eine Property und KEIN Signal: ein
+    // Umbriel window focus changes. Deliberately a property rather than a signal:
     // `signal closeAll` auf einem Singleton kam bei den Zellen nicht an, eine
     // Aenderungsmeldung dagegen zuverlaessig.
     property int closeToken: 0

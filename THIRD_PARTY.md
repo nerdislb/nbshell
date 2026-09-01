@@ -34,7 +34,7 @@ their own bundled license files are linked below.
 - The interaction concept for granular per-output controls was inspired by
   nightdevil00's MIT-licensed
   [Better Displays](https://github.com/nightdevil00/better.displays). nbshell
-  uses an independent Niri-native backend and does not use its Hyprland/Lua
+  uses an independent Umbriel backend and does not use its Hyprland/Lua
   implementation.
 - The bundled Mail client is a port of Jason Lee's MIT-licensed
   [Omamail](https://github.com/huacnlee/omamail). Its Gmail, IMAP/SMTP,
@@ -56,7 +56,8 @@ their own bundled license files are linked below.
 - The optional OmaWhatsApp integration downloads a pinned, checksum-verified
   copy of Moiz Ibn Yousaf's MIT-licensed
   [OmaWhatsApp](https://github.com/MoizIbnYousaf/Omarchy-Whatsapp) and adapts
-  its manifest, bar entry, and medium-width responsive layout for nbshell. Its
+  its manifest, bar entry, medium-width responsive layout, bounded refresh
+  behavior, and scrollable long-message composers for nbshell. Its
   installed plugin retains the upstream license. WhatsApp connectivity is
   provided by the independent,
   MIT-licensed [wacli](https://github.com/openclaw/wacli) project.
@@ -76,6 +77,12 @@ their own bundled license files are linked below.
   [ttfx](https://github.com/omacom-io/ttfx), based on ChrisBuilds'
   TerminalTextEffects. nbshell invokes an independently installed binary and
   retains both Python TTE and its built-in renderer as fallbacks.
+- The optional Zen live-theme bridge uses the separately installed,
+  GPL-3.0-only [Omazen](https://github.com/hemagome/omazen); its bundled
+  fx-autoconfig code remains MPL-2.0. nbshell does not redistribute the Omazen
+  binary or source. Its repository-owned compatibility patch permits Arch only
+  in explicit external-palette-provider mode while retaining all package,
+  ownership, path, and integrity checks.
 
 Omarchy, niri, Quickshell, and the other named projects are independent from
 nbshell. Their names are used only to identify compatibility, provenance, or

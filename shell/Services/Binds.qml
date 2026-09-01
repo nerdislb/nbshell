@@ -5,19 +5,19 @@ import Quickshell
 import Quickshell.Io
 import qs.Common
 
-// Die Tastenkuerzel von niri.
+// Umbriel keyboard shortcuts.
 //
 // Heisst `Binds` und nicht `Keys`: `Keys` ist in QML der Name der
 // angehaengten Tastatur-Eigenschaft (`Keys.onPressed`). Ein Singleton mit
 // diesem Namen waere in jedem Windows mehrdeutig, das Tasten annimmt -- und
 // das ist genau das Windows, das diese Liste anzeigt.
 //
-// Gelesen wird die Konfiguration selbst -- niri gibt seine Bindungen nicht
-// heraus, siehe scripts/keys.py. Hier steht nur das Drumherum: einmal lesen,
+// The source is Umbriel's TOML configuration; scripts/keys.py converts it into
+// the shared model. This singleton owns loading, caching, and refresh.
 // merken, und auf Wunsch neu lesen.
 //
-// Kein Beobachten der Datei: wer seine Kuerzel aendert, laedt niri ohnehin neu
-// und macht das Windows danach neu auf. Beim Oeffnen wird gelesen, wenn noch
+// No file watcher is needed: config reload and reopening the window provide an
+// explicit refresh. On open the list is loaded when still empty; F5 reloads it.
 // nichts da ist; F5 holt es frisch.
 Singleton {
     id: root

@@ -1,15 +1,16 @@
 {
   "schemaVersion": 1,
   "sources": [
-    {"name": "Umbriel", "repository": "https://github.com/noctalia-dev/umbriel", "reviewedCommit": "15188d2"},
-    {"name": "Umbriel portal", "repository": "https://github.com/noctalia-dev/xdg-desktop-portal-umbriel", "reviewedCommit": "515c9f7"},
-    {"name": "Omazen", "repository": "https://github.com/hemagome/omazen", "reviewedCommit": "281f8cc"},
-    {"name": "WhatsApp", "repository": "https://github.com/MoizIbnYousaf/Omarchy-Whatsapp", "reviewedCommit": "83f4c4a"},
-    {"name": "Mail", "repository": "https://github.com/huacnlee/omamail", "reviewedCommit": "e2cd92f"},
+    {"name": "Umbriel", "repository": "https://github.com/noctalia-dev/umbriel", "reviewedCommit": "e677dbb"},
+    {"name": "Umbriel portal", "repository": "https://github.com/noctalia-dev/xdg-desktop-portal-umbriel", "reviewedCommit": "d996f0c"},
+    {"name": "Omazen", "repository": "https://github.com/hemagome/omazen", "reviewedCommit": "2cd7c5d", "patch": "integrations/omazen/nbshell-external-provider-arch.patch"},
+    {"name": "WhatsApp", "repository": "https://github.com/MoizIbnYousaf/Omarchy-Whatsapp", "reviewedCommit": "1f58d8d"},
+    {"name": "Mail", "repository": "https://github.com/huacnlee/omamail", "reviewedCommit": "f69df2d"},
     {"name": "Quick Translate", "repository": "https://github.com/seshna/quick-translate", "reviewedCommit": "284cac8"},
     {"name": "YouTube Music", "repository": "https://github.com/rlimberger/omarchy-ytmusic", "reviewedCommit": "de0d64a"},
-    {"name": "Pit Wall", "repository": "https://github.com/jeremylongshore/omarchy-pit-wall-entry", "reviewedCommit": "cc78151"},
-    {"name": "Hermes Agent", "repository": "https://github.com/NousResearch/hermes-agent", "reviewedCommit": "2ea42a4", "check": "github-api"},
+    {"name": "Pit Wall", "repository": "https://github.com/jeremylongshore/omarchy-pit-wall-entry", "reviewedCommit": "9afd508"},
+    {"name": "Video Trimmer", "repository": "https://github.com/nerdislb/omacut", "reviewedCommit": "41e1ab7"},
+    {"name": "Hermes Agent", "repository": "https://github.com/NousResearch/hermes-agent", "reviewedCommit": "936b970", "check": "github-api"},
     {"name": "Hermes Harness reference", "repository": "https://github.com/archer-clawbot/omarchy-hermes-harness", "reviewedCommit": "2d72688"}
   ]
 }

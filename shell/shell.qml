@@ -29,12 +29,9 @@ import qs.Ipc
 import qs.Extensions
 import qs.Widgets
 
-// nbshell -- Einstiegspunkt.
-//
-// Eine eigene Quickshell-Konfiguration, kein Plugin und kein Fork. DMS bleibt
-// daneben installiert und laeuft weiter; die beiden stossen sich nicht, solange
-// nbshell keine D-Bus-Namen beansprucht (Benachrichtigungen, Tray) -- das kommt
-// erst, wenn hier alles Noetige steht.
+// nbshell is an independent Quickshell desktop, not a plugin or DMS fork.
+// Explicit activation owns the notification and tray integration; remaining
+// DMS handling exists only for migration and recovery cleanup.
 ShellRoot {
     id: shell
 
@@ -91,7 +88,6 @@ ShellRoot {
         void Nearby.enabled;
         void Phone.available;
         void Tailnet.available;
-        void WhatsApp.unread;
         void ZenPip.active;
     }
 

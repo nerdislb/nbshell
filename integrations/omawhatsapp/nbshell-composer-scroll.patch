@@ -3,7 +3,7 @@
 @@ -2572,23 +2572,33 @@
              border.width: composer.activeFocus ? 1 : 0
              border.color: root.accent
- 
+
 -            TextEdit {
 -              id: composer
 +            ScrollView {
@@ -55,7 +55,7 @@
                }
 +              }
              }
- 
+
              Text {
 --- a/Dropdown.qml
 +++ b/Dropdown.qml

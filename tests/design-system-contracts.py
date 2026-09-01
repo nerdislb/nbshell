@@ -40,12 +40,14 @@ expected_ui_types = {
     "BorderOverlay",
     "BorderSurface",
     "Button",
+    "NumberField",
     "PanelActionButton",
     "PanelSectionHeader",
     "PanelSeparator",
     "PanelSlider",
     "PanelToolTip",
     "TextField",
+    "ToggleSwitch",
 }
 ui_qmldir = (ROOT / "shell/Ui/qmldir").read_text(encoding="utf-8")
 exported_ui_types = {

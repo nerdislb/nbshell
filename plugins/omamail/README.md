@@ -1,39 +1,40 @@
 # Mail — a Gmail and IMAP email client for nbshell
 
-**Your mail as a native Omarchy window — not a browser tab.**
+**Your mail as a native nbshell window — not a browser tab.**
 
 Mail is an nbshell desktop email client: a Quickshell plugin that reads,
-triages, and answers your mail over the official Gmail API, or over IMAP and
-SMTP for every other mailbox. It runs inside the `omarchy-shell` process you
-already have, follows your active theme, and puts an unread count in the bar.
+triages, and answers mail through the official Gmail API, the official HEY CLI,
+or IMAP and SMTP. It runs inside the nbshell Quickshell process, follows the
+active theme, and puts an unread count in the bar.
 
-Works with **Gmail**, **Fastmail**, **iCloud Mail**, **Outlook**, **Yahoo**,
+Works with **Gmail**, **HEY**, **Fastmail**, **iCloud Mail**, **Outlook**, **Yahoo**,
 **Zoho**, **GMX**, **Proton Mail** (through its Bridge), and any other IMAP
 server — including one you run yourself.
 
 ## Features
 
 - **Designed, not assembled.** Monospace, square-cornered, and built to sit
-  inside Omarchy rather than to look like a web app in a window. Three columns
+  inside nbshell rather than to look like a web app in a window. Three columns
   when there is room, one when there is not, and nothing on screen that is not
   your mail.
-- **Gmail and IMAP.** Sign in to Gmail with Google directly, or add any IMAP
-  mailbox with an address and an app password. Several accounts at once, each
-  with its own inbox, cache and unread count.
+- **Gmail, HEY, and IMAP.** Sign in to Gmail with Google, reuse the official
+  HEY CLI session, or add any IMAP mailbox with an app password. Several
+  accounts can coexist, each with its own inbox, cache, and unread count.
 - **Keyboard-first.** `j`/`k` to move, `e` to archive, `s` to star, `r` to
   reply, `c` to compose, `Alt+1`…`0` for the mailboxes — hold Alt and the rail says
   which is which — `Alt+A` to switch account, `/` to search, `?` for the rest.
 - **Always counting.** The unread badge keeps working while the window is shut,
   for every account, with a desktop notification when new mail lands.
-- **One window.** Read, archive, star, trash, search, and answer without a
-  second window taking a region of its own.
+- **One window.** Read, archive, star, trash, search, compose, manage drafts and
+  attachments, and undo a queued send without opening another application.
+- **Calendar built in.** Google Calendar and CalDAV calendars provide month and
+  week views plus event creation, editing, and deletion.
 - **Invitations you can answer.** A meeting invitation is read out of the
   message's own calendar part and drawn as a meeting: when it runs, in your
   clock rather than the organiser's, how long for, where, whether it repeats,
   and who else has said yes. **Yes**, **Maybe** and **No** answer the
-  organiser, and a Google Meet link joins in one click. It works on every
-  mailbox here, not only Gmail — the answer is an ordinary reply, which is
-  what every calendar server is already listening for.
+  organiser, and a Google Meet link joins in one click. It works with Gmail and
+  IMAP; HEY's CLI does not expose calendar MIME parts.
 - **Off a list in one click.** A newsletter that supports one-click
   unsubscribing is unsubscribed from without leaving the window. One that only
   offers an address gets a message; one that only offers a page says so before
@@ -42,16 +43,13 @@ server — including one you run yourself.
 - **Images stay blocked.** Loading a sender's pictures tells them the mail was
   read, from which address and when. They load when you ask, for that one
   message.
-- **Your theme.** Every colour comes from the active Omarchy theme, so the
+- **Your theme.** Every colour comes from the active nbshell theme, so the
   mailbox changes the moment the desktop does.
-- **Keyring-backed.** The Gmail refresh token and every IMAP password live in
-  GNOME Keyring — never in a config file, never on a command line.
-
-<img width="800" alt="Mail preview" src="https://github.com/user-attachments/assets/9da73cf7-9b08-421f-b818-bf4fe0e99c00" />
-
-And with mini size mode:
-
-<img width="330" alt="image" src="https://github.com/user-attachments/assets/670e2df9-d113-4e94-b4e7-f1787e3a8bc6" /> <img width="330" alt="image" src="https://github.com/user-attachments/assets/23e9dad0-d3f7-49a1-a47b-2227698e1a4d" />
+- **Keyring-backed.** Gmail refresh tokens and IMAP passwords live in GNOME
+  Keyring. HEY credentials remain owned by the official HEY CLI.
+- **Private local suggestions are opt-in.** Mail reads Thunderbird or Betterbird
+  address databases only after `Local contact suggestions` is enabled; it never
+  modifies or copies those databases.
 
 ## What it is
 
@@ -59,34 +57,28 @@ Three parts, one plugin:
 
 - an **unread badge** in the bar, which keeps counting whether or not the
   window is open
-- an **application window** — a real Hyprland window, tiled like any other,
+- an **application window** — a real Wayland window, tiled like any other,
   with your mailboxes, the message list, and the reader side by side
 - **compose and reply inside that same window**, because a second window would
-  take a region of its own under Omarchy's panel mechanism
+  take a region of its own
 
-## Add it to Omarchy
+## Enable it in nbshell
 
 ```bash
-omarchy plugin add https://github.com/huacnlee/omamail.git --enable
+nbshell plugin enable omamail
+nbshell restart
 ```
 
-Then click the envelope in the bar. To open it from the keyboard, add this to
-`~/.config/hypr/bindings.lua`:
-
-```lua
-  o.bind("SUPER + SHIFT + G", "Mail", "omarchy shell shell toggle omamail '{}'")
-```
-
-The target is `shell`, not the plugin id: the window is summoned by the shell,
-which is what loads it in the first place. A plugin-scoped target would have to
-be registered by code that is only running once the window is already open.
-
-Requires Omarchy 4, plus `socat`, `secret-tool`, `openssl`, `xdg-open` and
-`curl` — all of which Omarchy already ships.
+Then add Mail to the bar from `nbshell modules` or open it with `nbshell mail`.
+Mail does not replace the system mail handler automatically; run `nbshell mail
+handler` only when you explicitly want Mail to claim `mailto:` links. Mail uses
+`curl`, `secret-tool`, `socat`, `openssl`, `xdg-open`, Python,
+`file`, `wl-paste`, and Zenity. The optional HEY provider additionally requires
+the official `hey` CLI.
 
 ## Mailboxes it can open
 
-Adding a mailbox asks which kind first, because the two setups have nothing in
+Adding a mailbox asks which kind first, because the three setups have nothing in
 common.
 
 **Gmail** signs in with Google directly. Google issues Gmail API access per
@@ -108,18 +100,19 @@ could not keep. Archive appears only when the server has an archive folder to
 move to. Sending goes out over SMTP, or the mailbox is read-only if no SMTP
 server is set.
 
-**HEY** is listed as a future integration. A HEY CLI is reportedly in
-development; once it is ready, Mail can support it through the provider seam
-that is already in place.
+**HEY** uses the official 37signals CLI and never asks Mail for a HEY password.
+It exposes HEY's own boxes and supported actions; unsupported Gmail-style
+operations are omitted rather than silently translated.
 
-To remove it:
+To disable it without deleting account data:
 
 ```bash
-omarchy plugin remove omamail
+nbshell plugin disable omamail
+nbshell restart
 ```
 
-That takes the plugin itself. Nothing it wrote lives inside your Omarchy
-config, so removing those is separate and entirely up to you:
+The bundled plugin remains installed for later use. Removing its private state
+is separate and entirely up to you:
 
 ```bash
 secret-tool clear service omamail    # the refresh token and IMAP passwords
@@ -128,8 +121,7 @@ rm -rf ~/.cache/omamail              # cached mail
 ```
 
 Signing out from inside the app clears the keyring entry on its own. The plugin
-never edits your shell, Hyprland or theme configuration — the one keybinding
-above is yours to add and yours to remove.
+never edits compositor, shell, or theme configuration.
 
 ## Connecting your mailbox
 
@@ -233,14 +225,16 @@ permanently.
 ## Development
 
 ```bash
-./install.sh          # symlink this checkout into ~/.config/omarchy/plugins
-make validate         # node tests, source regressions, qmllint, manifest check
+./install.sh
+./tests/plugin-validation.sh
 ```
 
 Working agreements are in [AGENTS.md](AGENTS.md) and the specification is in
 [docs/SPEC.md](docs/SPEC.md).
 
-Mail is an nbshell port of Omamail and is not affiliated with Google.
+Mail is an nbshell port of Omamail. Upstream Omarchy-specific names and paths
+remain only where compatibility or provenance requires them. The plugin is not
+affiliated with Google.
 Gmail is a trademark of Google LLC.
 
 Licensed under the [MIT License](LICENSE).

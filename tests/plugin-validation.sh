@@ -184,6 +184,19 @@ printf '%s\n' \
     '}' >"$WORK/design_clean_comments/Main.qml"
 bash "$TOOL" design-check "$WORK/design_clean_comments" --strict >/dev/null
 
+make_fixture design_semantic_derivation '{"schemaVersion":2,"id":"test.design-semantic-derivation","name":"Design semantic derivation","version":"1","kinds":["panel"],"entryPoints":{"panel":"Main.qml"}}'
+printf '%s\n' 'import QtQuick' 'import qs.Common' 'import qs.Widgets' 'Item {' \
+    '  function open(payloadJson) {}' '  function close() {}' '  Keys.onEscapePressed: {}' \
+    '  property color source: Theme.fg' \
+    '  property color clear: "transparent"' \
+    '  property color muted: Qt.rgba(source.r, source.g, source.b, 0.6)' \
+    '  property real spacing: 0' '}' \
+    >"$WORK/design_semantic_derivation/Main.qml"
+mkdir -p "$WORK/design_semantic_derivation/tests"
+printf '%s\n' 'import QtQuick' 'Item { property color fixture: "#ff00ff" }' \
+    >"$WORK/design_semantic_derivation/tests/Fixture.qml"
+bash "$TOOL" design-check "$WORK/design_semantic_derivation" --strict >/dev/null
+
 make_fixture design_hex '{"schemaVersion":2,"id":"test.design-hex","name":"Design hex","version":"1","kinds":["panel"],"entryPoints":{"panel":"Main.qml"}}'
 printf '%s\n' 'import QtQuick' 'import qs.Common' 'import qs.Widgets' 'Item {' \
     '  function open(payloadJson) {}' '  function close() {}' '  Keys.onEscapePressed: {}' \

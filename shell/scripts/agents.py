@@ -563,7 +563,7 @@ def launch(agent_id: str | None, project: str | None, prompt: str = "", quick: b
     if base == "ghostty":
         # Ghostty forwards CLI arguments to its existing process by default,
         # which keeps the original Wayland app-id. A separate GTK instance is
-        # required for Niri to see the per-agent class and apply window rules.
+        # required for Umbriel to see the per-agent class and apply window rules.
         terminal += ["--gtk-single-instance=false", "--class=" + name, "--title=" + title, "-e", "sh", "-lc", shell_cmd]
     elif base in {"foot", "kitty"}:
         terminal += ["--app-id=" + name, "-T", title, "sh", "-lc", shell_cmd]

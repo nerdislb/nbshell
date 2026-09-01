@@ -5,11 +5,12 @@ import qs.Ui
 // A drawn icon on the kit's shared hover/cursor surface. qs.Ui's
 // PanelActionButton takes a font glyph, and this app's icons are Canvas paths,
 // so this is that button with the glyph swapped for an ActionIcon.
-Rectangle {
+Item {
   id: root
 
   property string iconName: ""
   property string tooltipText: ""
+  property string accessibleName: ""
   property color foreground: Color.foreground
   property color hoverColor: foreground
   property color accent: Color.accent
@@ -21,21 +22,39 @@ Rectangle {
   property bool selected: false
   property real iconSize: Style.font.icon
   property real size: Math.max(Style.space(24), iconSize + Style.spacing.sm * 2)
+  property real visualInset: Style.space(2)
   property string fontFamily: Style.font.family
 
   signal clicked()
 
-  readonly property bool hot: (mouse.containsMouse || hasCursor) && enabled
+  readonly property bool hot: (mouse.containsMouse || hasCursor || activeFocus) && enabled
+  activeFocusOnTab: enabled
+  Accessible.role: Accessible.Button
+  Accessible.name: accessibleName !== "" ? accessibleName : (tooltipText !== "" ? tooltipText : iconName)
+  Accessible.focusable: enabled
+  Accessible.onPressAction: if (enabled) root.clicked()
+  Keys.onPressed: function(event) {
+    if (!enabled || event.isAutoRepeat) return
+    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+      root.clicked()
+      event.accepted = true
+    }
+  }
 
   implicitWidth: size
   implicitHeight: size
   width: size
   height: size
-  radius: Style.cornerRadius
   opacity: enabled ? 1.0 : 0.4
-  color: mouse.pressed ? Style.pressedFillFor(root.foreground, root.accent)
-    : (root.selected ? Style.selectedFillFor(root.foreground, root.accent)
-      : (hot ? Style.hoverFillFor(root.foreground, root.accent) : "transparent"))
+
+  Rectangle {
+    anchors.fill: parent
+    anchors.margins: root.visualInset
+    radius: Style.cornerRadius
+    color: mouse.pressed ? Style.pressedFillFor(root.foreground, root.accent)
+      : (root.selected ? Style.selectedFillFor(root.foreground, root.accent)
+        : (root.hot ? Style.hoverFillFor(root.foreground, root.accent) : "transparent"))
+  }
 
   ActionIcon {
     anchors.centerIn: parent
@@ -49,7 +68,6 @@ Rectangle {
     id: mouse
     anchors.fill: parent
     hoverEnabled: true
-    cursorShape: Qt.PointingHandCursor
     onClicked: root.clicked()
   }
 

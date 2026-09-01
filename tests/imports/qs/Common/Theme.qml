@@ -32,6 +32,8 @@ QtObject {
     readonly property int motionEffectsDefault: 0
     readonly property int motionSpatialFast: 0
     readonly property int motionLoopFast: 1
+    readonly property int motionLoopSlow: 1
+    readonly property int motionAttention: 0
     readonly property bool reducedMotion: true
     readonly property color bg: "#101010"
     readonly property color fg: "#f0f0f0"

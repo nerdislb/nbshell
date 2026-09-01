@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "id": "omawhatsapp",
   "name": "WhatsApp",
-  "version": "0.10.0-nbshell.2",
+  "version": "0.11.2-nbshell.1",
   "author": "MoizIbnYousaf; nbshell port by nerdi",
   "license": "MIT",
   "repository": "https://github.com/MoizIbnYousaf/Omarchy-Whatsapp",

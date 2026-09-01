@@ -101,12 +101,9 @@ Scope {
         }
 
         function window(): string {
-            if (Compositor.isUmbriel) {
-                Runtime.captureWindowSelect = true;
-                Runtime.captureOpen = true;
-                return "window selector";
-            }
-            return CaptureService.shoot("window") ? "window" : "compositor unavailable";
+            Runtime.captureWindowSelect = true;
+            Runtime.captureOpen = true;
+            return "window selector";
         }
 
         function region(): string {
@@ -162,7 +159,7 @@ Scope {
     // Die Tastenuebersicht (Mod+K).
     //
     // Nur das Fenster steht hier. Die LISTE holt `nbshell keys liste` direkt
-    // aus scripts/keys.py -- sie liest niris Konfiguration und nicht den
+    // aus scripts/keys.py -- sie liest Umbriels TOML und nicht den
     // Zustand der Shell, und soll deshalb auch antworten, wenn nbshell gar
     // nicht laeuft. Dieselbe Trennung wie bei der Mediathek.
     IpcHandler {

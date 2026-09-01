@@ -199,6 +199,22 @@ function isLoopback(host) {
   return name === "127.0.0.1" || name === "::1" || name === "localhost"
 }
 
+// Turn the setup form's visible fields into the same validated shape every
+// client call consumes. The server, not the mailbox's email domain, decides
+// whether this is a local bridge: Proton can serve addresses on custom domains
+// that never select its address preset.
+function setupSettings(raw) {
+  var values = raw || {}
+  return normalizeSettings({
+    imapHost: values.imapHost,
+    imapPort: values.imapPort,
+    smtpHost: values.smtpHost,
+    smtpPort: values.smtpPort,
+    username: trimmed(values.username) || trimmed(values.address),
+    insecure: isLoopback(values.imapHost)
+  })
+}
+
 // Reported one at a time and in the order the form reads, so the message names
 // the first field the user has to go back to rather than all of them at once.
 function validateSettings(raw) {
@@ -230,7 +246,9 @@ function imapUrl(settings, folder) {
 function smtpUrl(settings) {
   var values = normalizeSettings(settings)
   if (!isValidHost(values.smtpHost)) return ""
-  var scheme = values.insecure ? "smtp" : "smtps"
+  // IMAP and SMTP may name different hosts. The shared local-transport flag
+  // cannot let a loopback IMAP server downgrade a remote SMTP connection.
+  var scheme = values.insecure && isLoopback(values.smtpHost) ? "smtp" : "smtps"
   return scheme + "://" + values.smtpHost + ":" + values.smtpPort
 }
 
@@ -305,7 +323,7 @@ function parseMessageId(id) {
 // Grouped by folder, because every command this client sends operates on the
 // folder the connection has selected: one round trip per folder rather than
 // one per message, and a batch spanning two folders is two conversations.
-function groupByFolder(ids) {
+function groupByFolder(ids, maxPerGroup) {
   var list = Array.isArray(ids) ? ids : []
   var order = []
   var groups = {}
@@ -319,7 +337,17 @@ function groupByFolder(ids) {
     groups[parsed.folder].push(parsed.uid)
   }
   var out = []
-  for (var j = 0; j < order.length; j++) out.push({ folder: order[j], uids: groups[order[j]] })
+  var limit = Math.max(0, Math.floor(Number(maxPerGroup)) || 0)
+  for (var j = 0; j < order.length; j++) {
+    var folder = order[j]
+    var uids = groups[folder]
+    if (limit < 1) {
+      out.push({ folder: folder, uids: uids })
+      continue
+    }
+    for (var at = 0; at < uids.length; at += limit)
+      out.push({ folder: folder, uids: uids.slice(at, at + limit) })
+  }
   return out
 }
 
@@ -364,10 +392,111 @@ function sequenceSet(uids) {
 // a hand-rolled IMAP client ruins a mailbox.
 var LIST_HEADERS = "HEADER.FIELDS (FROM TO CC SUBJECT DATE MESSAGE-ID REPLY-TO LIST-UNSUBSCRIBE)"
 
-function searchCommand(criteria) {
+// curl holds one IMAP response line in a 64 KiB buffer. SEARCH answers with
+// every matching UID on one line, so an unbounded `UID SEARCH ALL` fails with
+// CURLE_TOO_LARGE once a folder has around ten thousand messages. FETCH puts
+// each UID on its own response line instead, which makes this the stable
+// snapshot every listing starts from.
+function uidListCommand() {
+  return "UID FETCH 1:* (UID)"
+}
+
+// An interactive search does not need every UID before it can begin. This one
+// short FETCH learns the immutable upper boundary of the mailbox; an empty
+// mailbox answers with no FETCH row at all.
+function uidCeilingCommand() {
+  return "UID FETCH *:* (UID)"
+}
+
+// A SEARCH over a known UID snapshot can be split without using message
+// sequence numbers. UIDs do not move when another client expunges a message,
+// and a message delivered after the snapshot has a UID above its last one.
+//
+// 4096 UIDs per response. A UID is at most ten digits, so the matching SEARCH
+// line stays below 45 KiB even when every UID in the batch matches. The range
+// endpoints may be far apart in a sparse mailbox, but the snapshot proves that
+// at most 4096 existing messages lie between them.
+var SEARCH_WINDOW = 4096
+
+// One newest-first numeric UID range for an interactive search. A UID range of
+// width 4096 can contain at most 4096 messages, so its one-line SEARCH answer
+// stays bounded without first downloading the UID of every message. UIDs do
+// not move when another client expunges mail, and the ceiling was read before
+// the first range, so new delivery cannot enter it either.
+function searchWindow(criteria, highestUid) {
   var text = trimmed(criteria)
-  // ALL rather than an empty criteria list, which is a syntax error.
-  return "UID SEARCH " + (text === "" ? "ALL" : text)
+  var last = Math.floor(Number(highestUid))
+  if (text === "" || !isFinite(last) || last < 1)
+    return { command: "", nextUid: 0 }
+  var first = Math.max(1, last - SEARCH_WINDOW + 1)
+  return {
+    command: "UID SEARCH UID " + first + ":" + last + " " + text,
+    nextUid: first - 1
+  }
+}
+
+function sortedUids(values) {
+  var list = Array.isArray(values) ? values : []
+  var found = {}
+  var out = []
+  for (var i = 0; i < list.length; i++) {
+    var uid = Math.floor(Number(list[i]))
+    if (!isFinite(uid) || uid < 1 || found[uid]) continue
+    found[uid] = true
+    out.push(uid)
+  }
+  out.sort(function(a, b) { return a - b })
+  return out
+}
+
+function searchCommands(criteria, snapshot, highestUid) {
+  var text = trimmed(criteria)
+  var uids = sortedUids(snapshot)
+  var commands = []
+  if (text === "" || uids.length === 0) return commands
+
+  // The first numeric window of an interactive search has already settled.
+  // When it did not fill the page, its next lower UID is handed in here so the
+  // snapshot fallback neither searches nor reports that newest prefix twice.
+  var ceiling = Math.floor(Number(highestUid))
+  if (isFinite(ceiling) && ceiling > 0) {
+    var below = []
+    for (var i = 0; i < uids.length; i++) {
+      if (uids[i] <= ceiling) below.push(uids[i])
+    }
+    uids = below
+  }
+  if (uids.length === 0) return commands
+
+  // Interactive search can paint a page before every window has answered only
+  // if no later answer can put a newer message in front of it. UIDs grow with
+  // delivery, so walking the stable snapshot backwards makes every completed
+  // window a final prefix of the result rather than a provisional one.
+  var last = uids.length - 1
+  while (last >= 0) {
+    var first = Math.max(0, last - SEARCH_WINDOW + 1)
+    commands.push("UID SEARCH UID " + uids[first] + ":" + uids[last] + " " + text)
+    last = first - 1
+  }
+  return commands
+}
+
+// The visible page after some or all SEARCH windows have answered. During a
+// streamed search `hasUnscanned` keeps pagination alive even if the rows found
+// so far happen to end exactly at the page boundary. The estimate is then a
+// lower bound — Model already calls provider totals "about" for this reason.
+function searchPage(uids, offset, maxResults, hasUnscanned) {
+  var ordered = sortedUids(uids)
+  ordered.reverse()
+  var start = Math.max(0, Math.floor(Number(offset)) || 0)
+  var limit = Math.max(1, Math.floor(Number(maxResults)) || 25)
+  var page = ordered.slice(start, start + limit)
+  var more = hasUnscanned === true || start + limit < ordered.length
+  return {
+    uids: page,
+    nextOffset: more ? String(start + limit) : "",
+    estimate: more ? Math.max(ordered.length, start + limit + 1) : ordered.length
+  }
 }
 
 function summaryFetchCommand(uids) {
@@ -516,7 +645,17 @@ function parseSearch(text) {
       if (isFinite(uid) && uid > 0) uids.push(uid)
     }
   }
-  return uids
+  return sortedUids(uids)
+}
+
+// `UID FETCH 1:* (UID)` returns one FETCH response per message. The UID is the
+// only data item it carries; sorting and de-duplicating here makes the snapshot
+// independent of the order in which a server chose to report those responses.
+function parseUidList(text) {
+  var entries = parseFetch(text)
+  var uids = []
+  for (var i = 0; i < entries.length; i++) uids.push(entries[i].uid)
+  return sortedUids(uids)
 }
 
 // Reads the value of one FETCH data item out of a response line. The items are
@@ -526,7 +665,7 @@ function fetchItem(line, name) {
   var index = line.indexOf(name)
   if (index < 0) return ""
   var rest = line.substring(index + name.length)
-  var match = rest.match(/^\s*("(?:[^"\\]|\\.)*"|\S+)/)
+  var match = rest.match(/^\s*("(?:[^"\\]|\\.)*"|[^()\s]+)/)
   return match ? match[1] : ""
 }
 
@@ -846,15 +985,30 @@ function redact(text) {
     .replace(/(password|pass|pwd)\s*[=:]\s*\S+/gi, "$1=[redacted]")
 }
 
-// Whether the tagged completion said OK. curl hides the tag from us for a
-// custom request, so this reads what it does surface.
+// Whether a tagged completion said NO or BAD. This has to inspect parsed IMAP
+// responses rather than search the whole byte string: a FETCH response holds
+// the message as a literal, and an ordinary message header such as
+// `X-Spam-Flag: NO` is not the server refusing the command.
+function failureCompletion(text) {
+  var lines = splitResponse(text)
+  for (var i = 0; i < lines.length; i++) {
+    // A response containing a literal includes the literal's own lines in this
+    // string. Only its first protocol line can be a completion, and spaces or
+    // tabs — not \s, which also crosses a newline — separate its fields.
+    var first = String(lines[i] || "").split(/\r?\n/)[0]
+    var match = first.match(/^([^+*\s]\S*)[ \t]+(NO|BAD)(?:[ \t]+(.*))?$/i)
+    if (match) return { detail: trimmed(match[3]) }
+  }
+  return null
+}
+
 function isFailure(text) {
-  return /^\S+\s+(NO|BAD)\s/im.test(String(text || ""))
+  return failureCompletion(text) !== null
 }
 
 function failureDetail(text) {
-  var match = String(text || "").match(/^\S+\s+(?:NO|BAD)\s+([\s\S]*)$/im)
-  return match ? trimmed(match[1].split(/[\r\n]/)[0]) : ""
+  var completion = failureCompletion(text)
+  return completion ? completion.detail : ""
 }
 
 // ------------------------------------------------------------- capabilities

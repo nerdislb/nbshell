@@ -1,31 +1,28 @@
 # Compatibility and limitations
 
-nbshell is an application shell for an existing Wayland compositor session. It
-is not a Linux distribution, login manager, compositor, or security boundary.
+nbshell is a desktop shell for the Umbriel Wayland compositor. It is not a
+Linux distribution, display manager, compositor, or independent security
+boundary.
 
 ## Supported baseline
 
-The first beta targets:
+The current beta targets:
 
 - current Arch Linux or an Arch-based system;
-- current Umbriel built from its official repository;
-- Niri 25.11 or newer retained as the recovery fallback;
+- the reviewed Umbriel and portal revisions installed by `setup-umbriel.sh`;
 - current Quickshell from the Arch repositories;
 - PipeWire/WirePlumber for audio;
 - NetworkManager for the full network panel;
-- a standard systemd user session;
+- a standard systemd user session.
 
-Umbriel is the recommended daily backend, with workspace discovery, display
-management, and its native screenshot/screencast portal integrated. It is young
-software and can change rapidly, so the installer deliberately preserves Niri
-as a selectable recovery session. Exact runtime PiP geometry and nbshell's
-specialized paired grid-scroll remain Niri-only. See the
-[Umbriel compositor guide](umbriel.md).
+Umbriel provides workspace discovery, output management, session lock, Xwayland,
+and the screenshot/screencast portal. It is still evolving, so nbshell pins and
+tests reviewed revisions instead of installing an unreviewed moving branch.
 
-Intel and AMD graphics use only normal Wayland interfaces. NVIDIA should work
-with a correctly configured modern Wayland driver, but still needs wider beta
-testing. Multi-monitor layout, fractional scale, rotation, and disabled outputs
-are supported through Niri or Umbriel's native output facilities.
+Intel and AMD graphics use normal Wayland interfaces. NVIDIA requires a modern
+Wayland driver and still benefits from wider beta testing. Multi-monitor layout,
+fractional scale, rotation, refresh-rate selection, and disabled outputs are
+managed through Umbriel's output facilities.
 
 ## Optional hardware and services
 
@@ -42,12 +39,14 @@ only when the dependency is installed or the service is available:
 ## Known beta limitations
 
 - Third-party QML plugins run unsandboxed with the current user's permissions.
-- Umbriel uses its native scrolling/dwindle layouts. The paired grid-scroll
-  mode remains available in the Niri fallback session.
+- Umbriel currently has no IPC action for arbitrary corner movement of an
+  already open floating PiP window.
 - Theme synchronization cannot force already-open websites to repaint.
 - Some provider integrations depend on unofficial or rate-limited services.
 - There is no stable configuration-migration guarantee before version 1.0.
 - Only English UI and documentation are supported for the first public beta.
 
-Test nbshell before relying on it on a production machine and keep the Niri
-session plus backups of both compositor and nbshell configuration directories.
+Test nbshell before relying on it on a production machine and keep backups of
+both Umbriel and nbshell configuration directories. The independent recovery
+paths are Orbital's agreety configuration and a normal TTY, not a second desktop
+compositor.
