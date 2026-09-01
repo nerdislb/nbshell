@@ -22,6 +22,7 @@ warn()  { printf '\033[33m%s\033[0m\n' "$1"; }
 
 # Serialize installs started by terminals, the dashboard, or agent sessions.
 mkdir -p "$STATE_DIR"
+chmod 700 "$STATE_DIR"
 exec 9>"$STATE_DIR/install.lock"
 if ! flock -n 9; then
     warn "Another nbshell installation is already running."
