@@ -85,13 +85,49 @@ for snippet in (
     if snippet not in dashboard_action:
         raise SystemExit(f"Dashboard action accessibility contract is incomplete: {snippet}")
 for snippet in (
-    "rightLabel: \"Install system updates\"",
-    "rightLabel: \"Install desktop updates\"",
     "rightLabel: \"Toggle screen recording\"",
     "rightLabel: \"Next theme\"",
 ):
     if snippet not in dashboard:
         raise SystemExit(f"Dashboard secondary action label is missing: {snippet}")
+update_panel = (ROOT / "shell/Widgets/UpdatePanel.qml").read_text(encoding="utf-8")
+update_widget = (ROOT / "shell/Bar/Widgets/Updates.qml").read_text(encoding="utf-8")
+bar = (ROOT / "shell/Bar/Bar.qml").read_text(encoding="utf-8")
+if "import qs.Ui" not in update_panel:
+    raise SystemExit("Unified update panel no longer imports the PanelSeparator module")
+for snippet in (
+    'title: qsTr("System packages")',
+    'title: qsTr("nbshell")',
+    'title: qsTr("Umbriel stack")',
+    "Updates.update()",
+    "ShellUpdates.install()",
+    "ShellUpdates.installCompositor()",
+):
+    if snippet not in update_panel:
+        raise SystemExit(f"Unified update panel contract is incomplete: {snippet}")
+if "shown: root.availableKinds > 0" not in update_widget:
+    raise SystemExit("Automatic update signal no longer follows all available update kinds")
+for snippet in (
+    "withUpdateIndicator(Config.collapsedWidgets, true)",
+    'withUpdateIndicator(Config.leftWidgets, expandedClockGroup === "left")',
+    'withUpdateIndicator(Config.centerWidgets, expandedClockGroup === "center")',
+    'withUpdateIndicator(Config.rightWidgets, expandedClockGroup === "right")',
+    'widget === "clock"',
+):
+    if snippet not in bar:
+        raise SystemExit(f"Clock-adjacent update signal contract is incomplete: {snippet}")
+if dashboard.count("UpdatePanel {") != 1 or "shellUpdatesOpen" in dashboard:
+    raise SystemExit("Dashboard regressed to separate system and desktop updater surfaces")
+for snippet in (
+    "popoutTakesKeyboard: true",
+    "property var closePopout: null",
+    "property Item initialFocusItem: refreshButton",
+):
+    if snippet not in update_widget + update_panel:
+        raise SystemExit(f"Update keyboard/popout contract is incomplete: {snippet}")
+plugins_service = (ROOT / "shell/Services/Plugins.qml").read_text(encoding="utf-8")
+if '"id": "updates"' in plugins_service:
+    raise SystemExit("Automatic update signal is still exposed as a movable module")
 if "component Action: Rectangle" in dashboard:
     raise SystemExit("Dashboard actions regressed to manual Rectangle controls")
 for snippet in (

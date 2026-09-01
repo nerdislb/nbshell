@@ -46,13 +46,42 @@ Variants {
         readonly property bool expanded: barMode || pillMode || Runtime.islandOpen || hovering
         property real openProgress: expanded ? 1 : 0
         readonly property real centerHandoff: Math.max(0, Math.min(1, (openProgress - 0.72) / 0.28))
+        readonly property string expandedClockGroup: Config.leftWidgets.indexOf("clock") >= 0 ? "left"
+            : (Config.centerWidgets.indexOf("clock") >= 0 ? "center"
+            : (Config.rightWidgets.indexOf("clock") >= 0 ? "right" : "center"))
+        readonly property var collapsedWidgetNames: withUpdateIndicator(Config.collapsedWidgets, true)
+        readonly property var expandedLeftWidgetNames: withUpdateIndicator(Config.leftWidgets, expandedClockGroup === "left")
+        readonly property var expandedCenterWidgetNames: withUpdateIndicator(Config.centerWidgets, expandedClockGroup === "center")
+        readonly property var expandedRightWidgetNames: withUpdateIndicator(Config.rightWidgets, expandedClockGroup === "right")
         readonly property bool reuseCollapsedCenter: !barMode && !pillMode
-            && JSON.stringify(Config.collapsedWidgets) === JSON.stringify(Config.centerWidgets)
-        readonly property var expandedWidgetNames: Config.leftWidgets
-            .concat(Config.centerWidgets).concat(Config.rightWidgets)
+            && JSON.stringify(collapsedWidgetNames) === JSON.stringify(expandedCenterWidgetNames)
+        readonly property var expandedWidgetNames: expandedLeftWidgetNames
+            .concat(expandedCenterWidgetNames).concat(expandedRightWidgetNames)
         property bool hovering: false
         property real edgeDragY: 0
         readonly property string wallpaperSource: Config.value("wallpaperOverride", "") || (ThemeIndex.current?.wallpaper ?? "")
+
+        // The update signal is a desktop status, not a module users need to
+        // position manually. Keep exactly one instance immediately after the
+        // clock in both compact and expanded center groups. Legacy configs
+        // that placed `updates` elsewhere are normalized at render time only;
+        // their stored module lists remain untouched.
+        function withUpdateIndicator(widgets, insert) {
+            const result = [];
+            let inserted = false;
+            for (const widget of (widgets || [])) {
+                if (widget === "updates")
+                    continue;
+                result.push(widget);
+                if (insert && !inserted && widget === "clock") {
+                    result.push("updates");
+                    inserted = true;
+                }
+            }
+            if (insert && !inserted)
+                result.push("updates");
+            return result;
+        }
 
         function refreshTransparentContrast() {
             if (!Config.barTransparent || !Config.wallpaperEnabled || !wallpaperSource) {
@@ -267,7 +296,7 @@ Variants {
                 enabled: (win.reuseCollapsedCenter || win.openProgress < 0.5) && !win.osdInPill
 
                 Repeater {
-                    model: Config.collapsedWidgets
+                    model: win.collapsedWidgetNames
 
                     WidgetHost {
                         required property var modelData
@@ -315,7 +344,7 @@ Variants {
                     spacing: Theme.barItemGap
 
                     Repeater {
-                        model: Config.leftWidgets
+                        model: win.expandedLeftWidgetNames
 
                         WidgetHost {
                             required property var modelData
@@ -347,7 +376,7 @@ Variants {
                     }
 
                     Repeater {
-                        model: Config.centerWidgets
+                        model: win.expandedCenterWidgetNames
 
                         WidgetHost {
                             required property var modelData
@@ -367,11 +396,12 @@ Variants {
                     id: rightGroup
                     spacing: Theme.barItemGap
 
-                    readonly property int collapseIndex: Config.rightWidgets.indexOf("sep")
+                    readonly property var visibleWidgets: win.expandedRightWidgetNames
+                    readonly property int collapseIndex: visibleWidgets.indexOf("sep")
                     readonly property var fixedWidgets: collapseIndex >= 0
-                        ? Config.rightWidgets.slice(0, collapseIndex) : Config.rightWidgets
+                        ? visibleWidgets.slice(0, collapseIndex) : visibleWidgets
                     readonly property var collapsibleWidgets: collapseIndex >= 0
-                        ? Config.rightWidgets.slice(collapseIndex + 1) : []
+                        ? visibleWidgets.slice(collapseIndex + 1) : []
 
                     Repeater {
                         model: rightGroup.fixedWidgets

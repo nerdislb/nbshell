@@ -17,7 +17,6 @@ PanelWindow {
     property var weather: ({})
     property bool weatherLoading: false
     property bool updatesOpen: false
-    property bool shellUpdatesOpen: false
     property var afterClose: null
     readonly property date now: clock.date
     readonly property real cardGap: Theme.cellW * 1.5
@@ -34,7 +33,6 @@ PanelWindow {
 
     function close() {
         updatesOpen = false;
-        shellUpdatesOpen = false;
         Runtime.calendarOpen = false;
         Runtime.dashboardOpen = false;
     }
@@ -65,16 +63,7 @@ PanelWindow {
         const day = e.start.toLocaleString(loc, "ddd dd.MM");
         return e.allDay ? day : day + "  " + e.start.toLocaleTimeString(loc, "HH:mm");
     }
-    function updateText(entry) {
-        return entry.from === entry.to
-            ? entry.name + "   " + entry.to + "  (new build)"
-            : entry.name + "   " + entry.from + " → " + entry.to;
-    }
-    function compositorRevision(project, field) {
-        const projects = ShellUpdates.compositorProjects || ({});
-        const row = projects[project];
-        return row && row[field] !== undefined ? row[field] : "unknown";
-    }
+
     function weatherGlyph(code, day) {
         if (code === 0) return String.fromCodePoint(day ? 0xE30D : 0xE32B);
         if (code <= 2) return String.fromCodePoint(0xE302);
@@ -179,9 +168,7 @@ PanelWindow {
         anchors.fill: parent
         focus: root.visible
         Keys.onEscapePressed: {
-            if (root.shellUpdatesOpen)
-                root.shellUpdatesOpen = false;
-            else if (root.updatesOpen)
+            if (root.updatesOpen)
                 root.updatesOpen = false;
             else
                 root.close();
@@ -360,34 +347,22 @@ PanelWindow {
                         Action { label: "Notes"; detail: Notes.count + " saved"; glyph: "󰎞"; run: () => root.openSurface(() => Runtime.notesOpen = true) }
                         Action { label: "Habits"; detail: Habits.doneCount + "/" + Habits.count + " today"; glyph: Icons.habit; run: () => root.openSurface(() => Runtime.habitsOpen = true) }
                         Action {
-                            label: "System updates"
-                            detail: Updates.rebootRecommended ? "restart recommended" : (Updates.checking ? "checking …" : Updates.count + " available")
+                            readonly property int availableKinds: (Updates.count > 0 ? 1 : 0)
+                                + (ShellUpdates.updateAvailable ? 1 : 0)
+                                + (ShellUpdates.compositorUpdateAvailable ? 1 : 0)
+                            label: "Updates"
+                            detail: Updates.checking || ShellUpdates.checking || ShellUpdates.compositorChecking
+                                ? "checking all sources …"
+                                : (availableKinds > 0 ? availableKinds + " update sources ready" : "system, nbshell and Umbriel current")
                             glyph: Icons.download
-                            tone: Updates.count > 0 ? Theme.yellow : Theme.green
+                            tone: availableKinds > 0 ? Theme.yellow : Theme.green
                             run: () => {
                                 root.updatesOpen = true;
                                 if (!Updates.ready)
                                     Updates.refresh();
-                            }
-                            rightLabel: "Install system updates"
-                            rightRun: () => root.openSurface(() => Updates.update())
-                        }
-                        Action {
-                            label: "Desktop updates"
-                            detail: ShellUpdates.checking || ShellUpdates.compositorChecking ? "checking releases …"
-                                : (ShellUpdates.anyUpdateAvailable ? "updates available"
-                                : (ShellUpdates.ready && ShellUpdates.compositorReady ? "nbshell and Umbriel current" : "published releases"))
-                            glyph: Icons.refresh
-                            tone: ShellUpdates.anyUpdateAvailable ? Theme.yellow : Theme.green
-                            run: () => {
-                                root.shellUpdatesOpen = true;
                                 if (!ShellUpdates.ready || !ShellUpdates.compositorReady)
                                     ShellUpdates.refresh();
                             }
-                            rightLabel: "Install desktop updates"
-                            rightRun: (ShellUpdates.updateAvailable && ShellUpdates.installable)
-                                || (ShellUpdates.compositorUpdateAvailable && ShellUpdates.compositorInstallable)
-                                ? () => root.openSurface(() => ShellUpdates.installAll()) : null
                         }
                         Action { label: "Capture"; detail: CaptureService.recording ? "running" : "Screenshot, OCR, QR"; glyph: CaptureService.recording ? Icons.record : Icons.camera; tone: CaptureService.recording ? Theme.red : Theme.accent; run: () => root.openSurface(() => Runtime.captureOpen = true); rightLabel: "Toggle screen recording"; rightRun: () => CaptureService.toggleRecording() }
                         Action { label: "Theme"; detail: Config.theme; glyph: Icons.palette; run: () => root.openSurface(() => Runtime.themePickerOpen = true); rightLabel: "Next theme"; rightRun: () => ThemeIndex.step(1) }
@@ -441,8 +416,9 @@ PanelWindow {
                 }
             }
 
-            // Update-Liste wie im frueheren Bar-Popout, aber als Ebene im
-            // Dashboard: dieselben Daten, derselbe Check, kein zweiter Poller.
+            // The dashboard and the clock-adjacent bar signal share one update
+            // surface. System packages, nbshell and Umbriel therefore keep the
+            // same hierarchy, states and actions everywhere.
             Rectangle {
                 anchors.fill: parent
                 visible: root.updatesOpen
@@ -453,218 +429,17 @@ PanelWindow {
                 MouseArea { anchors.fill: parent; onClicked: root.updatesOpen = false }
 
                 PanelSurface {
-                    width: Math.min(parent.width - root.cardGap * 4, Theme.cellW * 78)
-                    height: Math.min(parent.height - root.cardGap * 4, Theme.cellH * 34)
-                    anchors.centerIn: parent
-                    accentBorder: false
-                    MouseArea { anchors.fill: parent; onClicked: {} }
-
-                    Column {
-                        anchors.fill: parent
-                        anchors.margins: Theme.cellW * 2
-                        spacing: Theme.cellH * 0.55
-
-                        Item {
-                            width: parent.width; height: Theme.cellH * 2
-                            Line {
-                                anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                                text: "UPDATES  (" + Updates.count + ")"; color: Theme.fgBright; font.pixelSize: Theme.fontHeading
-                            }
-                            Row {
-                                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                                spacing: Theme.cellW * 2
-                                ActionButton {
-                                    text: Updates.checking ? "Checking …" : "Check again"
-                                    busy: Updates.checking; compact: true
-                                    onTriggered: Updates.refresh()
-                                }
-                                ActionButton {
-                                    visible: Updates.count > 0
-                                    text: "Update"; tone: "primary"; accentColor: Theme.green; compact: true
-                                    onTriggered: root.openSurface(() => Updates.update())
-                                }
-                                ActionButton { text: "Close"; compact: true; onTriggered: root.updatesOpen = false }
-                            }
-                        }
-
-                        Rule { rowWidth: parent.width; label: "PACKAGES" }
-
-                        Rectangle {
-                            visible: Updates.rebootRecommended
-                            width: parent.width
-                            height: visible ? Theme.controlHeight * 1.45 : 0
-                            color: Theme.selectedSurface(Theme.yellow)
-                            border.width: Theme.borderWidth
-                            border.color: Theme.yellow
-                            radius: Theme.radius
-
-                            Row {
-                                anchors.fill: parent
-                                anchors.leftMargin: Theme.spaceMd
-                                anchors.rightMargin: Theme.spaceSm
-                                spacing: Theme.spaceMd
-
-                                Line {
-                                    width: parent.width - restartButton.width - parent.spacing
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: "Restart recommended" + (Updates.rebootPackages.length ? " · " + Updates.rebootPackages.join(", ") : "")
-                                    color: Theme.readable(Theme.yellow, Theme.selectedSurface(Theme.yellow), 4.5)
-                                    elide: Text.ElideRight
-                                }
-                                ActionButton {
-                                    id: restartButton
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: "Restart…"
-                                    tone: "primary"
-                                    compact: true
-                                    onTriggered: root.openSurface(() => Runtime.powerOpen = true)
-                                }
-                            }
-                        }
-
-                        Item {
-                            width: parent.width
-                            height: parent.height - Theme.cellH * 6.6 - (Updates.rebootRecommended ? Theme.controlHeight * 1.45 + Theme.cellH * 0.55 : 0)
-
-                            Line {
-                                anchors.centerIn: parent
-                                visible: Updates.count === 0
-                                text: Updates.checking ? "Checking package sources …" : (Updates.ready ? "everything is up to date" : "not checked yet")
-                                color: Theme.muted
-                            }
-
-                            Flickable {
-                                anchors.fill: parent
-                                visible: Updates.count > 0
-                                clip: true
-                                contentHeight: updateRows.height
-                                boundsBehavior: Flickable.StopAtBounds
-
-                                Column {
-                                    id: updateRows
-                                    width: parent.width
-                                    spacing: Theme.cellH * 0.25
-                                    Repeater {
-                                        model: Updates.repo.concat(Updates.aur).concat(Updates.flatpak)
-                                        Line {
-                                            required property var modelData
-                                            width: updateRows.width
-                                            text: "  " + root.updateText(modelData)
-                                            color: Theme.fg
-                                            elide: Text.ElideRight
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        Line {
-                            width: parent.width
-                            text: Updates.repo.length + " Repo  ·  " + Updates.aur.length + " AUR  ·  " + Updates.flatpak.length + " Flatpak"
-                            horizontalAlignment: Text.AlignHCenter
-                            color: Theme.muted
-                        }
-                    }
-                }
-            }
-
-            Rectangle {
-                anchors.fill: parent
-                visible: root.shellUpdatesOpen
-                z: 21
-                color: Theme.alpha(Theme.bg, 0.82)
-                radius: parent.radius
-
-                MouseArea { anchors.fill: parent; onClicked: root.shellUpdatesOpen = false }
-
-                PanelSurface {
-                    width: Math.min(parent.width - root.cardGap * 4, Theme.cellW * 70)
-                    height: Math.min(parent.height - root.cardGap * 4, Theme.cellH * 31)
+                    width: Math.min(parent.width - root.cardGap * 4, Theme.cellW * 72)
+                    height: Math.min(parent.height - root.cardGap * 4, updatePanel.implicitHeight + Theme.panelPadding * 2)
                     anchors.centerIn: parent
                     MouseArea { anchors.fill: parent; onClicked: {} }
 
-                    Column {
-                        anchors.fill: parent
-                        anchors.margins: Theme.cellW * 2
-                        spacing: Theme.cellH * 0.8
-
-                        Item {
-                            width: parent.width; height: Theme.cellH * 2
-                            Line { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "DESKTOP UPDATES"; color: Theme.fgBright; font.pixelSize: Theme.fontHeading }
-                            ActionButton { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: "Close"; compact: true; onTriggered: root.shellUpdatesOpen = false }
-                        }
-                        Rule { rowWidth: parent.width; label: ShellUpdates.channel.toUpperCase() + " CHANNEL" }
-                        Line { width: parent.width; text: "Installed"; color: Theme.fgDim }
-                        Line { width: parent.width; text: ShellUpdates.current || "unknown"; color: Theme.fgBright; font.pixelSize: Theme.fontHeading }
-                        Line { width: parent.width; text: "Latest published release"; color: Theme.fgDim }
-                        Line { width: parent.width; text: ShellUpdates.checking ? "checking …" : (ShellUpdates.latest || "not checked yet"); color: ShellUpdates.updateAvailable ? Theme.yellow : Theme.fgBright; font.pixelSize: Theme.fontHeading }
-                        Line {
-                            width: parent.width
-                            wrapMode: Text.Wrap
-                            text: ShellUpdates.error !== "" ? ShellUpdates.error
-                                : (ShellUpdates.updateAvailable ? "A new nbshell release is ready."
-                                : (ShellUpdates.ready ? "nbshell is up to date." : "Check for a published release."))
-                            color: ShellUpdates.error !== "" ? Theme.yellow : Theme.fg
-                        }
-                        Item { width: 1; height: Theme.cellH * 0.2 }
-                        Row {
-                            spacing: Theme.cellW * 2
-                            ActionButton { text: ShellUpdates.checking ? "Checking …" : "Check again"; busy: ShellUpdates.checking; compact: true; onTriggered: ShellUpdates.refresh() }
-                            ActionButton { visible: ShellUpdates.releaseUrl !== ""; text: "Release notes"; compact: true; onTriggered: ShellUpdates.openNotes() }
-                            ActionButton {
-                                visible: ShellUpdates.updateAvailable && ShellUpdates.installable
-                                text: "Install in terminal"
-                                tone: "primary"
-                                accentColor: Theme.green
-                                compact: true
-                                onTriggered: root.openSurface(() => ShellUpdates.install())
-                            }
-                        }
-                        Rule { rowWidth: parent.width; label: "UMBRIEL STACK" }
-                        Line {
-                            width: parent.width
-                            text: "Umbriel  " + root.compositorRevision("umbriel", "current")
-                                + (root.compositorRevision("umbriel", "available") === true ? " → " + root.compositorRevision("umbriel", "latest") : "")
-                            color: root.compositorRevision("umbriel", "available") === true ? Theme.yellow : Theme.fgBright
-                            font.pixelSize: Theme.fontBody
-                        }
-                        Line {
-                            width: parent.width
-                            text: "Portal    " + root.compositorRevision("xdg-desktop-portal-umbriel", "current")
-                                + (root.compositorRevision("xdg-desktop-portal-umbriel", "available") === true ? " → " + root.compositorRevision("xdg-desktop-portal-umbriel", "latest") : "")
-                            color: root.compositorRevision("xdg-desktop-portal-umbriel", "available") === true ? Theme.yellow : Theme.fgBright
-                            font.pixelSize: Theme.fontBody
-                        }
-                        Line {
-                            width: parent.width
-                            wrapMode: Text.Wrap
-                            text: ShellUpdates.compositorChecking ? "checking official Git repositories …"
-                                : (ShellUpdates.compositorError !== "" ? ShellUpdates.compositorError
-                                : (ShellUpdates.compositorUpdateAvailable ? "A compositor stack update is ready. It takes effect after the next login."
-                                : (ShellUpdates.compositorReady ? "Umbriel and its portal are up to date." : "Check the installed compositor stack.")))
-                            color: ShellUpdates.compositorError !== "" ? Theme.yellow : Theme.fg
-                        }
-                        Row {
-                            spacing: Theme.cellW * 2
-                            ActionButton { text: ShellUpdates.compositorChecking ? "Checking …" : "Check stack"; busy: ShellUpdates.compositorChecking; compact: true; onTriggered: ShellUpdates.refresh() }
-                            ActionButton {
-                                visible: ShellUpdates.compositorUpdateAvailable && ShellUpdates.compositorInstallable
-                                text: "Update stack"
-                                tone: "primary"
-                                accentColor: Theme.green
-                                compact: true
-                                onTriggered: root.openSurface(() => ShellUpdates.installCompositor())
-                            }
-                            ActionButton {
-                                visible: ShellUpdates.updateAvailable && ShellUpdates.installable && ShellUpdates.compositorUpdateAvailable && ShellUpdates.compositorInstallable
-                                text: "Update all"
-                                tone: "primary"
-                                accentColor: Theme.accent
-                                compact: true
-                                onTriggered: root.openSurface(() => ShellUpdates.installAll())
-                            }
-                        }
-                        Line { width: parent.width; text: "nbshell releases are checksum verified  ·  Umbriel builds only clean official checkouts"; color: Theme.muted; horizontalAlignment: Text.AlignHCenter }
+                    UpdatePanel {
+                        id: updatePanel
+                        anchors.centerIn: parent
+                        rowWidth: parent.width - Theme.panelPadding * 2
+                        showClose: true
+                        closePanel: () => root.updatesOpen = false
                     }
                 }
             }

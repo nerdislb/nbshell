@@ -147,12 +147,7 @@ Singleton {
             "description": "usage level for each provider",
             "category": "System"
         },
-        {
-            "id": "updates",
-            "name": "Updates",
-            "description": "available system updates",
-            "category": "System"
-        },
+
         {
             "id": "units",
             "name": "Failed services",
