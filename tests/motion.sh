@@ -49,7 +49,7 @@ grep -Fq 'Runtime.requestPopout("control", Compositor.focusedOutput)' "$ROOT/she
 assert_not_grep -Fq 'function onAudioPanelOpenChanged()' "$ROOT/shell/Bar/Widgets/Volume.qml"
 assert_not_grep -Fq 'function onControlOpenChanged()' "$ROOT/shell/Bar/Widgets/Control.qml"
 grep -Fq 'autoEnter: false' "$ROOT/shell/Widgets/Popout.qml"
-grep -Fq 'readonly property int collapseIndex: Config.rightWidgets.indexOf("sep")' "$ROOT/shell/Bar/Bar.qml"
+grep -Fq 'readonly property int collapseIndex: visibleWidgets.indexOf("sep")' "$ROOT/shell/Bar/Bar.qml"
 grep -Fq 'Config.set("rightSectionExpanded", !Config.rightSectionExpanded)' "$ROOT/shell/Bar/Bar.qml"
 grep -Fq 'width: visible && Config.rightSectionExpanded ? rightSectionRow.implicitWidth : 0' "$ROOT/shell/Bar/Bar.qml"
 grep -Fq 'Behavior on width' "$ROOT/shell/Bar/Bar.qml"
