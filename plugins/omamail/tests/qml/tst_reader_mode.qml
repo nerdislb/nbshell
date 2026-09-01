@@ -121,6 +121,7 @@ Item {
     }
 
     function init() {
+      reader.width = 900
       reader.bodyMode = "reader"
       reader.forceRichAnyway = false
       reader.alwaysRenderHeavyMessages = false
@@ -177,9 +178,12 @@ Item {
     function test_the_reading_column_is_bounded_and_centred() {
       compare(reader.shownMode, "reader")
       var edit = body()
-      verify(edit.width < reader.bodyWidth,
+      tryVerify(function() { return reader.readingMeasure > 0 }, 5000,
+        "the test font has a usable reading measure")
+      tryVerify(function() { return edit.width < reader.bodyWidth }, 5000,
         "a wide panel does not become a wide line of text")
-      verify(reader.bodyOffset > 0, "and the column is centred in what is left")
+      tryVerify(function() { return reader.bodyOffset > 0 }, 5000,
+        "and the column is centred in what is left")
       // Sixty-five to seventy-five characters of the face it is drawn in.
       var perCharacter = reader.readingMeasure / 70
       var characters = edit.width / perCharacter
@@ -195,11 +199,13 @@ Item {
 
     function test_a_narrow_panel_gives_the_column_everything() {
       reader.width = 420
-      compare(reader.bodyOffset, 0, "there is nothing spare to centre in")
-      compare(body().width, reader.bodyWidth)
+      tryCompare(reader, "bodyOffset", 0, 5000,
+        "there is nothing spare to centre in")
+      tryCompare(body(), "width", reader.bodyWidth)
       verify(body().x + body().width <= reader.width, "and nothing runs off the panel")
       reader.width = 900
-      verify(reader.bodyOffset > 0, "and the column comes back when there is room again")
+      tryVerify(function() { return reader.bodyOffset > 0 }, 5000,
+        "and the column comes back when there is room again")
     }
 
     function test_view_modes_are_one_segmented_toolbar_control() {
