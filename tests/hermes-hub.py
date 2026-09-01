@@ -119,4 +119,31 @@ with tempfile.TemporaryDirectory() as temporary:
     gemini = launch_for("gemini", "restricted")
     assert "/usr/bin/agy" in gemini and "--sandbox" in gemini and "plan" in gemini
 
+    existing = json.dumps([
+        {"id": "ordinary", "app_id": "org.example.Terminal", "active": True},
+        {"id": "hermes-window", "app_id": "dev.nerdi.nbshell.agent.hermes", "active": True},
+    ])
+    windows_result = type("Result", (), {"returncode": 0, "stdout": existing})()
+    focus_result = type("Result", (), {"returncode": 0, "stdout": ""})()
+    with patch.object(agents.shutil, "which", return_value="/usr/bin/umbriel"), \
+         patch.object(agents.subprocess, "run", side_effect=[windows_result, focus_result]) as run, \
+         patch.object(agents, "launch") as launch:
+        agents.open_hermes_session("home-session")
+    assert run.call_args_list[-1].args[0] == ["umbriel", "msg", "window-focus-warp:hermes-window"]
+    launch.assert_not_called()
+
+    no_windows = type("Result", (), {"returncode": 0, "stdout": "[]"})()
+    with patch.object(agents.shutil, "which", return_value="/usr/bin/umbriel"), \
+         patch.object(agents.subprocess, "run", return_value=no_windows), \
+         patch.object(agents, "launch") as launch:
+        agents.open_hermes_session("home-session")
+    launch.assert_called_once_with("hermes", None, resume="home-session")
+
+    agent_center = (ROOT / "shell/Menu/AgentCenter.qml").read_text()
+    assert 'Agents.openHermes(hermesOverview.current.id || "")' in agent_center
+    assert 'Agents.launch("hermes", "")' not in agent_center
+    assert agent_center.index("root.close();", agent_center.index("id: openHermes")) < agent_center.index(
+        'Agents.openHermes(hermesOverview.current.id || "")', agent_center.index("id: openHermes")
+    )
+
 print("Hermes hub contracts: OK")

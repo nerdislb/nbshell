@@ -575,6 +575,33 @@ def launch(agent_id: str | None, project: str | None, prompt: str = "", quick: b
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
+def open_hermes_session(resume: str = "") -> None:
+    """Focus an existing Hermes terminal, or resume the requested session."""
+    if shutil.which("umbriel"):
+        windows = subprocess.run(
+            ["umbriel", "windows", "--json"], text=True, capture_output=True,
+            timeout=3, check=False,
+        )
+        if windows.returncode == 0:
+            try:
+                matches = [
+                    row for row in json.loads(windows.stdout)
+                    if row.get("app_id") == "dev.nerdi.nbshell.agent.hermes" and row.get("id")
+                ]
+            except (TypeError, ValueError, json.JSONDecodeError):
+                matches = []
+            if matches:
+                target = next((row for row in matches if row.get("urgent")), None)
+                target = target or next((row for row in matches if row.get("active")), matches[0])
+                focused = subprocess.run(
+                    ["umbriel", "msg", f"window-focus-warp:{target['id']}"],
+                    text=True, capture_output=True, timeout=3, check=False,
+                )
+                if focused.returncode == 0:
+                    return
+    launch("hermes", None, resume=resume)
+
+
 def install_agent(agent_id: str) -> None:
     if agent_id not in AGENTS:
         raise SystemExit(f"Unknown agent: {agent_id}")
@@ -892,6 +919,7 @@ def main() -> int:
     hermes_team = sub.add_parser("hermes-team"); hermes_team.add_argument("action", choices=["list", "pause", "resume", "cancel", "apply", "install", "push", "reject"]); hermes_team.add_argument("team_id", nargs="?", default=""); hermes_team.add_argument("--yes", action="store_true")
     hermes_brain = sub.add_parser("hermes-brain"); hermes_brain.add_argument("action", choices=["list", "apply", "push", "reject"]); hermes_brain.add_argument("proposal_id", nargs="?", default=""); hermes_brain.add_argument("--yes", action="store_true")
     launch_p = sub.add_parser("launch"); launch_p.add_argument("agent", nargs="?"); launch_p.add_argument("--project"); launch_p.add_argument("--prompt", default=""); launch_p.add_argument("--resume", default="")
+    open_hermes = sub.add_parser("open-hermes"); open_hermes.add_argument("session", nargs="?", default="")
     quick_p = sub.add_parser("quick"); quick_p.add_argument("--project"); quick_p.add_argument("--prompt", default="")
     install_p = sub.add_parser("install"); install_p.add_argument("agent", choices=sorted(AGENTS))
     prompt_p = sub.add_parser("prompt"); prompt_p.add_argument("prompt", nargs="+"); prompt_p.add_argument("--agent"); prompt_p.add_argument("--project")
@@ -947,6 +975,7 @@ def main() -> int:
     if command == "hermes-team": hermes_team_control(args.action, args.team_id, args.yes); return 0
     if command == "hermes-brain": hermes_brain_control(args.action, args.proposal_id, args.yes); return 0
     if command == "launch": launch(args.agent, args.project, args.prompt, resume=args.resume); return 0
+    if command == "open-hermes": open_hermes_session(args.session); return 0
     if command == "quick": launch(None, args.project, args.prompt, quick=True); return 0
     if command == "install": install_agent(args.agent); return 0
     if command == "prompt": launch(args.agent, args.project, " ".join(args.prompt)); return 0

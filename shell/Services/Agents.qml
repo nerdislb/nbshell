@@ -102,6 +102,9 @@ Singleton {
     function resumeHermes(id) {
         if (id) action(["launch", "hermes", "--resume", String(id)]);
     }
+    function openHermes(id) {
+        action(["open-hermes", String(id || "")]);
+    }
     function install(id) { action(["install", id]); }
     function workspace(templateName, project) {
         var args = ["workspace", templateName, "--new-tab"];

@@ -504,8 +504,8 @@ PanelWindow {
                                             text: hermesOverview.current.active ? "OPEN SESSION" : "OPEN HERMES"
                                             enabled: Agents.hermes.installed
                                             onTriggered: {
-                                                Agents.launch("hermes", "");
                                                 root.close();
+                                                Agents.openHermes(hermesOverview.current.id || "");
                                             }
                                         }
                                     }
