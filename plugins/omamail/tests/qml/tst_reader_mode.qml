@@ -83,7 +83,7 @@ Item {
     popupBorderColor: Qt.rgba(0.47, 0.47, 0.47, 1)
     leadingBoundaryOverlap: 0
     dimmerColor: Qt.rgba(0.47, 0.47, 0.47, 1)
-    panelFontFamily: "monospace"
+    panelFontFamily: "DejaVu Sans Mono"
     bodyMode: "reader"
     onBodyModeRequested: function(mode) { reader.bodyMode = mode }
   }
