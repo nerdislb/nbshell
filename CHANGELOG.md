@@ -6,6 +6,26 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+### Added
+
+- A local shopping-list tool turns commas, lines, and natural-language input
+  into a WhatsApp checklist, keeps an atomic local draft, previews the exact
+  message, and sends only after resolving one unambiguous configured group
+  through the optional `wacli` integration. The default `Einkauf` target can be
+  changed with `nbshell set shoppingListTarget <name>`.
+- The Plugin Center now includes a read-only Porting Lab for public GitHub and
+  Omarchy marketplace sources. It fetches bounded source text without running
+  it, reports deterministic compatibility and safety findings, and recommends
+  an ordered native nbshell porting path without installing or modifying code.
+
+### Fixed
+
+- The motion contract now follows the filtered visible right-side widget list
+  used by the unified desktop update surface.
+- Audio output lists collapse stale PipeWire nodes with the same stable node
+  name while preserving the preferred default object, so a noisy host graph no
+  longer renders several identical speaker rows.
+
 ## [0.1.0-beta.7] - 2026-08-31
 
 ### Added

@@ -324,6 +324,25 @@ Scope {
     }
 
     IpcHandler {
+        target: "shopping"
+
+        function open(): string {
+            Runtime.shoppingListOpen = true;
+            return "open";
+        }
+
+        function close(): string {
+            Runtime.shoppingListOpen = false;
+            return "closed";
+        }
+
+        function toggle(): string {
+            Runtime.shoppingListOpen = !Runtime.shoppingListOpen;
+            return Runtime.shoppingListOpen ? "open" : "closed";
+        }
+    }
+
+    IpcHandler {
         target: "store"
 
         function open(): string {

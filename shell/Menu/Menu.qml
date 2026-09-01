@@ -184,12 +184,13 @@ PanelWindow {
             "run": () => Runtime.dashboardOpen = true
         },
         {
-            "key": "w", "label": "Work & Tools", "description": "Notifications, clipboard, tasks, translation, and web apps", "icon": Icons.clipboard,
+            "key": "w", "label": "Work & Tools", "description": "Notifications, lists, notes, translation, and web apps", "icon": Icons.clipboard,
             "sub": [
                 { "key": "n", "label": "Notifications", "description": "Search, DND, and archive", "icon": Icons.bell, "run": () => Runtime.notificationCenterOpen = true },
                 { "key": "c", "label": "Clipboard", "icon": Icons.clipboard, "run": () => Runtime.clipOpen = true },
                 { "key": "t", "label": "Todo", "icon": Icons.todo, "run": () => Runtime.todoOpen = true },
                 { "key": "n", "label": "Notes", "icon": "󰎞", "run": () => Runtime.notesOpen = true },
+                { "key": "s", "label": "Shopping list", "description": "Format and send to the Einkauf WhatsApp group", "icon": Icons.cp(0xF0110), "run": () => Runtime.shoppingListOpen = true },
                 { "key": "h", "label": "Habits", "icon": Icons.habit, "run": () => Runtime.habitsOpen = true },
                 { "key": "e", "label": "Emoji", "description": "Search and copy locally", "icon": "😀", "run": () => Runtime.emojiOpen = true },
                 { "key": "r", "label": "Translate", "icon": "文", "run": () => Plugins.invoke("shaun.quick-translate", "toggle", "{}") },

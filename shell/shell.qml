@@ -19,6 +19,7 @@ import qs.Wallpaper
 import qs.Todo
 import qs.Notes
 import qs.Calculator
+import qs.Shopping
 import qs.Store
 import qs.Habits
 import qs.Net
@@ -79,6 +80,7 @@ ShellRoot {
         // faende beim Schreiben eine leere eigene Seite vor.
         void Todo.count;
         void Notes.count;
+        void ShoppingDraft.draft;
         void Habits.count;
         // Die Leerlaufuhren muessen von Anfang an laufen, nicht erst beim ersten
         // Blick auf die Zelle: sonst begaenne die Frist erst, wenn jemand die
@@ -155,6 +157,8 @@ ShellRoot {
     LazyLoader { active: Runtime.notesOpen; NotesWindow {} }
 
     LazyLoader { active: Runtime.calculatorOpen; CalculatorWindow {} }
+
+    LazyLoader { active: Runtime.shoppingListOpen; ShoppingListWindow {} }
 
     LazyLoader { active: Runtime.storeOpen; StoreWindow {} }
 

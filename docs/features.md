@@ -16,6 +16,10 @@ main menu, the bar, or the `nbshell` command.
 - Settings rendered directly inside the Personalize menu flow, with breadcrumb
   and Back navigation; the direct shortcut and CLI entry remain available
 - Dashboard for media, calendar, tasks, habits, system information, and tools
+- Local-draft shopping-list editor with free-text parsing, an exact WhatsApp
+  preview, explicit clearing, and guarded delivery to one configured group
+  through the optional `wacli` integration. The default group is `Einkauf`;
+  change it with `nbshell set shoppingListTarget 'Groceries'`.
 - Theme and wallpaper selection based on Omarchy-compatible color files
 - A bundled original wallpaper collection and a global picker that can use an
   image from any theme collection without changing the active color theme
@@ -112,6 +116,9 @@ See the [phone webcam guide](phone-webcam.md) for setup and daily use.
   GeForce NOW, and supporting tools
 - Plugin system with managed examples such as Mail, YouTube Music, and Pit
   Wall
+- Read-only Plugin Porting Lab for bounded static inspection of public GitHub
+  repositories and Omarchy marketplace sources; it produces findings and a
+  porting plan without executing, installing, or modifying third-party code
 - Calendar synchronization through `khal` and `vdirsyncer`
 - Syncthing-backed tasks, habits, and wallpapers
 - Faster screen-saver rendering through

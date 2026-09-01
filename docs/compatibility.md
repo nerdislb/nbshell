@@ -39,6 +39,24 @@ only when the dependency is installed or the service is available:
 ## Known beta limitations
 
 - Third-party QML plugins run unsandboxed with the current user's permissions.
+- Quickshell 0.3.1 can log transient `PwNode` device-association errors while
+  its PipeWire registry is still receiving a graph. The same messages reproduce
+  in a minimal Quickshell PipeWire configuration without nbshell code; on the
+  tested PipeWire 1.6.8 system the graph settled with valid default input and
+  output devices. nbshell collapses duplicate output rows by PipeWire node name
+  while retaining the preferred object. Report any missing device or audio
+  failure rather than treating a warning alone as a broken installation.
+- Native screen-reader traversal of Quickshell surfaces is not functional yet.
+  With accessibility forced on for an isolated diagnostic process, both
+  `PanelWindow` and `FloatingWindow` expose only the AT-SPI application root;
+  an ordinary Qt Quick `Window` in the same session exports its frame and label.
+  Keyboard operation and internal Qt accessibility contracts remain tested,
+  but they do not replace a traversable AT-SPI tree. Quickshell fixed the
+  application-lifecycle cause upstream in commit `916a0dd`; the current Arch
+  `quickshell` 0.3.1 package predates that fix, so nbshell keeps this limitation
+  visible until a containing Quickshell release reaches the supported baseline.
+  An isolated build at that commit exported both managed windows and labels,
+  confirming the upstream correction without replacing the packaged runtime.
 - Umbriel currently has no IPC action for arbitrary corner movement of an
   already open floating PiP window.
 - Theme synchronization cannot force already-open websites to repaint.

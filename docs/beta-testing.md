@@ -12,6 +12,10 @@ capture, and animation testing.
 - Confirm that the bar, launcher, dashboard, settings, and power menu open.
 - Confirm that optional modules fail quietly when their programs are absent.
 - Run `nbshell --version`, `nbshell status`, and `umbriel validate`.
+- Check the shell log after startup. Quickshell 0.3.1 may emit the documented
+  transient PipeWire node-association diagnostics; verify that the selected
+  input, output, volume, and mute controls still work before reporting them as
+  a functional regression.
 - With the full capture profile installed, use `grim` for reproducible visual
   comparison screenshots without changing nbshell's native capture workflow.
 
@@ -23,6 +27,9 @@ capture, and animation testing.
   overview, and verify that floating windows remain untouched.
 - Test keyboard-only navigation, Escape behavior, hover previews, and every
   bar edge and mode.
+- When testing with assistive technology, use the native AT-SPI probe and keep
+  the current Quickshell boundary in the report; internal QML metadata tests do
+  not establish screen-reader traversal.
 - Leave the shell idle for at least two hours and compare memory use.
 
 ## Upgrade and recovery

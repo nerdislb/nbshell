@@ -51,8 +51,11 @@ change before version 1.0.
 
    The AT-SPI unit suite validates the probe's privacy, serialization, and
    targeting behavior. It does not assert a traversable live nbshell tree;
-   Quickshell's current proxied-window integration still exports only an empty
-   application root, as documented in the accessibility probe guide.
+   the supported Arch Quickshell 0.3.1 package still exports only an empty
+   application root. The lifecycle cause is fixed upstream after `v0.3.1`, as
+   documented in the accessibility probe guide. An isolated build confirms the
+   correction; a containing packaged release must still be re-tested when it
+   reaches the supported baseline.
 
 3. Install and test the candidate inside a real Umbriel session, including the
    independent agreety/TTY recovery path, using the [beta checklist](beta-testing.md).

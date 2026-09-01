@@ -439,6 +439,7 @@ nbshell -- an independent Quickshell desktop shell for Umbriel
   nbshell agent skills      check shared nbshell skill discovery
   nbshell capture           capture menu (screen, window, region, ocr, record)
   nbshell calculator        open the theme-aware calculator
+  nbshell shopping          open the WhatsApp shopping-list tool
   nbshell store             browse themes, wallpapers, and reviewed plugins
   nbshell system-report     print an agent-safe local system map
   nbshell system-report --write [path]
@@ -675,6 +676,9 @@ case "$cmd" in
         else
             ipc calculator "${1:-toggle}"
         fi
+        ;;
+    shopping|shopping-list)
+        ipc shopping "${1:-toggle}"
         ;;
     store|library)
         ipc store "${1:-toggle}"

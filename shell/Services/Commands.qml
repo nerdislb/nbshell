@@ -55,6 +55,7 @@ Singleton {
             Runtime.requestPopout("volume", Compositor.focusedOutput);
         }));
         out.push(entry("Tasks", "task list (Mod+T)", "Windows", () => Runtime.todoOpen = true));
+        out.push(entry("Shopping list", "draft and send the Einkauf list", "Windows", () => Runtime.shoppingListOpen = true));
         out.push(entry("Restore audio", "move headphones back to the laptop", "Audio", () => Audio.tonZurueck()));
         out.push(entry("Clipboard", "history (Mod+V)", "Windows", () => Runtime.clipOpen = true));
         out.push(entry("Notifications", "archive (Mod+N)", "Windows", () => Runtime.notifyOpen = true));

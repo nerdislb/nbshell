@@ -90,6 +90,7 @@ required_catalog_commands = (
     "nbshell agent skills",
     "nbshell capture",
     "nbshell calculator",
+    "nbshell shopping",
     "nbshell store",
     "nbshell system-report",
     "nbshell memory-guard",

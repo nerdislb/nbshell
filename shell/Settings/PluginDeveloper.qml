@@ -80,7 +80,11 @@ PanelWindow {
         tab = value;
         selected = 0;
         statusText = "";
-        Qt.callLater(search.forceActiveFocus);
+        statusError = false;
+        if (value === "porting")
+            portingLab.focusInput();
+        else
+            Qt.callLater(search.forceActiveFocus);
     }
     function toggleEnabled(item) {
         const local = localFor(item);
@@ -178,7 +182,10 @@ PanelWindow {
             tab = Runtime.pluginManagerTab;
             selected = 0;
             Plugins.refresh();
-            Qt.callLater(search.forceActiveFocus);
+            if (tab === "porting")
+                portingLab.focusInput();
+            else
+                Qt.callLater(search.forceActiveFocus);
         } else {
             cancelPending();
         }
@@ -245,12 +252,13 @@ PanelWindow {
             else if (root.query !== "") root.query = "";
             else root.close();
         }
-        Keys.onUpPressed: root.selected = Math.max(0, root.selected - 1)
-        Keys.onDownPressed: root.selected = Math.min(root.list.length - 1, root.selected + 1)
-        Keys.onReturnPressed: root.primaryAction(root.plugin)
+        Keys.onUpPressed: if (root.tab !== "porting") root.selected = Math.max(0, root.selected - 1)
+        Keys.onDownPressed: if (root.tab !== "porting") root.selected = Math.min(root.list.length - 1, root.selected + 1)
+        Keys.onReturnPressed: if (root.tab !== "porting") root.primaryAction(root.plugin)
         Keys.onPressed: event => {
             if (event.key === Qt.Key_1) { root.selectTab("installed"); event.accepted = true; }
             if (event.key === Qt.Key_2) { root.selectTab("store"); event.accepted = true; }
+            if (event.key === Qt.Key_3) { root.selectTab("porting"); event.accepted = true; }
             if (event.key === Qt.Key_F5) { Plugins.refresh(); event.accepted = true; }
         }
 
@@ -269,8 +277,10 @@ PanelWindow {
                     rowWidth: box.width - Theme.spaceLg * 2
                     icon: Icons.cp(0xF12E)
                     title: "Plugins"
-                    subtitle: "Installed modules and the curated nbshell store"
-                    badge: String(root.list.length)
+                    subtitle: root.tab === "porting"
+                        ? "Assess public community sources before deciding to port"
+                        : "Installed modules and the curated nbshell store"
+                    badge: root.tab === "porting" ? "LAB" : String(root.list.length)
                 }
 
                 Row {
@@ -280,9 +290,11 @@ PanelWindow {
 
                     ControlButton { text: "INSTALLED"; selected: root.tab === "installed"; onTriggered: root.selectTab("installed") }
                     ControlButton { text: "STORE"; selected: root.tab === "store"; onTriggered: root.selectTab("store") }
+                    ControlButton { text: "PORTING LAB"; selected: root.tab === "porting"; onTriggered: root.selectTab("porting") }
 
                     Rectangle {
-                        width: parent.width - Theme.cellW * 25
+                        visible: root.tab !== "porting"
+                        width: parent.width - Theme.cellW * 39
                         height: Theme.controlHeight
                         radius: Theme.radius
                         color: Theme.alpha(Theme.fg, 0.06)
@@ -309,6 +321,9 @@ PanelWindow {
                                 } else if ((event.modifiers & Qt.AltModifier) && event.key === Qt.Key_2) {
                                     root.selectTab("store");
                                     event.accepted = true;
+                                } else if ((event.modifiers & Qt.AltModifier) && event.key === Qt.Key_3) {
+                                    root.selectTab("porting");
+                                    event.accepted = true;
                                 } else if (event.key === Qt.Key_F5) {
                                     Plugins.refresh();
                                     event.accepted = true;
@@ -330,6 +345,7 @@ PanelWindow {
                 Rule { rowWidth: parent.width }
 
                 Row {
+                    visible: root.tab !== "porting"
                     width: parent.width
                     height: Theme.cellH * 28
                     spacing: Theme.spaceLg
@@ -435,8 +451,22 @@ PanelWindow {
                     }
                 }
 
+                PluginPortingLab {
+                    id: portingLab
+                    visible: root.tab === "porting"
+                    width: parent.width
+                    height: Theme.cellH * 28
+                }
+
                 Rule { rowWidth: parent.width }
-                Line { width: parent.width; text: root.statusText !== "" ? root.statusText : "Alt+1/2 tabs · ↑↓ select · Enter enable/install · F5 refresh · Esc close"; color: root.statusError ? Theme.red : Theme.muted; elide: Text.ElideRight }
+                Line {
+                    width: parent.width
+                    text: root.tab === "porting"
+                        ? "Alt+1/2/3 tabs · Enter analyze · report: j/k or arrows scroll · Esc close"
+                        : (root.statusText !== "" ? root.statusText : "Alt+1/2/3 tabs · ↑↓ select · Enter enable/install · F5 refresh · Esc close")
+                    color: root.statusError ? Theme.red : Theme.muted
+                    elide: Text.ElideRight
+                }
             }
 
             Rectangle {

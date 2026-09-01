@@ -311,6 +311,39 @@ shell_root = (ROOT / "shell/shell.qml").read_text(encoding="utf-8")
 if "requested: Runtime.themePickerOpen" not in shell_root or "ThemeGallery {}" not in shell_root:
     raise SystemExit("Theme gallery is no longer owned by the permanent shell lifecycle")
 
+shopping_window = (ROOT / "shell/Shopping/ShoppingListWindow.qml").read_text(encoding="utf-8")
+shopping_service = (ROOT / "shell/Services/ShoppingDraft.qml").read_text(encoding="utf-8")
+config = (ROOT / "shell/Common/Config.qml").read_text(encoding="utf-8")
+for snippet in (
+    "OverlaySurface {",
+    "PanelHead {",
+    "PanelSurface {",
+    "ActionButton {",
+    "Accessible.name: \"Shopping list items\"",
+    "ShoppingDraft.send(root.targetGroup, root.message)",
+    "function onSendFinished(success, message)",
+    "height: parent.height - header.height - separator.height - footer.height - parent.spacing * 3",
+):
+    if snippet not in shopping_window:
+        raise SystemExit(f"Shopping-list surface contract is incomplete: {snippet}")
+for snippet in (
+    "atomicWrites: true",
+    "readonly property bool sending: sendProc.running",
+    '"--to", String(target)',
+    '"--message", String(message)',
+    "onExited: code => Qt.callLater(() => root.finishSend(code))",
+):
+    if snippet not in shopping_service:
+        raise SystemExit(f"Shopping-list service contract is incomplete: {snippet}")
+if "Process {" in shopping_window or "sh -c" in shopping_service:
+    raise SystemExit("Shopping-list sending escaped its permanent safe-argv service")
+if "LazyLoader { active: Runtime.shoppingListOpen; ShoppingListWindow {} }" not in shell_root:
+    raise SystemExit("Shopping-list window is no longer lazy-loaded by the shell")
+if 'readonly property string targetGroup: Config.shoppingListTarget' not in shopping_window:
+    raise SystemExit("Shopping-list target is no longer read from public configuration")
+if 'readonly property string shoppingListTarget: String(value("shoppingListTarget", "Einkauf")).trim() || "Einkauf"' not in config:
+    raise SystemExit("Shopping-list target configuration contract is missing")
+
 wallpaper = (ROOT / "shell/Bar/Wallpaper.qml").read_text(encoding="utf-8")
 for snippet in (
     "mask: Region { item: wallpaperInput }",

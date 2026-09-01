@@ -10,6 +10,12 @@ The beta is intended for people who use Arch Linux or an Arch-based system and
 are comfortable recovering from a TTY. Commands and configuration may still
 change before version 1.0.
 
+Native screen-reader traversal of Quickshell surfaces is not functional in the
+current beta. Keyboard operation and internal accessibility contracts are
+tested, but the supported Arch Quickshell 0.3.1 package still exports an empty
+AT-SPI tree. The lifecycle bug is fixed upstream and awaits a containing
+Quickshell release in the supported baseline.
+
 Useful test areas include:
 
 - fresh Umbriel installation, login, update, and TTY/agreety recovery;
@@ -19,7 +25,9 @@ Useful test areas include:
 - native session lock, suspend, and resume;
 - capture, portal, PipeWire, and Xwayland behavior;
 - optional Mail, WhatsApp, music, AI, phone, and gaming integrations;
-- plugin scaffolding, validation, and strict design checks.
+- shopping-list draft, parsing, preview, exact-group resolution, and send flow;
+- plugin scaffolding, validation, and strict design checks;
+- Plugin Porting Lab reports for representative public community sources.
 
 ## Install
 
@@ -52,7 +60,8 @@ Vulnerabilities belong in the private path described by
 > I built nbshell, an independent Quickshell desktop shell for Umbriel. Its beta
 > brings a searchable keyboard-first UI, native scrolling/dwindle/master
 > layouts, coherent desktop theming, capture and system tools, reviewed plugin
-> integrations, and a checksum-verified updater. It keeps normal Linux tools
+> integrations, a local-draft WhatsApp shopping-list flow, a read-only Plugin
+> Porting Lab, and a checksum-verified updater. It keeps normal Linux tools
 > underneath instead of becoming another full desktop environment. Arch users
 > comfortable with beta software and TTY recovery are welcome to test it.
 

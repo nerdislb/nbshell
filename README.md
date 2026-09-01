@@ -92,12 +92,17 @@ online guide without turning this README into a wall of text.
 - Optional biometric phone approval for the next `sudo` or Polkit action, with
   explicit per-service activation and password authentication retained
 - Calendar, tasks, quick notes, habits, KDE Connect, Android mirroring, and a phone webcam
+- A local-draft shopping-list tool that formats free text and sends the
+  confirmed checklist to one exact WhatsApp group through optional `wacli`
 - Switchable WhatsApp integration: native client or the retained PrettyZap fallback
 - Screenshots, screen recording, OCR, QR scanning, and an animated screen saver
   using `ttfx` 0.3.2+ when available, with Python and built-in fallbacks
 - AI usage for Codex, Claude, Antigravity, and other providers
 - Curated plugin manager with optional modules, dependency details, update
   previews, and managed removal of external plugins
+- A read-only Plugin Porting Lab that inspects bounded public source text,
+  identifies Umbriel and nbshell compatibility work, and never executes or
+  installs the analyzed plugin
 - Agent Center with a default-agent launcher, explicit approval profiles,
   project selection, Herdr sessions, optional Ollama/OpenCode routing, and an
   isolated multi-provider Hermes workflow with human-controlled apply and push
@@ -184,6 +189,7 @@ nbshell modules          # Arrange bar modules
 nbshell plugin-manager   # Manage installed and optional plugins
 nbshell plugin-store     # Browse the curated plugin catalog
 nbshell store            # Browse themes, wallpapers, and plugins together
+nbshell shopping         # Format and send the shopping list
 nbshell system-report    # Print a privacy-conscious diagnostic map
 nbshell demo start       # Record a focused shell demo
 nbshell keys             # Show key bindings
@@ -194,6 +200,13 @@ nbshell aether status    # Check the native Aether Apply bridge
 nbshell ui-gallery       # Preview shared interface components
 nbshell pip status       # Check Zen Picture-in-Picture
 nbshell --help           # Show every command
+```
+
+The shopping-list sender resolves one exact WhatsApp group. It defaults to
+`Einkauf`; choose another synchronized group without editing source code:
+
+```bash
+nbshell set shoppingListTarget 'Groceries'
 ```
 
 The native WhatsApp provider is an optional local-first client backed by

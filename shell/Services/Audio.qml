@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Pipewire
 import qs.Common
+import "AudioNodes.js" as AudioNodes
 
 // Lautstaerke und Ausgabegeraete.
 //
@@ -24,7 +25,7 @@ Singleton {
     readonly property int maxVolume: Config.value("maxVolume", 100)
 
     // Nur echte Ausgaben, keine Anwendungsstroeme (`isStream`).
-    readonly property var sinks: Pipewire.nodes.values.filter(n => n.audio && n.isSink && !n.isStream)
+    readonly property var sinks: AudioNodes.uniqueSinks(Pipewire.nodes.values, sink)
 
     // Laufende Wiedergaben. PipeWire stellt sie als Sink-Streams bereit; so
     // braucht nbshell weder pactl-Ausgaben zu parsen noch einen Polling-Takt.

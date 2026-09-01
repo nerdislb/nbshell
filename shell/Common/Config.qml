@@ -128,6 +128,11 @@ Singleton {
     readonly property int todoKeepDays: value("todoKeepDays", 30)
     readonly property bool todoShowDone: value("todoShowDone", true)
 
+    // Exact WhatsApp group used by the guarded shopping-list sender. Keep the
+    // useful German default while allowing public installations to choose
+    // their own group without changing source code.
+    readonly property string shoppingListTarget: String(value("shoppingListTarget", "Einkauf")).trim() || "Einkauf"
+
     readonly property bool wallpaperEnabled: value("wallpaper", true)
 
     // Umbriel overview tint and workspace-card backdrop.
