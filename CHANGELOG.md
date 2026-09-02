@@ -6,6 +6,8 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+## [0.1.0-beta.8] - 2026-09-02
+
 ### Added
 
 - A local shopping-list tool turns commas, lines, and natural-language input
@@ -63,6 +65,16 @@ configuration and plugin interfaces before `1.0.0`.
 - Top-right notification popups now use nbshell's compact character-grid
   surface instead of the rounded Omarchy-style card treatment, while retaining
   urgency-aware timeouts, hover pause, guarded opening, and right-click dismiss.
+- Notification popup timeouts are now consumed once by the notification
+  service instead of once per monitor. Non-transient `notify-send` messages
+  remain in history while Do Not Disturb suppresses their popup.
+- Umbriel source updates distinguish a safely blocked dirty checkout from an
+  operational error, list the paths that block installation, and keep the
+  update action available once confirmed generated files are quarantined.
+- The standalone Orbital locker no longer imports modules from the main shell
+  configuration, preventing its isolated service from entering a restart loop.
+- Installation rollback remains available until late configuration, plugin,
+  integration, and post-install work has completed successfully.
 
 ## [0.1.0-beta.7] - 2026-08-31
 
@@ -486,7 +498,8 @@ First public beta candidate.
   declared dependencies before activation.
 - Credentials remain outside the repository and plugin configuration.
 
-[Unreleased]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.7...HEAD
+[Unreleased]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.8...HEAD
+[0.1.0-beta.8]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.7...v0.1.0-beta.8
 [0.1.0-beta.7]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.6...v0.1.0-beta.7
 [0.1.0-beta.6]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.5...v0.1.0-beta.6
 [0.1.0-beta.5]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.4...v0.1.0-beta.5

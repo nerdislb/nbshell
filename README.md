@@ -15,7 +15,7 @@ testing, and the direction of the project remain human-led.
 > nbshell is an active beta; commands, configuration, and features may still
 > change before the stable release.
 
-Current prerelease: **0.1.0-beta.7**. See the
+Current prerelease: **0.1.0-beta.8**. See the
 [changelog](CHANGELOG.md) for user-facing changes.
 
 ![nbshell menu in an Umbriel session](docs/assets/nbshell-umbriel-menu.webp)
