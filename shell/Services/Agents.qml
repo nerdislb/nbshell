@@ -99,6 +99,11 @@ Singleton {
         if (project) args = args.concat(["--project", project]);
         action(args);
     }
+    function launchQuick(prompt) {
+        var args = ["quick"];
+        if (prompt) args = args.concat(["--prompt", String(prompt)]);
+        action(args);
+    }
     function resumeHermes(id) {
         if (id) action(["launch", "hermes", "--resume", String(id)]);
     }

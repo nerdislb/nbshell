@@ -15,9 +15,16 @@ Item {
     property var report: null
     property string errorText: ""
     property bool busy: false
+    property string launchStatus: ""
 
     readonly property string script: Qt.resolvedUrl("../scripts/plugin-porting-lab.py").toString().replace("file://", "")
     readonly property var findings: report?.findings ?? []
+    readonly property bool canStartPort: report !== null
+        && String(report?.implementation_prompt ?? "") !== ""
+        && String(report?.verdict?.recommendation ?? "") !== "not-recommended"
+    readonly property string launchAgent: root.configuredLaunchAgent()
+    readonly property bool defaultAgentReady: Agents.agents.some(agent =>
+        String(agent.id) === root.launchAgent && Boolean(agent.installed))
     readonly property color verdictColor: {
         const value = report?.verdict?.recommendation ?? "";
         if (value === "not-recommended") return Theme.red;
@@ -40,6 +47,7 @@ Item {
         }
         busy = true;
         errorText = "";
+        launchStatus = "";
         report = null;
         analyzer.command = ["python3", script, value];
         analyzer.running = true;
@@ -49,7 +57,26 @@ Item {
         sourceUrl = "";
         report = null;
         errorText = "";
+        launchStatus = "";
         focusInput();
+    }
+
+    function startPort() {
+        const prompt = String(report?.implementation_prompt ?? "");
+        if (!canStartPort || !defaultAgentReady || prompt === "") return;
+        if (launchAgent === "hermes") {
+            Quickshell.execDetached(["wl-copy", prompt]);
+            launchStatus = "Hermes opened · implementation prompt copied for pasting";
+        } else {
+            launchStatus = "Implementation prompt sent to " + launchAgent;
+        }
+        Agents.launchQuick(prompt);
+    }
+
+    function configuredLaunchAgent() {
+        const routes = Agents.config.modelProfiles ?? ({});
+        const route = routes[Agents.modelProfile] ?? ({});
+        return String(route.agent || Agents.defaultAgent);
     }
 
     function severityColor(value) {
@@ -308,11 +335,29 @@ Item {
                     }
 
                     Rule { rowWidth: parent.width }
-                    Row {
+                    Flow {
                         width: parent.width
                         spacing: Theme.spaceSm
+                        ControlButton {
+                            text: "START PORT"
+                            visible: root.canStartPort
+                            enabled: root.defaultAgentReady
+                            selected: true
+                            accessibleDescription: "Open the configured coding agent in nbshell with this report's implementation prompt"
+                            onTriggered: root.startPort()
+                        }
                         ControlButton { text: "OPEN SOURCE"; onTriggered: Quickshell.execDetached(["xdg-open", String(root.report?.source?.repository ?? "")]) }
                         ControlButton { text: "ANALYZE ANOTHER"; onTriggered: root.reset() }
+                    }
+                    Line {
+                        width: parent.width
+                        visible: root.canStartPort && (!root.defaultAgentReady || root.launchStatus !== "")
+                        text: root.defaultAgentReady
+                            ? root.launchStatus
+                            : "The configured agent is not installed. Install or select an agent in Agent Center."
+                        color: root.defaultAgentReady ? Theme.green : Theme.yellow
+                        font.pixelSize: Theme.fontCaption
+                        wrapMode: Text.WordWrap
                     }
                     Line { width: parent.width; text: root.report?.disclaimer ?? ""; color: Theme.yellow; font.pixelSize: Theme.fontCaption; wrapMode: Text.WordWrap }
                 }

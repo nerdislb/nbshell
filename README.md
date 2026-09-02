@@ -105,8 +105,9 @@ online guide without turning this README into a wall of text.
 - Curated plugin manager with optional modules, dependency details, update
   previews, and managed removal of external plugins
 - A read-only Plugin Porting Lab that inspects bounded public source text,
-  identifies Umbriel and nbshell compatibility work, and never executes or
-  installs the analyzed plugin
+  identifies Umbriel and nbshell compatibility work, never executes or installs
+  the analyzed plugin, and can hand a suitable report to the configured coding
+  agent with a guarded implementation prompt
 - Agent Center with a default-agent launcher, explicit approval profiles,
   project selection, Herdr sessions, optional Ollama/OpenCode routing, and an
   isolated multi-provider Hermes workflow with human-controlled apply and push

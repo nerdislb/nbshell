@@ -76,6 +76,11 @@ class StaticAnalysisTests(unittest.TestCase):
         self.assertEqual(report["verdict"]["recommendation"], "native-port")
         self.assertEqual(report["verdict"]["confidence"], "high")
         self.assertIn("nbshell-manifest-v2", {item["rule_id"] for item in report["findings"]})
+        prompt = report["implementation_prompt"]
+        self.assertIn("Implement the smallest safe nbshell solution for Weather", prompt)
+        self.assertIn("https://github.com/example/plugin @ main", prompt)
+        self.assertIn("do not execute its scripts", prompt)
+        self.assertIn("Run plugin validation", prompt)
 
     def test_omarchy_hyprland_backend_requires_rebuild_of_integration(self):
         report = self.analyze({
@@ -99,6 +104,7 @@ class StaticAnalysisTests(unittest.TestCase):
         self.assertEqual(report["verdict"]["recommendation"], "not-recommended")
         self.assertLess(report["verdict"]["compatibility"], 50)
         self.assertIn("privileged-install", {item["rule_id"] for item in report["findings"]})
+        self.assertEqual(report["implementation_prompt"], "")
 
     def test_existing_capability_is_preferred_over_duplicate_port(self):
         report = self.analyze({
@@ -113,6 +119,19 @@ class StaticAnalysisTests(unittest.TestCase):
         report = self.analyze({"README.md": "A small plugin idea."})
         self.assertEqual(report["verdict"]["confidence"], "low")
         self.assertIn("manifest-missing", {item["rule_id"] for item in report["findings"]})
+
+
+class AgentHandoffContractTests(unittest.TestCase):
+    def test_porting_lab_launches_quick_agent_with_generated_prompt(self):
+        lab_qml = (ROOT / "shell/Settings/PluginPortingLab.qml").read_text(encoding="utf-8")
+        agents_qml = (ROOT / "shell/Services/Agents.qml").read_text(encoding="utf-8")
+
+        self.assertIn('text: "START PORT"', lab_qml)
+        self.assertIn("visible: root.canStartPort", lab_qml)
+        self.assertIn("Agents.launchQuick(prompt)", lab_qml)
+        self.assertIn("function launchQuick(prompt)", agents_qml)
+        self.assertIn('var args = ["quick"]', agents_qml)
+        self.assertIn('args.concat(["--prompt", String(prompt)])', agents_qml)
 
 
 if __name__ == "__main__":

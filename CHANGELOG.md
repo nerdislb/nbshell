@@ -8,10 +8,19 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Added
 
+- Suitable Plugin Porting Lab reports now offer a `START PORT` action that opens
+  the configured coding agent in the nbshell source tree with a guarded prompt
+  containing the source, verdict, findings, and ordered implementation plan.
 - Twenty-four original Catppuccin Latte, Catppuccin Mocha, Tokyo Night, Nord,
   and Osaka Jade wallpapers add realistic, flat, and pixel-art landscapes,
   mountain scenes, sunsets, and fogbound cities to their matching theme
   collections, with retained Midjourney generation provenance.
+
+### Fixed
+
+- Agent Center launches interactive coding agents in independent transient
+  systemd scopes, so restarting nbshell no longer terminates their terminals or
+  in-progress work.
 
 ## [0.1.0-beta.9] - 2026-09-02
 

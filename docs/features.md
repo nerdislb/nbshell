@@ -118,7 +118,8 @@ See the [phone webcam guide](phone-webcam.md) for setup and daily use.
   Wall
 - Read-only Plugin Porting Lab for bounded static inspection of public GitHub
   repositories and Omarchy marketplace sources; it produces findings and a
-  porting plan without executing, installing, or modifying third-party code
+  porting plan without executing, installing, or modifying third-party code,
+  then offers an explicit coding-agent handoff for suitable reports
 - Calendar synchronization through `khal` and `vdirsyncer`
 - Syncthing-backed tasks, habits, and wallpapers
 - Faster screen-saver rendering through

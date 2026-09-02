@@ -20,13 +20,13 @@ The Plugin Porting Lab combines deterministic source inspection with knowledge o
 
 ## Operating Context
 
-The Porting Lab lives as a third tab in the existing Plugin Center. Version 1 accepts public GitHub repository links and Omarchy marketplace links, then presents a static compatibility report and ordered porting plan. Reports are advisory and are not installation approval.
+The Porting Lab lives as a third tab in the existing Plugin Center. It accepts public GitHub repository links and Omarchy marketplace links, then presents a static compatibility report and ordered porting plan. Reports are advisory and are not installation approval. A separate, explicit handoff can open the configured coding agent with a report-derived implementation prompt when the source is suitable.
 
 ## Capabilities and Constraints
 
-- Version 1 performs static analysis only.
-- It must not execute fetched QML, JavaScript, Python, or shell code.
-- It must not install packages, enable plugins, modify source repositories, or generate patches.
+- Analysis remains static and must not execute fetched QML, JavaScript, Python, or shell code.
+- Analysis must not install packages, enable plugins, modify source repositories, or generate patches.
+- Agent handoff is an explicit user action after analysis. Its prompt must preserve the trust warning, require source re-verification, and follow the normal nbshell development and validation workflow.
 - It supports public sources only and never handles repository credentials.
 - It must distinguish deterministic findings from uncertain inference.
 - Third-party QML ultimately runs unsandboxed when separately installed, so the interface must preserve an explicit trust warning.
