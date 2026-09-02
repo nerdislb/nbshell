@@ -16,6 +16,7 @@ jobs:
       - name: Install test dependencies
         run: >-
           pacman -Syu --noconfirm git bash make python python-atspi jq nodejs shadow gcc pkgconf wayland qt6-declarative
+          debugedit fakeroot
           wayland-protocols bubblewrap diffutils ttf-dejavu
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -579,12 +579,15 @@ for snippet in (
     'function release(entry, reason)',
     '.slice(0, Math.max(1, root.maxPopupCount))',
     'const keepHistory = showPopup || !root.isEphemeral(notification)',
+    'return transient || app === "nbshell-action";',
     'notification.id + ":" + (++root.keySerial)',
 ):
     if snippet not in notify:
         raise SystemExit(f"Omarchy-compatible notification timing contract is incomplete: {snippet}")
 if notify.count("root.consumePopupLifetime(entry.key, interval)") != 1:
     raise SystemExit("Notification lifetime must be consumed once by the service-owned clock")
+if 'return transient || app === "notify-send"' in notify:
+    raise SystemExit("Non-transient notify-send notifications must remain in history during DND")
 
 popups = (ROOT / "shell/Notifications/Popups.qml").read_text(encoding="utf-8")
 notification_toast = (ROOT / "shell/Notifications/NotificationToast.qml").read_text(encoding="utf-8")

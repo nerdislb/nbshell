@@ -154,7 +154,7 @@ Singleton {
         } catch (e) {
             transient = false;
         }
-        return transient || app === "notify-send" || app === "nbshell-action";
+        return transient || app === "nbshell-action";
     }
 
     function release(entry, reason) {
