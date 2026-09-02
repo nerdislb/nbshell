@@ -6,6 +6,13 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+### Added
+
+- Twenty-four original Catppuccin Latte, Catppuccin Mocha, Tokyo Night, Nord,
+  and Osaka Jade wallpapers add realistic, flat, and pixel-art landscapes,
+  mountain scenes, sunsets, and fogbound cities to their matching theme
+  collections, with retained Midjourney generation provenance.
+
 ## [0.1.0-beta.9] - 2026-09-02
 
 ### Fixed
