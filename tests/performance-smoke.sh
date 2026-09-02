@@ -61,10 +61,14 @@ setup = (root / "shell/scripts/omawhatsapp.sh").read_text(encoding="utf-8")
 manifest = (root / "integrations/omawhatsapp/manifest.json").read_text(encoding="utf-8")
 patch = (root / "integrations/omawhatsapp/nbshell-refresh.patch").read_text(encoding="utf-8")
 composer_patch = (root / "integrations/omawhatsapp/nbshell-composer-scroll.patch").read_text(encoding="utf-8")
+wheel_patch = (root / "integrations/omawhatsapp/nbshell-wheel-scroll.patch").read_text(encoding="utf-8")
+wheel_handler = (root / "integrations/omawhatsapp/FastScrollHandler.qml").read_text(encoding="utf-8")
 assert "source_revision=1f58d8da93565f020a63a61ad314c965cbcd8cdc" in setup
-assert '"version": "0.11.2-nbshell.1"' in manifest
+assert '"version": "0.11.2-nbshell.2"' in manifest
 assert 'nbshell-refresh.patch' in setup
 assert 'nbshell-composer-scroll.patch' in setup
+assert 'nbshell-wheel-scroll.patch' in setup
+assert 'FastScrollHandler.qml' in setup
 assert 'omawhatsapp_assets.py' in setup
 assert 'value in (old, "whatsapp")' in setup
 assert "defer_shell_restart=1" in setup
@@ -73,6 +77,12 @@ assert composer_patch.count("+            ScrollView {") == 1
 assert composer_patch.count("+                ScrollView {") == 1
 assert composer_patch.count("ScrollBar.vertical.policy: ScrollBar.AsNeeded") == 2
 assert composer_patch.count("width: composerScroll.availableWidth") == 2
+assert wheel_patch.count("+              FastScrollHandler {") == 1
+assert wheel_patch.count("+            FastScrollHandler {") == 3
+assert wheel_patch.count("+          FastScrollHandler {") == 1
+assert "Application.styleHints.wheelScrollLines" in wheel_handler
+assert "acceptedDevices: PointerDevice.Mouse" in wheel_handler
+assert "event.pixelDelta.y" in wheel_handler
 removed_names = (
     "storeWatchProcess", "storeWatchers", "storeWatchRestart",
     "storeRefreshDebounce", "refreshFromStore", "storeRefreshPending",

@@ -1,0 +1,64 @@
+--- a/App.qml
++++ b/App.qml
+@@ -1582,6 +1582,11 @@
+             boundsBehavior: Flickable.StopAtBounds
+             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+ 
++            FastScrollHandler {
++              parent: settingsScroller
++              flickable: settingsScroller
++            }
++
+             Column {
+               id: settingsContent
+               width: parent.width
+@@ -1971,6 +1976,11 @@
+             currentIndex: root.chatCursorIndex
+             boundsBehavior: Flickable.StopAtBounds
+ 
++            FastScrollHandler {
++              parent: chatList
++              flickable: chatList
++            }
++
+             delegate: Rectangle {
+               id: chatRow
+               required property var modelData
+@@ -2379,6 +2389,11 @@
+           verticalLayoutDirection: ListView.BottomToTop
+           boundsBehavior: Flickable.StopAtBounds
+ 
++          FastScrollHandler {
++            parent: messageList
++            flickable: messageList
++          }
++
+           delegate: Item {
+             id: messageRow
+             required property var modelData
+--- a/Dropdown.qml
++++ b/Dropdown.qml
+@@ -860,6 +860,11 @@
+               boundsBehavior: Flickable.StopAtBounds
+               ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+ 
++              FastScrollHandler {
++                parent: chatList
++                flickable: chatList
++              }
++
+               delegate: Item {
+                 id: chatRow
+                 required property var modelData
+@@ -1132,5 +1137,11 @@
+             boundsBehavior: Flickable.StopAtBounds
+             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
++
++            FastScrollHandler {
++              parent: messageList
++              flickable: messageList
++            }
++
+             delegate: Item {
+               required property var modelData
+               required property int index

@@ -80,12 +80,14 @@ setup() (
     patch -d "$staged_plugin" -p1 < "$runtime_shell/integrations/omawhatsapp/nbshell-responsive.patch"
     patch -d "$staged_plugin" -p1 < "$runtime_shell/integrations/omawhatsapp/nbshell-refresh.patch"
     patch -d "$staged_plugin" -p1 < "$runtime_shell/integrations/omawhatsapp/nbshell-composer-scroll.patch"
+    patch -d "$staged_plugin" -p1 < "$runtime_shell/integrations/omawhatsapp/nbshell-wheel-scroll.patch"
     # Keep the upstream/internal identity stable while presenting this as a
     # normal nbshell WhatsApp client in every user-facing QML string.
     find "$staged_plugin" -type f -name '*.qml' -exec sed -i 's/OmaWhatsApp/WhatsApp/g' {} +
     install -Dm644 "$runtime_shell/integrations/omawhatsapp/manifest.json" "$staged_plugin/manifest.json"
     install -Dm644 "$runtime_shell/integrations/omawhatsapp/BarWidget.qml" "$staged_plugin/BarWidget.qml"
     install -Dm644 "$runtime_shell/integrations/omawhatsapp/ToggleSwitch.qml" "$staged_plugin/ToggleSwitch.qml"
+    install -Dm644 "$runtime_shell/integrations/omawhatsapp/FastScrollHandler.qml" "$staged_plugin/FastScrollHandler.qml"
     install -Dm644 "$source/LICENSE" "$staged_plugin/LICENSE"
     install -Dm755 "$source/bin/omawhatsapp" "$bin_dir/omawhatsapp"
     install -Dm644 "$source/bin/omawhatsapp_assets.py" "$bin_dir/omawhatsapp_assets.py"
