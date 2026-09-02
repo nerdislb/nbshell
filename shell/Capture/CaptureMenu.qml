@@ -44,7 +44,7 @@ PanelWindow {
 
     visible: Runtime.captureOpen
 
-    screen: Quickshell.screens[0] ?? null
+    screen: Compositor.focusedScreen
     color: "transparent"
 
     WlrLayershell.namespace: "nbshell:capture"
@@ -158,57 +158,25 @@ PanelWindow {
                 Repeater {
                     model: root.shownActions
 
-                    Rectangle {
+                    PanelRow {
                         id: row
 
                         required property var modelData
                         required property int index
 
                         width: column.width
-                        height: Theme.rowHeight
-                        radius: Theme.radius
-                        color: row.index === root.selected ? Theme.selectedSurface(Theme.accent) : Theme.panelSurfaceRaised
-                        border.width: Theme.borderWidth
-                        border.color: row.index === root.selected ? Theme.focusBorder : Theme.panelBorder
-
-                        Rectangle {
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: Theme.borderWidth * 2
-                            height: parent.height * 0.55
-                            radius: width
-                            color: row.index === root.selected ? Theme.selectedForeground(Theme.accent) : Theme.accent
-                            visible: row.index === root.selected
-                        }
-
-                        Line {
-                            anchors.left: parent.left
-                            anchors.leftMargin: Theme.cellW / 2
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: Theme.cellW * 3
-                            text: row.index === root.selected ? "▸ " + row.modelData.key.toUpperCase() : row.modelData.key.toUpperCase()
-                            color: Theme.accent
-                            font.bold: true
-                        }
-
-                        Line {
-                            anchors.left: parent.left
-                            anchors.leftMargin: Theme.cellW * 3.5
-                            anchors.right: parent.right
-                            anchors.rightMargin: Theme.cellW / 2
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: row.modelData.label + (row.modelData.detail ? "  ·  " + row.modelData.detail : "")
-                            color: row.index === root.selected ? Theme.selectedForeground(Theme.accent) : Theme.fg
-                            font.pixelSize: Theme.fontBody
-                            elide: Text.ElideRight
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onEntered: root.selected = row.index
-                            onClicked: root.accept()
+                        title: row.modelData.label
+                        detail: row.modelData.detail || ""
+                        value: row.modelData.key.toUpperCase()
+                        selected: row.index === root.selected
+                        interactive: true
+                        accessibleDescription: [detail,
+                            root.windowMode ? "Capture this window" : "Capture action",
+                            "shortcut " + value].filter(part => part !== "").join("; ")
+                        onHoveredChanged: if (hovered) root.selected = row.index
+                        onTriggered: {
+                            root.selected = row.index;
+                            root.accept();
                         }
                     }
                 }

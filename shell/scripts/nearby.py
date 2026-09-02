@@ -13,6 +13,7 @@ Vom Protokoll (v2) wird der Teil umgesetzt, den man wirklich braucht:
     register   ein bekanntes Geraet direkt fragen (ohne Multicast)
     send       Dateien uebertragen
     text       Text als Datei uebertragen
+    latest-image  neuestes PNG/JPG in einem Verzeichnis ausgeben
     me         die eigene Kennung
 
 EMPFANGEN kann das hier NICHT. Dafuer braeuchte es einen dauerhaft laufenden
@@ -334,6 +335,20 @@ def cmd_text(ip, port, protocol, text):
         cmd_send(ip, port, protocol, [pfad])
 
 
+def cmd_latest_image(directory):
+    """Print the newest screenshot without routing its path through a shell."""
+    try:
+        candidates = (
+            entry for entry in os.scandir(directory)
+            if entry.is_file() and os.path.splitext(entry.name)[1].lower() in {".png", ".jpg"}
+        )
+        latest = max(candidates, key=lambda entry: entry.stat().st_mtime_ns, default=None)
+    except OSError:
+        latest = None
+    if latest is not None:
+        print(latest.path)
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__.strip())
@@ -351,6 +366,8 @@ def main():
         cmd_send(rest[0], rest[1], rest[2], rest[3:])
     elif befehl == "text":
         cmd_text(rest[0], rest[1], rest[2], rest[3])
+    elif befehl == "latest-image":
+        cmd_latest_image(rest[0])
     else:
         print(json.dumps({"ok": False, "grund": f"unknown: {befehl}"}))
         return 2

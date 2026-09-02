@@ -16,6 +16,23 @@ Do not run the setup script as root.
 
 ## Install
 
+### One-command bootstrap
+
+Download the bootstrap script, then let it select, verify, and run the latest
+published beta installer:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nerdislb/nbshell/main/bootstrap.sh -O && bash bootstrap.sh
+```
+
+The command does not pipe network content into a shell. The bootstrap verifies
+the release archive's SHA-256 checksum to detect corruption, safely extracts
+one nbshell source tree, and starts `setup.sh`. Pass `--full` for the complete
+optional tool set. The checksum is shipped beside the archive and is not an
+independent cryptographic signature.
+
+### From a Git clone
+
 Open a terminal as your normal user and run:
 
 ```bash

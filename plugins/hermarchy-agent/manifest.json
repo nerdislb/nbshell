@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "id": "hermarchy-agent",
   "name": "Hermarchy Agent Signal",
-  "description": "Optional compact Hermes state signal for comparing with nbshell's full AI module",
+  "description": "Optional compact Hermes state signal for comparison with the full nbshell AI module.",
   "category": "AI",
   "version": "1.0.0",
   "author": "Archer Clawbot; nbshell adapter by nerdi",

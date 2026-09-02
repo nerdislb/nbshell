@@ -21,6 +21,8 @@ SpinBox {
   Accessible.name: label
   onValueModified: modified(value)
 
+  // Intentional internal display item: NumberField is a read-only SpinBox, not
+  // a free-text input. Accessibility remains owned by the SpinBox root.
   contentItem: TextInput {
     text: root.textFromValue(root.value, root.locale)
     color: root.foreground

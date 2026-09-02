@@ -12,9 +12,9 @@ test suites, and installs the root-owned stack below `/usr/local`. The system
 session entry is `/usr/share/wayland-sessions/umbriel.desktop` and launches
 `/usr/local/bin/start-umbriel`.
 
-The currently reviewed pair is recorded in `setup-umbriel.sh` and
+The installation baseline is recorded in `setup-umbriel.sh` and
 `shell/Catalog/external-sources.json`. `nbshell upstream-audit` reports newer
-upstream commits for review but never imports or installs them automatically.
+upstream commits without installing them automatically.
 
 A files-only installation expects Umbriel to exist already:
 
@@ -96,10 +96,13 @@ nbshell update
 nbshell update umbriel
 ```
 
-The updater accepts only clean checkouts with expected origins, checks out the
-reviewed revision pair, builds and tests both projects, then installs both. The
-running compositor is not restarted; the new binary becomes active at the next
-login.
+The Umbriel updater compares both clean source checkouts with their upstream
+default-branch heads. After explicit confirmation it fetches the exact revisions
+reported by the check, builds and tests both projects, then installs both. This
+uses isolated detached worktrees and rejects remote history that does not
+fast-forward the installed source checkout. Both DESTDIR trees are merged before
+live files change and deployed as one rollback-capable transaction. The running compositor is not
+restarted; the new binary becomes active at the next login.
 
 Use the nested profile for a non-DRM development smoke test:
 

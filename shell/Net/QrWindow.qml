@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import qs.Common
+import qs.Services
 import qs.Widgets
 
 // Das WLAN als QR-Code -- zum Abscannen mit dem Telefon.
@@ -54,7 +55,7 @@ PanelWindow {
 
     visible: Runtime.qrOpen
 
-    screen: Quickshell.screens[0] ?? null
+    screen: Compositor.focusedScreen
     color: "transparent"
 
     WlrLayershell.namespace: "nbshell:wifi-qr"

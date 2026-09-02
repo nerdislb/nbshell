@@ -79,7 +79,7 @@ Singleton {
     // The target directory must exist before the compositor writes the image.
     function shoot(kind) {
         const path = shotDir + "/screenshot-" + stamp() + ".png";
-        Quickshell.execDetached(["sh", "-c", "mkdir -p " + JSON.stringify(shotDir)]);
+        Quickshell.execDetached(["mkdir", "-p", shotDir]);
         if (!compositorShot(kind, path))
             return false;
         run(["post", path, editor, autoEdit ? "1" : "0", notifyOn ? "1" : "0"]);
@@ -88,7 +88,7 @@ Singleton {
 
     function shootWindow(windowId) {
         const path = shotDir + "/screenshot-" + stamp() + ".png";
-        Quickshell.execDetached(["sh", "-c", "mkdir -p " + JSON.stringify(shotDir)]);
+        Quickshell.execDetached(["mkdir", "-p", shotDir]);
         if (!Compositor.available)
             return false;
         const win = Compositor.windows.find(candidate => String(candidate.id) === String(windowId));
@@ -120,7 +120,7 @@ Singleton {
             run(["rec-stop", notifyOn ? "1" : "0"]);
             return "gestoppt";
         }
-        Quickshell.execDetached(["sh", "-c", "mkdir -p " + JSON.stringify(videoDir)]);
+        Quickshell.execDetached(["mkdir", "-p", videoDir]);
         run(["rec-start", videoDir, recAudio, recRegion ? "1" : "0"]);
         return "running";
     }

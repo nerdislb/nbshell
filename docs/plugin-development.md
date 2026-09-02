@@ -36,7 +36,11 @@ nbshell plugin enable io.github.alice.weather
 ```
 
 Newly cloned third-party plugins remain disabled until the user explicitly
-enables them.
+enables them. `plugin add` and `plugin update` repeat the strict design check;
+they reject a manifest id already installed under another directory, and an
+update may not change the installed plugin's id. Bundled catalog identity fields
+are checked against these manifests in CI, with the manifest as the canonical
+source.
 
 ## Manifest v2
 

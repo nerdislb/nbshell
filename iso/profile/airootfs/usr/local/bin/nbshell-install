@@ -1,0 +1,4 @@
+#!/usr/bin/python3
+import runpy
+
+runpy.run_path("/usr/local/lib/nbshell/installer.py", run_name="__main__")

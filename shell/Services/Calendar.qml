@@ -89,6 +89,11 @@ Singleton {
     // Termine des geladenen Fensters, nach Beginn sortiert.
     property var events: []
     property var calendars: []
+    property var writableCalendars: []
+
+    property bool creating: false
+    property string createError: ""
+    signal eventCreated(bool ok, string error)
 
     property bool loading: false
     property bool available: true
@@ -145,6 +150,15 @@ Singleton {
     function sync() {
         syncProc.command = ["bash", root.script, "sync"];
         syncProc.running = true;
+    }
+
+    function createEvent(calendarName, title, startIso, endIso) {
+        if (root.creating)
+            return;
+        root.createError = "";
+        root.creating = true;
+        createProc.command = ["bash", root.script, "create", String(calendarName ?? ""), String(startIso ?? ""), String(endIso ?? ""), String(title ?? "")];
+        createProc.running = true;
     }
 
     // ── Auswerten ─────────────────────────────────────────────────────────
@@ -261,6 +275,32 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: root.calendars = String(text).split("\n").map(s => s.trim()).filter(s => s !== "")
         }
+    }
+
+    Process {
+        id: writableListProc
+
+        command: ["bash", root.script, "writable-calendars"]
+        running: root.enabled
+
+        stdout: StdioCollector {
+            onStreamFinished: root.writableCalendars = String(text).split("\n").map(s => s.trim()).filter(s => s !== "")
+        }
+    }
+
+    Process {
+        id: createProc
+
+        stderr: StdioCollector { id: createErr }
+        onExited: code => Qt.callLater(() => {
+            const ok = Number(code) === 0;
+            const error = ok ? "" : (String(createErr.text || "").trim().split("\n")[0] || "The event could not be created.");
+            root.creating = false;
+            root.createError = error;
+            root.eventCreated(ok, error);
+            if (ok)
+                root.sync();
+        })
     }
 
     Timer {

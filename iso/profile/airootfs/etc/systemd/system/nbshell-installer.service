@@ -1,0 +1,17 @@
+[Unit]
+Description=nbshell installer introduction
+Conflicts=getty@tty1.service
+Before=getty@tty1.service
+
+[Service]
+Type=simple
+ExecStart=/bin/sh -c '/usr/local/bin/nbshell-install; exec /usr/bin/agetty --noclear --autologin root tty1 linux'
+StandardInput=tty-force
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+
+[Install]
+WantedBy=multi-user.target

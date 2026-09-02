@@ -42,7 +42,7 @@ PanelWindow {
     readonly property int maximumOffset: Math.max(0, root.rows.length - root.rowsPerPage)
 
     visible: Runtime.keysOpen
-    screen: Quickshell.screens[0] ?? null
+    screen: Compositor.focusedScreen
     color: "transparent"
     anchors { left: true; right: true; top: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore

@@ -59,6 +59,10 @@ Current prerelease: **0.1.0-beta.7**. See the
 
 - [Manual](docs/index.md) — setup, features, browser themes, and video trimming
 - [Getting started](docs/getting-started.md) — install, first login, and checks
+- [Installation strategy](docs/distribution.md) — one-command bootstrap,
+  packaging roadmap, and the private ISO experiment
+- [Private ISO testing](docs/iso-testing.md) — QEMU-first destructive-installer
+  safeguards and publication blockers
 - [Compatibility](docs/compatibility.md) — supported baseline and beta limitations
 - [Beta testing](docs/beta-testing.md) — clean-machine and hardware checklist
 - [Join the public beta](docs/beta-invitation.md) — tester profile, feedback, and media plan
@@ -127,6 +131,29 @@ matching services or devices are available.
 
 Open a terminal as your normal user. Starting from an existing Wayland session
 is convenient but not required. Do not run the script as root.
+
+### One-command bootstrap
+
+Download the bootstrap script, then let it select, verify, and run the latest
+published beta installer:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nerdislb/nbshell/main/bootstrap.sh -O && bash bootstrap.sh
+```
+
+> The bootstrap requires the Sigstore bundle produced by the new release
+> workflow. Releases published before that workflow are intentionally skipped;
+> until the next signed beta is published, use the Git-clone installation below.
+
+This deliberately downloads to a file instead of piping network content into a
+shell. `bootstrap.sh` verifies the release workflow's Sigstore signature and
+the archive's SHA-256 checksum, safely extracts it, and starts the same
+`setup.sh` flow described below. Use `bash bootstrap.sh --full` for all optional desktop tools,
+or `--channel stable` after a stable release exists. Verification is bound to
+the exact tag and pinned release workflow. On Arch the bootstrap installs the
+repository-signed `cosign` package first when needed.
+
+### From a Git clone
 
 ```bash
 git clone https://github.com/nerdislb/nbshell.git

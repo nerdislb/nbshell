@@ -1,0 +1,10 @@
+[Unit]
+Description=nbshell recovery console
+Conflicts=getty@tty1.service
+
+[Service]
+ExecStart=-/usr/bin/agetty --noclear tty1 linux
+Restart=always
+StandardInput=tty
+StandardOutput=tty
+TTYPath=/dev/tty1

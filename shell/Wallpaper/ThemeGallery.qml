@@ -21,7 +21,7 @@ PanelWindow {
     readonly property var current: filteredThemes[selected] ?? null
 
     visible: true
-    screen: Quickshell.screens[0] ?? null
+    screen: Compositor.focusedScreen
     color: "transparent"
     anchors { left: true; right: true; top: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore
@@ -143,7 +143,7 @@ PanelWindow {
                         Accessible.ignored: true
                     }
 
-                    TextInput {
+                    TextField {
                         id: searchInput
                         anchors.left: searchPrompt.right
                         anchors.right: matchCount.left
@@ -156,9 +156,12 @@ PanelWindow {
                         selectedTextColor: Theme.selectedForeground(Theme.accent)
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontBody
+                        background: null
+                        horizontalPadding: 0
                         clip: true
                         activeFocusOnTab: true
-                        Accessible.role: Accessible.EditableText
+                        accessibleName: "Search themes"
+                        accessibleDescription: "Filters the available themes"
                         Accessible.name: "Search themes"
                         onTextEdited: root.query = text
                         Keys.onEscapePressed: root.close()

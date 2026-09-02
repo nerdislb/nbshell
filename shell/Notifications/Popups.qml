@@ -8,9 +8,9 @@ import qs.Widgets
 
 // Die Karten, die bei einer neuen Benachrichtigung aufgehen.
 //
-// Sie stehen gegenueber der Leiste am rechten Rand, gestapelt, neueste oben.
-// Jede laeuft nach `notifyTimeout` von selbst ab; dringende bleiben stehen,
-// bis man sie wegklickt -- so, wie es die Spezifikation vorsieht.
+// Native nbshell toast stack: compact, grid-aligned, passive and focus-safe.
+// Low and normal messages use their urgency-aware timeout (and respect a
+// longer sender timeout); critical messages remain until explicitly closed.
 Variants {
     model: Quickshell.screens
 
@@ -19,15 +19,13 @@ Variants {
 
         required property var modelData
 
-        // Vorgabe: gegenueber der Leiste. Wer es anders will, setzt
-        // `notifyCorner` auf "top" oder "bottom".
+        // Keep the explicit bottom override for existing users. The native
+        // default stays at the top-right, clear of the shell bar.
         readonly property bool atTop: {
             const wish = Config.value("notifyCorner", "auto");
-            if (wish === "top")
-                return true;
             if (wish === "bottom")
                 return false;
-            return Config.edge !== "top";
+            return true;
         }
 
         // Steht die Leiste auf derselben Seite, muss der Stapel UNTER ihr
@@ -72,8 +70,8 @@ Variants {
         // nimmt (Theme.cellH). Vorher stand hier cellW*2, was schmaler war als
         // der rechte Stapelrand -- die linke Kartenkante rutschte dadurch knapp
         // aus dem Fenster und der linke Rahmen wurde abgeschnitten.
-        implicitWidth: stack.implicitWidth + Theme.cellH * 2
-        implicitHeight: Math.min(screen.height * 0.85, stack.implicitHeight + Theme.cellH * 2)
+        implicitWidth: stack.implicitWidth + Theme.spaceMd * 2
+        implicitHeight: Math.min(screen.height * 0.85, stack.implicitHeight + Theme.spaceMd * 2)
 
         margins.top: win.atTop ? win.barSpace : 0
         margins.bottom: win.atTop ? 0 : win.barSpace
@@ -88,110 +86,23 @@ Variants {
             anchors.right: parent.right
             anchors.top: win.atTop ? parent.top : undefined
             anchors.bottom: win.atTop ? undefined : parent.bottom
-            anchors.margins: Theme.cellH
+            anchors.margins: Theme.spaceMd
 
-            spacing: Theme.cellH * 0.5
+            spacing: Theme.spaceSm
 
             Repeater {
                 model: Notify.popups
 
-                PanelSurface {
-                    id: card
-
+                NotificationToast {
                     required property var modelData
-
-                    // Angezeigt wird der Eintrag, nicht die Benachrichtigung:
-                    // was aus dem Archiv auf der Platte kommt, hat kein
-                    // lebendes Objekt mehr. Nur die Aktionsknoepfe brauchen es
-                    // -- die gibt es dann eben nicht.
-                    readonly property var n: modelData.notification
-                    readonly property bool urgent: modelData.urgency === NotificationUrgency.Critical
-
-                    width: Theme.cellW * 48
-                    height: body.implicitHeight + Theme.cellH
-
-                    accentBorder: true
-                    border.color: card.urgent ? Theme.red : Theme.focusBorder
-
-                    // Dringendes bleibt stehen, bis es jemand wegklickt.
-                    Timer {
-                        interval: Notify.popupTimeout
-                        running: !card.urgent && !hover.hovered
-                        onTriggered: Notify.dismissPopup(card.modelData.key)
+                    width: Math.max(1, Math.min(implicitWidth,
+                        win.screen.width - Theme.overlayMarginX * 2))
+                    entry: modelData
+                    onOpened: {
+                        if (!Notify.open(modelData))
+                            Notify.dismissPopup(modelData.key);
                     }
-
-                    HoverHandler {
-                        id: hover
-                    }
-
-                    Column {
-                        id: body
-
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.margins: Theme.cellW
-                        spacing: Theme.cellH * 0.2
-
-                        Line {
-                            width: parent.width
-                            text: (card.urgent ? "! " : "") + (card.modelData.appName || "System") + "  ·  " + Notify.ago(card.modelData.time)
-                            color: card.urgent ? Theme.red : Theme.fgDim
-                            elide: Text.ElideRight
-                        }
-
-                        Line {
-                            width: parent.width
-                            visible: text !== ""
-                            text: card.modelData.summary ?? ""
-                            color: Theme.fgBright
-                            wrapMode: Text.WordWrap
-                            maximumLineCount: 2
-                            elide: Text.ElideRight
-                        }
-
-                        Line {
-                            width: parent.width
-                            visible: text !== ""
-                            // Der Text darf Auszeichnung enthalten; als
-                            // RichText gelesen bleibt <b> ein Fettdruck statt
-                            // sichtbarer Klammern.
-                            text: card.modelData.body ?? ""
-                            textFormat: Text.RichText
-                            color: Theme.fg
-                            wrapMode: Text.WordWrap
-                            maximumLineCount: 4
-                            elide: Text.ElideRight
-                        }
-
-                        Row {
-                            spacing: Theme.cellW
-                            visible: (card.n?.actions?.length ?? 0) > 0
-
-                            Repeater {
-                                model: card.n?.actions ?? []
-
-                                ActionButton {
-                                    id: actionButton
-
-                                    required property var modelData
-
-                                    text: actionButton.modelData.text
-                                    compact: true
-                                    onTriggered: Notify.invoke(card.modelData.key, actionButton.modelData)
-                                }
-                            }
-                        }
-                    }
-
-                    TapHandler {
-                        acceptedButtons: Qt.LeftButton | Qt.RightButton
-                        // Rechtsklick entfernt nur die sichtbare Karte. Im
-                        // Verlauf bleibt die Meldung zum spaeteren Nachlesen.
-                        // Die inneren Aktionsknoepfe gewinnen ihren eigenen
-                        // Pointer-Grab und funktionieren weiterhin separat.
-                        onTapped: Notify.dismissPopup(card.modelData.key)
-                    }
+                    onRemoved: Notify.dismissPopup(modelData.key)
                 }
             }
         }

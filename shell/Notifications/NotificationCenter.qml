@@ -11,13 +11,14 @@ PanelWindow {
     id: root
     property string query: ""
     property int selected: 0
+    property bool clearArmed: false
     readonly property var shown: Notify.history.filter(entry => {
         const needle = query.trim().toLowerCase();
         return needle === "" || ((entry.appName || "") + " " + (entry.summary || "") + " " + (entry.body || "")).toLowerCase().indexOf(needle) >= 0;
     })
 
     visible: true
-    screen: Quickshell.screens[0] ?? null
+    screen: Compositor.focusedScreen
     color: "transparent"
     anchors { left: true; right: true; top: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore
@@ -37,7 +38,17 @@ PanelWindow {
             close();
         }
     }
-    onVisibleChanged: if (visible) { query = ""; selected = 0; keys.forceActiveFocus(); }
+    function requestClear() {
+        if (!clearArmed) {
+            clearArmed = true;
+            clearReset.restart();
+            return;
+        }
+        clearReset.stop();
+        clearArmed = false;
+        Notify.clear();
+    }
+    onVisibleChanged: if (visible) { query = ""; selected = 0; clearArmed = false; keys.forceActiveFocus(); }
     onQueryChanged: {
         selected = 0;
         Qt.callLater(() => flick.revealSelected());
@@ -65,7 +76,7 @@ PanelWindow {
             else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) root.openSelected();
             else if (event.key === Qt.Key_Delete || event.key === Qt.Key_X) root.dropSelected();
             else if (event.key === Qt.Key_D) Notify.setDnd(!Notify.dnd);
-            else if (event.key === Qt.Key_C && (event.modifiers & Qt.ControlModifier)) Notify.clear();
+            else if (event.key === Qt.Key_C && (event.modifiers & Qt.ControlModifier)) root.requestClear();
             else if (event.text && event.text >= " ") root.query += event.text;
             else handled = false;
             event.accepted = handled;
@@ -90,7 +101,13 @@ PanelWindow {
                         id: controls
                         spacing: Theme.cellW
                         ActionButton { text: Notify.dnd ? "DND on" : "DND off"; tone: Notify.dnd ? "primary" : "secondary"; compact: true; accentColor: Theme.yellow; onTriggered: Notify.setDnd(!Notify.dnd) }
-                        ActionButton { text: "Clear all"; tone: "danger"; compact: true; enabled: Notify.count > 0; onTriggered: Notify.clear() }
+                        ActionButton {
+                            text: root.clearArmed ? "Confirm clear" : "Clear all"
+                            tone: "danger"
+                            compact: true
+                            enabled: Notify.count > 0
+                            onTriggered: root.requestClear()
+                        }
                     }
                 }
                 Rectangle {
@@ -144,8 +161,14 @@ PanelWindow {
                         }
                     }
                 }
-                Line { text: "↑↓ select · x/Del remove · d DND · Ctrl+c clear all · type to search · Esc"; color: Theme.muted }
+                Line { text: "↑↓ select · x/Del remove · d DND · Ctrl+c twice clears · type to search · Esc"; color: Theme.muted }
             }
         }
+    }
+
+    Timer {
+        id: clearReset
+        interval: 3000
+        onTriggered: root.clearArmed = false
     }
 }

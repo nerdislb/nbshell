@@ -32,7 +32,7 @@ PanelWindow {
 
     visible: Runtime.wallpaperOpen
 
-    screen: Quickshell.screens[0] ?? null
+    screen: Compositor.focusedScreen
     color: "transparent"
 
     WlrLayershell.namespace: "nbshell:wallpaperpicker"

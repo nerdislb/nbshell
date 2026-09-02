@@ -2,12 +2,13 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import qs.Common
+import qs.Services
 
 PanelWindow {
     id: root
 
     visible: true
-    screen: Quickshell.screens[0] ?? null
+    screen: Compositor.focusedScreen
     color: "transparent"
 
     WlrLayershell.namespace: "nbshell:settings"

@@ -46,6 +46,9 @@ QtObject {
     readonly property color panelSurfaceRaised: "#202020"
     readonly property color panelSurface: bg
     readonly property color panelBorder: fgDim
+    readonly property color textFieldSelection: selectedSurface(accent)
+    readonly property color textFieldSelectedText: fg
+    readonly property real controlDisabledOpacity: 0.45
 
     function alpha(color, value) { return Qt.rgba(color.r, color.g, color.b, value); }
     function mix(base, tone, amount) {
@@ -70,4 +73,13 @@ QtObject {
         return fgDim;
     }
     function controlBorderWidth(hot, selected, urgent) { return selected && !urgent ? 0 : borderWidth; }
+    function textFieldFill(hot, focused, readOnly) {
+        if (readOnly) return bg;
+        return controlFill(hot || focused, false, false);
+    }
+    function textFieldBorder(hot, focused, readOnly) {
+        if (focused) return focusBorder;
+        if (readOnly) return panelBorder;
+        return controlBorder(hot, false, false);
+    }
 }

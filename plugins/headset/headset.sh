@@ -42,7 +42,7 @@ try:
         "ok": True,
         "geraet": dev.get("product") or dev.get("device") or "Headset",
         "level": level,
-        "laedt": status == "BATTERY_CHARGING",
+        "charging": status == "BATTERY_CHARGING",
     }, ensure_ascii=False))
 except Exception:
     print(json.dumps({"ok": False}))

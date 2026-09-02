@@ -153,7 +153,11 @@ Singleton {
         palette.setText(paletteShell());
         // Das Skript bekommt Name und Modus mit, damit es nicht selbst in der
         // colors.toml nachsehen muss.
-        hook.command = ["sh", "-c", "[ -x " + root.hookPath + " ] && exec " + root.hookPath + " " + Config.theme + " " + (Theme.isLight ? "light" : "dark") + " || true"];
+        hook.command = [
+            "sh", "-c",
+            "[ -x \"$1\" ] && exec \"$1\" \"$2\" \"$3\" || true",
+            "nbshell-theme-hook", root.hookPath, Config.theme, Theme.isLight ? "light" : "dark"
+        ];
         reloadTimer.restart();
     }
 

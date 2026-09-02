@@ -16,8 +16,10 @@ The current beta targets:
 - a standard systemd user session.
 
 Umbriel provides workspace discovery, output management, session lock, Xwayland,
-and the screenshot/screencast portal. It is still evolving, so nbshell pins and
-tests reviewed revisions instead of installing an unreviewed moving branch.
+and the screenshot/screencast portal. Fresh installations use the reviewed
+baseline. The explicit Umbriel updater can follow newer upstream heads, but only
+from clean expected-origin checkouts and only after both projects build and pass
+their tests.
 
 Intel and AMD graphics use normal Wayland interfaces. NVIDIA requires a modern
 Wayland driver and still benefits from wider beta testing. Multi-monitor layout,

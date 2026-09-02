@@ -174,7 +174,8 @@ Singleton {
         root._run(["kdeconnect-cli", "-d", String(id), "--share-text", t], "Text geteilt");
     }
     function openSms(id) {
-        root._run(["sh", "-c", "nohup kdeconnect-sms --device " + String(id) + " >/dev/null 2>&1 &"], "SMS-App geoeffnet");
+        Quickshell.execDetached(["kdeconnect-sms", "--device", String(id)]);
+        root.flash("SMS-App geoeffnet");
     }
     function pair(id) {
         root._run(["kdeconnect-cli", "-d", String(id), "--pair"], "Kopplung angefragt");

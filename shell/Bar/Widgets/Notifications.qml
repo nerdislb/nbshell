@@ -279,17 +279,21 @@ Cell {
                         border.width: Theme.borderWidth
                         border.color: search.activeFocus ? Theme.focusBorder : Theme.panelBorder
 
-                        TextInput {
+                        TextField {
                             id: search
                             anchors.fill: parent
                             anchors.leftMargin: Theme.cellW
                             anchors.rightMargin: Theme.cellW
-                            verticalAlignment: TextInput.AlignVCenter
+                            verticalAlignment: Text.AlignVCenter
                             color: Theme.fg
                             selectionColor: Theme.accent
                             selectedTextColor: Theme.bg
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontBody
+                            background: null
+                            horizontalPadding: 0
+                            accessibleName: "Search notifications"
+                            accessibleDescription: "Filters notification history"
                             text: panel.query
                             onTextChanged: panel.query = text
                             Keys.onEscapePressed: panel.endSearch()

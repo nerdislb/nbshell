@@ -13,6 +13,8 @@
 #
 #   calendar.sh events <ISO-Datum> <Tage>   -> JSON
 #   calendar.sh calendars                   -> die Namen, einer je Zeile
+#   calendar.sh writable-calendars          -> beschreibbare Namen, je Zeile
+#   calendar.sh create <Kalender> <Start-ISO> <Ende-ISO> <Titel>
 #   calendar.sh sync                        -> vdirsyncer anstossen
 #   calendar.sh status                      -> was fehlt
 set -uo pipefail
@@ -29,6 +31,12 @@ khal_dateformat() {
 	local fmt=""
 	[ -f "$CONFIG" ] && fmt="$(sed -nE 's/^[[:space:]]*dateformat[[:space:]]*=[[:space:]]*(.*)$/\1/p' "$CONFIG" | head -1)"
 	printf '%s' "${fmt:-%d.%m.%Y}"
+}
+
+khal_timeformat() {
+	local fmt=""
+	[ -f "$CONFIG" ] && fmt="$(sed -nE 's/^[[:space:]]*timeformat[[:space:]]*=[[:space:]]*(.*)$/\1/p' "$CONFIG" | head -1)"
+	printf '%s' "${fmt:-%H:%M}"
 }
 
 # Und zurueck: khal gibt seine Daten im selben Format aus, QML will ISO.
@@ -86,6 +94,72 @@ cmd_calendars() {
 	khal printcalendars 2>/dev/null
 }
 
+# Only explicit calendar sections are safe write targets. In particular, a
+# calendar merely reported by khal (for example through discovery) does not
+# become writable by accident. A readonly value is scoped to its [[name]].
+cmd_writable_calendars() {
+	[ -f "$CONFIG" ] || return 0
+	awk '
+		function emit() { if (name != "" && !readonly) print name }
+		/^[[:space:]]*\[\[[^][]+\]\][[:space:]]*([#;].*)?$/ {
+			emit()
+			line = $0
+			sub(/^[[:space:]]*\[\[/, "", line)
+			sub(/\]\][[:space:]]*([#;].*)?$/, "", line)
+			name = line
+			readonly = 0
+			next
+		}
+		name != "" && /^[[:space:]]*readonly[[:space:]]*=/ {
+			value = $0
+			sub(/^[^=]*=[[:space:]]*/, "", value)
+			sub(/[[:space:]]*([#;].*)?$/, "", value)
+			value = tolower(value)
+			if (value == "true" || value == "yes" || value == "on" || value == "1") readonly = 1
+		}
+		END { emit() }
+	' "$CONFIG"
+}
+
+fail_create() {
+	printf '%s\n' "$1" >&2
+	return 1
+}
+
+valid_local_iso() {
+	[[ "$1" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?$ ]] &&
+		date -d "$1" +%s >/dev/null 2>&1
+}
+
+cmd_create() {
+	local calendar="${1:-}" start_iso="${2:-}" end_iso="${3:-}" title="${4:-}"
+	[ -n "$calendar" ] || fail_create "Choose a writable calendar." || return
+	[ -n "${title//[[:space:]]/}" ] || fail_create "Enter an event title." || return
+	have khal || fail_create "khal is not installed." || return
+
+	local writable=false name
+	while IFS= read -r name; do
+		if [ "$name" = "$calendar" ]; then writable=true; break; fi
+	done < <(cmd_writable_calendars)
+	[ "$writable" = true ] || fail_create "Calendar '$calendar' is not configured as writable." || return
+	valid_local_iso "$start_iso" || fail_create "Start must be a valid local ISO date and time (YYYY-MM-DDTHH:MM)." || return
+	valid_local_iso "$end_iso" || fail_create "End must be a valid local ISO date and time (YYYY-MM-DDTHH:MM)." || return
+
+	local start_epoch end_epoch date_fmt time_fmt start_arg end_arg
+	start_epoch="$(date -d "$start_iso" +%s)"
+	end_epoch="$(date -d "$end_iso" +%s)"
+	(( end_epoch > start_epoch )) || fail_create "End time must be after start time." || return
+	date_fmt="$(khal_dateformat)"
+	time_fmt="$(khal_timeformat)"
+	start_arg="$(date -d "$start_iso" +"$date_fmt $time_fmt")"
+	end_arg="$(date -d "$end_iso" +"$date_fmt $time_fmt")"
+
+	# Every user-controlled value is one argv element; never reconstruct a
+	# command string or use eval.
+	khal new --calendar "$calendar" "$start_arg" "$end_arg" "$title" >/dev/null ||
+		fail_create "khal could not create the event. Check the calendar and dates."
+}
+
 # Abgleichen ist Sache von vdirsyncer. Laeuft der Timer, gehoert ihm auch der
 # Dienst -- ihn von Hand zu starten waere zwar moeglich, liefe aber an der
 # Sperre des Timers vorbei und koennte zwei Abgleiche gleichzeitig ergeben.
@@ -122,10 +196,12 @@ cmd_status() {
 case "${1:-events}" in
 events) shift && cmd_events "${1:-}" "${2:-45}" ;;
 calendars) cmd_calendars ;;
+writable-calendars) cmd_writable_calendars ;;
+create) shift && cmd_create "${1:-}" "${2:-}" "${3:-}" "${4:-}" ;;
 sync) cmd_sync ;;
 status) cmd_status ;;
 *)
-	echo "Usage: $(basename "$0") events <ISO-date> <days> | calendars | sync | status" >&2
+	echo "Usage: $(basename "$0") events <ISO-date> <days> | calendars | writable-calendars | create <calendar> <start-iso> <end-iso> <title> | sync | status" >&2
 	exit 2
 	;;
 esac

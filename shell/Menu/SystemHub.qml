@@ -16,7 +16,7 @@ PanelWindow {
     readonly property string script: Qt.resolvedUrl("../scripts/system-hub.py").toString().replace("file://", "")
 
     visible: true
-    screen: Quickshell.screens[0] ?? null
+    screen: Compositor.focusedScreen
     color: "transparent"
     anchors { left: true; right: true; top: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore
@@ -38,7 +38,9 @@ PanelWindow {
     function run(command) {
         if (!command) return;
         Runtime.hubOpen = false;
-        if (command.indexOf("detached:") === 0)
+        if (Array.isArray(command))
+            Quickshell.execDetached(command.map(value => String(value)));
+        else if (command.indexOf("detached:") === 0)
             Quickshell.execDetached(["sh", "-c", command.slice(9)]);
         else if (command.indexOf("xdg-open ") === 0)
             Quickshell.execDetached(["sh", "-c", command]);

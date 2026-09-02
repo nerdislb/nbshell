@@ -17,14 +17,52 @@ configuration and plugin interfaces before `1.0.0`.
   Omarchy marketplace sources. It fetches bounded source text without running
   it, reports deterministic compatibility and safety findings, and recommends
   an ordered native nbshell porting path without installing or modifying code.
+- A one-command bootstrap selects a published beta or stable release, downloads
+  its archive, checksum, and Sigstore bundle without piping network content into
+  a shell, rejects unsafe archive paths, and hands the verified source tree to
+  the complete `setup.sh` flow that installs Umbriel and nbshell.
+- An internal x86_64 UEFI Archiso experiment builds a pinned offline package
+  closure, local Umbriel/portal/nbshell packages, original nbshell branding,
+  and a guarded whole-disk Archinstall flow for QEMU and empty spare disks. It
+  remains explicitly unsupported for public installation.
 
 ### Fixed
 
+- The Umbriel updater now compares the compositor and portal checkouts with
+  their live upstream heads and installs the exact revisions it reported after
+  confirmation, instead of treating the static installation baseline as the
+  latest available version.
 - The motion contract now follows the filtered visible right-side widget list
   used by the unified desktop update surface.
 - Audio output lists collapse stale PipeWire nodes with the same stable node
   name while preserving the preferred default object, so a noisy host graph no
   longer renders several identical speaker rows.
+- The optional Pit Wall live-timing environment now excludes vulnerable
+  `msgpack` releases and requires the patched 1.2.1-or-newer line.
+- System Hub opens dynamic Arch News and Herdr targets as structured argument
+  lists instead of shell text, and limits feed-provided links to Arch Linux
+  HTTPS origins.
+- The documented `nbshell media` MPRIS command is no longer shadowed by the
+  legacy music-window alias.
+- Agent Center no longer refreshes selected job or proposal details after its
+  lazy surface closes, and the native lock clock falls back to a one-second
+  update cadence when its smooth seconds ring is disabled.
+- Active background agent work uses the same five-second status cadence as the
+  visible Agent Center instead of launching the multi-provider status helper
+  every two seconds; idle cadence remains 30 seconds.
+- Git-managed third-party plugins now show incoming commits and files and
+  require an interactive confirmation or explicit `--yes` before their
+  unsandboxed checkout can move.
+- Shopping-list content travels to nbshell's sender over stdin instead of
+  remaining in the wrapper process arguments during recipient lookup. The
+  downstream `wacli --message` argument remains documented as an external CLI
+  limitation.
+- Shell release downloads and extraction now enforce compressed size, member
+  count, per-file size, expanded size, entry-type, link, traversal, and
+  single-root limits before the installer can run.
+- Top-right notification popups now use nbshell's compact character-grid
+  surface instead of the rounded Omarchy-style card treatment, while retaining
+  urgency-aware timeouts, hover pause, guarded opening, and right-click dismiss.
 
 ## [0.1.0-beta.7] - 2026-08-31
 

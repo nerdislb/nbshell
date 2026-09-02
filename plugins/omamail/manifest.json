@@ -2,6 +2,7 @@
   "schemaVersion": 2,
   "id": "omamail",
   "name": "Mail",
+  "category": "Communication",
   "version": "0.6.0",
   "author": "Jason Lee <huacnlee@gmail.com>",
   "license": "MIT",
@@ -34,7 +35,7 @@
       "libnotify"
     ]
   },
-  "description": "Read, triage, compose, and manage Gmail, HEY, IMAP, SMTP, attachments, drafts, and calendars in a native nbshell window.",
+  "description": "Native Gmail and IMAP/SMTP mail client with keyring-backed credentials.",
   "kinds": [
     "service",
     "bar-widget",

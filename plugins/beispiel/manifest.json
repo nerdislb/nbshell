@@ -1,9 +1,9 @@
 {
   "schemaVersion": 2,
   "id": "beispiel",
-  "name": "Example",
-  "description": "Template module that counts clicks",
-  "category": "Plugin",
+  "name": "Example plugin",
+  "description": "Small click-counter template for learning the nbshell plugin API.",
+  "category": "Development",
   "version": "1.0.0",
   "author": "nbshell",
   "license": "MIT",

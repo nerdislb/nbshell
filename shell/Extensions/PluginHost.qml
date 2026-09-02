@@ -50,7 +50,7 @@ Item {
             }
             onStatusChanged: {
                 if (status === Loader.Loading)
-                    Plugins.reportLoadState(modelData.id, modelData.kind, "laedt", modelData.source);
+                    Plugins.reportLoadState(modelData.id, modelData.kind, "loading", modelData.source);
                 if (status === Loader.Error) {
                     Plugins.reportLoadState(modelData.id, modelData.kind, "error", modelData.source);
                     console.warn("nbshell/plugins:", modelData.id, modelData.kind, "failed to load —", modelData.source);

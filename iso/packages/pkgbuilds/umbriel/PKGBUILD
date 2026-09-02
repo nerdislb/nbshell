@@ -1,0 +1,59 @@
+# Maintainer: nbshell packaging pipeline <iso/packages>
+#
+# Builds Umbriel, nbshell's supported Wayland compositor, from the pinned
+# commit recorded below. build-package.sh and
+# tests/test-manifest-consistency.sh both refuse to run unless _commit here
+# is byte-identical to MANIFEST.toml's [[custom]] "umbriel" revision --
+# update both together, never one alone.
+#
+# The build recipe mirrors setup-umbriel.sh's build_project(): a release
+# Meson build, compiled, tested, then installed to /usr.
+
+pkgname=umbriel
+_url=https://github.com/noctalia-dev/umbriel.git
+_commit=e677dbbe2728ee65156bdbcc6775b0b36b388b64
+pkgver=0.1.0.r727.ge677dbb
+pkgrel=1
+pkgdesc="Umbriel Wayland compositor (nbshell's supported session)"
+arch=('x86_64')
+url="$_url"
+license=('MIT')
+depends=(
+    'wlroots0.20' 'wayland' 'wayland-protocols' 'libxkbcommon' 'libinput'
+    'pixman' 'libdrm' 'cairo' 'pango' 'tomlplusplus' 'nlohmann-json'
+    'jemalloc' 'sdbus-cpp' 'pipewire' 'gtk4' 'wlr-randr'
+    'xwayland-satellite' 'xdg-desktop-portal'
+)
+makedepends=('gcc' 'git' 'meson' 'ninja' 'pkgconf' 'just')
+provides=('umbriel')
+source=("git+${_url}#commit=${_commit}")
+# The tarball's integrity is guaranteed by the pinned commit hash above
+# (verified against MANIFEST.toml before this PKGBUILD is ever built), not
+# by a content checksum -- SKIP is the standard makepkg convention for VCS
+# sources pinned this way.
+sha256sums=('SKIP')
+
+pkgver() {
+    cd "$pkgname"
+    printf '0.1.0.r%s.g%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+prepare() {
+    cd "$pkgname"
+    git submodule update --init --recursive
+}
+
+build() {
+    local build_dir="$pkgname/build-nbshell"
+    meson setup "$build_dir" "$pkgname" --buildtype=release --prefix=/usr
+    meson compile -C "$build_dir"
+}
+
+check() {
+    meson test -C "$pkgname/build-nbshell" --print-errorlogs
+}
+
+package() {
+    DESTDIR="$pkgdir" meson install -C "$pkgname/build-nbshell"
+    install -Dm644 "$pkgname/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE" 2>/dev/null || true
+}

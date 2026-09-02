@@ -281,7 +281,7 @@ Item {
         },
         {
             "key": "notifyTimeout",
-            "def": 6000,
+            "def": 8000,
             "label": "Popup duration",
             "step": 1000,
             "min": 2000,

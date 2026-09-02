@@ -6,8 +6,9 @@ import importlib.util
 import json
 import pathlib
 import subprocess
+import sys
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "shell/scripts/shopping-list-send.py"
 SPEC = importlib.util.spec_from_file_location("shopping_list_send", SCRIPT)
@@ -66,6 +67,26 @@ class ShoppingListSendTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertFalse(payload["success"])
         self.assertEqual(payload["message"], "offline")
+
+    def test_main_reads_message_from_stdin_not_argv(self) -> None:
+        captured = {}
+
+        def fake_send(target, message, runner=subprocess.run):
+            captured["target"] = target
+            captured["message"] = message
+            return 0, MODULE.result(True, "ok", code="sent")
+
+        argv = ["shopping-list-send.py", "--to", "Einkauf"]
+        with patch.object(MODULE, "send", fake_send), \
+                patch.object(sys, "argv", argv), \
+                patch.object(sys.stdin, "read", return_value="🛒 secret list"), \
+                patch("builtins.print"):
+            code = MODULE.main()
+
+        self.assertEqual(code, 0)
+        self.assertEqual(captured, {"target": "Einkauf", "message": "🛒 secret list"})
+        self.assertNotIn("--message", argv)
+        self.assertTrue(all("secret list" not in argument for argument in argv))
 
     def test_zero_exit_without_sent_confirmation_fails_closed(self) -> None:
         lookup = subprocess.CompletedProcess(

@@ -502,8 +502,9 @@ nbshell -- an independent Quickshell desktop shell for Umbriel
   nbshell plugin enable|disable <id>
                             enable or disable an installed plugin
   nbshell plugin diff <name>  review incoming commits and files
-  nbshell plugin update [name]
-                            update installed plugins
+  nbshell plugin update [name] [--yes]
+                            review and confirm incoming plugin commits, then merge them
+                            (--yes skips the interactive prompt for scripted use)
   nbshell plugin remove <name>
                             remove an installed plugin
   nbshell plugin-manager    open installed plugins and the store
@@ -836,7 +837,7 @@ for b in d["binds"]:
             *)               ipc keys toggle ;;
         esac
         ;;
-    music|musik|media|medien)
+    music|musik|medien)
         case "${1:-open}" in
             status|pause|next|previous) ipc music "${1}" ;;
             toggle|fenster|window) ipc music toggle ;;
@@ -1057,7 +1058,7 @@ for b in d["binds"]:
             sync)        ipc todo sync ;;
             clear)       ipc todo clear ;;
             status)      ipc todo status ;;
-            done)        ipc todo done "${2:?number is required}" ;;
+            "done")      ipc todo done "${2:?number is required}" ;;
             drop|rm)     ipc todo drop "${2:?number is required}" ;;
             add)
                 shift
@@ -1103,7 +1104,7 @@ for b in d["binds"]:
             list|"")     ipc habits list ;;
             sync)        ipc habits sync ;;
             status)      ipc habits status ;;
-            done)        ipc habits done "${2:?number is required}" ;;
+            "done")      ipc habits done "${2:?number is required}" ;;
             inc)         ipc habits inc "${2:?number is required}" "${3:-1}" ;;
             drop|rm)     ipc habits drop "${2:?number is required}" ;;
             add)

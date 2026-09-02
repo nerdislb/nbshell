@@ -98,7 +98,7 @@ PanelWindow {
     // die Liste beim naechsten Oeffnen sofort da.
     visible: Runtime.launcherOpen
 
-    screen: Quickshell.screens[0] ?? null
+    screen: Compositor.focusedScreen
     color: "transparent"
 
     WlrLayershell.namespace: "nbshell:launcher"
@@ -235,7 +235,7 @@ PanelWindow {
                 color: Theme.readable(Theme.accent, Theme.panelSurfaceRaised, 4.5)
             }
 
-            TextInput {
+            TextField {
                 id: input
 
                 anchors.left: prompt.right
@@ -244,6 +244,10 @@ PanelWindow {
                 color: Theme.fg
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSubtitle
+                background: null
+                horizontalPadding: 0
+                accessibleName: "Search applications and commands"
+                accessibleDescription: "Type a command, application, or @ followed by a file name"
                 focus: true
                 selectByMouse: true
                 selectionColor: Theme.selection

@@ -53,6 +53,8 @@ Item {
     property color color: Theme.barFg
     property real contentOpacity: 1
     property bool interactive: false
+    property string accessibilityName: label !== "" ? label + (text !== "" ? " " + text : "")
+        : (text !== "" ? text : widgetId)
 
     // Klappt beim Klick auf. Der Inhalt bekommt `closePopout` gesetzt.
     property Component popout: null
@@ -85,6 +87,34 @@ Item {
     signal wheel(int delta)
 
     readonly property bool clickable: interactive || popout !== null || preview !== null
+
+    activeFocusOnTab: root.clickable && root.enabled
+    Accessible.role: root.clickable ? Accessible.Button : Accessible.StaticText
+    Accessible.name: root.accessibilityName
+    Accessible.description: root.popout !== null ? "Open " + root.accessibilityName + " controls" : ""
+    Accessible.focusable: activeFocusOnTab
+    Accessible.focused: activeFocus
+    Accessible.onPressAction: root.activatePrimary()
+
+    function activatePrimary() {
+        if (!root.enabled || !root.clickable)
+            return;
+        if (root.popoutVisible)
+            root.setPopout(false);
+        else
+            root.setPopout(true);
+        root.clicked();
+    }
+
+    function activateFromKey(event) {
+        if (!event.isAutoRepeat)
+            root.activatePrimary();
+        event.accepted = true;
+    }
+
+    Keys.onReturnPressed: event => root.activateFromKey(event)
+    Keys.onEnterPressed: event => root.activateFromKey(event)
+    Keys.onSpacePressed: event => root.activateFromKey(event)
 
     // Nimmt die Zelle SELBST Klicks an?
     //
@@ -375,11 +405,7 @@ Item {
                 root.middleClicked();
                 return;
             }
-            if (root.popoutVisible)
-                root.setPopout(false);
-            else
-                root.setPopout(true);
-            root.clicked();
+            root.activatePrimary();
         }
         onWheel: wheelEvent => root.wheel(wheelEvent.angleDelta.y)
     }

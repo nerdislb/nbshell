@@ -36,6 +36,15 @@ def count_lines(text):
     return len([line for line in text.splitlines() if line.strip()])
 
 
+def arch_news_link(value):
+    link = str(value or "https://archlinux.org/news/")
+    parsed = urllib.parse.urlparse(link)
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme != "https" or (host != "archlinux.org" and not host.endswith(".archlinux.org")):
+        return "https://archlinux.org/news/"
+    return link
+
+
 def executable(name):
     """Resolve user tools even when systemd's manager PATH omits ~/.local/bin."""
     found = shutil.which(name)
@@ -80,9 +89,9 @@ def arch_news():
         for entry in root.findall("./channel/item")[:5]:
             title = entry.findtext("title") or "Arch News"
             date = (entry.findtext("pubDate") or "").split(" +")[0]
-            link = entry.findtext("link") or "https://archlinux.org/news/"
+            link = arch_news_link(entry.findtext("link"))
             rows.append({"label": title, "detail": date, "state": "warn",
-                         "command": "detached:xdg-open " + link})
+                         "command": ["xdg-open", link]})
         return rows
     except Exception as exc:
         return [{"label": "News", "detail": str(exc)[:140], "state": "warn"}]
@@ -105,7 +114,7 @@ def collect():
             "label": str(a.get("agent", "Agent")).capitalize(),
             "detail": str(a.get("agent_status", "?")) + " · " + str(a.get("terminal_title_stripped") or a.get("cwd", "")),
             "state": "warn" if a.get("agent_status") in ("waiting", "permission") else "ok",
-            "command": "detached:python3 " + str(Path(__file__).resolve()) + " herdr-focus " + str(a.get("pane_id", ""))
+            "command": ["python3", str(Path(__file__).resolve()), "herdr-focus", str(a.get("pane_id", ""))]
         } for a in agent_data]
         agents.append(item("herdr", "Herdr", f"{len(agent_data)} agents" if code == 0 else (err or "unreachable"), "ok" if code == 0 else "warn", f"{herdr} agent list", agent_rows))
     else:

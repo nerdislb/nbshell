@@ -16,7 +16,7 @@ Cell {
     readonly property var dev: Kdeconnect.selectedDevice
     readonly property bool linked: dev && dev.paired && dev.reachable
 
-    shown: Kdeconnect.enabled
+    shown: Kdeconnect.enabled || Phone.available || Nearby.enabled
     // Der Telefonzugang ist auch im getrennten Zustand wichtig: dauerhaft
     // sichtbar lassen, damit Verbinden und Fehlersuche immer erreichbar sind.
     quiet: false
@@ -51,12 +51,6 @@ Cell {
                 }
             ]
         }
-    }
-
-    onPopoutVisibleChanged: {
-        Nearby.wanted = root.popoutVisible;
-        if (root.popoutVisible)
-            Phone.refresh();
     }
 
     popout: Component {
@@ -302,128 +296,10 @@ Cell {
                 }
             }
 
-            // ── PHONE MIRROR ──────────────────────────────────────────────
-            Rule {
+            PhonePanel {
                 rowWidth: panel.rowWidth
-                label: "PHONE MIRROR · NBPHONE"
-            }
-
-            Line {
-                width: panel.rowWidth
-                text: {
-                    if (!Phone.available)
-                        return "nbphone is not installed — see github.com/nerdislb/nbphone";
-                    if (!Phone.scrcpyAvailable)
-                        return "scrcpy is missing — sudo pacman -S scrcpy";
-                    if (!Phone.connected)
-                        return "No ADB device — enable USB debugging or run nbphone connect";
-                    const name = Phone.model !== "" ? Phone.model : Phone.serial;
-                    return name + "  •  " + (Phone.wireless ? "WLAN" : "USB") + "  •  " + (Phone.mirroring ? "mirror running" : "ready");
-                }
-                color: Phone.connected && Phone.scrcpyAvailable ? Theme.fg : Theme.yellow
-                wrapMode: Text.WordWrap
-            }
-
-            Row {
-                spacing: Theme.cellW
-                visible: Phone.available
-
-                ActionButton {
-                    text: Phone.mirroring ? "Stop" : "Open"
-                    busy: Phone.busy
-                    enabled: Phone.mirroring || (Phone.connected && Phone.scrcpyAvailable)
-                    onTriggered: Phone.mirroring ? Phone.stop() : Phone.start(false)
-                }
-
-                ActionButton {
-                    text: "Private"
-                    busy: Phone.busy
-                    enabled: !Phone.mirroring && Phone.connected && Phone.scrcpyAvailable
-                    onTriggered: Phone.start(true)
-                }
-
-                ActionButton {
-                    text: "Refresh"
-                    enabled: !Phone.busy
-                    onTriggered: Phone.refresh()
-                }
-
-                ActionButton {
-                    text: Phone.wireless ? "WI-FI ✓" : "WI-FI"
-                    busy: Phone.busy
-                    enabled: !Phone.busy && !Phone.mirroring
-                    onTriggered: Phone.connectWireless()
-                }
-            }
-
-            Line {
-                visible: Phone.status !== ""
-                width: panel.rowWidth
-                text: Phone.status
-                color: Phone.status.indexOf("fehlt") !== -1 || Phone.status.indexOf("none") !== -1 ? Theme.yellow : Theme.green
-                wrapMode: Text.WordWrap
-                font.pixelSize: Theme.fontSize - 1
-            }
-
-            // ── PHONE CAMERA ──────────────────────────────────────────────
-            Rule {
-                rowWidth: panel.rowWidth
-                label: "PHONE CAMERA · WEBCAM"
-            }
-
-            Line {
-                width: panel.rowWidth
-                text: {
-                    if (!Phone.available)
-                        return "Install nbphone to use the phone camera";
-                    if (!Phone.webcamReady)
-                        return "One-time setup required for Phone Camera";
-                    if (Phone.cameraActive)
-                        return Phone.cameraMode.toUpperCase() + " CAMERA  •  LIVE  •  " + Phone.cameraDevice;
-                    if (!Phone.connected)
-                        return "Connect the phone through USB or wireless ADB";
-                    return "Phone Camera  •  " + Phone.cameraDevice + "  •  ready for OBS";
-                }
-                color: Phone.cameraActive ? Theme.green : (Phone.webcamReady && Phone.connected ? Theme.fg : Theme.yellow)
-                wrapMode: Text.WordWrap
-            }
-
-            Row {
-                spacing: Theme.cellW
-                visible: Phone.available
-
-                ActionButton {
-                    text: "Back"
-                    busy: Phone.busy
-                    enabled: Phone.connected && Phone.webcamReady && (!Phone.cameraActive || Phone.cameraMode !== "back")
-                    onTriggered: Phone.camera("back")
-                }
-
-                ActionButton {
-                    text: "Front"
-                    busy: Phone.busy
-                    enabled: Phone.connected && Phone.webcamReady && (!Phone.cameraActive || Phone.cameraMode !== "front")
-                    onTriggered: Phone.camera("front")
-                }
-
-                ActionButton {
-                    text: "Stop"
-                    busy: Phone.busy
-                    enabled: Phone.cameraActive
-                    onTriggered: Phone.camera("off")
-                }
-
-                ActionButton {
-                    text: "Preview"
-                    enabled: Phone.cameraActive && !Phone.busy
-                    onTriggered: Phone.previewCamera()
-                }
-
-                ActionButton {
-                    text: Phone.webcamReady ? "OBS" : "Setup"
-                    enabled: !Phone.busy
-                    onTriggered: Phone.webcamReady ? Phone.openObs() : Phone.setupCamera()
-                }
+                sectionSpacing: panel.spacing
+                active: root.popoutVisible
             }
 
             // Composer (Text/Link teilen bzw. Ping mit Text)
@@ -447,18 +323,22 @@ Cell {
                     border.width: Theme.borderWidth
                     border.color: composerInput.activeFocus ? Theme.accent : Theme.alpha(Theme.fg, 0.15)
 
-                    TextInput {
+                    TextField {
                         id: composerInput
                         anchors.fill: parent
                         anchors.leftMargin: Theme.cellW
                         anchors.rightMargin: Theme.cellW
-                        verticalAlignment: TextInput.AlignVCenter
+                        verticalAlignment: Text.AlignVCenter
                         clip: true
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize
                         color: Theme.fg
                         selectByMouse: true
                         selectionColor: Theme.selection
+                        background: null
+                        horizontalPadding: 0
+                        accessibleName: panel.composer === "ping" ? "Ping message" : "Text or link to share"
+                        accessibleDescription: panel.dev ? "Send to " + panel.dev.name : "Send to connected device"
                         text: panel.draft
                         onTextChanged: panel.draft = text
 
@@ -549,98 +429,10 @@ Cell {
                 }
             }
 
-            // ── NEARBY (LocalSend) ─────────────────────────────────────────
-            // Handy ohne gekoppelte App: LocalSend findet Geraete im gleichen
-            // Netz. Je Geraet die zwei Dinge, die man wirklich schnell
-            // hinueberschiebt -- Clipboard und letztes Bildschirmfoto.
-            Rule {
+            NearbyPanel {
                 rowWidth: panel.rowWidth
-                label: "NEARBY · LOCALSEND"
-                visible: Nearby.enabled
-            }
-
-            Line {
-                visible: Nearby.enabled && Nearby.devices.length === 0
-                width: panel.rowWidth
-                text: Nearby.scanning ? "  scanning …" : "  no devices — LocalSend must be open on the other device"
-                color: Theme.muted
-                wrapMode: Text.WordWrap
-            }
-
-            Repeater {
-                model: Nearby.enabled ? Nearby.devices : []
-
-                Rectangle {
-                    id: nbRow
-                    required property var modelData
-
-                    width: panel.rowWidth
-                    height: nbBody.implicitHeight + Theme.cellH
-                    radius: Theme.radius
-                    color: Theme.alpha(Theme.fg, 0.05)
-                    border.width: Theme.borderWidth
-                    border.color: Theme.alpha(Theme.fg, 0.12)
-
-                    Column {
-                        id: nbBody
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.leftMargin: Theme.cellW
-                        anchors.rightMargin: Theme.cellW
-                        anchors.verticalCenter: parent.verticalCenter
-                        spacing: Theme.cellH * 0.2
-
-                        Item {
-                            width: parent.width
-                            height: nbAlias.implicitHeight
-
-                            Line {
-                                id: nbAlias
-                                anchors.left: parent.left
-                                text: nbRow.modelData.alias
-                                color: Theme.fg
-                            }
-                            Line {
-                                anchors.right: parent.right
-                                text: nbRow.modelData.model + "  " + nbRow.modelData.ip
-                                color: Theme.muted
-                            }
-                        }
-
-                        Row {
-                            spacing: Theme.cellW * 2
-
-                            component Knopf: ActionButton {
-                                compact: true
-                            }
-
-                            Knopf {
-                                text: "Clipboard"
-                                onTriggered: Nearby.sendText(nbRow.modelData, Clipboard.entries.length > 0 ? Clipboard.entries[0] : "")
-                            }
-
-                            Knopf {
-                                text: "Latest image"
-                                onTriggered: Nearby.sendLastShot(nbRow.modelData)
-                            }
-                        }
-                    }
-                }
-            }
-
-            Line {
-                visible: Nearby.enabled && Nearby.status !== ""
-                width: panel.rowWidth
-                text: "  " + Nearby.status
-                color: Nearby.status.indexOf("failed") === 0 ? Theme.red : Theme.green
-                wrapMode: Text.WordWrap
-            }
-
-            Line {
-                visible: Nearby.enabled
-                text: "  Files: nbshell nearby send <file>"
-                color: Theme.muted
-                font.pixelSize: Theme.fontSize - 1
+                sectionSpacing: panel.spacing
+                active: root.popoutVisible
             }
 
             // ── Rueckmeldung ───────────────────────────────────────────────

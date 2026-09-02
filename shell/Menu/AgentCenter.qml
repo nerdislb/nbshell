@@ -14,7 +14,7 @@ PanelWindow {
     property int page: 0
 
     visible: true
-    screen: Quickshell.screens[0] ?? null
+    screen: Compositor.focusedScreen
     color: "transparent"
     anchors { left: true; right: true; top: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore

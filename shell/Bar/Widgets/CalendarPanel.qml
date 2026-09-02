@@ -2,6 +2,7 @@ import QtQuick
 import qs.Common
 import qs.Services
 import qs.Widgets
+import qs.Ui as Ui
 
 // Der Kalender hinter der Uhr: Monatsgitter oben, die Termine des gewaehlten
 // Tages darunter.
@@ -18,6 +19,12 @@ Column {
     // den gewaehlten Tag nicht verlieren soll.
     property date viewDate: new Date()
     property date selected: new Date()
+    property bool showCreate: false
+    property string createCalendarName: ""
+    property string validationError: ""
+    property bool showCreateSuccess: false
+
+    readonly property string createFeedback: panel.validationError !== "" ? panel.validationError : Calendar.createError
 
     readonly property date today: new Date()
 
@@ -79,6 +86,52 @@ Column {
         panel.viewDate = new Date();
         panel.selected = new Date();
         Calendar.ensure(panel.viewDate);
+    }
+
+    function openCreate() {
+        panel.showCreate = true;
+        panel.validationError = "";
+        panel.showCreateSuccess = false;
+        if (panel.createCalendarName === "" || Calendar.writableCalendars.indexOf(panel.createCalendarName) < 0)
+            panel.createCalendarName = Calendar.writableCalendars.length > 0 ? Calendar.writableCalendars[0] : "";
+        if (createStartField.text === "") {
+            createStartField.text = "09:00";
+            createEndField.text = "10:00";
+        }
+        Qt.callLater(() => createTitleField.forceActiveFocus());
+    }
+
+    function cancelCreate() {
+        panel.showCreate = false;
+        panel.validationError = "";
+        panel.showCreateSuccess = false;
+    }
+
+    function submitCreate() {
+        if (Calendar.creating)
+            return;
+        if (Calendar.writableCalendars.length === 0) {
+            panel.validationError = "No writable calendars configured";
+            return;
+        }
+        if (createTitleField.text.trim() === "") {
+            panel.validationError = "Title is required";
+            createTitleField.forceActiveFocus();
+            return;
+        }
+        const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
+        if (!timePattern.test(createStartField.text) || !timePattern.test(createEndField.text)) {
+            panel.validationError = "Use HH:MM for start and end";
+            return;
+        }
+        if (createEndField.text <= createStartField.text) {
+            panel.validationError = "End time must be after start time";
+            return;
+        }
+        panel.validationError = "";
+        panel.showCreateSuccess = false;
+        const day = Calendar.isoDay(panel.selected);
+        Calendar.createEvent(panel.createCalendarName, createTitleField.text.trim(), day + "T" + createStartField.text, day + "T" + createEndField.text);
     }
 
     // Montag als erster Tag. `getDay()` zaehlt ab Sonntag, deshalb der Dreh.
@@ -310,12 +363,21 @@ Column {
             text: panel.selected.toLocaleString(Qt.locale(Config.value("locale", "en_US")), "dddd, d. MMMM").toUpperCase()
         }
 
-        Action {
+        Row {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            text: Calendar.loading ? "Reading …" : "Sync"
-            busy: Calendar.loading
-            onTriggered: Calendar.sync()
+            spacing: Theme.spaceSm
+
+            Action {
+                text: panel.showCreate ? "Close" : "+ New event"
+                onTriggered: panel.showCreate ? panel.cancelCreate() : panel.openCreate()
+            }
+
+            Action {
+                text: Calendar.loading ? "Reading …" : "Sync"
+                busy: Calendar.loading
+                onTriggered: Calendar.sync()
+            }
         }
     }
 
@@ -381,6 +443,139 @@ Column {
         visible: Calendar.eventsOn(panel.selected).length > 12
         text: "  … and " + (Calendar.eventsOn(panel.selected).length - 12) + " more"
         color: Theme.muted
+    }
+
+    Column {
+        id: createForm
+
+        visible: panel.showCreate
+        width: panel.rowWidth
+        spacing: Theme.spaceSm
+
+        Rule { width: parent.width }
+
+        Heading {
+            text: "NEW EVENT · " + panel.selected.toLocaleString(Qt.locale(Config.value("locale", "en_US")), "d. MMMM")
+        }
+
+        Line {
+            visible: Calendar.writableCalendars.length === 0
+            width: parent.width
+            text: "  No writable calendars configured"
+            color: Theme.yellow
+            wrapMode: Text.WordWrap
+        }
+
+        Column {
+            visible: Calendar.writableCalendars.length > 0
+            width: parent.width
+            spacing: Theme.spaceSm
+
+            Segments {
+                rowWidth: createForm.width
+                options: Calendar.writableCalendars
+                current: panel.createCalendarName
+                onChosen: value => panel.createCalendarName = value
+            }
+
+            Ui.TextField {
+                id: createTitleField
+                width: parent.width
+                height: Theme.controlHeight
+                placeholderText: "Title"
+                accessibleName: "Event title"
+                enabled: !Calendar.creating
+                onTextEdited: {
+                    panel.validationError = "";
+                    panel.showCreateSuccess = false;
+                }
+                onAccepted: panel.submitCreate()
+                Keys.onEscapePressed: panel.cancelCreate()
+            }
+
+            Row {
+                width: parent.width
+                spacing: Theme.spaceSm
+
+                Ui.TextField {
+                    id: createStartField
+                    width: Math.round((parent.width - parent.spacing) / 2)
+                    height: Theme.controlHeight
+                    placeholderText: "Start HH:MM"
+                    accessibleName: "Event start time"
+                    inputMethodHints: Qt.ImhTime
+                    maximumLength: 5
+                    enabled: !Calendar.creating
+                    onTextEdited: panel.validationError = ""
+                    onAccepted: panel.submitCreate()
+                    Keys.onEscapePressed: panel.cancelCreate()
+                }
+
+                Ui.TextField {
+                    id: createEndField
+                    width: Math.round((parent.width - parent.spacing) / 2)
+                    height: Theme.controlHeight
+                    placeholderText: "End HH:MM"
+                    accessibleName: "Event end time"
+                    inputMethodHints: Qt.ImhTime
+                    maximumLength: 5
+                    enabled: !Calendar.creating
+                    onTextEdited: panel.validationError = ""
+                    onAccepted: panel.submitCreate()
+                    Keys.onEscapePressed: panel.cancelCreate()
+                }
+            }
+
+            Line {
+                visible: panel.createFeedback !== ""
+                width: parent.width
+                text: "  " + panel.createFeedback
+                color: Theme.red
+                wrapMode: Text.WordWrap
+            }
+
+            Line {
+                visible: panel.showCreateSuccess
+                text: "  Event created"
+                color: Theme.green
+            }
+
+            Row {
+                spacing: Theme.spaceSm
+
+                Action {
+                    text: Calendar.creating ? "Creating …" : "Create event"
+                    tone: "primary"
+                    busy: Calendar.creating
+                    onTriggered: panel.submitCreate()
+                }
+
+                Action {
+                    text: "Cancel"
+                    enabled: !Calendar.creating
+                    onTriggered: panel.cancelCreate()
+                }
+            }
+        }
+    }
+
+    Connections {
+        target: Calendar
+
+        function onEventCreated(ok, error) {
+            if (!panel.showCreate)
+                return;
+            if (ok) {
+                panel.validationError = "";
+                createTitleField.text = "";
+                panel.showCreateSuccess = true;
+                Calendar.refresh();
+                createTitleField.forceActiveFocus();
+            } else {
+                panel.showCreateSuccess = false;
+                panel.validationError = error || "The event could not be created.";
+            }
+        }
     }
 
     // ── Fusszeile: welche Kalender ueberhaupt dabei sind ───────────────────

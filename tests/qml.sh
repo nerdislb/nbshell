@@ -10,7 +10,9 @@ if [[ ! -x $RUNNER ]]; then
 fi
 
 python3 "$ROOT/tests/design-system-contracts.py"
+python3 -m unittest "$ROOT/tests/test_security_correctness.py"
 python3 -m unittest "$ROOT/tests/test_shopping_list_send.py"
+python3 -m unittest "$ROOT/tests/test_system_hub.py"
 
 imports="$(mktemp -d)"
 trap 'rm -rf -- "$imports"' EXIT
@@ -21,6 +23,7 @@ cp "$ROOT/tests/imports/qs/Widgets/qmldir" "$imports/qs/Widgets/qmldir"
 ln -s "$ROOT/shell/Widgets/InteractiveSurface.qml" "$imports/qs/Widgets/InteractiveSurface.qml"
 ln -s "$ROOT/shell/Widgets/ActionButton.qml" "$imports/qs/Widgets/ActionButton.qml"
 ln -s "$ROOT/shell/Widgets/Line.qml" "$imports/qs/Widgets/Line.qml"
+ln -s "$ROOT/shell/Widgets/TextField.qml" "$imports/qs/Widgets/TextField.qml"
 ln -s "$ROOT/shell/Commons" "$imports/qs/Commons"
 ln -s "$ROOT/shell/Ui" "$imports/qs/Ui"
 

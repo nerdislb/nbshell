@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Effects
+import qs.Widgets
 
 Item {
     id: root
@@ -30,7 +31,10 @@ Item {
     function fileUrl(path) { return path ? "file://" + String(path).split("/").map(encodeURIComponent).join("/") : ""; }
     onResetSerialChanged: { passwordInput.text = ""; if (primary) passwordInput.forceActiveFocus(); }
     Component.onCompleted: if (primary) Qt.callLater(() => passwordInput.forceActiveFocus())
-    Timer { interval: 33; repeat: true; running: root.visible; onTriggered: root.currentTime = new Date() }
+    // The outer seconds ring is deliberately smooth. When it is disabled,
+    // the remaining minute ring does not justify rebuilding Date bindings at
+    // ~30 Hz; a one-second cadence still keeps its fractional position exact.
+    Timer { interval: root.showSecondsRing ? 33 : 1000; repeat: true; running: root.visible; onTriggered: root.currentTime = new Date() }
 
     Rectangle {
         anchors.fill: parent; color: root.background
@@ -67,9 +71,9 @@ Item {
                     Text { anchors.centerIn: parent; text: "󰌾"; color: root.foreground; font.family: root.fontFamily; font.pixelSize: 23*root.unit }
                     SequentialAnimation on opacity { running: root.authenticating; loops: Animation.Infinite; NumberAnimation { to: .45; duration: 520 } NumberAnimation { to: 1; duration: 520 } }
                 }
-                TextInput {
+                TextField {
                     id: passwordInput; anchors.fill: parent; anchors.leftMargin: 78*root.unit; anchors.rightMargin: 26*root.unit
-                    enabled: !root.authenticating; echoMode: TextInput.Password; passwordCharacter: "✦"; passwordMaskDelay: 0
+                    accessibleName: "Password"; background: null; enabled: !root.authenticating; horizontalPadding: 0; password: true; passwordCharacter: "✦"; passwordMaskDelay: 0
                     color: root.foreground; selectionColor: root.accent; font.family: root.fontFamily; font.pixelSize: 16*root.unit; font.letterSpacing: 8*root.unit
                     horizontalAlignment: TextInput.AlignRight; verticalAlignment: TextInput.AlignVCenter
                     onAccepted: { const secret=text; text=""; if (secret.length && !root.previewMode) root.submitted(secret); }

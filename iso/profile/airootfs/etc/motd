@@ -1,0 +1,6 @@
+nbshell private preview (x86_64 UEFI/QEMU only)
+
+The automatic installer introduction is always a dry run. After it exits, tty1
+returns to a root prompt. If it does not, press Ctrl+Alt+F2 for a recovery shell.
+Run `nbshell-install` to review; destructive installation additionally requires
+`NBSHELL_ALLOW_INSTALL=ERASE nbshell-install --install` and two disk confirmations.

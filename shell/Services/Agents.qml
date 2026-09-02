@@ -198,7 +198,10 @@ Singleton {
         // While the bar is asking for attention, notice a visit to the target
         // Herdr pane quickly. Return to the cheap background cadence once the
         // marker has been acknowledged.
-        interval: root.overviewVisible ? 5000 : (root.completionAttention || Number(root.hermes.jobsRunning || 0) > 0 || Number(root.hermes.teamsRunning || 0) > 0 || Number(root.hermes.brainReviewing || 0) > 0 ? 2000 : 30000)
+        interval: root.overviewVisible || root.completionAttention
+            || Number(root.hermes.jobsRunning || 0) > 0
+            || Number(root.hermes.teamsRunning || 0) > 0
+            || Number(root.hermes.brainReviewing || 0) > 0 ? 5000 : 30000
         running: true
         repeat: true
         onTriggered: root.refresh()
@@ -236,8 +239,14 @@ Singleton {
                     const nextAttention = root.hermesTeams.filter(row => ["awaiting_approval", "failed"].includes(String(row.status))).length;
                     if (nextAttention > previousAttention)
                         Quickshell.execDetached([root.notifyTool, "hermes-team", "Hermes team", "decision", "Review or approval required"]);
-                    if (root.selectedJobId) root.selectHermesJob(root.selectedJobId);
-                    if (root.selectedBrainProposalId) root.selectBrainProposal(root.selectedBrainProposalId);
+                    // Detail helpers can read transaction state and diffs from
+                    // disk. Keep those live while Agent Center is visible, but
+                    // do not spawn them on resident notification-only polls
+                    // after the lazy surface has been destroyed.
+                    if (root.overviewVisible && root.selectedJobId)
+                        root.selectHermesJob(root.selectedJobId);
+                    if (root.overviewVisible && root.selectedBrainProposalId)
+                        root.selectBrainProposal(root.selectedBrainProposalId);
                     root.config = data.config ?? root.config;
                 } catch (e) {
                     root.message = "Could not read agent status";

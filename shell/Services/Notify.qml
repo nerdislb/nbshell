@@ -36,7 +36,10 @@ Singleton {
     readonly property bool enabled: Config.value("notifications", true)
 
     readonly property bool dnd: Config.value("dnd", false)
-    readonly property int popupTimeout: Config.value("notifyTimeout", 6000)
+    readonly property int normalPopupDuration: Config.value("notifyTimeout", 8000)
+    readonly property int lowPopupDuration: 5000
+    readonly property int maxPopupDuration: 30000
+    readonly property int maxPopupCount: Config.value("notifyMaxPopups", 5)
     readonly property int keep: Config.value("notifyKeep", 200)
     readonly property int keepDays: Config.value("notifyKeepDays", 7)
 
@@ -50,6 +53,9 @@ Singleton {
 
     // Was gerade als Karte am Rand steht.
     property var popups: []
+    property var popupRemaining: ({})
+    property var popupHoverCounts: ({})
+    property int keySerial: 0
     property double lastSeen: 0
     property double readMark: 0
 
@@ -59,6 +65,119 @@ Singleton {
 
     readonly property int count: history.length
     readonly property int unreadCount: history.filter(e => e.time.getTime() > lastSeen).length
+
+    function requestedDuration(expireTimeout) {
+        const value = Number(expireTimeout || 0);
+        return isFinite(value) && value > 0 ? Math.round(value) : 0;
+    }
+
+    function popupDuration(entry) {
+        if (entry?.urgency === NotificationUrgency.Critical || entry?.urgency === 2)
+            return 0;
+        const configured = Object.prototype.hasOwnProperty.call(Config.data, "notifyTimeout")
+            ? Math.max(1, Number(Config.data.notifyTimeout) || normalPopupDuration)
+            : (entry?.urgency === NotificationUrgency.Low || entry?.urgency === 0
+                ? lowPopupDuration : normalPopupDuration);
+        return Math.min(maxPopupDuration, Math.max(configured, requestedDuration(entry?.expireTimeout)));
+    }
+
+    function popupRemainingFor(key, lifetime) {
+        const value = Number(popupRemaining[key]);
+        if (Number.isFinite(value))
+            return value;
+        const initial = Math.max(0, Number(lifetime) || 0);
+        popupRemaining[key] = initial;
+        return initial;
+    }
+
+    function consumePopupLifetime(key, elapsed) {
+        const next = Math.max(0, popupRemainingFor(key, 0) - Math.max(0, elapsed));
+        popupRemaining[key] = next;
+        return next;
+    }
+
+    function setPopupHovered(key, hovered) {
+        if (key === undefined || key === null)
+            return;
+        const counts = Object.assign({}, popupHoverCounts);
+        const next = Math.max(0, Number(counts[key] || 0) + (hovered ? 1 : -1));
+        if (next > 0)
+            counts[key] = next;
+        else
+            delete counts[key];
+        popupHoverCounts = counts;
+    }
+
+    function forgetPopupLifetime(key) {
+        if (key !== undefined && key !== null) {
+            delete popupRemaining[key];
+            const counts = Object.assign({}, popupHoverCounts);
+            delete counts[key];
+            popupHoverCounts = counts;
+        }
+    }
+
+    // One service-owned clock advances each popup exactly once per interval.
+    // Rendering the same toast on several outputs must not shorten its life.
+    Timer {
+        interval: 50
+        repeat: true
+        running: root.popups.some(entry => root.popupDuration(entry) > 0)
+        onTriggered: {
+            const expired = [];
+            const snapshot = root.popups.slice();
+            for (const entry of snapshot) {
+                if (root.popupDuration(entry) <= 0
+                        || Number(root.popupHoverCounts[entry.key] || 0) > 0)
+                    continue;
+                if (root.consumePopupLifetime(entry.key, interval) <= 0)
+                    expired.push(entry.key);
+            }
+            for (const key of expired)
+                root.dismissPopup(key);
+        }
+    }
+
+    function shouldBypassDnd(notification) {
+        const app = String(notification?.appName || "").toLowerCase();
+        const critical = notification?.urgency === NotificationUrgency.Critical
+            || notification?.urgency === 2;
+        return app === "nbshell-action"
+            || (critical && (app === "notify-send" || app === "nbshell"));
+    }
+
+    function isEphemeral(notification) {
+        const app = String(notification?.appName || "").toLowerCase();
+        var transient = false;
+        try {
+            transient = !!notification?.hints?.["transient"];
+        } catch (e) {
+            transient = false;
+        }
+        return transient || app === "notify-send" || app === "nbshell-action";
+    }
+
+    function release(entry, reason) {
+        const notification = entry?.notification;
+        if (!notification) {
+            forgetPopupLifetime(entry?.key);
+            return;
+        }
+        try {
+            if (notification.tracked) {
+                if (reason === "expire" && typeof notification.expire === "function")
+                    notification.expire();
+                else if (reason === "dismiss")
+                    notification.dismiss();
+                else
+                    notification.tracked = false;
+            }
+        } catch (e) {
+            // The sender or server may already have destroyed the live object.
+        }
+        entry.notification = null;
+        forgetPopupLifetime(entry.key);
+    }
 
     function retained(items, nowMs) {
         const cutoff = Number(nowMs || Date.now()) - Math.max(1, keepDays) * 86400000;
@@ -171,7 +290,9 @@ Singleton {
     // Werts -- `!==` trifft damit immer zu, und die Karte bliebe ewig stehen.
     // Genau so ist es passiert.
     function dismissPopup(key) {
+        const entry = popups.find(p => p.key === key);
         popups = popups.filter(p => p.key !== key);
+        release(entry, "expire");
         save();
     }
 
@@ -179,7 +300,7 @@ Singleton {
         const entry = history.find(p => p.key === key) ?? popups.find(p => p.key === key);
         popups = popups.filter(p => p.key !== key);
         history = history.filter(p => p.key !== key);
-        entry?.notification?.dismiss();
+        release(entry, "dismiss");
         save();
     }
 
@@ -188,14 +309,17 @@ Singleton {
         history = [];
         popups = [];
         for (var i = 0; i < items.length; i++)
-            items[i].notification?.dismiss();
+            release(items[i], "dismiss");
         save();
     }
 
     function setDnd(value) {
         Config.set("dnd", value);
         if (value) {
+            const items = popups.slice();
             popups = [];
+            for (var i = 0; i < items.length; i++)
+                release(items[i], "expire");
             save();
         }
     }
@@ -243,6 +367,7 @@ Singleton {
                     "appIcon": root.persistentIcon(e.appIcon),
                     "desktopEntry": e.desktopEntry ?? "",
                     "urgency": e.urgency,
+                    "expireTimeout": e.expireTimeout ?? 0,
                     "repeat": e.repeat ?? 1,
                     "time": e.time.getTime(),
                     "pending": pending.some(p => p.key === e.key)
@@ -287,6 +412,7 @@ Singleton {
                         "appIcon": root.persistentIcon(e.appIcon),
                         "desktopEntry": e.desktopEntry ?? "",
                         "urgency": e.urgency,
+                        "expireTimeout": e.expireTimeout ?? 0,
                         "repeat": e.repeat ?? 1,
                         "time": new Date(e.time),
                         "pending": e.pending === true,
@@ -297,7 +423,10 @@ Singleton {
             secureState.restart();
             // Nur was beim Beenden noch am Rand stand und nicht laengst
             // veraltet ist, kommt zurueck auf den Bildschirm.
-            root.popups = restored.filter(e => e.pending && (now - e.time.getTime()) < root.popupRevive);
+            root.popups = restored.filter(e => e.pending && (now - e.time.getTime()) < root.popupRevive)
+                .slice(0, Math.max(1, root.maxPopupCount));
+            for (var i = 0; i < root.popups.length; i++)
+                root.popupRemainingFor(root.popups[i].key, root.popupDuration(root.popups[i]));
         }
         onLoadFailed: {
             root.history = [];
@@ -353,9 +482,10 @@ Singleton {
                     && e.body === notification.body
                     && now.getTime() - e.time.getTime() <= root.dedupeWindow);
                 const entry = {
-                    // Zeitpunkt UND id: die id allein wiederholt sich nach
-                    // einem Neustart des Servers.
-                    "key": now.getTime() + ":" + notification.id,
+                    // Zeitpunkt, Server-id und laufende Generation: ersetzt
+                    // ein Client zweimal im selben Millisekundentakt, darf der
+                    // close-Callback der alten Generation nie die neue loeschen.
+                    "key": now.getTime() + ":" + notification.id + ":" + (++root.keySerial),
                     "id": notification.id,
                     "appName": notification.appName,
                     "summary": notification.summary,
@@ -363,25 +493,48 @@ Singleton {
                     "appIcon": notification.appIcon ?? "",
                     "desktopEntry": notification.desktopEntry ?? "",
                     "urgency": notification.urgency,
+                    "expireTimeout": notification.expireTimeout ?? 0,
                     "repeat": duplicate ? ((duplicate.repeat ?? 1) + 1) : 1,
                     "time": now,
                     "notification": notification
                 };
 
-                root.history = root.retained([entry].concat(root.history.filter(e => !duplicate || e.key !== duplicate.key)), now.getTime());
-
-                // Bei "Nicht stoeren" landet sie nur in der Liste. `transient`
-                // heisst: das Programm will sie zeigen, aber nicht aufbewahren --
-                // trotzdem in die Liste, sonst verschwindet sie spurlos.
-                if (!root.dnd)
-                    root.popups = [entry].concat(root.popups.filter(e => !duplicate || e.key !== duplicate.key));
-
-                root.save();
-
                 notification.closed.connect(() => {
                     root.popups = root.popups.filter(p => p.key !== entry.key);
+                    entry.notification = null;
+                    root.forgetPopupLifetime(entry.key);
                     root.save();
                 });
+
+                const showPopup = !root.dnd || root.shouldBypassDnd(notification);
+                const keepHistory = showPopup || !root.isEphemeral(notification);
+                const previousHistory = root.history.slice();
+                root.history = keepHistory
+                    ? root.retained([entry].concat(root.history.filter(e => !duplicate || e.key !== duplicate.key)), now.getTime())
+                    : root.history;
+
+                // Keep only the active toast stack alive. Once a toast leaves
+                // the screen its immutable snapshot remains in history, but
+                // the sender-side Notification object must be released.
+                if (showPopup) {
+                    root.popupRemainingFor(entry.key, root.popupDuration(entry));
+                    const previousPopups = root.popups.slice();
+                    const nextPopups = [entry].concat(root.popups.filter(e => !duplicate || e.key !== duplicate.key))
+                        .slice(0, Math.max(1, root.maxPopupCount));
+                    root.popups = nextPopups;
+                    for (var p = 0; p < previousPopups.length; p++)
+                        if (!nextPopups.some(item => item.key === previousPopups[p].key))
+                            root.release(previousPopups[p], "expire");
+                } else {
+                    root.release(entry, "release");
+                }
+
+                for (var h = 0; h < previousHistory.length; h++)
+                    if (!root.history.some(item => item.key === previousHistory[h].key)
+                            && !root.popups.some(item => item.key === previousHistory[h].key))
+                        root.release(previousHistory[h], "release");
+
+                root.save();
             }
         }
     }

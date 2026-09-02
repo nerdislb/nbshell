@@ -50,7 +50,7 @@ PanelWindow {
     readonly property var plugin: list[selected] ?? null
 
     visible: true
-    screen: Quickshell.screens[0] ?? null
+    screen: Compositor.focusedScreen
     color: "transparent"
 
     WlrLayershell.namespace: "nbshell:plugin-manager"
@@ -301,17 +301,21 @@ PanelWindow {
                         border.width: search.activeFocus ? Theme.borderWidth : 0
                         border.color: Theme.focusBorder
 
-                        TextInput {
+                        TextField {
                             id: search
                             anchors.fill: parent
                             anchors.leftMargin: Theme.spaceMd
                             anchors.rightMargin: Theme.spaceMd
-                            verticalAlignment: TextInput.AlignVCenter
+                            verticalAlignment: Text.AlignVCenter
                             color: Theme.fg
                             selectionColor: Theme.accent
                             selectedTextColor: Theme.on(Theme.accent)
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontBody
+                            background: null
+                            horizontalPadding: 0
+                            accessibleName: "Search plugins"
+                            accessibleDescription: "Filters installed and store plugins"
                             text: root.query
                             onTextEdited: root.query = text
                             Keys.onPressed: event => {

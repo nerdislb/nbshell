@@ -1,0 +1,37 @@
+# Maintainer: nbshell packaging pipeline <iso/packages>
+#
+# Packages nbshell's own shell sources plus the install.sh/setup.sh
+# entrypoints, read-only under /usr/share, so the offline installer never
+# needs git or the network to lay nbshell down on the target disk.
+#
+# source = "local" in MANIFEST.toml: there is no separate upstream commit
+# to pin against, since this *is* the working tree. build-package.sh
+# refuses to build this package from a dirty tree (see MANIFEST.toml) and
+# generates nbshell-src.tar.gz right next to this file via `git archive
+# HEAD` before invoking makepkg -- that tarball, not a download, is the
+# "source" makepkg extracts. sha256sums is SKIP for the same reason it is
+# in the VCS-sourced PKGBUILDs: integrity is guaranteed by the git commit
+# recorded in the provenance sidecar build-package.sh writes, checked by
+# verify-repo.sh, not by a content checksum of a file we just generated
+# ourselves.
+
+pkgname=nbshell
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="nbshell shell sources and installer entrypoints (offline-packaged)"
+arch=('x86_64')
+url="https://github.com/nerdislb/nbshell"
+license=('MIT')
+depends=('quickshell' 'bash' 'jq')
+source=("nbshell-src.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    local dest="$pkgdir/usr/share/nbshell"
+    install -dm755 "$dest"
+    cp -a --no-preserve=ownership "$srcdir"/* "$dest"/
+
+    install -dm755 "$pkgdir/usr/bin"
+    ln -s "/usr/share/nbshell/bin/nbshell" "$pkgdir/usr/bin/nbshell"
+    ln -s "/usr/share/nbshell/bin/nbshell-install-recover" "$pkgdir/usr/bin/nbshell-install-recover"
+}

@@ -20,7 +20,7 @@ PanelWindow {
     property bool statusError: false
 
     visible: Runtime.shoppingListOpen
-    screen: Quickshell.screens[0] ?? null
+    screen: Compositor.focusedScreen
     color: "transparent"
     anchors { left: true; right: true; top: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore

@@ -17,7 +17,8 @@
 #   plugins.sh list           -> JSON
 #   plugins.sh dir            -> das Verzeichnis (auch wenn es noch nicht existiert)
 #   plugins.sh add <source>   -> git-Repo oder Verzeichnis hereinholen
-#   plugins.sh update [name]  -> geklonte Plugins nachziehen
+#   plugins.sh update [name] [--yes]  -> geklonte Plugins nachziehen (fragt
+#                                        ohne --yes vor dem Merge)
 #   plugins.sh remove <name>  -> wieder entfernen
 set -uo pipefail
 
@@ -28,8 +29,9 @@ DESIGN_CHECK="$SCRIPT_DIR/plugin-design-check.py"
 
 cmd_list() {
 	local first=1
+	declare -A seen_ids=()
 	printf '['
-	local manifest dir
+	local manifest dir ident
 	for manifest in "$PLUGIN_DIR"/*/manifest.json; do
 		[ -f "$manifest" ] || continue
 		dir="$(dirname "$manifest")"
@@ -41,6 +43,12 @@ cmd_list() {
 			continue
 		}
 		[ -n "$entry" ] || continue
+		ident="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])' <<<"$entry")" || continue
+		if [ -n "${seen_ids[$ident]:-}" ]; then
+			echo "nbshell/plugins: duplicate plugin ID '$ident' in '$dir' and '${seen_ids[$ident]}' — skipped" >&2
+			continue
+		fi
+		seen_ids[$ident]="$dir"
 
 		[ $first -eq 1 ] || printf ','
 		first=0
@@ -188,6 +196,25 @@ PY
 
 valid_name() {
 	[[ "$1" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ && "$1" != *'..'* ]]
+}
+
+plugin_id_for() {
+	check_plugin "$1" json 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])'
+}
+
+plugin_id_conflict() {
+	local wanted="$1" except="${2:-}" manifest dir id
+	for manifest in "$PLUGIN_DIR"/*/manifest.json; do
+		[ -f "$manifest" ] || continue
+		dir="$(dirname "$manifest")"
+		[ -z "$except" ] || [ "$(realpath -m -- "$dir")" != "$(realpath -m -- "$except")" ] || continue
+		id="$(plugin_id_for "$dir")" || continue
+		if [ "$id" = "$wanted" ]; then
+			printf '%s\n' "$dir"
+			return 0
+		fi
+	done
+	return 1
 }
 
 cmd_design_check() {
@@ -380,8 +407,28 @@ cmd_add() {
 	# .git bleibt liegen: nur damit kann `nbshell plugin update` das Plugin
 	# spaeter nachziehen. Bei einem kopierten Verzeichnis gibt es keines, und
 	# dann meldet `update` es einfach nicht.
-	local label
-	label="$(check_plugin "$staging/holen" 2>&1)" || {
+	local label record ident conflict
+	record="$(check_plugin "$staging/holen" json 2>&1)" || {
+		echo "Not an nbshell plugin: $record" >&2
+		rm -rf "$staging"
+		return 1
+	}
+	ident="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])' <<<"$record")" || {
+		rm -rf "$staging"
+		return 1
+	}
+	if conflict="$(plugin_id_conflict "$ident")"; then
+		echo "Plugin ID '$ident' is already installed at $conflict" >&2
+		rm -rf "$staging"
+		return 1
+	fi
+	if ! cmd_design_check "$staging/holen" --strict >/dev/null; then
+		echo "Plugin rejected by the strict nbshell design contract:" >&2
+		cmd_design_check "$staging/holen" --strict >&2 || true
+		rm -rf "$staging"
+		return 1
+	fi
+	label="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["name"])' <<<"$record")" || {
 		echo "Not an nbshell plugin: $label" >&2
 		rm -rf "$staging"
 		return 1
@@ -455,8 +502,27 @@ PY
 	echo "$name removed."
 }
 
+print_incoming_summary() {
+	local dir="$1" current="$2" candidate="$3"
+	printf 'COMMITS\n'
+	git -C "$dir" log --oneline --no-decorate "$current..$candidate" | head -12
+	printf '\nFILES\n'
+	git -C "$dir" diff --stat "$current..$candidate" | tail -20
+}
+
 cmd_update() {
-	local only="${1:-}"
+	local only="" assume_yes=0
+	while [ $# -gt 0 ]; do
+		case "$1" in
+		--yes | -y) assume_yes=1 ;;
+		--*) echo "Unknown option: $1" >&2; return 2 ;;
+		*)
+			[ -z "$only" ] || { echo "Usage: plugins.sh update [name] [--yes]" >&2; return 2; }
+			only="$1"
+			;;
+		esac
+		shift
+	done
 	if [ -n "$only" ] && ! valid_name "$only"; then
 		echo "Ungueltiger Plugin-Name: $only" >&2
 		return 1
@@ -469,10 +535,9 @@ cmd_update() {
 		found=1
 		printf '%-16s ' "$name"
 
-		# Den entfernten Stand erst in einem Wegwerfverzeichnis validieren.
-		# Dadurch braucht es nach einem kaputten Update weder reset --hard noch
-		# ein halb aktualisiertes Plugin in der laufenden Shell.
-		local stage upstream candidate message
+		# Validate the fetched revision in a disposable directory before the
+		# installed checkout can move.
+		local stage upstream candidate current message current_id candidate_id conflict
 		stage="$(mktemp -d "${TMPDIR:-/tmp}/nbshell-plugin-update.XXXXXX")" || continue
 		if ! git -C "$dir" fetch --quiet; then
 			echo "Fetch failed"
@@ -485,6 +550,15 @@ cmd_update() {
 			rm -rf "$stage"
 			continue
 		}
+		current="$(git -C "$dir" rev-parse HEAD)" || {
+			rm -rf "$stage"
+			continue
+		}
+		if [ "$current" = "$candidate" ]; then
+			echo "up to date"
+			rm -rf "$stage"
+			continue
+		fi
 		git -C "$dir" archive "$candidate" | tar -x -C "$stage" || {
 			echo "Validation copy failed"
 			rm -rf "$stage"
@@ -495,7 +569,52 @@ cmd_update() {
 			rm -rf "$stage"
 			continue
 		}
+		current_id="$(plugin_id_for "$dir")" || {
+			echo "installed manifest is invalid"
+			rm -rf "$stage"
+			continue
+		}
+		candidate_id="$(plugin_id_for "$stage")" || {
+			echo "candidate manifest is invalid"
+			rm -rf "$stage"
+			continue
+		}
+		if [ "$candidate_id" != "$current_id" ]; then
+			echo "rejected: plugin ID changed from '$current_id' to '$candidate_id'"
+			rm -rf "$stage"
+			continue
+		fi
+		if conflict="$(plugin_id_conflict "$candidate_id" "$dir")"; then
+			echo "rejected: plugin ID '$candidate_id' is also installed at $conflict"
+			rm -rf "$stage"
+			continue
+		fi
+		if ! cmd_design_check "$stage" --strict >/dev/null; then
+			echo "rejected: strict design contract failed"
+			cmd_design_check "$stage" --strict >&2 || true
+			rm -rf "$stage"
+			continue
+		fi
 		rm -rf "$stage"
+
+		echo
+		print_incoming_summary "$dir" "$current" "$candidate"
+		if [ "$assume_yes" != 1 ]; then
+			local reply=""
+			if { exec 3<>/dev/tty; } 2>/dev/null; then
+				printf '\nMerge %s after reviewing these changes? [y/N] ' "$name" >&3
+				read -r reply <&3 || reply=""
+				exec 3>&-
+			fi
+			case "$reply" in
+			y | Y | yes | Yes) ;;
+			*)
+				echo "Skipped '$name': not confirmed. Review with 'plugin diff $name', then re-run 'plugin update $name --yes' or confirm interactively." >&2
+				continue
+				;;
+			esac
+		fi
+		printf '%-16s ' "$name"
 		git -C "$dir" merge --ff-only "$candidate" 2>&1 | tail -1
 	done
 	[ $found -eq 1 ] || echo "Nothing to update (no plugin with .git in $PLUGIN_DIR)."
@@ -527,21 +646,11 @@ cmd_diff() {
 		echo "Already up to date."
 		return 0
 	fi
-	printf 'COMMITS\n'
-	git -C "$dir" log --oneline --no-decorate "$current..$candidate" | head -12
-	printf '\nFILES\n'
-	git -C "$dir" diff --stat "$current..$candidate" | tail -20
+	print_incoming_summary "$dir" "$current" "$candidate"
 }
 
 plugin_id_exists() {
-	local wanted="$1" manifest dir id
-	for manifest in "$PLUGIN_DIR"/*/manifest.json; do
-		[ -f "$manifest" ] || continue
-		dir="$(dirname "$manifest")"
-		id="$(check_plugin "$dir" json 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])' 2>/dev/null)" || continue
-		[ "$id" = "$wanted" ] && return 0
-	done
-	return 1
+	plugin_id_conflict "$1" >/dev/null
 }
 
 set_enabled() {
@@ -633,7 +742,7 @@ diff)
 	cmd_diff "$@"
 	;;
 *)
-echo "Usage: $(basename "$0") list|dir|new <id> [--kind kind] [--output dir]|validate <directory>|design-check <directory> [--strict]|add <source>|enable <id>|disable <id>|diff <name>|update [name]|remove <name>" >&2
+echo "Usage: $(basename "$0") list|dir|new <id> [--kind kind] [--output dir]|validate <directory>|design-check <directory> [--strict]|add <source>|enable <id>|disable <id>|diff <name>|update [name] [--yes]|remove <name>" >&2
 	exit 2
 	;;
 esac

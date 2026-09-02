@@ -241,6 +241,9 @@ Singleton {
     readonly property color panelSurfaceRaised: alpha(bgLight, 0.72)
     readonly property color panelBorder: mix(bg, fg, 0.24)
     readonly property color focusBorder: readable(accent, bg, 3.0)
+    readonly property color textFieldSelection: selectedSurface(accent)
+    readonly property color textFieldSelectedText: selectedForeground(accent)
+    readonly property real controlDisabledOpacity: 0.45
     // Match Omarchy's default menu scrim: summoned surfaces stand out while
     // the workspace remains legible rather than falling into near-black.
     readonly property color scrim: alpha(bgDarker, 0.50)
@@ -277,6 +280,20 @@ Singleton {
     function controlBorderWidth(hot, selected, urgent) {
         if (selected && !urgent) return 0;
         return borderWidth;
+    }
+
+    function textFieldFill(hot, focused, readOnly) {
+        if (readOnly)
+            return alpha(bgLight, 0.42);
+        return controlFill(hot || focused, false, false);
+    }
+
+    function textFieldBorder(hot, focused, readOnly) {
+        if (focused)
+            return focusBorder;
+        if (readOnly)
+            return panelBorder;
+        return controlBorder(hot, false, false);
     }
 
     FontMetrics {

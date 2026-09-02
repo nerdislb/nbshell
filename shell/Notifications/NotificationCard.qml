@@ -13,6 +13,9 @@ Rectangle {
     property bool detailed: true
     property bool showActions: true
     property bool unread: false
+    // Popup notifications sit directly on the wallpaper; history entries are
+    // drawn as compact rows inside the notification-center panel.
+    property bool standalone: false
 
     signal opened()
     signal removed()
@@ -26,6 +29,7 @@ Rectangle {
     readonly property bool iconAvailable: iconPath !== "" && appIcon.status !== Image.Error
     readonly property string fallbackIcon: Notify.sourceGlyph(entry)
     readonly property var liveActions: entry.notification?.actions ?? []
+    readonly property bool hovered: hover.hovered
 
     function resolveIcon(value) {
         const raw = String(value || "");
@@ -48,16 +52,20 @@ Rectangle {
         event.accepted = true;
     }
 
-    implicitHeight: content.implicitHeight + Theme.cellH * 0.9
-    radius: Math.max(Theme.radius, Theme.cellH * 0.58)
+    implicitHeight: content.implicitHeight + Theme.spaceMd * 2
+    radius: Theme.radius
     color: selected ? Theme.selectedSurface(urgent ? Theme.red : Theme.accent)
-        : Theme.alpha(Theme.fg, hover.hovered ? 0.11 : 0.06)
-    border.width: activeFocus || selected ? Theme.borderWidth : 0
+        : (standalone ? Theme.panelSurfaceRaised
+            : Theme.controlFill(hover.hovered || activeFocus, false, false))
+    border.width: activeFocus || selected || standalone || urgent
+        ? Theme.borderWidth
+        : Theme.controlBorderWidth(hover.hovered, false, false)
     border.color: activeFocus ? Theme.focusBorder
-        : (selected ? Theme.controlBorder(false, true, false) : "transparent")
+        : (urgent ? Theme.red
+            : (selected ? Theme.controlBorder(false, true, false) : Theme.panelBorder))
     activeFocusOnTab: enabled && !showActions
 
-    Accessible.role: showActions ? Accessible.ListItem : Accessible.Button
+    Accessible.role: showActions ? Accessible.ListItem : Accessible.AlertMessage
     Accessible.name: entry.summary || Notify.sourceName(entry)
     Accessible.description: [Notify.sourceName(entry), Notify.plain(entry.body || ""),
         urgent ? "Urgent" : "", unread ? "Unread" : ""].filter(part => part !== "").join("; ")
@@ -76,17 +84,6 @@ Rectangle {
     }
 
     Behavior on color { ColorAnimation { duration: Theme.motionEffectsFast } }
-
-    Rectangle {
-        visible: root.urgent
-        anchors.left: parent.left
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        anchors.margins: Theme.cellH * 0.35
-        width: Math.max(3, Theme.borderWidth * 2)
-        radius: width / 2
-        color: Theme.red
-    }
 
     Rectangle {
         visible: root.unread && !root.urgent
@@ -114,8 +111,10 @@ Rectangle {
 
             Rectangle {
                 anchors.fill: parent
-                radius: Math.max(Theme.radius, Theme.cellH * 0.45)
-                color: Theme.alpha(root.urgent ? Theme.red : Theme.fg, 0.11)
+                radius: Theme.radius
+                color: Theme.controlFill(false, false, false)
+                border.width: Theme.borderWidth
+                border.color: root.urgent ? Theme.red : Theme.panelBorder
                 visible: !root.iconAvailable
             }
 
@@ -243,8 +242,10 @@ Rectangle {
         anchors.topMargin: Theme.cellH * 0.45
         width: Theme.cellH * 1.05
         height: width
-        radius: width / 2
-        color: dismissHover.hovered ? Theme.alpha(Theme.fg, 0.24) : Theme.alpha(Theme.fg, 0.13)
+        radius: Theme.radius
+        color: Theme.controlFill(dismissHover.hovered, false, false)
+        border.width: Theme.controlBorderWidth(dismissHover.hovered, false, false)
+        border.color: Theme.controlBorder(dismissHover.hovered, false, false)
         z: 3
 
         Line {

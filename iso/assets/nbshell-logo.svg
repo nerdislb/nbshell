@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <title>nbshell grid monogram</title>
+  <rect width="512" height="512" rx="72" fill="#1a1b26"/>
+  <g fill="none" stroke="#7aa2f7" stroke-width="44" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M104 352V184h112v168M216 184v168"/>
+    <path d="M296 104v248h112V216H296"/>
+  </g>
+  <rect x="104" y="104" width="56" height="44" fill="#ff9e64"/>
+  <rect x="352" y="384" width="56" height="24" fill="#c0caf5"/>
+</svg>

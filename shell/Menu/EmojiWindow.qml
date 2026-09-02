@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import qs.Common
+import qs.Services
 import qs.Widgets
 
 PanelWindow {
@@ -18,7 +19,7 @@ PanelWindow {
     readonly property var shown: catalog.filter(x => query.trim() === "" || (x.e + " " + x.k).toLowerCase().indexOf(query.toLowerCase().trim()) >= 0)
 
     visible: Runtime.emojiOpen
-    screen: Quickshell.screens[0] ?? null
+    screen: Compositor.focusedScreen
     color: "transparent"
     anchors { left: true; right: true; top: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore

@@ -108,7 +108,7 @@ Singleton {
     function sendLastShot(device) {
         root.pendingDevice = device;
         root.status = "looking for the latest image …";
-        lastShot.command = ["sh", "-c", "ls -1t '" + root.shotDir + "'/*.png '" + root.shotDir + "'/*.jpg 2>/dev/null | head -1"];
+        lastShot.command = ["python3", root.script, "latest-image", root.shotDir];
         lastShot.running = true;
     }
 

@@ -1,0 +1,11 @@
+/out/
+/work/
+/test-runs/
+/packages/cache/
+/packages/repo/
+/packages/pkgbuilds/*/src/
+/packages/pkgbuilds/*/pkg/
+/packages/pkgbuilds/*/iso/
+/packages/pkgbuilds/*/*.pkg.tar.*
+/packages/pkgbuilds/umbriel/umbriel/
+/packages/pkgbuilds/xdg-desktop-portal-umbriel/xdg-desktop-portal-umbriel/

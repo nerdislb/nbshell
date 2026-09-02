@@ -46,8 +46,8 @@ Item {
     border.color: root.pillBorder
     opacity: root.enabled ? 1 : 0.45
 
-    Behavior on color { ColorAnimation { duration: 120 } }
-    Behavior on border.color { ColorAnimation { duration: 120 } }
+    Behavior on color { ColorAnimation { duration: Style.motion.effects } }
+    Behavior on border.color { ColorAnimation { duration: Style.motion.effects } }
   }
 
   Text {

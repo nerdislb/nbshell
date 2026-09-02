@@ -10,13 +10,28 @@ python3 -m unittest "$ROOT/tests/test_plugin_porting_lab.py"
 
 for plugin in beispiel wetter headset hermarchy-agent omamail ytmusic pit-wall; do
     bash "$TOOL" validate "$ROOT/plugins/$plugin" >/dev/null
+    bash "$TOOL" design-check "$ROOT/plugins/$plugin" --strict >/dev/null
 done
 
-python3 - "$ROOT/shell/Catalog/plugins.json" <<'PY'
-import json, sys
+QMLFORMAT="${QMLFORMAT_BIN:-/usr/lib/qt6/bin/qmlformat}"
+if [ -x "$QMLFORMAT" ]; then
+    while IFS= read -r -d '' qml; do
+        "$QMLFORMAT" -n "$qml" >/dev/null
+    done < <(find "$ROOT/plugins" -type f -name '*.qml' -print0)
+fi
+
+# signalrcore 1.0.2 still declares vulnerable msgpack 1.1.2. Pit Wall must
+# install the reviewed client without that stale transitive pin and select the
+# patched msgpack line explicitly.
+grep -Fxq 'msgpack>=1.2.1,<2' "$ROOT/plugins/pit-wall/backend/requirements.txt"
+grep -Fq 'pip" install --quiet --no-deps '\''signalrcore==1.0.2'\''' "$ROOT/plugins/pit-wall/scripts/setup-live.sh"
+
+python3 - "$ROOT/shell/Catalog/plugins.json" "$ROOT/plugins" <<'PY'
+import json, pathlib, sys
 
 with open(sys.argv[1], encoding="utf-8") as handle:
     document = json.load(handle)
+plugin_root = pathlib.Path(sys.argv[2])
 assert document.get("schemaVersion") == 1
 plugins = document.get("plugins")
 assert isinstance(plugins, list) and plugins
@@ -33,6 +48,11 @@ for entry in plugins:
     assert isinstance(dependencies, dict)
     assert isinstance(dependencies.get("commands"), list)
     assert isinstance(dependencies.get("packages"), list)
+    if entry["source"] == "bundled":
+        with (plugin_root / entry["id"] / "manifest.json").open(encoding="utf-8") as handle:
+            manifest = json.load(handle)
+        for field in ("id", "name", "description", "author", "license", "category", "repository", "kinds", "dependencies"):
+            assert entry.get(field) == manifest.get(field), "%s catalog drift: %s" % (entry["id"], field)
 PY
 
 # Every function a bundled plugin calls on the shared Style singleton must be
@@ -74,7 +94,7 @@ make_fixture() {
     local name="$1" manifest="$2"
     mkdir -p "$WORK/$name"
     printf '%s\n' "$manifest" >"$WORK/$name/manifest.json"
-    printf '%s\n' 'import QtQuick' 'Item {}' >"$WORK/$name/Main.qml"
+    printf '%s\n' 'import QtQuick' 'import qs.Common' 'import qs.Widgets' 'Item {}' >"$WORK/$name/Main.qml"
 }
 
 must_reject() {
@@ -100,8 +120,17 @@ must_reject bad_dependencies
 must_reject bad_hosts
 
 make_fixture adaptive '{"schemaVersion":2,"id":"test.adaptive","name":"Adaptive","version":"1","kinds":["panel"],"entryPoints":{"panel":"Main.qml"},"hosts":["panel","window"]}'
+printf '%s\n' 'import QtQuick' 'import qs.Common' 'import qs.Widgets' \
+    'Item {' '  function open(payloadJson) {}' '  function close() {}' \
+    '  Keys.onEscapePressed: close()' '}' >"$WORK/adaptive/Main.qml"
 XDG_CONFIG_HOME="$WORK/adaptive-config" bash "$TOOL" add "$WORK/adaptive" adaptive >/dev/null
 XDG_CONFIG_HOME="$WORK/adaptive-config" bash "$TOOL" list | python3 -c 'import json,sys; assert json.load(sys.stdin)[0]["hosts"] == ["panel", "window"]'
+
+make_fixture adaptive_duplicate '{"schemaVersion":2,"id":"test.adaptive","name":"Duplicate","version":"1","kinds":["service"],"entryPoints":{"service":"Main.qml"}}'
+if XDG_CONFIG_HOME="$WORK/adaptive-config" bash "$TOOL" add "$WORK/adaptive_duplicate" duplicate >/dev/null 2>&1; then
+    echo "ERROR: plugin add accepted a duplicate manifest ID" >&2
+    exit 1
+fi
 
 # The golden-path generator emits every supported plugin kind as a structurally
 # valid, strict design-contract-clean directory with no unresolved placeholders.
@@ -154,6 +183,10 @@ printf '%s\n' \
 bash "$TOOL" design-check "$WORK/design_bad" >/dev/null
 if bash "$TOOL" design-check "$WORK/design_bad" --strict >/dev/null 2>&1; then
     echo "ERROR: strict design check accepted private UI literals and missing contracts" >&2
+    exit 1
+fi
+if XDG_CONFIG_HOME="$WORK/design-add-config" bash "$TOOL" add "$WORK/design_bad" design-bad >/dev/null 2>&1; then
+    echo "ERROR: plugin add bypassed the strict design contract" >&2
     exit 1
 fi
 
@@ -328,5 +361,38 @@ assert "test.removable" not in data.get("enabledPlugins", [])
 assert "test.removable" not in data.get("rightWidgets", [])
 assert "test.removable" not in data.get("pluginSettings", {})
 PY
+
+# Git-managed plugins run unsandboxed. A fetch may discover new code, but a
+# non-interactive update must not merge it without an explicit --yes.
+update_upstream="$WORK/update-upstream"
+git init --quiet --initial-branch=main "$update_upstream"
+printf '%s\n' '{"schemaVersion":2,"id":"test.updateme","name":"Updateme","version":"1","kinds":["service"],"entryPoints":{"service":"Main.qml"}}' \
+    >"$update_upstream/manifest.json"
+printf '%s\n' 'import QtQuick' 'Item {}' >"$update_upstream/Main.qml"
+git -C "$update_upstream" -c user.email=test@example.com -c user.name=Test add -A
+git -C "$update_upstream" -c user.email=test@example.com -c user.name=Test commit --quiet -m initial
+
+XDG_CONFIG_HOME="$WORK/update-config" bash "$TOOL" add "file://$update_upstream" updateme >/dev/null
+update_clone="$WORK/update-config/nbshell/plugins/updateme"
+update_before="$(git -C "$update_clone" rev-parse HEAD)"
+
+printf '%s\n' 'import QtQuick' 'Item { property bool changed: true }' >"$update_upstream/Main.qml"
+git -C "$update_upstream" -c user.email=test@example.com -c user.name=Test commit --quiet -am "new commit"
+update_upstream_head="$(git -C "$update_upstream" rev-parse HEAD)"
+
+update_output="$(XDG_CONFIG_HOME="$WORK/update-config" bash "$TOOL" update updateme </dev/null 2>&1)"
+test "$(git -C "$update_clone" rev-parse HEAD)" = "$update_before"
+grep -q "Skipped 'updateme'" <<<"$update_output"
+test -z "$(git -C "$update_clone" status --porcelain)"
+
+XDG_CONFIG_HOME="$WORK/update-config" bash "$TOOL" update updateme --yes >/dev/null
+test "$(git -C "$update_clone" rev-parse HEAD)" = "$update_upstream_head"
+
+printf '%s\n' 'import QtQuick' 'Item { property color unsafeColor: "#ff00ff" }' >"$update_upstream/Main.qml"
+git -C "$update_upstream" -c user.email=test@example.com -c user.name=Test commit --quiet -am "unsafe design"
+safe_head="$(git -C "$update_clone" rev-parse HEAD)"
+unsafe_output="$(XDG_CONFIG_HOME="$WORK/update-config" bash "$TOOL" update updateme --yes 2>&1)"
+test "$(git -C "$update_clone" rev-parse HEAD)" = "$safe_head"
+grep -q "strict design contract failed" <<<"$unsafe_output"
 
 echo "Plugin validation: OK"

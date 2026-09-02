@@ -29,24 +29,24 @@
       "id": "omamail",
       "name": "Mail",
       "description": "Native Gmail and IMAP/SMTP mail client with keyring-backed credentials.",
-      "author": "Jason Lee; nbshell port by nerdi",
+      "author": "Jason Lee <huacnlee@gmail.com>",
       "license": "MIT",
       "category": "Communication",
       "kinds": ["service", "bar-widget", "panel"],
       "source": "bundled",
       "repository": "https://github.com/huacnlee/omamail",
-      "dependencies": {"commands": ["curl", "secret-tool", "socat", "openssl", "xdg-open"], "packages": ["curl", "libsecret", "socat", "openssl", "xdg-utils"]}
+      "dependencies": {"commands": ["curl", "secret-tool", "socat", "openssl", "xdg-open", "python3", "file", "wl-paste", "zenity", "xclip", "notify-send"], "packages": ["curl", "libsecret", "socat", "openssl", "xdg-utils", "python", "file", "wl-clipboard", "zenity", "xclip", "libnotify"]}
     },
     {
       "id": "ytmusic",
       "name": "YouTube Music",
       "description": "Search, library, playlists, and local mpv playback in a native window.",
-      "author": "rlimberger; nbshell port by nerdi",
+      "author": "rlimberger, Wizwam, nbshell contributors",
       "license": "MIT",
       "category": "Media",
       "kinds": ["service", "bar-widget", "panel"],
       "source": "bundled",
-      "repository": "https://github.com/rlimberger/omarchy-ytmusic",
+      "repository": "https://github.com/nerdislb/nbshell",
       "dependencies": {"commands": ["mpv", "yt-dlp", "python3"], "packages": ["mpv", "yt-dlp", "python"]}
     },
     {
@@ -58,7 +58,7 @@
       "category": "Sports",
       "kinds": ["service", "bar-widget", "panel"],
       "source": "bundled",
-      "repository": "https://github.com/jeremylongshore/pit-wall",
+      "repository": "https://github.com/jeremylongshore/omarchy-pit-wall-entry",
       "dependencies": {"commands": ["python3"], "packages": ["python"]}
     },
     {

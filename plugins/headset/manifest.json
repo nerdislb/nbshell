@@ -1,9 +1,9 @@
 {
   "schemaVersion": 2,
   "id": "headset",
-  "name": "Headset",
-  "description": "USB headset battery level in the bar (headsetcontrol)",
-  "category": "Plugin",
+  "name": "Headset battery",
+  "description": "Battery status for supported USB headsets through headsetcontrol.",
+  "category": "Hardware",
   "version": "1.0.0",
   "author": "nerdi",
   "license": "MIT",

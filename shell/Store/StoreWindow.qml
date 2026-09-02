@@ -38,7 +38,7 @@ PanelWindow {
     }
 
     visible: Runtime.storeOpen
-    screen: Quickshell.screens[0] ?? null
+    screen: Compositor.focusedScreen
     color: "transparent"
 
     WlrLayershell.namespace: "nbshell:store"
@@ -178,17 +178,21 @@ PanelWindow {
                         radius: Theme.radius
                         border.width: search.activeFocus ? Theme.borderWidth : 0
                         border.color: Theme.focusBorder
-                        TextInput {
+                        TextField {
                             id: search
                             anchors.fill: parent
                             anchors.leftMargin: Theme.spaceMd
                             anchors.rightMargin: Theme.spaceMd
-                            verticalAlignment: TextInput.AlignVCenter
+                            verticalAlignment: Text.AlignVCenter
                             color: Theme.fg
                             selectionColor: Theme.selection
                             selectedTextColor: Theme.fg
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontBody
+                            background: null
+                            horizontalPadding: 0
+                            accessibleName: "Search this collection"
+                            accessibleDescription: "Filters the selected store collection"
                             text: root.query
                             onTextEdited: root.query = text
                             Keys.onEscapePressed: root.close()

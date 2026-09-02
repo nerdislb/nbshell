@@ -1,5 +1,6 @@
 import QtQuick
 import QtTest
+import qs.Common
 import "../shell/Widgets" as Widgets
 import "../shell/Widgets/FocusScroll.js" as FocusScroll
 
@@ -14,6 +15,7 @@ TestCase {
     property int rowTriggers: 0
     property int staticRowTriggers: 0
     property int sliderMovedValue: -1
+    property int fieldAccepts: 0
 
     Item {
         width: 600
@@ -95,6 +97,45 @@ TestCase {
             y: 120
             value: 25
         }
+
+        Widgets.TextField {
+            id: field
+            x: 0
+            y: 160
+            width: 180
+            placeholderText: "Search"
+            accessibleName: "Search commands"
+            accessibleDescription: "Filters available commands"
+            onAccepted: root.fieldAccepts += 1
+        }
+
+        Widgets.TextField {
+            id: passwordField
+            x: 190
+            y: 160
+            width: 120
+            password: true
+            accessibleName: "Password"
+        }
+
+        Widgets.TextField {
+            id: readOnlyField
+            x: 320
+            y: 160
+            width: 120
+            text: "Fixed"
+            readOnly: true
+            accessibleName: "Fixed value"
+        }
+
+        Widgets.TextField {
+            id: disabledField
+            x: 450
+            y: 160
+            width: 120
+            enabled: false
+            accessibleName: "Unavailable value"
+        }
     }
 
     function cleanup() {
@@ -104,6 +145,9 @@ TestCase {
         rowTriggers = 0;
         staticRowTriggers = 0;
         sliderMovedValue = -1;
+        fieldAccepts = 0;
+        field.text = "";
+        field.hasCursor = false;
         control.enabled = true;
         control.interactive = true;
         row.activationBlocked = false;
@@ -142,6 +186,33 @@ TestCase {
         compare(slider.asLine, true);
         compare(passiveMeter.activeFocusOnTab, false);
         compare(passiveMeter.Accessible.ignored, true);
+        compare(field.Accessible.role, Accessible.EditableText);
+        compare(field.Accessible.name, "Search commands");
+        compare(field.Accessible.description, "Filters available commands");
+        compare(field.Accessible.passwordEdit, false);
+        compare(field.implicitHeight, Theme.controlHeight);
+        compare(passwordField.echoMode, TextInput.Password);
+        compare(passwordField.Accessible.passwordEdit, true);
+        compare(readOnlyField.Accessible.readOnly, true);
+        compare(disabledField.Accessible.focusable, false);
+        compare(disabledField.opacity, Theme.controlDisabledOpacity);
+    }
+
+    function test_text_field_inherited_api_and_visible_states() {
+        field.forceActiveFocus();
+        tryCompare(field, "activeFocus", true);
+        compare(field.visualBorder, Theme.focusBorder);
+        keyClick(Qt.Key_Q);
+        compare(field.text, "q");
+        keyClick(Qt.Key_Return);
+        compare(fieldAccepts, 1);
+
+        passwordField.forceActiveFocus();
+        tryCompare(passwordField, "activeFocus", true);
+        field.hasCursor = true;
+        compare(field.visualHover, true);
+        compare(field.visualFill, Theme.textFieldFill(true, false, false));
+        compare(readOnlyField.visualFill, Theme.textFieldFill(false, false, true));
     }
 
     function test_keyboard_activation() {

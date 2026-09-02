@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import qs.Common
+import qs.Services
 import qs.Widgets
 
 // Durchsatz messen -- als Fenster mit Balken statt als Zahlenzeile im Popout.
@@ -49,7 +50,7 @@ PanelWindow {
 
     visible: Runtime.speedOpen
 
-    screen: Quickshell.screens[0] ?? null
+    screen: Compositor.focusedScreen
     color: "transparent"
 
     WlrLayershell.namespace: "nbshell:speedtest"

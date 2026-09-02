@@ -113,7 +113,7 @@ Cell {
         id: menuPopout
 
         anchorItem: root.menuAnchor ?? root
-        takesKeyboard: false
+        takesKeyboard: true
         contentComponent: menuComponent
     }
 
@@ -121,6 +121,8 @@ Cell {
         id: menuComponent
 
         Column {
+            id: content
+            readonly property Item initialFocusItem: menu.initialFocusItem
             spacing: Theme.cellH * 0.3
 
             Line {
@@ -129,6 +131,7 @@ Cell {
             }
 
             MenuView {
+                id: menu
                 handle: root.menuItem?.menu ?? null
                 dismiss: () => {
                     menuPopout.close();

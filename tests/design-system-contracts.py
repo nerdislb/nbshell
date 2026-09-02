@@ -311,6 +311,16 @@ shell_root = (ROOT / "shell/shell.qml").read_text(encoding="utf-8")
 if "requested: Runtime.themePickerOpen" not in shell_root or "ThemeGallery {}" not in shell_root:
     raise SystemExit("Theme gallery is no longer owned by the permanent shell lifecycle")
 
+system_hub = (ROOT / "shell/Menu/SystemHub.qml").read_text(encoding="utf-8")
+system_hub_backend = (ROOT / "shell/scripts/system-hub.py").read_text(encoding="utf-8")
+if "if (Array.isArray(command))" not in system_hub or "Quickshell.execDetached(command.map(value => String(value)))" not in system_hub:
+    raise SystemExit("System Hub no longer supports argv-safe detached actions")
+for unsafe in ('"detached:xdg-open " + link', '"detached:python3 " + str(Path(__file__).resolve())'):
+    if unsafe in system_hub_backend:
+        raise SystemExit(f"System Hub dynamic action returned to shell-string construction: {unsafe}")
+if 'def arch_news_link(value):' not in system_hub_backend or 'host.endswith(".archlinux.org")' not in system_hub_backend:
+    raise SystemExit("System Hub Arch News links are no longer origin constrained")
+
 shopping_window = (ROOT / "shell/Shopping/ShoppingListWindow.qml").read_text(encoding="utf-8")
 shopping_service = (ROOT / "shell/Services/ShoppingDraft.qml").read_text(encoding="utf-8")
 config = (ROOT / "shell/Common/Config.qml").read_text(encoding="utf-8")
@@ -330,13 +340,16 @@ for snippet in (
     "atomicWrites: true",
     "readonly property bool sending: sendProc.running",
     '"--to", String(target)',
-    '"--message", String(message)',
+    "write(pendingMessage)",
+    "sendProc.stdinEnabled = true",
     "onExited: code => Qt.callLater(() => root.finishSend(code))",
 ):
     if snippet not in shopping_service:
         raise SystemExit(f"Shopping-list service contract is incomplete: {snippet}")
 if "Process {" in shopping_window or "sh -c" in shopping_service:
     raise SystemExit("Shopping-list sending escaped its permanent safe-argv service")
+if '"--message"' in shopping_service:
+    raise SystemExit("Shopping-list draft must travel over stdin, not as a --message argument")
 if "LazyLoader { active: Runtime.shoppingListOpen; ShoppingListWindow {} }" not in shell_root:
     raise SystemExit("Shopping-list window is no longer lazy-loaded by the shell")
 if 'readonly property string targetGroup: Config.shoppingListTarget' not in shopping_window:
@@ -402,11 +415,45 @@ for legacy in ("id: unpairHover", "id: cmdRowMouse", "id: cmdHover"):
     if legacy in kde_connect:
         raise SystemExit(f"KDE Connect rows regressed to manual interaction: {legacy}")
 
+phone_panel = (ROOT / "shell/Bar/Widgets/PhonePanel.qml").read_text(encoding="utf-8")
+nearby_panel = (ROOT / "shell/Bar/Widgets/NearbyPanel.qml").read_text(encoding="utf-8")
+for snippet in (
+    "PhonePanel {",
+    "NearbyPanel {",
+    "sectionSpacing: panel.spacing",
+    "active: root.popoutVisible",
+    "shown: Kdeconnect.enabled || Phone.available || Nearby.enabled",
+):
+    if snippet not in kde_connect:
+        raise SystemExit(f"KDE Connect subpanel composition contract is incomplete: {snippet}")
+for legacy in ('label: "PHONE MIRROR · NBPHONE"', 'label: "NEARBY · LOCALSEND"'):
+    if legacy in kde_connect:
+        raise SystemExit(f"KDE Connect still owns an extracted subpanel: {legacy}")
+for snippet in (
+    "readonly property bool available: Phone.available",
+    "if (root.active)",
+    "Phone.refresh()",
+    'label: "PHONE MIRROR · NBPHONE"',
+    'label: "PHONE CAMERA · WEBCAM"',
+):
+    if snippet not in phone_panel:
+        raise SystemExit(f"Phone subpanel contract is incomplete: {snippet}")
+for snippet in (
+    "readonly property bool available: Nearby.enabled",
+    "onActiveChanged: Nearby.wanted = root.active",
+    "Component.onDestruction",
+    'label: "NEARBY · LOCALSEND"',
+    "Nearby.sendText",
+    "Nearby.sendLastShot",
+):
+    if snippet not in nearby_panel:
+        raise SystemExit(f"Nearby subpanel contract is incomplete: {snippet}")
+
 notification_card = (ROOT / "shell/Notifications/NotificationCard.qml").read_text(encoding="utf-8")
 notification_center = (ROOT / "shell/Notifications/NotificationCenter.qml").read_text(encoding="utf-8")
 notification_bar = (ROOT / "shell/Bar/Widgets/Notifications.qml").read_text(encoding="utf-8")
 for snippet in (
-    "Accessible.role: showActions ? Accessible.ListItem : Accessible.Button",
+    "Accessible.role: showActions ? Accessible.ListItem : Accessible.AlertMessage",
     "Accessible.onPressAction: if (!showActions) root.opened()",
     "signal focusEntered()",
     "onActiveFocusChanged: if (activeFocus) focusEntered()",
@@ -501,6 +548,106 @@ for path, snippets in required_accessible_names.items():
     for snippet in snippets:
         if snippet not in source:
             raise SystemExit(f"Missing explicit accessibility name in {path}: {snippet}")
+
+compositor = (ROOT / "shell/Services/Compositor.qml").read_text(encoding="utf-8")
+if "readonly property var focusedScreen: Quickshell.screens.find(" not in compositor:
+    raise SystemExit("Overlay surfaces no longer share the compositor-focused output")
+for relative in (
+    "shell/Launcher/Launcher.qml",
+    "shell/Menu/Menu.qml",
+    "shell/Power/PowerMenu.qml",
+    "shell/Capture/CaptureMenu.qml",
+    "shell/Notifications/NotificationCenter.qml",
+    "shell/Settings/SettingsWindow.qml",
+    "shell/Wallpaper/WallpaperPicker.qml",
+):
+    source = (ROOT / relative).read_text(encoding="utf-8")
+    if "screen: Compositor.focusedScreen" not in source:
+        raise SystemExit(f"Overlay does not follow the focused output: {relative}")
+
+notify = (ROOT / "shell/Services/Notify.qml").read_text(encoding="utf-8")
+for snippet in (
+    "readonly property int lowPopupDuration: 5000",
+    'readonly property int normalPopupDuration: Config.value("notifyTimeout", 8000)',
+    "function popupDuration(entry)",
+    "function setPopupHovered(key, hovered)",
+    "root.consumePopupLifetime(entry.key, interval)",
+    "const snapshot = root.popups.slice()",
+    'app === "nbshell-action"',
+    '"expireTimeout": notification.expireTimeout ?? 0',
+    'readonly property int maxPopupCount: Config.value("notifyMaxPopups", 5)',
+    'function release(entry, reason)',
+    '.slice(0, Math.max(1, root.maxPopupCount))',
+    'const keepHistory = showPopup || !root.isEphemeral(notification)',
+    'notification.id + ":" + (++root.keySerial)',
+):
+    if snippet not in notify:
+        raise SystemExit(f"Omarchy-compatible notification timing contract is incomplete: {snippet}")
+if notify.count("root.consumePopupLifetime(entry.key, interval)") != 1:
+    raise SystemExit("Notification lifetime must be consumed once by the service-owned clock")
+
+popups = (ROOT / "shell/Notifications/Popups.qml").read_text(encoding="utf-8")
+notification_toast = (ROOT / "shell/Notifications/NotificationToast.qml").read_text(encoding="utf-8")
+for snippet in (
+    "NotificationToast {",
+    "entry: modelData",
+    "onRemoved: Notify.dismissPopup(modelData.key)",
+):
+    if snippet not in popups:
+        raise SystemExit(f"Notification popup host contract is incomplete: {snippet}")
+for snippet in (
+    "Notify.setPopupHovered(root.entry.key, hovered)",
+    "Component.onDestruction",
+    "PanelSurface {",
+    "Accessible.role: Accessible.AlertMessage",
+    "Accessible.onPressAction: root.activate()",
+):
+    if snippet not in notification_toast:
+        raise SystemExit(f"Notification toast contract is incomplete: {snippet}")
+if "consumePopupLifetime" in notification_toast or "Timer {" in notification_toast:
+    raise SystemExit("Per-output notification toasts must not own the shared lifetime clock")
+
+menu_view = (ROOT / "shell/Widgets/MenuView.qml").read_text(encoding="utf-8")
+tray = (ROOT / "shell/Bar/Widgets/Tray.qml").read_text(encoding="utf-8")
+for snippet in (
+    "Accessible.role: Accessible.MenuItem",
+    "Keys.onRightPressed",
+    "Keys.onLeftPressed",
+    "readonly property Item initialFocusItem",
+):
+    if snippet not in menu_view:
+        raise SystemExit(f"Tray submenu keyboard contract is incomplete: {snippet}")
+if "takesKeyboard: true" not in tray or "initialFocusItem: menu.initialFocusItem" not in tray:
+    raise SystemExit("Tray menu no longer transfers keyboard focus into the DBus menu")
+
+cell = (ROOT / "shell/Widgets/Cell.qml").read_text(encoding="utf-8")
+for snippet in (
+    "Accessible.role: root.clickable ? Accessible.Button : Accessible.StaticText",
+    "Accessible.onPressAction: root.activatePrimary()",
+    "function activatePrimary()",
+    "Keys.onSpacePressed",
+    "root.activatePrimary();",
+):
+    if snippet not in cell:
+        raise SystemExit(f"Bar cells no longer share pointer, keyboard, and accessibility activation: {snippet}")
+
+segments = (ROOT / "shell/Widgets/Segments.qml").read_text(encoding="utf-8")
+for snippet in (
+    "InteractiveSurface {",
+    "accessibleRole: Accessible.RadioButton",
+    "Keys.onLeftPressed",
+    "Keys.onRightPressed",
+    "elide: Text.ElideRight",
+):
+    if snippet not in segments:
+        raise SystemExit(f"Segmented controls lost keyboard or adaptive behavior: {snippet}")
+
+power_menu = (ROOT / "shell/Power/PowerMenu.qml").read_text(encoding="utf-8")
+notification_center = (ROOT / "shell/Notifications/NotificationCenter.qml").read_text(encoding="utf-8")
+if "property int confirmIndex: -1" not in power_menu or "Enter again confirms" not in power_menu:
+    raise SystemExit("Destructive session actions no longer require confirmation")
+if "function requestClear()" not in notification_center or "Ctrl+c twice clears" not in notification_center:
+    raise SystemExit("Notification-center clear no longer shares a guarded confirmation path")
 
 design_doc = (ROOT / "DESIGN.md").read_text(encoding="utf-8")
 agent_guide = (ROOT / "AGENTS.md").read_text(encoding="utf-8")

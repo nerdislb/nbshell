@@ -74,6 +74,8 @@ assert_no_reservations() {
     test -z "$(find "$XDG_CONFIG_HOME/quickshell" -maxdepth 1 -type d \
         \( -name '.nbshell-stage.*' -o -name '.nbshell-rollback.*' \) \
         -print -quit 2>/dev/null)"
+    test -z "$(find "$XDG_CONFIG_HOME" -maxdepth 1 -type d \
+        -name '.nbshell-install-rollback.*' -print -quit 2>/dev/null)"
 }
 
 "$ROOT/install.sh" >/dev/null
@@ -186,6 +188,47 @@ fi
 test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/transaction-sentinel")" = pre-swap
 test -f "$XDG_CONFIG_HOME/quickshell/nbshell/shell.qml"
 test ! -d "$XDG_CONFIG_HOME/quickshell/nbshell/nbshell"
+assert_no_reservations
+
+# Config creation, managed plugins, and Umbriel integration participate in the
+# same rollback contract as the runtime swap.
+mv "$XDG_CONFIG_HOME/nbshell/config.json" "$WORK/config.saved"
+if NBSHELL_INSTALL_TEST_FAULT=post-config "$ROOT/install.sh" >/dev/null 2>&1; then
+    echo "Install unexpectedly succeeded at the post-config fault" >&2
+    exit 1
+fi
+test ! -e "$XDG_CONFIG_HOME/nbshell/config.json"
+mv "$WORK/config.saved" "$XDG_CONFIG_HOME/nbshell/config.json"
+assert_no_reservations
+
+printf '%s\n' plugin-before >"$XDG_CONFIG_HOME/nbshell/plugins/beispiel/transaction-sentinel"
+if NBSHELL_INSTALL_TEST_FAULT=post-plugin "$ROOT/install.sh" >/dev/null 2>&1; then
+    echo "Install unexpectedly succeeded at the post-plugin fault" >&2
+    exit 1
+fi
+test "$(cat "$XDG_CONFIG_HOME/nbshell/plugins/beispiel/transaction-sentinel")" = plugin-before
+assert_no_reservations
+
+config_before_umbriel_fault="$(sha256sum "$XDG_CONFIG_HOME/nbshell/config.json" | cut -d' ' -f1)"
+printf '%s\n' umbriel-before >"$XDG_CONFIG_HOME/umbriel/nbshell.toml"
+if NBSHELL_INSTALL_TEST_FAULT=post-umbriel "$ROOT/install.sh" >/dev/null 2>&1; then
+    echo "Install unexpectedly succeeded at the post-umbriel fault" >&2
+    exit 1
+fi
+test "$(cat "$XDG_CONFIG_HOME/umbriel/nbshell.toml")" = umbriel-before
+test "$(cat "$XDG_CONFIG_HOME/nbshell/plugins/beispiel/transaction-sentinel")" = plugin-before
+test "$(sha256sum "$XDG_CONFIG_HOME/nbshell/config.json" | cut -d' ' -f1)" = "$config_before_umbriel_fault"
+assert_no_reservations
+
+# A failure after commands, greeter data, desktop metadata, and skills are
+# installed must still restore the previous runtime and backed-up user state.
+if NBSHELL_INSTALL_TEST_FAULT=post-payload "$ROOT/install.sh" >/dev/null 2>&1; then
+    echo "Install unexpectedly succeeded at the post-payload fault" >&2
+    exit 1
+fi
+test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/transaction-sentinel")" = pre-swap
+test "$(cat "$XDG_CONFIG_HOME/umbriel/nbshell.toml")" = umbriel-before
+test "$(cat "$XDG_CONFIG_HOME/nbshell/plugins/beispiel/transaction-sentinel")" = plugin-before
 assert_no_reservations
 
 # An installer launched from the shell's own service must atomically update the

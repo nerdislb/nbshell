@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import qs.Common
+import qs.Services
 import qs.Widgets
 import qs.Ui as CompatUi
 
@@ -9,7 +10,7 @@ PanelWindow {
     id: root
 
     visible: true
-    screen: Quickshell.screens[0] ?? null
+    screen: Compositor.focusedScreen
     color: "transparent"
     anchors { left: true; right: true; top: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore
@@ -109,6 +110,18 @@ PanelWindow {
                         ActionButton { text: "SYNC"; busy: true }
                         ActionButton { text: "REMOVE"; tone: "danger" }
                         ActionButton { width: viewport.width; text: "A LONG ACTION LABEL THAT MUST REMAIN READABLE" }
+                    }
+
+                    SectionHeader { width: parent.width; text: "Text fields"; detail: "normal · focus preview · read-only · disabled · password" }
+                    Flow {
+                        width: viewport.width
+                        height: childrenRect.height
+                        spacing: Theme.spaceSm
+                        TextField { width: Theme.cellW * 27; placeholderText: "Search…"; accessibleName: "Gallery search field" }
+                        TextField { width: Theme.cellW * 27; text: "Visible keyboard focus"; visualFocus: true; readOnly: true; accessibleName: "Focus preview" }
+                        TextField { width: Theme.cellW * 27; text: "Read-only value"; readOnly: true; accessibleName: "Read-only example" }
+                        TextField { width: Theme.cellW * 27; text: "Disabled value"; enabled: false; accessibleName: "Disabled example" }
+                        TextField { width: Theme.cellW * 27; text: "secret"; password: true; accessibleName: "Password example" }
                     }
 
                     SectionHeader { width: parent.width; text: "Compatibility inputs"; detail: "qs.Ui · keyboard · accessibility" }

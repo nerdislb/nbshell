@@ -48,10 +48,11 @@ Singleton {
             return false;
         setStatus("Sending to “" + target + "”…", false);
         root.sendStarted();
+        sendProc.pendingMessage = String(message);
+        sendProc.stdinEnabled = true;
         sendProc.command = [
             "python3", root.sendScript,
-            "--to", String(target),
-            "--message", String(message)
+            "--to", String(target)
         ];
         sendProc.running = true;
         return true;
@@ -86,8 +87,18 @@ Singleton {
 
     Process {
         id: sendProc
+        property string pendingMessage: ""
+        stdinEnabled: true
         stdout: StdioCollector { id: sendOut }
         stderr: StdioCollector { id: sendErr }
+        // The draft goes over stdin, not argv: command-line arguments are
+        // visible through process inspection for the whole lookup phase,
+        // while stdin is only readable by this child process.
+        onStarted: {
+            write(pendingMessage);
+            pendingMessage = "";
+            stdinEnabled = false;
+        }
         // Collectors finish in the same event-loop turn as Process::exited.
         // Defer parsing once so the final JSON is available before status and
         // draft state are committed.

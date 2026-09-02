@@ -352,17 +352,21 @@ Cell {
                         border.width: Theme.borderWidth
                         border.color: Theme.accent
 
-                        TextInput {
+                        TextField {
                             id: pskField
 
                             anchors.fill: parent
                             anchors.leftMargin: Theme.cellW / 2
                             anchors.rightMargin: Theme.cellW / 2
-                            verticalAlignment: TextInput.AlignVCenter
+                            verticalAlignment: Text.AlignVCenter
                             color: Theme.fg
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontBody
-                            echoMode: TextInput.Password
+                            background: null
+                            horizontalPadding: 0
+                            password: true
+                            accessibleName: "Wi-Fi password"
+                            accessibleDescription: "Enter connects to " + String(entry.modelData.ssid ?? entry.modelData.name ?? "the selected network")
                             focus: entry.asksPassword
                             onAccepted: {
                                 Net.connect(entry.modelData, text);

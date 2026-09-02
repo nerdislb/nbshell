@@ -19,6 +19,7 @@ if f"## [{version}]" not in changelog:
     raise SystemExit(f"CHANGELOG.md has no {version} section")
 
 required_release_files = (
+    "bootstrap.sh",
     "LICENSE",
     "PRIVACY.md",
     "SECURITY.md",
@@ -30,6 +31,17 @@ required_release_files = (
 for name in required_release_files:
     if not (root / name).is_file():
         raise SystemExit(f"required release file is missing: {name}")
+    tracked_result = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", name],
+        cwd=root,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if tracked_result.returncode != 0:
+        raise SystemExit(f"required release file is not tracked: {name}")
+if not (root / "bootstrap.sh").stat().st_mode & 0o111:
+    raise SystemExit("bootstrap.sh is not executable")
 
 retired_payloads = (
     "niri",

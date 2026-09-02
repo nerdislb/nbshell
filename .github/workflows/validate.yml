@@ -20,100 +20,11 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Check shell syntax
-        run: |
-          find . -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
-          bash -n bin/nbshell bin/nbshell-install-recover
-
-      - name: Check Python syntax
-        run: find shell -type f -name '*.py' -exec python3 -m py_compile {} +
-
-      - name: Validate bundled plugins
-        run: ./tests/plugin-validation.sh
-
-      - name: Test bundled Mail client
-        run: make -C plugins/omamail test
-
-
-      - name: Test lock screen generation
-        run: python3 ./tests/lockscreen.py
-
-      - name: Test shell release updater
-        run: python3 ./tests/shell-update.py
-
-      - name: Test Umbriel-only contracts
-        run: python3 ./tests/umbriel-contracts.py
-
-      - name: Test Umbriel updater contracts
-        run: python3 ./tests/umbriel-update.py
-
-      - name: Test phone authentication core
-        run: python3 ./tests/phone_auth.py
-
-      - name: Test local AI statistics
-        run: python3 ./tests/ai-local-stats.py
-
-      - name: Test Hermes hub contracts
-        run: python3 ./tests/hermes-hub.py
-
-      - name: Test Hermes broker safety contracts
-        run: python3 ./tests/hermes-broker.py
-
-      - name: Test Hermes transaction contracts
-        run: python3 ./tests/hermes-jobs.py
-
-      - name: Test Hermes supervised team contracts
-        run: python3 ./tests/hermes-team.py
-
-      - name: Test Hermes Brain proposal contracts
-        run: python3 ./tests/hermes-brain.py
-
-      - name: Test performance structure
-        run: bash ./tests/performance-smoke.sh
-
-      - name: Test process selection identity
-        run: bash ./tests/process-selection.sh
-
-      - name: Test QML component contracts
-        run: bash ./tests/qml.sh
-
-      - name: Test screen-saver renderer selection
-        run: bash ./tests/screensaver-renderer.sh
-
-      - name: Test power mode aliases
-        run: bash ./tests/power-modes.sh
-
-      - name: Test motion contracts
-        run: bash ./tests/motion.sh
-
-      - name: Test memory guard contracts
-        run: bash ./tests/memory-guard.sh
-
-      - name: Test system report contracts
-        run: bash ./tests/system-report.sh
-
-      - name: Test browser theme contracts
-        run: bash ./tests/browser-theme.sh
-
-      - name: Test Hermes theme generation
-        run: bash ./tests/hermes-theme.sh
-
-      - name: Test Hermarchy theme assets
-        run: python3 ./tests/hermarchy-theme.py
-
-      - name: Test CLI help and catalog consistency
-        run: python3 ./tests/cli-consistency.py
-
-      - name: Test AT-SPI probe contracts
-        run: python3 ./tests/accessibility/test_atspi_probe.py
-
-      - name: Audit release metadata and privacy
-        run: ./tests/release-audit.sh
-
-      - name: Test a clean installation and update
+      - name: Run the complete repository test gate
         run: |
           useradd --create-home nbshell-ci
-          runuser -u nbshell-ci -- ./tests/fresh-install.sh
+          chown -R nbshell-ci:nbshell-ci "${GITHUB_WORKSPACE}"
+          runuser -u nbshell-ci -- ./tests/all.sh
 
       # The package-free CI image verifies the installed greeter payload in the
       # fresh-install test. Full QML/Umbriel/greetd integration remains part of the

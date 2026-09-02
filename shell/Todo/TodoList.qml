@@ -40,7 +40,7 @@ PanelWindow {
 
     visible: Runtime.todoOpen
 
-    screen: Quickshell.screens[0] ?? null
+    screen: Compositor.focusedScreen
     color: "transparent"
 
     WlrLayershell.namespace: "nbshell:todo"
@@ -209,7 +209,7 @@ PanelWindow {
                 color: root.editing !== "" ? Theme.yellow : Theme.accent
             }
 
-            TextInput {
+            TextField {
                 id: input
 
                 anchors.bottom: line.top
@@ -219,6 +219,10 @@ PanelWindow {
                 color: Theme.fg
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontBody
+                background: null
+                horizontalPadding: 0
+                accessibleName: root.editing !== "" ? "Edit todo" : "New todo"
+                accessibleDescription: "Enter saves; arrow keys move through todos"
                 focus: true
                 selectByMouse: true
                 selectionColor: Theme.selection

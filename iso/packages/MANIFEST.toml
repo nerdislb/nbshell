@@ -1,0 +1,156 @@
+# iso/packages/MANIFEST.toml
+#
+# Single source of truth for the nbshell offline installation repository.
+# fetch-official-packages.sh, build-package.sh, make-repo.sh and
+# verify-repo.sh all read this file; package selection never lives only in a
+# script. Every package listed here MUST end up in the built repository, and
+# nothing else may (verify-repo.sh enforces both directions).
+
+[snapshot]
+# Arch Linux Archive (https://archive.archlinux.org) date the [official]
+# packages are pinned to. A fixed daily snapshot -- instead of live mirrors
+# -- is what makes two builds of the same commit resolve to the same set of
+# package files. archive_base may be overridden (e.g. to a file:// fixture)
+# for tests; production builds use the default.
+date = "2026/09/01"
+archive_base = "https://archive.archlinux.org/repos"
+repos = ["core", "extra"]
+arch = "x86_64"
+
+[official]
+# Mirrors the package groups nbshell's own installers (setup.sh,
+# setup-umbriel.sh) declare, minus build-only tools that are makedepends on
+# the [[custom]] PKGBUILDs below rather than runtime deps of the ISO.
+packages = [
+    # Live installer and target base system.
+    "archinstall",
+    "archiso",
+    "base",
+    "btrfs-progs",
+    "cryptsetup",
+    "efibootmgr",
+    "linux",
+    "linux-firmware",
+    "mkinitcpio-archiso",
+    "openssl",
+    "sudo",
+
+    # PKG_BASIS -- nothing runs without these.
+    "quickshell",
+    "ttf-jetbrains-mono-nerd",
+    "python",
+    "jq",
+    "git",
+    "curl",
+    "patch",
+
+    # PKG_SYSTEM -- what the building blocks talk to over DBus/PulseAudio.
+    "networkmanager",
+    "bluez",
+    "bluez-utils",
+    "pipewire",
+    "pipewire-pulse",
+    "wireplumber",
+    "libpulse",
+    "upower",
+
+    # PKG_BAUSTEINE -- individual building blocks and buttons.
+    "wl-clipboard",
+    "hyprlock",
+    "tuned",
+    "libnotify",
+    "xdg-utils",
+    "pacman-contrib",
+    "fakeroot",
+    "headsetcontrol",
+    "hyprpolkitagent",
+    "qrencode",
+    "speedtest-cli",
+    "imagemagick",
+    "sqlite",
+    "libsecret",
+    "bubblewrap",
+
+    # PKG_KALENDER
+    "khal",
+    "vdirsyncer",
+
+    # PKG_ABGLEICH
+    "syncthing",
+
+    # PKG_AUFNAHME -- recording, trimming, OCR.
+    "grim",
+    "wf-recorder",
+    "slurp",
+    "satty",
+    "swappy",
+    "tesseract",
+    "tesseract-data-deu",
+    "tesseract-data-eng",
+    "ffmpeg",
+    "qt6-base",
+    "qt6-declarative",
+    "qt6-multimedia",
+
+    # Greeter (greetd session login, opt-in at install time).
+    "greetd",
+
+    # Umbriel/portal runtime dependencies not already listed above.
+    # Build-only tools (gcc, git, meson, ninja, pkgconf, just) are
+    # makedepends on the umbriel/xdg-desktop-portal-umbriel PKGBUILDs
+    # instead, not mirrored here.
+    "wlroots0.20",
+    "wayland",
+    "wayland-protocols",
+    "libxkbcommon",
+    "libinput",
+    "pixman",
+    "libdrm",
+    "cairo",
+    "pango",
+    "tomlplusplus",
+    "nlohmann-json",
+    "jemalloc",
+    "sdbus-cpp",
+    "gtk4",
+    "wlr-randr",
+    "xwayland-satellite",
+    "xdg-desktop-portal",
+]
+
+# Packages nbshell builds itself. Each entry names the PKGBUILD directory
+# (relative to this file) and its provenance pin.
+#
+# For a git source: build-package.sh and test-manifest-consistency.sh both
+# refuse to run when the PKGBUILD's pinned commit (its `_commit=` variable)
+# does not exactly equal `revision` here -- the manifest and the PKGBUILD
+# must never be allowed to drift apart.
+#
+# For source = "local" (nbshell itself, built from this working tree):
+# there is no separate upstream commit to pin against, so `revision =
+# "HEAD"` records that intent explicitly. In exchange, build-package.sh
+# refuses to build from a dirty working tree (`git status --porcelain` must
+# be empty) unless --allow-dirty is passed for local iteration, and it
+# always records the exact resolved commit plus a clean/dirty flag into a
+# provenance sidecar that verify-repo.sh checks (dirty builds never pass
+# verification).
+[[custom]]
+name = "umbriel"
+pkgbuild = "pkgbuilds/umbriel"
+source = "https://github.com/noctalia-dev/umbriel.git"
+revision = "e677dbbe2728ee65156bdbcc6775b0b36b388b64"
+description = "Umbriel Wayland compositor (nbshell's supported session)"
+
+[[custom]]
+name = "xdg-desktop-portal-umbriel"
+pkgbuild = "pkgbuilds/xdg-desktop-portal-umbriel"
+source = "https://github.com/noctalia-dev/xdg-desktop-portal-umbriel.git"
+revision = "d996f0c2bd4e8c868c0a143f0c9ce060f3c47ed5"
+description = "xdg-desktop-portal backend for Umbriel"
+
+[[custom]]
+name = "nbshell"
+pkgbuild = "pkgbuilds/nbshell"
+source = "local"
+revision = "HEAD"
+description = "nbshell shell sources plus the install.sh/setup.sh entrypoints, packaged read-only under /usr/share so the offline installer never needs git or the network"

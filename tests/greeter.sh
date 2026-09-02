@@ -19,7 +19,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 bash -n "$ROOT/setup-greeter.sh" "$ROOT/install.sh" "$ROOT/bin/nbshell" \
     "$ROOT/greeter/nbshell-greeter-session"
-python3 -m py_compile "$ROOT/shell/scripts/greeter-theme.py"
+python3 -c 'import ast, pathlib, sys; ast.parse(pathlib.Path(sys.argv[1]).read_text())' \
+    "$ROOT/shell/scripts/greeter-theme.py"
 
 stage="$(mktemp -d)"
 trap 'rm -rf -- "$stage"' EXIT

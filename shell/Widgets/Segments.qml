@@ -40,6 +40,21 @@ Flow {
         return String((option && option.label !== undefined) ? option.label : option);
     }
 
+    function currentIndex() {
+        for (var i = 0; i < options.length; i++)
+            if (valueOf(options[i]) === current)
+                return i;
+        return options.length > 0 ? 0 : -1;
+    }
+
+    function chooseAndFocus(index) {
+        if (options.length === 0)
+            return;
+        const next = Math.max(0, Math.min(options.length - 1, index));
+        chosen(valueOf(options[next]));
+        Qt.callLater(() => entries.itemAt(next)?.forceActiveFocus());
+    }
+
     width: root.rowWidth
     // `Flow` kennt nur EINEN Abstand fuer beide Richtungen. Gemessen wird er
     // deshalb an der Zeilenhoehe: waagerecht darf es eng sein, senkrecht
@@ -47,27 +62,51 @@ Flow {
     spacing: Math.round(Theme.cellH * 0.3)
 
     Repeater {
+        id: entries
         model: root.options
 
-        Rectangle {
+        InteractiveSurface {
             id: segment
 
             required property var modelData
+            required property int index
 
             readonly property bool active: root.valueOf(segment.modelData) === root.current
 
-            width: text.implicitWidth + Theme.cellW * 2
+            width: Math.min(root.rowWidth > 0 ? root.rowWidth : Number.MAX_VALUE,
+                Math.max(Theme.cellW * 4, text.implicitWidth + Theme.cellW * 2))
             height: Theme.controlHeight
             radius: Theme.radius
             border.width: Theme.controlBorderWidth(hover.hovered, segment.active, false)
             border.color: Theme.controlBorder(hover.hovered, segment.active, false)
             color: segment.active ? Theme.selectedSurface(Theme.accent) : (hover.hovered ? Theme.hover : "transparent")
+            keyboardFocusable: segment.active || root.currentIndex() < 0
+            accessibleRole: Accessible.RadioButton
+            accessibleName: root.labelOf(segment.modelData)
+            accessibleDescription: segment.active ? "Selected option" : "Option"
+            accessibleSelected: segment.active
+            onTriggered: root.chosen(root.valueOf(segment.modelData))
+
+            Keys.onLeftPressed: root.chooseAndFocus(segment.index - 1)
+            Keys.onRightPressed: root.chooseAndFocus(segment.index + 1)
+            Keys.onPressed: event => {
+                if (event.key === Qt.Key_Home) {
+                    root.chooseAndFocus(0);
+                    event.accepted = true;
+                } else if (event.key === Qt.Key_End) {
+                    root.chooseAndFocus(root.options.length - 1);
+                    event.accepted = true;
+                }
+            }
 
             Line {
                 id: text
 
                 anchors.centerIn: parent
+                width: parent.width - Theme.cellW * 1.2
                 text: root.labelOf(segment.modelData)
+                elide: Text.ElideRight
+                horizontalAlignment: Text.AlignHCenter
                 // Das gefuellte Kaestchen bestimmt die Textfarbe mit -- sonst
                 // steht bei einem hellen Theme dunkles Grau auf dunklem Grund.
                 color: segment.active ? Theme.selectedForeground(Theme.accent) : Theme.fg
@@ -81,7 +120,10 @@ Flow {
             }
 
             TapHandler {
-                onTapped: root.chosen(root.valueOf(segment.modelData))
+                onTapped: {
+                    segment.forceActiveFocus();
+                    segment.activate();
+                }
             }
         }
     }

@@ -7,8 +7,8 @@
   "license": "MIT",
   "repository": "https://github.com/jeremylongshore/omarchy-pit-wall-entry",
   "dependencies": { "commands": ["python3"], "packages": ["python"] },
-  "description": "Formula 1 weekend countdown, live timing, schedule, and championship standings.",
-  "category": "Info",
+  "description": "Formula 1 live timing, schedule, standings, sectors, tyres, and track position.",
+  "category": "Sports",
   "kinds": ["service", "bar-widget", "panel"],
   "activation": "eager",
   "entryPoints": {

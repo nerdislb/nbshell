@@ -134,7 +134,7 @@ ask() {
 # unten ist ein Sonderfall.
 
 # Ohne das running nichts.
-PKG_BASIS=(quickshell ttf-jetbrains-mono-nerd python jq git curl patch)
+PKG_BASIS=(quickshell ttf-jetbrains-mono-nerd python jq git curl patch cosign)
 
 # Woher die Bausteine ihre Zahlen haben. Quickshell spricht mit diesen
 # Servicesn ueber DBus, `pactl` braucht die Aufnahme fuer den audio.

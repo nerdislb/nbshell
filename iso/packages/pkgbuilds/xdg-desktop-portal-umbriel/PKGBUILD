@@ -1,0 +1,48 @@
+# Maintainer: nbshell packaging pipeline <iso/packages>
+#
+# xdg-desktop-portal backend for Umbriel, built from the pinned commit
+# recorded below. build-package.sh and tests/test-manifest-consistency.sh
+# both refuse to run unless _commit here is byte-identical to
+# MANIFEST.toml's [[custom]] "xdg-desktop-portal-umbriel" revision --
+# update both together, never one alone.
+#
+# The build recipe mirrors setup-umbriel.sh's build_project(): a release
+# Meson build, compiled, tested, then installed to /usr.
+
+pkgname=xdg-desktop-portal-umbriel
+_url=https://github.com/noctalia-dev/xdg-desktop-portal-umbriel.git
+_commit=d996f0c2bd4e8c868c0a143f0c9ce060f3c47ed5
+pkgver=0.1.0.r23.gd996f0c
+pkgrel=1
+pkgdesc="xdg-desktop-portal backend for Umbriel"
+arch=('x86_64')
+url="$_url"
+license=('MIT')
+depends=('xdg-desktop-portal' 'wayland' 'sdbus-cpp' 'tomlplusplus' 'nlohmann-json')
+makedepends=('gcc' 'git' 'meson' 'ninja' 'pkgconf' 'just')
+provides=('xdg-desktop-portal-umbriel')
+source=("git+${_url}#commit=${_commit}")
+# See umbriel/PKGBUILD: integrity comes from the pinned commit, not a
+# content checksum, which is the standard makepkg convention for VCS
+# sources pinned this way.
+sha256sums=('SKIP')
+
+pkgver() {
+    cd "$pkgname"
+    printf '0.1.0.r%s.g%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+    local build_dir="$pkgname/build-nbshell"
+    meson setup "$build_dir" "$pkgname" --buildtype=release --prefix=/usr
+    meson compile -C "$build_dir"
+}
+
+check() {
+    meson test -C "$pkgname/build-nbshell" --print-errorlogs
+}
+
+package() {
+    DESTDIR="$pkgdir" meson install -C "$pkgname/build-nbshell"
+    install -Dm644 "$pkgname/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE" 2>/dev/null || true
+}

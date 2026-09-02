@@ -2,6 +2,7 @@
   "schemaVersion": 2,
   "id": "ytmusic",
   "name": "YouTube Music",
+  "category": "Media",
   "version": "1.2.0",
   "author": "rlimberger, Wizwam, nbshell contributors",
   "license": "MIT",
@@ -10,7 +11,7 @@
     "commands": ["mpv", "yt-dlp", "python3"],
     "packages": ["mpv", "yt-dlp", "python"]
   },
-  "description": "YouTube Music in nbshell with search, library, playlists, and local mpv playback.",
+  "description": "Search, library, playlists, and local mpv playback in a native window.",
   "kinds": [
     "service",
     "bar-widget",

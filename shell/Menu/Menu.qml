@@ -22,7 +22,7 @@ PanelWindow {
     id: root
 
     visible: Runtime.menuOpen
-    screen: Quickshell.screens[0] ?? null
+    screen: Compositor.focusedScreen
     color: "transparent"
 
     WlrLayershell.namespace: "nbshell:menu"
@@ -435,6 +435,12 @@ PanelWindow {
                         border.width: rowItem.active ? Theme.borderWidth : 0
                         border.color: Theme.focusBorder
                         scale: rowItem.active ? 1 : 0.992
+                        Accessible.role: Accessible.Button
+                        Accessible.name: rowItem.modelData.label || "Menu item"
+                        Accessible.description: [rowItem.modelData.description || "",
+                            rowItem.isSub ? "Opens submenu" : "Activates action"].filter(part => part !== "").join("; ")
+                        Accessible.selected: rowItem.active
+                        Accessible.onPressAction: root.activate(rowItem.index)
                         Behavior on color { ColorAnimation { duration: Theme.motionFast } }
                         Behavior on scale {
                             NumberAnimation {

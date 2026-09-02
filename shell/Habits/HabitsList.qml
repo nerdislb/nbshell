@@ -34,7 +34,7 @@ PanelWindow {
 
     visible: Runtime.habitsOpen
 
-    screen: Quickshell.screens[0] ?? null
+    screen: Compositor.focusedScreen
     color: "transparent"
 
     WlrLayershell.namespace: "nbshell:habits"
@@ -664,7 +664,7 @@ PanelWindow {
                     color: Theme.green
                 }
 
-                TextInput {
+                TextField {
                     id: input
                     anchors.left: prompt.right
                     anchors.leftMargin: Theme.cellW * 0.5
@@ -674,6 +674,10 @@ PanelWindow {
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontBody
                     color: Theme.fg
+                    background: null
+                    horizontalPadding: 0
+                    accessibleName: "New habit"
+                    accessibleDescription: "Add a habit, optionally followed by // and a routine"
                     focus: true
                     selectByMouse: true
                     selectionColor: Theme.selection

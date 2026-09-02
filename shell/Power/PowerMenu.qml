@@ -8,20 +8,18 @@ import qs.Widgets
 // Power-Menue.
 //
 // Wie der Starter ein Vollbildfenster mit exklusiver Tastatur, nur kleiner:
-// eine Liste, Pfeile waehlen, Enter bestaetigt. Jede Zeile hat zusaetzlich
-// einen Buchstaben -- `x` schaltet aus, ohne dass man zaehlen muss.
-//
-// Bewusst OHNE Rueckfrage: das Menue selbst ist die Rueckfrage. Wer es
-// aufmacht, hat sich schon entschieden, und Esc ist immer da.
+// eine Liste, Pfeile waehlen, Enter bestaetigt. Destruktive Sitzungsaktionen
+// brauchen zwei absichtliche Aktivierungen; Esc bleibt jederzeit verfuegbar.
 PanelWindow {
     id: root
 
     property int selected: 0
+    property int confirmIndex: -1
     property var afterClose: null
 
     visible: true
 
-    screen: Quickshell.screens[0] ?? null
+    screen: Compositor.focusedScreen
     color: "transparent"
 
     WlrLayershell.namespace: "nbshell:power"
@@ -52,8 +50,17 @@ PanelWindow {
 
     function accept() {
         const action = Session.actions[selected];
+        if (!action)
+            return;
+        if (root.confirmIndex !== root.selected) {
+            root.confirmIndex = root.selected;
+            confirmReset.restart();
+            return;
+        }
+        confirmReset.stop();
+        root.confirmIndex = -1;
         root.afterClose = () => {
-            if (action) Session.run(action.id);
+            Session.run(action.id);
         };
         close();
     }
@@ -61,6 +68,7 @@ PanelWindow {
     onVisibleChanged: {
         if (visible) {
             selected = 0;
+            confirmIndex = -1;
             keys.forceActiveFocus();
         }
     }
@@ -80,8 +88,8 @@ PanelWindow {
         Keys.onEscapePressed: root.close()
         Keys.onReturnPressed: root.accept()
         Keys.onEnterPressed: root.accept()
-        Keys.onUpPressed: root.selected = Math.max(0, root.selected - 1)
-        Keys.onDownPressed: root.selected = Math.min(Session.actions.length - 1, root.selected + 1)
+        Keys.onUpPressed: { root.selected = Math.max(0, root.selected - 1); root.confirmIndex = -1; }
+        Keys.onDownPressed: { root.selected = Math.min(Session.actions.length - 1, root.selected + 1); root.confirmIndex = -1; }
         Keys.onPressed: event => {
             // Der Buchstabe vor der Zeile waehlt und fuehrt sofort aus.
             const letter = event.text.toLowerCase();
@@ -124,53 +132,43 @@ PanelWindow {
                 Repeater {
                     model: Session.actions
 
-                    Rectangle {
+                    PanelRow {
                         id: row
 
                         required property var modelData
                         required property int index
 
                         width: column.width
-                        height: Theme.rowHeight
-                        radius: Theme.radius
-                        color: row.index === root.selected ? Theme.selectedSurface(Theme.accent) : "transparent"
-                        border.width: row.index === root.selected ? Theme.borderWidth : 0
-                        border.color: Theme.focusBorder
-
-                        Line {
-                            anchors.left: parent.left
-                            anchors.leftMargin: Theme.cellW / 2
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: row.modelData.label
-                            color: row.index === root.selected ? Theme.selectedForeground(Theme.accent) : Theme.fg
-                            font.pixelSize: Theme.fontBody
+                        title: root.confirmIndex === row.index ? "Confirm " + row.modelData.label : row.modelData.label
+                        value: root.confirmIndex === row.index ? "ENTER" : row.modelData.key.toUpperCase()
+                        selected: row.index === root.selected
+                        interactive: true
+                        accessibleDescription: "Session action; shortcut " + value
+                        onHoveredChanged: if (hovered && root.selected !== row.index) {
+                            root.selected = row.index;
+                            root.confirmIndex = -1;
                         }
-
-                        Line {
-                            anchors.right: parent.right
-                            anchors.rightMargin: Theme.spaceLg
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: row.modelData.key.toUpperCase()
-                            color: row.index === root.selected ? Theme.selectedForeground(Theme.accent) : Theme.muted
-                            font.pixelSize: Theme.fontCaption
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onEntered: root.selected = row.index
-                            onClicked: root.accept()
+                        onTriggered: {
+                            root.selected = row.index;
+                            root.accept();
                         }
                     }
                 }
 
                 Line {
-                    text: "Esc closes · ↑/↓ selects · Enter confirms"
+                    text: root.confirmIndex >= 0
+                        ? "Enter again confirms · Esc cancels"
+                        : "Esc closes · ↑/↓ selects · Enter arms"
                     color: Theme.muted
                     topPadding: Theme.cellH * 0.4
                 }
             }
         }
+    }
+
+    Timer {
+        id: confirmReset
+        interval: 3500
+        onTriggered: root.confirmIndex = -1
     }
 }

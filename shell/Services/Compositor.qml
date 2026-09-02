@@ -24,6 +24,8 @@ Singleton {
     property var _layoutNames: []
 
     property string focusedOutput: ""
+    readonly property var focusedScreen: Quickshell.screens.find(screen => screen.name === focusedOutput)
+        ?? Quickshell.screens[0] ?? null
 
     readonly property var focusedWindow: windows.find(w => String(w.id) === String(focusedWindowId)) ?? null
     readonly property string focusedTitle: focusedWindow?.title ?? ""

@@ -23,7 +23,7 @@ PanelWindow {
     readonly property var nextEvents: Calendar.events.filter(e => e.end >= new Date()).slice(0, 7)
 
     visible: true
-    screen: Quickshell.screens[0] ?? null
+    screen: Compositor.focusedScreen
     color: "transparent"
     anchors { left: true; right: true; top: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore

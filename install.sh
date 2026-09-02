@@ -156,11 +156,40 @@ systemctl --user enable --now nbshell-upstream-audit.timer >/dev/null 2>&1 || tr
 unit_active=0
 defer_service_restart=0
 install_ready=0
+declare -a transaction_states=()
+declare -a transaction_keys=()
+declare -a transaction_paths=()
+transaction_backup_path() {
+    local path="$1" key="$2" state=missing
+    if [ -e "$path" ] || [ -L "$path" ]; then
+        cp -a -- "$path" "$TRANSACTION_BACKUP/$key"
+        state=present
+    fi
+    transaction_states+=("$state")
+    transaction_keys+=("$key")
+    transaction_paths+=("$path")
+}
+rollback_transaction_paths() {
+    local index state key path
+    for ((index=${#transaction_paths[@]} - 1; index >= 0; index--)); do
+        state="${transaction_states[$index]}"
+        key="${transaction_keys[$index]}"
+        path="${transaction_paths[$index]}"
+        rm -rf -- "$path"
+        if [ "$state" = present ]; then
+            mkdir -p -- "$(dirname "$path")"
+            mv -T -- "$TRANSACTION_BACKUP/$key" "$path"
+        fi
+    done
+}
 rollback_is_runtime() {
     [ -d "$ROLLBACK_SHELL" ] && [ -f "$ROLLBACK_SHELL/shell.qml" ]
 }
 recover_install() {
     result=$?
+    if [ $install_ready -ne 1 ] && [ -n "${TRANSACTION_BACKUP:-}" ]; then
+        rollback_transaction_paths
+    fi
     if [ $install_ready -ne 1 ] && rollback_is_runtime; then
         if [ $defer_service_restart -ne 1 ]; then
             systemctl --user stop nbshell.service >/dev/null 2>&1 || true
@@ -176,6 +205,7 @@ recover_install() {
         systemctl --user is-active --quiet nbshell.service 2>/dev/null || \
             systemctl --user start nbshell.service >/dev/null 2>&1 || true
     fi
+    [ ! -d "${TRANSACTION_BACKUP:-}" ] || rm -rf -- "$TRANSACTION_BACKUP"
     return "$result"
 }
 
@@ -188,6 +218,7 @@ if ! ROLLBACK_SHELL="$(mktemp -d "$CONFIG_HOME/quickshell/.nbshell-rollback.XXXX
     rm -rf -- "$STAGED_SHELL"
     exit 1
 fi
+TRANSACTION_BACKUP="$(mktemp -d "$CONFIG_HOME/.nbshell-install-rollback.XXXXXX")"
 # Arm cleanup immediately after both reservations, before copy, validation, or
 # recovery arming can fail.
 trap recover_install EXIT
@@ -232,7 +263,7 @@ if [ $unit_active -eq 1 ]; then
     systemctl --user reset-failed nbshell-install-recovery.service >/dev/null 2>&1 || true
     recovery_mode=restart
     [ $defer_service_restart -ne 1 ] || recovery_mode=deferred
-    if systemd-run --user --quiet --unit=nbshell-install-recovery --on-active=20s \
+    if systemd-run --user --quiet --unit=nbshell-install-recovery --on-active=120s \
             --timer-property=AccuracySec=1s "$BIN_DIR/nbshell-install-recover" \
             "$SHELL_DIR" "$ROLLBACK_SHELL" "$recovery_mode"; then
         recovery_armed=1
@@ -255,29 +286,6 @@ if [ -d "$SHELL_DIR" ]; then
 fi
 mv -T -- "$STAGED_SHELL" "$SHELL_DIR"
 
-if [ $unit_active -eq 1 ] && [ $defer_service_restart -ne 1 ]; then
-    systemctl --user start nbshell.service
-    sleep 2
-    if ! systemctl --user is-active --quiet nbshell.service; then
-        warn "The new shell did not stay active; restoring the previous runtime."
-        exit 1
-    fi
-elif [ $defer_service_restart -eq 1 ]; then
-    warn "Shell restart deferred because this installer runs inside nbshell.service."
-    warn "The new runtime will load after the service is restarted outside this shell or at the next login."
-elif [ "$was_running" = "1" ]; then
-    "$BIN_DIR/nbshell" start -d >/dev/null 2>&1 &
-fi
-install_ready=1
-if [ -d "$ROLLBACK_SHELL" ] && [ $defer_service_restart -ne 1 ]; then
-    rm -rf -- "$ROLLBACK_SHELL"
-fi
-if [ $recovery_armed -eq 1 ] && [ $defer_service_restart -ne 1 ]; then
-    systemctl --user stop nbshell-install-recovery.timer >/dev/null 2>&1 || true
-fi
-if [ -n "${UMBRIEL_SOCKET:-}" ]; then
-    systemctl --user restart nbshell-umbriel-resume-guard.service >/dev/null 2>&1 || true
-fi
 green "Shell   -> $SHELL_DIR"
 
 # ── Themes ───────────────────────────────────────────────────────────────
@@ -302,6 +310,7 @@ green "Images  -> $NEW_WALLPAPERS ($(find "$NEW_WALLPAPERS" -type f | wc -l) ava
 # ── Config ───────────────────────────────────────────────────────────────
 # Nur anlegen, nie ueberschreiben: sie gehoert dem Benutzer.
 if [ ! -f "$DATA_DIR/config.json" ]; then
+    transaction_backup_path "$DATA_DIR/config.json" config.json
     cat > "$DATA_DIR/config.json" <<'JSON'
 {
   "theme": "tokyo-night",
@@ -328,6 +337,7 @@ JSON
 else
     echo "Config  -> $DATA_DIR/config.json (existing file kept)"
 fi
+[ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-config" ] || exit 99
 
 # ── Plugins ──────────────────────────────────────────────────────────────
 # Nur das Verzeichnis anlegen und die Vorlage hineinlegen, falls sie fehlt.
@@ -336,17 +346,24 @@ mkdir -p "$DATA_DIR/plugins"
 added=()
 for plugin in "$SRC"/plugins/*/; do
     [ -d "$plugin" ] || continue
+    "$SRC/shell/scripts/plugins.sh" validate "$plugin" >/dev/null ||
+        die "Bundled plugin failed validation: $(basename "$plugin")"
+    "$SRC/shell/scripts/plugins.sh" design-check "$plugin" --strict >/dev/null ||
+        die "Bundled plugin failed the strict design contract: $(basename "$plugin")"
     name="$(basename "$plugin")"
     if [ -f "$plugin/.nbshell-managed" ] && [ -f "$DATA_DIR/plugins/$name/.nbshell-managed" ]; then
+        transaction_backup_path "$DATA_DIR/plugins/$name" "plugin-$name"
         rm -rf "$DATA_DIR/plugins/$name"
         cp -a "$plugin" "$DATA_DIR/plugins/"
         added+=("$name updated")
         continue
     fi
     [ -d "$DATA_DIR/plugins/$name" ] && continue
+    transaction_backup_path "$DATA_DIR/plugins/$name" "plugin-$name"
     cp -a "$plugin" "$DATA_DIR/plugins/"
     added+=("$name")
 done
+[ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-plugin" ] || exit 100
 if [ ${#added[@]} -gt 0 ]; then
     green "Plugins -> $DATA_DIR/plugins (added: ${added[*]})"
 else
@@ -368,6 +385,7 @@ YTMUSIC_RUNTIME="$HOME/.local/lib/omarchy-ytmusic"
 YTMUSIC_VENV="${XDG_DATA_HOME:-$HOME/.local/share}/omarchy-ytmusic/venv/bin/python"
 if [ -d "$YTMUSIC_RUNTIME" ] && [ -x "$YTMUSIC_VENV" ] \
         && [ -d "$DATA_DIR/plugins/ytmusic/backend" ]; then
+    transaction_backup_path "$YTMUSIC_RUNTIME" ytmusic-runtime
     install -m 644 -- "$DATA_DIR/plugins/ytmusic/backend/"*.py "$YTMUSIC_RUNTIME/"
     chmod 755 -- "$YTMUSIC_RUNTIME/server.py"
     "$YTMUSIC_VENV" "$YTMUSIC_RUNTIME/server.py" --self-test >/dev/null
@@ -385,6 +403,14 @@ green "Units   -> $UNIT_DIR (shell lifecycle, isolated locker, and Umbriel resum
 # Umbriel is the supported compositor. Installing its include does not alter
 # unrelated user configuration.
 mkdir -p "$CONFIG_HOME/umbriel"
+transaction_backup_path "$CONFIG_HOME/umbriel/nbshell.toml" umbriel-main
+transaction_backup_path "$CONFIG_HOME/umbriel/nbshell-motion.toml" umbriel-motion
+transaction_backup_path "$CONFIG_HOME/umbriel/nbshell-nested.toml" umbriel-nested
+transaction_backup_path "$CONFIG_HOME/umbriel/nbshell-outputs.toml" umbriel-outputs
+transaction_backup_path "$CONFIG_HOME/umbriel/nbshell-cursor.toml" umbriel-cursor
+transaction_backup_path "$CONFIG_HOME/umbriel/nbshell-overview.toml" umbriel-overview
+transaction_backup_path "$CONFIG_HOME/umbriel/nbshell-colors.toml" umbriel-colors
+transaction_backup_path "$CONFIG_HOME/umbriel/config.toml" umbriel-config
 install -m 644 "$SRC/umbriel/nbshell.toml" "$CONFIG_HOME/umbriel/nbshell.toml"
 install -m 644 "$SRC/umbriel/nbshell-motion.toml" "$CONFIG_HOME/umbriel/nbshell-motion.toml"
 install -m 644 "$SRC/umbriel/nbshell-nested.toml" "$CONFIG_HOME/umbriel/nbshell-nested.toml"
@@ -405,6 +431,24 @@ if [ ! -f "$CONFIG_HOME/umbriel/config.toml" ]; then
     green "Umbriel -> $CONFIG_HOME/umbriel/config.toml (created)"
 fi
 green "Umbriel -> $CONFIG_HOME/umbriel/nbshell.toml"
+[ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-umbriel" ] || exit 101
+
+if [ $unit_active -eq 1 ] && [ $defer_service_restart -ne 1 ]; then
+    systemctl --user start nbshell.service
+    sleep 2
+    if ! systemctl --user is-active --quiet nbshell.service; then
+        warn "The new shell did not stay active; restoring the previous runtime."
+        exit 1
+    fi
+elif [ $defer_service_restart -eq 1 ]; then
+    warn "Shell restart deferred because this installer runs inside nbshell.service."
+    warn "The new runtime will load after the service is restarted outside this shell or at the next login."
+elif [ "$was_running" = "1" ]; then
+    "$BIN_DIR/nbshell" start -d >/dev/null 2>&1 &
+fi
+if [ -n "${UMBRIEL_SOCKET:-}" ]; then
+    systemctl --user restart nbshell-umbriel-resume-guard.service >/dev/null 2>&1 || true
+fi
 
 # Remove only nbshell-owned artifacts from retired Niri installations. Preserve
 # every unrelated user line and file.
@@ -512,6 +556,19 @@ if [ -L "$GEMINI_SKILL" ] && [ "$(readlink -f "$GEMINI_SKILL")" = "$(readlink -f
     rm "$GEMINI_SKILL"
 fi
 green "Skill   -> shared Agent Skills directories (nbshell)"
+[ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-payload" ] || exit 102
+
+# The transaction is complete only after every runtime, command, integration,
+# and skill payload has landed. Until this point the EXIT trap must still be
+# able to restore the previous shell and every backed-up user path.
+install_ready=1
+rm -rf -- "$TRANSACTION_BACKUP"
+if [ -d "$ROLLBACK_SHELL" ] && [ $defer_service_restart -ne 1 ]; then
+    rm -rf -- "$ROLLBACK_SHELL"
+fi
+if [ $recovery_armed -eq 1 ] && [ $defer_service_restart -ne 1 ]; then
+    systemctl --user stop nbshell-install-recovery.timer >/dev/null 2>&1 || true
+fi
 
 case ":$PATH:" in
     *":$BIN_DIR:"*) ;;

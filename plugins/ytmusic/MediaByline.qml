@@ -1,4 +1,5 @@
 import QtQuick
+import qs.Commons
 
 import "Api.js" as Api
 
@@ -6,10 +7,10 @@ Row {
   id: root
 
   property var itemData: null
-  property color foreground: "white"
+  property color foreground: Color.foreground
   property color accent: foreground
   property string fontFamily: ""
-  property real fontPixelSize: 12
+  property real fontPixelSize: Style.font.caption
 
   signal artistRequested(var item)
   signal albumRequested(var item)
@@ -27,7 +28,7 @@ Row {
   readonly property var albumContext: itemData && itemData.type === "track"
     ? itemData.albumItem : null
 
-  spacing: 4
+  spacing: Style.spacing.xs
 
   ArtistLinks {
     id: artistLinks

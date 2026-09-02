@@ -75,13 +75,16 @@ build_project() {
 
 build_project "$SOURCE_ROOT/umbriel"
 build_project "$SOURCE_ROOT/xdg-desktop-portal-umbriel"
+INSTALL_STAGE="$(mktemp -d "${TMPDIR:-/tmp}/nbshell-umbriel-install.XXXXXX")"
+SESSION_FILE=""
+trap 'rm -rf -- "$INSTALL_STAGE"; [ -z "$SESSION_FILE" ] || rm -f -- "$SESSION_FILE"' EXIT
+meson install -C "$SOURCE_ROOT/umbriel/build-nbshell" --destdir "$INSTALL_STAGE"
+meson install -C "$SOURCE_ROOT/xdg-desktop-portal-umbriel/build-nbshell" --destdir "$INSTALL_STAGE"
+install_command=(python3 "$ROOT/shell/scripts/install-tree-transaction.py" "$INSTALL_STAGE" "$PREFIX")
 if [[ $PREFIX == /usr/local ]]; then
-    sudo meson install -C "$SOURCE_ROOT/umbriel/build-nbshell"
-    sudo meson install -C "$SOURCE_ROOT/xdg-desktop-portal-umbriel/build-nbshell"
-else
-    meson install -C "$SOURCE_ROOT/umbriel/build-nbshell"
-    meson install -C "$SOURCE_ROOT/xdg-desktop-portal-umbriel/build-nbshell"
+    install_command=(sudo "${install_command[@]}")
 fi
+"${install_command[@]}"
 systemctl --user daemon-reload
 
 # Remove user-local unit copies from earlier builds. They override the reviewed
@@ -107,7 +110,6 @@ fi
 
 # greetd and other display managers enumerate the system session folder.
 SESSION_FILE="$(mktemp "${TMPDIR:-/tmp}/nbshell-umbriel-session.XXXXXX")"
-trap 'rm -f -- "$SESSION_FILE"' EXIT
 printf '%s\n' \
     '[Desktop Entry]' \
     'Name=Umbriel' \

@@ -14,6 +14,7 @@ focused pull requests are the easiest to review.
 
    ```bash
    ./tests/plugin-validation.sh
+   ./tests/bootstrap.sh
    ./tests/qml.sh
    ./tests/motion.sh
    ./tests/performance-smoke.sh

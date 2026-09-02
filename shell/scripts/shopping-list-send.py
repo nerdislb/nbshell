@@ -124,9 +124,11 @@ def send(target: str, message: str, runner: Runner = subprocess.run) -> tuple[in
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--to", required=True)
-    parser.add_argument("--message", required=True)
     args = parser.parse_args()
-    exit_code, payload = send(args.to, args.message)
+    # Keep the draft out of this wrapper's argv during recipient lookup. wacli
+    # currently only accepts the final message through --message, so that
+    # shorter downstream exposure remains an external CLI limitation.
+    exit_code, payload = send(args.to, sys.stdin.read())
     print(json.dumps(payload, ensure_ascii=False))
     return exit_code
 

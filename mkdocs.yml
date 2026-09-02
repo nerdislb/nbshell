@@ -34,6 +34,8 @@ theme:
 nav:
   - Welcome: index.md
   - Getting started: getting-started.md
+  - Installation strategy: distribution.md
+  - Private ISO testing: iso-testing.md
   - Features: features.md
   - Compatibility: compatibility.md
   - Join the beta: beta-invitation.md

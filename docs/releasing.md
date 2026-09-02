@@ -15,6 +15,11 @@ change before version 1.0.
    bash -n bin/nbshell bin/nbshell-install-recover
    find shell -type f -name '*.py' -exec python3 -m py_compile {} +
    ./tests/release-audit.sh
+   ./tests/bootstrap.sh
+   ./iso/packages/tests/test-manifest-consistency.sh
+   ./iso/packages/tests/test-repo-pipeline.sh
+   ./iso/profile/tests/test_scripts.sh
+   python3 ./iso/profile/tests/test_installer.py
    ./tests/plugin-validation.sh
    make -C plugins/omamail test
    ./tests/fresh-install.sh
@@ -34,6 +39,7 @@ change before version 1.0.
    python3 ./tests/shell-update.py
    python3 ./tests/umbriel-contracts.py
    python3 ./tests/umbriel-update.py
+   python3 ./tests/install-tree-transaction.py
    python3 ./tests/phone_auth.py
    python3 ./tests/ai-local-stats.py
    python3 ./tests/hermes-hub.py
@@ -47,6 +53,15 @@ change before version 1.0.
    mkdocs build --strict
    git diff --check
    git diff --check "$(git describe --tags --abbrev=0)"..HEAD
+   ```
+
+   Before a release, also run a current Python advisory scan in an isolated
+   environment:
+
+   ```bash
+   uvx pip-audit -r requirements-docs.txt
+   uvx pip-audit -r plugins/ytmusic/backend/requirements.txt
+   uvx pip-audit -r plugins/pit-wall/backend/requirements.txt
    ```
 
    The AT-SPI unit suite validates the probe's privacy, serialization, and
@@ -76,10 +91,11 @@ change before version 1.0.
 
 The release workflow rejects tags that do not match `VERSION`. It creates a
 GitHub prerelease for versions containing a hyphen and attaches the built
-manual, a versioned installation archive, and that archive's SHA-256 checksum.
-The dashboard updater requires both archive assets and refuses to install when
-the checksum does not match. Do not tag a commit until its live desktop test
-has passed.
+manual, a versioned installation archive, that archive's SHA-256 checksum, and
+a keyless Sigstore bundle. The dashboard updater pins GitHub's OIDC issuer and
+the release workflow identity at the exact tag, then verifies the checksum. It
+refuses installation when any asset or verification step is missing. Do not tag
+a commit until its live desktop test has passed.
 
 ## After publishing
 

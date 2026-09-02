@@ -124,6 +124,14 @@ required_catalog_commands = (
 for req in required_catalog_commands:
     assert req in catalog_map, f"missing required command from catalog: {req}"
 
+# `media` is the documented MPRIS command. Keep the legacy music-window aliases
+# from shadowing its later dispatch branch.
+cli_source = NBSHELL.read_text(encoding="utf-8")
+if "music|musik|media|medien)" in cli_source:
+    raise SystemExit("the media command is shadowed by the legacy music aliases")
+if "music|musik|medien)" not in cli_source or '\n    media)\n        ipc media "${1:-status}"' not in cli_source:
+    raise SystemExit("music/media dispatch contracts are incomplete")
+
 # 5. Check consistency of README and documentation commands
 nbshell_code = (ROOT / "bin/nbshell").read_text(encoding="utf-8")
 top_branches = set()
@@ -133,7 +141,11 @@ for branch in re.findall(r'^\s{4}([a-zA-Z0-9_|*? -]+)\)', nbshell_code, re.MULTI
         if c and not c.startswith(("$", "#", '"', "-")):
             top_branches.add(c)
 
-for md_path in sorted(ROOT.glob("**/*.md")):
+markdown_paths = subprocess.check_output(
+    ["git", "-C", str(ROOT), "ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", "*.md"]
+).decode().split("\0")
+for relative_path in sorted(path for path in markdown_paths if path):
+    md_path = ROOT / relative_path
     if ".git" in md_path.parts or "audits" in md_path.parts:
         continue
     content = md_path.read_text(encoding="utf-8")
