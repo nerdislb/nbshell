@@ -18,7 +18,10 @@ SPEC.loader.exec_module(agents)
 
 
 def binary(name: str) -> str:
-    paths = {"hermes": "/usr/bin/hermes", "agy": "/usr/bin/agy", "ghostty": "/usr/bin/ghostty"}
+    paths = {
+        "hermes": "/usr/bin/hermes", "agy": "/usr/bin/agy",
+        "ghostty": "/usr/bin/ghostty", "systemd-run": "/usr/bin/systemd-run",
+    }
     return paths.get(name, "")
 
 
@@ -69,7 +72,14 @@ with tempfile.TemporaryDirectory() as temporary:
         with patch.object(agents.shutil, "which", side_effect=binary), patch.object(agents.subprocess, "run") as run, patch.object(agents.subprocess, "Popen") as popen:
             run.return_value.returncode = 0
             agents.launch("hermes", None, resume=resume)
-        return " ".join(popen.call_args.args[0])
+        launched = popen.call_args.args[0]
+        assert launched[:6] == [
+            "systemd-run", "--user", "--scope", "--quiet", "--collect",
+            "--slice=app.slice",
+        ]
+        assert launched[6].startswith("--unit=nbshell-agent-hermes-")
+        assert launched[7] == "--"
+        return " ".join(launched)
 
     codex = launch_for("codex", "restricted")
     assert "--provider" in codex and "openai-codex" in codex

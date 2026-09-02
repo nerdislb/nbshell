@@ -477,6 +477,17 @@ def prompt_args(agent_id: str, prompt: str) -> list[str]:
     return [prompt]
 
 
+def agent_scope_command(command: list[str], agent_id: str) -> list[str]:
+    """Move interactive agents out of nbshell.service's kill cgroup."""
+    if not shutil.which("systemd-run"):
+        return command
+    unit = f"nbshell-agent-{agent_id}-{os.getpid()}-{time.monotonic_ns()}"
+    return [
+        "systemd-run", "--user", "--scope", "--quiet", "--collect",
+        "--slice=app.slice", f"--unit={unit}", "--", *command,
+    ]
+
+
 def launch(agent_id: str | None, project: str | None, prompt: str = "", quick: bool = False,
            resume: str = "") -> None:
     config = load_config()
@@ -571,7 +582,8 @@ def launch(agent_id: str | None, project: str | None, prompt: str = "", quick: b
         terminal += ["--class", name, "--title", title, "-e", "sh", "-lc", shell_cmd]
     else:
         terminal += ["-e", "sh", "-lc", shell_cmd]
-    subprocess.Popen(terminal, cwd=cwd, env=launch_env, start_new_session=True,
+    scoped_terminal = agent_scope_command(terminal, agent_id)
+    subprocess.Popen(scoped_terminal, cwd=cwd, env=launch_env, start_new_session=True,
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
