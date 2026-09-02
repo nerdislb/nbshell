@@ -41,7 +41,26 @@ jobs:
         run: |
           version="$(cat VERSION)"
           archive="nbshell-${version}.tar.gz"
-          git archive --format=tar --prefix="nbshell-${version}/" "${GITHUB_SHA}" | gzip -9 > "${archive}"
+          git archive --format=tar --prefix="nbshell-${version}/" "${GITHUB_SHA}" \
+            -- . ':(exclude)iso' | gzip -9 > "${archive}"
+          python3 - "${archive}" "${version}" <<'PY'
+          import pathlib
+          import sys
+          import tarfile
+
+          archive = pathlib.Path(sys.argv[1])
+          prefix = f"nbshell-{sys.argv[2]}/"
+          with tarfile.open(archive, "r:gz") as bundle:
+              members = bundle.getmembers()
+          names = {member.name for member in members}
+          required = {prefix + name for name in ("VERSION", "setup.sh", "install.sh")}
+          if not required <= names:
+              raise SystemExit(f"release archive is missing: {sorted(required - names)}")
+          if any(member.name.startswith(prefix + "iso/") for member in members):
+              raise SystemExit("release archive unexpectedly contains the internal ISO tree")
+          if any(member.issym() or member.islnk() for member in members):
+              raise SystemExit("release archive unexpectedly contains links")
+          PY
           sha256sum "${archive}" > "${archive}.sha256"
 
       - name: Install Cosign

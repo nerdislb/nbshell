@@ -6,6 +6,16 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+## [0.1.0-beta.9] - 2026-09-02
+
+### Fixed
+
+- Release installation archives now omit the internal ISO build tree, which is
+  not needed by `setup.sh` or `install.sh` and contains a systemd service link
+  intentionally rejected by the hardened extractors. This restores bootstrap
+  and updater installation; beta.8 is superseded because its signed archive
+  included that link and was rejected before changing the system.
+
 ## [0.1.0-beta.8] - 2026-09-02
 
 ### Added
@@ -498,7 +508,8 @@ First public beta candidate.
   declared dependencies before activation.
 - Credentials remain outside the repository and plugin configuration.
 
-[Unreleased]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.8...HEAD
+[Unreleased]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.9...HEAD
+[0.1.0-beta.9]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.8...v0.1.0-beta.9
 [0.1.0-beta.8]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.7...v0.1.0-beta.8
 [0.1.0-beta.7]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.6...v0.1.0-beta.7
 [0.1.0-beta.6]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.5...v0.1.0-beta.6
