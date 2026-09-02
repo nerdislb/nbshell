@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Controls as Controls
 import QtQuick.Effects
-import qs.Widgets
 
 Item {
     id: root
@@ -71,9 +71,10 @@ Item {
                     Text { anchors.centerIn: parent; text: "󰌾"; color: root.foreground; font.family: root.fontFamily; font.pixelSize: 23*root.unit }
                     SequentialAnimation on opacity { running: root.authenticating; loops: Animation.Infinite; NumberAnimation { to: .45; duration: 520 } NumberAnimation { to: 1; duration: 520 } }
                 }
-                TextField {
+                Controls.TextField {
                     id: passwordInput; anchors.fill: parent; anchors.leftMargin: 78*root.unit; anchors.rightMargin: 26*root.unit
-                    accessibleName: "Password"; background: null; enabled: !root.authenticating; horizontalPadding: 0; password: true; passwordCharacter: "✦"; passwordMaskDelay: 0
+                    Accessible.name: "Password"; Accessible.passwordEdit: true
+                    background: null; enabled: !root.authenticating; leftPadding: 0; rightPadding: 0; echoMode: TextInput.Password; passwordCharacter: "✦"; passwordMaskDelay: 0
                     color: root.foreground; selectionColor: root.accent; font.family: root.fontFamily; font.pixelSize: 16*root.unit; font.letterSpacing: 8*root.unit
                     horizontalAlignment: TextInput.AlignRight; verticalAlignment: TextInput.AlignVCenter
                     onAccepted: { const secret=text; text=""; if (secret.length && !root.previewMode) root.submitted(secret); }

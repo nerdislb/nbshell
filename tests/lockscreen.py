@@ -142,6 +142,9 @@ def check_qml_contract() -> None:
     shell = (ROOT / "shell/lock/shell.qml").read_text()
     view = (ROOT / "shell/lock/LockView.qml").read_text()
     clock = (ROOT / "shell/lock/OrbitalClock.qml").read_text()
+    assert "import qs." not in view
+    assert "Controls.TextField" in view
+    assert "echoMode: TextInput.Password" in view
     assert 'config: "nbshell-lock"' in shell
     assert "user: shell.username" in shell
     assert "if (!pam.start())" in shell
