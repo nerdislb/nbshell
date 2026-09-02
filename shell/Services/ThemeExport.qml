@@ -101,22 +101,23 @@ Singleton {
         out += "accent_primary = \"" + alpha(active) + "\"\n";
         out += "accent_secondary = \"" + alpha(warning) + "\"\n";
         out += "warning = \"" + alpha(warning) + "\"\n";
-        out += "error = \"" + alpha(error) + "\"\n\n";
+        out += "error = \"" + alpha(error) + "\"\n";
+        out += "insert_hint = \"" + withAlpha(active, "80") + "\"\n";
+        out += "backdrop = \"" + alpha(c.background ?? "#000000") + "\"\n\n";
+        out += "[colors.border]\n";
+        out += "focused = \"" + alpha(active) + "\"\n";
+        out += "unfocused = \"" + alpha(inactive) + "\"\n";
+        out += "outer = \"" + withAlpha(active, "80") + "\"\n\n";
         out += "[appearance]\n";
         out += "corner_radius = " + Number(Config.radius ?? 2) + "\n";
         out += "border_width = 2\nouter_border_width = 1\n";
-        out += "border_focused = \"" + alpha(active) + "\"\n";
-        out += "border_unfocused = \"" + alpha(inactive) + "\"\n";
-        out += "outer_border_color = \"" + withAlpha(active, "80") + "\"\n";
-        out += "insert_hint_color = \"" + withAlpha(active, "80") + "\"\n";
-        out += "backdrop_color = \"" + alpha(c.background ?? "#000000") + "\"\n";
         return out;
     }
 
     function umbrielOverview() {
         const background = String(Theme.c.background ?? "#000000").substring(0, 7);
         const enabled = Config.wallpaperBlur;
-        var out = "# Managed by nbshell appearance settings.\n[overview]\n";
+        var out = "# Managed by nbshell appearance settings.\n[colors.overview]\n";
         out += "background_tint = \"" + background + (enabled ? "80" : "00") + "\"\n";
         out += "workspace_background = \"" + background + (enabled ? "48" : "00") + "\"\n";
         return out;

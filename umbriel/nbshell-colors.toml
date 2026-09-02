@@ -8,13 +8,15 @@ accent_primary = "#7AA2F7FF"
 accent_secondary = "#E0AF68FF"
 warning = "#E0AF68FF"
 error = "#F7768EFF"
+insert_hint = "#7AA2F780"
+backdrop = "#1A1B26FF"
+
+[colors.border]
+focused = "#7AA2F7FF"
+unfocused = "#565F89FF"
+outer = "#7AA2F780"
 
 [appearance]
 corner_radius = 2
 border_width = 2
 outer_border_width = 1
-border_focused = "#7AA2F7FF"
-border_unfocused = "#565F89FF"
-outer_border_color = "#7AA2F780"
-insert_hint_color = "#7AA2F780"
-backdrop_color = "#1A1B26FF"

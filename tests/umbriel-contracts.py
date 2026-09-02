@@ -21,6 +21,14 @@ for relative in (
         tomllib.load(handle)
 
 integration = tomllib.loads((ROOT / "umbriel/nbshell.toml").read_text())
+colors = tomllib.loads((ROOT / "umbriel/nbshell-colors.toml").read_text())
+overview = tomllib.loads((ROOT / "umbriel/nbshell-overview.toml").read_text())
+assert colors["colors"]["border"]["focused"] == "#7AA2F7FF"
+assert colors["colors"]["insert_hint"] == "#7AA2F780"
+assert colors["colors"]["backdrop"] == "#1A1B26FF"
+assert "border_focused" not in colors["appearance"]
+assert overview["colors"]["overview"]["background_tint"] == "#1A1B2680"
+assert "overview" not in overview
 assert integration["keybinds"]["Mod+BackSpace"] == "workspace-set-layout:toggle"
 assert integration["keybinds"]["Mod+F"] == "window-toggle-maximize"
 assert integration["keybinds"]["Mod+Shift+F"] == "window-toggle-fullscreen"
