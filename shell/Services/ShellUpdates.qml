@@ -31,6 +31,7 @@ Singleton {
     property bool compositorInstalled: false
     property bool compositorUpdateAvailable: false
     property bool compositorInstallable: false
+    property string compositorBlockedReason: ""
     property string compositorError: ""
     property var compositorProjects: ({})
 
@@ -134,6 +135,7 @@ Singleton {
                     root.compositorInstalled = data.installed === true;
                     root.compositorUpdateAvailable = data.available === true;
                     root.compositorInstallable = data.installable === true;
+                    root.compositorBlockedReason = data.blockedReason ?? "";
                     root.compositorProjects = data.projects ?? ({});
                     root.compositorError = data.error ?? "";
                     root.compositorReady = true;

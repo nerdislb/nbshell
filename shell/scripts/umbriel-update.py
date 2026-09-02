@@ -74,7 +74,10 @@ def project_status(path: pathlib.Path, expected_remote: str, fetch: bool = True)
     if canonical_remote(remote) != expected:
         return {"current": current[:8], "latest": "", "available": False, "clean": False,
                 "target": "", "error": f"unexpected origin: {remote}"}
-    clean = git(path, "status", "--porcelain") == ""
+    status_lines = git(path, "status", "--porcelain").splitlines()
+    clean = not status_lines
+    changes = [line.split(maxsplit=1)[1] if len(line.split(maxsplit=1)) == 2 else line
+               for line in status_lines]
     latest = current
     error = ""
     if fetch:
@@ -89,14 +92,15 @@ def project_status(path: pathlib.Path, expected_remote: str, fetch: bool = True)
     return {
         "current": current[:8], "latest": latest[:8],
         "available": latest != current and not error,
-        "clean": clean, "target": latest, "error": error,
+        "clean": clean, "changes": changes, "target": latest, "error": error,
     }
 
 
 def status(fetch: bool = True) -> dict:
     root = source_root()
     result = {"ok": False, "installed": root is not None, "sourceRoot": str(root or ""),
-              "available": False, "installable": False, "projects": {}, "error": ""}
+              "available": False, "installable": False, "projects": {},
+              "blockedReason": "", "error": ""}
     if root is None:
         result["error"] = "Umbriel source checkouts were not found"
         return result
@@ -110,8 +114,13 @@ def status(fetch: bool = True) -> dict:
         errors = [f"{name}: {row['error']}" for name, row in result["projects"].items() if row["error"]]
         if errors:
             result["error"] = "; ".join(errors)
-        elif not result["installable"]:
-            result["error"] = "A source checkout has local changes; update is blocked"
+        elif result["available"] and not result["installable"]:
+            dirty = []
+            for name, row in result["projects"].items():
+                if not row["clean"]:
+                    paths = ", ".join(row.get("changes", [])) or "unknown files"
+                    dirty.append(f"{name}: {paths}")
+            result["blockedReason"] = "Local source changes block this update: " + "; ".join(dirty)
     except (OSError, subprocess.SubprocessError) as exc:
         result["error"] = f"Umbriel check failed: {exc}"
     return result

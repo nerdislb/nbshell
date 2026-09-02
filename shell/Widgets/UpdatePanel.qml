@@ -47,6 +47,8 @@ Column {
     function compositorDetail() {
         if (ShellUpdates.compositorChecking)
             return qsTr("Checking official repositories …");
+        if (ShellUpdates.compositorBlockedReason !== "")
+            return ShellUpdates.compositorBlockedReason;
         if (ShellUpdates.compositorError !== "")
             return ShellUpdates.compositorError;
         if (!ShellUpdates.compositorReady)
@@ -88,12 +90,14 @@ Column {
     function compositorState() {
         if (ShellUpdates.compositorChecking)
             return qsTr("CHECKING");
-        if (ShellUpdates.compositorError !== "")
-            return qsTr("ERROR");
         if (!ShellUpdates.compositorReady)
             return qsTr("PENDING");
         if (!ShellUpdates.compositorInstalled)
             return qsTr("NOT INSTALLED");
+        if (ShellUpdates.compositorUpdateAvailable && !ShellUpdates.compositorInstallable)
+            return qsTr("BLOCKED");
+        if (ShellUpdates.compositorError !== "")
+            return qsTr("ERROR");
         return ShellUpdates.compositorUpdateAvailable ? "" : qsTr("CURRENT");
     }
 

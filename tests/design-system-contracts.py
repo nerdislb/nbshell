@@ -102,6 +102,8 @@ for snippet in (
     "Updates.update()",
     "ShellUpdates.install()",
     "ShellUpdates.installCompositor()",
+    "ShellUpdates.compositorBlockedReason",
+    'return qsTr("BLOCKED")',
 ):
     if snippet not in update_panel:
         raise SystemExit(f"Unified update panel contract is incomplete: {snippet}")

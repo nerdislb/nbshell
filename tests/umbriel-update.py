@@ -73,6 +73,14 @@ with tempfile.TemporaryDirectory() as name:
     assert online["projects"]["umbriel"]["available"]
     assert not online["projects"]["xdg-desktop-portal-umbriel"]["available"]
 
+    (source_root / "umbriel" / "README").write_text("local change\n")
+    blocked = UPDATE.status(fetch=True)
+    assert blocked["available"] and not blocked["installable"]
+    assert "Local source changes block this update" in blocked["blockedReason"]
+    assert "umbriel: README" in blocked["blockedReason"], blocked
+    assert blocked["error"] == ""
+    run("git", "checkout", "--", "README", cwd=source_root / "umbriel")
+
     prepared = source_root / "prepared-umbriel"
     UPDATE.prepare_worktree(
         source_root / "umbriel", str(remotes / "umbriel.git"),
@@ -112,6 +120,9 @@ with tempfile.TemporaryDirectory() as name:
     (source_root / "umbriel" / "README").write_text("local change\n")
     dirty = UPDATE.status(fetch=False)
     assert not dirty["installable"]
-    assert "local changes" in dirty["error"]
+    assert dirty["blockedReason"] == ""
+    assert dirty["error"] == ""
+
+    run("git", "checkout", "--", "README", cwd=source_root / "umbriel")
 
 print("Umbriel updater tests: OK")
