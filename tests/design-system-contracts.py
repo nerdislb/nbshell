@@ -125,6 +125,8 @@ for snippet in (
         raise SystemExit(f"Clock-adjacent update signal contract is incomplete: {snippet}")
 if dashboard.count("UpdatePanel {") != 1 or "shellUpdatesOpen" in dashboard:
     raise SystemExit("Dashboard regressed to separate system and desktop updater surfaces")
+if "enabled: !root.updatesOpen" not in dashboard:
+    raise SystemExit("Dashboard controls remain active behind the update overlay")
 for snippet in (
     "popoutTakesKeyboard: true",
     "property var closePopout: null",

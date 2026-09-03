@@ -190,6 +190,7 @@ PanelWindow {
             MouseArea { anchors.fill: parent; onClicked: {} }
 
             Column {
+                enabled: !root.updatesOpen
                 anchors.fill: parent
                 anchors.margins: Theme.cellW * 2
                 spacing: Theme.cellH * 0.55
