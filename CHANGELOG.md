@@ -8,6 +8,9 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Added
 
+- An optional Buds Control bar tool uses pbpctrl for confirmed Pixel Buds mode
+  switching and battery readback, with BudsLink's user-session D-Bus API as the
+  backend for other supported headsets.
 - Suitable Plugin Porting Lab reports now offer a `START PORT` action that opens
   the configured coding agent in the nbshell source tree with a guarded prompt
   containing the source, verdict, findings, and ordered implementation plan.

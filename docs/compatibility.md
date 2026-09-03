@@ -35,6 +35,8 @@ only when the dependency is installed or the service is available:
 - calendar sync requires khal and optionally vdirsyncer;
 - phone features require KDE Connect, adb, scrcpy, or the webcam helper;
 - headset battery reporting requires a device supported by headsetcontrol;
+- Pixel Buds batteries and confirmed noise control require `pbpctrl`; other
+  advanced headsets use BudsLink and its user-session D-Bus service;
 - AI, gaming, mail, music, capture, and streaming tools have their own visible
   dependency checks.
 

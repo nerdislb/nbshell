@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 2,
+  "id": "io.github.nerdislb.buds-control",
+  "name": "Buds Control",
+  "version": "1.0.1",
+  "author": "nerdi",
+  "license": "MIT",
+  "description": "Direct Pixel Buds controls with a BudsLink fallback for other supported headsets.",
+  "category": "Hardware",
+  "kinds": ["service", "bar-widget"],
+  "activation": "eager",
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Buds Control",
+    "description": "ANC mode and earbud batteries in the bar",
+    "category": "Hardware",
+    "aliases": ["buds", "earbuds", "headphones", "anc", "pixel-buds"],
+    "defaultSection": "right",
+    "allowMultiple": false
+  },
+  "dependencies": {
+    "commands": ["python3", "busctl", "dbus-monitor"],
+    "packages": ["python", "systemd", "dbus"]
+  }
+}

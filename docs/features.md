@@ -44,6 +44,9 @@ reduced profile disables them without changing layout or functionality.
 
 - Wi-Fi, saved NetworkManager VPN and WireGuard profiles, Bluetooth pairing
   and removal, audio devices, brightness, batteries, and power profiles
+- Optional Buds Control plugin for per-earbud and case batteries plus live ANC,
+  transparency, and off modes through pbpctrl or BudsLink; adaptive appears
+  when the selected backend supports it
 - Persistent Umbriel display setup for resolution, scale, rotation,
   refresh rate, and position
 - Update workflow with restart recommendations for important system packages
