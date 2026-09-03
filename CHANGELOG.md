@@ -18,6 +18,10 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Fixed
 
+- Lid-close, power-key, and other logind sleep requests now wait for Orbital's
+  compositor-confirmed secure coverage before suspending. Resume waits quietly
+  for a real Umbriel output and wakes DPMS instead of flooding failed workspace
+  repairs while the internal panel is absent.
 - Agent Center launches interactive coding agents in independent transient
   systemd scopes, so restarting nbshell no longer terminates their terminals or
   in-progress work.

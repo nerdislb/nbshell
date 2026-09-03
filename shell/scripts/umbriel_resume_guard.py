@@ -8,6 +8,7 @@ from pathlib import Path
 import json
 import select
 import socket
+import subprocess
 import sys
 import time
 
@@ -21,6 +22,8 @@ import lockscreen  # noqa: E402
 
 SOCKET_WAIT_SECONDS = 1.0
 RESUME_GAP_SECONDS = 4.0
+OUTPUT_WAIT_ATTEMPTS = 24
+OUTPUT_WAIT_SECONDS = 0.25
 
 
 def update_snapshot(
@@ -42,6 +45,30 @@ def update_snapshot(
 def boottime() -> float:
     """Return a monotonic clock which includes time spent suspended."""
     return time.clock_gettime(time.CLOCK_BOOTTIME)
+
+
+def wait_for_outputs(
+    binary: str,
+    attempts: int = OUTPUT_WAIT_ATTEMPTS,
+    delay: float = OUTPUT_WAIT_SECONDS,
+) -> bool:
+    """Wait quietly for Umbriel to recreate a real output after resume."""
+    for _ in range(attempts):
+        try:
+            result = subprocess.run(
+                [binary, "outputs"], capture_output=True, text=True,
+                timeout=1, check=False, close_fds=True,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            result = None
+        if result is not None and result.returncode == 0 and result.stdout.strip():
+            subprocess.run(
+                [binary, "msg", "dpms-on"], capture_output=True, text=True,
+                timeout=1, check=False, close_fds=True,
+            )
+            return True
+        time.sleep(delay)
+    return False
 
 
 def main() -> int:
@@ -86,11 +113,15 @@ def main() -> int:
                     current = boottime()
                     gap = current - previous
                     if gap >= RESUME_GAP_SECONDS and known:
-                        repaired = lockscreen.repair_umbriel_resume(
-                            binary, known, focused_id
-                        )
+                        outputs_ready = wait_for_outputs(binary)
+                        repaired = 0
+                        if outputs_ready:
+                            repaired = lockscreen.repair_umbriel_resume(
+                                binary, known, focused_id
+                            )
                         print(
                             f"nbshell: detected a {gap:.1f}s resume gap; "
+                            f"outputs_ready={str(outputs_ready).lower()}; "
                             f"repaired {repaired} Umbriel window(s)",
                             flush=True,
                         )

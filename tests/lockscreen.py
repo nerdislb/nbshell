@@ -2,8 +2,10 @@
 
 import importlib.util
 import contextlib
+import fcntl
 import io
 import json
+import os
 from pathlib import Path
 import tempfile
 from unittest import mock
@@ -23,6 +25,13 @@ GUARD_SPEC = importlib.util.spec_from_file_location(
 assert GUARD_SPEC and GUARD_SPEC.loader
 GUARD = importlib.util.module_from_spec(GUARD_SPEC)
 GUARD_SPEC.loader.exec_module(GUARD)
+
+SLEEP_SPEC = importlib.util.spec_from_file_location(
+    "nbshell_sleep_lock_inhibitor", ROOT / "shell/scripts/sleep_lock_inhibitor.py"
+)
+assert SLEEP_SPEC and SLEEP_SPEC.loader
+SLEEP_LOCK = importlib.util.module_from_spec(SLEEP_SPEC)
+SLEEP_SPEC.loader.exec_module(SLEEP_LOCK)
 
 
 def check_named_theme(root: Path) -> None:
@@ -260,6 +269,95 @@ def check_umbriel_resume_snapshot() -> None:
     assert focused == "scratch"
 
 
+def check_sleep_lock_inhibitor(root: Path) -> None:
+    first_read, first_write = os.pipe()
+    second_read, second_write = os.pipe()
+    descriptors = iter((first_read, second_read))
+    wake_calls = []
+
+    class ImmediateThread:
+        def __init__(self, target, **_kwargs):
+            self.target = target
+
+        def start(self):
+            self.target()
+
+    controller = SLEEP_LOCK.SleepLockController(
+        lambda: next(descriptors), lock=lambda: True,
+        wake=lambda: wake_calls.append(True) or True,
+    )
+    controller.acquire()
+    assert controller.inhibitor_fd == first_read
+    assert fcntl.fcntl(first_read, fcntl.F_GETFD) & fcntl.FD_CLOEXEC
+    controller.prepare_for_sleep(True)
+    assert controller.inhibitor_fd is None
+    try:
+        os.fstat(first_read)
+        raise AssertionError("sleep inhibitor FD remained open")
+    except OSError:
+        pass
+
+    with mock.patch.object(SLEEP_LOCK.threading, "Thread", ImmediateThread):
+        controller.prepare_for_sleep(False)
+    assert controller.inhibitor_fd == second_read
+    assert wake_calls == [True]
+    controller.release()
+    os.close(first_write)
+    os.close(second_write)
+    assert SLEEP_LOCK.LOCK_TIMEOUT_SECONDS < 5.0
+    assert SLEEP_LOCK.LOCK_TIMEOUT_SECONDS >= 4.0
+
+    ready = root / "sleep-lock-ready"
+
+    def publish_ready(_delay):
+        ready.write_text("secure")
+
+    completed = mock.Mock(returncode=0, stdout="", stderr="")
+    with (
+        mock.patch.object(SLEEP_LOCK, "locker_active", side_effect=[False, True, True]),
+        mock.patch.object(SLEEP_LOCK, "run_systemctl", return_value=completed) as systemctl,
+    ):
+        assert SLEEP_LOCK.ensure_secure_lock(
+            ready_path=ready, timeout=0.2, sleep=publish_ready
+        ) is True
+    assert [call.args for call in systemctl.call_args_list] == [
+        ("reset-failed", "nbshell-lock.service"),
+        ("start", "nbshell-lock.service"),
+    ]
+
+    absent = mock.Mock(returncode=1, stdout="", stderr="")
+    present = mock.Mock(returncode=0, stdout="eDP-1\n", stderr="")
+    woke = mock.Mock(returncode=0, stdout="", stderr="")
+    with (
+        mock.patch.object(
+            SLEEP_LOCK.subprocess, "run", side_effect=[absent, present, woke]
+        ) as run,
+        mock.patch.object(SLEEP_LOCK.time, "sleep"),
+    ):
+        assert SLEEP_LOCK.wake_outputs(binary="umbriel", timeout=2) is True
+    assert [call.args[0] for call in run.call_args_list] == [
+        ["umbriel", "outputs"],
+        ["umbriel", "outputs"],
+        ["umbriel", "msg", "dpms-on"],
+    ]
+
+
+def check_resume_output_wait() -> None:
+    absent = mock.Mock(returncode=1, stdout="", stderr="missing")
+    present = mock.Mock(returncode=0, stdout="eDP-1\n", stderr="")
+    woke = mock.Mock(returncode=0, stdout="", stderr="")
+    with (
+        mock.patch.object(GUARD.subprocess, "run", side_effect=[absent, present, woke]) as run,
+        mock.patch.object(GUARD.time, "sleep"),
+    ):
+        assert GUARD.wait_for_outputs("umbriel", attempts=3, delay=0) is True
+    assert [call.args[0] for call in run.call_args_list] == [
+        ["umbriel", "outputs"],
+        ["umbriel", "outputs"],
+        ["umbriel", "msg", "dpms-on"],
+    ]
+
+
 with tempfile.TemporaryDirectory(prefix="nbshell-lock-test-") as temporary:
     root = Path(temporary)
     check_named_theme(root)
@@ -271,5 +369,7 @@ with tempfile.TemporaryDirectory(prefix="nbshell-lock-test-") as temporary:
     check_suspend_guard()
     check_umbriel_resume_repair()
     check_umbriel_resume_snapshot()
+    check_sleep_lock_inhibitor(root)
+    check_resume_output_wait()
 
 print("Lockscreen generation: OK")

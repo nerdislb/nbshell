@@ -126,6 +126,7 @@ fi
 mkdir -p "$UNIT_DIR"
 install -m 644 "$SRC/systemd/nbshell.service" "$UNIT_DIR/nbshell.service"
 install -m 644 "$SRC/systemd/nbshell-lock.service" "$UNIT_DIR/nbshell-lock.service"
+install -m 644 "$SRC/systemd/nbshell-sleep-lock.service" "$UNIT_DIR/nbshell-sleep-lock.service"
 install -m 644 "$SRC/systemd/nbshell-umbriel-resume-guard.service" \
     "$UNIT_DIR/nbshell-umbriel-resume-guard.service"
 install -m 644 "$SRC/systemd/nbshell-upstream-audit.service" "$UNIT_DIR/nbshell-upstream-audit.service"
@@ -398,7 +399,7 @@ fi
 # ── systemd-Unit ─────────────────────────────────────────────────────────
 # The shell lifecycle remains opt-in via `nbshell switch on`; the narrow
 # Umbriel recovery guard is enabled independently above.
-green "Units   -> $UNIT_DIR (shell lifecycle, isolated locker, and Umbriel resume guard)"
+green "Units   -> $UNIT_DIR (shell lifecycle, sleep lock inhibitor, isolated locker, and Umbriel resume guard)"
 
 # Umbriel is the supported compositor. Installing its include does not alter
 # unrelated user configuration.
@@ -445,6 +446,14 @@ elif [ $defer_service_restart -eq 1 ]; then
     warn "The new runtime will load after the service is restarted outside this shell or at the next login."
 elif [ "$was_running" = "1" ]; then
     "$BIN_DIR/nbshell" start -d >/dev/null 2>&1 &
+fi
+systemctl --user enable nbshell-sleep-lock.service >/dev/null 2>&1 || true
+if systemctl --user is-active --quiet graphical-session.target; then
+    if ! systemctl --user restart nbshell-sleep-lock.service >/dev/null 2>&1 ||
+            ! systemctl --user is-active --quiet nbshell-sleep-lock.service; then
+        warn "The sleep lock inhibitor did not stay active."
+        exit 1
+    fi
 fi
 if [ -n "${UMBRIEL_SOCKET:-}" ]; then
     systemctl --user restart nbshell-umbriel-resume-guard.service >/dev/null 2>&1 || true

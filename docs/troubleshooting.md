@@ -53,7 +53,18 @@ Preview the visuals safely, without acquiring a session lock or invoking PAM:
 The launcher selects the native locker when Quickshell, its QML payload, and
 the dedicated PAM service are all available. Otherwise it starts Hyprlock.
 An explicit `lockCommand` remains an override. Suspend waits for the native
-locker's compositor-confirmed secure state before calling systemd.
+locker's compositor-confirmed secure state before calling systemd. The
+`nbshell-sleep-lock.service` uses logind's bounded delay-inhibitor window to
+apply the same secure-readiness check to lid-close, power-key, and direct sleep
+requests that bypass the shell UI. If the locker cannot become secure before
+logind's deadline, the daemon records the failure; logind ultimately owns the
+sleep decision for those external requests. After resume the daemon waits for
+Umbriel to restore a real output before waking DPMS; inspect it with:
+
+```bash
+systemctl --user status nbshell-sleep-lock.service
+systemd-inhibit --list
+```
 
 ## Recover from a failed screen locker
 

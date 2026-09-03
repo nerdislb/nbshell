@@ -106,4 +106,14 @@ assert "ConditionEnvironment=UMBRIEL_SOCKET" in resume_unit
 assert "umbriel_resume_guard.py" in resume_unit
 assert "ProtectSystem=strict" in resume_unit
 
+sleep_lock_unit = (ROOT / "systemd/nbshell-sleep-lock.service").read_text()
+assert "sleep_lock_inhibitor.py" in sleep_lock_unit
+assert "WantedBy=graphical-session.target" in sleep_lock_unit
+assert "Restart=on-failure" in sleep_lock_unit
+assert "Requisite=graphical-session.target" in sleep_lock_unit
+assert "ConditionEnvironment=" not in sleep_lock_unit
+
+lock_unit = (ROOT / "systemd/nbshell-lock.service").read_text()
+assert "ExecStartPre=/usr/bin/rm -f %t/nbshell-lock-ready" in lock_unit
+
 print("Umbriel-only contracts: OK")
