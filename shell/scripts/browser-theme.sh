@@ -10,7 +10,7 @@ BRAVE_FLAGS_END='# nbshell browser theme end'
 IMPORT='@import url("nbshell-theme.css"); /* managed by nbshell */'
 OMAZEN_COLORS="${NBSHELL_OMAZEN_COLORS:-$CONFIG_HOME/nbshell/omazen-colors.toml}"
 OMAZEN_PROGRAM_DIR="${NBSHELL_OMAZEN_PROGRAM_DIR:-/opt/zen-browser-bin}"
-OMAZEN_REVISION=2cd7c5d421d064801b547911930b02dd40a60337
+OMAZEN_REVISION=1c11bc65c6a5c6d075ecd4019a6ae0ec615cad94
 OMAZEN_REPOSITORY=https://github.com/hemagome/omazen.git
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -f $SCRIPT_DIR/../integrations/omazen/nbshell-external-provider-arch.patch ]]; then

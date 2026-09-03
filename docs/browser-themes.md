@@ -25,7 +25,7 @@ fallback.
 
 ## Optional live Zen themes
 
-The current supported bridge is Omazen 1.5.0. nbshell keeps Omazen as a
+The current supported bridge is Omazen 1.6.0. nbshell keeps Omazen as a
 separately installed GPL program and builds its pinned Rust source with a narrow
 Arch external-provider compatibility patch. Install or update that reviewed
 stand with:
