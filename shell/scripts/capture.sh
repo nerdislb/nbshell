@@ -118,6 +118,12 @@ wait_for_file() {
 cmd_post() {
 	local file="$1" editor="${2:-satty}" auto="${3:-0}" notify="${4:-1}"
 	wait_for_file "$file" || exit 0
+	need wl-copy wl-clipboard
+
+	# Make every screenshot immediately pasteable, independently of whether the
+	# editor is opened. An explicit MIME type is required by image-only paste
+	# targets such as WhatsApp.
+	wl-copy --type image/png <"$file" || fail "Could not copy the screenshot to the clipboard."
 
 	if [[ $auto == 1 ]]; then
 		[[ $notify == 1 ]] && note "Screenshot saved" "$(basename "$file")" -i "$file" -t 4000

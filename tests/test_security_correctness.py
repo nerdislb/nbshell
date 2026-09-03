@@ -62,6 +62,46 @@ class SecurityCorrectnessTests(unittest.TestCase):
             )
             self.assertEqual(result.stdout.rstrip("\n"), str(latest))
 
+    def test_screenshot_post_copies_png_without_opening_editor(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            bindir = directory / "bin"
+            bindir.mkdir()
+            copied = directory / "copied.png"
+            arguments = directory / "wl-copy.args"
+            image = directory / "screenshot.png"
+            image.write_bytes(b"test-png-payload")
+
+            wl_copy = bindir / "wl-copy"
+            wl_copy.write_text(
+                "#!/bin/sh\n"
+                "printf '%s\\n' \"$@\" >\"$CAPTURE_TEST_ARGS\"\n"
+                "cat >\"$CAPTURE_TEST_OUTPUT\"\n",
+                encoding="utf-8",
+            )
+            wl_copy.chmod(0o755)
+
+            env = os.environ.copy()
+            env["PATH"] = str(bindir) + os.pathsep + env["PATH"]
+            env["CAPTURE_TEST_ARGS"] = str(arguments)
+            env["CAPTURE_TEST_OUTPUT"] = str(copied)
+            subprocess.run(
+                [
+                    "bash",
+                    str(ROOT / "shell/scripts/capture.sh"),
+                    "post",
+                    str(image),
+                    "satty",
+                    "0",
+                    "0",
+                ],
+                check=True,
+                env=env,
+            )
+
+            self.assertEqual(copied.read_bytes(), image.read_bytes())
+            self.assertEqual(arguments.read_text(encoding="utf-8"), "--type\nimage/png\n")
+
     def test_headset_charging_contract(self):
         with tempfile.TemporaryDirectory() as tmp:
             bindir = Path(tmp)
