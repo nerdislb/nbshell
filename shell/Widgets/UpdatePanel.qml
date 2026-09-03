@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import qs.Common
 import qs.Services
 import qs.Ui
@@ -17,6 +18,7 @@ Column {
     readonly property int availableKinds: (Updates.count > 0 ? 1 : 0)
         + (ShellUpdates.updateAvailable ? 1 : 0)
         + (ShellUpdates.compositorUpdateAvailable ? 1 : 0)
+    readonly property var packageRows: root.updatePackages()
 
     width: rowWidth
     spacing: Theme.spaceMd
@@ -36,6 +38,31 @@ Column {
     function refreshAll() {
         Updates.refresh();
         ShellUpdates.refresh();
+    }
+
+    function updatePackages() {
+        const rows = [];
+        function append(packages, source) {
+            for (let i = 0; i < packages.length; ++i) {
+                const item = packages[i];
+                rows.push({
+                    "name": item.name,
+                    "from": item.from,
+                    "to": item.to,
+                    "source": source
+                });
+            }
+        }
+        append(Updates.repo, qsTr("REPOSITORY"));
+        append(Updates.aur, qsTr("AUR"));
+        append(Updates.flatpak, qsTr("FLATPAK"));
+        return rows;
+    }
+
+    function packageVersion(item) {
+        return item.from === item.to
+            ? qsTr("New build %1").arg(item.to)
+            : qsTr("%1 → %2").arg(item.from).arg(item.to);
     }
 
     function compositorRevision(project, field) {
@@ -155,15 +182,75 @@ Column {
         value: root.systemState()
         tone: Updates.count > 0 ? Theme.yellow : Theme.green
         selected: Updates.count > 0
-        trailingInset: systemAction.visible ? systemAction.width + Theme.spaceLg : 0
+    }
+
+    PanelSurface {
+        id: packageReview
+
+        width: root.rowWidth
+        height: Math.min(
+            Theme.controlHeight + root.packageRows.length * Theme.rowHeight + Theme.spaceMd * 2,
+            Theme.rowHeight * 6.5)
+        visible: Updates.ready && Updates.count > 0
+        raised: true
+
+        Accessible.role: Accessible.List
+        Accessible.name: qsTr("%1 package updates").arg(Updates.count)
+
+        ScrollView {
+            id: packageScroll
+
+            anchors.fill: parent
+            anchors.margins: Theme.spaceMd
+            clip: true
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            ScrollBar.vertical.policy: ScrollBar.AsNeeded
+
+            Column {
+                id: packageList
+
+                width: packageScroll.availableWidth
+                spacing: Theme.spaceXs
+
+                SectionHeader {
+                    width: parent.width
+                    text: qsTr("Packages")
+                    detail: qsTr("%1 ready").arg(Updates.count)
+                }
+
+                Repeater {
+                    model: root.packageRows
+
+                    PanelRow {
+                        required property var modelData
+
+                        width: packageList.width
+                        title: modelData.name
+                        detail: root.packageVersion(modelData)
+                        value: modelData.source
+                    }
+                }
+            }
+        }
+    }
+
+    Row {
+        width: root.rowWidth
+        height: systemAction.implicitHeight
+        spacing: Theme.spaceMd
+        visible: packageReview.visible
+
+        Line {
+            width: parent.width - systemAction.width - parent.spacing
+            anchors.verticalCenter: parent.verticalCenter
+            text: qsTr("A terminal shows the password prompt and update progress")
+            color: Theme.fgDim
+            elide: Text.ElideRight
+        }
 
         ActionButton {
             id: systemAction
-            anchors.right: parent.right
-            anchors.rightMargin: Theme.spaceMd
-            anchors.verticalCenter: parent.verticalCenter
-            visible: Updates.count > 0
-            text: qsTr("Update")
+            text: qsTr("Install updates")
             tone: "primary"
             accentColor: Theme.green
             compact: true

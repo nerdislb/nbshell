@@ -97,6 +97,11 @@ if "import qs.Ui" not in update_panel:
     raise SystemExit("Unified update panel no longer imports the PanelSeparator module")
 for snippet in (
     'title: qsTr("System packages")',
+    'text: qsTr("Packages")',
+    'text: qsTr("Install updates")',
+    'append(Updates.repo, qsTr("REPOSITORY"))',
+    'append(Updates.aur, qsTr("AUR"))',
+    'append(Updates.flatpak, qsTr("FLATPAK"))',
     'title: qsTr("nbshell")',
     'title: qsTr("Umbriel stack")',
     "Updates.update()",
