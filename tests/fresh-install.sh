@@ -18,7 +18,8 @@ trap 'status=$?; printf "::error title=Fresh install failure::line %s: %s (exit 
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/nbshell-install-test.XXXXXX")"
-trap 'rm -rf "$WORK"' EXIT
+grid_watch_pid=""
+trap '[ -z "${grid_watch_pid:-}" ] || kill "$grid_watch_pid" 2>/dev/null || true; rm -rf "$WORK"' EXIT
 
 TEST_HOME="$WORK/home"
 FAKE_BIN="$WORK/bin"
@@ -188,7 +189,17 @@ EOF
 
 cat >"$FAKE_BIN/qs" <<'EOF'
 #!/usr/bin/env bash
-[ "${1:-}" = "list" ] && exit 0
+if [ "${1:-}" = "list" ]; then
+    [ ! -f "$FAKE_SYSTEMD_STATE/manual-running" ] \
+        || printf '%s\n' "$XDG_CONFIG_HOME/quickshell/nbshell/shell.qml"
+    exit 0
+fi
+if [ "${1:-}" = "-c" ] && [ "${3:-}" = "kill" ]; then
+    rm -f "$FAKE_SYSTEMD_STATE/manual-running"
+    touch "$FAKE_SYSTEMD_STATE/manual-stopped"
+elif [ "${1:-}" = "-c" ] && [ "${3:-}" = "-d" ]; then
+    touch "$FAKE_SYSTEMD_STATE/manual-running" "$FAKE_SYSTEMD_STATE/manual-started"
+fi
 exit 0
 EOF
 
@@ -456,6 +467,25 @@ test -f "$FAKE_SYSTEMD_STATE/active"
 test ! -e "$FAKE_SYSTEMD_STATE/fail-systemd-run"
 assert_no_reservations
 
+# A failed update restores a shell that was running directly through
+# Quickshell, not only one owned by nbshell.service.
+rm -f "$FAKE_SYSTEMD_STATE/active" "$FAKE_SYSTEMD_STATE/manual-started" \
+    "$FAKE_SYSTEMD_STATE/manual-stopped"
+touch "$FAKE_SYSTEMD_STATE/manual-running"
+printf '%s\n' manual-before >"$XDG_CONFIG_HOME/quickshell/nbshell/manual-sentinel"
+if NBSHELL_INSTALL_TEST_FAULT=post-payload "$ROOT/install.sh" >/dev/null 2>&1; then
+    echo "Manual-shell update unexpectedly survived the rollback fault" >&2
+    exit 1
+fi
+test -f "$FAKE_SYSTEMD_STATE/manual-stopped"
+test -f "$FAKE_SYSTEMD_STATE/manual-started"
+test -f "$FAKE_SYSTEMD_STATE/manual-running"
+test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/manual-sentinel")" = manual-before
+rm -f "$FAKE_SYSTEMD_STATE/manual-running" "$FAKE_SYSTEMD_STATE/manual-started" \
+    "$FAKE_SYSTEMD_STATE/manual-stopped"
+touch "$FAKE_SYSTEMD_STATE/active"
+assert_no_reservations
+
 # A fault on the instruction immediately after the first mv must recognize the
 # occupied rollback by its runtime contents and restore it flat.
 if NBSHELL_INSTALL_TEST_FAULT=post-first-rename "$ROOT/install.sh" >/dev/null 2>&1; then
@@ -588,7 +618,7 @@ rm -f "$FAKE_SYSTEMD_STATE/enabled-nbshell-upstream-audit.timer" \
     "$FAKE_SYSTEMD_STATE/enabled-nbshell-sleep-lock.service"
 
 mkdir -p "$XDG_CONFIG_HOME/niri" "$unit_dir/niri.service.d" \
-    "$HOME/.local/lib/nbshell" "$XDG_CONFIG_HOME/nbshell/state"
+    "$HOME/.local/lib/nbshell" "$XDG_STATE_HOME/nbshell"
 printf '%s\n' 'include "nbshell-takeover.kdl"' 'user-line' >"$XDG_CONFIG_HOME/niri/config.kdl"
 printf '%s\n' niri-backup-before >"$XDG_CONFIG_HOME/niri/config.kdl.before-nbshell-umbriel-only"
 for name in takeover outputs cursor colors; do
@@ -597,9 +627,12 @@ done
 printf '%s\n' niri-unit-before >"$unit_dir/niri.service.d/nbshell.conf"
 printf '%s\n' niri-grid-unit-before >"$unit_dir/niri.service.d/nbshell-grid-atomic.conf"
 printf '%s\n' niri-atomic-before >"$HOME/.local/lib/nbshell/niri-atomic"
-for name in grid-layout.json grid-layout.lock grid-layout.pid grid-layout-backend; do
-    printf 'grid-%s-before\n' "$name" >"$XDG_CONFIG_HOME/nbshell/state/$name"
+for name in grid-layout.json grid-layout.lock grid-layout-backend; do
+    printf 'grid-%s-before\n' "$name" >"$XDG_STATE_HOME/nbshell/$name"
 done
+bash -c 'exec -a "python grid-layout.py watch" sleep 300' &
+grid_watch_pid=$!
+printf '%s\n' "$grid_watch_pid" >"$XDG_STATE_HOME/nbshell/grid-layout.pid"
 mkdir -p "$XDG_DATA_HOME/nbshell/bin" "$XDG_DATA_HOME/nbshell/native"
 printf '%s\n' native-bin-before >"$XDG_DATA_HOME/nbshell/bin/umbriel-workspaces"
 printf '%s\n' native-source-before >"$XDG_DATA_HOME/nbshell/native/umbriel-workspaces.c"
@@ -658,9 +691,11 @@ done
 test "$(cat "$unit_dir/niri.service.d/nbshell.conf")" = niri-unit-before
 test "$(cat "$unit_dir/niri.service.d/nbshell-grid-atomic.conf")" = niri-grid-unit-before
 test "$(cat "$HOME/.local/lib/nbshell/niri-atomic")" = niri-atomic-before
-for name in grid-layout.json grid-layout.lock grid-layout.pid grid-layout-backend; do
-    test "$(cat "$XDG_CONFIG_HOME/nbshell/state/$name")" = "grid-$name-before"
+for name in grid-layout.json grid-layout.lock grid-layout-backend; do
+    test "$(cat "$XDG_STATE_HOME/nbshell/$name")" = "grid-$name-before"
 done
+test "$(cat "$XDG_STATE_HOME/nbshell/grid-layout.pid")" = "$grid_watch_pid"
+kill -0 "$grid_watch_pid"
 test "$(cat "$XDG_DATA_HOME/nbshell/bin/umbriel-workspaces")" = native-bin-before
 test "$(cat "$XDG_DATA_HOME/nbshell/native/umbriel-workspaces.c")" = native-source-before
 test "$(cat "$XDG_CONFIG_HOME/omarchy-gmail/marker")" = old-mail-config-before
@@ -787,6 +822,16 @@ test -f "$DEFERRED_INSTALL_TRANSACTION/committed"
     "$XDG_CONFIG_HOME/quickshell/nbshell" "$DEFERRED_INSTALL_BACKUP" deferred \
     "$DEFERRED_INSTALL_TRANSACTION" "$XDG_BIN_HOME/nbshell"
 assert_no_reservations
+for _ in {1..100}; do
+    ! kill -0 "$grid_watch_pid" 2>/dev/null && break
+    sleep 0.01
+done
+! kill -0 "$grid_watch_pid" 2>/dev/null
+grid_watch_pid=""
+test ! -e "$XDG_STATE_HOME/nbshell/grid-layout.json"
+test ! -e "$XDG_STATE_HOME/nbshell/grid-layout.lock"
+test ! -e "$XDG_STATE_HOME/nbshell/grid-layout.pid"
+test ! -e "$XDG_STATE_HOME/nbshell/grid-layout-backend"
 
 # A failed shell restart must restore the previous runtime and bring its unit
 # back. The one-shot failure simulates a QML process that did not stay up.
