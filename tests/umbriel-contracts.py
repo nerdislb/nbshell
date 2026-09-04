@@ -94,7 +94,17 @@ assert '"$SRC/setup-umbriel.sh" --skip-shell-install' in setup
 assert "greetd-regreet" not in setup
 
 installer = (ROOT / "install.sh").read_text()
-assert "nbshell-takeover.kdl" not in installer.split("# Remove only nbshell-owned artifacts", 1)[0]
+installer_before_niri_retirement = installer.split("# Remove only nbshell-owned artifacts", 1)[0]
+pre_retirement_niri_mentions = [
+    line
+    for line in installer_before_niri_retirement.splitlines()
+    if "nbshell-takeover.kdl" in line
+]
+assert pre_retirement_niri_mentions
+assert all(
+    line.strip().startswith("transaction_backup_path")
+    for line in pre_retirement_niri_mentions
+)
 
 cli = (ROOT / "bin/nbshell").read_text()
 assert "nbshell grid" not in cli

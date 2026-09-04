@@ -14,6 +14,7 @@ BIN_DIR="${XDG_BIN_HOME:-$HOME/.local/bin}"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/nbshell"
 SHARE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}"
 UNIT_DIR="$CONFIG_HOME/systemd/user"
+INSTALL_LOCK="$STATE_DIR/install.lock"
 
 QS_BIN="$(command -v qs || command -v quickshell || true)"
 
@@ -23,7 +24,7 @@ warn()  { printf '\033[33m%s\033[0m\n' "$1"; }
 # Serialize installs started by terminals, the dashboard, or agent sessions.
 mkdir -p "$STATE_DIR"
 chmod 700 "$STATE_DIR"
-exec 9>"$STATE_DIR/install.lock"
+exec 9>"$INSTALL_LOCK"
 if ! flock -n 9; then
     warn "Another nbshell installation is already running."
     exit 1
@@ -121,6 +122,408 @@ if [ -z "$polkit_found" ]; then
     echo
 fi
 
+unit_active=0
+was_running=0
+defer_service_restart=0
+install_ready=0
+ytmusic_active=0
+recovery_armed=0
+recovery_failed=0
+shell_stopped=0
+rollback_occupied=0
+runtime_swapped=0
+installer_in_nbshell_unit=0
+if grep -Fq '/nbshell.service' /proc/$$/cgroup 2>/dev/null \
+        || [ "${NBSHELL_INSTALL_TEST_IN_SERVICE:-0}" = 1 ]; then
+    installer_in_nbshell_unit=1
+fi
+declare -a transaction_states=()
+declare -a transaction_keys=()
+declare -a transaction_paths=()
+declare -a transaction_unit_names=()
+declare -a transaction_unit_enabled=()
+declare -a transaction_unit_active=()
+declare -a transaction_unit_fragments=()
+recover_command() {
+    "$@" || recovery_failed=1
+}
+transaction_backup_path() {
+    local path="$1" key="$2" state=missing
+    if [ -e "$path" ] || [ -L "$path" ]; then
+        cp -a --reflink=auto -- "$path" "$TRANSACTION_BACKUP/$key"
+        state=present
+    fi
+    transaction_states+=("$state")
+    transaction_keys+=("$key")
+    transaction_paths+=("$path")
+    printf '%s\0%s\0%s\0' "$state" "$key" "$path" >>"$TRANSACTION_PATHS_MANIFEST"
+}
+transaction_capture_unit() {
+    local unit="$1" enabled fragment active=0
+    enabled="$(systemctl --user is-enabled "$unit" 2>/dev/null || true)"
+    [ -n "$enabled" ] || enabled=disabled
+    fragment="$(systemctl --user show --property=FragmentPath --value "$unit" 2>/dev/null || true)"
+    systemctl --user is-active --quiet "$unit" >/dev/null 2>&1 && active=1
+    transaction_unit_names+=("$unit")
+    transaction_unit_enabled+=("$enabled")
+    transaction_unit_active+=("$active")
+    transaction_unit_fragments+=("$fragment")
+    printf '%s\0%s\0%s\0%s\0%s\0' "$unit" "$enabled" "$active" "$fragment" \
+        "$UNIT_DIR/$unit" >>"$TRANSACTION_UNITS_MANIFEST"
+}
+rollback_transaction_paths() {
+    local index state key path
+    for ((index=${#transaction_paths[@]} - 1; index >= 0; index--)); do
+        state="${transaction_states[$index]}"
+        key="${transaction_keys[$index]}"
+        path="${transaction_paths[$index]}"
+        if ! rm -rf -- "$path"; then
+            recovery_failed=1
+            continue
+        fi
+        if [ "$state" = present ]; then
+            recover_command mkdir -p -- "$(dirname "$path")"
+            recover_command cp -a -- "$TRANSACTION_BACKUP/$key" "$path"
+        fi
+    done
+}
+rollback_transaction_units() {
+    local index unit enabled active fragment unit_path unit_key
+    recover_command systemctl --user daemon-reload >/dev/null 2>&1
+    for ((index=${#transaction_unit_names[@]} - 1; index >= 0; index--)); do
+        unit="${transaction_unit_names[$index]}"
+        enabled="${transaction_unit_enabled[$index]}"
+        active="${transaction_unit_active[$index]}"
+        fragment="${transaction_unit_fragments[$index]}"
+        unit_path="$UNIT_DIR/$unit"
+        unit_key="unit-$unit"
+        case "$enabled" in
+            enabled)
+                recover_command systemctl --user unmask "$unit" >/dev/null 2>&1
+                recover_command systemctl --user disable "$unit" >/dev/null 2>&1
+                recover_command systemctl --user enable "$unit" >/dev/null 2>&1
+                ;;
+            enabled-runtime)
+                recover_command systemctl --user disable "$unit" >/dev/null 2>&1
+                recover_command systemctl --user enable --runtime "$unit" >/dev/null 2>&1
+                ;;
+            linked|alias)
+                recover_command systemctl --user disable "$unit" >/dev/null 2>&1
+                recover_command rm -rf -- "$unit_path"
+                if [ -e "$TRANSACTION_BACKUP/$unit_key" ]                         || [ -L "$TRANSACTION_BACKUP/$unit_key" ]; then
+                    recover_command cp -a -- "$TRANSACTION_BACKUP/$unit_key" "$unit_path"
+                fi
+                recover_command systemctl --user daemon-reload >/dev/null 2>&1
+                ;;
+            linked-runtime)
+                recover_command systemctl --user disable "$unit" >/dev/null 2>&1
+                [ -z "$fragment" ]                     || recover_command systemctl --user link --runtime "$fragment" >/dev/null 2>&1
+                ;;
+            masked)
+                recover_command systemctl --user disable "$unit" >/dev/null 2>&1
+                recover_command systemctl --user mask "$unit" >/dev/null 2>&1
+                ;;
+            masked-runtime)
+                recover_command systemctl --user disable "$unit" >/dev/null 2>&1
+                recover_command systemctl --user mask --runtime "$unit" >/dev/null 2>&1
+                ;;
+            not-found) continue ;;
+            *)
+                recover_command systemctl --user disable "$unit" >/dev/null 2>&1
+                ;;
+        esac
+        if [ "$active" -eq 1 ]; then
+            recover_command systemctl --user start "$unit" >/dev/null 2>&1
+        else
+            recover_command systemctl --user stop "$unit" >/dev/null 2>&1
+        fi
+    done
+}
+rollback_is_runtime() {
+    [ -d "$ROLLBACK_SHELL" ] && [ -f "$ROLLBACK_SHELL/shell.qml" ]
+}
+restore_runtime_from_backup() {
+    if ! rm -rf -- "$STAGED_SHELL" \
+            || ! cp -a -- "$ROLLBACK_SHELL" "$STAGED_SHELL"; then
+        recovery_failed=1
+        return 1
+    fi
+    if [ -e "$SHELL_DIR" ] || [ -L "$SHELL_DIR" ]; then
+        if ! mv --exchange -T -- "$SHELL_DIR" "$STAGED_SHELL"; then
+            recovery_failed=1
+            return 1
+        fi
+        runtime_restored=1
+        recover_command rm -rf -- "$STAGED_SHELL"
+        return 0
+    fi
+    if mv -T -- "$STAGED_SHELL" "$SHELL_DIR"; then
+        runtime_restored=1
+        return 0
+    fi
+    recovery_failed=1
+    return 1
+}
+recover_install() {
+    result=$?
+    local runtime_restored=0
+    recovery_failed=0
+    # Recovery continues across independent destinations. If any restoration
+    # fails, keep the durable backup and watchdog available for a retry.
+    set +e
+    if [ $install_ready -ne 1 ] && [ -n "${TRANSACTION_BACKUP:-}" ]; then
+        rollback_transaction_paths
+    fi
+    if [ $install_ready -ne 1 ] \
+            && { [ $runtime_swapped -eq 1 ] || [ $rollback_occupied -eq 1 ]; }; then
+        if [ $defer_service_restart -ne 1 ]; then
+            recover_command systemctl --user stop nbshell.service >/dev/null 2>&1
+        fi
+        if [ $rollback_occupied -eq 1 ]; then
+            restore_runtime_from_backup || true
+        elif [ $runtime_swapped -eq 1 ]; then
+            recover_command rm -rf -- "${SHELL_DIR:?}"
+        fi
+    fi
+    if [ $install_ready -ne 1 ] && [ -n "${TRANSACTION_BACKUP:-}" ]; then
+        rollback_transaction_units
+        if [ $ytmusic_active -eq 1 ]; then
+            recover_command systemctl --user restart omarchy-ytmusic.service >/dev/null 2>&1
+        fi
+        if command -v update-desktop-database >/dev/null 2>&1; then
+            recover_command update-desktop-database "$SHARE_DIR/applications" >/dev/null 2>&1
+        fi
+    fi
+    [ ! -d "$STAGED_SHELL" ] || recover_command rm -rf -- "$STAGED_SHELL"
+    if [ $unit_active -eq 1 ] && [ $defer_service_restart -ne 1 ] \
+            && { [ $runtime_restored -eq 1 ] || [ -d "$SHELL_DIR" ]; }; then
+        systemctl --user is-active --quiet nbshell.service 2>/dev/null \
+            || recover_command systemctl --user start nbshell.service >/dev/null 2>&1
+    elif [ $shell_stopped -eq 1 ] && [ -d "$SHELL_DIR" ]; then
+        recover_command "$BIN_DIR/nbshell" start -d >/dev/null 2>&1
+    fi
+    if [ $install_ready -eq 1 ] && [ $defer_service_restart -eq 1 ] \
+            && [ $recovery_failed -eq 0 ]; then
+        # The committed transaction and rollback runtime stay available to the
+        # already-armed helper, which closes the deferred recovery window.
+        return "$result"
+    fi
+    if [ $recovery_failed -eq 0 ]; then
+        if [ $install_ready -ne 1 ] || [ $defer_service_restart -ne 1 ]; then
+            [ ! -d "$ROLLBACK_SHELL" ] || rm -rf -- "$ROLLBACK_SHELL"
+        fi
+        if [ "${recovery_armed:-0}" -eq 1 ]; then
+            systemctl --user stop "$recovery_unit.timer" \
+                "$recovery_unit.service" >/dev/null 2>&1 || true
+        fi
+        [ ! -d "${TRANSACTION_BACKUP:-}" ] || rm -rf -- "$TRANSACTION_BACKUP"
+    elif [ -n "${TRANSACTION_BACKUP:-}" ]; then
+        warn "Recovery was incomplete; backups remain in $TRANSACTION_BACKUP"
+    fi
+    return "$result"
+}
+
+# A killed installer releases the process lock but leaves a durable transaction
+# for its watchdog. Recover it synchronously before a retry can touch the same
+# destinations; the older timer then finds no transaction to replay.
+for stale_transaction in "$CONFIG_HOME"/.nbshell-install-rollback.*; do
+    [ -d "$stale_transaction" ] || continue
+    stale_metadata_ok=1
+    for metadata_name in shell-path rollback-path staged-path mode command-path recovery-unit; do
+        [ -f "$stale_transaction/$metadata_name" ] || stale_metadata_ok=0
+    done
+    if [ $stale_metadata_ok -ne 1 ] || [ ! -x "$stale_transaction/recover" ]; then
+        warn "Incomplete prior install metadata remains in $stale_transaction"
+        warn "Recovery cannot continue safely; keep that directory for inspection."
+        exit 1
+    fi
+    IFS= read -r stale_shell <"$stale_transaction/shell-path"
+    IFS= read -r stale_rollback <"$stale_transaction/rollback-path"
+    IFS= read -r stale_staged <"$stale_transaction/staged-path"
+    IFS= read -r stale_mode <"$stale_transaction/mode"
+    IFS= read -r stale_command <"$stale_transaction/command-path"
+    IFS= read -r stale_unit <"$stale_transaction/recovery-unit"
+    case "$stale_unit" in
+        nbshell-install-recovery-[A-Za-z0-9]*) ;;
+        *)
+            warn "Invalid recovery unit metadata in $stale_transaction"
+            exit 1
+            ;;
+    esac
+    systemctl --user stop "$stale_unit.timer" \
+        "$stale_unit.service" >/dev/null 2>&1 || true
+    if systemctl --user is-active --quiet "$stale_unit.timer" 2>/dev/null \
+            || systemctl --user is-active --quiet "$stale_unit.service" 2>/dev/null; then
+        warn "Could not stop the previous recovery watchdog."
+        exit 1
+    fi
+    if [ $installer_in_nbshell_unit -eq 1 ]; then
+        # Never let stale recovery stop or replace the service tree that owns
+        # this retry. Queue it behind the lock, then exit so recovery runs only
+        # after this process has left nbshell.service. The independent unit can
+        # safely restart the service even when the interrupted installer had
+        # deferred its own restart.
+        retry_unit="${stale_unit}-retry-$$"
+        queued_recovery_mode=restart
+        if systemd-run --user --quiet --unit="$retry_unit" --on-active=1s \
+                --timer-property=AccuracySec=1s \
+                flock "$INSTALL_LOCK" "$stale_transaction/recover" \
+                "$stale_shell" "$stale_rollback" "$queued_recovery_mode" \
+                "$stale_transaction" "$stale_command" "$stale_staged"; then
+            warn "Interrupted installation recovery was queued; retry after nbshell restarts."
+        else
+            warn "Could not queue recovery of the interrupted installation."
+        fi
+        exit 1
+    fi
+    if ! "$stale_transaction/recover" "$stale_shell" "$stale_rollback" \
+            "$stale_mode" "$stale_transaction" "$stale_command" "$stale_staged"; then
+        warn "Recovery of the interrupted prior installation failed."
+        exit 1
+    fi
+done
+
+# Prepare and validate a complete runtime before stopping the bar. Both names
+# are private, same-filesystem reservations. A rollback is genuine only after
+# the old, validated runtime has occupied its reservation.
+mkdir -p "$CONFIG_HOME/quickshell"
+STAGED_SHELL="$(mktemp -d "$CONFIG_HOME/quickshell/.nbshell-stage.XXXXXX")"
+if ! ROLLBACK_SHELL="$(mktemp -d "$CONFIG_HOME/quickshell/.nbshell-rollback.XXXXXX")"; then
+    rm -rf -- "$STAGED_SHELL"
+    exit 1
+fi
+TRANSACTION_BACKUP="$(mktemp -d "$CONFIG_HOME/.nbshell-install-rollback.XXXXXX")"
+TRANSACTION_PATHS_MANIFEST="$TRANSACTION_BACKUP/paths"
+TRANSACTION_UNITS_MANIFEST="$TRANSACTION_BACKUP/units"
+recovery_unit="nbshell-install-recovery-${TRANSACTION_BACKUP##*.}"
+# Arm cleanup immediately after all reservations. Manifest creation and every
+# later backup or mutation are covered by this trap.
+trap recover_install EXIT
+: >"$TRANSACTION_PATHS_MANIFEST"
+: >"$TRANSACTION_UNITS_MANIFEST"
+[ ! -d "$SHELL_DIR" ] || touch "$TRANSACTION_BACKUP/original-runtime-present"
+systemctl --user is-active --quiet omarchy-ytmusic.service 2>/dev/null \
+    && touch "$TRANSACTION_BACKUP/ytmusic-active" || true
+install -m 755 "$SRC/bin/nbshell-install-recover" "$TRANSACTION_BACKUP/recover"
+printf '%s\n' "$SHELL_DIR" >"$TRANSACTION_BACKUP/shell-path"
+printf '%s\n' "$ROLLBACK_SHELL" >"$TRANSACTION_BACKUP/rollback-path"
+printf '%s\n' "$STAGED_SHELL" >"$TRANSACTION_BACKUP/staged-path"
+printf '%s\n' inactive >"$TRANSACTION_BACKUP/mode"
+printf '%s\n' "$BIN_DIR/nbshell" >"$TRANSACTION_BACKUP/command-path"
+printf '%s\n' "$recovery_unit" >"$TRANSACTION_BACKUP/recovery-unit"
+
+# Build and validate the complete runtime before changing any installed file or
+# user-unit state. A malformed source tree therefore fails without even a
+# temporary service interruption.
+cp -a "$SRC/shell/." "$STAGED_SHELL/"
+cp -a "$SRC/integrations" "$STAGED_SHELL/"
+install -m 644 "$SRC/VERSION" "$STAGED_SHELL/VERSION"
+bash -n "$SRC/install.sh"
+bash -n "$SRC/bin/nbshell" "$SRC/bin/nbshell-install-recover"
+while IFS= read -r -d '' script; do bash -n "$script"; done < <(find "$SRC/shell/scripts" -type f -name '*.sh' -print0)
+python3 -c 'import ast, pathlib, sys; ast.parse(pathlib.Path(sys.argv[1]).read_text())' \
+    "$STAGED_SHELL/scripts/agents.py"
+QMLLINT_BIN="$(command -v qmllint || true)"
+[ -n "$QMLLINT_BIN" ] || [ ! -x /usr/lib/qt6/bin/qmllint ] || QMLLINT_BIN=/usr/lib/qt6/bin/qmllint
+if [ -n "$QMLLINT_BIN" ]; then
+    "$QMLLINT_BIN" "$STAGED_SHELL/shell.qml" >/dev/null 2>&1
+fi
+if [ "${NBSHELL_INSTALL_TEST_FAULT:-}" = "pre-watchdog-kill" ]; then
+    kill -KILL "$$"
+fi
+if [ "${NBSHELL_INSTALL_TEST_FAULT:-}" = "pre-swap" ]; then
+    exit 97
+fi
+
+# Arm a user-manager watchdog before the first installed path or service state
+# changes. The recovery executable lives inside the durable transaction so a
+# first install is protected even before the command payload exists.
+systemctl --user is-active --quiet nbshell.service 2>/dev/null && unit_active=1
+if [ $unit_active -ne 1 ] && "$QS_BIN" list --all 2>/dev/null | grep -c "quickshell/nbshell/shell.qml" >/dev/null; then
+    was_running=1
+fi
+restart_policy="${NBSHELL_INSTALL_DEFER_RESTART:-auto}"
+if [ $unit_active -eq 1 ] && { [ "$restart_policy" = "1" ] \
+        || { [ "$restart_policy" = "auto" ] \
+            && [ $installer_in_nbshell_unit -eq 1 ]; }; }; then
+    defer_service_restart=1
+fi
+recovery_mode=inactive
+if [ $unit_active -eq 1 ]; then
+    recovery_mode=restart
+    [ $defer_service_restart -ne 1 ] || recovery_mode=deferred
+elif [ $was_running -eq 1 ]; then
+    recovery_mode=manual
+fi
+printf '%s\n' "$recovery_mode" >"$TRANSACTION_BACKUP/mode"
+if systemd-run --user --quiet --unit="$recovery_unit" --on-active=120s \
+        --timer-property=AccuracySec=1s \
+        flock "$INSTALL_LOCK" "$TRANSACTION_BACKUP/recover" \
+        "$SHELL_DIR" "$ROLLBACK_SHELL" "$recovery_mode" \
+        "$TRANSACTION_BACKUP" "$BIN_DIR/nbshell" "$STAGED_SHELL"; then
+    recovery_armed=1
+else
+    warn "Could not arm independent recovery; leaving installed state untouched."
+    exit 1
+fi
+
+# Snapshot every destination owned or retired by the installer before the
+# first payload or unit-state mutation. User configuration and plugin trees
+# keep their narrower per-file backups below so unrelated content remains
+# untouched.
+transaction_backup_path "$SHARE_DIR/nbshell" share-nbshell
+transaction_backup_path "$DATA_DIR/themes" themes
+transaction_backup_path "$BIN_DIR/nbshell" command
+transaction_backup_path "$BIN_DIR/nbshell-install-recover" recovery-command
+transaction_backup_path "$CONFIG_HOME/aether/custom/nbshell" aether-hook
+transaction_backup_path "$SHARE_DIR/applications/dev.nerdi.nbshell.desktop" app-shell
+transaction_backup_path "$SHARE_DIR/applications/dev.nerdi.nbshell.Calculator.desktop" app-calculator
+transaction_backup_path "$CONFIG_HOME/omarchy-gmail" old-mail-config
+transaction_backup_path "${XDG_CACHE_HOME:-$HOME/.cache}/omarchy-gmail" old-mail-cache
+transaction_backup_path "$CONFIG_HOME/omamail" mail-config
+transaction_backup_path "${XDG_CACHE_HOME:-$HOME/.cache}/omamail" mail-cache
+transaction_backup_path "$CONFIG_HOME/niri/config.kdl" niri-config
+transaction_backup_path "$CONFIG_HOME/niri/config.kdl.before-nbshell-umbriel-only" niri-config-backup
+transaction_backup_path "$CONFIG_HOME/niri/nbshell-takeover.kdl" niri-takeover
+transaction_backup_path "$CONFIG_HOME/niri/nbshell-outputs.kdl" niri-outputs
+transaction_backup_path "$CONFIG_HOME/niri/nbshell-cursor.kdl" niri-cursor
+transaction_backup_path "$CONFIG_HOME/niri/nbshell-colors.kdl" niri-colors
+transaction_backup_path "$UNIT_DIR/niri.service.d/nbshell.conf" niri-unit
+transaction_backup_path "$UNIT_DIR/niri.service.d/nbshell-grid-atomic.conf" niri-grid-unit
+transaction_backup_path "$HOME/.local/lib/nbshell/niri-atomic" niri-atomic
+transaction_backup_path "$STATE_DIR/grid-layout.json" grid-json
+transaction_backup_path "$STATE_DIR/grid-layout.lock" grid-lock
+transaction_backup_path "$STATE_DIR/grid-layout.pid" grid-pid
+transaction_backup_path "$STATE_DIR/grid-layout-backend" grid-backend
+for skill_home in \
+    "$HOME/.agents/skills" \
+    "$HOME/.claude/skills" \
+    "$HOME/.codex/skills" \
+    "$HOME/.pi/agent/skills"; do
+    transaction_backup_path "$skill_home/nbshell" "skill-$(basename "$(dirname "$skill_home")")"
+done
+transaction_backup_path "$HOME/.gemini/skills/nbshell" skill-gemini
+for unit in \
+    nbshell.service \
+    nbshell-lock.service \
+    nbshell-sleep-lock.service \
+    nbshell-umbriel-resume-guard.service \
+    nbshell-upstream-audit.service \
+    nbshell-upstream-audit.timer \
+    nbshell-agent-host.service \
+    nbshell-whatsapp.service; do
+    transaction_backup_path "$UNIT_DIR/$unit" "unit-$unit"
+done
+for unit in \
+    nbshell-sleep-lock.service \
+    nbshell-umbriel-resume-guard.service \
+    nbshell-upstream-audit.service \
+    nbshell-upstream-audit.timer \
+    nbshell-agent-host.service \
+    nbshell-whatsapp.service; do
+    transaction_capture_unit "$unit"
+done
+
 # ── Shell ────────────────────────────────────────────────────────────────
 # Install the shell lifecycle unit before touching the running shell.
 mkdir -p "$UNIT_DIR"
@@ -154,127 +557,15 @@ systemctl --user daemon-reload 2>/dev/null || true
 systemctl --user enable nbshell-umbriel-resume-guard.service >/dev/null 2>&1 || true
 systemctl --user enable --now nbshell-upstream-audit.timer >/dev/null 2>&1 || true
 
-unit_active=0
-defer_service_restart=0
-install_ready=0
-declare -a transaction_states=()
-declare -a transaction_keys=()
-declare -a transaction_paths=()
-transaction_backup_path() {
-    local path="$1" key="$2" state=missing
-    if [ -e "$path" ] || [ -L "$path" ]; then
-        cp -a -- "$path" "$TRANSACTION_BACKUP/$key"
-        state=present
-    fi
-    transaction_states+=("$state")
-    transaction_keys+=("$key")
-    transaction_paths+=("$path")
-}
-rollback_transaction_paths() {
-    local index state key path
-    for ((index=${#transaction_paths[@]} - 1; index >= 0; index--)); do
-        state="${transaction_states[$index]}"
-        key="${transaction_keys[$index]}"
-        path="${transaction_paths[$index]}"
-        rm -rf -- "$path"
-        if [ "$state" = present ]; then
-            mkdir -p -- "$(dirname "$path")"
-            mv -T -- "$TRANSACTION_BACKUP/$key" "$path"
-        fi
-    done
-}
-rollback_is_runtime() {
-    [ -d "$ROLLBACK_SHELL" ] && [ -f "$ROLLBACK_SHELL/shell.qml" ]
-}
-recover_install() {
-    result=$?
-    if [ $install_ready -ne 1 ] && [ -n "${TRANSACTION_BACKUP:-}" ]; then
-        rollback_transaction_paths
-    fi
-    if [ $install_ready -ne 1 ] && rollback_is_runtime; then
-        if [ $defer_service_restart -ne 1 ]; then
-            systemctl --user stop nbshell.service >/dev/null 2>&1 || true
-        fi
-        rm -rf -- "${SHELL_DIR:?}"
-        mv -T -- "$ROLLBACK_SHELL" "$SHELL_DIR"
-    fi
-    [ ! -d "$STAGED_SHELL" ] || rm -rf -- "$STAGED_SHELL"
-    if [ -d "$ROLLBACK_SHELL" ] && ! rollback_is_runtime; then
-        rm -rf -- "$ROLLBACK_SHELL"
-    fi
-    if [ $unit_active -eq 1 ] && [ $defer_service_restart -ne 1 ]; then
-        systemctl --user is-active --quiet nbshell.service 2>/dev/null || \
-            systemctl --user start nbshell.service >/dev/null 2>&1 || true
-    fi
-    [ ! -d "${TRANSACTION_BACKUP:-}" ] || rm -rf -- "$TRANSACTION_BACKUP"
-    return "$result"
-}
-
-# Prepare and validate a complete runtime before stopping the bar. Both names
-# are private, same-filesystem reservations. A rollback is genuine only after
-# the old, validated runtime has occupied its reservation.
-mkdir -p "$CONFIG_HOME/quickshell"
-STAGED_SHELL="$(mktemp -d "$CONFIG_HOME/quickshell/.nbshell-stage.XXXXXX")"
-if ! ROLLBACK_SHELL="$(mktemp -d "$CONFIG_HOME/quickshell/.nbshell-rollback.XXXXXX")"; then
-    rm -rf -- "$STAGED_SHELL"
-    exit 1
-fi
-TRANSACTION_BACKUP="$(mktemp -d "$CONFIG_HOME/.nbshell-install-rollback.XXXXXX")"
-# Arm cleanup immediately after both reservations, before copy, validation, or
-# recovery arming can fail.
-trap recover_install EXIT
-
-cp -a "$SRC/shell/." "$STAGED_SHELL/"
-cp -a "$SRC/integrations" "$STAGED_SHELL/"
-install -m 644 "$SRC/VERSION" "$STAGED_SHELL/VERSION"
-bash -n "$SRC/install.sh"
-bash -n "$SRC/bin/nbshell" "$SRC/bin/nbshell-install-recover"
-while IFS= read -r -d '' script; do bash -n "$script"; done < <(find "$SRC/shell/scripts" -type f -name '*.sh' -print0)
-python3 -c 'import ast, pathlib, sys; ast.parse(pathlib.Path(sys.argv[1]).read_text())' \
-    "$STAGED_SHELL/scripts/agents.py"
-QMLLINT_BIN="$(command -v qmllint || true)"
-[ -n "$QMLLINT_BIN" ] || [ ! -x /usr/lib/qt6/bin/qmllint ] || QMLLINT_BIN=/usr/lib/qt6/bin/qmllint
-if [ -n "$QMLLINT_BIN" ]; then
-    "$QMLLINT_BIN" "$STAGED_SHELL/shell.qml" >/dev/null 2>&1
-fi
-[ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "pre-swap" ] || exit 97
-
-systemctl --user is-active --quiet nbshell.service 2>/dev/null && unit_active=1
-was_running=0
-if [ $unit_active -ne 1 ] && "$QS_BIN" list --all 2>/dev/null | grep -c "quickshell/nbshell/shell.qml" >/dev/null; then
-    was_running=1
-fi
-
-# Agent terminals opened by nbshell are members of nbshell.service. Stopping
-# that unit here would also terminate the installer and its controlling agent.
-# The runtime directory can still be switched atomically; in that case leave
-# the already running shell untouched and let the next login/restart load it.
-restart_policy="${NBSHELL_INSTALL_DEFER_RESTART:-auto}"
-if [ $unit_active -eq 1 ] && { [ "$restart_policy" = "1" ] \
-        || { [ "$restart_policy" = "auto" ] \
-            && grep -Fq '/nbshell.service' /proc/$$/cgroup 2>/dev/null; }; }; then
-    defer_service_restart=1
-fi
-
-# This timer belongs to the user manager, not to the calling terminal. Even a
-# killed installer cannot leave a previously running desktop without its bar.
-recovery_armed=0
-if [ $unit_active -eq 1 ]; then
-    systemctl --user stop nbshell-install-recovery.timer nbshell-install-recovery.service >/dev/null 2>&1 || true
-    systemctl --user reset-failed nbshell-install-recovery.service >/dev/null 2>&1 || true
-    recovery_mode=restart
-    [ $defer_service_restart -ne 1 ] || recovery_mode=deferred
-    if systemd-run --user --quiet --unit=nbshell-install-recovery --on-active=120s \
-            --timer-property=AccuracySec=1s "$BIN_DIR/nbshell-install-recover" \
-            "$SHELL_DIR" "$ROLLBACK_SHELL" "$recovery_mode"; then
-        recovery_armed=1
-    fi
-fi
-
 if [ $unit_active -eq 1 ] && [ $defer_service_restart -ne 1 ]; then
     systemctl --user stop nbshell.service
 elif [ "$was_running" = "1" ]; then
-    "${SRC}/bin/nbshell" stop >/dev/null 2>&1 || true
+    if "${SRC}/bin/nbshell" stop >/dev/null 2>&1; then
+        shell_stopped=1
+    else
+        warn "Could not stop the running nbshell instance; installation aborted."
+        exit 1
+    fi
     sleep 0.3
 fi
 if [ -d "$SHELL_DIR" ]; then
@@ -283,9 +574,11 @@ if [ -d "$SHELL_DIR" ]; then
     # serialized. Cleanup validates the moved contents, not a flag.
     rmdir -- "$ROLLBACK_SHELL"
     mv -T -- "$SHELL_DIR" "$ROLLBACK_SHELL"
+    rollback_occupied=1
     [ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-first-rename" ] || exit 98
 fi
 mv -T -- "$STAGED_SHELL" "$SHELL_DIR"
+runtime_swapped=1
 
 green "Shell   -> $SHELL_DIR"
 
@@ -391,6 +684,7 @@ if [ -d "$YTMUSIC_RUNTIME" ] && [ -x "$YTMUSIC_VENV" ] \
     chmod 755 -- "$YTMUSIC_RUNTIME/server.py"
     "$YTMUSIC_VENV" "$YTMUSIC_RUNTIME/server.py" --self-test >/dev/null
     if systemctl --user is-active --quiet omarchy-ytmusic.service 2>/dev/null; then
+        ytmusic_active=1
         systemctl --user restart omarchy-ytmusic.service
     fi
     green "YT Music -> refreshed installed backend"
@@ -488,10 +782,11 @@ rm -f "$CONFIG_HOME/niri/nbshell-takeover.kdl" \
     "$UNIT_DIR/niri.service.d/nbshell-grid-atomic.conf" \
     "$HOME/.local/lib/nbshell/niri-atomic"
 rmdir "$UNIT_DIR/niri.service.d" 2>/dev/null || true
+retired_grid_pid=""
 if [ -f "$STATE_DIR/grid-layout.pid" ]; then
     grid_pid="$(cat "$STATE_DIR/grid-layout.pid" 2>/dev/null || true)"
     if [[ $grid_pid =~ ^[0-9]+$ ]] && tr '\0' ' ' <"/proc/$grid_pid/cmdline" 2>/dev/null | grep -Fq 'grid-layout.py watch'; then
-        kill "$grid_pid" 2>/dev/null || true
+        retired_grid_pid="$grid_pid"
     fi
 fi
 rm -f "$STATE_DIR/grid-layout.json" "$STATE_DIR/grid-layout.lock" \
@@ -566,17 +861,25 @@ if [ -L "$GEMINI_SKILL" ] && [ "$(readlink -f "$GEMINI_SKILL")" = "$(readlink -f
 fi
 green "Skill   -> shared Agent Skills directories (nbshell)"
 [ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-payload" ] || exit 102
+[ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-payload-kill" ] || kill -KILL "$$"
 
 # The transaction is complete only after every runtime, command, integration,
 # and skill payload has landed. Until this point the EXIT trap must still be
 # able to restore the previous shell and every backed-up user path.
+touch "$TRANSACTION_BACKUP/committed"
 install_ready=1
-rm -rf -- "$TRANSACTION_BACKUP"
-if [ -d "$ROLLBACK_SHELL" ] && [ $defer_service_restart -ne 1 ]; then
-    rm -rf -- "$ROLLBACK_SHELL"
+if [ -n "$retired_grid_pid" ]; then
+    kill "$retired_grid_pid" 2>/dev/null || true
+    rm -f "$STATE_DIR/grid-layout.json" "$STATE_DIR/grid-layout.lock" \
+        "$STATE_DIR/grid-layout.pid" "$STATE_DIR/grid-layout-backend"
 fi
-if [ $recovery_armed -eq 1 ] && [ $defer_service_restart -ne 1 ]; then
-    systemctl --user stop nbshell-install-recovery.timer >/dev/null 2>&1 || true
+if [ $defer_service_restart -ne 1 ]; then
+    rm -rf -- "$TRANSACTION_BACKUP"
+    [ ! -d "$ROLLBACK_SHELL" ] || rm -rf -- "$ROLLBACK_SHELL"
+    if [ $recovery_armed -eq 1 ]; then
+        systemctl --user stop "$recovery_unit.timer" "$recovery_unit.service" \
+            >/dev/null 2>&1 || true
+    fi
 fi
 
 case ":$PATH:" in

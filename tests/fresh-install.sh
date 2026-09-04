@@ -27,23 +27,69 @@ mkdir -p "$TEST_HOME" "$FAKE_BIN"
 cat >"$FAKE_BIN/systemctl" <<'EOF'
 #!/usr/bin/env bash
 state="${FAKE_SYSTEMD_STATE:?}"
+unit="${!#:-}"
+active_file="$state/active-$unit"
+enabled_file="$state/enabled-$unit"
+enabled_runtime_file="$state/enabled-runtime-$unit"
+masked_file="$state/masked-$unit"
+[ "$unit" = "nbshell.service" ] && active_file="$state/active"
 case " $* " in
-    *" is-active "*) test -f "$state/active" ;;
-    *" is-enabled "*|*" cat "*) exit 1 ;;
-    *" stop nbshell.service "*) rm -f "$state/active" ;;
-    *" start nbshell.service "*)
-        if [ -f "$state/fail-next-start" ]; then
+    *" is-active "*) test -f "$active_file" ;;
+    *" is-enabled "*)
+        if [ -f "$masked_file" ]; then
+            echo masked
+            exit 1
+        elif [ -f "$enabled_runtime_file" ]; then
+            echo enabled-runtime
+        elif [ -f "$enabled_file" ]; then
+            echo enabled
+        else
+            echo disabled
+            exit 1
+        fi
+        ;;
+    *" cat "*) exit 1 ;;
+    *" disable "*)
+        rm -f "$enabled_file" "$enabled_runtime_file"
+        case " $* " in *" --now "*) rm -f "$active_file" ;; esac
+        ;;
+    *" enable "*)
+        [ ! -f "$masked_file" ] || exit 1
+        case " $* " in
+            *" --runtime "*) touch "$enabled_runtime_file" ;;
+            *) touch "$enabled_file" ;;
+        esac
+        case " $* " in *" --now "*) touch "$active_file" ;; esac
+        ;;
+    *" unmask "*) rm -f "$masked_file" ;;
+    *" mask "*)
+        rm -f "$enabled_file" "$active_file"
+        touch "$masked_file"
+        ;;
+    *" stop "*) rm -f "$active_file" ;;
+    *" start "*)
+        if [ "$unit" = "nbshell.service" ] \
+                && [ -f "$state/fail-next-nbshell-start" ]; then
+            rm -f "$state/fail-next-nbshell-start"
+            exit 1
+        elif [ -f "$state/fail-next-start" ]; then
             rm -f "$state/fail-next-start"
             exit 1
         fi
-        touch "$state/active"
+        touch "$active_file"
         ;;
+    *" restart "*) touch "$active_file" ;;
     *) exit 0 ;;
 esac
 EOF
 
 cat >"$FAKE_BIN/systemd-run" <<'EOF'
 #!/usr/bin/env bash
+printf '%s\n' "$*" >"${FAKE_SYSTEMD_STATE:?}/last-systemd-run"
+[ ! -f "${FAKE_SYSTEMD_STATE:?}/fail-systemd-run" ] || {
+    rm -f "$FAKE_SYSTEMD_STATE/fail-systemd-run"
+    exit 1
+}
 exit 0
 EOF
 
@@ -53,7 +99,12 @@ cat >"$FAKE_BIN/qs" <<'EOF'
 exit 0
 EOF
 
-chmod +x "$FAKE_BIN/systemctl" "$FAKE_BIN/systemd-run" "$FAKE_BIN/qs"
+cat >"$FAKE_BIN/aether" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+
+chmod +x "$FAKE_BIN/systemctl" "$FAKE_BIN/systemd-run" "$FAKE_BIN/qs" "$FAKE_BIN/aether"
 
 export HOME="$TEST_HOME"
 export XDG_CONFIG_HOME="$TEST_HOME/.config"
@@ -78,8 +129,37 @@ assert_no_reservations() {
         -name '.nbshell-install-rollback.*' -print -quit 2>/dev/null)"
 }
 
+# A failed first install must leave no new payload behind. The install lock's
+# state directory may remain, but runtime, units, commands, integrations, and
+# migrated user state all roll back to their original absence or location.
+if NBSHELL_INSTALL_TEST_FAULT=post-payload "$ROOT/install.sh" >/dev/null 2>&1; then
+    echo "First install unexpectedly succeeded at the post-payload fault" >&2
+    exit 1
+fi
+test ! -e "$XDG_CONFIG_HOME/quickshell/nbshell"
+test ! -e "$XDG_CONFIG_HOME/systemd/user/nbshell.service"
+test ! -e "$XDG_CONFIG_HOME/nbshell/themes"
+test ! -e "$XDG_CONFIG_HOME/nbshell/config.json"
+test ! -e "$XDG_CONFIG_HOME/nbshell/plugins/beispiel"
+test ! -e "$XDG_CONFIG_HOME/umbriel/nbshell.toml"
+test ! -e "$XDG_CONFIG_HOME/aether/custom/nbshell"
+test ! -e "$XDG_DATA_HOME/nbshell"
+test ! -e "$XDG_DATA_HOME/applications/dev.nerdi.nbshell.desktop"
+test ! -e "$XDG_BIN_HOME/nbshell"
+test ! -e "$XDG_BIN_HOME/nbshell-install-recover"
+test ! -e "$HOME/.agents/skills/nbshell"
+test -f "$XDG_CONFIG_HOME/omarchy-gmail/credentials.json"
+test -f "$XDG_CACHE_HOME/omarchy-gmail/inbox.json"
+test ! -e "$XDG_CONFIG_HOME/omamail"
+test ! -e "$XDG_CACHE_HOME/omamail"
+test ! -e "$FAKE_SYSTEMD_STATE/enabled-nbshell-upstream-audit.timer"
+test ! -e "$FAKE_SYSTEMD_STATE/active-nbshell-upstream-audit.timer"
+assert_no_reservations
+
 "$ROOT/install.sh" >/dev/null
 
+grep -Fq "flock $HOME/.local/state/nbshell/install.lock" \
+    "$FAKE_SYSTEMD_STATE/last-systemd-run"
 test -f "$XDG_CONFIG_HOME/quickshell/nbshell/shell.qml"
 assert_no_reservations
 test -f "$XDG_CONFIG_HOME/quickshell/nbshell/integrations/omawhatsapp/manifest.json"
@@ -182,6 +262,53 @@ fi
 test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/transaction-sentinel")" = pre-swap
 assert_no_reservations
 
+# A kill after staging but before watchdog arming leaves no payload mutation.
+# The next installer owns the lock and clears that durable stale transaction
+# before creating its own reservations.
+printf '%s\n' pre-watchdog-kill \
+    >"$XDG_CONFIG_HOME/quickshell/nbshell/transaction-sentinel"
+if python3 - "$ROOT/install.sh" <<'PY' >/dev/null 2>&1
+import os
+import subprocess
+import sys
+
+environment = os.environ.copy()
+environment["NBSHELL_INSTALL_TEST_FAULT"] = "pre-watchdog-kill"
+result = subprocess.run(
+    [sys.argv[1]], env=environment, stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL, check=False,
+)
+raise SystemExit(0 if result.returncode == 0 else 1)
+PY
+then
+    echo "Install unexpectedly survived the pre-watchdog kill" >&2
+    exit 1
+fi
+find "$XDG_CONFIG_HOME/quickshell" -maxdepth 1 \
+    -type d -name '.nbshell-stage.*' -print -quit | grep -q .
+find "$XDG_CONFIG_HOME" -maxdepth 1 \
+    -type d -name '.nbshell-install-rollback.*' -print -quit | grep -q .
+if NBSHELL_INSTALL_TEST_FAULT=pre-swap "$ROOT/install.sh" >/dev/null 2>&1; then
+    echo "Install unexpectedly succeeded after stale transaction recovery" >&2
+    exit 1
+fi
+test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/transaction-sentinel")" = pre-watchdog-kill
+assert_no_reservations
+printf '%s\n' pre-swap \
+    >"$XDG_CONFIG_HOME/quickshell/nbshell/transaction-sentinel"
+
+# Refuse to stop or swap an active shell unless independent recovery is armed.
+printf '%s\n' watchdog-arm-before >"$XDG_CONFIG_HOME/quickshell/nbshell/watchdog-arm-sentinel"
+touch "$FAKE_SYSTEMD_STATE/active" "$FAKE_SYSTEMD_STATE/fail-systemd-run"
+if "$ROOT/install.sh" >/dev/null 2>&1; then
+    echo "Install unexpectedly continued without an independent watchdog" >&2
+    exit 1
+fi
+test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/watchdog-arm-sentinel")" = watchdog-arm-before
+test -f "$FAKE_SYSTEMD_STATE/active"
+test ! -e "$FAKE_SYSTEMD_STATE/fail-systemd-run"
+assert_no_reservations
+
 # A fault on the instruction immediately after the first mv must recognize the
 # occupied rollback by its runtime contents and restore it flat.
 if NBSHELL_INSTALL_TEST_FAULT=post-first-rename "$ROOT/install.sh" >/dev/null 2>&1; then
@@ -223,8 +350,64 @@ test "$(cat "$XDG_CONFIG_HOME/nbshell/plugins/beispiel/transaction-sentinel")" =
 test "$(sha256sum "$XDG_CONFIG_HOME/nbshell/config.json" | cut -d' ' -f1)" = "$config_before_umbriel_fault"
 assert_no_reservations
 
-# A failure after commands, greeter data, desktop metadata, and skills are
-# installed must still restore the previous runtime and backed-up user state.
+# A late failure must restore every installer-owned payload, retired artifact,
+# migration input, and user-unit state—not only the shell/config/plugin paths.
+cp -a "$XDG_BIN_HOME/nbshell" "$WORK/nbshell.saved"
+cp -a "$XDG_BIN_HOME/nbshell-install-recover" "$WORK/nbshell-install-recover.saved"
+printf '%s\n' command-before >"$XDG_BIN_HOME/nbshell"
+printf '%s\n' recovery-command-before >"$XDG_BIN_HOME/nbshell-install-recover"
+chmod +x "$XDG_BIN_HOME/nbshell" "$XDG_BIN_HOME/nbshell-install-recover"
+printf '%s\n' manager-before >"$XDG_DATA_HOME/nbshell/hermes-jobs/manager.py"
+printf '%s\n' greeter-before >"$XDG_DATA_HOME/nbshell/greeter/nbshell-greetd.pam"
+printf '%s\n' app-before >"$XDG_DATA_HOME/applications/dev.nerdi.nbshell.desktop"
+printf '%s\n' theme-before >"$XDG_CONFIG_HOME/nbshell/themes/tokyo-night/colors.toml"
+printf '%s\n' wallpaper-before >"$XDG_DATA_HOME/nbshell/wallpapers/osaka-jade/6.webp"
+printf '%s\n' aether-before >"$XDG_CONFIG_HOME/aether/custom/nbshell/config.json"
+
+custom_skill="$WORK/custom-skill"
+mkdir -p "$custom_skill" "$HOME/.gemini/skills"
+ln -sfn "$custom_skill" "$HOME/.agents/skills/nbshell"
+ln -sfn "$XDG_CONFIG_HOME/quickshell/nbshell/skills/nbshell" "$HOME/.gemini/skills/nbshell"
+
+unit_dir="$XDG_CONFIG_HOME/systemd/user"
+printf '%s\n' timer-before >"$unit_dir/nbshell-upstream-audit.timer"
+printf '%s\n' retired-agent-before >"$unit_dir/nbshell-agent-host.service"
+printf '%s\n' retired-whatsapp-before >"$unit_dir/nbshell-whatsapp.service"
+touch "$FAKE_SYSTEMD_STATE/enabled-nbshell-agent-host.service" \
+    "$FAKE_SYSTEMD_STATE/active-nbshell-agent-host.service" \
+    "$FAKE_SYSTEMD_STATE/enabled-nbshell-whatsapp.service" \
+    "$FAKE_SYSTEMD_STATE/active-nbshell-whatsapp.service" \
+    "$FAKE_SYSTEMD_STATE/masked-nbshell-umbriel-resume-guard.service" \
+    "$FAKE_SYSTEMD_STATE/enabled-runtime-nbshell-sleep-lock.service"
+rm -f "$FAKE_SYSTEMD_STATE/enabled-nbshell-upstream-audit.timer" \
+    "$FAKE_SYSTEMD_STATE/active-nbshell-upstream-audit.timer" \
+    "$FAKE_SYSTEMD_STATE/enabled-nbshell-umbriel-resume-guard.service" \
+    "$FAKE_SYSTEMD_STATE/enabled-nbshell-sleep-lock.service"
+
+mkdir -p "$XDG_CONFIG_HOME/niri" "$unit_dir/niri.service.d" \
+    "$HOME/.local/lib/nbshell" "$XDG_CONFIG_HOME/nbshell/state"
+printf '%s\n' 'include "nbshell-takeover.kdl"' 'user-line' >"$XDG_CONFIG_HOME/niri/config.kdl"
+printf '%s\n' niri-backup-before >"$XDG_CONFIG_HOME/niri/config.kdl.before-nbshell-umbriel-only"
+for name in takeover outputs cursor colors; do
+    printf 'niri-%s-before\n' "$name" >"$XDG_CONFIG_HOME/niri/nbshell-$name.kdl"
+done
+printf '%s\n' niri-unit-before >"$unit_dir/niri.service.d/nbshell.conf"
+printf '%s\n' niri-grid-unit-before >"$unit_dir/niri.service.d/nbshell-grid-atomic.conf"
+printf '%s\n' niri-atomic-before >"$HOME/.local/lib/nbshell/niri-atomic"
+for name in grid-layout.json grid-layout.lock grid-layout.pid grid-layout-backend; do
+    printf 'grid-%s-before\n' "$name" >"$XDG_CONFIG_HOME/nbshell/state/$name"
+done
+mkdir -p "$XDG_DATA_HOME/nbshell/bin" "$XDG_DATA_HOME/nbshell/native"
+printf '%s\n' native-bin-before >"$XDG_DATA_HOME/nbshell/bin/umbriel-workspaces"
+printf '%s\n' native-source-before >"$XDG_DATA_HOME/nbshell/native/umbriel-workspaces.c"
+
+mv "$XDG_CONFIG_HOME/omamail" "$WORK/omamail-config.saved"
+mv "$XDG_CACHE_HOME/omamail" "$WORK/omamail-cache.saved"
+mkdir -p "$XDG_CONFIG_HOME/omarchy-gmail" "$XDG_CACHE_HOME/omarchy-gmail"
+printf '%s\n' old-mail-config-before >"$XDG_CONFIG_HOME/omarchy-gmail/marker"
+printf '%s\n' old-mail-cache-before >"$XDG_CACHE_HOME/omarchy-gmail/marker"
+
+touch "$FAKE_SYSTEMD_STATE/active"
 if NBSHELL_INSTALL_TEST_FAULT=post-payload "$ROOT/install.sh" >/dev/null 2>&1; then
     echo "Install unexpectedly succeeded at the post-payload fault" >&2
     exit 1
@@ -232,6 +415,117 @@ fi
 test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/transaction-sentinel")" = pre-swap
 test "$(cat "$XDG_CONFIG_HOME/umbriel/nbshell.toml")" = umbriel-before
 test "$(cat "$XDG_CONFIG_HOME/nbshell/plugins/beispiel/transaction-sentinel")" = plugin-before
+test "$(cat "$XDG_BIN_HOME/nbshell")" = command-before
+test "$(cat "$XDG_BIN_HOME/nbshell-install-recover")" = recovery-command-before
+test "$(cat "$XDG_DATA_HOME/nbshell/hermes-jobs/manager.py")" = manager-before
+test "$(cat "$XDG_DATA_HOME/nbshell/greeter/nbshell-greetd.pam")" = greeter-before
+test "$(cat "$XDG_DATA_HOME/applications/dev.nerdi.nbshell.desktop")" = app-before
+test "$(cat "$XDG_CONFIG_HOME/nbshell/themes/tokyo-night/colors.toml")" = theme-before
+test "$(cat "$XDG_DATA_HOME/nbshell/wallpapers/osaka-jade/6.webp")" = wallpaper-before
+test "$(cat "$XDG_CONFIG_HOME/aether/custom/nbshell/config.json")" = aether-before
+test "$(readlink -f "$HOME/.agents/skills/nbshell")" = "$custom_skill"
+test -L "$HOME/.gemini/skills/nbshell"
+test "$(cat "$unit_dir/nbshell-upstream-audit.timer")" = timer-before
+test "$(cat "$unit_dir/nbshell-agent-host.service")" = retired-agent-before
+test "$(cat "$unit_dir/nbshell-whatsapp.service")" = retired-whatsapp-before
+test -f "$FAKE_SYSTEMD_STATE/enabled-nbshell-agent-host.service"
+test -f "$FAKE_SYSTEMD_STATE/active-nbshell-agent-host.service"
+test -f "$FAKE_SYSTEMD_STATE/enabled-nbshell-whatsapp.service"
+test -f "$FAKE_SYSTEMD_STATE/active-nbshell-whatsapp.service"
+test -f "$FAKE_SYSTEMD_STATE/masked-nbshell-umbriel-resume-guard.service"
+test ! -e "$FAKE_SYSTEMD_STATE/enabled-nbshell-umbriel-resume-guard.service"
+test -f "$FAKE_SYSTEMD_STATE/enabled-runtime-nbshell-sleep-lock.service"
+test ! -e "$FAKE_SYSTEMD_STATE/enabled-nbshell-sleep-lock.service"
+test -f "$FAKE_SYSTEMD_STATE/active"
+test ! -e "$FAKE_SYSTEMD_STATE/enabled-nbshell-upstream-audit.timer"
+test ! -e "$FAKE_SYSTEMD_STATE/active-nbshell-upstream-audit.timer"
+grep -Fxq 'include "nbshell-takeover.kdl"' "$XDG_CONFIG_HOME/niri/config.kdl"
+grep -Fxq user-line "$XDG_CONFIG_HOME/niri/config.kdl"
+test "$(cat "$XDG_CONFIG_HOME/niri/config.kdl.before-nbshell-umbriel-only")" = niri-backup-before
+for name in takeover outputs cursor colors; do
+    test "$(cat "$XDG_CONFIG_HOME/niri/nbshell-$name.kdl")" = "niri-$name-before"
+done
+test "$(cat "$unit_dir/niri.service.d/nbshell.conf")" = niri-unit-before
+test "$(cat "$unit_dir/niri.service.d/nbshell-grid-atomic.conf")" = niri-grid-unit-before
+test "$(cat "$HOME/.local/lib/nbshell/niri-atomic")" = niri-atomic-before
+for name in grid-layout.json grid-layout.lock grid-layout.pid grid-layout-backend; do
+    test "$(cat "$XDG_CONFIG_HOME/nbshell/state/$name")" = "grid-$name-before"
+done
+test "$(cat "$XDG_DATA_HOME/nbshell/bin/umbriel-workspaces")" = native-bin-before
+test "$(cat "$XDG_DATA_HOME/nbshell/native/umbriel-workspaces.c")" = native-source-before
+test "$(cat "$XDG_CONFIG_HOME/omarchy-gmail/marker")" = old-mail-config-before
+test "$(cat "$XDG_CACHE_HOME/omarchy-gmail/marker")" = old-mail-cache-before
+test ! -e "$XDG_CONFIG_HOME/omamail"
+test ! -e "$XDG_CACHE_HOME/omamail"
+assert_no_reservations
+
+cp -a "$WORK/nbshell.saved" "$XDG_BIN_HOME/nbshell"
+cp -a "$WORK/nbshell-install-recover.saved" "$XDG_BIN_HOME/nbshell-install-recover"
+rm -rf "$XDG_CONFIG_HOME/omarchy-gmail" "$XDG_CACHE_HOME/omarchy-gmail"
+mv "$WORK/omamail-config.saved" "$XDG_CONFIG_HOME/omamail"
+mv "$WORK/omamail-cache.saved" "$XDG_CACHE_HOME/omamail"
+
+# SIGKILL bypasses the EXIT trap. The durable manifest lets the independent
+# watchdog—or a lock-owning retry—resolve the interrupted payload safely.
+printf '%s\n' killed-runtime-before >"$XDG_CONFIG_HOME/quickshell/nbshell/kill-sentinel"
+printf '%s\n' killed-manager-before >"$XDG_DATA_HOME/nbshell/hermes-jobs/manager.py"
+printf '%s\n' killed-unit-before >"$XDG_CONFIG_HOME/systemd/user/nbshell-upstream-audit.timer"
+touch "$FAKE_SYSTEMD_STATE/active"
+if python3 - "$ROOT/install.sh" <<'PY'
+import os
+import subprocess
+import sys
+
+environment = os.environ.copy()
+environment["NBSHELL_INSTALL_TEST_FAULT"] = "post-payload-kill"
+environment["NBSHELL_INSTALL_DEFER_RESTART"] = "1"
+result = subprocess.run(
+    [sys.argv[1]],
+    env=environment,
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+    check=False,
+)
+raise SystemExit(0 if result.returncode == 0 else 1)
+PY
+then
+    echo "Install unexpectedly survived the SIGKILL fault" >&2
+    exit 1
+fi
+killed_transaction="$(find "$XDG_CONFIG_HOME" -maxdepth 1 -type d \
+    -name '.nbshell-install-rollback.*' -print -quit)"
+killed_rollback="$(find "$XDG_CONFIG_HOME/quickshell" -maxdepth 1 -type d \
+    -name '.nbshell-rollback.*' -print -quit)"
+test -n "$killed_transaction"
+test -n "$killed_rollback"
+# A retry owned by nbshell.service must not stop or replace its own live shell.
+# It queues stale recovery behind the lock and exits; the helper runs only after
+# that retry has left the service cgroup.
+touch "$FAKE_SYSTEMD_STATE/fail-next-nbshell-start"
+if NBSHELL_INSTALL_TEST_IN_SERVICE=1 \
+        "$ROOT/install.sh" >/dev/null 2>&1; then
+    echo "Service-hosted retry unexpectedly continued past stale recovery" >&2
+    exit 1
+fi
+test -d "$killed_transaction"
+test -d "$killed_rollback"
+test "$(cat "$killed_transaction/mode")" = deferred
+test -f "$FAKE_SYSTEMD_STATE/active"
+test -f "$FAKE_SYSTEMD_STATE/fail-next-nbshell-start"
+grep -Fq "flock $HOME/.local/state/nbshell/install.lock" \
+    "$FAKE_SYSTEMD_STATE/last-systemd-run"
+grep -Fq ' restart ' "$FAKE_SYSTEMD_STATE/last-systemd-run"
+rm -f "$FAKE_SYSTEMD_STATE/fail-next-nbshell-start"
+IFS= read -r killed_shell <"$killed_transaction/shell-path"
+IFS= read -r killed_command <"$killed_transaction/command-path"
+IFS= read -r killed_staged <"$killed_transaction/staged-path"
+"$killed_transaction/recover" \
+    "$killed_shell" "$killed_rollback" restart \
+    "$killed_transaction" "$killed_command" "$killed_staged"
+test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/kill-sentinel")" = killed-runtime-before
+test "$(cat "$XDG_DATA_HOME/nbshell/hermes-jobs/manager.py")" = killed-manager-before
+test "$(cat "$XDG_CONFIG_HOME/systemd/user/nbshell-upstream-audit.timer")" = killed-unit-before
+test -f "$FAKE_SYSTEMD_STATE/active"
 assert_no_reservations
 
 # An installer launched from the shell's own service must atomically update the
@@ -246,9 +540,13 @@ test ! -e "$XDG_CONFIG_HOME/quickshell/nbshell/deferred-sentinel"
 rm -f "$FAKE_SYSTEMD_STATE/fail-next-start"
 DEFERRED_INSTALL_BACKUP="$(find "$XDG_CONFIG_HOME/quickshell" -maxdepth 1 \
     -type d -name '.nbshell-rollback.*' -print -quit)"
+DEFERRED_INSTALL_TRANSACTION="$(find "$XDG_CONFIG_HOME" -maxdepth 1 \
+    -type d -name '.nbshell-install-rollback.*' -print -quit)"
 test -f "$DEFERRED_INSTALL_BACKUP/shell.qml"
+test -f "$DEFERRED_INSTALL_TRANSACTION/committed"
 "$XDG_BIN_HOME/nbshell-install-recover" \
-    "$XDG_CONFIG_HOME/quickshell/nbshell" "$DEFERRED_INSTALL_BACKUP"
+    "$XDG_CONFIG_HOME/quickshell/nbshell" "$DEFERRED_INSTALL_BACKUP" deferred \
+    "$DEFERRED_INSTALL_TRANSACTION" "$XDG_BIN_HOME/nbshell"
 assert_no_reservations
 
 # A failed shell restart must restore the previous runtime and bring its unit
@@ -301,6 +599,41 @@ printf '%s\n' deferred-runtime >"$DEFERRED_BACKUP/shell.qml"
 test "$(cat "$DEFERRED_RUNTIME/rollback-sentinel")" = deferred-watchdog
 test -f "$DEFERRED_RUNTIME/shell.qml"
 test ! -d "$DEFERRED_RUNTIME/nbshell"
+
+# Recovery continues past an independent path failure and preserves the
+# transaction backup for a later retry instead of discarding the evidence.
+PARTIAL_PARENT="$XDG_CONFIG_HOME/partial-quickshell"
+PARTIAL_RUNTIME="$PARTIAL_PARENT/nbshell"
+PARTIAL_BACKUP="$PARTIAL_PARENT/.nbshell-rollback.partial-test"
+PARTIAL_TRANSACTION="$XDG_CONFIG_HOME/.nbshell-install-rollback.partial-test"
+PARTIAL_BLOCKED="$WORK/partial-blocked"
+PARTIAL_GOOD="$WORK/partial-good"
+mkdir -p "$PARTIAL_RUNTIME" "$PARTIAL_BACKUP" "$PARTIAL_TRANSACTION" \
+    "$PARTIAL_BLOCKED"
+: >"$PARTIAL_TRANSACTION/units"
+printf '%s\n' previous >"$PARTIAL_TRANSACTION/good"
+printf '%s\n' replacement >"$PARTIAL_GOOD"
+printf '%s\n' keep >"$PARTIAL_BLOCKED/keep"
+chmod 500 "$PARTIAL_BLOCKED"
+python3 - "$PARTIAL_TRANSACTION/paths" "$PARTIAL_GOOD" \
+    "$PARTIAL_BLOCKED/keep" <<'PY'
+import sys
+
+manifest, good, blocked = sys.argv[1:]
+with open(manifest, "wb") as output:
+    for record in (("present", "good", good), ("missing", "blocked", blocked)):
+        output.write("\0".join(record).encode() + b"\0")
+PY
+if "$XDG_BIN_HOME/nbshell-install-recover" \
+        "$PARTIAL_RUNTIME" "$PARTIAL_BACKUP" inactive \
+        "$PARTIAL_TRANSACTION" "$XDG_BIN_HOME/nbshell" >/dev/null 2>&1; then
+    echo "partial recovery unexpectedly reported success" >&2
+    exit 1
+fi
+test "$(cat "$PARTIAL_GOOD")" = previous
+test -d "$PARTIAL_TRANSACTION"
+chmod 700 "$PARTIAL_BLOCKED"
+rm -rf "$PARTIAL_PARENT" "$PARTIAL_TRANSACTION" "$PARTIAL_BLOCKED" "$PARTIAL_GOOD"
 
 assert_no_reservations
 

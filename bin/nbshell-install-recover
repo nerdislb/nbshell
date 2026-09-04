@@ -5,16 +5,138 @@ set -euo pipefail
 SHELL_DIR="${1:?runtime path required}"
 ROLLBACK_DIR="${2:?rollback path required}"
 MODE="${3:-restart}"
+TRANSACTION_DIR="${4:-}"
+COMMAND_PATH="${5:-${XDG_BIN_HOME:-$HOME/.local/bin}/nbshell}"
+STAGED_DIR="${6:-}"
 PARENT_DIR="$(dirname "$SHELL_DIR")"
+recovery_failed=0
+
+recover_command() {
+    "$@" || recovery_failed=1
+}
 
 rollback_is_runtime() {
     [ -d "$ROLLBACK_DIR" ] && [ -f "$ROLLBACK_DIR/shell.qml" ]
+}
+
+rollback_has_contents() {
+    [ -d "$ROLLBACK_DIR" ] && [ -n "$(find "$ROLLBACK_DIR" -mindepth 1 -print -quit)" ]
 }
 
 discard_empty_reservation() {
     if [ -d "$ROLLBACK_DIR" ] && [ -z "$(find "$ROLLBACK_DIR" -mindepth 1 -print -quit)" ]; then
         rmdir -- "$ROLLBACK_DIR"
     fi
+}
+
+restore_runtime_from_backup() {
+    if [ -z "$STAGED_DIR" ] \
+            || ! rm -rf -- "$STAGED_DIR" \
+            || ! cp -a -- "$ROLLBACK_DIR" "$STAGED_DIR"; then
+        recovery_failed=1
+        return 1
+    fi
+    if [ -e "$SHELL_DIR" ] || [ -L "$SHELL_DIR" ]; then
+        if ! mv --exchange -T -- "$SHELL_DIR" "$STAGED_DIR"; then
+            recovery_failed=1
+            return 1
+        fi
+        recover_command rm -rf -- "$STAGED_DIR"
+        return 0
+    fi
+    if mv -T -- "$STAGED_DIR" "$SHELL_DIR"; then
+        return 0
+    fi
+    recovery_failed=1
+    return 1
+}
+
+restore_transaction_paths() {
+    local manifest="$TRANSACTION_DIR/paths"
+    local state key path index
+    local -a states=() keys=() paths=()
+    [ -f "$manifest" ] || return 0
+    while IFS= read -r -d '' state \
+            && IFS= read -r -d '' key \
+            && IFS= read -r -d '' path; do
+        [[ $key =~ ^[A-Za-z0-9._-]+$ ]] || continue
+        [ -n "$path" ] && [ "$path" != "/" ] || continue
+        states+=("$state")
+        keys+=("$key")
+        paths+=("$path")
+    done <"$manifest"
+    for ((index=${#paths[@]} - 1; index >= 0; index--)); do
+        state="${states[$index]}"
+        key="${keys[$index]}"
+        path="${paths[$index]}"
+        if ! rm -rf -- "$path"; then
+            recovery_failed=1
+            continue
+        fi
+        if [ "$state" = present ] && { [ -e "$TRANSACTION_DIR/$key" ] \
+                || [ -L "$TRANSACTION_DIR/$key" ]; }; then
+            recover_command mkdir -p -- "$(dirname "$path")"
+            recover_command cp -a -- "$TRANSACTION_DIR/$key" "$path"
+        fi
+    done
+}
+
+restore_transaction_units() {
+    local manifest="$TRANSACTION_DIR/units"
+    local unit enabled active fragment unit_path unit_key
+    [ -f "$manifest" ] || return 0
+    recover_command systemctl --user daemon-reload >/dev/null 2>&1
+    while IFS= read -r -d '' unit \
+            && IFS= read -r -d '' enabled \
+            && IFS= read -r -d '' active \
+            && IFS= read -r -d '' fragment \
+            && IFS= read -r -d '' unit_path; do
+        [[ $unit =~ ^[A-Za-z0-9@_.:-]+$ ]] || continue
+        [ -n "$unit_path" ] && [ "$unit_path" != / ] || continue
+        unit_key="unit-$unit"
+        case "$enabled" in
+            enabled)
+                recover_command systemctl --user unmask "$unit" >/dev/null 2>&1
+                recover_command systemctl --user disable "$unit" >/dev/null 2>&1
+                recover_command systemctl --user enable "$unit" >/dev/null 2>&1
+                ;;
+            enabled-runtime)
+                recover_command systemctl --user disable "$unit" >/dev/null 2>&1
+                recover_command systemctl --user enable --runtime "$unit" >/dev/null 2>&1
+                ;;
+            linked|alias)
+                recover_command systemctl --user disable "$unit" >/dev/null 2>&1
+                recover_command rm -rf -- "$unit_path"
+                if [ -e "$TRANSACTION_DIR/$unit_key" ] \
+                        || [ -L "$TRANSACTION_DIR/$unit_key" ]; then
+                    recover_command cp -a -- "$TRANSACTION_DIR/$unit_key" "$unit_path"
+                fi
+                recover_command systemctl --user daemon-reload >/dev/null 2>&1
+                ;;
+            linked-runtime)
+                recover_command systemctl --user disable "$unit" >/dev/null 2>&1
+                [ -z "$fragment" ] \
+                    || recover_command systemctl --user link --runtime "$fragment" >/dev/null 2>&1
+                ;;
+            masked)
+                recover_command systemctl --user disable "$unit" >/dev/null 2>&1
+                recover_command systemctl --user mask "$unit" >/dev/null 2>&1
+                ;;
+            masked-runtime)
+                recover_command systemctl --user disable "$unit" >/dev/null 2>&1
+                recover_command systemctl --user mask --runtime "$unit" >/dev/null 2>&1
+                ;;
+            not-found) continue ;;
+            *)
+                recover_command systemctl --user disable "$unit" >/dev/null 2>&1
+                ;;
+        esac
+        if [ "$active" = 1 ]; then
+            recover_command systemctl --user start "$unit" >/dev/null 2>&1
+        else
+            recover_command systemctl --user stop "$unit" >/dev/null 2>&1
+        fi
+    done <"$manifest"
 }
 
 # Refuse broad or unrelated deletion targets even if a caller is malformed.
@@ -25,16 +147,86 @@ if [ "$(basename "$SHELL_DIR")" != "nbshell" ] \
     echo "Refusing unsafe nbshell recovery paths." >&2
     exit 2
 fi
+[ "$MODE" = restart ] || [ "$MODE" = deferred ] \
+    || [ "$MODE" = manual ] || [ "$MODE" = inactive ] \
+    || { echo "Unknown recovery mode: $MODE" >&2; exit 2; }
+if [ -n "$TRANSACTION_DIR" ] && {
+        [ "$(dirname "$TRANSACTION_DIR")" != "$(dirname "$PARENT_DIR")" ] \
+        || [[ "$(basename "$TRANSACTION_DIR")" != .nbshell-install-rollback.* ]];
+}; then
+    echo "Refusing unsafe nbshell transaction path." >&2
+    exit 2
+fi
+if [ -n "$STAGED_DIR" ]; then
+    if [ "$(dirname "$STAGED_DIR")" != "$PARENT_DIR" ] \
+            || [[ "$(basename "$STAGED_DIR")" != .nbshell-stage.* ]]; then
+        printf 'Refusing unsafe nbshell staged path: %s\n' "$STAGED_DIR" >&2
+        exit 2
+    fi
+fi
+
+# A surviving transaction directory means the installer died before cleanup.
+# Its committed marker is the durable boundary between a completed install and
+# an interrupted one; unlike process-local traps this also covers SIGKILL.
+if [ -d "$TRANSACTION_DIR" ] && [ -f "$TRANSACTION_DIR/committed" ]; then
+    [ -z "$STAGED_DIR" ] || rm -rf -- "$STAGED_DIR"
+    if [ "$MODE" != restart ] && [ -e "$SHELL_DIR" ]; then
+        [ ! -d "$ROLLBACK_DIR" ] || rm -rf -- "$ROLLBACK_DIR"
+        rm -rf -- "$TRANSACTION_DIR"
+        exit 0
+    fi
+    rm -rf -- "$TRANSACTION_DIR"
+fi
+if [ -d "$TRANSACTION_DIR" ]; then
+    set +e
+    recovery_failed=0
+    [ -z "$STAGED_DIR" ] || recover_command rm -rf -- "$STAGED_DIR"
+    if [ "$MODE" = restart ]; then
+        recover_command systemctl --user stop nbshell.service >/dev/null 2>&1
+    fi
+    restore_transaction_paths
+    if [ -f "$TRANSACTION_DIR/original-runtime-present" ]; then
+        if rollback_has_contents; then
+            restore_runtime_from_backup || true
+        elif [ ! -e "$SHELL_DIR" ]; then
+            recovery_failed=1
+        fi
+    else
+        recover_command rm -rf -- "$SHELL_DIR"
+    fi
+    restore_transaction_units
+    if [ -f "$TRANSACTION_DIR/ytmusic-active" ]; then
+        recover_command systemctl --user restart omarchy-ytmusic.service >/dev/null 2>&1
+    fi
+    if command -v update-desktop-database >/dev/null 2>&1; then
+        recover_command update-desktop-database \
+            "${XDG_DATA_HOME:-$HOME/.local/share}/applications" >/dev/null 2>&1
+    fi
+    if [ "$MODE" = restart ] && [ -d "$SHELL_DIR" ]; then
+        recover_command systemctl --user start nbshell.service >/dev/null 2>&1
+    elif [ "$MODE" = manual ] && [ -d "$SHELL_DIR" ]; then
+        recover_command "$COMMAND_PATH" start -d >/dev/null 2>&1
+    fi
+    if [ $recovery_failed -eq 0 ]; then
+        [ ! -d "$ROLLBACK_DIR" ] || rm -rf -- "$ROLLBACK_DIR"
+        rm -rf -- "$TRANSACTION_DIR"
+        exit 0
+    fi
+    echo "nbshell recovery was incomplete; backups remain in $TRANSACTION_DIR" >&2
+    exit 1
+fi
 
 discard_empty_reservation
 
-if [ "$MODE" = "deferred" ]; then
+if [ "$MODE" = deferred ] || [ "$MODE" = inactive ] || [ "$MODE" = manual ]; then
     if [ ! -e "$SHELL_DIR" ] && rollback_is_runtime; then
         mv -T -- "$ROLLBACK_DIR" "$SHELL_DIR"
     fi
+    if [ "$MODE" = manual ] && [ -d "$SHELL_DIR" ]; then
+        "$COMMAND_PATH" start -d >/dev/null 2>&1 || true
+    fi
     exit 0
 fi
-[ "$MODE" = "restart" ] || { echo "Unknown recovery mode: $MODE" >&2; exit 2; }
 
 if ! systemctl --user is-active --quiet nbshell.service; then
     systemctl --user start nbshell.service >/dev/null 2>&1 || true
