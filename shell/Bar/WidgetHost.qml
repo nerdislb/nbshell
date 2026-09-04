@@ -1,6 +1,7 @@
 import QtQuick
 import qs.Common
 import qs.Services
+import qs.Widgets
 import "Widgets"
 
 // Loest einen Namen aus der Config zu einem Baustein auf.
@@ -19,8 +20,15 @@ Item {
     property string widgetName: ""
     property string screenName: ""
     property bool externalPopoutEligible: true
+    property string layoutKey: ""
+    property int layoutIndex: -1
+    property int layoutOccurrenceCount: 1
+    property var reorderAction: null
+    property var dropTarget: null
 
     readonly property var item: loader.item
+    readonly property bool reorderable: layoutKey !== "" && layoutIndex >= 0
+        && layoutOccurrenceCount === 1
     readonly property bool hasActivityWidget: Config.collapsedWidgets.indexOf("notifications") >= 0
         || Config.leftWidgets.indexOf("notifications") >= 0
         || Config.centerWidgets.indexOf("notifications") >= 0
@@ -35,6 +43,92 @@ Item {
     // lesen -- beide blieben fuer immer unsichtbar. Bausteine, die sich
     // ausblenden wollen, setzen deshalb `shown`.
     visible: !!item && item.shown && !root.redundantClipboard && width > 0
+
+    Item {
+        id: dragProxy
+        z: 1000
+        width: root.width
+        height: root.height
+
+        Drag.source: root
+        Drag.hotSpot.x: width / 2
+        Drag.hotSpot.y: height / 2
+        Drag.supportedActions: Qt.MoveAction
+
+        DragHandler {
+            id: moduleDrag
+            enabled: root.reorderable
+            acceptedButtons: Qt.LeftButton
+            acceptedModifiers: Qt.MetaModifier
+            cursorShape: active ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+            target: dragProxy
+            onActiveChanged: {
+                if (active) {
+                    dragProxy.Drag.active = true;
+                } else {
+                    const targetHost = root.dropTarget;
+                    if (targetHost && targetHost.reorderAction) {
+                        const point = dragProxy.mapToItem(targetHost,
+                            dragProxy.Drag.hotSpot.x, dragProxy.Drag.hotSpot.y);
+                        targetHost.reorderAction(root.layoutKey, root.layoutIndex,
+                            targetHost.layoutKey, targetHost.layoutIndex,
+                            point.x > targetHost.width / 2);
+                    }
+                    root.dropTarget = null;
+                    dragProxy.Drag.cancel();
+                    Qt.callLater(() => {
+                        dragProxy.x = 0;
+                        dragProxy.y = 0;
+                    });
+                }
+            }
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            visible: moduleDrag.active
+            color: Theme.controlFill(true, false, false)
+            border.width: Theme.borderWidth
+            border.color: Theme.focusBorder
+            radius: Theme.radius
+            opacity: 0.92
+
+            Line {
+                anchors.centerIn: parent
+                width: parent.width - Theme.spaceSm * 2
+                text: Plugins.label(root.widgetName)
+                horizontalAlignment: Text.AlignHCenter
+                elide: Text.ElideRight
+                color: Theme.text
+            }
+        }
+    }
+
+    DropArea {
+        id: reorderDrop
+        anchors.fill: parent
+        enabled: root.reorderable && !moduleDrag.active
+        onEntered: drag => {
+            if (!drag.source || !drag.source.reorderable)
+                return;
+            drag.source.dropTarget = root;
+            drag.acceptProposedAction();
+        }
+        onExited: drag => {
+            if (drag.source && drag.source.dropTarget === root)
+                drag.source.dropTarget = null;
+        }
+    }
+
+    Rectangle {
+        z: 999
+        anchors.fill: parent
+        visible: reorderDrop.containsDrag
+        color: "transparent"
+        border.width: Theme.borderWidth
+        border.color: Theme.focusBorder
+        radius: Theme.radius
+    }
 
     // Leer heisst: eingebaut. Sonst der Pfad zur QML-Datei des Plugins.
     readonly property string pluginSource: Plugins.source(root.widgetName)

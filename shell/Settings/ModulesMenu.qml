@@ -53,8 +53,10 @@ PanelWindow {
     property int catalogIndex: 0
     property int dragGroup: -1
     property int dragIndex: -1
+    property int dropGroup: -1
+    property int dropIndex: -1
 
-    readonly property var currentList: Config.value(groups[groupIndex].key, [])
+    readonly property var currentList: configuredList(groups[groupIndex].key)
 
     visible: true
 
@@ -77,12 +79,63 @@ PanelWindow {
     function requestClose(done) { box.dismiss(done); }
     function requestOpen() { box.enter(); }
 
+    function configuredList(key) {
+        if (key === "collapsedWidgets") return Config.collapsedWidgets;
+        if (key === "leftWidgets") return Config.leftWidgets;
+        if (key === "centerWidgets") return Config.centerWidgets;
+        if (key === "rightWidgets") return Config.rightWidgets;
+        return [];
+    }
+
     function listOf(i) {
-        return Config.value(groups[i].key, []).slice();
+        // Use the same public defaults as the live bar. Reading a missing key
+        // as [] made the editor claim that default-backed groups were empty.
+        return configuredList(groups[i].key).slice();
     }
 
     function save(i, list) {
         Config.set(groups[i].key, list);
+    }
+
+    function saveMove(fromGroup, from, toGroup, to) {
+        const changes = {};
+        changes[groups[fromGroup].key] = from;
+        changes[groups[toGroup].key] = to;
+        Config.setValues(changes);
+    }
+
+    function placements(id) {
+        const result = [];
+        for (var i = 0; i < groups.length; i++) {
+            if (listOf(i).indexOf(id) >= 0)
+                result.push(groups[i].label);
+        }
+        return result.join(" · ");
+    }
+
+    function placementStatus(id) {
+        if (Config.mode === "bar" || Config.mode === "pill") {
+            for (var i = 1; i < groups.length; i++) {
+                if (listOf(i).indexOf(id) >= 0)
+                    return "IN BAR";
+            }
+            return listOf(0).indexOf(id) >= 0 ? "ISLAND" : "ADD";
+        }
+        return placements(id) !== "" ? "IN BAR" : "ADD";
+    }
+
+    function selectConfigured(id) {
+        const start = (Config.mode === "bar" || Config.mode === "pill") ? 1 : 0;
+        for (var i = start; i < groups.length; i++) {
+            const index = listOf(i).indexOf(id);
+            if (index < 0)
+                continue;
+            groupIndex = i;
+            itemIndex = index;
+            inCatalog = false;
+            return true;
+        }
+        return false;
     }
 
     // Innerhalb der Gruppe schieben.
@@ -106,10 +159,9 @@ PanelWindow {
         if (target < 0 || target >= groups.length)
             return;
         const item = from.splice(itemIndex, 1)[0];
-        save(groupIndex, from);
         const to = listOf(target);
         to.push(item);
-        save(target, to);
+        saveMove(groupIndex, from, target, to);
         groupIndex = target;
         itemIndex = to.length - 1;
     }
@@ -141,11 +193,10 @@ PanelWindow {
             groupIndex = fromGroup;
             itemIndex = adjusted;
         } else {
-            save(fromGroup, from);
             const to = listOf(toGroup);
             const target = Math.max(0, Math.min(toIndex, to.length));
             to.splice(target, 0, item);
-            save(toGroup, to);
+            saveMove(fromGroup, from, toGroup, to);
             groupIndex = toGroup;
             itemIndex = target;
         }
@@ -156,9 +207,22 @@ PanelWindow {
 
     function addFromCatalog() {
         const list = listOf(groupIndex);
-        list.push(catalog[catalogIndex]);
+        const item = catalog[catalogIndex];
+        const existing = item === "sep" ? -1 : list.indexOf(item);
+        if (existing >= 0) {
+            itemIndex = existing;
+            inCatalog = false;
+            return;
+        }
+        list.push(item);
         save(groupIndex, list);
         itemIndex = list.length - 1;
+    }
+
+    function activateCatalog() {
+        const item = catalog[catalogIndex];
+        if (!selectConfigured(item))
+            addFromCatalog();
     }
 
     function stepItem(delta) {
@@ -183,7 +247,10 @@ PanelWindow {
 
     onVisibleChanged: {
         if (visible) {
-            groupIndex = 0;
+            // The collapsed list is not rendered in bar/pill mode. Start in
+            // the left group so adding a module cannot silently put it into a
+            // hidden island-only layout.
+            groupIndex = (Config.mode === "bar" || Config.mode === "pill") ? 1 : 0;
             itemIndex = 0;
             inCatalog = false;
             keys.forceActiveFocus();
@@ -203,7 +270,7 @@ PanelWindow {
         Keys.onUpPressed: root.inCatalog ? root.catalogIndex = Math.max(0, root.catalogIndex - 1) : root.stepItem(-1)
         Keys.onDownPressed: root.inCatalog ? root.catalogIndex = Math.min(root.catalog.length - 1, root.catalogIndex + 1) : root.stepItem(1)
         Keys.onReturnPressed: if (root.inCatalog)
-            root.addFromCatalog()
+            root.activateCatalog()
         Keys.onLeftPressed: event => {
             if (root.inCatalog)
                 return;
@@ -246,7 +313,7 @@ PanelWindow {
                     rowWidth: content.width
                     icon: Icons.cp(0xF12E)
                     title: "Bar modules"
-                    subtitle: "Arrange the island and bar · drag modules or use the keyboard"
+                    subtitle: "Arrange here or Mod-drag modules directly on the bar"
                     badge: root.inCatalog ? "AVAILABLE" : root.groups[root.groupIndex].label.toUpperCase()
                     badgeColor: Theme.accent
                 }
@@ -279,13 +346,14 @@ PanelWindow {
                                 width: parent.width
                                 height: parent.height - Theme.controlHeight
                                 contentWidth: width
-                                contentHeight: left.implicitHeight
+                                contentHeight: left.height
                                 clip: true
                                 boundsBehavior: Flickable.StopAtBounds
 
                                 Column {
                                     id: left
-                                    width: leftScroll.width
+                                    width: root.leftWidth - Theme.spaceSm * 2
+                                    height: childrenRect.height
                                     spacing: Theme.spaceSm
 
                                     Repeater {
@@ -295,23 +363,38 @@ PanelWindow {
                                             id: group
                                             required property var modelData
                                             required property int index
-                                            width: left.width
+                                            readonly property var widgets: group.modelData.key === "collapsedWidgets" ? Config.collapsedWidgets
+                                                : (group.modelData.key === "leftWidgets" ? Config.leftWidgets
+                                                : (group.modelData.key === "centerWidgets" ? Config.centerWidgets : Config.rightWidgets))
+                                            width: root.leftWidth - Theme.spaceSm * 2
+                                            height: childrenRect.height
                                             spacing: 0
 
                                             SectionHeader {
                                                 width: parent.width
                                                 text: group.modelData.label
-                                                detail: root.listOf(group.index).length + " modules"
+                                                detail: group.widgets.length + " modules"
 
                                                 DropArea {
                                                     anchors.fill: parent
                                                     enabled: root.dragGroup >= 0
-                                                    onDropped: root.moveDragged(group.index, root.listOf(group.index).length)
+                                                    onEntered: drag => {
+                                                        root.dropGroup = group.index;
+                                                        root.dropIndex = root.listOf(group.index).length;
+                                                        drag.acceptProposedAction();
+                                                    }
+                                                    onExited: {
+                                                        if (root.dropGroup === group.index
+                                                                && root.dropIndex === root.listOf(group.index).length) {
+                                                            root.dropGroup = -1;
+                                                            root.dropIndex = -1;
+                                                        }
+                                                    }
                                                 }
                                             }
 
                                             Line {
-                                                visible: root.listOf(group.index).length === 0
+                                                visible: group.widgets.length === 0
                                                 width: parent.width
                                                 height: Theme.rowHeight
                                                 leftPadding: Theme.spaceXl
@@ -321,7 +404,7 @@ PanelWindow {
                                             }
 
                                             Repeater {
-                                                model: Config.value(group.modelData.key, [])
+                                                model: group.widgets
 
                                                 delegate: PanelRow {
                                                     id: moduleRow
@@ -342,22 +425,41 @@ PanelWindow {
                                                     opacity: moduleDrag.active ? 0.45 : 1
                                                     z: moduleDrag.active ? 20 : 0
 
-                                                    Drag.active: moduleDrag.active
-                                                    Drag.source: moduleRow
-                                                    Drag.hotSpot.x: width / 2
-                                                    Drag.hotSpot.y: height / 2
-
                                                     onTriggered: {
                                                         root.inCatalog = false;
                                                         root.groupIndex = group.index;
                                                         root.itemIndex = moduleRow.index;
                                                     }
 
+                                                    Item {
+                                                        id: menuDragProxy
+                                                        z: 100
+                                                        width: moduleRow.width
+                                                        height: moduleRow.height
+                                                        Drag.source: moduleRow
+                                                        Drag.hotSpot.x: width / 2
+                                                        Drag.hotSpot.y: height / 2
+
+                                                        Rectangle {
+                                                            anchors.fill: parent
+                                                            visible: moduleDrag.active
+                                                            color: Theme.controlFill(true, false, false)
+                                                            border.width: Theme.borderWidth
+                                                            border.color: Theme.focusBorder
+                                                            radius: Theme.radius
+
+                                                            Line {
+                                                                anchors.centerIn: parent
+                                                                text: Plugins.label(moduleRow.modelData)
+                                                                color: Theme.text
+                                                            }
+                                                        }
+                                                    }
+
                                                     DragHandler {
                                                         id: moduleDrag
                                                         acceptedButtons: Qt.LeftButton
-                                                        target: null
-                                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
+                                                        target: menuDragProxy
                                                         onActiveChanged: {
                                                             if (active) {
                                                                 root.inCatalog = false;
@@ -365,9 +467,23 @@ PanelWindow {
                                                                 root.itemIndex = moduleRow.index;
                                                                 root.dragGroup = group.index;
                                                                 root.dragIndex = moduleRow.index;
+                                                                root.dropGroup = -1;
+                                                                root.dropIndex = -1;
+                                                                menuDragProxy.Drag.active = true;
                                                             } else if (root.dragGroup === group.index && root.dragIndex === moduleRow.index) {
-                                                                root.dragGroup = -1;
-                                                                root.dragIndex = -1;
+                                                                const targetGroup = root.dropGroup;
+                                                                const targetIndex = root.dropIndex;
+                                                                menuDragProxy.Drag.cancel();
+                                                                menuDragProxy.x = 0;
+                                                                menuDragProxy.y = 0;
+                                                                if (targetGroup >= 0) {
+                                                                    Qt.callLater(() => root.moveDragged(targetGroup, targetIndex));
+                                                                } else {
+                                                                    root.dragGroup = -1;
+                                                                    root.dragIndex = -1;
+                                                                }
+                                                                root.dropGroup = -1;
+                                                                root.dropIndex = -1;
                                                             }
                                                         }
                                                     }
@@ -376,7 +492,21 @@ PanelWindow {
                                                         anchors.fill: parent
                                                         enabled: root.dragGroup >= 0
                                                             && !(root.dragGroup === group.index && root.dragIndex === moduleRow.index)
-                                                        onDropped: drop => root.moveDragged(group.index, moduleRow.index + (drop.y > height / 2 ? 1 : 0))
+                                                        onEntered: drag => {
+                                                            root.dropGroup = group.index;
+                                                            root.dropIndex = moduleRow.index + (drag.y > height / 2 ? 1 : 0);
+                                                            drag.acceptProposedAction();
+                                                        }
+                                                        onPositionChanged: drag => {
+                                                            root.dropGroup = group.index;
+                                                            root.dropIndex = moduleRow.index + (drag.y > height / 2 ? 1 : 0);
+                                                        }
+                                                        onExited: {
+                                                            if (root.dropGroup === group.index) {
+                                                                root.dropGroup = -1;
+                                                                root.dropIndex = -1;
+                                                            }
+                                                        }
 
                                                         Rectangle {
                                                             anchors.left: parent.left
@@ -418,13 +548,14 @@ PanelWindow {
                                 width: parent.width
                                 height: parent.height - Theme.controlHeight
                                 contentWidth: width
-                                contentHeight: available.implicitHeight
+                                contentHeight: available.height
                                 clip: true
                                 boundsBehavior: Flickable.StopAtBounds
 
                                 Column {
                                     id: available
                                     width: rightScroll.width
+                                    height: childrenRect.height
                                     spacing: 0
 
                                     Repeater {
@@ -435,19 +566,21 @@ PanelWindow {
                                             required property var modelData
                                             required property int index
                                             readonly property bool current: root.inCatalog && catalogRow.index === root.catalogIndex
+                                            readonly property string placement: root.placements(catalogRow.modelData)
+                                            readonly property string placementState: root.placementStatus(catalogRow.modelData)
 
                                             width: available.width
                                             height: Theme.rowHeight
                                             title: Plugins.label(catalogRow.modelData)
-                                            detail: Plugins.describe(catalogRow.modelData)
-                                            value: catalogRow.current ? "ENTER  ·  ADD" : "ADD"
+                                            detail: placement !== "" ? "Placed: " + placement : Plugins.describe(catalogRow.modelData)
+                                            value: placementState === "ADD" && catalogRow.current ? "ENTER  ·  ADD" : placementState
                                             selected: catalogRow.current
                                             visualFocus: catalogRow.current
                                             interactive: true
                                             onTriggered: {
                                                 root.inCatalog = true;
                                                 root.catalogIndex = catalogRow.index;
-                                                root.addFromCatalog();
+                                                root.activateCatalog();
                                             }
                                         }
                                     }

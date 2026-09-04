@@ -126,9 +126,14 @@ Scope {
             return Runtime.settingsOpen ? "open" : "closed";
         }
 
+        function open(): string {
+            Runtime.settingsOpen = true;
+            return "open";
+        }
+
         function modules(): string {
-            Runtime.modulesOpen = !Runtime.modulesOpen;
-            return Runtime.modulesOpen ? "open" : "closed";
+            Runtime.modulesOpen = true;
+            return "open";
         }
     }
 

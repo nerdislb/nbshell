@@ -178,6 +178,27 @@ Singleton {
         return true;
     }
 
+    function setValues(values) {
+        if (!configValid) {
+            console.warn("nbshell: refusing to overwrite config.json because no valid schema was loaded");
+            return false;
+        }
+        if (!values || typeof values !== "object" || Array.isArray(values))
+            return false;
+        if (Object.prototype.hasOwnProperty.call(values, "schemaVersion")) {
+            console.warn("nbshell: schemaVersion is managed by the migration runner");
+            return false;
+        }
+        const next = JSON.parse(JSON.stringify(data));
+        for (const key of Object.keys(values))
+            next[key] = values[key];
+        data = next;
+        if (Object.prototype.hasOwnProperty.call(values, "theme"))
+            theme = String(values.theme || "tokyo-night");
+        file.setText(JSON.stringify(next, null, 2) + "\n");
+        return true;
+    }
+
     function toggleBarTransparency() {
         set("barTransparent", !barTransparent);
     }

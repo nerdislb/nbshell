@@ -81,6 +81,47 @@ Variants {
             return result;
         }
 
+        function configuredWidgets(key) {
+            if (key === "collapsedWidgets") return Config.collapsedWidgets;
+            if (key === "leftWidgets") return Config.leftWidgets;
+            if (key === "centerWidgets") return Config.centerWidgets;
+            if (key === "rightWidgets") return Config.rightWidgets;
+            return [];
+        }
+
+        function configuredIndex(key, widget) {
+            if (widget === "updates" || widget === "sep")
+                return -1;
+            return configuredWidgets(key).indexOf(widget);
+        }
+
+        function moveConfiguredWidget(sourceKey, sourceIndex, targetKey, targetIndex, after) {
+            const from = configuredWidgets(sourceKey).slice();
+            const to = sourceKey === targetKey ? from : configuredWidgets(targetKey).slice();
+            if (sourceIndex < 0 || sourceIndex >= from.length || targetIndex < 0 || targetIndex >= to.length)
+                return;
+
+            const widget = from.splice(sourceIndex, 1)[0];
+            var insertion = targetIndex + (after ? 1 : 0);
+            if (sourceKey === targetKey && sourceIndex < insertion)
+                insertion -= 1;
+            insertion = Math.max(0, Math.min(insertion, to.length));
+
+            if (sourceKey === targetKey) {
+                if (insertion === sourceIndex)
+                    return;
+                from.splice(insertion, 0, widget);
+                Config.set(sourceKey, from);
+                return;
+            }
+
+            to.splice(insertion, 0, widget);
+            const changes = {};
+            changes[sourceKey] = from;
+            changes[targetKey] = to;
+            Config.setValues(changes);
+        }
+
         function sameWidgetModel(current, next) {
             return JSON.stringify(current) === JSON.stringify(next);
         }
@@ -336,6 +377,10 @@ Variants {
                         widgetName: modelData
                         screenName: win.modelData?.name ?? ""
                         externalPopoutEligible: win.expandedWidgetNames.indexOf(modelData) < 0
+                        layoutKey: "collapsedWidgets"
+                        layoutIndex: win.configuredIndex(layoutKey, modelData)
+                        layoutOccurrenceCount: win.configuredWidgets(layoutKey).filter(widget => widget === modelData).length
+                        reorderAction: win.moveConfiguredWidget
                     }
                 }
             }
@@ -383,6 +428,10 @@ Variants {
                             required property var modelData
                             widgetName: modelData
                             screenName: win.modelData?.name ?? ""
+                            layoutKey: "leftWidgets"
+                            layoutIndex: win.configuredIndex(layoutKey, modelData)
+                            layoutOccurrenceCount: win.configuredWidgets(layoutKey).filter(widget => widget === modelData).length
+                            reorderAction: win.moveConfiguredWidget
                         }
                     }
                 }
@@ -415,6 +464,10 @@ Variants {
                             required property var modelData
                             widgetName: modelData
                             screenName: win.modelData?.name ?? ""
+                            layoutKey: "centerWidgets"
+                            layoutIndex: win.configuredIndex(layoutKey, modelData)
+                            layoutOccurrenceCount: win.configuredWidgets(layoutKey).filter(widget => widget === modelData).length
+                            reorderAction: win.moveConfiguredWidget
                         }
                     }
                 }
@@ -508,6 +561,10 @@ Variants {
                             required property var modelData
                             widgetName: modelData
                             screenName: win.modelData?.name ?? ""
+                            layoutKey: "rightWidgets"
+                            layoutIndex: win.configuredIndex(layoutKey, modelData)
+                            layoutOccurrenceCount: win.configuredWidgets(layoutKey).filter(widget => widget === modelData).length
+                            reorderAction: win.moveConfiguredWidget
                         }
                     }
 
@@ -596,6 +653,10 @@ Variants {
                                     required property var modelData
                                     widgetName: modelData
                                     screenName: win.modelData?.name ?? ""
+                                    layoutKey: "rightWidgets"
+                                    layoutIndex: win.configuredIndex(layoutKey, modelData)
+                                    layoutOccurrenceCount: win.configuredWidgets(layoutKey).filter(widget => widget === modelData).length
+                                    reorderAction: win.moveConfiguredWidget
                                 }
                             }
                         }

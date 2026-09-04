@@ -23,6 +23,7 @@ Item {
 
     property bool embedded: false
     property bool externalLifecycle: false
+    property var afterClose: null
     signal backRequested()
     signal closeRequested()
 
@@ -46,7 +47,7 @@ Item {
         },
         {
             "key": "mode",
-            "def": "island",
+            "def": "bar",
             "label": "Shape",
             "values": ["island", "pill", "bar"]
         },
@@ -506,10 +507,27 @@ Item {
                 root.closeRequested();
             else
                 Runtime.settingsOpen = false;
+            const next = root.afterClose;
+            root.afterClose = null;
+            if (next) next();
         });
     }
-    function requestClose(done) { box.dismiss(done); }
-    function requestOpen() { box.enter(); }
+    function requestClose(done) {
+        box.dismiss(() => {
+            const next = root.afterClose;
+            root.afterClose = null;
+            if (next) next();
+            done();
+        });
+    }
+    function requestOpen() {
+        afterClose = null;
+        box.enter();
+    }
+    function openSurface(fn) {
+        afterClose = fn;
+        close();
+    }
 
     function back() {
         if (root.embedded)
@@ -556,11 +574,13 @@ Item {
             return;
         // Zeilen, die etwas OEFFNEN statt etwas zu aendern.
         if (entry.action !== undefined) {
-            close();
             if (entry.action === "modules")
-                Runtime.modulesOpen = true;
+                openSurface(() => Runtime.modulesOpen = true);
             else if (entry.action === "plugins")
-                { Runtime.pluginManagerTab = "installed"; Runtime.pluginDeveloperOpen = true; }
+                openSurface(() => {
+                    Runtime.pluginManagerTab = "installed";
+                    Runtime.pluginDeveloperOpen = true;
+                });
             return;
         }
         const current = valueOf(entry);

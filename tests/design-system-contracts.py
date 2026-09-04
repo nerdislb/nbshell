@@ -124,6 +124,29 @@ for snippet in (
     if snippet not in bar:
         raise SystemExit(f"Clock-adjacent update signal contract is incomplete: {snippet}")
 for snippet in (
+    "function moveConfiguredWidget(sourceKey, sourceIndex, targetKey, targetIndex, after)",
+    "Config.setValues(changes)",
+    "layoutOccurrenceCount:",
+    'layoutKey: "leftWidgets"',
+    'layoutKey: "centerWidgets"',
+    'layoutKey: "rightWidgets"',
+    "reorderAction: win.moveConfiguredWidget",
+):
+    if snippet not in bar:
+        raise SystemExit(f"Direct bar module reordering contract is incomplete: {snippet}")
+widget_host = (ROOT / "shell/Bar/WidgetHost.qml").read_text(encoding="utf-8")
+for snippet in (
+    "acceptedModifiers: Qt.MetaModifier",
+    "dragProxy.Drag.active = true",
+    "dragProxy.Drag.cancel()",
+    "drag.source.dropTarget = root",
+    "DropArea {",
+    "drag.acceptProposedAction()",
+    "layoutOccurrenceCount === 1",
+):
+    if snippet not in widget_host:
+        raise SystemExit(f"Bar module drag interaction contract is incomplete: {snippet}")
+for snippet in (
     "InteractiveSurface {\n                        id: rightSectionToggle",
     'accessibleName: Config.rightSectionExpanded',
     'accessibleCheckable: true',
@@ -269,6 +292,20 @@ for snippet in (
     "dockedTop: true",
     "PanelHead {",
     'title: "Bar modules"',
+    "function configuredList(key)",
+    "function saveMove(fromGroup, from, toGroup, to)",
+    "readonly property var widgets:",
+    "model: group.widgets",
+    "function placements(id)",
+    "function placementStatus(id)",
+    'return listOf(0).indexOf(id) >= 0 ? "ISLAND" : "ADD"',
+    "height: childrenRect.height",
+    "contentHeight: left.height",
+    "contentHeight: available.height",
+    "target: menuDragProxy",
+    "menuDragProxy.Drag.active = true",
+    "Qt.callLater(() => root.moveDragged(targetGroup, targetIndex))",
+    "Mod-drag modules directly on the bar",
     "PanelSurface {",
     "SectionHeader {",
     "delegate: PanelRow {",
@@ -297,6 +334,22 @@ for snippet in (
         raise SystemExit(f"Settings no longer follows the shared panel language: {snippet}")
 if settings.count("PanelRow {") < 2:
     raise SystemExit("Settings navigation and values must both use shared PanelRow controls")
+for snippet in (
+    "property var afterClose: null",
+    "function openSurface(fn)",
+    "openSurface(() => Runtime.modulesOpen = true)",
+):
+    if snippet not in settings:
+        raise SystemExit(f"Settings surface handoff contract is incomplete: {snippet}")
+system_ipc = (ROOT / "shell/Ipc/SystemIpc.qml").read_text(encoding="utf-8")
+cli = (ROOT / "bin/nbshell").read_text(encoding="utf-8")
+for snippet in ("function open(): string", "Runtime.modulesOpen = true"):
+    if snippet not in system_ipc:
+        raise SystemExit(f"Settings launch commands must be idempotent: {snippet}")
+if "settings)\n        ipc settings open" not in cli:
+    raise SystemExit("The settings shortcut command must open rather than toggle the panel")
+if '"key": "mode",\n            "def": "bar"' not in settings:
+    raise SystemExit("Settings must show the live default bar mode when config.json omits it")
 
 volume = (ROOT / "shell/Bar/Widgets/Volume.qml").read_text(encoding="utf-8")
 volume_header = volume[:volume.index("popout: Component")]
