@@ -4,6 +4,7 @@
 from pathlib import Path
 import json
 import os
+import re
 import subprocess
 import tomllib
 
@@ -23,6 +24,39 @@ for relative in (
 integration = tomllib.loads((ROOT / "umbriel/nbshell.toml").read_text())
 colors = tomllib.loads((ROOT / "umbriel/nbshell-colors.toml").read_text())
 overview = tomllib.loads((ROOT / "umbriel/nbshell-overview.toml").read_text())
+contract = json.loads((ROOT / "shell/Catalog/umbriel-capabilities.json").read_text())
+assert contract["schemaVersion"] == 1
+assert contract["contractVersion"] == 1
+assert contract["backend"] == "umbriel"
+assert contract["transport"] == {
+    "type": "unix-stream",
+    "framing": "newline-delimited-json",
+    "successField": "ok",
+    "errorField": "err",
+    "maxRequestBytes": 65536,
+}
+reference_revision = contract["referenceRevision"]
+assert re.fullmatch(r"[0-9a-f]{40}", reference_revision)
+setup = (ROOT / "setup-umbriel.sh").read_text()
+assert f'UMBRIEL_REVISION="{reference_revision}"' in setup
+manifest = tomllib.loads((ROOT / "iso/packages/MANIFEST.toml").read_text())
+manifest_umbriel = next(row for row in manifest["custom"] if row["name"] == "umbriel")
+assert manifest_umbriel["revision"] == reference_revision
+pkgbuild = (ROOT / "iso/packages/pkgbuilds/umbriel/PKGBUILD").read_text()
+assert re.search(rf"^_commit={reference_revision}$", pkgbuild, re.MULTILINE)
+external_sources = json.loads((ROOT / "shell/Catalog/external-sources.json").read_text())
+external_umbriel = next(row for row in external_sources["sources"] if row["name"] == "Umbriel")
+assert reference_revision.startswith(external_umbriel["reviewedCommit"])
+capabilities = {row["id"]: row for row in contract["capabilities"]}
+assert len(capabilities) == len(contract["capabilities"])
+assert not any(row["wireName"] == "spawn" for row in contract["capabilities"])
+for required in (
+    "query.windows", "query.workspaces", "event.windows", "event.workspaces",
+    "workspace.focus", "workspace.layout.set", "window.focus", "window.close",
+    "window.move-to-workspace", "window.floating.toggle", "session.quit",
+    "config.reload", "output.dpms.off",
+):
+    assert capabilities[required]["required"] is True
 assert colors["colors"]["border"]["focused"] == "#7AA2F7FF"
 assert colors["colors"]["insert_hint"] == "#7AA2F780"
 assert colors["colors"]["backdrop"] == "#1A1B26FF"
@@ -50,16 +84,24 @@ assert len(key_data["binds"]) == len(integration["keybinds"])
 assert any(row["roh"] == "Mod+Tab" and row["text"] == "overview" for row in key_data["binds"])
 
 service = (ROOT / "shell/Services/Compositor.qml").read_text()
-for contract in (
+for expected in (
     'readonly property string backend: "umbriel"',
+    "readonly property int contractVersion: 1",
     '"workspaces", "windows", "keyboard_layout"',
     "function normalizeWorkspaces",
+    '"workspace-switch:" + String(value)',
+    '"window-focus:" + String(id)',
+    '"session-quit:skip-confirmation"',
     "function focusWorkspace",
     "function focusWindow",
     "function logout",
+    "function scheduleReconnect",
+    "id: reconnectTimer",
+    "connected: root._connectRequested",
+    'focusedOutput = "";',
 ):
-    assert contract in service, contract
-for forbidden in ("NIRI_SOCKET", "handleNiri", "isNiri", "Compositor.action"):
+    assert expected in service, expected
+for forbidden in ("NIRI_SOCKET", "handleNiri", "isNiri", "Compositor.action", "function _runAction"):
     assert forbidden not in service
 
 assert not (ROOT / "niri").exists()
@@ -82,16 +124,25 @@ assert "render_toml" in display_tool
 assert "render_kdl" not in display_tool
 assert "def set_umbriel_mode" in display_tool
 
+system_report = (ROOT / "shell/scripts/system-report.py").read_text()
+assert '"wlr-randr", "--json"' in system_report
+assert '"umbriel", "outputs", "--json"' not in system_report
+
 capture_service = (ROOT / "shell/Services/CaptureService.qml").read_text()
 assert "Compositor.isNiri" not in capture_service
 assert "Compositor.action" not in capture_service
 assert 'Runtime.captureWindowSelect = true' in (ROOT / "shell/Ipc/DesktopIpc.qml").read_text()
-assert 'Quickshell.execDetached(["umbriel", "msg", "dpms-off"])' in (ROOT / "shell/Services/Idle.qml").read_text()
+assert "Compositor.turnOutputsOff()" in (ROOT / "shell/Services/Idle.qml").read_text()
 
 setup = (ROOT / "setup.sh").read_text()
 assert "--niri-only" not in setup
 assert '"$SRC/setup-umbriel.sh" --skip-shell-install' in setup
 assert "greetd-regreet" not in setup
+umbriel_setup = (ROOT / "setup-umbriel.sh").read_text()
+assert contract["referenceRevision"] in umbriel_setup
+assert 'tests/umbriel-capability-contract.py"' in umbriel_setup
+assert '--binary "$SOURCE_ROOT/umbriel/build-nbshell/umbriel"' in umbriel_setup
+assert '--source "$SOURCE_ROOT/umbriel"' in umbriel_setup
 
 installer = (ROOT / "install.sh").read_text()
 installer_before_niri_retirement = installer.split("# Remove only nbshell-owned artifacts", 1)[0]
@@ -108,7 +159,9 @@ assert all(
 
 cli = (ROOT / "bin/nbshell").read_text()
 assert "nbshell grid" not in cli
-assert "workspace-set-layout:${1:-toggle}" in cli
+assert 'action workspace.layout.set "${1:-toggle}"' in cli
+assert "compositor capabilities [--json]" in cli
+assert "compositor action <name> [value] [--json]" in cli
 assert "/usr/bin/niri" not in cli
 
 resume_unit = (ROOT / "systemd/nbshell-umbriel-resume-guard.service").read_text()

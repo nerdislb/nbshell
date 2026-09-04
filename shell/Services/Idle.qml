@@ -198,7 +198,7 @@ Singleton {
         onIsIdleChanged: {
             if (!offMonitor.isIdle)
                 return;
-            Quickshell.execDetached(["umbriel", "msg", "dpms-off"]);
+            Compositor.turnOutputsOff();
         }
     }
 

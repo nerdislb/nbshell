@@ -40,7 +40,7 @@ def unit_state(name: str) -> str:
 
 
 def collect() -> dict:
-    outputs = json_run(["umbriel", "outputs", "--json"])
+    outputs = json_run(["wlr-randr", "--json"])
 
     plugin_script = RUNTIME / "scripts/plugins.sh"
     plugins = json_run(["bash", str(plugin_script), "list"]) if plugin_script.is_file() else []

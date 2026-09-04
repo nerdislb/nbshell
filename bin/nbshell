@@ -87,6 +87,7 @@ UMBRIEL_UPDATE_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/script
 OMAWHATSAPP_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/omawhatsapp.sh"
 AETHER_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/aether.sh"
 UMBRIEL_NESTED_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/umbriel-nested.sh"
+UMBRIEL_CONTRACT_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/umbriel-contract.py"
 GREETER_SETUP="${XDG_DATA_HOME:-$HOME/.local/share}/nbshell/setup-greeter.sh"
 
 cursor_status() {
@@ -561,6 +562,13 @@ nbshell -- an independent Quickshell desktop shell for Umbriel
   nbshell switch off        disable autostart and Umbriel integration
   nbshell switch status     show autostart and integration status
 
+  nbshell compositor status [--json]
+                            show the Umbriel backend or structured contract status
+  nbshell compositor capabilities [--json]
+                            discover supported Umbriel capabilities
+  nbshell compositor action <name> [value] [--json]
+                            invoke a stable, typed compositor action
+
   nbshell nearby scan       find nearby LocalSend devices
   nbshell nearby            list discovered devices
   nbshell nearby send <file> [alias]
@@ -1001,15 +1009,33 @@ for b in d["binds"]:
         ;;
     layout)
         case "${1:-toggle}" in
-            scrolling|dwindle|master|toggle) umbriel msg "workspace-set-layout:${1:-toggle}" ;;
+            scrolling|dwindle|master|toggle)
+                "$UMBRIEL_CONTRACT_TOOL" action workspace.layout.set "${1:-toggle}"
+                ;;
             *) echo "Usage: nbshell layout scrolling|dwindle|master|toggle" >&2; exit 2 ;;
         esac
         ;;
     compositor)
         case "${1:-status}" in
-            status) printf '%s\n' "$(compositor_name)" ;;
+            status)
+                shift || true
+                if [ "${1:-}" = "--json" ]; then
+                    exec "$UMBRIEL_CONTRACT_TOOL" status "$@"
+                fi
+                [ $# -eq 0 ] || { echo "Usage: nbshell compositor status [--json]" >&2; exit 2; }
+                printf '%s\n' "$(compositor_name)"
+                ;;
+            capabilities)
+                shift
+                exec "$UMBRIEL_CONTRACT_TOOL" status "$@"
+                ;;
+            action)
+                shift
+                [ $# -gt 0 ] || { echo "Usage: nbshell compositor action <name> [value] [--json]" >&2; exit 2; }
+                exec "$UMBRIEL_CONTRACT_TOOL" action "$@"
+                ;;
             nested|test-umbriel) bash "$UMBRIEL_NESTED_TOOL" ;;
-            *) echo "Usage: nbshell compositor [status|nested]" >&2; exit 2 ;;
+            *) echo "Usage: nbshell compositor [status|capabilities|action|nested]" >&2; exit 2 ;;
         esac
         ;;
     bongo|cat)
@@ -1159,12 +1185,9 @@ for b in d["binds"]:
                 local_runtime="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
                 local_wayland="${WAYLAND_DISPLAY:-wayland-0}"
                 local_umbriel_socket="${UMBRIEL_SOCKET:-$local_runtime/umbriel-$local_wayland.sock}"
-                local_umbriel_bin="$(command -v umbriel 2>/dev/null || true)"
-                [ -n "$local_umbriel_bin" ] || local_umbriel_bin="/usr/local/bin/umbriel"
-                if [ -x "$local_umbriel_bin" ] \
-                    && [ -S "$local_umbriel_socket" ] \
+                if [ -S "$local_umbriel_socket" ] \
                     && XDG_RUNTIME_DIR="$local_runtime" UMBRIEL_SOCKET="$local_umbriel_socket" \
-                        "$local_umbriel_bin" msg dpms-off 2>/dev/null; then
+                        "$UMBRIEL_CONTRACT_TOOL" action output.dpms.off >/dev/null 2>&1; then
                     :
                 else
                     die "Umbriel IPC is unavailable"

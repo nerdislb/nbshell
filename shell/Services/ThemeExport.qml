@@ -190,7 +190,7 @@ Singleton {
     Timer {
         id: umbrielReloadTimer
         interval: 250
-        onTriggered: umbrielReload.running = true
+        onTriggered: Compositor.reloadConfig()
     }
 
     Process {
@@ -201,10 +201,6 @@ Singleton {
         command: ["sh", "-c", "pkill -USR2 -x ghostty || true"]
     }
 
-    Process {
-        id: umbrielReload
-        command: ["sh", "-c", "if [ -n \"${UMBRIEL_SOCKET:-}\" ] || [ \"${XDG_CURRENT_DESKTOP:-}\" = Umbriel ]; then umbriel msg config-reload >/dev/null 2>&1 || true; fi"]
-    }
 
     // Nach jedem Themewechsel -- Theme.c wechselt, sobald die neue colors.toml
     // gelesen ist -- und nach jedem Wechsel der Akzentrolle: die Farbe der

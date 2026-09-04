@@ -1,0 +1,126 @@
+Usage: umbriel msg <action> [args...]
+
+Send an action to the running compositor.
+Use `msg spawn <cmd...>` as shorthand for `msg spawn:<cmd...>`.
+Available actions, grouped as the cheatsheet groups them:
+
+Apps
+  spawn:<cmd>  Run a command with a launch activation token
+
+Focus
+  column-focus-first              Focus the first column in the workspace
+  column-focus-last               Focus the last column in the workspace
+  output-focus-down               Focus the output below
+  output-focus-left               Focus the output to the left
+  output-focus-right              Focus the output to the right
+  output-focus-up                 Focus the output above
+  window-focus:<window-id>        Focus the given window
+  window-focus-down               Focus the next window down in the column
+  window-focus-last               Focus the previously focused window
+  window-focus-left               Focus the window to the left
+  window-focus-next               Focus the next window in layout order
+  window-focus-or-output-down     Focus down, or the output below at the edge
+  window-focus-or-output-left     Focus left, or the output left at the edge
+  window-focus-or-output-right    Focus right, or the output right at the edge
+  window-focus-or-output-up       Focus up, or the output above at the edge
+  window-focus-or-workspace-down  Focus down, or the next workspace at the edge
+  window-focus-or-workspace-up    Focus up, or the previous workspace at the edge
+  window-focus-previous           Focus the previous window in layout order
+  window-focus-right              Focus the window to the right
+  window-focus-switch-floating    Focus the last window of the opposite floating state
+  window-focus-up                 Focus the next window up in the column
+  workspace-focus-last            Focus the previously active workspace
+
+Move & size
+  column-center                  Center the focused column in the viewport
+  column-move-left               Move the focused column one position left
+  column-move-right              Move the focused column one position right
+  column-move-to-first           Move the focused column to the first position
+  column-move-to-last            Move the focused column to the last position
+  column-move-to-output-down     Move the focused column to the output below
+  column-move-to-output-left     Move the focused column to the output left
+  column-move-to-output-right    Move the focused column to the output right
+  column-move-to-output-up       Move the focused column to the output above
+  layout-master-count-decrease   Demote the last master window to the stack
+  layout-master-count-increase   Promote the first stack window to master
+  layout-scroll-down             Scroll the strip toward its end
+  layout-scroll-drag             Pan the strip while the bound button is held
+  layout-scroll-left             Scroll the strip toward its start
+  layout-scroll-right            Scroll the strip toward its end
+  layout-scroll-up               Scroll the strip toward its start
+  window-center                  Center the focused floating window on its output
+  window-consume-left            Stack the focused window into the column left
+  window-consume-or-expel-left   Split the window out, or stack it into the column left
+  window-consume-or-expel-right  Split the window out, or stack it into the column right
+  window-consume-right           Stack the focused window into the column right
+  window-cycle-height            Cycle the focused window through the height presets
+  window-cycle-height-back       Cycle the height presets in reverse
+  window-cycle-width             Cycle the focused column through the width presets
+  window-cycle-width-back        Cycle the width presets in reverse
+  window-modify-height:<delta>   Change the focused window's height by a fraction
+  window-modify-width:<delta>    Change the focused column's width by a fraction
+  window-move-down               Move the focused window down in its column
+  window-move-or-output-down     Move down, or the column to the output below
+  window-move-or-output-left     Move the column left, or to the output left
+  window-move-or-output-right    Move the column right, or to the output right
+  window-move-or-output-up       Move up, or the column to the output above
+  window-move-or-workspace-down  Move down, or to the next workspace at the edge
+  window-move-or-workspace-up    Move up, or to the previous workspace at the edge
+  window-move-to-output-down     Move the focused window to the output below
+  window-move-to-output-left     Move the focused window to the output left
+  window-move-to-output-right    Move the focused window to the output right
+  window-move-to-output-up       Move the focused window to the output above
+  window-move-up                 Move the focused window up in its column
+  window-set-height:<fraction>   Set the focused window's height fraction
+  window-set-width:<fraction>    Set the focused column's width fraction
+  window-swap-next               Swap with the next window in layout order
+  window-swap-previous           Swap with the previous window in layout order
+
+Windows
+  window-close:[<window-id>]       Close the focused window, or the given window
+  window-toggle-floating           Float or tile the focused window
+  window-toggle-fullscreen         Toggle fullscreen for the focused window
+  window-toggle-maximize           Toggle full width for the focused column
+  window-toggle-maximize-to-edges  Toggle maximize without gaps, struts, or borders
+  window-toggle-pinned             Pin the focused window above other windows
+
+Scratchpad
+  scratchpad-focus-next:[<output>]           Focus the next visible scratchpad window
+  scratchpad-toggle:[<output>]               Show or hide the output's scratchpad windows
+  window-move-to-scratchpad:[<output>]       Move the focused window into the scratchpad
+  window-restore-from-scratchpad:[<output>]  Return the scratchpad window to its saved workspace
+  window-toggle-scratchpad:[<output>]        Move the focused window to or from the scratchpad
+
+Workspaces
+  column-move-to-workspace:<workspace>[/<output>]         Move the focused column to the selected workspace
+  column-move-to-workspace-next                           Move the focused column to the next workspace
+  column-move-to-workspace-previous                       Move the focused column to the previous workspace
+  window-move-to-workspace:<workspace>[/<output>]         Move the focused window to the selected workspace
+  window-move-to-workspace-next                           Move the focused window to the next workspace
+  window-move-to-workspace-previous                       Move the focused window to the previous workspace
+  workspace-move-down                                     Move the focused workspace down the list
+  workspace-move-to-output-down                           Move every workspace window to the output below
+  workspace-move-to-output-left                           Move every workspace window to the output left
+  workspace-move-to-output-right                          Move every workspace window to the output right
+  workspace-move-to-output-up                             Move every workspace window to the output above
+  workspace-move-up                                       Move the focused workspace up the list
+  workspace-next                                          Switch to the next workspace on this output
+  workspace-previous                                      Switch to the previous workspace on this output
+  workspace-set-layout:<scrolling|dwindle|master|toggle>  Set the active workspace's layout mode
+  workspace-switch:<workspace>[/<output>]                 Switch to the selected workspace
+
+Overview
+  overview-close   Close the workspace overview
+  overview-open    Open the workspace overview
+  overview-toggle  Open or close the workspace overview
+
+System
+  cheatsheet-close                  Hide the keybind cheatsheet
+  cheatsheet-open                   Show the keybind cheatsheet
+  cheatsheet-toggle                 Show or hide the keybind cheatsheet
+  config-reload                     Reload the configuration file
+  dpms-off:[<output>]               Power off one output, or every output when bare
+  dpms-on:[<output>]                Power on one output, or every output when bare
+  keyboard-layout-next              Switch one keyboard to its next configured layout
+  session-quit:[skip-confirmation]  Quit the session, confirming first unless told to skip
+  submap:<name>                     Enter a submap layer, or leave one with 'reset'

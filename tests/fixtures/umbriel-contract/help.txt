@@ -1,0 +1,25 @@
+umbriel 0.1.0: a wayland compositor
+
+Usage: umbriel [-s <command>] [-c <config>]   run the compositor
+       umbriel msg <action> [args...]         send an action to the compositor
+       umbriel windows                        list windows (app id and title)
+       umbriel workspaces                     list workspaces and their layouts
+       umbriel submap                         show the active keybind submap
+       umbriel layers                         list layer-shell surfaces
+       umbriel color                          show color-management state
+       umbriel tearing                        show tearing-control state
+       umbriel keyboard-layouts               list keyboard layouts
+       umbriel output-create <name>           create a headless output (headless sessions only)
+       umbriel output-destroy <name>          destroy an output (headless sessions only)
+       umbriel subscribe <event>[,<event>…]   stream events as JSON lines
+               events: theme, overview, keyboard_layout, windows, workspaces
+       umbriel outputs                        list outputs and modes
+       umbriel validate [-c <config>]         check the config file
+       umbriel help | -h | --help             show this help
+       umbriel -v | -V | --version            print version
+
+Options:
+  -s <command>   spawn <command> once the compositor starts
+  -c <config>    use <config> instead of the default config path
+
+Run `umbriel msg --help` to list all available actions for `msg` and keybinds.

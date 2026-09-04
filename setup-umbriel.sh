@@ -74,6 +74,9 @@ build_project() {
 }
 
 build_project "$SOURCE_ROOT/umbriel"
+python3 "$ROOT/tests/umbriel-capability-contract.py" \
+    --binary "$SOURCE_ROOT/umbriel/build-nbshell/umbriel" \
+    --source "$SOURCE_ROOT/umbriel"
 build_project "$SOURCE_ROOT/xdg-desktop-portal-umbriel"
 INSTALL_STAGE="$(mktemp -d "${TMPDIR:-/tmp}/nbshell-umbriel-install.XXXXXX")"
 SESSION_FILE=""

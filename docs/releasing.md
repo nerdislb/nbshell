@@ -37,6 +37,7 @@ change before version 1.0.
    python3 ./tests/lockscreen.py
    bash ./tests/performance-smoke.sh
    python3 ./tests/shell-update.py
+   python3 ./tests/umbriel-capability-contract.py
    python3 ./tests/umbriel-contracts.py
    python3 ./tests/umbriel-update.py
    python3 ./tests/install-tree-transaction.py

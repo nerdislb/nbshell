@@ -12,10 +12,14 @@ Singleton {
     readonly property string runtimeDir: String(Quickshell.env("XDG_RUNTIME_DIR") || ("/run/user/" + Quickshell.env("UID")))
     readonly property string waylandDisplay: String(Quickshell.env("WAYLAND_DISPLAY") || "wayland-0")
     readonly property string umbrielSocket: String(Quickshell.env("UMBRIEL_SOCKET") || (runtimeDir + "/umbriel-" + waylandDisplay + ".sock"))
+    readonly property int contractVersion: 1
     readonly property string backend: "umbriel"
     readonly property string socketPath: umbrielSocket
-    readonly property bool available: socketPath !== ""
+    readonly property bool available: ipc.connected
+    readonly property string status: available ? "ready" : "offline"
     readonly property bool isUmbriel: true
+    property string lastError: ""
+    property bool _connectRequested: true
 
     property var workspaces: []
     property var windows: []
@@ -55,6 +59,28 @@ Singleton {
 
     function logout() {
         Quickshell.execDetached(["umbriel", "msg", "session-quit:skip-confirmation"]);
+    }
+
+    function reloadConfig() {
+        Quickshell.execDetached(["umbriel", "msg", "config-reload"]);
+    }
+
+    function turnOutputsOff() {
+        Quickshell.execDetached(["umbriel", "msg", "dpms-off"]);
+    }
+
+    function clearState() {
+        workspaces = [];
+        windows = [];
+        focusedWindowId = "";
+        focusedOutput = "";
+        keyboardLayout = "";
+        _layoutNames = [];
+    }
+
+    function scheduleReconnect() {
+        _connectRequested = false;
+        reconnectTimer.restart();
     }
 
     function normalizeWindows(rows) {
@@ -98,24 +124,44 @@ Singleton {
 
 
     Socket {
+        id: ipc
         path: root.socketPath
-        connected: root.available
+        connected: root._connectRequested
         onConnectionStateChanged: {
-            if (connected)
+            if (connected) {
+                root.lastError = "";
                 write(JSON.stringify({"cmd": "subscribe", "events": ["workspaces", "windows", "keyboard_layout"]}) + "\n");
+            } else {
+                root.lastError = "ipc-unavailable";
+                root.clearState();
+                root.scheduleReconnect();
+            }
         }
+        onError: root.scheduleReconnect()
         parser: SplitParser {
             onRead: line => {
                 try {
                     const event = JSON.parse(line);
-                    if (event.Ok !== undefined || event.Err !== undefined || event.ok !== undefined || event.err !== undefined)
+                    if (event.Err !== undefined || event.err !== undefined) {
+                        root.lastError = "ipc-error";
+                        return;
+                    }
+                    if (event.Ok !== undefined || event.ok !== undefined)
                         return;
                     root.handleEvent(event);
                 } catch (error) {
+                    root.lastError = "invalid-event";
                     console.warn("nbshell/compositor: unreadable IPC event:", error);
                 }
             }
         }
+    }
+
+    Timer {
+        id: reconnectTimer
+        interval: 1000
+        repeat: false
+        onTriggered: root._connectRequested = true
     }
 
     Timer { id: focusGuard; interval: 600 }

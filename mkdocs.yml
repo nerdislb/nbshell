@@ -42,6 +42,7 @@ nav:
   - Beta testing: beta-testing.md
 
   - Umbriel compositor: umbriel.md
+  - Umbriel capability contract: umbriel-capability-contract.md
   - Troubleshooting: troubleshooting.md
   - Library, search, and demos: library-search-and-demos.md
   - Performance: performance.md

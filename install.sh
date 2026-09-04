@@ -517,7 +517,9 @@ bash -n "$SRC/install.sh"
 bash -n "$SRC/bin/nbshell" "$SRC/bin/nbshell-install-recover"
 while IFS= read -r -d '' script; do bash -n "$script"; done < <(find "$SRC/shell/scripts" -type f -name '*.sh' -print0)
 python3 -c 'import ast, pathlib, sys; [ast.parse(pathlib.Path(name).read_text()) for name in sys.argv[1:]]' \
-    "$STAGED_SHELL/scripts/agents.py" "$STAGED_SHELL/scripts/config-migrations.py"
+    "$STAGED_SHELL/scripts/agents.py" \
+    "$STAGED_SHELL/scripts/config-migrations.py" \
+    "$STAGED_SHELL/scripts/umbriel-contract.py"
 QMLLINT_BIN="$(command -v qmllint || true)"
 [ -n "$QMLLINT_BIN" ] || [ ! -x /usr/lib/qt6/bin/qmllint ] || QMLLINT_BIN=/usr/lib/qt6/bin/qmllint
 if [ -n "$QMLLINT_BIN" ]; then

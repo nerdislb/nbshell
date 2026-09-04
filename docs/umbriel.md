@@ -16,6 +16,18 @@ The installation baseline is recorded in `setup-umbriel.sh` and
 `shell/Catalog/external-sources.json`. `nbshell upstream-audit` reports newer
 upstream commits without installing them automatically.
 
+The shell-facing integration is defined by
+[`Umbriel capability contract v1`](umbriel-capability-contract.md). Inspect it
+without querying private compositor state:
+
+```bash
+nbshell compositor capabilities
+nbshell compositor capabilities --json
+```
+
+The contract keeps Umbriel as the supported compositor, exposes only named and
+validated operations, and reports missing capabilities and fallbacks explicitly.
+
 A files-only installation expects Umbriel to exist already:
 
 ```bash

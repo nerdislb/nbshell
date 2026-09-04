@@ -30,6 +30,7 @@ run bash iso/packages/tests/test-manifest-consistency.sh
 run bash iso/packages/tests/test-repo-pipeline.sh
 run bash iso/profile/tests/test_scripts.sh
 run python3 iso/profile/tests/test_installer.py
+run python3 tests/umbriel-capability-contract.py
 run python3 tests/umbriel-contracts.py
 run python3 tests/umbriel-update.py
 run python3 tests/install-tree-transaction.py
