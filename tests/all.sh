@@ -23,6 +23,7 @@ done < <(git ls-files --cached --others --exclude-standard -z -- '*.py')
 run bash tests/plugin-validation.sh
 run bash tests/plugin-smoke.sh
 run python3 tests/lockscreen.py
+run python3 tests/theme-contrast.py
 run python3 tests/shell-update.py
 run bash tests/bootstrap.sh
 run bash iso/packages/tests/test-manifest-consistency.sh

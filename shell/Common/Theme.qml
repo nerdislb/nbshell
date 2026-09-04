@@ -238,7 +238,9 @@ Singleton {
     readonly property real overlayHeightLarge: Math.round(cellH * 43)
 
     readonly property color panelSurface: bg
-    readonly property color panelSurfaceRaised: alpha(bgLight, 0.72)
+    // Light themes keep raised controls opaque so secondary text contrast does
+    // not depend on the wallpaper behind a translucent Wayland surface.
+    readonly property color panelSurfaceRaised: isLight ? bgLight : alpha(bgLight, 0.72)
     readonly property color panelBorder: mix(bg, fg, 0.24)
     readonly property color focusBorder: readable(accent, bg, 3.0)
     readonly property color textFieldSelection: selectedSurface(accent)
