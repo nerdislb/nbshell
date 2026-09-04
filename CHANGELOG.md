@@ -22,7 +22,7 @@ configuration and plugin interfaces before `1.0.0`.
   collections, with retained Midjourney generation provenance.
 - Shared modal surfaces now provide focus trapping and restoration, Escape and
   background-input handling, accessible dialog semantics, and Reduced Motion
-  behavior for dashboard, plugin-development, and unsaved-notes flows.
+  behavior for dashboard and plugin-development confirmation flows.
 
 ### Changed
 
@@ -32,6 +32,11 @@ configuration and plugin interfaces before `1.0.0`.
 - Core actions in System Hub, Agent Center, Notes, Calculator, the greeter, and
   the lock screen now share guarded pointer, keyboard, and assistive-technology
   activation paths with visible focus and key-repeat protection.
+- Notes guards switching or creating notes with unsaved text, confirms deletion,
+  and exposes its list and editor semantics to keyboard and assistive-technology
+  users.
+- The reviewed Omazen integration and Arch provider patch now target Omazen
+  1.6.0.
 
 ### Fixed
 
@@ -62,9 +67,8 @@ configuration and plugin interfaces before `1.0.0`.
   non-essential motion when Reduced Motion is enabled.
 - Light themes keep text and control surfaces contrast-safe, and Umbriel theme
   export uses the current compositor color keys.
-- Aether keeps its local updater state private when rewriting metadata.
-- Sleep requests wait for compositor-confirmed lock coverage, while resume
-  waits for a real Umbriel output before restoring display power.
+- Aether creates and preserves its local updater state directory with mode
+  `0700` when rewriting metadata.
 - OmaWhatsApp pointer-wheel scrolling is accelerated without changing keyboard
   scrolling behavior.
 
