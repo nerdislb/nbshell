@@ -336,7 +336,7 @@ Item {
                     Accessible.name: root.echoResponse ? "Authentication response" : "Password"
                     Accessible.description: root.promptMessage || root.statusMessage
                     Accessible.passwordEdit: !root.echoResponse
-                    Accessible.focusable: true
+                    Accessible.focusable: enabled
                     Accessible.focused: activeFocus
                     echoMode: root.echoResponse ? TextInput.Normal : TextInput.Password
                     passwordCharacter: "✦"

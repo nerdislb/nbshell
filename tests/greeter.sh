@@ -62,8 +62,17 @@ assert "onQuitPreview: Qt.quit()" in shell
 assert "function submitResponse(response)" in shell
 assert "authenticationRetryPending" in shell
 assert "AUTHENTICATION RESET TIMED OUT · PRESS ESC TO CANCEL" in shell
-for required in ("reducedMotion", "Accessible.role: Accessible.Button", "activeFocusOnTab", "Accessible.onPressAction", "Accessible.passwordEdit", "event.isAutoRepeat"):
+for required in (
+    "reducedMotion",
+    "Accessible.role: Accessible.Button",
+    "activeFocusOnTab",
+    "Accessible.onPressAction",
+    "Accessible.passwordEdit",
+    "Accessible.focusable: enabled",
+):
     assert required in view, required
+action_label = view[view.index("component ActionLabel:"):]
+assert action_label.count("if (!event.isAutoRepeat) actionRoot.activate();") == 3
 PY
 
 grep -Fq 'config.toml.before-nbshell-greeter' "$ROOT/setup-greeter.sh"
