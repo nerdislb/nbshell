@@ -46,13 +46,11 @@ Variants {
         readonly property bool expanded: barMode || pillMode || Runtime.islandOpen || hovering
         property real openProgress: expanded ? 1 : 0
         readonly property real centerHandoff: Math.max(0, Math.min(1, (openProgress - 0.72) / 0.28))
-        readonly property string expandedClockGroup: Config.leftWidgets.indexOf("clock") >= 0 ? "left"
-            : (Config.centerWidgets.indexOf("clock") >= 0 ? "center"
-            : (Config.rightWidgets.indexOf("clock") >= 0 ? "right" : "center"))
-        readonly property var collapsedWidgetNames: withUpdateIndicator(Config.collapsedWidgets, true)
-        readonly property var expandedLeftWidgetNames: withUpdateIndicator(Config.leftWidgets, expandedClockGroup === "left")
-        readonly property var expandedCenterWidgetNames: withUpdateIndicator(Config.centerWidgets, expandedClockGroup === "center")
-        readonly property var expandedRightWidgetNames: withUpdateIndicator(Config.rightWidgets, expandedClockGroup === "right")
+        property string expandedClockGroup: "center"
+        property var collapsedWidgetNames: []
+        property var expandedLeftWidgetNames: []
+        property var expandedCenterWidgetNames: []
+        property var expandedRightWidgetNames: []
         readonly property bool reuseCollapsedCenter: !barMode && !pillMode
             && JSON.stringify(collapsedWidgetNames) === JSON.stringify(expandedCenterWidgetNames)
         readonly property var expandedWidgetNames: expandedLeftWidgetNames
@@ -83,6 +81,34 @@ Variants {
             return result;
         }
 
+        function sameWidgetModel(current, next) {
+            return JSON.stringify(current) === JSON.stringify(next);
+        }
+
+        // Config.set replaces the complete JSON object. Keeping these Repeater
+        // models bound directly to Config therefore rebuilt every bar widget
+        // when the right-tail toggle persisted one boolean. Preserve model
+        // identity unless the configured names actually changed.
+        function syncWidgetModels() {
+            const clockGroup = Config.leftWidgets.indexOf("clock") >= 0 ? "left"
+                : (Config.centerWidgets.indexOf("clock") >= 0 ? "center"
+                : (Config.rightWidgets.indexOf("clock") >= 0 ? "right" : "center"));
+            const nextCollapsed = withUpdateIndicator(Config.collapsedWidgets, true);
+            const nextLeft = withUpdateIndicator(Config.leftWidgets, clockGroup === "left");
+            const nextCenter = withUpdateIndicator(Config.centerWidgets, clockGroup === "center");
+            const nextRight = withUpdateIndicator(Config.rightWidgets, clockGroup === "right");
+
+            expandedClockGroup = clockGroup;
+            if (!sameWidgetModel(collapsedWidgetNames, nextCollapsed))
+                collapsedWidgetNames = nextCollapsed;
+            if (!sameWidgetModel(expandedLeftWidgetNames, nextLeft))
+                expandedLeftWidgetNames = nextLeft;
+            if (!sameWidgetModel(expandedCenterWidgetNames, nextCenter))
+                expandedCenterWidgetNames = nextCenter;
+            if (!sameWidgetModel(expandedRightWidgetNames, nextRight))
+                expandedRightWidgetNames = nextRight;
+        }
+
         function refreshTransparentContrast() {
             if (!Config.barTransparent || !Config.wallpaperEnabled || !wallpaperSource) {
                 Theme.transparentBarSurface = Theme.bg;
@@ -94,7 +120,10 @@ Variants {
         onWallpaperSourceChanged: refreshTransparentContrast()
         onWidthChanged: refreshTransparentContrast()
         onHeightChanged: refreshTransparentContrast()
-        Component.onCompleted: refreshTransparentContrast()
+        Component.onCompleted: {
+            syncWidgetModels();
+            refreshTransparentContrast();
+        }
 
         Behavior on openProgress {
             NumberAnimation {
@@ -109,6 +138,10 @@ Variants {
             function onBarTransparentChanged() { win.refreshTransparentContrast(); }
             function onWallpaperEnabledChanged() { win.refreshTransparentContrast(); }
             function onEdgeChanged() { win.refreshTransparentContrast(); }
+            function onCollapsedWidgetsChanged() { win.syncWidgetModels(); }
+            function onLeftWidgetsChanged() { win.syncWidgetModels(); }
+            function onCenterWidgetsChanged() { win.syncWidgetModels(); }
+            function onRightWidgetsChanged() { win.syncWidgetModels(); }
         }
 
         Timer {
@@ -392,9 +425,14 @@ Variants {
                     height: 1
                 }
 
-                Row {
-                    id: rightGroup
-                    spacing: Theme.barItemGap
+                Item {
+                    id: rightGroupSlot
+                    width: rightGroup.implicitWidth
+                    height: rightGroup.implicitHeight
+
+                    Row {
+                        id: rightGroup
+                        spacing: Theme.barItemGap
 
                     readonly property var visibleWidgets: win.expandedRightWidgetNames
                     readonly property int collapseIndex: visibleWidgets.indexOf("sep")
@@ -402,6 +440,66 @@ Variants {
                         ? visibleWidgets.slice(0, collapseIndex) : visibleWidgets
                     readonly property var collapsibleWidgets: collapseIndex >= 0
                         ? visibleWidgets.slice(collapseIndex + 1) : []
+                    property real sectionProgress: Config.rightSectionExpanded ? 1 : 0
+
+                        Behavior on sectionProgress {
+                            enabled: !win.barMode
+                            NumberAnimation {
+                                duration: Config.rightSectionExpanded ? Theme.motionSpatialDefault : Theme.motionSpatialFast
+                                easing.type: Easing.BezierSpline
+                                easing.bezierCurve: Theme.motionCurveStandard
+                            }
+                        }
+
+                        function startSectionMotion() {
+                            if (!win.barMode)
+                                return;
+
+                            sectionMotion.stop();
+                            const distance = rightSectionRow.implicitWidth;
+                            // The slot has already taken its target width. Keep
+                            // the painted row at the old edge, then animate only
+                            // composited properties into their target values.
+                            rightGroup.x = Config.rightSectionExpanded ? distance : -distance;
+                            rightSectionRow.x = Config.rightSectionExpanded ? Theme.cellW * 0.75 : 0;
+                            rightSectionClip.opacity = Config.rightSectionExpanded ? 0 : 1;
+                            sectionMotion.start();
+                        }
+
+                        ParallelAnimation {
+                            id: sectionMotion
+
+                            XAnimator {
+                                target: rightGroup
+                                to: 0
+                                duration: Config.rightSectionExpanded ? Theme.motionSpatialDefault : Theme.motionSpatialFast
+                                easing.type: Easing.BezierSpline
+                                easing.bezierCurve: Theme.motionCurveStandard
+                            }
+
+                            XAnimator {
+                                target: rightSectionRow
+                                to: Config.rightSectionExpanded ? 0 : Theme.cellW * 0.75
+                                duration: Config.rightSectionExpanded ? Theme.motionSpatialDefault : Theme.motionSpatialFast
+                                easing.type: Easing.BezierSpline
+                                easing.bezierCurve: Theme.motionCurveStandard
+                            }
+
+                            OpacityAnimator {
+                                target: rightSectionClip
+                                to: Config.rightSectionExpanded ? 1 : 0
+                                duration: Config.rightSectionExpanded ? Theme.motionEffectsDefault : Theme.motionEffectsFast
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+
+                        Connections {
+                            target: Config
+
+                            function onRightSectionExpandedChanged() {
+                                rightGroup.startSectionMotion();
+                            }
+                        }
 
                     Repeater {
                         model: rightGroup.fixedWidgets
@@ -433,8 +531,16 @@ Variants {
                         Line {
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
-                            text: Config.rightSectionExpanded ? "«" : "»"
+                            text: "«"
+                            rotation: Config.rightSectionExpanded ? 0 : 180
                             color: rightSectionHover.hovered ? Theme.text : Theme.textDim
+
+                            Behavior on rotation {
+                                RotationAnimator {
+                                    duration: Theme.motionSpatialFast
+                                    easing.type: Easing.OutCubic
+                                }
+                            }
                         }
 
                         HoverHandler {
@@ -450,28 +556,23 @@ Variants {
                     Item {
                         id: rightSectionClip
                         visible: rightGroup.collapseIndex >= 0
-                        clip: true
+                        // Bar mode lets the old pixels overflow while the whole
+                        // group slides to its new layout position. The frame is
+                        // still the final clip boundary.
+                        clip: !win.barMode
                         height: Math.max(Theme.cellH, rightSectionRow.implicitHeight)
-                        width: visible && Config.rightSectionExpanded ? rightSectionRow.implicitWidth : 0
+                        width: !visible ? 0 : (win.barMode
+                            ? (Config.rightSectionExpanded ? rightSectionRow.implicitWidth : 0)
+                            : rightSectionRow.implicitWidth * rightGroup.sectionProgress)
                         opacity: Config.rightSectionExpanded ? 1 : 0
                         enabled: Config.rightSectionExpanded
-
-                        Behavior on width {
-                            NumberAnimation {
-                                duration: Theme.motionBar
-                                easing.type: Easing.BezierSpline
-                                easing.bezierCurve: Theme.motionCurveEffect
-                            }
-                        }
-
-                        Behavior on opacity {
-                            NumberAnimation { duration: Theme.motionExit }
-                        }
 
                         Row {
                             id: rightSectionRow
                             anchors.verticalCenter: parent.verticalCenter
+                            x: Config.rightSectionExpanded ? 0 : Theme.cellW * 0.75
                             spacing: Theme.barItemGap
+
 
                             Repeater {
                                 model: rightGroup.collapsibleWidgets
@@ -484,6 +585,7 @@ Variants {
                             }
                         }
                     }
+                }
                 }
             }
 

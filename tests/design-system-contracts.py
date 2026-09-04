@@ -116,9 +116,9 @@ if "shown: root.availableKinds > 0" not in update_widget:
     raise SystemExit("Automatic update signal no longer follows all available update kinds")
 for snippet in (
     "withUpdateIndicator(Config.collapsedWidgets, true)",
-    'withUpdateIndicator(Config.leftWidgets, expandedClockGroup === "left")',
-    'withUpdateIndicator(Config.centerWidgets, expandedClockGroup === "center")',
-    'withUpdateIndicator(Config.rightWidgets, expandedClockGroup === "right")',
+    'withUpdateIndicator(Config.leftWidgets, clockGroup === "left")',
+    'withUpdateIndicator(Config.centerWidgets, clockGroup === "center")',
+    'withUpdateIndicator(Config.rightWidgets, clockGroup === "right")',
     'widget === "clock"',
 ):
     if snippet not in bar:
