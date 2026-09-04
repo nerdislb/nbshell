@@ -97,6 +97,14 @@ EOF
 cat >"$FAKE_BIN/systemd-run" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >"${FAKE_SYSTEMD_STATE:?}/last-systemd-run"
+if [ -f "$FAKE_SYSTEMD_STATE/require-stale-watchdog-stopped" ]; then
+    IFS= read -r stale_unit <"$FAKE_SYSTEMD_STATE/require-stale-watchdog-stopped"
+    [ ! -e "$FAKE_SYSTEMD_STATE/active-$stale_unit.timer" ] \
+        && [ ! -e "$FAKE_SYSTEMD_STATE/active-$stale_unit.service" ] \
+        || exit 2
+    printf '%s\n' "$stale_unit" >"$FAKE_SYSTEMD_STATE/stale-watchdog-stopped-before-run"
+    rm -f "$FAKE_SYSTEMD_STATE/require-stale-watchdog-stopped"
+fi
 [ ! -f "${FAKE_SYSTEMD_STATE:?}/fail-systemd-run" ] || {
     rm -f "$FAKE_SYSTEMD_STATE/fail-systemd-run"
     exit 1
@@ -524,6 +532,8 @@ IFS= read -r killed_recovery_unit <"$killed_transaction/recovery-unit"
 # lock. The retry must cancel both before queuing restart-mode recovery.
 touch "$FAKE_SYSTEMD_STATE/active-$killed_recovery_unit.timer" \
     "$FAKE_SYSTEMD_STATE/active-$killed_recovery_unit.service"
+printf '%s\n' "$killed_recovery_unit" \
+    >"$FAKE_SYSTEMD_STATE/require-stale-watchdog-stopped"
 # A retry owned by nbshell.service must not stop or replace its own live shell.
 # It queues stale recovery behind the lock and exits; the helper runs only after
 # that retry has left the service cgroup.
@@ -540,6 +550,8 @@ test -f "$FAKE_SYSTEMD_STATE/active"
 test -f "$FAKE_SYSTEMD_STATE/fail-next-nbshell-start"
 test ! -e "$FAKE_SYSTEMD_STATE/active-$killed_recovery_unit.timer"
 test ! -e "$FAKE_SYSTEMD_STATE/active-$killed_recovery_unit.service"
+test "$(cat "$FAKE_SYSTEMD_STATE/stale-watchdog-stopped-before-run")" \
+    = "$killed_recovery_unit"
 grep -Fq "flock $HOME/.local/state/nbshell/install.lock" \
     "$FAKE_SYSTEMD_STATE/last-systemd-run"
 grep -Fq ' restart ' "$FAKE_SYSTEMD_STATE/last-systemd-run"
