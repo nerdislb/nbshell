@@ -246,10 +246,14 @@ rollback_transaction_units() {
                 recover_command systemctl --user disable "$unit" >/dev/null 2>&1
                 mask_after=runtime
                 ;;
-            not-found) continue ;;
-            *)
+            disabled)
                 recover_command systemctl --user disable "$unit" >/dev/null 2>&1
                 ;;
+            static|indirect|generated|transient|not-found)
+                # These states come from the restored unit definition rather
+                # than enablement links. Do not let disable mutate Also= units.
+                ;;
+            *) recovery_failed=1; continue ;;
         esac
         if [ "$active" -eq 1 ]; then
             recover_command systemctl --user start "$unit" >/dev/null 2>&1
@@ -373,6 +377,39 @@ recover_install() {
 # destinations; the older timer then finds no transaction to replay.
 for stale_transaction in "$CONFIG_HOME"/.nbshell-install-rollback.*; do
     [ -d "$stale_transaction" ] || continue
+    if [[ $(basename "$stale_transaction") = .nbshell-install-rollback.v2.* ]] \
+            && [ ! -f "$stale_transaction/mutation-started" ]; then
+        # Version-2 transactions mark the first installed-state mutation.
+        # Before that marker, no rollback is needed and even partially written
+        # metadata must not permanently block future installs.
+        stale_suffix="${stale_transaction##*.}"
+        stale_staged="$CONFIG_HOME/quickshell/.nbshell-stage.$stale_suffix"
+        stale_rollback="$CONFIG_HOME/quickshell/.nbshell-rollback.$stale_suffix"
+        [ ! -d "$stale_staged" ] || rm -rf -- "$stale_staged"
+        if [ -d "$stale_rollback" ] \
+                && [ -z "$(find "$stale_rollback" -mindepth 1 -print -quit)" ]; then
+            rmdir -- "$stale_rollback"
+        fi
+        for reservation_metadata in staged-path rollback-path; do
+            [ -f "$stale_transaction/$reservation_metadata" ] || continue
+            IFS= read -r stale_reservation <"$stale_transaction/$reservation_metadata"
+            if [ "$(dirname "$stale_reservation")" = "$CONFIG_HOME/quickshell" ]; then
+                case "$(basename "$stale_reservation")" in
+                    .nbshell-stage.*)
+                        rm -rf -- "$stale_reservation"
+                        ;;
+                    .nbshell-rollback.*)
+                        if [ -d "$stale_reservation" ] \
+                                && [ -z "$(find "$stale_reservation" -mindepth 1 -print -quit)" ]; then
+                            rmdir -- "$stale_reservation"
+                        fi
+                        ;;
+                esac
+            fi
+        done
+        rm -rf -- "$stale_transaction"
+        continue
+    fi
     stale_metadata_ok=1
     for metadata_name in shell-path rollback-path staged-path mode command-path recovery-unit; do
         [ -f "$stale_transaction/$metadata_name" ] || stale_metadata_ok=0
@@ -412,6 +449,12 @@ for stale_transaction in "$CONFIG_HOME"/.nbshell-install-rollback.*; do
         queued_recovery_mode=restart
         if systemd-run --user --quiet --unit="$retry_unit" --on-active=1s \
                 --timer-property=AccuracySec=1s \
+                --setenv="HOME=$HOME" \
+                --setenv="XDG_CONFIG_HOME=$CONFIG_HOME" \
+                --setenv="XDG_DATA_HOME=$SHARE_DIR" \
+                --setenv="XDG_CACHE_HOME=${XDG_CACHE_HOME:-$HOME/.cache}" \
+                --setenv="XDG_STATE_HOME=${XDG_STATE_HOME:-$HOME/.local/state}" \
+                --setenv="XDG_BIN_HOME=$BIN_DIR" \
                 flock "$INSTALL_LOCK" "$stale_transaction/recover" \
                 "$stale_shell" "$stale_rollback" "$queued_recovery_mode" \
                 "$stale_transaction" "$stale_command" "$stale_staged"; then
@@ -428,16 +471,23 @@ for stale_transaction in "$CONFIG_HOME"/.nbshell-install-rollback.*; do
     fi
 done
 
-# Prepare and validate a complete runtime before stopping the bar. Both names
-# are private, same-filesystem reservations. A rollback is genuine only after
-# the old, validated runtime has occupied its reservation.
+# Prepare and validate a complete runtime before stopping the bar. All three
+# reservations share a transaction suffix, so an early SIGKILL can be cleaned
+# without trusting metadata that may not have been written yet.
 mkdir -p "$CONFIG_HOME/quickshell"
-STAGED_SHELL="$(mktemp -d "$CONFIG_HOME/quickshell/.nbshell-stage.XXXXXX")"
-if ! ROLLBACK_SHELL="$(mktemp -d "$CONFIG_HOME/quickshell/.nbshell-rollback.XXXXXX")"; then
+TRANSACTION_BACKUP="$(mktemp -d "$CONFIG_HOME/.nbshell-install-rollback.v2.XXXXXX")"
+reservation_suffix="${TRANSACTION_BACKUP##*.}"
+STAGED_SHELL="$CONFIG_HOME/quickshell/.nbshell-stage.$reservation_suffix"
+ROLLBACK_SHELL="$CONFIG_HOME/quickshell/.nbshell-rollback.$reservation_suffix"
+if [ "${NBSHELL_INSTALL_TEST_FAULT:-}" = "post-transaction-reservation-kill" ]; then
+    kill -KILL "$$"
+fi
+if ! mkdir -- "$STAGED_SHELL" "$ROLLBACK_SHELL"; then
     rm -rf -- "$STAGED_SHELL"
+    [ ! -d "$ROLLBACK_SHELL" ] || rmdir -- "$ROLLBACK_SHELL"
+    rm -rf -- "$TRANSACTION_BACKUP"
     exit 1
 fi
-TRANSACTION_BACKUP="$(mktemp -d "$CONFIG_HOME/.nbshell-install-rollback.XXXXXX")"
 TRANSACTION_PATHS_MANIFEST="$TRANSACTION_BACKUP/paths"
 TRANSACTION_UNITS_MANIFEST="$TRANSACTION_BACKUP/units"
 recovery_unit="nbshell-install-recovery-${TRANSACTION_BACKUP##*.}"
@@ -506,6 +556,12 @@ fi
 printf '%s\n' "$recovery_mode" >"$TRANSACTION_BACKUP/mode"
 if systemd-run --user --quiet --unit="$recovery_unit" --on-active=120s \
         --timer-property=AccuracySec=1s \
+        --setenv="HOME=$HOME" \
+        --setenv="XDG_CONFIG_HOME=$CONFIG_HOME" \
+        --setenv="XDG_DATA_HOME=$SHARE_DIR" \
+        --setenv="XDG_CACHE_HOME=${XDG_CACHE_HOME:-$HOME/.cache}" \
+        --setenv="XDG_STATE_HOME=${XDG_STATE_HOME:-$HOME/.local/state}" \
+        --setenv="XDG_BIN_HOME=$BIN_DIR" \
         flock "$INSTALL_LOCK" "$TRANSACTION_BACKUP/recover" \
         "$SHELL_DIR" "$ROLLBACK_SHELL" "$recovery_mode" \
         "$TRANSACTION_BACKUP" "$BIN_DIR/nbshell" "$STAGED_SHELL"; then
@@ -571,6 +627,7 @@ for unit in \
     nbshell-whatsapp.service; do
     transaction_capture_unit "$unit"
 done
+touch "$TRANSACTION_BACKUP/mutation-started"
 
 # ── Shell ────────────────────────────────────────────────────────────────
 # Install the shell lifecycle unit before touching the running shell.

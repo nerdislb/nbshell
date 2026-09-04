@@ -28,6 +28,7 @@ cat >"$FAKE_BIN/systemctl" <<'EOF'
 #!/usr/bin/env bash
 state="${FAKE_SYSTEMD_STATE:?}"
 unit="${!#:-}"
+printf '%s\n' "$*" >>"$state/systemctl.log"
 active_file="$state/active-$unit"
 enabled_file="$state/enabled-$unit"
 enabled_runtime_file="$state/enabled-runtime-$unit"
@@ -142,9 +143,12 @@ fi
     exit 1
 }
 command=()
+environment=()
 record_command=0
 for argument in "$@"; do
-    if [ $record_command -eq 1 ]; then
+    if [[ $argument = --setenv=* ]]; then
+        environment+=("${argument#--setenv=}")
+    elif [ $record_command -eq 1 ]; then
         command+=("$argument")
     elif [ "$argument" = flock ]; then
         record_command=1
@@ -164,7 +168,9 @@ run_queued() {
         while kill -0 "$installer_pid" 2>/dev/null; do sleep 0.01; done
     fi
     exec 9>&-
-    "${command[@]}" >"$state/$label.log" 2>&1 || status=$?
+    env -u HOME -u XDG_CONFIG_HOME -u XDG_DATA_HOME -u XDG_CACHE_HOME \
+        -u XDG_STATE_HOME -u XDG_BIN_HOME "${environment[@]}" \
+        "${command[@]}" >"$state/$label.log" 2>&1 || status=$?
     printf '%s\n' "$status" >"$state/$label.status"
     touch "$state/$label.done"
 }
@@ -259,6 +265,16 @@ fi
 test "$(stat -Lc '%a' "$XDG_STATE_HOME/nbshell")" = 700
 
 grep -Fq "flock $HOME/.local/state/nbshell/install.lock" \
+    "$FAKE_SYSTEMD_STATE/last-systemd-run"
+grep -Fq -- "--setenv=XDG_CONFIG_HOME=$XDG_CONFIG_HOME" \
+    "$FAKE_SYSTEMD_STATE/last-systemd-run"
+grep -Fq -- "--setenv=XDG_DATA_HOME=$XDG_DATA_HOME" \
+    "$FAKE_SYSTEMD_STATE/last-systemd-run"
+grep -Fq -- "--setenv=XDG_CACHE_HOME=$XDG_CACHE_HOME" \
+    "$FAKE_SYSTEMD_STATE/last-systemd-run"
+grep -Fq -- "--setenv=XDG_STATE_HOME=$XDG_STATE_HOME" \
+    "$FAKE_SYSTEMD_STATE/last-systemd-run"
+grep -Fq -- "--setenv=XDG_BIN_HOME=$XDG_BIN_HOME" \
     "$FAKE_SYSTEMD_STATE/last-systemd-run"
 test -f "$XDG_CONFIG_HOME/quickshell/nbshell/shell.qml"
 assert_no_reservations
@@ -360,6 +376,37 @@ if NBSHELL_INSTALL_TEST_FAULT=pre-swap "$ROOT/install.sh" >/dev/null 2>&1; then
     exit 1
 fi
 test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/transaction-sentinel")" = pre-swap
+assert_no_reservations
+
+# SIGKILL immediately after reserving the versioned transaction leaves no
+# metadata to trust. The next installer derives and clears its sibling
+# reservations without touching the live runtime.
+printf '%s\n' earliest-kill \
+    >"$XDG_CONFIG_HOME/quickshell/nbshell/transaction-sentinel"
+if python3 - "$ROOT/install.sh" <<'PY' >/dev/null 2>&1
+import os
+import subprocess
+import sys
+
+environment = os.environ.copy()
+environment["NBSHELL_INSTALL_TEST_FAULT"] = "post-transaction-reservation-kill"
+result = subprocess.run(
+    [sys.argv[1]], env=environment, stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL, check=False,
+)
+raise SystemExit(0 if result.returncode == 0 else 1)
+PY
+then
+    echo "Install unexpectedly survived the earliest SIGKILL fault" >&2
+    exit 1
+fi
+find "$XDG_CONFIG_HOME" -maxdepth 1 \
+    -type d -name '.nbshell-install-rollback.v2.*' -print -quit | grep -q .
+if NBSHELL_INSTALL_TEST_FAULT=pre-swap "$ROOT/install.sh" >/dev/null 2>&1; then
+    echo "Install unexpectedly succeeded after earliest stale cleanup" >&2
+    exit 1
+fi
+test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/transaction-sentinel")" = earliest-kill
 assert_no_reservations
 
 # A kill after staging but before watchdog arming leaves no payload mutation.
@@ -698,6 +745,16 @@ test "$(cat "$FAKE_SYSTEMD_STATE/stale-watchdog-stopped-before-run")" \
     = "$killed_recovery_unit"
 grep -Fq "flock $HOME/.local/state/nbshell/install.lock" \
     "$FAKE_SYSTEMD_STATE/last-systemd-run"
+grep -Fq -- "--setenv=XDG_CONFIG_HOME=$XDG_CONFIG_HOME" \
+    "$FAKE_SYSTEMD_STATE/last-systemd-run"
+grep -Fq -- "--setenv=XDG_DATA_HOME=$XDG_DATA_HOME" \
+    "$FAKE_SYSTEMD_STATE/last-systemd-run"
+grep -Fq -- "--setenv=XDG_CACHE_HOME=$XDG_CACHE_HOME" \
+    "$FAKE_SYSTEMD_STATE/last-systemd-run"
+grep -Fq -- "--setenv=XDG_STATE_HOME=$XDG_STATE_HOME" \
+    "$FAKE_SYSTEMD_STATE/last-systemd-run"
+grep -Fq -- "--setenv=XDG_BIN_HOME=$XDG_BIN_HOME" \
+    "$FAKE_SYSTEMD_STATE/last-systemd-run"
 grep -Fq ' restart ' "$FAKE_SYSTEMD_STATE/last-systemd-run"
 test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/kill-sentinel")" = killed-runtime-before
 test "$(cat "$XDG_DATA_HOME/nbshell/hermes-jobs/manager.py")" = killed-manager-before
@@ -788,22 +845,21 @@ PARTIAL_PARENT="$XDG_CONFIG_HOME/partial-quickshell"
 PARTIAL_RUNTIME="$PARTIAL_PARENT/nbshell"
 PARTIAL_BACKUP="$PARTIAL_PARENT/.nbshell-rollback.partial-test"
 PARTIAL_TRANSACTION="$XDG_CONFIG_HOME/.nbshell-install-rollback.partial-test"
-PARTIAL_BLOCKED="$WORK/partial-blocked"
-PARTIAL_GOOD="$WORK/partial-good"
+PARTIAL_BLOCKED="$XDG_BIN_HOME/nbshell"
+PARTIAL_GOOD="$XDG_CONFIG_HOME/nbshell/themes"
 mkdir -p "$PARTIAL_RUNTIME" "$PARTIAL_BACKUP" "$PARTIAL_TRANSACTION" \
-    "$PARTIAL_BLOCKED"
+    "$PARTIAL_GOOD"
 : >"$PARTIAL_TRANSACTION/units"
-printf '%s\n' previous >"$PARTIAL_TRANSACTION/good"
-printf '%s\n' replacement >"$PARTIAL_GOOD"
-printf '%s\n' keep >"$PARTIAL_BLOCKED/keep"
-chmod 500 "$PARTIAL_BLOCKED"
-python3 - "$PARTIAL_TRANSACTION/paths" "$PARTIAL_GOOD" \
-    "$PARTIAL_BLOCKED/keep" <<'PY'
+mkdir -p "$PARTIAL_TRANSACTION/themes"
+printf '%s\n' previous >"$PARTIAL_TRANSACTION/themes/marker"
+printf '%s\n' replacement >"$PARTIAL_GOOD/marker"
+chmod 500 "$XDG_BIN_HOME"
+python3 - "$PARTIAL_TRANSACTION/paths" "$PARTIAL_GOOD" "$PARTIAL_BLOCKED" <<'PY'
 import sys
 
 manifest, good, blocked = sys.argv[1:]
 with open(manifest, "wb") as output:
-    for record in (("present", "good", good), ("missing", "blocked", blocked)):
+    for record in (("present", "themes", good), ("missing", "command", blocked)):
         output.write("\0".join(record).encode() + b"\0")
 PY
 if "$XDG_BIN_HOME/nbshell-install-recover" \
@@ -812,10 +868,93 @@ if "$XDG_BIN_HOME/nbshell-install-recover" \
     echo "partial recovery unexpectedly reported success" >&2
     exit 1
 fi
-test "$(cat "$PARTIAL_GOOD")" = previous
+test "$(cat "$PARTIAL_GOOD/marker")" = previous
 test -d "$PARTIAL_TRANSACTION"
-chmod 700 "$PARTIAL_BLOCKED"
-rm -rf "$PARTIAL_PARENT" "$PARTIAL_TRANSACTION" "$PARTIAL_BLOCKED" "$PARTIAL_GOOD"
+chmod 700 "$XDG_BIN_HOME"
+rm -rf "$PARTIAL_PARENT" "$PARTIAL_TRANSACTION" "$PARTIAL_GOOD"
+
+# A present record without its backup must preserve both the target and the
+# transaction for a later retry.
+MISSING_TRANSACTION="$XDG_CONFIG_HOME/.nbshell-install-rollback.missing-backup"
+MISSING_BACKUP="$XDG_CONFIG_HOME/partial-quickshell/.nbshell-rollback.missing-backup"
+mkdir -p "$PARTIAL_RUNTIME" "$MISSING_BACKUP" "$MISSING_TRANSACTION" "$PARTIAL_GOOD"
+: >"$MISSING_TRANSACTION/units"
+printf '%s\n' replacement >"$PARTIAL_GOOD/marker"
+python3 - "$MISSING_TRANSACTION/paths" "$PARTIAL_GOOD" <<'PY'
+import sys
+
+with open(sys.argv[1], "wb") as output:
+    output.write(("present\0themes\0" + sys.argv[2] + "\0").encode())
+PY
+if "$XDG_BIN_HOME/nbshell-install-recover" \
+        "$PARTIAL_RUNTIME" "$MISSING_BACKUP" inactive \
+        "$MISSING_TRANSACTION" "$XDG_BIN_HOME/nbshell" >/dev/null 2>&1; then
+    echo "recovery unexpectedly accepted a missing backup" >&2
+    exit 1
+fi
+test "$(cat "$PARTIAL_GOOD/marker")" = replacement
+test -d "$MISSING_TRANSACTION"
+rm -rf "$MISSING_TRANSACTION" "$MISSING_BACKUP" "$PARTIAL_GOOD"
+
+# A retained or corrupted manifest cannot redirect deletion outside the exact
+# installer-owned destination associated with its key.
+UNSAFE_TRANSACTION="$XDG_CONFIG_HOME/.nbshell-install-rollback.unsafe-path"
+UNSAFE_BACKUP="$XDG_CONFIG_HOME/partial-quickshell/.nbshell-rollback.unsafe-path"
+UNRELATED_PATH="$WORK/unrelated-user-data"
+mkdir -p "$PARTIAL_RUNTIME" "$UNSAFE_BACKUP" "$UNSAFE_TRANSACTION" "$UNRELATED_PATH"
+: >"$UNSAFE_TRANSACTION/units"
+printf '%s\n' keep >"$UNRELATED_PATH/marker"
+python3 - "$UNSAFE_TRANSACTION/paths" "$UNRELATED_PATH" <<'PY'
+import sys
+
+with open(sys.argv[1], "wb") as output:
+    output.write(("missing\0themes\0" + sys.argv[2] + "\0").encode())
+PY
+if "$XDG_BIN_HOME/nbshell-install-recover" \
+        "$PARTIAL_RUNTIME" "$UNSAFE_BACKUP" inactive \
+        "$UNSAFE_TRANSACTION" "$XDG_BIN_HOME/nbshell" >/dev/null 2>&1; then
+    echo "recovery unexpectedly accepted an unsafe manifest path" >&2
+    exit 1
+fi
+test "$(cat "$UNRELATED_PATH/marker")" = keep
+test -d "$UNSAFE_TRANSACTION"
+rm -rf "$PARTIAL_PARENT" "$UNSAFE_TRANSACTION" "$UNSAFE_BACKUP" "$UNRELATED_PATH"
+
+# Definition-derived systemd states must not fall through to disable, because
+# disabling an indirect unit can mutate other units named by Also=. Activity is
+# restored independently, including for a not-found snapshot.
+UNIT_STATE_TRANSACTION="$XDG_CONFIG_HOME/.nbshell-install-rollback.unit-states"
+UNIT_STATE_BACKUP="$XDG_CONFIG_HOME/partial-quickshell/.nbshell-rollback.unit-states"
+mkdir -p "$PARTIAL_RUNTIME" "$UNIT_STATE_BACKUP" "$UNIT_STATE_TRANSACTION"
+: >"$UNIT_STATE_TRANSACTION/paths"
+: >"$FAKE_SYSTEMD_STATE/systemctl.log"
+python3 - "$UNIT_STATE_TRANSACTION/units" "$XDG_CONFIG_HOME/systemd/user" <<'PY'
+import sys
+
+manifest, unit_dir = sys.argv[1:]
+records = (
+    ("nbshell-state-static.service", "static", "1"),
+    ("nbshell-state-indirect.service", "indirect", "0"),
+    ("nbshell-state-generated.service", "generated", "0"),
+    ("nbshell-state-transient.service", "transient", "0"),
+    ("nbshell-state-not-found.service", "not-found", "1"),
+)
+with open(manifest, "wb") as output:
+    for unit, state, active in records:
+        record = (unit, state, active, "", f"{unit_dir}/{unit}")
+        output.write("\0".join(record).encode() + b"\0")
+PY
+"$XDG_BIN_HOME/nbshell-install-recover" \
+    "$PARTIAL_RUNTIME" "$UNIT_STATE_BACKUP" inactive \
+    "$UNIT_STATE_TRANSACTION" "$XDG_BIN_HOME/nbshell" >/dev/null 2>&1
+assert_not_grep -E ' disable nbshell-state-|^--user disable nbshell-state-' \
+    "$FAKE_SYSTEMD_STATE/systemctl.log"
+test -f "$FAKE_SYSTEMD_STATE/active-nbshell-state-static.service"
+test -f "$FAKE_SYSTEMD_STATE/active-nbshell-state-not-found.service"
+test ! -e "$FAKE_SYSTEMD_STATE/active-nbshell-state-indirect.service"
+test ! -e "$FAKE_SYSTEMD_STATE/active-nbshell-state-generated.service"
+test ! -e "$FAKE_SYSTEMD_STATE/active-nbshell-state-transient.service"
+rm -rf "$PARTIAL_PARENT"
 
 assert_no_reservations
 

@@ -15,6 +15,68 @@ recover_command() {
     "$@" || recovery_failed=1
 }
 
+expected_transaction_path() {
+    local key=$1 suffix
+    local config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+    local data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+    local cache_home="${XDG_CACHE_HOME:-$HOME/.cache}"
+    local state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/nbshell"
+    local bin_dir="${XDG_BIN_HOME:-$HOME/.local/bin}"
+    local unit_dir="$config_home/systemd/user"
+    case "$key" in
+        share-nbshell) printf '%s\n' "$data_home/nbshell" ;;
+        themes) printf '%s\n' "$config_home/nbshell/themes" ;;
+        command) printf '%s\n' "$bin_dir/nbshell" ;;
+        recovery-command) printf '%s\n' "$bin_dir/nbshell-install-recover" ;;
+        aether-hook) printf '%s\n' "$config_home/aether/custom/nbshell" ;;
+        app-shell) printf '%s\n' "$data_home/applications/dev.nerdi.nbshell.desktop" ;;
+        app-calculator) printf '%s\n' "$data_home/applications/dev.nerdi.nbshell.Calculator.desktop" ;;
+        old-mail-config) printf '%s\n' "$config_home/omarchy-gmail" ;;
+        old-mail-cache) printf '%s\n' "$cache_home/omarchy-gmail" ;;
+        mail-config) printf '%s\n' "$config_home/omamail" ;;
+        mail-cache) printf '%s\n' "$cache_home/omamail" ;;
+        niri-config) printf '%s\n' "$config_home/niri/config.kdl" ;;
+        niri-config-backup) printf '%s\n' "$config_home/niri/config.kdl.before-nbshell-umbriel-only" ;;
+        niri-takeover) printf '%s\n' "$config_home/niri/nbshell-takeover.kdl" ;;
+        niri-outputs) printf '%s\n' "$config_home/niri/nbshell-outputs.kdl" ;;
+        niri-cursor) printf '%s\n' "$config_home/niri/nbshell-cursor.kdl" ;;
+        niri-colors) printf '%s\n' "$config_home/niri/nbshell-colors.kdl" ;;
+        niri-unit) printf '%s\n' "$unit_dir/niri.service.d/nbshell.conf" ;;
+        niri-grid-unit) printf '%s\n' "$unit_dir/niri.service.d/nbshell-grid-atomic.conf" ;;
+        niri-atomic) printf '%s\n' "$HOME/.local/lib/nbshell/niri-atomic" ;;
+        grid-json) printf '%s\n' "$state_dir/grid-layout.json" ;;
+        grid-lock) printf '%s\n' "$state_dir/grid-layout.lock" ;;
+        grid-pid) printf '%s\n' "$state_dir/grid-layout.pid" ;;
+        grid-backend) printf '%s\n' "$state_dir/grid-layout-backend" ;;
+        skill-.agents) printf '%s\n' "$HOME/.agents/skills/nbshell" ;;
+        skill-.claude) printf '%s\n' "$HOME/.claude/skills/nbshell" ;;
+        skill-.codex) printf '%s\n' "$HOME/.codex/skills/nbshell" ;;
+        skill-agent) printf '%s\n' "$HOME/.pi/agent/skills/nbshell" ;;
+        skill-gemini) printf '%s\n' "$HOME/.gemini/skills/nbshell" ;;
+        config.json) printf '%s\n' "$config_home/nbshell/config.json" ;;
+        ytmusic-runtime) printf '%s\n' "$HOME/.local/lib/omarchy-ytmusic" ;;
+        umbriel-main) printf '%s\n' "$config_home/umbriel/nbshell.toml" ;;
+        umbriel-motion) printf '%s\n' "$config_home/umbriel/nbshell-motion.toml" ;;
+        umbriel-nested) printf '%s\n' "$config_home/umbriel/nbshell-nested.toml" ;;
+        umbriel-outputs) printf '%s\n' "$config_home/umbriel/nbshell-outputs.toml" ;;
+        umbriel-cursor) printf '%s\n' "$config_home/umbriel/nbshell-cursor.toml" ;;
+        umbriel-overview) printf '%s\n' "$config_home/umbriel/nbshell-overview.toml" ;;
+        umbriel-colors) printf '%s\n' "$config_home/umbriel/nbshell-colors.toml" ;;
+        umbriel-config) printf '%s\n' "$config_home/umbriel/config.toml" ;;
+        plugin-*)
+            suffix=${key#plugin-}
+            [[ $suffix =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || return 1
+            printf '%s\n' "$config_home/nbshell/plugins/$suffix"
+            ;;
+        unit-*)
+            suffix=${key#unit-}
+            [[ $suffix =~ ^[A-Za-z0-9][A-Za-z0-9@_.:-]*\.(service|timer)$ ]] || return 1
+            printf '%s\n' "$unit_dir/$suffix"
+            ;;
+        *) return 1 ;;
+    esac
+}
+
 rollback_is_runtime() {
     [ -d "$ROLLBACK_DIR" ] && [ -f "$ROLLBACK_DIR/shell.qml" ]
 }
@@ -65,14 +127,20 @@ restore_runtime_from_backup() {
 
 restore_transaction_paths() {
     local manifest="$TRANSACTION_DIR/paths"
-    local state key path index
+    local state key path expected index
     local -a states=() keys=() paths=()
     [ -f "$manifest" ] || return 0
-    while IFS= read -r -d '' state \
-            && IFS= read -r -d '' key \
-            && IFS= read -r -d '' path; do
-        [[ $key =~ ^[A-Za-z0-9._-]+$ ]] || continue
-        [ -n "$path" ] && [ "$path" != "/" ] || continue
+    while IFS= read -r -d '' state; do
+        if ! IFS= read -r -d '' key || ! IFS= read -r -d '' path; then
+            recovery_failed=1
+            break
+        fi
+        if [[ ! $key =~ ^[A-Za-z0-9._-]+$ ]] \
+                || ! expected="$(expected_transaction_path "$key")" \
+                || [ "$path" != "$expected" ]; then
+            recovery_failed=1
+            continue
+        fi
         states+=("$state")
         keys+=("$key")
         paths+=("$path")
@@ -81,12 +149,22 @@ restore_transaction_paths() {
         state="${states[$index]}"
         key="${keys[$index]}"
         path="${paths[$index]}"
+        case "$state" in
+            present)
+                if [ ! -e "$TRANSACTION_DIR/$key" ] \
+                        && [ ! -L "$TRANSACTION_DIR/$key" ]; then
+                    recovery_failed=1
+                    continue
+                fi
+                ;;
+            missing) ;;
+            *) recovery_failed=1; continue ;;
+        esac
         if ! rm -rf -- "$path"; then
             recovery_failed=1
             continue
         fi
-        if [ "$state" = present ] && { [ -e "$TRANSACTION_DIR/$key" ] \
-                || [ -L "$TRANSACTION_DIR/$key" ]; }; then
+        if [ "$state" = present ]; then
             recover_command mkdir -p -- "$(dirname "$path")"
             recover_command cp -a -- "$TRANSACTION_DIR/$key" "$path"
         fi
@@ -103,10 +181,30 @@ restore_transaction_units() {
             && IFS= read -r -d '' active \
             && IFS= read -r -d '' fragment \
             && IFS= read -r -d '' unit_path; do
-        [[ $unit =~ ^[A-Za-z0-9@_.:-]+$ ]] || continue
-        [ -n "$unit_path" ] && [ "$unit_path" != / ] || continue
+        if [[ ! $unit =~ ^[A-Za-z0-9][A-Za-z0-9@_.:-]*\.(service|timer)$ ]] \
+                || [ "$unit_path" != "${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/$unit" ] \
+                || { [ "$active" != 0 ] && [ "$active" != 1 ]; }; then
+            recovery_failed=1
+            continue
+        fi
         unit_key="unit-$unit"
         mask_after=""
+        case "$enabled" in
+            enabled|enabled-runtime|linked-runtime|masked|masked-runtime|disabled \
+                    |static|indirect|generated|transient|not-found) ;;
+            enabled-linked|enabled-runtime-linked|linked|alias)
+                if [ ! -e "$TRANSACTION_DIR/$unit_key" ] \
+                        && [ ! -L "$TRANSACTION_DIR/$unit_key" ]; then
+                    recovery_failed=1
+                    continue
+                fi
+                ;;
+            *) recovery_failed=1; continue ;;
+        esac
+        if [ "$enabled" = linked-runtime ] && [ -z "$fragment" ]; then
+            recovery_failed=1
+            continue
+        fi
         # systemd permits an already-running unit to be masked. Restore its
         # activity while unmasked, then recreate the persistent/runtime mask.
         recover_command systemctl --user unmask "$unit" >/dev/null 2>&1
@@ -153,10 +251,15 @@ restore_transaction_units() {
                 recover_command systemctl --user disable "$unit" >/dev/null 2>&1
                 mask_after=runtime
                 ;;
-            not-found) continue ;;
-            *)
+            disabled)
                 recover_command systemctl --user disable "$unit" >/dev/null 2>&1
                 ;;
+            static|indirect|generated|transient|not-found)
+                # These states come from the restored unit definition rather
+                # than enablement links. In particular, do not disable an
+                # indirect unit and mutate units named by Also=.
+                ;;
+            *) recovery_failed=1; continue ;;
         esac
         if [ "$active" = 1 ]; then
             recover_command systemctl --user start "$unit" >/dev/null 2>&1
