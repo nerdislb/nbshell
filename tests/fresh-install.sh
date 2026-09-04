@@ -51,10 +51,15 @@ case " $* " in
     *" cat "*) exit 1 ;;
     *" disable "*)
         rm -f "$enabled_file" "$enabled_runtime_file"
+        [ ! -L "$XDG_CONFIG_HOME/systemd/user/$unit" ] \
+            || rm -f "$XDG_CONFIG_HOME/systemd/user/$unit"
         case " $* " in *" --now "*) rm -f "$active_file" ;; esac
         ;;
     *" enable "*)
         [ ! -f "$masked_file" ] || exit 1
+        [ -e "$XDG_CONFIG_HOME/systemd/user/$unit" ] \
+            || [ -L "$XDG_CONFIG_HOME/systemd/user/$unit" ] \
+            || exit 1
         case " $* " in
             *" --runtime "*) touch "$enabled_runtime_file" ;;
             *) touch "$enabled_file" ;;
@@ -413,7 +418,8 @@ ln -sfn "$XDG_CONFIG_HOME/quickshell/nbshell/skills/nbshell" "$HOME/.gemini/skil
 
 unit_dir="$XDG_CONFIG_HOME/systemd/user"
 printf '%s\n' timer-before >"$unit_dir/nbshell-upstream-audit.timer"
-printf '%s\n' retired-agent-before >"$unit_dir/nbshell-agent-host.service"
+printf '%s\n' retired-agent-before >"$WORK/linked-agent-host.service"
+ln -s "$WORK/linked-agent-host.service" "$unit_dir/nbshell-agent-host.service"
 printf '%s\n' retired-whatsapp-before >"$unit_dir/nbshell-whatsapp.service"
 touch "$FAKE_SYSTEMD_STATE/enabled-nbshell-agent-host.service" \
     "$FAKE_SYSTEMD_STATE/active-nbshell-agent-host.service" \
@@ -469,6 +475,8 @@ test "$(readlink -f "$HOME/.agents/skills/nbshell")" = "$custom_skill"
 test -L "$HOME/.gemini/skills/nbshell"
 test "$(cat "$unit_dir/nbshell-upstream-audit.timer")" = timer-before
 test "$(cat "$unit_dir/nbshell-agent-host.service")" = retired-agent-before
+test "$(readlink "$unit_dir/nbshell-agent-host.service")" \
+    = "$WORK/linked-agent-host.service"
 test "$(cat "$unit_dir/nbshell-whatsapp.service")" = retired-whatsapp-before
 test -f "$FAKE_SYSTEMD_STATE/enabled-nbshell-agent-host.service"
 test -f "$FAKE_SYSTEMD_STATE/active-nbshell-agent-host.service"
@@ -578,6 +586,9 @@ IFS= read -r killed_staged <"$killed_transaction/staged-path"
 test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/kill-sentinel")" = killed-runtime-before
 test "$(cat "$XDG_DATA_HOME/nbshell/hermes-jobs/manager.py")" = killed-manager-before
 test "$(cat "$XDG_CONFIG_HOME/systemd/user/nbshell-upstream-audit.timer")" = killed-unit-before
+test "$(readlink "$unit_dir/nbshell-agent-host.service")" \
+    = "$WORK/linked-agent-host.service"
+test -f "$FAKE_SYSTEMD_STATE/enabled-nbshell-agent-host.service"
 test -f "$FAKE_SYSTEMD_STATE/active"
 assert_no_reservations
 

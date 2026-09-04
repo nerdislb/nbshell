@@ -162,6 +162,10 @@ transaction_capture_unit() {
     local unit="$1" enabled fragment active=0
     enabled="$(systemctl --user is-enabled "$unit" 2>/dev/null || true)"
     [ -n "$enabled" ] || enabled=disabled
+    if [ -L "$UNIT_DIR/$unit" ]; then
+        [ "$enabled" != enabled ] || enabled=enabled-linked
+        [ "$enabled" != enabled-runtime ] || enabled=enabled-runtime-linked
+    fi
     fragment="$(systemctl --user show --property=FragmentPath --value "$unit" 2>/dev/null || true)"
     systemctl --user is-active --quiet "$unit" >/dev/null 2>&1 && active=1
     transaction_unit_names+=("$unit")
@@ -198,13 +202,25 @@ rollback_transaction_units() {
         unit_path="$UNIT_DIR/$unit"
         unit_key="unit-$unit"
         case "$enabled" in
-            enabled)
+            enabled|enabled-linked)
                 recover_command systemctl --user unmask "$unit" >/dev/null 2>&1
                 recover_command systemctl --user disable "$unit" >/dev/null 2>&1
+                if [ "$enabled" = enabled-linked ] \
+                        || [ -L "$TRANSACTION_BACKUP/$unit_key" ]; then
+                    recover_command rm -rf -- "$unit_path"
+                    recover_command cp -a -- "$TRANSACTION_BACKUP/$unit_key" "$unit_path"
+                    recover_command systemctl --user daemon-reload >/dev/null 2>&1
+                fi
                 recover_command systemctl --user enable "$unit" >/dev/null 2>&1
                 ;;
-            enabled-runtime)
+            enabled-runtime|enabled-runtime-linked)
                 recover_command systemctl --user disable "$unit" >/dev/null 2>&1
+                if [ "$enabled" = enabled-runtime-linked ] \
+                        || [ -L "$TRANSACTION_BACKUP/$unit_key" ]; then
+                    recover_command rm -rf -- "$unit_path"
+                    recover_command cp -a -- "$TRANSACTION_BACKUP/$unit_key" "$unit_path"
+                    recover_command systemctl --user daemon-reload >/dev/null 2>&1
+                fi
                 recover_command systemctl --user enable --runtime "$unit" >/dev/null 2>&1
                 ;;
             linked|alias)

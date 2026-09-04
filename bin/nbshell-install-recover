@@ -107,13 +107,25 @@ restore_transaction_units() {
         [ -n "$unit_path" ] && [ "$unit_path" != / ] || continue
         unit_key="unit-$unit"
         case "$enabled" in
-            enabled)
+            enabled|enabled-linked)
                 recover_command systemctl --user unmask "$unit" >/dev/null 2>&1
                 recover_command systemctl --user disable "$unit" >/dev/null 2>&1
+                if [ "$enabled" = enabled-linked ] \
+                        || [ -L "$TRANSACTION_DIR/$unit_key" ]; then
+                    recover_command rm -rf -- "$unit_path"
+                    recover_command cp -a -- "$TRANSACTION_DIR/$unit_key" "$unit_path"
+                    recover_command systemctl --user daemon-reload >/dev/null 2>&1
+                fi
                 recover_command systemctl --user enable "$unit" >/dev/null 2>&1
                 ;;
-            enabled-runtime)
+            enabled-runtime|enabled-runtime-linked)
                 recover_command systemctl --user disable "$unit" >/dev/null 2>&1
+                if [ "$enabled" = enabled-runtime-linked ] \
+                        || [ -L "$TRANSACTION_DIR/$unit_key" ]; then
+                    recover_command rm -rf -- "$unit_path"
+                    recover_command cp -a -- "$TRANSACTION_DIR/$unit_key" "$unit_path"
+                    recover_command systemctl --user daemon-reload >/dev/null 2>&1
+                fi
                 recover_command systemctl --user enable --runtime "$unit" >/dev/null 2>&1
                 ;;
             linked|alias)
