@@ -26,6 +26,18 @@
       "dependencies": {"commands": ["headsetcontrol"], "packages": ["headsetcontrol"]}
     },
     {
+      "id": "io.github.nerdislb.buds-control",
+      "name": "Buds Control",
+      "description": "Direct Pixel Buds controls with a BudsLink fallback for other supported headsets.",
+      "author": "nerdi",
+      "license": "MIT",
+      "category": "Hardware",
+      "kinds": ["service", "bar-widget"],
+      "source": "bundled",
+      "repository": "https://github.com/nerdislb/nbshell",
+      "dependencies": {"commands": ["python3", "busctl", "dbus-monitor"], "packages": ["python", "systemd", "dbus"]}
+    },
+    {
       "id": "omamail",
       "name": "Mail",
       "description": "Native Gmail and IMAP/SMTP mail client with keyring-backed credentials.",

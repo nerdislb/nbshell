@@ -385,6 +385,9 @@ cmd_add() {
 			rm -rf "$staging"
 			return 1
 		}
+		# A local copy is deliberately unmanaged. Never retain repository-local
+		# hooks or Git configuration that could execute later during `update`.
+		rm -rf -- "$staging/holen/.git"
 	else
 		command -v git >/dev/null 2>&1 || {
 			echo "git is missing -- cannot clone the plugin." >&2
@@ -539,7 +542,7 @@ cmd_update() {
 		# installed checkout can move.
 		local stage upstream candidate current message current_id candidate_id conflict
 		stage="$(mktemp -d "${TMPDIR:-/tmp}/nbshell-plugin-update.XXXXXX")" || continue
-		if ! git -C "$dir" fetch --quiet; then
+		if ! git -c core.hooksPath=/dev/null -C "$dir" fetch --quiet; then
 			echo "Fetch failed"
 			rm -rf "$stage"
 			continue
@@ -615,7 +618,7 @@ cmd_update() {
 			esac
 		fi
 		printf '%-16s ' "$name"
-		git -C "$dir" merge --ff-only "$candidate" 2>&1 | tail -1
+		git -c core.hooksPath=/dev/null -C "$dir" merge --ff-only "$candidate" 2>&1 | tail -1
 	done
 	[ $found -eq 1 ] || echo "Nothing to update (no plugin with .git in $PLUGIN_DIR)."
 }
@@ -631,7 +634,7 @@ cmd_diff() {
 		echo "'$name' is not a Git-managed plugin." >&2
 		return 1
 	}
-	git -C "$dir" fetch --quiet || {
+	git -c core.hooksPath=/dev/null -C "$dir" fetch --quiet || {
 		echo "Could not fetch '$name'." >&2
 		return 1
 	}

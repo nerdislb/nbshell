@@ -8,7 +8,7 @@ trap 'rm -rf "$WORK"' EXIT
 
 python3 -m unittest "$ROOT/tests/test_plugin_porting_lab.py"
 
-for plugin in beispiel wetter headset hermarchy-agent omamail ytmusic pit-wall; do
+for plugin in beispiel wetter headset buds-control hermarchy-agent omamail ytmusic pit-wall; do
     bash "$TOOL" validate "$ROOT/plugins/$plugin" >/dev/null
     bash "$TOOL" design-check "$ROOT/plugins/$plugin" --strict >/dev/null
 done
@@ -35,6 +35,13 @@ plugin_root = pathlib.Path(sys.argv[2])
 assert document.get("schemaVersion") == 1
 plugins = document.get("plugins")
 assert isinstance(plugins, list) and plugins
+bundled = {}
+for manifest_path in plugin_root.glob("*/manifest.json"):
+    with manifest_path.open(encoding="utf-8") as handle:
+        manifest = json.load(handle)
+    ident = manifest.get("id")
+    assert ident not in bundled, "duplicate bundled plugin id: %s" % ident
+    bundled[ident] = manifest
 ids = [entry.get("id") for entry in plugins]
 assert all(isinstance(ident, str) and ident for ident in ids)
 assert len(ids) == len(set(ids)), "duplicate catalog id"
@@ -49,8 +56,8 @@ for entry in plugins:
     assert isinstance(dependencies.get("commands"), list)
     assert isinstance(dependencies.get("packages"), list)
     if entry["source"] == "bundled":
-        with (plugin_root / entry["id"] / "manifest.json").open(encoding="utf-8") as handle:
-            manifest = json.load(handle)
+        assert entry["id"] in bundled, "missing bundled manifest: %s" % entry["id"]
+        manifest = bundled[entry["id"]]
         for field in ("id", "name", "description", "author", "license", "category", "repository", "kinds", "dependencies"):
             assert entry.get(field) == manifest.get(field), "%s catalog drift: %s" % (entry["id"], field)
 PY
@@ -344,6 +351,7 @@ fi
 
 make_fixture removable '{"schemaVersion":2,"id":"test.removable","name":"Removable","version":"1","kinds":["bar-widget"],"entryPoints":{"barWidget":"Main.qml"}}'
 XDG_CONFIG_HOME="$WORK/config" bash "$TOOL" add "$WORK/removable" removable >/dev/null
+test ! -e "$WORK/config/nbshell/plugins/removable/.git"
 mkdir -p "$WORK/config/nbshell"
 cat >"$WORK/config/nbshell/config.json" <<'JSON'
 {
@@ -387,6 +395,16 @@ test -z "$(git -C "$update_clone" status --porcelain)"
 
 XDG_CONFIG_HOME="$WORK/update-config" bash "$TOOL" update updateme --yes >/dev/null
 test "$(git -C "$update_clone" rev-parse HEAD)" = "$update_upstream_head"
+
+# Repository-local hooks must never execute during managed updates either.
+hook_marker="$WORK/plugin-hook-ran"
+mkdir -p "$update_clone/.git/hooks"
+printf '%s\n' '#!/bin/sh' "touch '$hook_marker'" >"$update_clone/.git/hooks/post-merge"
+chmod +x "$update_clone/.git/hooks/post-merge"
+printf '%s\n' 'import QtQuick' 'Item { property bool changedAgain: true }' >"$update_upstream/Main.qml"
+git -C "$update_upstream" -c user.email=test@example.com -c user.name=Test commit --quiet -am "another safe commit"
+XDG_CONFIG_HOME="$WORK/update-config" bash "$TOOL" update updateme --yes >/dev/null
+test ! -e "$hook_marker"
 
 printf '%s\n' 'import QtQuick' 'Item { property color unsafeColor: "#ff00ff" }' >"$update_upstream/Main.qml"
 git -C "$update_upstream" -c user.email=test@example.com -c user.name=Test commit --quiet -am "unsafe design"

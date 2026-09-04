@@ -7,7 +7,7 @@ QMLFORMAT="$(command -v qmlformat || true)"
 [ -n "$QMLFORMAT" ] || QMLFORMAT=/usr/lib/qt6/bin/qmlformat
 [ -x "$QMLFORMAT" ] || { printf 'qmlformat is required for plugin smoke tests.\n' >&2; exit 1; }
 
-for plugin in beispiel wetter headset hermarchy-agent omamail ytmusic pit-wall; do
+for plugin in beispiel wetter headset buds-control hermarchy-agent omamail ytmusic pit-wall; do
     root="$ROOT/plugins/$plugin"
     bash "$TOOL" validate "$root" >/dev/null
     bash "$TOOL" design-check "$root" --strict >/dev/null

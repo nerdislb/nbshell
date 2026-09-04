@@ -5,6 +5,7 @@
   "version": "1.0.1",
   "author": "nerdi",
   "license": "MIT",
+  "repository": "https://github.com/nerdislb/nbshell",
   "description": "Direct Pixel Buds controls with a BudsLink fallback for other supported headsets.",
   "category": "Hardware",
   "kinds": ["service", "bar-widget"],
