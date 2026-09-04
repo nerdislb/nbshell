@@ -83,6 +83,26 @@ Singleton {
     readonly property real volume: player?.volume ?? 0
     readonly property bool volumeSupported: player?.volumeSupported ?? false
 
+    // Track progress only while a visible surface renders it. Title, playback
+    // state and media keys remain event-driven MPRIS properties and need no
+    // periodic wakeup. IPC callers use refreshPositions() for a one-shot read.
+    property int positionConsumers: 0
+
+    function acquirePosition() {
+        positionConsumers += 1;
+        refreshPositions();
+    }
+
+    function releasePosition() {
+        positionConsumers = Math.max(0, positionConsumers - 1);
+    }
+
+    function refreshPositions() {
+        for (const p of root.players)
+            if (p?.isPlaying)
+                p.positionChanged();
+    }
+
     function setVolume(v) {
         if (player?.volumeSupported)
             player.volume = Math.max(0, Math.min(1, v));
@@ -103,17 +123,14 @@ Singleton {
     }
 
     // Aufgefrischt wird JEDER spielende Spieler, nicht nur der ausgewaehlte:
-    // die Musikbausteine sehen auf den eigenen mpv, und dessen Position stuende
-    // sonst still, sobald nebenher etwas anderes laeuft.
+    // ein sichtbarer Verbraucher kann gezielt auf den eigenen mpv sehen, und
+    // dessen Position soll nicht stillstehen, sobald nebenher etwas anderes
+    // laeuft.
     Timer {
         interval: 1000
         repeat: true
-        running: root.players.some(p => p?.isPlaying)
-        onTriggered: {
-            for (const p of root.players)
-                if (p?.isPlaying)
-                    p.positionChanged();
-        }
+        running: root.positionConsumers > 0 && root.players.some(p => p?.isPlaying)
+        onTriggered: root.refreshPositions()
     }
 
     readonly property string label: {

@@ -31,6 +31,7 @@ Singleton {
     id: root
 
     readonly property bool enabled: Config.value("visualizer", true)
+    property int consumers: 0
 
     // Wie viele Balken. Mehr sieht feiner aus und braucht mehr Platz in der
     // Leiste; zwoelf sind etwa so breit wie eine Uhrzeit.
@@ -42,13 +43,30 @@ Singleton {
 
     // Laeuft gerade Ton? Das beantwortet MPRIS, nicht der Ton selbst: ein Blick
     // auf den Pegel wuerde bedeuten, dauernd zu messen, was wir ja vermeiden.
-    readonly property bool wanted: root.enabled && MediaService.playing
+    readonly property bool wanted: root.enabled && root.consumers > 0 && MediaService.playing
 
     readonly property string configPath: Config.configDir + "/cava.conf"
 
     // Die Konfiguration wird geschrieben, nicht mitgeliefert: `bars` kommt aus
     // unserer Config, und cava liest sie nur aus einer Datei.
-    readonly property string configText: "# Von nbshell geschrieben (Services/Cava.qml) -- Aenderungen hier\n" + "# ueberlebt den naechsten Start nicht. bars: nbshell set visualizerBars <n>\n" + "[general]\n" + "framerate = 30\n" + "bars = " + root.bars + "\n" + "autosens = 1\n" + "[input]\n" + "method = pulse\n" + "source = auto\n" + "[output]\n" + "method = raw\n" + "raw_target = /dev/stdout\n" + "data_format = ascii\n" + "ascii_max_range = 7\n"
+    readonly property string configText: "# Von nbshell geschrieben (Services/Cava.qml) -- Aenderungen hier\n" + "# ueberlebt den naechsten Start nicht. bars: nbshell set visualizerBars <n>\n" + "[general]\n" + "framerate = 30\n" + "bars = " + root.bars + "\n" + "autosens = 1\n" + "sleep_timer = 3\n" + "[input]\n" + "method = pulse\n" + "source = auto\n" + "[output]\n" + "method = raw\n" + "raw_target = /dev/stdout\n" + "data_format = ascii\n" + "ascii_max_range = 7\n"
+
+    function acquire() {
+        consumers += 1;
+    }
+
+    function release() {
+        consumers = Math.max(0, consumers - 1);
+    }
+
+    function sameLevels(next) {
+        if (next.length !== levels.length)
+            return false;
+        for (var i = 0; i < next.length; i++)
+            if (next[i] !== levels[i])
+                return false;
+        return true;
+    }
 
     onConfigTextChanged: conf.setText(root.configText)
 
@@ -79,7 +97,7 @@ Singleton {
                         continue;          // die Zeile endet auf ein Semikolon
                     werte.push(parseInt(s, 10) || 0);
                 }
-                if (werte.length > 0)
+                if (werte.length > 0 && !root.sameLevels(werte))
                     root.levels = werte;
             }
         }

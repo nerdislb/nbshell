@@ -27,6 +27,17 @@ small allocations from using transparent huge pages substantially reduces
 idle private memory. A user can override `MALLOC_CONF` in a later systemd user
 drop-in if a different allocator policy is required.
 
+The installed service sets `NBSHELL_DISABLE_HOT_RELOAD=1`, so a production
+session does not keep file watches for the deployed QML tree. A manual
+`nbshell start` leaves hot reload enabled for development.
+
+Resident services prefer compositor, D-Bus, and file notifications over child
+process polling. Optional phone and tailnet services are instantiated by their
+configured widget or an explicit IPC call rather than every session. Display
+hot-plugs refresh immediately from Quickshell's screen signal; a five-minute
+fallback covers output-property changes that do not change the screen list.
+Media positions and Cava samples run only while a loaded UI consumes them.
+
 ## Measuring
 
 Use proportional set size rather than RSS when comparing shell revisions. Qt

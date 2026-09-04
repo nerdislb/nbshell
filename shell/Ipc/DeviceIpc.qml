@@ -130,6 +130,7 @@ Scope {
         }
 
         function status(): string {
+            MediaService.refreshPositions();
             return JSON.stringify({
                 "spielt": MediaService.playing,
                 "position": MediaService.zeit(MediaService.position),

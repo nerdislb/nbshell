@@ -36,10 +36,14 @@ import qs.Widgets
 ShellRoot {
     id: shell
 
+    readonly property bool disableHotReload: ["1", "true", "yes"].includes(
+        String(Quickshell.env("NBSHELL_DISABLE_HOT_RELOAD")).toLowerCase())
+
     Component.onCompleted: {
-        // QML-Dateien werden im Betrieb neu geladen. Beim Entwickeln reicht
-        // damit Speichern statt Neustarten.
-        Quickshell.watchFiles = true;
+        // Manual development starts keep live QML reloads. The installed
+        // systemd service disables them: watching the complete deployed tree
+        // for a session that never edits it only consumes inotify resources.
+        Quickshell.watchFiles = !shell.disableHotReload;
         console.info("nbshell running — theme:", Config.theme, "| mode:", Config.mode);
 
         // Singletons entstehen in QML erst, wenn sie jemand anfasst. Die
@@ -88,8 +92,6 @@ ShellRoot {
         void Idle.enabled;
         void Cursor.themes;
         void Nearby.enabled;
-        void Phone.available;
-        void Tailnet.available;
         void ZenPip.active;
     }
 

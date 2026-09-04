@@ -17,6 +17,18 @@ import qs.Widgets
 Cell {
     id: root
 
+    property bool cavaHeld: false
+
+    Component.onCompleted: {
+        Cava.acquire();
+        cavaHeld = true;
+    }
+
+    Component.onDestruction: {
+        if (cavaHeld)
+            Cava.release();
+    }
+
     // Ohne Ton keine Balken -- und ohne Balken keine leere Zelle in der Leiste.
     shown: Cava.levels.length > 0
 

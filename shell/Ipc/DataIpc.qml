@@ -37,6 +37,7 @@ Scope {
         }
 
         function status(): string {
+            MediaService.refreshPositions();
             return JSON.stringify({
                 "spieler": String(MediaService.player?.identity ?? "keiner"),
                 "spielt": MediaService.playing,

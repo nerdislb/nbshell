@@ -33,8 +33,14 @@ Singleton {
     Component.onCompleted: refresh()
 
     // DisplayPanel refreshes immediately when opened and after every action.
-    // This slow fallback only catches an external hot-plug while it is closed.
-    Timer { interval: 60000; running: true; repeat: true; onTriggered: root.refresh() }
+    // Quickshell reports normal hot-plugs; the slow fallback only protects
+    // against output-property changes that do not alter the screen list.
+    Connections {
+        target: Quickshell
+        function onScreensChanged() { refreshDelay.restart(); }
+    }
+
+    Timer { interval: 300000; running: true; repeat: true; onTriggered: root.refresh() }
 
     Process {
         id: statusProc

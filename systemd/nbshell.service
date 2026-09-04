@@ -13,6 +13,7 @@ Type=simple
 Slice=session.slice
 Environment="PATH=%h/.local/bin:%h/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/bin"
 Environment="HERDR_SOCKET_PATH=%h/.config/herdr/herdr.sock"
+Environment="NBSHELL_DISABLE_HOT_RELOAD=1"
 # Quickshell is linked against jemalloc. Limit idle arenas and prevent small
 # allocations from being rounded into transparent huge pages; explicit user
 # overrides still win through a service drop-in.

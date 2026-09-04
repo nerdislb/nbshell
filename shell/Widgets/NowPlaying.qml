@@ -15,10 +15,21 @@ Column {
     id: panel
 
     property var closePopout: null
+    property bool positionHeld: false
 
     readonly property real rowWidth: 52 * Theme.cellW
 
     spacing: Theme.cellH * 0.2
+
+    Component.onCompleted: {
+        MediaService.acquirePosition();
+        positionHeld = true;
+    }
+
+    Component.onDestruction: {
+        if (positionHeld)
+            MediaService.releasePosition();
+    }
 
     PanelHead {
         rowWidth: panel.rowWidth

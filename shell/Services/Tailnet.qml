@@ -55,7 +55,9 @@ Singleton {
     }
 
     Timer {
-        interval: 30000
+        // The popout refreshes on open. This fallback keeps the small bar
+        // summary reasonably current without spawning tailscale twice a minute.
+        interval: 60000
         running: true
         repeat: true
         onTriggered: root.refresh()
