@@ -348,6 +348,7 @@ PanelWindow {
                         Action { label: "Notes"; detail: Notes.count + " saved"; glyph: "󰎞"; run: () => root.openSurface(() => Runtime.notesOpen = true) }
                         Action { label: "Habits"; detail: Habits.doneCount + "/" + Habits.count + " today"; glyph: Icons.habit; run: () => root.openSurface(() => Runtime.habitsOpen = true) }
                         Action {
+                            id: updatesAction
                             readonly property int availableKinds: (Updates.count > 0 ? 1 : 0)
                                 + (ShellUpdates.updateAvailable ? 1 : 0)
                                 + (ShellUpdates.compositorUpdateAvailable ? 1 : 0)
@@ -427,6 +428,7 @@ PanelWindow {
                 z: 20
                 blockedItem: dashboardContent
                 initialFocusItem: updatePanel.initialFocusItem
+                restoreFocusItem: updatesAction
                 dialogTitle: qsTr("Updates")
                 dialogDescription: qsTr("Review and install available system, nbshell, and Umbriel updates")
                 preferredWidth: Theme.cellW * 72

@@ -22,8 +22,10 @@ PanelWindow {
     property string pendingAction: ""
     property var pendingItem: null
     property string pendingDetail: ""
+    property Item pendingFocusItem: null
     property bool busy: false
     property var previewItem: null
+    property Item previewFocusItem: null
 
     readonly property var installed: Plugins.plugins.map(item => {
         const listed = root.catalog.find(entry => entry.id === item.id) ?? ({});
@@ -94,7 +96,8 @@ PanelWindow {
         statusError = false;
         statusText = local.name + (next ? " enabled" : " disabled");
     }
-    function ask(action, item, detail) {
+    function ask(action, item, detail, opener) {
+        pendingFocusItem = opener || root.activeFocusItem;
         pendingAction = action;
         pendingItem = item;
         pendingDetail = detail || "";
@@ -131,6 +134,7 @@ PanelWindow {
     }
     function previewUpdate(item) {
         if (busy || !item) return;
+        previewFocusItem = root.activeFocusItem;
         busy = true;
         previewItem = item;
         statusError = false;
@@ -234,12 +238,15 @@ PanelWindow {
                 root.statusError = code !== 0;
                 root.statusText = output || "Could not inspect the update";
                 root.previewItem = null;
+                root.previewFocusItem = null;
                 return;
             }
             const clipped = output.length > 1400 ? output.slice(0, 1400) + "\n…" : output;
             const item = root.previewItem;
+            const opener = root.previewFocusItem;
             root.previewItem = null;
-            root.ask("update", item, clipped);
+            root.previewFocusItem = null;
+            root.ask("update", item, clipped, opener);
         }
     }
 
@@ -482,6 +489,7 @@ PanelWindow {
                 z: 20
                 blockedItem: pluginContent
                 initialFocusItem: cancelConfirmation
+                restoreFocusItem: root.pendingFocusItem
                 dialogTitle: root.pendingAction.toUpperCase() + " "
                     + (root.pendingItem?.name ?? "PLUGIN") + "?"
                 dialogDescription: root.pendingDetail

@@ -130,6 +130,7 @@ for snippet in (
     "ModalSurface {",
     "blockedItem: dashboardContent",
     "initialFocusItem: updatePanel.initialFocusItem",
+    "restoreFocusItem: updatesAction",
 ):
     if snippet not in dashboard:
         raise SystemExit(f"Dashboard modal update contract is incomplete: {snippet}")
@@ -143,6 +144,15 @@ for snippet in (
 ):
     if snippet not in modal_surface:
         raise SystemExit(f"Shared modal contract is incomplete: {snippet}")
+plugin_developer = (ROOT / "shell/Settings/PluginDeveloper.qml").read_text(encoding="utf-8")
+for snippet in (
+    "pendingFocusItem = opener || root.activeFocusItem",
+    "previewFocusItem = root.activeFocusItem",
+    "root.ask(\"update\", item, clipped, opener)",
+    "restoreFocusItem: root.pendingFocusItem",
+):
+    if snippet not in plugin_developer:
+        raise SystemExit(f"Plugin confirmation focus-return contract is incomplete: {snippet}")
 for snippet in (
     "popoutTakesKeyboard: true",
     "property var closePopout: null",
