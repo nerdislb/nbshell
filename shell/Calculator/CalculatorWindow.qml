@@ -75,6 +75,8 @@ FloatingWindow {
     }
 
     function copyResult() {
+        if (invalid)
+            return;
         Quickshell.execDetached(["wl-copy", result]);
         previous = "Result copied";
     }
@@ -159,6 +161,7 @@ FloatingWindow {
                         id: copyLabel
                         text: "COPY"
                         compact: true
+                        enabled: !root.invalid
                         accessibleDescription: "Copy result to the clipboard"
                         onTriggered: root.copyResult()
                     }

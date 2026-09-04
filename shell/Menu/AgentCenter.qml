@@ -74,6 +74,18 @@ PanelWindow {
             mapped.y, item.height, agentFlick.contentY, agentFlick.height,
             agentFlick.contentHeight, Theme.spaceMd);
     }
+    function focusPageTab(index) {
+        Qt.callLater(() => {
+            const tab = pageTabs.itemAt(index);
+            if (tab && tab.visible && tab.enabled)
+                tab.forceActiveFocus(Qt.ShortcutFocusReason);
+        });
+    }
+    function selectPage(index, focusTab) {
+        page = Math.max(0, Math.min(2, index));
+        if (focusTab)
+            focusPageTab(page);
+    }
     function money(value) {
         const amount = Number(value || 0);
         return amount > 0 ? "$" + amount.toFixed(amount >= 10 ? 2 : 4) : "INCLUDED";
@@ -82,6 +94,7 @@ PanelWindow {
     onVisibleChanged: if (visible) {
         page = 0;
         keys.forceActiveFocus();
+        focusPageTab(page);
     }
     onPageChanged: agentFlick.contentY = 0
 
@@ -107,7 +120,7 @@ PanelWindow {
         Keys.onPressed: event => {
             if (event.key === Qt.Key_F5) { Agents.refresh(); event.accepted = true; }
             else if (event.key >= Qt.Key_1 && event.key <= Qt.Key_3) {
-                root.page = event.key - Qt.Key_1;
+                root.selectPage(event.key - Qt.Key_1, true);
                 event.accepted = true;
             }
         }
@@ -150,6 +163,7 @@ PanelWindow {
                     width: parent.width
                     spacing: Theme.cellW
                     Repeater {
+                        id: pageTabs
                         model: ["NOW", "WORK", "SETUP"]
                         ControlButton {
                             required property string modelData
@@ -158,7 +172,7 @@ PanelWindow {
                             height: Theme.cellH * 1.7
                             text: modelData
                             selected: root.page === index
-                            onTriggered: root.page = index
+                            onTriggered: root.selectPage(index, false)
                         }
                     }
                 }

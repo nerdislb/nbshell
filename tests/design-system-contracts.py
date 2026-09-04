@@ -177,6 +177,9 @@ agent_center = (ROOT / "shell/Menu/AgentCenter.qml").read_text(encoding="utf-8")
 for snippet in (
     "dockedTop: true",
     'model: ["NOW", "WORK", "SETUP"]',
+    "function focusPageTab(index)",
+    "tab.forceActiveFocus(Qt.ShortcutFocusReason)",
+    "root.selectPage(event.key - Qt.Key_1, true)",
     "visible: root.page === 1 && (Agents.hermesJobs || []).length > 0",
     "visible: root.page === 2",
     'Line { text: root.page === 0 ? "CURRENT SESSION" : "HERMES"',
@@ -386,7 +389,8 @@ for snippet in (
 
 calculator_window = (ROOT / "shell/Calculator/CalculatorWindow.qml").read_text(encoding="utf-8")
 for snippet in (
-    "function copyResult()",
+    "function copyResult() {\n        if (invalid)\n            return;",
+    "enabled: !root.invalid",
     "function keyName(action, label)",
     "ControlButton {",
     "accessibleName: root.keyName(modelData.action, modelData.label)",
