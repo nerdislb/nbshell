@@ -4,6 +4,7 @@ import qs.Commons
 import qs.Ui as Ui
 import "../plugins/ytmusic" as YtMusic
 import "../shell/Menu" as Menu
+import "../shell/Widgets" as Widgets
 
 Item {
     id: host
@@ -21,6 +22,54 @@ Item {
     property real playbackCommittedValue: -1
     property int dashboardPrimaryTriggers: 0
     property int dashboardSecondaryTriggers: 0
+    property int modalBackgroundClicks: 0
+
+    Item {
+        id: modalBackground
+        width: parent.width
+        height: parent.height
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: host.modalBackgroundClicks++
+        }
+    }
+
+    Widgets.ControlButton {
+        id: modalOpener
+        x: 600
+        text: "Open dialog"
+    }
+
+    Widgets.ModalSurface {
+        id: modal
+        visible: false
+        z: 100
+        anchors.fill: parent
+        blockedItem: modalBackground
+        initialFocusItem: modalClose
+        restoreFocusItem: modalOpener
+        dialogTitle: "Test dialog"
+        dialogDescription: "Modal interaction contract"
+        closeOnScrim: false
+        preferredWidth: 240
+        preferredHeight: 120
+        onCloseRequested: visible = false
+
+        Widgets.ControlButton {
+            id: modalClose
+            x: 30
+            y: 44
+            text: "Close dialog"
+            onTriggered: modal.visible = false
+        }
+        Widgets.ControlButton {
+            id: modalConfirm
+            x: 130
+            y: 44
+            text: "Confirm dialog"
+        }
+    }
 
     Ui.BorderSurface {
         id: surface
@@ -125,6 +174,9 @@ Item {
         function dynamicMember(object, key) { return object[key]; }
 
         function cleanup() {
+            modal.visible = false;
+            modalBackground.enabled = true;
+            host.modalBackgroundClicks = 0;
             host.buttonClicks = 0;
             host.actionClicks = 0;
             host.nonTabButtonClicks = 0;
@@ -175,6 +227,31 @@ Item {
             tryCompare(button, "activeFocus", true);
             keyClick(Qt.Key_Space);
             compare(host.buttonClicks, 1);
+        }
+
+        function test_modal_surface_focus_blocking_and_escape() {
+            modalOpener.forceActiveFocus();
+            tryCompare(modalOpener, "activeFocus", true);
+            modal.visible = true;
+            tryCompare(modalBackground, "enabled", false);
+            tryCompare(modalClose, "activeFocus", true);
+            compare(modal.Accessible.role, Accessible.Dialog);
+            compare(modal.Accessible.name, "Test dialog");
+            compare(modal.Accessible.description, "Modal interaction contract");
+
+            mouseClick(modal, 4, 4);
+            compare(host.modalBackgroundClicks, 0);
+            compare(modal.visible, true);
+            keyClick(Qt.Key_Tab);
+            verify(modal.containsFocusItem(modal.Window.window.activeFocusItem),
+                "focus escaped to " + modal.Window.window.activeFocusItem);
+            tryCompare(modalConfirm, "activeFocus", true);
+            keyClick(Qt.Key_Tab, Qt.ShiftModifier);
+            tryCompare(modalClose, "activeFocus", true);
+            keyClick(Qt.Key_Escape);
+            tryCompare(modal, "visible", false);
+            tryCompare(modalBackground, "enabled", true);
+            tryCompare(modalOpener, "activeFocus", true);
         }
 
         function test_explicit_button_accessibility_overrides() {

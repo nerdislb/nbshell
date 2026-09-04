@@ -125,8 +125,24 @@ for snippet in (
         raise SystemExit(f"Clock-adjacent update signal contract is incomplete: {snippet}")
 if dashboard.count("UpdatePanel {") != 1 or "shellUpdatesOpen" in dashboard:
     raise SystemExit("Dashboard regressed to separate system and desktop updater surfaces")
-if "enabled: !root.updatesOpen" not in dashboard:
-    raise SystemExit("Dashboard controls remain active behind the update overlay")
+modal_surface = (ROOT / "shell/Widgets/ModalSurface.qml").read_text(encoding="utf-8")
+for snippet in (
+    "ModalSurface {",
+    "blockedItem: dashboardContent",
+    "initialFocusItem: updatePanel.initialFocusItem",
+):
+    if snippet not in dashboard:
+        raise SystemExit(f"Dashboard modal update contract is incomplete: {snippet}")
+for snippet in (
+    "Accessible.role: Accessible.Dialog",
+    'property: "enabled"',
+    "Keys.onEscapePressed",
+    "Keys.onTabPressed",
+    "Keys.onBacktabPressed",
+    "root.containsFocusItem(next)",
+):
+    if snippet not in modal_surface:
+        raise SystemExit(f"Shared modal contract is incomplete: {snippet}")
 for snippet in (
     "popoutTakesKeyboard: true",
     "property var closePopout: null",

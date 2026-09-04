@@ -9,6 +9,8 @@ import qs.Ui as CompatUi
 PanelWindow {
     id: root
 
+    property bool modalPreviewOpen: false
+
     visible: true
     screen: Compositor.focusedScreen
     color: "transparent"
@@ -98,6 +100,11 @@ PanelWindow {
                         ControlButton { text: "SELECTED + FOCUS"; selected: true; visualFocus: true; interactive: false; accessibilityIgnored: true }
                         ControlButton { text: "DISABLED"; enabled: false }
                         ControlButton { text: "URGENT"; danger: true }
+                        ActionButton {
+                            id: modalPreviewTrigger
+                            text: "OPEN MODAL PREVIEW"
+                            onTriggered: root.modalPreviewOpen = true
+                        }
                     }
 
                     SectionHeader { width: parent.width; text: "Actions"; detail: "primary · secondary · busy · destructive · long text" }
@@ -175,6 +182,44 @@ PanelWindow {
                     }
 
                     Item { width: 1; height: Theme.spaceLg }
+                }
+            }
+        }
+
+        ModalSurface {
+            visible: root.modalPreviewOpen
+            z: 20
+            blockedItem: box
+            initialFocusItem: closeModalPreview
+            restoreFocusItem: modalPreviewTrigger
+            dialogTitle: "Modal preview"
+            dialogDescription: "Shared focus, Escape, scrim, and background blocking contract"
+            preferredWidth: Theme.overlayWidthMedium
+            preferredHeight: modalPreviewContent.implicitHeight + Theme.panelPadding * 2
+            onCloseRequested: root.modalPreviewOpen = false
+
+            Column {
+                id: modalPreviewContent
+                width: parent.width - Theme.panelPadding * 2
+                anchors.centerIn: parent
+                spacing: Theme.spaceMd
+
+                SectionHeader {
+                    width: parent.width
+                    text: "Modal surface"
+                    detail: "focus trapped · background blocked"
+                }
+                Line {
+                    width: parent.width
+                    text: "Escape, the scrim, or the close action returns focus to the opener."
+                    color: Theme.fgDim
+                    wrapMode: Text.WordWrap
+                }
+                ActionButton {
+                    id: closeModalPreview
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: "CLOSE PREVIEW"
+                    onTriggered: root.modalPreviewOpen = false
                 }
             }
         }

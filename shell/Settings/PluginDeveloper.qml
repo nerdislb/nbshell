@@ -269,6 +269,7 @@ PanelWindow {
             MouseArea { anchors.fill: parent }
 
             Column {
+                id: pluginContent
                 anchors.fill: parent
                 anchors.margins: Theme.spaceLg
                 spacing: Theme.spaceSm
@@ -473,15 +474,27 @@ PanelWindow {
                 }
             }
 
-            Rectangle {
+            ModalSurface {
+                id: confirmationModal
+
                 visible: root.pendingAction !== ""
                 anchors.fill: parent
-                color: Theme.alpha(Theme.bg, 0.92)
-                radius: box.radius
                 z: 20
+                blockedItem: pluginContent
+                initialFocusItem: cancelConfirmation
+                dialogTitle: root.pendingAction.toUpperCase() + " "
+                    + (root.pendingItem?.name ?? "PLUGIN") + "?"
+                dialogDescription: root.pendingDetail
+                preferredWidth: Theme.cellW * 62
+                preferredHeight: confirmationContent.implicitHeight + Theme.panelPadding * 2
+                scrimRadius: box.radius
+                closeOnScrim: false
+                onCloseRequested: root.cancelPending()
 
                 Column {
-                    width: Math.min(parent.width - Theme.spaceXl * 2, Theme.cellW * 62)
+                    id: confirmationContent
+
+                    width: parent.width - Theme.panelPadding * 2
                     anchors.centerIn: parent
                     spacing: Theme.spaceMd
                     Line { width: parent.width; text: root.pendingAction.toUpperCase() + " " + (root.pendingItem?.name ?? "PLUGIN") + "?"; color: Theme.fg; font.pixelSize: Theme.fontTitle; font.bold: true; horizontalAlignment: Text.AlignHCenter }
@@ -490,7 +503,7 @@ PanelWindow {
                     Row {
                         anchors.horizontalCenter: parent.horizontalCenter
                         spacing: Theme.spaceMd
-                        ControlButton { text: "CANCEL"; onTriggered: root.cancelPending() }
+                        ControlButton { id: cancelConfirmation; text: "CANCEL"; onTriggered: root.cancelPending() }
                         ControlButton { text: "CONFIRM"; danger: root.pendingAction === "remove"; onTriggered: root.confirmPending() }
                     }
                 }

@@ -190,7 +190,7 @@ PanelWindow {
             MouseArea { anchors.fill: parent; onClicked: {} }
 
             Column {
-                enabled: !root.updatesOpen
+                id: dashboardContent
                 anchors.fill: parent
                 anchors.margins: Theme.cellW * 2
                 spacing: Theme.cellH * 0.55
@@ -420,28 +420,28 @@ PanelWindow {
             // The dashboard and the clock-adjacent bar signal share one update
             // surface. System packages, nbshell and Umbriel therefore keep the
             // same hierarchy, states and actions everywhere.
-            Rectangle {
-                anchors.fill: parent
+            ModalSurface {
+                id: updatesModal
+
                 visible: root.updatesOpen
                 z: 20
-                color: Theme.alpha(Theme.bg, 0.82)
-                radius: parent.radius
+                blockedItem: dashboardContent
+                initialFocusItem: updatePanel.initialFocusItem
+                dialogTitle: qsTr("Updates")
+                dialogDescription: qsTr("Review and install available system, nbshell, and Umbriel updates")
+                preferredWidth: Theme.cellW * 72
+                preferredHeight: updatePanel.implicitHeight + Theme.panelPadding * 2
+                edgeMarginX: root.cardGap * 2
+                edgeMarginY: root.cardGap * 2
+                scrimRadius: box.radius
+                onCloseRequested: root.updatesOpen = false
 
-                MouseArea { anchors.fill: parent; onClicked: root.updatesOpen = false }
-
-                PanelSurface {
-                    width: Math.min(parent.width - root.cardGap * 4, Theme.cellW * 72)
-                    height: Math.min(parent.height - root.cardGap * 4, updatePanel.implicitHeight + Theme.panelPadding * 2)
+                UpdatePanel {
+                    id: updatePanel
                     anchors.centerIn: parent
-                    MouseArea { anchors.fill: parent; onClicked: {} }
-
-                    UpdatePanel {
-                        id: updatePanel
-                        anchors.centerIn: parent
-                        rowWidth: parent.width - Theme.panelPadding * 2
-                        showClose: true
-                        closePanel: () => root.updatesOpen = false
-                    }
+                    rowWidth: parent.width - Theme.panelPadding * 2
+                    showClose: true
+                    closePanel: () => root.updatesOpen = false
                 }
             }
         }

@@ -21,6 +21,12 @@ QtObject {
     readonly property real controlHeight: 28
     readonly property real rowHeight: 34
     readonly property real panelPadding: 16
+    readonly property real overlayMarginX: 16
+    readonly property real overlayMarginY: 18
+    readonly property real overlayWidthMedium: 672
+    readonly property real overlayWidthLarge: 800
+    readonly property real overlayHeightMedium: 360
+    readonly property real overlayHeightLarge: 500
     readonly property real barIconCanvas: 18
     readonly property real barIconSlot: 20
     readonly property real barHeight: 28
@@ -34,6 +40,11 @@ QtObject {
     readonly property int motionLoopFast: 1
     readonly property int motionLoopSlow: 1
     readonly property int motionAttention: 0
+    readonly property int motionEnter: 0
+    readonly property int motionExit: 0
+    readonly property real motionEnterScale: 1
+    readonly property var motionCurveStandard: [0.2, 0, 0, 1, 1, 1]
+    readonly property var motionCurveEnter: [0.2, 0, 0, 1, 1, 1]
     readonly property bool reducedMotion: true
     readonly property color bg: "#101010"
     readonly property color fg: "#f0f0f0"
@@ -46,6 +57,7 @@ QtObject {
     readonly property color panelSurfaceRaised: "#202020"
     readonly property color panelSurface: bg
     readonly property color panelBorder: fgDim
+    readonly property color scrim: alpha(bg, 0.5)
     readonly property color textFieldSelection: selectedSurface(accent)
     readonly property color textFieldSelectedText: fg
     readonly property real controlDisabledOpacity: 0.45
