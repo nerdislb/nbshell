@@ -17,6 +17,7 @@ things needed for a first installation and will grow alongside the project.
 6. [Compatibility and limitations](compatibility.md)
 7. [Troubleshooting and recovery](troubleshooting.md)
 8. [Library, launcher search, and demos](library-search-and-demos.md)
+9. [Product and implementation roadmap](roadmap.md)
 
 ## More guides
 

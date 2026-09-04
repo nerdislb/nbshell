@@ -6,6 +6,15 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+### Changed
+
+- Installed sessions disable QML hot reload, optional phone and tailnet services
+  stay dormant until used, display refreshes prefer hot-plug events over process
+  polling, and media position and visualizer updates run only while consumed.
+- The collapsible right bar section now preserves its widget instances and uses
+  composited slide, fade, and chevron transitions instead of rebuilding or
+  relaying out the complete bar on every animation frame.
+
 ## [0.1.0-beta.10] - 2026-09-04
 
 ### Added
