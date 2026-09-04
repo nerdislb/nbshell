@@ -3,8 +3,11 @@
 
 import importlib.util
 import os
+import shutil
 import subprocess
 import tempfile
+import threading
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -55,8 +58,47 @@ with tempfile.TemporaryDirectory() as temporary:
     jobs.MANAGER = ROOT / "resources/hermes-jobs/manager.py"
     jobs.MAX_CONCURRENT_JOBS = 3
 
+    sandbox, _ = jobs._bwrap("sandbox-test", repo, True, "codex")
+    assert "--unshare-all" in sandbox and "--share-net" in sandbox
+    if not os.environ.get("CI") and shutil.which("bwrap"):
+        sentinel = subprocess.Popen(["sleep", "10"])
+        try:
+            isolated = subprocess.run(
+                sandbox + ["/usr/bin/test", "!", "-e", f"/proc/{sentinel.pid}"],
+                check=False,
+            )
+            assert isolated.returncode == 0
+        finally:
+            sentinel.terminate()
+            sentinel.wait()
+    leader = subprocess.Popen(
+        ["python3", "-c", "import subprocess,time; child=subprocess.Popen(['sleep','30']); print(child.pid,flush=True); time.sleep(30)"],
+        start_new_session=True, stdout=subprocess.PIPE, text=True,
+    )
+    assert leader.stdout is not None
+    child_pid = int(leader.stdout.readline())
+    try:
+        assert jobs._terminate_process({"pid": leader.pid, "pid_start": jobs._process_start(leader.pid)})
+        leader.wait(timeout=2)
+        deadline = time.monotonic() + 2
+        child_state = ""
+        while time.monotonic() < deadline:
+            try:
+                child_state = Path(f"/proc/{child_pid}/stat").read_text().rpartition(") ")[2].split()[0]
+            except (OSError, IndexError):
+                child_state = "gone"
+            if child_state in {"gone", "Z"}: break
+            time.sleep(0.02)
+        assert child_state in {"gone", "Z"}, "transaction child survived process-group cancellation"
+    finally:
+        if leader.poll() is None: os.killpg(leader.pid, 9)
+    current_process = {"pid": os.getpid(), "pid_start": jobs._process_start(os.getpid())}
+    assert jobs._process_alive(current_process) is True
+    current_process["pid_start"] = "reused-process"
+    assert jobs._process_alive(current_process) is False
+
     class FakeProcess:
-        pid = 12345
+        pid = os.getpid()
 
     with patch.object(jobs, "Popen", return_value=FakeProcess()):
         created = jobs.create("codex", str(repo), "Add a transaction marker")
@@ -73,6 +115,19 @@ with tempfile.TemporaryDirectory() as temporary:
     assert ready["status"] == "ready" and ready["commit"]
     assert not (repo / "result.txt").exists()
 
+    stale_id = "late-review"
+    stale = {
+        "schema": 1, "id": stale_id, "provider": "codex", "repository": str(repo),
+        "branch": "main", "base": ready["base"], "task": "stale review", "status": "rejected",
+        "created": jobs._now(), "updated": jobs._now(), "pid": 0, "pid_start": "", "commit": ready["commit"],
+        "summary": "", "error": "", "reviews": [{"provider": "claude", "status": "running"}], "actions": [],
+    }
+    jobs._write(stale)
+    with patch.object(jobs, "_run_agent", return_value=subprocess.CompletedProcess([], 0, "VERDICT: APPROVE", "")):
+        jobs.review_worker(stale_id, "claude")
+    assert jobs.list_jobs(stale_id)["status"] == "rejected"
+    assert jobs.list_jobs(stale_id)["can_apply"] is False
+
     with patch.object(jobs, "Popen", return_value=FakeProcess()):
         jobs.start_review(job_id, "claude")
     with patch.object(jobs, "_run_agent", return_value=subprocess.CompletedProcess([], 0, "Looks good\nVERDICT: APPROVE", "")):
@@ -88,5 +143,46 @@ with tempfile.TemporaryDirectory() as temporary:
     applied = jobs.apply_job(job_id, True)
     assert applied["status"] == "applied"
     assert (repo / "result.txt").read_text() == "isolated\n"
+
+    dead_job = dict(stale, id="dead-worker", status="running", pid=2_147_483_647,
+                    pid_start="1", reviews=[], error="")
+    jobs._write(dead_job)
+    dead = jobs.list_jobs(dead_job["id"])
+    assert dead["status"] == "failed" and jobs.list_jobs()["running"] == 0, "dead jobs still consume admission capacity"
+    dead_launcher = dict(dead_job, id="dead-launcher", status="queued", pid=0, pid_start="",
+                         launcher_pid=2_147_483_647, launcher_start="1")
+    jobs._write(dead_launcher)
+    assert jobs.list_jobs(dead_launcher["id"])["status"] == "failed", "dead pre-spawn job was not reconciled"
+
+    setattr(jobs, "MAX_CONCURRENT_JOBS", 1)
+    gate = threading.Barrier(2)
+    original_repo_info = jobs._repo_info
+    original_list_jobs = jobs.list_jobs
+    results = []
+
+    def synchronized_repo_info(path):
+        result = original_repo_info(path)
+        gate.wait()
+        return result
+
+    def slow_list_jobs(*args, **kwargs):
+        result = original_list_jobs(*args, **kwargs)
+        time.sleep(0.05)
+        return result
+
+    def create_concurrently():
+        try:
+            results.append(jobs.create("codex", str(repo), "Concurrent admission test"))
+        except SystemExit as exc:
+            results.append(str(exc))
+
+    with patch.object(jobs, "_repo_info", side_effect=synchronized_repo_info), \
+            patch.object(jobs, "list_jobs", side_effect=slow_list_jobs), \
+            patch.object(jobs, "Popen", return_value=FakeProcess()):
+        threads = [threading.Thread(target=create_concurrently) for _ in range(2)]
+        for thread in threads: thread.start()
+        for thread in threads: thread.join()
+    assert sum(isinstance(result, dict) for result in results) == 1
+    assert sum("At most 1" in result for result in results if isinstance(result, str)) == 1
 
 print("Hermes transaction contracts: OK")

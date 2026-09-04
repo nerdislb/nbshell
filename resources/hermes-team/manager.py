@@ -70,6 +70,24 @@ def _locked(team_id: str):
         fcntl.flock(handle, fcntl.LOCK_EX); yield
 
 
+@contextmanager
+def _admission_locked():
+    STATE_ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with (STATE_ROOT / ".admission.lock").open("a") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX); yield
+
+
+def _process_start(pid: int) -> str:
+    if pid <= 1: return ""
+    try: return Path(f"/proc/{pid}/stat").read_text().rpartition(") ")[2].split()[19]
+    except (OSError, IndexError): return ""
+
+
+def _process_alive(record: dict) -> bool:
+    pid = int(record.get("pid") or 0); start = str(record.get("pid_start") or "")
+    return bool(start) and _process_start(pid) == start
+
+
 def _git(repo: Path, *args: str, timeout: int = 120, check: bool = True):
     return subprocess.run(["git", "-C", str(repo), *args], text=True, capture_output=True, timeout=timeout, check=check)
 
@@ -116,28 +134,60 @@ def _spawn(team_id: str) -> int:
 def create(repository: str, goal: str, plan_json: str) -> dict:
     jobs = _jobs(); repo, base, branch = jobs._repo_info(repository)
     goal = _safe_text(goal, "goal"); tasks, checks = _plan(plan_json)
-    running = sum(row["status"] in ACTIVE for row in list_teams()["teams"])
-    if running: raise SystemExit("Only one supervised team may run at a time")
-    team_id = time.strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(3)
-    team = {"schema": 1, "id": team_id, "repository": str(repo), "base": base, "branch": branch,
-            "goal": goal, "status": "planning", "created": _now(), "updated": _now(), "started": _now(),
-            "pid": 0, "tasks": tasks, "checks": checks, "check_results": [], "integration_commit": "",
-            "summary": "Plan accepted; coordinator is starting", "error": "", "actions": []}
-    _write(team); team["pid"] = _spawn(team_id); team["status"] = "running"; team["updated"] = _now(); _write(team)
+    with _admission_locked():
+        running = list_teams()["running"]
+        if running: raise SystemExit("Only one supervised team may run at a time")
+        team_id = time.strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(3)
+        team = {"schema": 1, "id": team_id, "repository": str(repo), "base": base, "branch": branch,
+                "goal": goal, "status": "planning", "created": _now(), "updated": _now(), "started": _now(),
+                "pid": 0, "pid_start": "", "launcher_pid": os.getpid(), "launcher_start": _process_start(os.getpid()),
+                "tasks": tasks, "checks": checks, "check_results": [], "integration_commit": "",
+                "summary": "Plan accepted; coordinator is starting", "error": "", "actions": []}
+        _write(team)
+    try: pid = _spawn(team_id)
+    except Exception as exc:
+        with _locked(team_id):
+            team = _read(team_id); team.update(status="failed", error=str(exc)[:800], updated=_now()); _write(team)
+        raise
+    with _locked(team_id):
+        team = _read(team_id)
+        if team["status"] == "planning":
+            team["pid"] = pid; team["pid_start"] = _process_start(pid); team["launcher_pid"] = 0; team["launcher_start"] = ""
+            team["status"] = "running"; team["updated"] = _now(); _write(team)
     return public(team)
+
+
+def _persist_active(team: dict) -> bool:
+    with _locked(team["id"]):
+        current = _read(team["id"])
+        if current["status"] not in ACTIVE: return False
+        if current.get("pid_start") and team.get("pid_start") and current["pid_start"] != team["pid_start"]: return False
+        _write(team)
+        return True
 
 
 def _latest_job(task: dict, jobs):
     return jobs._read(task["job_id"]) if task.get("job_id") else None
 
 
-def _start_task(team: dict, task: dict, feedback: str = "") -> None:
-    jobs = _jobs(); task["attempt"] += 1
-    prompt = f"TEAM GOAL:\n{team['goal']}\n\nYOUR NON-OVERLAPPING TASK ({task['title']}):\n{task['instructions']}"
-    if feedback: prompt += "\n\nINDEPENDENT REVIEW REQUESTED A REVISION:\n" + feedback[-6000:]
-    result = jobs.create(task["provider"], team["repository"], prompt)
-    task["job_id"] = result["id"]; task["status"] = "running"
-    task["history"].append({"attempt": task["attempt"], "job_id": result["id"], "started": _now()})
+def _start_task(team: dict, task: dict, feedback: str = "") -> bool:
+    jobs = _jobs()
+    with _locked(team["id"]):
+        current = _read(team["id"])
+        if current["status"] not in ACTIVE:
+            return False
+        if current.get("pid_start") and team.get("pid_start") and current["pid_start"] != team["pid_start"]:
+            return False
+        current_task = next(row for row in current["tasks"] if row["id"] == task["id"])
+        current_task["attempt"] += 1
+        prompt = f"TEAM GOAL:\n{current['goal']}\n\nYOUR NON-OVERLAPPING TASK ({current_task['title']}):\n{current_task['instructions']}"
+        if feedback: prompt += "\n\nINDEPENDENT REVIEW REQUESTED A REVISION:\n" + feedback[-6000:]
+        result = jobs.create(current_task["provider"], current["repository"], prompt)
+        current_task["job_id"] = result["id"]; current_task["status"] = "running"
+        current_task["history"].append({"attempt": current_task["attempt"], "job_id": result["id"], "started": _now()})
+        current["updated"] = _now(); _write(current)
+        team.clear(); team.update(current)
+        return True
 
 
 def _reviewer(provider: str, attempt: int) -> str:
@@ -189,20 +239,30 @@ def _checks(team: dict) -> None:
 def coordinator(team_id: str) -> None:
     jobs = _jobs()
     try:
+        with _locked(team_id):
+            team = _read(team_id)
+            if team["status"] not in ACTIVE: return
+            pid = int(team.get("pid") or 0)
+            if pid and pid != os.getpid(): return
+            if not pid and not _process_alive({"pid": team.get("launcher_pid", 0), "pid_start": team.get("launcher_start", "")}): return
+            team.update(pid=os.getpid(), pid_start=_process_start(os.getpid()), launcher_pid=0, launcher_start="",
+                        status="running" if team["status"] == "planning" else team["status"], updated=_now()); _write(team)
         while True:
             with _locked(team_id): team = _read(team_id)
             if team["status"] in FINAL | {"paused", "awaiting_approval", "failed"}: return
             if _now() - team["started"] > MAX_RUNTIME: raise RuntimeError("Team exceeded its three-hour runtime limit")
             changed = False
             for task in team["tasks"]:
-                if task["status"] == "queued": _start_task(team, task); changed = True; continue
+                if task["status"] == "queued":
+                    if not _start_task(team, task): return
+                    changed = True; continue
                 if task["status"] in {"integrated", "approved", "failed"}: continue
                 job = _latest_job(task, jobs)
                 if not job: continue
                 status = job["status"]
-                if status in {"queued", "preparing", "running", "reviewing"} and job.get("pid") and not Path(f"/proc/{job['pid']}").exists():
+                if status in {"queued", "preparing", "running", "reviewing"} and job.get("pid") and not jobs._process_alive(job):
                     if task["attempt"] > MAX_REVISIONS: raise RuntimeError(f"{task['title']}: recovery limit reached")
-                    _start_task(team, task, "The previous worker stopped during suspend, reboot, or process termination. Resume the task from its original specification.")
+                    if not _start_task(team, task, "The previous worker stopped during suspend, reboot, or process termination. Resume the task from its original specification."): return
                     changed = True; continue
                 if status in {"failed", "no_changes", "rejected"}:
                     task["status"] = "failed"; raise RuntimeError(f"{task['title']}: transaction ended as {status}")
@@ -210,7 +270,9 @@ def coordinator(team_id: str) -> None:
                     latest = job.get("reviews", [])[-1] if job.get("reviews") else {}
                     if latest.get("status") == "revise":
                         if task["attempt"] > MAX_REVISIONS: raise RuntimeError(f"{task['title']}: revision limit reached")
-                        task["status"] = "revising"; _start_task(team, task, latest.get("summary", "")); changed = True
+                        task["status"] = "revising"
+                        if not _start_task(team, task, latest.get("summary", "")): return
+                        changed = True
                     elif not any(row.get("status") == "running" for row in job.get("reviews", [])):
                         reviewer = _reviewer(task["provider"], task["attempt"])
                         jobs.start_review(job["id"], reviewer)
@@ -219,19 +281,26 @@ def coordinator(team_id: str) -> None:
                 elif status == "reviewed": task["status"] = "approved"; changed = True
                 else: task["status"] = status
             if all(task["status"] == "approved" for task in team["tasks"]):
-                team["status"] = "integrating"; team["summary"] = "All tasks approved; integrating isolated commits"; _write(team)
-                _integrate(team); team["status"] = "testing"; _write(team); _checks(team)
+                team["status"] = "integrating"; team["summary"] = "All tasks approved; integrating isolated commits"
+                if not _persist_active(team): return
+                _integrate(team); team["status"] = "testing"
+                if not _persist_active(team): return
+                _checks(team)
                 team["status"] = "awaiting_approval"; team["summary"] = "Team result reviewed, integrated, and checked; human approval required"
                 changed = True
             else:
                 states = {task["status"] for task in team["tasks"]}
                 team["status"] = "reviewing" if "reviewing" in states else ("revising" if "revising" in states else "running")
-            if changed or True: team["updated"] = _now(); team["pid"] = os.getpid(); _write(team)
+            if changed or True:
+                team["updated"] = _now(); team["pid"] = os.getpid(); team["pid_start"] = _process_start(os.getpid())
+                if not _persist_active(team): return
             if team["status"] == "awaiting_approval": return
             time.sleep(2)
     except (Exception, SystemExit) as exc:
         with _locked(team_id):
-            team = _read(team_id); team.update(status="failed", error=str(exc)[:800], summary="Team stopped before source application", pid=0, updated=_now()); _write(team)
+            team = _read(team_id)
+            if team["status"] in ACTIVE:
+                team.update(status="failed", error=str(exc)[:800], summary="Team stopped before source application", pid=0, pid_start="", updated=_now()); _write(team)
 
 
 def control(team_id: str, action: str, yes: bool = False) -> dict:
@@ -243,20 +312,29 @@ def control(team_id: str, action: str, yes: bool = False) -> dict:
             team["status"] = "paused"; team["summary"] = "Paused; already-running isolated jobs may finish safely"
         elif action == "resume":
             if team["status"] not in {"paused", "failed"}: raise SystemExit("Only paused or failed teams can resume")
-            team["status"] = "running"; team["error"] = ""; team["pid"] = _spawn(team_id)
+            team["status"] = "running"; team["error"] = ""; team["pid"] = _spawn(team_id); team["pid_start"] = _process_start(team["pid"])
         elif action == "cancel":
             jobs = _jobs()
+            jobs._terminate_process(team)
             for task in team.get("tasks", []):
                 if not task.get("job_id"): continue
                 try:
-                    job = jobs._read(task["job_id"]); pid = int(job.get("pid") or 0)
-                    if pid > 1 and Path(f"/proc/{pid}").exists(): os.killpg(pid, signal.SIGTERM)
+                    job = jobs._read(task["job_id"])
+                    jobs._terminate_process(job)
                     with jobs._locked(job["id"]):
-                        job = jobs._read(job["id"]); job.update(status="rejected", pid=0, updated=_now(), error="Cancelled by supervised team owner"); jobs._write(job)
+                        job = jobs._read(job["id"]); job.update(status="rejected", pid=0, pid_start="", updated=_now(), error="Cancelled by supervised team owner"); jobs._write(job)
                 except (OSError, SystemExit): pass
             team["status"] = "cancelled"; team["summary"] = "Cancelled without changing the source repository"
         elif action == "reject":
             if team["status"] in {"applied", "installed", "pushed"}: raise SystemExit("An applied team cannot be rejected")
+            jobs = _jobs(); jobs._terminate_process(team)
+            for task in team.get("tasks", []):
+                if not task.get("job_id"): continue
+                try:
+                    job = jobs._read(task["job_id"]); jobs._terminate_process(job)
+                    with jobs._locked(job["id"]):
+                        job = jobs._read(job["id"]); job.update(status="rejected", pid=0, pid_start="", updated=_now(), error="Rejected by supervised team owner"); jobs._write(job)
+                except (OSError, SystemExit): pass
             team["status"] = "rejected"; shutil.rmtree(DATA_ROOT / team_id, ignore_errors=True)
         elif action == "apply":
             if team["status"] != "awaiting_approval": raise SystemExit("Team is not ready for human approval")
@@ -299,19 +377,23 @@ def public(team: dict, detail: bool = False) -> dict:
 
 
 def list_teams(team_id: str = "") -> dict:
+    def refreshed(current_id: str) -> dict:
+        with _locked(current_id):
+            team = _read(current_id)
+            owner = team if team.get("pid") else {"pid": team.get("launcher_pid", 0), "pid_start": team.get("launcher_start", "")}
+            if team.get("status") in ACTIVE and not _process_alive(owner):
+                team.update(status="paused", error="Coordinator stopped; safe resume is available", summary="Interrupted without changing the source repository",
+                            pid=0, pid_start="", launcher_pid=0, launcher_start="", updated=_now()); _write(team)
+            return team
+
     if team_id:
-        team = _read(team_id)
-        if team.get("status") in ACTIVE and team.get("pid") and not Path(f"/proc/{team['pid']}").exists():
-            team.update(status="paused", error="Coordinator stopped; safe resume is available", summary="Interrupted without changing the source repository", pid=0, updated=_now()); _write(team)
-        return public(team, True)
+        return public(refreshed(team_id), True)
     rows = []
     if STATE_ROOT.is_dir():
         for path in STATE_ROOT.iterdir():
             try:
-                team = json.loads((path / "team.json").read_text())
-                if team.get("status") in ACTIVE and team.get("pid") and not Path(f"/proc/{team['pid']}").exists():
-                    team.update(status="paused", error="Coordinator stopped; safe resume is available", summary="Interrupted without changing the source repository", pid=0, updated=_now()); _write(team)
-                rows.append(public(team))
+                if path.is_dir():
+                    rows.append(public(refreshed(path.name)))
             except (OSError, json.JSONDecodeError): pass
     rows.sort(key=lambda row: row.get("created", 0), reverse=True)
     return {"teams": rows[:10], "running": sum(row["status"] in ACTIVE for row in rows), "attention": sum(row["status"] in {"awaiting_approval", "failed"} for row in rows)}

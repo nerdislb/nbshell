@@ -73,6 +73,24 @@ def _locked(proposal_id: str):
         fcntl.flock(handle, fcntl.LOCK_EX); yield
 
 
+@contextmanager
+def _admission_locked():
+    STATE_ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with (STATE_ROOT / ".admission.lock").open("a") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX); yield
+
+
+def _process_start(pid: int) -> str:
+    if pid <= 1: return ""
+    try: return Path(f"/proc/{pid}/stat").read_text().rpartition(") ")[2].split()[19]
+    except (OSError, IndexError): return ""
+
+
+def _process_alive(record: dict) -> bool:
+    pid = int(record.get("pid") or 0); start = str(record.get("pid_start") or "")
+    return bool(start) and _process_start(pid) == start
+
+
 def _target(value: str) -> tuple[str, Path]:
     relative = Path(str(value or ""))
     if relative.is_absolute() or ".." in relative.parts or len(relative.parts) < 2 or relative.parts[0] not in ALLOWED_ROOTS or relative.suffix != ".md":
@@ -125,14 +143,26 @@ def create(target: str, markdown: str, mode: str, author: str, reviewer: str, ra
     if mode == "create" and target_path.exists(): raise SystemExit("Create mode refuses to replace an existing note")
     if len(str(rationale or "")) > 2000 or SECRET.search(str(rationale or "")): raise SystemExit("Invalid or sensitive rationale")
     if not (BRAIN_ROOT / ".git").is_dir(): raise SystemExit("Second Brain is not an available Git repository")
-    if list_proposals().get("reviewing", 0) >= MAX_CONCURRENT_REVIEWS: raise SystemExit("At most two Brain proposals may be reviewed concurrently")
-    proposal_id = time.strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(3)
-    base, commit = _prepare_workspace(proposal_id, relative, markdown, mode)
-    proposal = {"schema": 1, "id": proposal_id, "target": relative, "target_digest": _digest(target_path),
-                "brain_base": _git(BRAIN_ROOT, "rev-parse", "HEAD").stdout.strip(), "mode": mode, "author": author, "reviewer": reviewer,
-                "rationale": str(rationale or "")[:2000], "status": "reviewing", "revision": 0, "workspace_base": base,
-                "commit": commit, "created": _now(), "updated": _now(), "review": "", "error": "", "actions": [], "pid": 0}
-    _write(proposal); proposal["pid"] = _spawn_review(proposal_id); _write(proposal)
+    with _admission_locked():
+        if list_proposals().get("reviewing", 0) >= MAX_CONCURRENT_REVIEWS: raise SystemExit("At most two Brain proposals may be reviewed concurrently")
+        proposal_id = time.strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(3)
+        base, commit = _prepare_workspace(proposal_id, relative, markdown, mode)
+        proposal = {"schema": 1, "id": proposal_id, "target": relative, "target_digest": _digest(target_path),
+                    "brain_base": _git(BRAIN_ROOT, "rev-parse", "HEAD").stdout.strip(), "mode": mode, "author": author, "reviewer": reviewer,
+                    "rationale": str(rationale or "")[:2000], "status": "reviewing", "revision": 0, "workspace_base": base,
+                    "commit": commit, "created": _now(), "updated": _now(), "review": "", "error": "", "actions": [],
+                    "pid": 0, "pid_start": "", "launcher_pid": os.getpid(), "launcher_start": _process_start(os.getpid())}
+        _write(proposal)
+    try: pid = _spawn_review(proposal_id)
+    except Exception as exc:
+        with _locked(proposal_id):
+            proposal = _read(proposal_id); proposal.update(status="failed", error=str(exc)[:800], updated=_now()); _write(proposal)
+        raise
+    with _locked(proposal_id):
+        proposal = _read(proposal_id)
+        if proposal["status"] == "reviewing":
+            proposal["pid"] = pid; proposal["pid_start"] = _process_start(pid)
+            proposal["launcher_pid"] = 0; proposal["launcher_start"] = ""; _write(proposal)
     return public(proposal)
 
 
@@ -144,14 +174,32 @@ def revise(proposal_id: str, markdown: str) -> dict:
         if proposal["revision"] >= MAX_REVISIONS: raise SystemExit("Proposal revision limit reached")
         proposal["revision"] += 1
         base, commit = _prepare_workspace(proposal_id, proposal["target"], markdown, proposal["mode"])
-        proposal.update(workspace_base=base, commit=commit, status="reviewing", review="", error="", updated=_now())
-        _write(proposal); proposal["pid"] = _spawn_review(proposal_id); _write(proposal)
+        proposal.update(workspace_base=base, commit=commit, status="reviewing", review="", error="",
+                        pid=0, pid_start="", launcher_pid=os.getpid(), launcher_start=_process_start(os.getpid()), updated=_now())
+        _write(proposal)
+        try:
+            proposal["pid"] = _spawn_review(proposal_id)
+        except Exception as exc:
+            retryable = proposal["revision"] < MAX_REVISIONS
+            proposal.update(status="revision_requested" if retryable else "failed", error=str(exc)[:800],
+                            pid=0, pid_start="", launcher_pid=0, launcher_start="", updated=_now())
+            _write(proposal)
+            raise
+        proposal["pid_start"] = _process_start(proposal["pid"])
+        proposal["launcher_pid"] = 0; proposal["launcher_start"] = ""; _write(proposal)
     return public(proposal)
 
 
 def review_worker(proposal_id: str) -> None:
     try:
-        proposal = _read(proposal_id); jobs = _jobs()
+        with _locked(proposal_id):
+            proposal = _read(proposal_id)
+            if proposal["status"] != "reviewing": return
+            pid = int(proposal.get("pid") or 0)
+            if pid and pid != os.getpid(): return
+            if not pid and not _process_alive({"pid": proposal.get("launcher_pid", 0), "pid_start": proposal.get("launcher_start", "")}): return
+            proposal.update(pid=os.getpid(), pid_start=_process_start(os.getpid()), launcher_pid=0, launcher_start="", updated=_now()); _write(proposal)
+        jobs = _jobs()
         task = ("Review this proposed update to the user's Second Brain. The workspace contains only the target note, not the full vault. "
                 "Check that the change records confirmed facts, distinguishes decisions from assumptions, contains no credentials or unnecessary personal data, follows Markdown structure, and stays within the stated rationale. "
                 "Do not edit. End with VERDICT: APPROVE or VERDICT: REVISE.\n\nTARGET: " + proposal["target"] + "\nRATIONALE: " + proposal["rationale"])
@@ -160,10 +208,14 @@ def review_worker(proposal_id: str) -> None:
         verdicts = re.findall(r"(?im)^\s*VERDICT:\s*(APPROVE|REVISE)\s*$", output)
         status = "awaiting_approval" if result.returncode == 0 and verdicts and verdicts[-1].upper() == "APPROVE" else "revision_requested"
         with _locked(proposal_id):
-            proposal = _read(proposal_id); proposal.update(status=status, review=output, pid=0, updated=_now()); _write(proposal)
+            proposal = _read(proposal_id)
+            if proposal["status"] != "reviewing": return
+            proposal.update(status=status, review=output, pid=0, pid_start="", updated=_now()); _write(proposal)
     except (Exception, SystemExit) as exc:
         with _locked(proposal_id):
-            proposal = _read(proposal_id); proposal.update(status="failed", error=str(exc)[:800], pid=0, updated=_now()); _write(proposal)
+            proposal = _read(proposal_id)
+            if proposal["status"] == "reviewing":
+                proposal.update(status="failed", error=str(exc)[:800], pid=0, pid_start="", updated=_now()); _write(proposal)
 
 
 def _require_yes(yes: bool) -> None:
@@ -176,6 +228,7 @@ def control(proposal_id: str, action: str, yes: bool) -> dict:
         proposal = _read(proposal_id); relative, target = _target(proposal["target"])
         if action == "apply":
             if proposal["status"] != "awaiting_approval": raise SystemExit("Proposal has not passed independent review")
+            if _git(BRAIN_ROOT, "rev-parse", "HEAD").stdout.strip() != proposal["brain_base"]: raise SystemExit("Second Brain moved since proposal creation")
             if _digest(target) != proposal["target_digest"]: raise SystemExit("Target note changed since proposal creation")
             if _git(BRAIN_ROOT, "diff", "--quiet", "--", relative, check=False).returncode or _git(BRAIN_ROOT, "diff", "--cached", "--quiet", "--", relative, check=False).returncode:
                 raise SystemExit("Target note has uncommitted changes")
@@ -200,6 +253,7 @@ def control(proposal_id: str, action: str, yes: bool) -> dict:
             proposal["status"] = "pushed"
         elif action == "reject":
             if proposal["status"] in {"applied", "pushed"}: raise SystemExit("Applied proposals cannot be rejected")
+            if proposal.get("pid"): _jobs()._terminate_process(proposal)
             proposal["status"] = "rejected"; shutil.rmtree(DATA_ROOT / proposal_id, ignore_errors=True)
         else: raise SystemExit("Unknown proposal action")
         proposal["updated"] = _now(); proposal["actions"].append({"action": action, "timestamp": _now()}); _write(proposal)
@@ -217,23 +271,24 @@ def public(proposal: dict, detail: bool = False) -> dict:
 
 
 def list_proposals(proposal_id: str = "") -> dict:
+    def refreshed(current_id: str) -> dict:
+        with _locked(current_id):
+            proposal = _read(current_id)
+            owner = proposal if proposal.get("pid") else {"pid": proposal.get("launcher_pid", 0), "pid_start": proposal.get("launcher_start", "")}
+            if proposal.get("status") == "reviewing" and not _process_alive(owner):
+                proposal.update(status="revision_requested" if proposal.get("revision", 0) < MAX_REVISIONS else "failed",
+                                error="Reviewer stopped; submit a safe revision to retry" if proposal.get("revision", 0) < MAX_REVISIONS else "Reviewer stopped after the final revision",
+                                pid=0, pid_start="", launcher_pid=0, launcher_start="", updated=_now()); _write(proposal)
+            return proposal
+
     if proposal_id:
-        proposal = _read(proposal_id)
-        if proposal.get("status") == "reviewing" and proposal.get("pid") and not Path(f"/proc/{proposal['pid']}").exists():
-            proposal.update(status="revision_requested" if proposal.get("revision", 0) < MAX_REVISIONS else "failed",
-                            error="Reviewer stopped; submit a safe revision to retry" if proposal.get("revision", 0) < MAX_REVISIONS else "Reviewer stopped after the final revision",
-                            pid=0, updated=_now()); _write(proposal)
-        return public(proposal, True)
+        return public(refreshed(proposal_id), True)
     rows = []
     if STATE_ROOT.is_dir():
         for path in STATE_ROOT.iterdir():
             try:
-                proposal = json.loads((path / "proposal.json").read_text())
-                if proposal.get("status") == "reviewing" and proposal.get("pid") and not Path(f"/proc/{proposal['pid']}").exists():
-                    proposal.update(status="revision_requested" if proposal.get("revision", 0) < MAX_REVISIONS else "failed",
-                                    error="Reviewer stopped; submit a safe revision to retry" if proposal.get("revision", 0) < MAX_REVISIONS else "Reviewer stopped after the final revision",
-                                    pid=0, updated=_now()); _write(proposal)
-                rows.append(public(proposal))
+                if path.is_dir():
+                    rows.append(public(refreshed(path.name)))
             except (OSError, json.JSONDecodeError): pass
     rows.sort(key=lambda row: row.get("created", 0), reverse=True)
     return {"proposals": rows[:10], "reviewing": sum(row["status"] == "reviewing" for row in rows),

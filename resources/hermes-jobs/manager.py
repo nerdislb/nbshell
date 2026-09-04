@@ -14,6 +14,7 @@ import os
 import re
 import secrets
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -80,6 +81,53 @@ def _locked(job_id: str):
         yield
 
 
+@contextmanager
+def _admission_locked():
+    STATE_ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with (STATE_ROOT / ".admission.lock").open("a") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        yield
+
+
+def _process_start(pid: int) -> str:
+    if pid <= 1:
+        return ""
+    try:
+        fields = Path(f"/proc/{pid}/stat").read_text().rpartition(") ")[2].split()
+        return fields[19]
+    except (OSError, IndexError):
+        return ""
+
+
+def _record_process(job: dict, pid: int) -> None:
+    job["pid"] = pid
+    job["pid_start"] = _process_start(pid)
+
+
+def _process_alive(job: dict) -> bool:
+    pid = int(job.get("pid") or 0)
+    start = str(job.get("pid_start") or "")
+    return bool(start) and _process_start(pid) == start
+
+
+def _terminate_process(job: dict) -> bool:
+    if not _process_alive(job):
+        return False
+    try:
+        descriptor = os.pidfd_open(int(job["pid"]))
+    except (OSError, ValueError):
+        return False
+    try:
+        if not _process_alive(job):
+            return False
+        os.killpg(int(job["pid"]), signal.SIGTERM)
+        return True
+    except (OSError, AttributeError):
+        return False
+    finally:
+        os.close(descriptor)
+
+
 def _run(command: list[str], *, cwd: Path | None = None, timeout: int = 30,
          capture: bool = True, check: bool = True) -> subprocess.CompletedProcess:
     return subprocess.run(command, cwd=cwd, text=True, capture_output=capture,
@@ -130,28 +178,42 @@ def create(provider: str, repository: str, task: str) -> dict:
         raise SystemExit("Unknown provider")
     task = _safe_task(task)
     repo, base, branch = _repo_info(repository)
-    running = list_jobs().get("running", 0)
-    if running >= MAX_CONCURRENT_JOBS:
-        raise SystemExit(f"At most {MAX_CONCURRENT_JOBS} transaction jobs may run concurrently")
-    job_id = time.strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(3)
-    job = {
-        "schema": 1, "id": job_id, "provider": provider, "repository": str(repo),
-        "branch": branch, "base": base, "task": task, "status": "queued",
-        "created": _now(), "updated": _now(), "pid": 0, "commit": "",
-        "summary": "", "error": "", "reviews": [], "actions": [],
-    }
-    _write(job)
-    _trim_jobs()
+    with _admission_locked():
+        running = list_jobs().get("running", 0)
+        if running >= MAX_CONCURRENT_JOBS:
+            raise SystemExit(f"At most {MAX_CONCURRENT_JOBS} transaction jobs may run concurrently")
+        job_id = time.strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(3)
+        job = {
+            "schema": 1, "id": job_id, "provider": provider, "repository": str(repo),
+            "branch": branch, "base": base, "task": task, "status": "queued",
+            "created": _now(), "updated": _now(), "pid": 0, "pid_start": "",
+            "launcher_pid": os.getpid(), "launcher_start": _process_start(os.getpid()), "commit": "",
+            "summary": "", "error": "", "reviews": [], "actions": [],
+        }
+        _write(job)
+        _trim_jobs()
     log = (_job_dir(job_id) / "worker.log").open("a")
-    process = Popen(
-        [sys.executable, str(MANAGER), "worker", job_id],
-        stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
-        start_new_session=True, close_fds=True,
-    )
-    log.close()
-    job["pid"] = process.pid
-    job["updated"] = _now()
-    _write(job)
+    try:
+        process = Popen(
+            [sys.executable, str(MANAGER), "worker", job_id],
+            stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+            start_new_session=True, close_fds=True,
+        )
+    except Exception as exc:
+        with _locked(job_id):
+            job = _read(job_id)
+            job.update(status="failed", error=str(exc)[:500], updated=_now())
+            _write(job)
+        raise
+    finally:
+        log.close()
+    with _locked(job_id):
+        job = _read(job_id)
+        if job["status"] == "queued":
+            _record_process(job, process.pid)
+            job["launcher_pid"] = 0; job["launcher_start"] = ""
+            job["updated"] = _now()
+            _write(job)
     return public_job(job)
 
 
@@ -183,7 +245,7 @@ def _copy_private_file(source: Path, target: Path) -> None:
 def _bwrap(job_id: str, workspace: Path, writable: bool, provider: str) -> tuple[list[str], Path]:
     home = _sandbox_home(job_id, provider)
     command = [
-        "bwrap", "--die-with-parent", "--new-session",
+        "bwrap", "--die-with-parent", "--new-session", "--unshare-all", "--share-net",
         "--ro-bind", "/usr", "/usr", "--ro-bind", "/opt", "/opt",
         "--symlink", "usr/bin", "/bin", "--symlink", "usr/lib", "/lib",
         "--symlink", "usr/lib", "/lib64", "--ro-bind", "/etc", "/etc",
@@ -273,7 +335,16 @@ def _run_agent(job: dict, provider: str, review: bool = False,
 def worker(job_id: str) -> None:
     with _locked(job_id):
         job = _read(job_id)
-        job.update(status="preparing", updated=_now(), error="")
+        if job["status"] != "queued":
+            return
+        pid = int(job.get("pid") or 0)
+        start = _process_start(os.getpid())
+        if not start or (pid and pid != os.getpid()) or (job.get("pid_start") and job["pid_start"] != start):
+            job.update(status="failed", error="Worker identity does not match the registered process", pid=0, pid_start="", updated=_now())
+            _write(job)
+            return
+        job.update(status="preparing", pid=os.getpid(), pid_start=start,
+                   launcher_pid=0, launcher_start="", updated=_now(), error="")
         _write(job)
     workspace = _workspace(job_id)
     workspace.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -283,7 +354,10 @@ def worker(job_id: str) -> None:
         _git(workspace, "config", "user.name", "nbshell Hermes Transaction")
         _git(workspace, "config", "user.email", "noreply@nbshell.local")
         with _locked(job_id):
-            job = _read(job_id); job.update(status="running", updated=_now()); _write(job)
+            job = _read(job_id)
+            if job["status"] != "preparing":
+                return
+            job.update(status="running", updated=_now()); _write(job)
         result = _run_agent(job, job["provider"])
         (_job_dir(job_id) / "agent-output.txt").write_text((result.stdout or "")[-60000:])
         (_job_dir(job_id) / "agent-error.txt").write_text((result.stderr or "")[-12000:])
@@ -294,6 +368,8 @@ def worker(job_id: str) -> None:
         changed = _git(workspace, "diff", "--cached", "--quiet", check=False).returncode != 0
         with _locked(job_id):
             job = _read(job_id)
+            if job["status"] != "running":
+                return
             if not changed:
                 job.update(status="no_changes", summary="Agent completed without repository changes", updated=_now())
             else:
@@ -301,10 +377,12 @@ def worker(job_id: str) -> None:
                 commit = _git(workspace, "rev-parse", "HEAD").stdout.strip()
                 stat = _git(workspace, "diff", "--stat", f"{job['base']}..{commit}").stdout.strip()
                 job.update(status="ready", commit=commit, summary=stat, updated=_now())
-            job["pid"] = 0; _write(job)
+            job["pid"] = 0; job["pid_start"] = ""; _write(job)
     except Exception as exc:
         with _locked(job_id):
-            job = _read(job_id); job.update(status="failed", error=str(exc)[:500], pid=0, updated=_now()); _write(job)
+            job = _read(job_id)
+            if job["status"] in {"queued", "preparing", "running"}:
+                job.update(status="failed", error=str(exc)[:500], pid=0, pid_start="", updated=_now()); _write(job)
 
 
 def start_review(job_id: str, provider: str) -> dict:
@@ -319,36 +397,75 @@ def start_review(job_id: str, provider: str) -> dict:
         if any(row.get("provider") == provider and row.get("status") in {"running", "approved"} for row in job["reviews"]):
             raise SystemExit("This provider already reviewed the job")
         job["reviews"].append({"provider": provider, "status": "running", "started": _now(), "verdict": "", "summary": ""})
-        job["status"] = "reviewing"; job["updated"] = _now(); _write(job)
+        job.update(status="reviewing", pid=0, pid_start="", launcher_pid=os.getpid(),
+                   launcher_start=_process_start(os.getpid()), updated=_now())
+        _write(job)
     log = (_job_dir(job_id) / f"review-{provider}.log").open("a")
-    process = Popen([sys.executable, str(MANAGER), "review-worker", job_id, provider],
-                    stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
-                    start_new_session=True, close_fds=True)
-    log.close()
-    return public_job(_read(job_id)) | {"review_pid": process.pid}
-
-
-def review_worker(job_id: str, provider: str) -> None:
     try:
-        job = _read(job_id)
-        result = _run_agent(job, provider, review=True)
-        text = ((result.stdout or "") + "\n" + (result.stderr or "")).strip()[-60000:]
-        verdicts = re.findall(r"(?im)^\s*VERDICT:\s*(APPROVE|REVISE)\s*$", text)
-        verdict = "approved" if result.returncode == 0 and verdicts and verdicts[-1].upper() == "APPROVE" else "revise"
-        with _locked(job_id):
-            job = _read(job_id)
-            for row in reversed(job["reviews"]):
-                if row["provider"] == provider and row["status"] == "running":
-                    row.update(status=verdict, verdict=verdict, summary=text, finished=_now()); break
-            job["status"] = "reviewed" if verdict == "approved" else "ready"
-            job["updated"] = _now(); _write(job)
+        process = Popen([sys.executable, str(MANAGER), "review-worker", job_id, provider],
+                        stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+                        start_new_session=True, close_fds=True)
     except Exception as exc:
         with _locked(job_id):
             job = _read(job_id)
             for row in reversed(job["reviews"]):
                 if row["provider"] == provider and row["status"] == "running":
                     row.update(status="failed", summary=str(exc)[:500], finished=_now()); break
-            job["status"] = "ready"; job["updated"] = _now(); _write(job)
+            if job["status"] == "reviewing":
+                job.update(status="ready", error=str(exc)[:500], updated=_now())
+                _write(job)
+        raise
+    finally:
+        log.close()
+    with _locked(job_id):
+        job = _read(job_id)
+        if job["status"] == "reviewing":
+            for row in reversed(job["reviews"]):
+                if row["provider"] == provider and row["status"] == "running":
+                    row["pid"] = process.pid
+                    row["pid_start"] = _process_start(process.pid)
+                    _record_process(job, process.pid)
+                    job["launcher_pid"] = 0; job["launcher_start"] = ""
+                    _write(job)
+                    break
+    return public_job(_read(job_id)) | {"review_pid": process.pid}
+
+
+def review_worker(job_id: str, provider: str) -> None:
+    try:
+        with _locked(job_id):
+            job = _read(job_id)
+            if job["status"] != "reviewing" or not any(row.get("provider") == provider and row.get("status") == "running" for row in job["reviews"]):
+                return
+            _record_process(job, os.getpid())
+            job["launcher_pid"] = 0; job["launcher_start"] = ""; job["updated"] = _now(); _write(job)
+        result = _run_agent(job, provider, review=True)
+        text = ((result.stdout or "") + "\n" + (result.stderr or "")).strip()[-60000:]
+        verdicts = re.findall(r"(?im)^\s*VERDICT:\s*(APPROVE|REVISE)\s*$", text)
+        verdict = "approved" if result.returncode == 0 and verdicts and verdicts[-1].upper() == "APPROVE" else "revise"
+        with _locked(job_id):
+            job = _read(job_id)
+            if job["status"] != "reviewing":
+                return
+            matched = False
+            for row in reversed(job["reviews"]):
+                if row["provider"] == provider and row["status"] == "running":
+                    row.update(status=verdict, verdict=verdict, summary=text, finished=_now(), pid=0, pid_start=""); matched = True; break
+            if not matched:
+                return
+            job["status"] = "reviewed" if verdict == "approved" else "ready"
+            job["pid"] = 0; job["pid_start"] = ""; job["updated"] = _now(); _write(job)
+    except Exception as exc:
+        with _locked(job_id):
+            job = _read(job_id)
+            if job["status"] != "reviewing":
+                return
+            matched = False
+            for row in reversed(job["reviews"]):
+                if row["provider"] == provider and row["status"] == "running":
+                    row.update(status="failed", summary=str(exc)[:500], finished=_now(), pid=0, pid_start=""); matched = True; break
+            if matched:
+                job["status"] = "ready"; job["pid"] = 0; job["pid_start"] = ""; job["updated"] = _now(); _write(job)
 
 
 def _require_yes(value: bool) -> None:
@@ -419,7 +536,8 @@ def reject_job(job_id: str, yes: bool) -> dict:
         job = _read(job_id)
         if job["status"] in {"applied", "installed", "pushed"}:
             raise SystemExit("Applied jobs cannot be rejected automatically")
-        job["status"] = "rejected"; job["updated"] = _now(); job["actions"].append({"action": "reject", "timestamp": _now()}); _write(job)
+        _terminate_process(job)
+        job["status"] = "rejected"; job["pid"] = 0; job["pid_start"] = ""; job["updated"] = _now(); job["actions"].append({"action": "reject", "timestamp": _now()}); _write(job)
     shutil.rmtree(DATA_ROOT / job_id, ignore_errors=True)
     return public_job(job)
 
@@ -447,13 +565,32 @@ def public_job(job: dict, detail: bool = False) -> dict:
 
 
 def list_jobs(detail_id: str = "") -> dict:
+    def refreshed(job_id: str) -> dict:
+        with _locked(job_id):
+            job = _read(job_id)
+            active = job.get("status") in {"queued", "preparing", "running", "reviewing"}
+            owner = job if job.get("pid") else {"pid": job.get("launcher_pid", 0), "pid_start": job.get("launcher_start", "")}
+            if active and not _process_alive(owner):
+                if job["status"] == "reviewing":
+                    for row in reversed(job.get("reviews", [])):
+                        if row.get("status") == "running":
+                            row.update(status="failed", summary="Reviewer process stopped", completed=_now())
+                            break
+                    job.update(status="ready", error="Reviewer stopped; start another independent review")
+                else:
+                    job.update(status="failed", error="Worker process stopped before completing the transaction")
+                job.update(pid=0, pid_start="", launcher_pid=0, launcher_start="", updated=_now())
+                _write(job)
+            return job
+
     if detail_id:
-        return public_job(_read(detail_id), detail=True)
+        return public_job(refreshed(detail_id), detail=True)
     rows = []
     if STATE_ROOT.is_dir():
         for path in STATE_ROOT.iterdir():
             try:
-                rows.append(public_job(json.loads((path / "job.json").read_text())))
+                if path.is_dir():
+                    rows.append(public_job(refreshed(path.name)))
             except (OSError, json.JSONDecodeError):
                 continue
     rows.sort(key=lambda row: row.get("created", 0), reverse=True)
