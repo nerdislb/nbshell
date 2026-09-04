@@ -22,6 +22,7 @@ ShellRoot {
     property string fontFamily: "JetBrainsMono Nerd Font"
     property real dimOpacity: 0.48
     property string hourFormat: "24"
+    property bool reducedMotion: false
     property bool showSecondsRing: true
     property bool authenticating: false
     property string pendingSecret: ""
@@ -39,6 +40,7 @@ ShellRoot {
         fontFamily = String(value.font || fontFamily).replace(/[\r\n]/g, " ");
         dimOpacity = Math.max(0, Math.min(.85, Number(value.dimOpacity) || .48));
         hourFormat = String(value.hourFormat) === "12" ? "12" : "24";
+        reducedMotion = value.reducedMotion === true;
         showSecondsRing = value.showSecondsRing !== false;
     }
     function authenticate(secret) {
@@ -99,7 +101,7 @@ ShellRoot {
                 username: shell.username; wallpaper: shell.wallpaper; background: shell.background
                 foreground: shell.foreground; muted: shell.muted; accent: shell.accent; danger: shell.danger
                 fontFamily: shell.fontFamily; dimOpacity: shell.dimOpacity; hourFormat: shell.hourFormat
-                showSecondsRing: shell.showSecondsRing; authenticating: shell.authenticating
+                reducedMotion: shell.reducedMotion; showSecondsRing: shell.showSecondsRing; authenticating: shell.authenticating
                 statusMessage: shell.statusMessage; statusError: shell.statusError; resetSerial: shell.resetSerial
                 onSubmitted: secret => shell.authenticate(secret); onResetRequested: shell.reset()
             }
@@ -121,7 +123,7 @@ ShellRoot {
                 username: shell.username; wallpaper: shell.wallpaper; background: shell.background
                 foreground: shell.foreground; muted: shell.muted; accent: shell.accent; danger: shell.danger
                 fontFamily: shell.fontFamily; dimOpacity: shell.dimOpacity; hourFormat: shell.hourFormat
-                showSecondsRing: shell.showSecondsRing; authenticating: false
+                reducedMotion: shell.reducedMotion; showSecondsRing: shell.showSecondsRing; authenticating: false
                 statusMessage: shell.statusMessage; statusError: shell.statusError; resetSerial: shell.resetSerial
                 onQuitPreview: Qt.quit()
             }

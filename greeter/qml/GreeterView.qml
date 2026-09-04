@@ -21,6 +21,7 @@ Item {
     required property int fontSize
     required property real dimOpacity
     required property string hourFormat
+    required property bool reducedMotion
     required property bool showSecondsRing
     required property bool showPowerActions
     required property bool authenticating
@@ -60,9 +61,17 @@ Item {
         return "file://" + String(path).split("/").map(encodeURIComponent).join("/");
     }
 
-    function forcePasswordFocus() {
-        if (primary)
-            passwordInput.forceActiveFocus();
+    function focusPrimaryAction() {
+        if (!primary)
+            return;
+        if (passwordInput.enabled)
+            passwordInput.forceActiveFocus(Qt.TabFocusReason);
+        else if (passwordModeAction.visible && passwordModeAction.interactive)
+            passwordModeAction.forceActiveFocus(Qt.TabFocusReason);
+        else if (sessionSwitcher.visible && sessionSwitcher.interactive)
+            sessionSwitcher.forceActiveFocus(Qt.TabFocusReason);
+        else
+            root.forceActiveFocus(Qt.OtherFocusReason);
     }
 
     function requestPower(action) {
@@ -79,11 +88,25 @@ Item {
     }
 
     onPasswordResetSerialChanged: passwordInput.text = ""
-    onPromptSerialChanged: Qt.callLater(forcePasswordFocus)
-    Component.onCompleted: Qt.callLater(forcePasswordFocus)
+    onPromptSerialChanged: Qt.callLater(focusPrimaryAction)
+    Component.onCompleted: Qt.callLater(focusPrimaryAction)
+    focus: primary
+    Keys.onEscapePressed: event => {
+        if (root.previewMode)
+            root.quitPreview();
+        else
+            root.cancelAuthentication();
+        event.accepted = true;
+    }
+    Keys.onPressed: event => {
+        if (event.key === Qt.Key_F2 && !event.isAutoRepeat) {
+            root.cycleSession(1);
+            event.accepted = true;
+        }
+    }
 
     Timer {
-        interval: 33
+        interval: root.showSecondsRing && !root.reducedMotion ? 33 : 1000
         repeat: true
         running: root.visible
         onTriggered: root.currentTime = new Date()
@@ -136,7 +159,7 @@ Item {
             y: root.compact ? -height * 0.2 : (parent.height - height) / 2
             currentTime: root.currentTime
             foreground: root.foreground
-            showSecondsRing: root.showSecondsRing
+            showSecondsRing: root.showSecondsRing && !root.reducedMotion
             authenticating: root.authenticating || root.launching
             hourFormat: root.hourFormat
             fontFamily: root.fontFamily
@@ -160,23 +183,29 @@ Item {
             }
 
             ActionLabel {
+                id: sessionSwitcher
                 label: root.sessionName.toUpperCase()
+                accessibleDescription: root.sessionCount > 1 ? "Select the next session" : "Selected session"
                 active: true
                 interactive: root.primary && root.sessionCount > 1 && !root.launching
                 onTriggered: root.cycleSession(1)
             }
 
             ActionLabel {
+                id: rebootAction
                 visible: root.showPowerActions
                 label: root.pendingPowerAction === "reboot" ? "CONFIRM REBOOT" : "REBOOT"
+                accessibleDescription: root.pendingPowerAction === "reboot" ? "Press again to restart the computer" : "Request computer restart"
                 active: root.pendingPowerAction === "reboot"
                 interactive: root.primary && !root.previewMode && !root.launching
                 onTriggered: root.requestPower("reboot")
             }
 
             ActionLabel {
+                id: shutdownAction
                 visible: root.showPowerActions
                 label: root.pendingPowerAction === "poweroff" ? "CONFIRM SHUTDOWN" : "SHUTDOWN"
+                accessibleDescription: root.pendingPowerAction === "poweroff" ? "Press again to shut down the computer" : "Request computer shutdown"
                 active: root.pendingPowerAction === "poweroff"
                 interactive: root.primary && !root.previewMode && !root.launching
                 onTriggered: root.requestPower("poweroff")
@@ -237,13 +266,17 @@ Item {
                 spacing: 14 * root.uiScale
 
                 ActionLabel {
+                    id: passwordModeAction
                     label: root.responseRequired ? "ENTER PASSWORD" : (root.authenticating ? "WAITING FOR PASSWORD" : "START PASSWORD LOGIN")
+                    accessibleDescription: "Start password authentication"
                     active: root.responseRequired
                     interactive: !root.previewMode && !root.launching && !root.authenticating
                     onTriggered: root.startExternalAuth()
                 }
                 ActionLabel {
+                    id: cancelAuthAction
                     label: "CANCEL"
+                    accessibleDescription: "Cancel authentication"
                     visible: root.authenticating
                     interactive: !root.launching
                     onTriggered: root.cancelAuthentication()
@@ -257,7 +290,7 @@ Item {
                 radius: height / 2
                 color: root.alpha(root.background, 0.78)
                 border.width: Math.max(1, 1.5 * root.uiScale)
-                border.color: root.statusError ? root.danger : root.alpha(root.foreground, root.responseRequired ? 0.55 : 0.25)
+                border.color: root.statusError ? root.danger : (passwordInput.activeFocus ? root.accent : root.alpha(root.foreground, root.responseRequired ? 0.55 : 0.25))
 
                 Rectangle {
                     id: fingerprintHalo
@@ -271,7 +304,7 @@ Item {
                     border.width: Math.max(1, root.uiScale)
                     border.color: root.alpha(root.foreground, root.responseRequired ? 0.52 : 0.16)
                     scale: root.responseRequired ? 1.08 : 1
-                    Behavior on scale { NumberAnimation { duration: 550; easing.type: Easing.InOutSine } }
+                    Behavior on scale { enabled: !root.reducedMotion; NumberAnimation { duration: 550; easing.type: Easing.InOutSine } }
 
                     Text {
                         anchors.centerIn: parent
@@ -282,7 +315,7 @@ Item {
                     }
 
                     SequentialAnimation on opacity {
-                        running: root.authenticating && !root.responseRequired
+                        running: root.authenticating && !root.responseRequired && !root.reducedMotion
                         loops: Animation.Infinite
                         NumberAnimation { from: 1; to: 0.45; duration: 520; easing.type: Easing.InOutSine }
                         NumberAnimation { from: 0.45; to: 1; duration: 520; easing.type: Easing.InOutSine }
@@ -297,7 +330,14 @@ Item {
                     horizontalAlignment: TextInput.AlignRight
                     verticalAlignment: TextInput.AlignVCenter
                     activeFocusOnPress: true
+                    activeFocusOnTab: enabled
                     enabled: root.primary && !root.launching && root.responseRequired
+                    Accessible.role: Accessible.EditableText
+                    Accessible.name: root.echoResponse ? "Authentication response" : "Password"
+                    Accessible.description: root.promptMessage || root.statusMessage
+                    Accessible.passwordEdit: !root.echoResponse
+                    Accessible.focusable: true
+                    Accessible.focused: activeFocus
                     echoMode: root.echoResponse ? TextInput.Normal : TextInput.Password
                     passwordCharacter: "✦"
                     passwordMaskDelay: 0
@@ -322,7 +362,7 @@ Item {
                             else
                                 root.cancelAuthentication();
                             event.accepted = true;
-                        } else if (event.key === Qt.Key_F2) {
+                        } else if (event.key === Qt.Key_F2 && !event.isAutoRepeat) {
                             root.cycleSession(1);
                             event.accepted = true;
                         } else if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_U) {
@@ -342,6 +382,7 @@ Item {
                     font.letterSpacing: 3 * root.uiScale
                     horizontalAlignment: Text.AlignRight
                     verticalAlignment: Text.AlignVCenter
+                    Accessible.ignored: true
                 }
             }
 
@@ -354,6 +395,8 @@ Item {
                 font.letterSpacing: 2.5 * root.uiScale
                 horizontalAlignment: Text.AlignRight
                 wrapMode: Text.Wrap
+                Accessible.role: Accessible.StaticText
+                Accessible.name: text
             }
 
             Text {
@@ -380,7 +423,8 @@ Item {
         }
     }
 
-    onStatusErrorChanged: if (statusError) failureShake.restart()
+    onStatusErrorChanged: if (statusError) { failureOffset.x = 0; if (!reducedMotion) failureShake.restart(); }
+    onReducedMotionChanged: if (reducedMotion) { failureShake.stop(); failureOffset.x = 0; }
 
     SequentialAnimation {
         id: failureShake
@@ -393,22 +437,55 @@ Item {
     component ActionLabel: Item {
         id: actionRoot
         property string label: ""
+        property string accessibleDescription: ""
         property bool active: false
         property bool interactive: true
         signal triggered()
+        function activate() {
+            if (interactive && visible && enabled)
+                triggered();
+        }
         width: actionText.implicitWidth
         height: actionText.implicitHeight
         opacity: interactive ? 1 : 0.45
+        activeFocusOnTab: interactive && visible && enabled
+        Accessible.role: Accessible.Button
+        Accessible.name: label
+        Accessible.description: accessibleDescription
+        Accessible.focusable: activeFocusOnTab
+        Accessible.focused: activeFocus
+        Accessible.onPressAction: actionRoot.activate()
+        Keys.onReturnPressed: event => {
+            event.accepted = true;
+            if (!event.isAutoRepeat) actionRoot.activate();
+        }
+        Keys.onEnterPressed: event => {
+            event.accepted = true;
+            if (!event.isAutoRepeat) actionRoot.activate();
+        }
+        Keys.onSpacePressed: event => {
+            event.accepted = true;
+            if (!event.isAutoRepeat) actionRoot.activate();
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: -4 * root.uiScale
+            color: "transparent"
+            border.width: actionRoot.activeFocus ? Math.max(1, root.uiScale) : 0
+            border.color: root.accent
+            radius: 2 * root.uiScale
+        }
 
         Text {
             id: actionText
             text: actionRoot.label
-            color: actionRoot.active || actionMouse.containsMouse ? root.foreground : root.muted
+            color: actionRoot.active || actionRoot.activeFocus || actionMouse.containsMouse ? root.foreground : root.muted
             font.family: root.fontFamily
             font.pixelSize: 10 * root.uiScale
             font.weight: actionRoot.active ? Font.Bold : Font.Normal
             font.letterSpacing: 2.5 * root.uiScale
-            Behavior on color { ColorAnimation { duration: 140 } }
+            Behavior on color { enabled: !root.reducedMotion; ColorAnimation { duration: 140 } }
         }
         MouseArea {
             id: actionMouse
@@ -416,7 +493,10 @@ Item {
             hoverEnabled: true
             enabled: actionRoot.interactive
             cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-            onClicked: actionRoot.triggered()
+            onClicked: {
+                actionRoot.forceActiveFocus(Qt.MouseFocusReason);
+                actionRoot.activate();
+            }
         }
     }
 }

@@ -56,6 +56,7 @@ def check_named_theme(root: Path) -> None:
                 "radius": 7,
                 "borderWidth": 3,
                 "lockFingerprint": True,
+                "motionProfile": "reduced",
             }
         ),
         encoding="utf-8",
@@ -75,6 +76,8 @@ def check_named_theme(root: Path) -> None:
     assert "SESSION LOCKED" in text
     assert "fingerprint {" in text
     assert "enabled = true" in text
+    assert "animations {\n    enabled = false" in text
+    assert "animation = fadeIn" not in text
     assert output.stat().st_mode & 0o777 == 0o600
 
 
@@ -114,6 +117,8 @@ def check_ansi_and_solid(root: Path) -> None:
     assert "path = \n" in text
     assert "$USER  @  $HOSTNAME" not in text
     assert "fingerprint {" not in text
+    assert "animations {\n    enabled = true" in text
+    assert "animation = fadeIn" in text
 
 
 def check_custom_command() -> None:
@@ -132,13 +137,14 @@ def check_custom_command() -> None:
 
 def check_native_render_and_selection(root: Path) -> None:
     config = root / "native.json"
-    config.write_text(json.dumps({"font": "Native Mono", "lockDim": 55, "clockFormat": "12"}))
+    config.write_text(json.dumps({"font": "Native Mono", "lockDim": 55, "clockFormat": "12", "motionProfile": "reduced"}))
     output = root / "orbital-lock.json"
     LOCKSCREEN.render_native(config, output)
     document = json.loads(output.read_text())
     assert document["font"] == "Native Mono"
     assert document["dimOpacity"] == 0.55
     assert document["hourFormat"] == "12"
+    assert document["reducedMotion"] is True
     assert output.stat().st_mode & 0o777 == 0o600
     with mock.patch.object(LOCKSCREEN, "native_command", return_value=["quickshell", "-p", "/lock"]):
         command, environment, native = LOCKSCREEN.selected_locker({}, Path("hypr.conf"), output)
@@ -154,6 +160,9 @@ def check_qml_contract() -> None:
     assert "import qs." not in view
     assert "Controls.TextField" in view
     assert "echoMode: TextInput.Password" in view
+    assert "required property bool reducedMotion" in view
+    assert "root.showSecondsRing && !root.reducedMotion" in view
+    assert "root.authenticating && !root.reducedMotion" in view
     assert 'config: "nbshell-lock"' in shell
     assert "user: shell.username" in shell
     assert "if (!pam.start())" in shell

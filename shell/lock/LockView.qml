@@ -17,6 +17,7 @@ Item {
     required property string fontFamily
     required property real dimOpacity
     required property string hourFormat
+    required property bool reducedMotion
     required property bool showSecondsRing
     required property bool authenticating
     required property string statusMessage
@@ -34,7 +35,7 @@ Item {
     // The outer seconds ring is deliberately smooth. When it is disabled,
     // the remaining minute ring does not justify rebuilding Date bindings at
     // ~30 Hz; a one-second cadence still keeps its fractional position exact.
-    Timer { interval: root.showSecondsRing ? 33 : 1000; repeat: true; running: root.visible; onTriggered: root.currentTime = new Date() }
+    Timer { interval: root.showSecondsRing && !root.reducedMotion ? 33 : 1000; repeat: true; running: root.visible; onTriggered: root.currentTime = new Date() }
 
     Rectangle {
         anchors.fill: parent; color: root.background
@@ -45,7 +46,7 @@ Item {
             width: root.compact ? Math.min(parent.width * 1.2, parent.height * 0.84) : Math.min(parent.width * 0.62, parent.height * 1.3)
             height: width; x: root.compact ? (parent.width-width)/2 : -width*0.49; y: root.compact ? -height*0.2 : (parent.height-height)/2
             currentTime: root.currentTime; foreground: root.foreground; hourFormat: root.hourFormat
-            showSecondsRing: root.showSecondsRing; fontFamily: root.fontFamily
+            showSecondsRing: root.showSecondsRing && !root.reducedMotion; fontFamily: root.fontFamily
         }
         Text {
             anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 48 * root.unit
@@ -64,16 +65,16 @@ Item {
             Text { width: parent.width; text: root.username.toUpperCase(); color: root.foreground; font.family: root.fontFamily; font.pixelSize: 19*root.unit; font.bold: true; font.letterSpacing: 7*root.unit; horizontalAlignment: Text.AlignRight }
             Rectangle {
                 width: parent.width; height: 62*root.unit; radius: height/2; color: Qt.rgba(root.background.r,root.background.g,root.background.b,0.78)
-                border.width: Math.max(1,1.5*root.unit); border.color: root.statusError ? root.danger : Qt.rgba(root.foreground.r,root.foreground.g,root.foreground.b,0.5)
+                border.width: Math.max(1,1.5*root.unit); border.color: root.statusError ? root.danger : (passwordInput.activeFocus ? root.accent : Qt.rgba(root.foreground.r,root.foreground.g,root.foreground.b,0.5))
                 Rectangle {
                     anchors.left: parent.left; anchors.leftMargin: 18*root.unit; anchors.verticalCenter: parent.verticalCenter
                     width: 42*root.unit; height: width; radius: width/2; color: Qt.rgba(root.foreground.r,root.foreground.g,root.foreground.b,0.1)
                     Text { anchors.centerIn: parent; text: "󰌾"; color: root.foreground; font.family: root.fontFamily; font.pixelSize: 23*root.unit }
-                    SequentialAnimation on opacity { running: root.authenticating; loops: Animation.Infinite; NumberAnimation { to: .45; duration: 520 } NumberAnimation { to: 1; duration: 520 } }
+                    SequentialAnimation on opacity { running: root.authenticating && !root.reducedMotion; loops: Animation.Infinite; NumberAnimation { to: .45; duration: 520 } NumberAnimation { to: 1; duration: 520 } }
                 }
                 Controls.TextField {
                     id: passwordInput; anchors.fill: parent; anchors.leftMargin: 78*root.unit; anchors.rightMargin: 26*root.unit
-                    Accessible.name: "Password"; Accessible.passwordEdit: true
+                    Accessible.name: "Password"; Accessible.description: root.statusMessage; Accessible.passwordEdit: true
                     background: null; enabled: !root.authenticating; leftPadding: 0; rightPadding: 0; echoMode: TextInput.Password; passwordCharacter: "✦"; passwordMaskDelay: 0
                     color: root.foreground; selectionColor: root.accent; font.family: root.fontFamily; font.pixelSize: 16*root.unit; font.letterSpacing: 8*root.unit
                     horizontalAlignment: TextInput.AlignRight; verticalAlignment: TextInput.AlignVCenter
@@ -87,6 +88,7 @@ Item {
         }
         Text { visible: !root.primary; anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 46*root.unit; text: "UNLOCK CONTROLS ON PRIMARY DISPLAY"; color: root.muted; font.family: root.fontFamily; font.pixelSize: 9*root.unit; font.letterSpacing: 2.5*root.unit }
     }
-    onStatusErrorChanged: if (statusError) failureShake.restart()
+    onStatusErrorChanged: if (statusError) { failureOffset.x = 0; if (!reducedMotion) failureShake.restart(); }
+    onReducedMotionChanged: if (reducedMotion) { failureShake.stop(); failureOffset.x = 0; }
     SequentialAnimation { id: failureShake; NumberAnimation { target: failureOffset; property:"x"; to:-10*root.unit; duration:45 } NumberAnimation { target: failureOffset; property:"x"; to:10*root.unit; duration:70 } NumberAnimation { target: failureOffset; property:"x"; to:-6*root.unit; duration:60 } NumberAnimation { target: failureOffset; property:"x"; to:0; duration:45 } }
 }

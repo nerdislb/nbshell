@@ -30,7 +30,7 @@ assert_not_grep -Fq 'void SearchProviders' "$SHELL_ROOT"
 # Disabling the decorative seconds ring must also disable its frame-rate clock
 # updates. Agent transaction details are useful only while their lazy surface
 # is visible and must not create helper processes on background status polls.
-grep -Fq 'interval: root.showSecondsRing ? 33 : 1000' "$ROOT/shell/lock/LockView.qml"
+grep -Fq 'interval: root.showSecondsRing && !root.reducedMotion ? 33 : 1000' "$ROOT/shell/lock/LockView.qml"
 grep -Fq 'if (root.overviewVisible && root.selectedJobId)' "$ROOT/shell/Services/Agents.qml"
 grep -Fq 'if (root.overviewVisible && root.selectedBrainProposalId)' "$ROOT/shell/Services/Agents.qml"
 grep -Fq 'interval: root.overviewVisible || root.completionAttention' "$ROOT/shell/Services/Agents.qml"

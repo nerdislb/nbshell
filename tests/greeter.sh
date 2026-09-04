@@ -28,7 +28,7 @@ test_config="$stage/user-config"
 mkdir -p "$test_config/nbshell/themes/test/backgrounds"
 cp "$ROOT/themes/tokyo-night/colors.toml" "$test_config/nbshell/themes/test/colors.toml"
 touch "$test_config/nbshell/themes/test/backgrounds/test.jpg"
-printf '{"theme":"test","radius":7,"font":"Test Font","lockDim":41}\n' > "$test_config/nbshell/config.json"
+printf '{"theme":"test","radius":7,"font":"Test Font","lockDim":41,"motionProfile":"reduced"}\n' > "$test_config/nbshell/config.json"
 printf '#!/usr/bin/env sh\nexit 0\n' > "$stage/start-umbriel"
 chmod +x "$stage/start-umbriel"
 
@@ -46,6 +46,7 @@ config = json.loads(pathlib.Path(sys.argv[2]).read_text(encoding="utf-8"))
 assert config["username"] == "test-user"
 assert config["font"] == "Test Font"
 assert config["dimOpacity"] == 0.41
+assert config["reducedMotion"] is True
 assert len(config["sessions"]) == 1
 assert config["sessions"][0]["name"] == "Umbriel"
 assert pathlib.Path(config["sessions"][0]["command"][0]).name == "start-umbriel"
@@ -61,6 +62,8 @@ assert "onQuitPreview: Qt.quit()" in shell
 assert "function submitResponse(response)" in shell
 assert "authenticationRetryPending" in shell
 assert "AUTHENTICATION RESET TIMED OUT · PRESS ESC TO CANCEL" in shell
+for required in ("reducedMotion", "Accessible.role: Accessible.Button", "activeFocusOnTab", "Accessible.onPressAction", "Accessible.passwordEdit", "event.isAutoRepeat"):
+    assert required in view, required
 PY
 
 grep -Fq 'config.toml.before-nbshell-greeter' "$ROOT/setup-greeter.sh"

@@ -11,6 +11,7 @@
   "fontSize": 14,
   "dimOpacity": 0.48,
   "hourFormat": "24",
+  "reducedMotion": false,
   "showSecondsRing": true,
   "showPowerActions": true,
   "autoStartAuthentication": false,

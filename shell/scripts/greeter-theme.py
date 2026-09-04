@@ -91,6 +91,7 @@ default_focused = true
         "borderWidth": border,
         "dimOpacity": dim,
         "hourFormat": "12" if str(config.get("lockHourFormat")) == "12" else "24",
+        "reducedMotion": str(config.get("motionProfile") or "standard") == "reduced",
         "showSecondsRing": config.get("greeterShowSecondsRing", True) is not False,
         "showPowerActions": config.get("greeterShowPowerActions", True) is not False,
         "autoStartAuthentication": config.get("greeterAutoStartAuthentication", True) is not False,

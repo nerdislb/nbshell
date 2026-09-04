@@ -28,6 +28,7 @@ ShellRoot {
     property int fontSize: 14
     property real dimOpacity: 0.48
     property string hourFormat: "24"
+    property bool reducedMotion: false
     property bool showSecondsRing: true
     property bool showPowerActions: true
     property bool autoStartAuthentication: true
@@ -80,6 +81,7 @@ ShellRoot {
         if (!isFinite(dimOpacity))
             dimOpacity = 0.48;
         hourFormat = String(document.hourFormat) === "12" ? "12" : "24";
+        reducedMotion = document.reducedMotion === true;
         showSecondsRing = document.showSecondsRing !== false;
         showPowerActions = document.showPowerActions !== false;
         autoStartAuthentication = document.autoStartAuthentication !== false;
@@ -350,6 +352,7 @@ ShellRoot {
                 fontSize: shell.fontSize
                 dimOpacity: shell.dimOpacity
                 hourFormat: shell.hourFormat
+                reducedMotion: shell.reducedMotion
                 showSecondsRing: shell.showSecondsRing
                 showPowerActions: shell.showPowerActions
                 authenticating: shell.authenticating
