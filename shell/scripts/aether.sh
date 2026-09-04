@@ -20,7 +20,8 @@ install_hook() {
         echo "The bundled Aether hook is missing. Reinstall nbshell first." >&2
         exit 1
     }
-    install -d "$hook_dir" "$state_dir"
+    install -d "$hook_dir"
+    install -d -m 700 "$state_dir"
     install -m 644 "$source/config.json" "$hook_dir/config.json"
     install -m 644 "$source/nbshell.palette" "$hook_dir/nbshell.palette"
     install -m 755 "$source/post-apply.sh" "$hook_dir/post-apply.sh"
@@ -28,7 +29,7 @@ install_hook() {
 }
 
 apply_theme() (
-    install -d "$state_dir"
+    install -d -m 700 "$state_dir"
     exec 9>"$state_dir/aether-apply.lock"
     flock -n 9 || exit 0
 

@@ -130,6 +130,7 @@ export XDG_CONFIG_HOME="$TEST_HOME/.config"
 export XDG_DATA_HOME="$TEST_HOME/.local/share"
 export XDG_CACHE_HOME="$TEST_HOME/.cache"
 export XDG_BIN_HOME="$TEST_HOME/.local/bin"
+export XDG_STATE_HOME="$TEST_HOME/.local/state"
 export FAKE_SYSTEMD_STATE="$WORK/systemd-state"
 # Tests run inside the developer's real nbshell.service cgroup; force the normal
 # restart path except for the dedicated deferred-restart case below.
@@ -176,6 +177,18 @@ test ! -e "$FAKE_SYSTEMD_STATE/active-nbshell-upstream-audit.timer"
 assert_no_reservations
 
 "$ROOT/install.sh" >/dev/null
+
+# Aether setup and failed theme application must preserve the private mode of
+# the shared nbshell state directory rather than resetting it to install(1)'s
+# default 0755.
+chmod 700 "$XDG_STATE_HOME/nbshell"
+bash "$XDG_CONFIG_HOME/quickshell/nbshell/scripts/aether.sh" install-hook >/dev/null
+test "$(stat -Lc '%a' "$XDG_STATE_HOME/nbshell")" = 700
+if bash "$XDG_CONFIG_HOME/quickshell/nbshell/scripts/aether.sh" apply >/dev/null 2>&1; then
+    echo "Aether apply unexpectedly succeeded without a generated theme" >&2
+    exit 1
+fi
+test "$(stat -Lc '%a' "$XDG_STATE_HOME/nbshell")" = 700
 
 grep -Fq "flock $HOME/.local/state/nbshell/install.lock" \
     "$FAKE_SYSTEMD_STATE/last-systemd-run"
