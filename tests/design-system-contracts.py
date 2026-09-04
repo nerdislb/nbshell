@@ -177,8 +177,6 @@ agent_center = (ROOT / "shell/Menu/AgentCenter.qml").read_text(encoding="utf-8")
 for snippet in (
     "dockedTop: true",
     'model: ["NOW", "WORK", "SETUP"]',
-    "function focusPageTab(index)",
-    "tab.forceActiveFocus(Qt.ShortcutFocusReason)",
     "root.selectPage(event.key - Qt.Key_1, true)",
     "visible: root.page === 1 && (Agents.hermesJobs || []).length > 0",
     "visible: root.page === 2",
@@ -188,6 +186,12 @@ for snippet in (
 ):
     if snippet not in agent_center:
         raise SystemExit(f"Agent Center bar-extension contract is incomplete: {snippet}")
+focus_page_tab = agent_center[
+    agent_center.index("function focusPageTab(index)"):
+    agent_center.index("function selectPage(index, focusTab)")
+]
+if "tab.forceActiveFocus(Qt.ShortcutFocusReason)" not in focus_page_tab:
+    raise SystemExit("Agent Center page-tab focus helper no longer focuses the selected tab")
 for removed in (
     '"RESOURCES"', 'Line { text: "IN  "', 'model: Agents.projects',
     'text: "LIVE SESSIONS"', 'text: "MODEL ROUTING"',
@@ -389,7 +393,6 @@ for snippet in (
 
 calculator_window = (ROOT / "shell/Calculator/CalculatorWindow.qml").read_text(encoding="utf-8")
 for snippet in (
-    "function copyResult() {\n        if (invalid)\n            return;",
     "enabled: !root.invalid",
     "function keyName(action, label)",
     "ControlButton {",
@@ -398,6 +401,12 @@ for snippet in (
 ):
     if snippet not in calculator_window:
         raise SystemExit(f"Calculator keyboard action contract is incomplete: {snippet}")
+copy_result = calculator_window[
+    calculator_window.index("function copyResult()"):
+    calculator_window.index("function keyName(action, label)")
+]
+if "if (invalid)" not in copy_result or "return;" not in copy_result:
+    raise SystemExit("Calculator copyResult no longer rejects an invalid result")
 
 shopping_window = (ROOT / "shell/Shopping/ShoppingListWindow.qml").read_text(encoding="utf-8")
 shopping_service = (ROOT / "shell/Services/ShoppingDraft.qml").read_text(encoding="utf-8")
