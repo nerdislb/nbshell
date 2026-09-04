@@ -6,6 +6,8 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+## [0.1.0-beta.10] - 2026-09-04
+
 ### Added
 
 - An optional Buds Control bar tool uses pbpctrl for confirmed Pixel Buds mode
@@ -18,6 +20,18 @@ configuration and plugin interfaces before `1.0.0`.
   and Osaka Jade wallpapers add realistic, flat, and pixel-art landscapes,
   mountain scenes, sunsets, and fogbound cities to their matching theme
   collections, with retained Midjourney generation provenance.
+- Shared modal surfaces now provide focus trapping and restoration, Escape and
+  background-input handling, accessible dialog semantics, and Reduced Motion
+  behavior for dashboard, plugin-development, and unsaved-notes flows.
+
+### Changed
+
+- System updates show the package transaction for review before installation,
+  and screenshot capture immediately copies the resulting PNG to the clipboard
+  whether or not the editor is opened.
+- Core actions in System Hub, Agent Center, Notes, Calculator, the greeter, and
+  the lock screen now share guarded pointer, keyboard, and assistive-technology
+  activation paths with visible focus and key-repeat protection.
 
 ### Fixed
 
@@ -28,6 +42,31 @@ configuration and plugin interfaces before `1.0.0`.
 - Agent Center launches interactive coding agents in independent transient
   systemd scopes, so restarting nbshell no longer terminates their terminals or
   in-progress work.
+- Installer updates now use durable transactions, an independent recovery
+  watchdog, atomic runtime exchange, validated recovery manifests, and exact
+  service-state restoration. Interrupted installs, including SIGKILL with
+  custom XDG paths, restore payloads, manually started shells, linked or masked
+  units, and deferred process retirement without discarding retryable backups.
+- Concurrent Hermes jobs, teams, and Brain proposals use admission locks,
+  process identity checks, guarded worker handoff and completion, and complete
+  process-group cancellation to prevent duplicate or stale work.
+- Plugin updates reject repository-hook execution and remove copied Git
+  metadata before unsandboxed code is installed.
+- Remote mail images reject line breaks before URLs enter curl configuration,
+  preventing untrusted message content from injecting additional directives.
+- System Hub status and expandable rows remain visible to assistive technology,
+  Agent Center choices expose correct radio-button state, and passive surfaces
+  no longer advertise actions they cannot perform.
+- Greeter and lock-screen controls expose accurate enabled and password states,
+  ignore repeated activation keys, restore focus consistently, and stop
+  non-essential motion when Reduced Motion is enabled.
+- Light themes keep text and control surfaces contrast-safe, and Umbriel theme
+  export uses the current compositor color keys.
+- Aether keeps its local updater state private when rewriting metadata.
+- Sleep requests wait for compositor-confirmed lock coverage, while resume
+  waits for a real Umbriel output before restoring display power.
+- OmaWhatsApp pointer-wheel scrolling is accelerated without changing keyboard
+  scrolling behavior.
 
 ## [0.1.0-beta.9] - 2026-09-02
 
@@ -531,7 +570,8 @@ First public beta candidate.
   declared dependencies before activation.
 - Credentials remain outside the repository and plugin configuration.
 
-[Unreleased]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.9...HEAD
+[Unreleased]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.10...HEAD
+[0.1.0-beta.10]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.9...v0.1.0-beta.10
 [0.1.0-beta.9]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.8...v0.1.0-beta.9
 [0.1.0-beta.8]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.7...v0.1.0-beta.8
 [0.1.0-beta.7]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.6...v0.1.0-beta.7
