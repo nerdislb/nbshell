@@ -16,6 +16,8 @@ Rectangle {
     property int accessibleRole: Accessible.Button
     property bool accessibleSelected: false
     property bool accessiblePressed: false
+    property bool accessibleCheckable: false
+    property bool accessibleChecked: false
 
     signal triggered()
 
@@ -40,7 +42,13 @@ Rectangle {
     Accessible.focused: activeFocus
     Accessible.selected: accessibleSelected
     Accessible.pressed: accessiblePressed
-    Accessible.onPressAction: root.activate()
+    Accessible.checkable: accessibleCheckable
+    Accessible.checked: accessibleChecked
+
+    Connections {
+        target: root.interactive && root.enabled ? root.Accessible : null
+        function onPressAction() { root.activate(); }
+    }
 
     Keys.onReturnPressed: event => root.activateFromKey(event)
     Keys.onEnterPressed: event => root.activateFromKey(event)

@@ -641,7 +641,8 @@ PanelWindow {
                                         accessibleName: modelData.label
                                         accessibleDescription: (modelData.id === Agents.hermesProvider ? "Selected. " : "")
                                             + (providerState.ready ? "Use " + modelData.label + " for Hermes" : modelData.label + " is not ready")
-                                        accessibleSelected: modelData.id === Agents.hermesProvider
+                                        accessibleCheckable: true
+                                        accessibleChecked: modelData.id === Agents.hermesProvider
                                         width: (body.width - Theme.cellW * 2) / 3
                                         height: Theme.cellH * 2.6
                                         radius: Theme.radius
@@ -679,7 +680,8 @@ PanelWindow {
                                         accessibleName: modelData.label
                                         accessibleDescription: (modelData.id === Agents.hermesMode ? "Selected. " : "")
                                             + "Use Hermes " + modelData.label.toLowerCase() + " mode. " + modelData.description
-                                        accessibleSelected: modelData.id === Agents.hermesMode
+                                        accessibleCheckable: true
+                                        accessibleChecked: modelData.id === Agents.hermesMode
                                         width: (body.width - Theme.cellW * 3) / 4
                                         height: Theme.cellH * 2.6
                                         radius: Theme.radius

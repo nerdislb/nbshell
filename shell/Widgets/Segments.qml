@@ -84,7 +84,8 @@ Flow {
             accessibleRole: Accessible.RadioButton
             accessibleName: root.labelOf(segment.modelData)
             accessibleDescription: segment.active ? "Selected option" : "Option"
-            accessibleSelected: segment.active
+            accessibleCheckable: true
+            accessibleChecked: segment.active
             onTriggered: root.chosen(root.valueOf(segment.modelData))
 
             Keys.onLeftPressed: root.chooseAndFocus(segment.index - 1)

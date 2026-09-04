@@ -223,7 +223,8 @@ for snippet in (
     if snippet not in agent_center:
         raise SystemExit(f"Agent Center keyboard action contract is incomplete: {snippet}")
 if agent_center.count("accessibleRole: Accessible.RadioButton") < 2 \
-        or agent_center.count("accessibleSelected: modelData.id === Agents.hermes") < 2:
+        or agent_center.count("accessibleCheckable: true") < 2 \
+        or agent_center.count("accessibleChecked: modelData.id === Agents.hermes") < 2:
     raise SystemExit("Hermes provider and mode choices no longer expose radio selection semantics")
 if '"Full project access; command approvals are disabled"' not in agent_center:
     raise SystemExit("Hermes trusted mode no longer exposes its approval consequence accessibly")
@@ -400,6 +401,11 @@ if "accessibilityIgnored: !interactive" in system_hub:
 for focus_target in ("row", "detailRow", "externalAction"):
     if f"onActiveFocusChanged: if (activeFocus) root.revealFocusedItem({focus_target})" not in system_hub:
         raise SystemExit(f"System Hub no longer reveals focused {focus_target} controls")
+
+interactive_surface = (ROOT / "shell/Widgets/InteractiveSurface.qml").read_text(encoding="utf-8")
+if "Accessible.onPressAction:" in interactive_surface \
+        or "target: root.interactive && root.enabled ? root.Accessible : null" not in interactive_surface:
+    raise SystemExit("Passive InteractiveSurface content regained an accessibility press action")
 
 notes_window = (ROOT / "shell/Notes/NotesWindow.qml").read_text(encoding="utf-8")
 for snippet in (
@@ -749,6 +755,8 @@ segments = (ROOT / "shell/Widgets/Segments.qml").read_text(encoding="utf-8")
 for snippet in (
     "InteractiveSurface {",
     "accessibleRole: Accessible.RadioButton",
+    "accessibleCheckable: true",
+    "accessibleChecked: segment.active",
     "Keys.onLeftPressed",
     "Keys.onRightPressed",
     "elide: Text.ElideRight",
