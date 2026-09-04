@@ -245,6 +245,12 @@ rollback_is_runtime() {
 runtime_identity() {
     stat -Lc '%d:%i' -- "$1" 2>/dev/null
 }
+runtime_matches_original() {
+    local candidate=$1 expected
+    [ -f "$TRANSACTION_BACKUP/original-runtime-identity" ] || return 1
+    expected=$(cat "$TRANSACTION_BACKUP/original-runtime-identity" 2>/dev/null) || return 1
+    [ -n "$expected" ] && [ "$(runtime_identity "$candidate")" = "$expected" ]
+}
 restore_runtime_from_backup() {
     if ! rm -rf -- "$STAGED_SHELL" \
             || ! cp -a -- "$ROLLBACK_SHELL" "$STAGED_SHELL"; then
@@ -274,6 +280,19 @@ recover_install() {
     # Recovery continues across independent destinations. If any restoration
     # fails, keep the durable backup and watchdog available for a retry.
     set +e
+    # RENAME_EXCHANGE is atomic, but a signal may reach Bash after the syscall
+    # and before the process-local flags below are assigned. Reconcile those
+    # flags from the identity persisted before any mutation so EXIT recovery
+    # cannot discard the original runtime in that window.
+    if [ $install_ready -ne 1 ] && [ -n "${TRANSACTION_BACKUP:-}" ]; then
+        if runtime_matches_original "$ROLLBACK_SHELL"; then
+            rollback_occupied=1
+            runtime_swapped=1
+        elif runtime_matches_original "$SHELL_DIR"; then
+            rollback_occupied=0
+            runtime_swapped=0
+        fi
+    fi
     if [ $install_ready -ne 1 ] && [ -n "${TRANSACTION_BACKUP:-}" ]; then
         rollback_transaction_paths
     fi
@@ -582,12 +601,16 @@ if [ -d "$SHELL_DIR" ]; then
     mv -T -- "$STAGED_SHELL" "$ROLLBACK_SHELL"
     [ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-first-rename" ] || exit 98
     mv --exchange -T -- "$SHELL_DIR" "$ROLLBACK_SHELL"
+    [ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-runtime-exchange-exit" ] || exit 97
+    [ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-runtime-exchange-kill" ] || kill -KILL "$$"
     rollback_occupied=1
     runtime_swapped=1
-    [ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-runtime-exchange-kill" ] || kill -KILL "$$"
 else
-    mv -T -- "$STAGED_SHELL" "$SHELL_DIR"
+    # There is no old runtime to preserve on first install. Mark the rename
+    # before executing it so EXIT recovery also covers interruption after the
+    # syscall but before Bash observes its return.
     runtime_swapped=1
+    mv -T -- "$STAGED_SHELL" "$SHELL_DIR"
 fi
 
 green "Shell   -> $SHELL_DIR"
