@@ -192,7 +192,7 @@ rollback_transaction_paths() {
     done
 }
 rollback_transaction_units() {
-    local index unit enabled active fragment unit_path unit_key
+    local index unit enabled active fragment unit_path unit_key mask_after
     recover_command systemctl --user daemon-reload >/dev/null 2>&1
     for ((index=${#transaction_unit_names[@]} - 1; index >= 0; index--)); do
         unit="${transaction_unit_names[$index]}"
@@ -201,9 +201,12 @@ rollback_transaction_units() {
         fragment="${transaction_unit_fragments[$index]}"
         unit_path="$UNIT_DIR/$unit"
         unit_key="unit-$unit"
+        mask_after=""
+        # Activity has to be restored while the unit is startable. Reapply a
+        # captured mask only after start/stop so masked+active remains possible.
+        recover_command systemctl --user unmask "$unit" >/dev/null 2>&1
         case "$enabled" in
             enabled|enabled-linked)
-                recover_command systemctl --user unmask "$unit" >/dev/null 2>&1
                 recover_command systemctl --user disable "$unit" >/dev/null 2>&1
                 if [ "$enabled" = enabled-linked ] \
                         || [ -L "$TRANSACTION_BACKUP/$unit_key" ]; then
@@ -237,11 +240,11 @@ rollback_transaction_units() {
                 ;;
             masked)
                 recover_command systemctl --user disable "$unit" >/dev/null 2>&1
-                recover_command systemctl --user mask "$unit" >/dev/null 2>&1
+                mask_after=persistent
                 ;;
             masked-runtime)
                 recover_command systemctl --user disable "$unit" >/dev/null 2>&1
-                recover_command systemctl --user mask --runtime "$unit" >/dev/null 2>&1
+                mask_after=runtime
                 ;;
             not-found) continue ;;
             *)
@@ -253,6 +256,10 @@ rollback_transaction_units() {
         else
             recover_command systemctl --user stop "$unit" >/dev/null 2>&1
         fi
+        case "$mask_after" in
+            persistent) recover_command systemctl --user mask "$unit" >/dev/null 2>&1 ;;
+            runtime) recover_command systemctl --user mask --runtime "$unit" >/dev/null 2>&1 ;;
+        esac
     done
 }
 rollback_is_runtime() {
@@ -616,6 +623,7 @@ if [ -d "$SHELL_DIR" ]; then
     rmdir -- "$ROLLBACK_SHELL"
     mv -T -- "$STAGED_SHELL" "$ROLLBACK_SHELL"
     [ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-first-rename" ] || exit 98
+    [ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-first-rename-kill" ] || kill -KILL "$$"
     mv --exchange -T -- "$SHELL_DIR" "$ROLLBACK_SHELL"
     [ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-runtime-exchange-exit" ] || exit 97
     [ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-runtime-exchange-kill" ] || kill -KILL "$$"

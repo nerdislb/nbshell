@@ -31,16 +31,26 @@ unit="${!#:-}"
 active_file="$state/active-$unit"
 enabled_file="$state/enabled-$unit"
 enabled_runtime_file="$state/enabled-runtime-$unit"
+linked_file="$state/linked-$unit"
+linked_runtime_file="$state/linked-runtime-$unit"
 masked_file="$state/masked-$unit"
+masked_runtime_file="$state/masked-runtime-$unit"
 [ "$unit" = "nbshell.service" ] && active_file="$state/active"
 case " $* " in
     *" is-active "*) test -f "$active_file" ;;
     *" is-enabled "*)
-        if [ -f "$masked_file" ]; then
+        if [ -f "$masked_runtime_file" ]; then
+            echo masked-runtime
+            exit 1
+        elif [ -f "$masked_file" ]; then
             echo masked
             exit 1
         elif [ -f "$enabled_runtime_file" ]; then
             echo enabled-runtime
+        elif [ -f "$linked_runtime_file" ]; then
+            echo linked-runtime
+        elif [ -f "$linked_file" ]; then
+            echo linked
         elif [ -f "$enabled_file" ]; then
             echo enabled
         else
@@ -48,9 +58,11 @@ case " $* " in
             exit 1
         fi
         ;;
-    *" cat "*) exit 1 ;;
+    *" show "*)
+        [ -f "$state/fragment-$unit" ] && cat "$state/fragment-$unit"
+        ;;
     *" disable "*)
-        rm -f "$enabled_file" "$enabled_runtime_file"
+        rm -f "$enabled_file" "$enabled_runtime_file" "$linked_file" "$linked_runtime_file"
         [ ! -L "$XDG_CONFIG_HOME/systemd/user/$unit" ] \
             || rm -f "$XDG_CONFIG_HOME/systemd/user/$unit"
         case " $* " in *" --now "*) rm -f "$active_file" ;; esac
@@ -66,10 +78,13 @@ case " $* " in
         esac
         case " $* " in *" --now "*) touch "$active_file" ;; esac
         ;;
-    *" unmask "*) rm -f "$masked_file" ;;
+    *" unmask "*) rm -f "$masked_file" "$masked_runtime_file" ;;
     *" mask "*)
-        rm -f "$enabled_file" "$active_file"
-        touch "$masked_file"
+        rm -f "$enabled_file" "$enabled_runtime_file"
+        case " $* " in
+            *" --runtime "*) touch "$masked_runtime_file" ;;
+            *) touch "$masked_file" ;;
+        esac
         ;;
     *" stop "*)
         # systemctl accepts multiple units in one stop call. Model each one so
@@ -84,7 +99,9 @@ case " $* " in
         done
         ;;
     *" start "*)
-        if [ "$unit" = "nbshell.service" ] \
+        if [ -f "$masked_file" ] || [ -f "$masked_runtime_file" ]; then
+            exit 1
+        elif [ "$unit" = "nbshell.service" ] \
                 && [ -f "$state/fail-next-nbshell-start" ]; then
             rm -f "$state/fail-next-nbshell-start"
             exit 1
@@ -94,6 +111,15 @@ case " $* " in
         fi
         touch "$active_file"
         ;;
+    *" link "*)
+        fragment="$unit"
+        linked_unit="$(basename "$fragment")"
+        printf '%s\n' "$fragment" >"$state/fragment-$linked_unit"
+        case " $* " in
+            *" --runtime "*) touch "$state/linked-runtime-$linked_unit" ;;
+            *) touch "$state/linked-$linked_unit" ;;
+        esac
+        ;;
     *" restart "*) touch "$active_file" ;;
     *) exit 0 ;;
 esac
@@ -101,7 +127,8 @@ EOF
 
 cat >"$FAKE_BIN/systemd-run" <<'EOF'
 #!/usr/bin/env bash
-printf '%s\n' "$*" >"${FAKE_SYSTEMD_STATE:?}/last-systemd-run"
+state="${FAKE_SYSTEMD_STATE:?}"
+printf '%s\n' "$*" >"$state/last-systemd-run"
 if [ -f "$FAKE_SYSTEMD_STATE/require-stale-watchdog-stopped" ]; then
     IFS= read -r stale_unit <"$FAKE_SYSTEMD_STATE/require-stale-watchdog-stopped"
     [ ! -e "$FAKE_SYSTEMD_STATE/active-$stale_unit.timer" ] \
@@ -110,10 +137,46 @@ if [ -f "$FAKE_SYSTEMD_STATE/require-stale-watchdog-stopped" ]; then
     printf '%s\n' "$stale_unit" >"$FAKE_SYSTEMD_STATE/stale-watchdog-stopped-before-run"
     rm -f "$FAKE_SYSTEMD_STATE/require-stale-watchdog-stopped"
 fi
-[ ! -f "${FAKE_SYSTEMD_STATE:?}/fail-systemd-run" ] || {
-    rm -f "$FAKE_SYSTEMD_STATE/fail-systemd-run"
+[ ! -f "$state/fail-systemd-run" ] || {
+    rm -f "$state/fail-systemd-run"
     exit 1
 }
+command=()
+record_command=0
+for argument in "$@"; do
+    if [ $record_command -eq 1 ]; then
+        command+=("$argument")
+    elif [ "$argument" = flock ]; then
+        record_command=1
+        command+=("$argument")
+    fi
+done
+if [ ${#command[@]} -gt 1 ]; then
+    if flock -n "${command[1]}" true 2>/dev/null; then
+        touch "$state/queued-observed-lock-free"
+    else
+        touch "$state/queued-observed-lock-held"
+    fi
+fi
+run_queued() {
+    local label=$1 installer_pid=${2:-} status=0
+    if [ -n "$installer_pid" ]; then
+        while kill -0 "$installer_pid" 2>/dev/null; do sleep 0.01; done
+    fi
+    exec 9>&-
+    "${command[@]}" >"$state/$label.log" 2>&1 || status=$?
+    printf '%s\n' "$status" >"$state/$label.status"
+    touch "$state/$label.done"
+}
+case " $* " in
+    *" --on-active=1s "*) run_queued queued-recovery & ;;
+    *)
+        if [ -f "$state/run-watchdog-after-installer-exit" ]; then
+            rm -f "$state/run-watchdog-after-installer-exit"
+            run_queued watchdog "$PPID" &
+        fi
+        ;;
+esac
 exit 0
 EOF
 
@@ -357,6 +420,44 @@ test -f "$XDG_CONFIG_HOME/quickshell/nbshell/shell.qml"
 test ! -d "$XDG_CONFIG_HOME/quickshell/nbshell/nbshell"
 assert_no_reservations
 
+# SIGKILL in the same pre-exchange window bypasses EXIT. Exercise the actual
+# watchdog command captured by fake systemd-run; it must observe the live
+# installer lock, wait for process death, then discard the staged-new rollback
+# without replacing the still-original runtime.
+printf '%s\n' pre-exchange-kill \
+    >"$XDG_CONFIG_HOME/quickshell/nbshell/pre-exchange-kill-sentinel"
+rm -f "$FAKE_SYSTEMD_STATE/watchdog.done" \
+    "$FAKE_SYSTEMD_STATE/watchdog.status" \
+    "$FAKE_SYSTEMD_STATE/queued-observed-lock-held"
+touch "$FAKE_SYSTEMD_STATE/active" \
+    "$FAKE_SYSTEMD_STATE/run-watchdog-after-installer-exit"
+if python3 - "$ROOT/install.sh" <<'PY' >/dev/null 2>&1
+import os
+import subprocess
+import sys
+
+environment = os.environ.copy()
+environment["NBSHELL_INSTALL_TEST_FAULT"] = "post-first-rename-kill"
+result = subprocess.run(
+    [sys.argv[1]], env=environment, stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL, check=False,
+)
+raise SystemExit(0 if result.returncode == 0 else 1)
+PY
+then
+    echo "Install unexpectedly survived the pre-exchange SIGKILL fault" >&2
+    exit 1
+fi
+for _ in {1..200}; do
+    [ -f "$FAKE_SYSTEMD_STATE/watchdog.done" ] && break
+    sleep 0.01
+done
+test -f "$FAKE_SYSTEMD_STATE/queued-observed-lock-held"
+test "$(cat "$FAKE_SYSTEMD_STATE/watchdog.status")" = 0
+test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/pre-exchange-kill-sentinel")" \
+    = pre-exchange-kill
+assert_no_reservations
+
 # A catchable exit immediately after RENAME_EXCHANGE must use the persisted
 # runtime identity rather than process-local flags to restore the old tree.
 if NBSHELL_INSTALL_TEST_FAULT=post-runtime-exchange-exit "$ROOT/install.sh" >/dev/null 2>&1; then
@@ -418,15 +519,22 @@ ln -sfn "$XDG_CONFIG_HOME/quickshell/nbshell/skills/nbshell" "$HOME/.gemini/skil
 
 unit_dir="$XDG_CONFIG_HOME/systemd/user"
 printf '%s\n' timer-before >"$unit_dir/nbshell-upstream-audit.timer"
+runtime_link_fragment="$WORK/nbshell-upstream-audit.service"
+printf '%s\n' runtime-linked-before >"$runtime_link_fragment"
+rm -f "$unit_dir/nbshell-upstream-audit.service"
 printf '%s\n' retired-agent-before >"$WORK/linked-agent-host.service"
 ln -s "$WORK/linked-agent-host.service" "$unit_dir/nbshell-agent-host.service"
 printf '%s\n' retired-whatsapp-before >"$unit_dir/nbshell-whatsapp.service"
 touch "$FAKE_SYSTEMD_STATE/enabled-nbshell-agent-host.service" \
     "$FAKE_SYSTEMD_STATE/active-nbshell-agent-host.service" \
-    "$FAKE_SYSTEMD_STATE/enabled-nbshell-whatsapp.service" \
     "$FAKE_SYSTEMD_STATE/active-nbshell-whatsapp.service" \
+    "$FAKE_SYSTEMD_STATE/masked-nbshell-whatsapp.service" \
     "$FAKE_SYSTEMD_STATE/masked-nbshell-umbriel-resume-guard.service" \
-    "$FAKE_SYSTEMD_STATE/enabled-runtime-nbshell-sleep-lock.service"
+    "$FAKE_SYSTEMD_STATE/enabled-runtime-nbshell-sleep-lock.service" \
+    "$FAKE_SYSTEMD_STATE/masked-runtime-nbshell-lock.service" \
+    "$FAKE_SYSTEMD_STATE/linked-runtime-nbshell-upstream-audit.service"
+printf '%s\n' "$runtime_link_fragment" \
+    >"$FAKE_SYSTEMD_STATE/fragment-nbshell-upstream-audit.service"
 rm -f "$FAKE_SYSTEMD_STATE/enabled-nbshell-upstream-audit.timer" \
     "$FAKE_SYSTEMD_STATE/active-nbshell-upstream-audit.timer" \
     "$FAKE_SYSTEMD_STATE/enabled-nbshell-umbriel-resume-guard.service" \
@@ -480,12 +588,17 @@ test "$(readlink "$unit_dir/nbshell-agent-host.service")" \
 test "$(cat "$unit_dir/nbshell-whatsapp.service")" = retired-whatsapp-before
 test -f "$FAKE_SYSTEMD_STATE/enabled-nbshell-agent-host.service"
 test -f "$FAKE_SYSTEMD_STATE/active-nbshell-agent-host.service"
-test -f "$FAKE_SYSTEMD_STATE/enabled-nbshell-whatsapp.service"
+test ! -e "$FAKE_SYSTEMD_STATE/enabled-nbshell-whatsapp.service"
 test -f "$FAKE_SYSTEMD_STATE/active-nbshell-whatsapp.service"
+test -f "$FAKE_SYSTEMD_STATE/masked-nbshell-whatsapp.service"
 test -f "$FAKE_SYSTEMD_STATE/masked-nbshell-umbriel-resume-guard.service"
 test ! -e "$FAKE_SYSTEMD_STATE/enabled-nbshell-umbriel-resume-guard.service"
 test -f "$FAKE_SYSTEMD_STATE/enabled-runtime-nbshell-sleep-lock.service"
 test ! -e "$FAKE_SYSTEMD_STATE/enabled-nbshell-sleep-lock.service"
+test -f "$FAKE_SYSTEMD_STATE/masked-runtime-nbshell-lock.service"
+test -f "$FAKE_SYSTEMD_STATE/linked-runtime-nbshell-upstream-audit.service"
+test "$(cat "$FAKE_SYSTEMD_STATE/fragment-nbshell-upstream-audit.service")" \
+    = "$runtime_link_fragment"
 test -f "$FAKE_SYSTEMD_STATE/active"
 test ! -e "$FAKE_SYSTEMD_STATE/enabled-nbshell-upstream-audit.timer"
 test ! -e "$FAKE_SYSTEMD_STATE/active-nbshell-upstream-audit.timer"
@@ -520,7 +633,10 @@ mv "$WORK/omamail-cache.saved" "$XDG_CACHE_HOME/omamail"
 printf '%s\n' killed-runtime-before >"$XDG_CONFIG_HOME/quickshell/nbshell/kill-sentinel"
 printf '%s\n' killed-manager-before >"$XDG_DATA_HOME/nbshell/hermes-jobs/manager.py"
 printf '%s\n' killed-unit-before >"$XDG_CONFIG_HOME/systemd/user/nbshell-upstream-audit.timer"
-touch "$FAKE_SYSTEMD_STATE/active"
+rm -f "$FAKE_SYSTEMD_STATE/masked-nbshell-whatsapp.service"
+touch "$FAKE_SYSTEMD_STATE/active" \
+    "$FAKE_SYSTEMD_STATE/active-nbshell-whatsapp.service" \
+    "$FAKE_SYSTEMD_STATE/masked-runtime-nbshell-whatsapp.service"
 if python3 - "$ROOT/install.sh" <<'PY'
 import os
 import subprocess
@@ -549,6 +665,7 @@ killed_rollback="$(find "$XDG_CONFIG_HOME/quickshell" -maxdepth 1 -type d \
 test -n "$killed_transaction"
 test -n "$killed_rollback"
 IFS= read -r killed_recovery_unit <"$killed_transaction/recovery-unit"
+test "$(cat "$killed_transaction/mode")" = deferred
 # Model the original timer having fired while its service waits for the install
 # lock. The retry must cancel both before queuing restart-mode recovery.
 touch "$FAKE_SYSTEMD_STATE/active-$killed_recovery_unit.timer" \
@@ -558,17 +675,23 @@ printf '%s\n' "$killed_recovery_unit" \
 # A retry owned by nbshell.service must not stop or replace its own live shell.
 # It queues stale recovery behind the lock and exits; the helper runs only after
 # that retry has left the service cgroup.
-touch "$FAKE_SYSTEMD_STATE/fail-next-nbshell-start"
+rm -f "$FAKE_SYSTEMD_STATE/queued-recovery.done" \
+    "$FAKE_SYSTEMD_STATE/queued-recovery.status" \
+    "$FAKE_SYSTEMD_STATE/queued-observed-lock-held"
 if NBSHELL_INSTALL_TEST_IN_SERVICE=1 \
         "$ROOT/install.sh" >/dev/null 2>&1; then
     echo "Service-hosted retry unexpectedly continued past stale recovery" >&2
     exit 1
 fi
-test -d "$killed_transaction"
-test -d "$killed_rollback"
-test "$(cat "$killed_transaction/mode")" = deferred
+for _ in {1..200}; do
+    [ -f "$FAKE_SYSTEMD_STATE/queued-recovery.done" ] && break
+    sleep 0.01
+done
+test -f "$FAKE_SYSTEMD_STATE/queued-observed-lock-held"
+test "$(cat "$FAKE_SYSTEMD_STATE/queued-recovery.status")" = 0
+test ! -d "$killed_transaction"
+test ! -d "$killed_rollback"
 test -f "$FAKE_SYSTEMD_STATE/active"
-test -f "$FAKE_SYSTEMD_STATE/fail-next-nbshell-start"
 test ! -e "$FAKE_SYSTEMD_STATE/active-$killed_recovery_unit.timer"
 test ! -e "$FAKE_SYSTEMD_STATE/active-$killed_recovery_unit.service"
 test "$(cat "$FAKE_SYSTEMD_STATE/stale-watchdog-stopped-before-run")" \
@@ -576,16 +699,11 @@ test "$(cat "$FAKE_SYSTEMD_STATE/stale-watchdog-stopped-before-run")" \
 grep -Fq "flock $HOME/.local/state/nbshell/install.lock" \
     "$FAKE_SYSTEMD_STATE/last-systemd-run"
 grep -Fq ' restart ' "$FAKE_SYSTEMD_STATE/last-systemd-run"
-rm -f "$FAKE_SYSTEMD_STATE/fail-next-nbshell-start"
-IFS= read -r killed_shell <"$killed_transaction/shell-path"
-IFS= read -r killed_command <"$killed_transaction/command-path"
-IFS= read -r killed_staged <"$killed_transaction/staged-path"
-"$killed_transaction/recover" \
-    "$killed_shell" "$killed_rollback" restart \
-    "$killed_transaction" "$killed_command" "$killed_staged"
 test "$(cat "$XDG_CONFIG_HOME/quickshell/nbshell/kill-sentinel")" = killed-runtime-before
 test "$(cat "$XDG_DATA_HOME/nbshell/hermes-jobs/manager.py")" = killed-manager-before
 test "$(cat "$XDG_CONFIG_HOME/systemd/user/nbshell-upstream-audit.timer")" = killed-unit-before
+test -f "$FAKE_SYSTEMD_STATE/active-nbshell-whatsapp.service"
+test -f "$FAKE_SYSTEMD_STATE/masked-runtime-nbshell-whatsapp.service"
 test "$(readlink "$unit_dir/nbshell-agent-host.service")" \
     = "$WORK/linked-agent-host.service"
 test -f "$FAKE_SYSTEMD_STATE/enabled-nbshell-agent-host.service"

@@ -95,7 +95,7 @@ restore_transaction_paths() {
 
 restore_transaction_units() {
     local manifest="$TRANSACTION_DIR/units"
-    local unit enabled active fragment unit_path unit_key
+    local unit enabled active fragment unit_path unit_key mask_after
     [ -f "$manifest" ] || return 0
     recover_command systemctl --user daemon-reload >/dev/null 2>&1
     while IFS= read -r -d '' unit \
@@ -106,9 +106,12 @@ restore_transaction_units() {
         [[ $unit =~ ^[A-Za-z0-9@_.:-]+$ ]] || continue
         [ -n "$unit_path" ] && [ "$unit_path" != / ] || continue
         unit_key="unit-$unit"
+        mask_after=""
+        # systemd permits an already-running unit to be masked. Restore its
+        # activity while unmasked, then recreate the persistent/runtime mask.
+        recover_command systemctl --user unmask "$unit" >/dev/null 2>&1
         case "$enabled" in
             enabled|enabled-linked)
-                recover_command systemctl --user unmask "$unit" >/dev/null 2>&1
                 recover_command systemctl --user disable "$unit" >/dev/null 2>&1
                 if [ "$enabled" = enabled-linked ] \
                         || [ -L "$TRANSACTION_DIR/$unit_key" ]; then
@@ -144,11 +147,11 @@ restore_transaction_units() {
                 ;;
             masked)
                 recover_command systemctl --user disable "$unit" >/dev/null 2>&1
-                recover_command systemctl --user mask "$unit" >/dev/null 2>&1
+                mask_after=persistent
                 ;;
             masked-runtime)
                 recover_command systemctl --user disable "$unit" >/dev/null 2>&1
-                recover_command systemctl --user mask --runtime "$unit" >/dev/null 2>&1
+                mask_after=runtime
                 ;;
             not-found) continue ;;
             *)
@@ -160,6 +163,10 @@ restore_transaction_units() {
         else
             recover_command systemctl --user stop "$unit" >/dev/null 2>&1
         fi
+        case "$mask_after" in
+            persistent) recover_command systemctl --user mask "$unit" >/dev/null 2>&1 ;;
+            runtime) recover_command systemctl --user mask --runtime "$unit" >/dev/null 2>&1 ;;
+        esac
     done <"$manifest"
 }
 
