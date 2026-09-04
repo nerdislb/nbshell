@@ -576,6 +576,7 @@ if [ -d "$SHELL_DIR" ]; then
     mv -T -- "$SHELL_DIR" "$ROLLBACK_SHELL"
     rollback_occupied=1
     [ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-first-rename" ] || exit 98
+    [ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-first-rename-kill" ] || kill -KILL "$$"
 fi
 mv -T -- "$STAGED_SHELL" "$SHELL_DIR"
 runtime_swapped=1
