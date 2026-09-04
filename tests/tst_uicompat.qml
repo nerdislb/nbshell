@@ -23,6 +23,21 @@ Item {
     property int dashboardPrimaryTriggers: 0
     property int dashboardSecondaryTriggers: 0
     property int modalBackgroundClicks: 0
+    property int pointerTargetClicks: 0
+
+    Item {
+        id: pointerFocusProxy
+    }
+
+    Widgets.ControlButton {
+        id: pointerTargetButton
+        z: 200
+        x: 700
+        y: 250
+        text: "Pointer target"
+        pointerFocusTarget: pointerFocusProxy
+        onTriggered: host.pointerTargetClicks++
+    }
 
     Item {
         id: modalBackground
@@ -177,6 +192,7 @@ Item {
             modal.visible = false;
             modalBackground.enabled = true;
             host.modalBackgroundClicks = 0;
+            host.pointerTargetClicks = 0;
             host.buttonClicks = 0;
             host.actionClicks = 0;
             host.nonTabButtonClicks = 0;
@@ -252,6 +268,12 @@ Item {
             tryCompare(modal, "visible", false);
             tryCompare(modalBackground, "enabled", true);
             tryCompare(modalOpener, "activeFocus", true);
+        }
+
+        function test_control_button_pointer_focus_target() {
+            mouseClick(pointerTargetButton);
+            compare(host.pointerTargetClicks, 1);
+            tryCompare(pointerFocusProxy, "activeFocus", true);
         }
 
         function test_explicit_button_accessibility_overrides() {

@@ -11,6 +11,8 @@ FloatingWindow {
     property string editingId: ""
     property string baseline: ""
     property bool confirmDiscard: false
+    property bool confirmDelete: false
+    property string pendingNavigation: ""
     readonly property bool dirty: editor.text !== baseline
 
     visible: Runtime.notesOpen
@@ -25,6 +27,10 @@ FloatingWindow {
         baseline = "";
         editor.text = "";
         confirmDiscard = false;
+        pendingNavigation = "";
+        discardConfirmationTimer.stop();
+        confirmDelete = false;
+        deleteConfirmationTimer.stop();
         editor.forceActiveFocus();
     }
 
@@ -34,6 +40,10 @@ FloatingWindow {
         baseline = String(note.text);
         editor.text = baseline;
         confirmDiscard = false;
+        pendingNavigation = "";
+        discardConfirmationTimer.stop();
+        confirmDelete = false;
+        deleteConfirmationTimer.stop();
         editor.forceActiveFocus();
     }
 
@@ -42,12 +52,60 @@ FloatingWindow {
         Runtime.notesOpen = false;
     }
 
+    function armDiscardConfirmation(key) {
+        confirmDiscard = true;
+        pendingNavigation = key;
+        discardConfirmationTimer.restart();
+    }
+
+    function clearDiscardConfirmation() {
+        confirmDiscard = false;
+        pendingNavigation = "";
+        discardConfirmationTimer.stop();
+    }
+
+    function requestNewNote() {
+        if (dirty && pendingNavigation !== "new") {
+            armDiscardConfirmation("new");
+            return;
+        }
+        newNote();
+    }
+
+    function requestEditNote(note) {
+        if (!note)
+            return;
+        if (String(note.id) === editingId) {
+            editor.forceActiveFocus();
+            return;
+        }
+        const key = "note:" + String(note.id);
+        if (dirty && pendingNavigation !== key) {
+            armDiscardConfirmation(key);
+            return;
+        }
+        editNote(note);
+    }
+
     function requestClose() {
-        if (dirty && !confirmDiscard) {
-            confirmDiscard = true;
+        if (dirty && pendingNavigation !== "close") {
+            armDiscardConfirmation("close");
             return;
         }
         Runtime.notesOpen = false;
+    }
+
+    function requestDelete() {
+        if (editingId === "")
+            return;
+        if (!confirmDelete) {
+            confirmDelete = true;
+            deleteConfirmationTimer.restart();
+            return;
+        }
+        deleteConfirmationTimer.stop();
+        Notes.remove(editingId);
+        newNote();
     }
 
     onVisibleChanged: {
@@ -61,7 +119,9 @@ FloatingWindow {
 
     Shortcut { sequence: "Alt+S"; onActivated: root.saveAndClose() }
     Shortcut { sequence: "Escape"; onActivated: root.requestClose() }
-    Shortcut { sequence: "Ctrl+N"; onActivated: root.newNote() }
+    Shortcut { sequence: "Ctrl+N"; onActivated: root.requestNewNote() }
+    Timer { id: discardConfirmationTimer; interval: 5000; onTriggered: root.clearDiscardConfirmation() }
+    Timer { id: deleteConfirmationTimer; interval: 5000; onTriggered: root.confirmDelete = false }
 
     Rectangle {
         anchors.fill: parent
@@ -88,11 +148,12 @@ FloatingWindow {
                     Row {
                         width: parent.width
                         Line { text: "NOTES"; color: Theme.accent; width: parent.width - addButton.width }
-                        Line {
+                        ActionButton {
                             id: addButton
-                            text: "+ NEW"
-                            color: Theme.fg
-                            MouseArea { anchors.fill: parent; anchors.margins: -Theme.spaceSm; cursorShape: Qt.PointingHandCursor; onClicked: root.newNote() }
+                            text: root.pendingNavigation === "new" ? "CONFIRM NEW" : "NEW"
+                            compact: true
+                            accessibleDescription: "Create a new note"
+                            onTriggered: root.requestNewNote()
                         }
                     }
 
@@ -103,19 +164,34 @@ FloatingWindow {
                         clip: true
                         model: Notes.list
                         spacing: Theme.spaceXs
-                        delegate: Rectangle {
+                        delegate: InteractiveSurface {
+                            id: noteRow
                             required property var modelData
+                            required property int index
+                            accessibleName: modelData.title
+                            accessibleDescription: "Updated " + Qt.formatDateTime(new Date(modelData.updated), "dd.MM.  HH:mm")
+                            accessibleSelected: String(root.editingId) === String(modelData.id)
                             width: noteList.width
                             height: Theme.rowHeight
                             radius: Theme.radius
-                            color: String(root.editingId) === String(modelData.id) ? Theme.selectedSurface() : "transparent"
+                            color: String(root.editingId) === String(modelData.id) ? Theme.selectedSurface() : (visualFocus ? Theme.hover : "transparent")
+                            border.width: visualFocus ? Theme.borderWidth : 0
+                            border.color: Theme.focusBorder
+                            onTriggered: root.requestEditNote(modelData)
+                            onActiveFocusChanged: if (activeFocus) noteList.positionViewAtIndex(index, ListView.Contain)
                             Column {
                                 anchors.left: parent.left; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                                 anchors.margins: Theme.spaceSm
                                 Line { width: parent.width; text: modelData.title; color: Theme.fg; elide: Text.ElideRight }
                                 Line { width: parent.width; text: Qt.formatDateTime(new Date(modelData.updated), "dd.MM.  HH:mm"); color: Theme.muted; font.pixelSize: Theme.fontCaption }
                             }
-                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.editNote(modelData) }
+                            HoverHandler { cursorShape: Qt.PointingHandCursor }
+                            TapHandler {
+                                onTapped: {
+                                    noteRow.forceActiveFocus(Qt.MouseFocusReason);
+                                    noteRow.activate();
+                                }
+                            }
                         }
                     }
                 }
@@ -135,15 +211,16 @@ FloatingWindow {
                     Row {
                         width: parent.width
                         Line { text: root.editingId === "" ? "NEW NOTE" : Notes.titleFor(editor.text); color: Theme.fgDim; width: parent.width - removeButton.width }
-                        Line {
+                        ActionButton {
                             id: removeButton
                             visible: root.editingId !== ""
-                            text: "DELETE"
-                            color: Theme.red
-                            MouseArea {
-                                anchors.fill: parent; anchors.margins: -Theme.spaceSm; cursorShape: Qt.PointingHandCursor
-                                onClicked: { Notes.remove(root.editingId); root.newNote(); }
-                            }
+                            text: root.confirmDelete ? "CONFIRM DELETE" : "DELETE"
+                            tone: "danger"
+                            compact: true
+                            accessibleDescription: root.confirmDelete
+                                ? "Permanently delete this note"
+                                : "Ask before deleting this note"
+                            onTriggered: root.requestDelete()
                         }
                     }
 
@@ -153,6 +230,9 @@ FloatingWindow {
                         clip: true
                         TextArea {
                             id: editor
+                            Accessible.role: Accessible.EditableText
+                            Accessible.name: root.editingId === "" ? "New note" : "Note editor"
+                            Accessible.description: "Alt+S saves and closes"
                             placeholderText: "Write a quick note…"
                             color: Theme.fg
                             placeholderTextColor: Theme.muted
@@ -163,13 +243,18 @@ FloatingWindow {
                             wrapMode: TextEdit.Wrap
                             background: Rectangle { color: Theme.bg; radius: Theme.radius; border.width: Theme.borderWidth; border.color: editor.activeFocus ? Theme.focusBorder : Theme.panelBorder }
                             padding: Theme.spaceLg
-                            onTextChanged: if (root.confirmDiscard) root.confirmDiscard = false
+                            onTextChanged: {
+                                if (root.confirmDiscard) root.clearDiscardConfirmation();
+                                if (root.confirmDelete) root.confirmDelete = false;
+                            }
                         }
                     }
 
                     Line {
                         width: parent.width
-                        text: root.confirmDiscard ? "Unsaved changes — press Esc again to discard" : "Alt+S save & close  ·  Esc close  ·  Ctrl+N new"
+                        text: root.confirmDiscard
+                            ? "Unsaved changes — activate " + (root.pendingNavigation === "close" ? "close" : root.pendingNavigation === "new" ? "new note" : "the selected note") + " again to discard"
+                            : "Alt+S save & close  ·  Esc close  ·  Ctrl+N new"
                         color: root.confirmDiscard ? Theme.yellow : Theme.muted
                         horizontalAlignment: Text.AlignRight
                     }

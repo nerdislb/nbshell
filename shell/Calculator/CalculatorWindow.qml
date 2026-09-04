@@ -74,6 +74,25 @@ FloatingWindow {
         evaluated = true;
     }
 
+    function copyResult() {
+        Quickshell.execDetached(["wl-copy", result]);
+        previous = "Result copied";
+    }
+
+    function keyName(action, label) {
+        const names = {
+            "clear": "Clear",
+            "sign": "Toggle sign",
+            "equals": "Equals",
+            "÷": "Divide",
+            "×": "Multiply",
+            "−": "Subtract",
+            "+": "Add",
+            ".": "Decimal point"
+        };
+        return names[action] || label;
+    }
+
     function activate(action) {
         switch (action) {
         case "clear": clearAll(); break;
@@ -94,8 +113,7 @@ FloatingWindow {
 
         Keys.onPressed: event => {
             if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_C) {
-                Quickshell.execDetached(["wl-copy", root.result]);
-                root.previous = "Result copied";
+                root.copyResult();
                 event.accepted = true;
                 return;
             }
@@ -137,19 +155,12 @@ FloatingWindow {
                     id: header
                     width: parent.width
                     Line { text: "CALCULATOR"; color: Theme.accent; font.bold: true; width: parent.width - copyLabel.width }
-                    Line {
+                    ActionButton {
                         id: copyLabel
-                        text: "CTRL+C COPY"
-                        color: Theme.muted
-                        MouseArea {
-                            anchors.fill: parent
-                            anchors.margins: -Theme.spaceSm
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                Quickshell.execDetached(["wl-copy", root.result]);
-                                root.previous = "Result copied";
-                            }
-                        }
+                        text: "COPY"
+                        compact: true
+                        accessibleDescription: "Copy result to the clipboard"
+                        onTriggered: root.copyResult()
                     }
                 }
 
@@ -188,29 +199,18 @@ FloatingWindow {
                             { label: "±", action: "sign" }, { label: "0", action: "0" }, { label: ".", action: "." }, { label: "=", action: "equals", tone: "equals" }
                         ]
 
-                        Rectangle {
+                        ControlButton {
                             id: button
                             required property var modelData
                             width: (keypad.width - keypad.spacing * 3) / 4
                             height: (keypad.height - keypad.spacing * 4) / 5
-                            radius: Theme.radius
-                            color: mouse.pressed ? Theme.selectedSurface(Theme.accent) : mouse.containsMouse ? Theme.panelSurfaceRaised : Theme.bgDarker
-                            border.width: Theme.borderWidth
-                            border.color: modelData.tone === "equals" || mouse.containsMouse ? Theme.focusBorder : Theme.panelBorder
-                            Line {
-                                anchors.centerIn: parent
-                                text: button.modelData.label
-                                color: button.modelData.tone === "danger" ? Theme.red : button.modelData.tone === "operator" || button.modelData.tone === "equals" ? Theme.accent : Theme.fg
-                                font.pixelSize: Theme.fontTitle
-                                font.bold: button.modelData.tone === "equals"
-                            }
-                            MouseArea {
-                                id: mouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: { root.activate(button.modelData.action); keys.forceActiveFocus(); }
-                            }
+                            text: modelData.label
+                            pointerFocusTarget: keys
+                            danger: modelData.tone === "danger"
+                            textColor: modelData.tone === "operator" || modelData.tone === "equals" ? Theme.accent : Theme.fg
+                            border.color: visualFocus || modelData.tone === "equals" ? Theme.focusBorder : Theme.controlBorder(false, false, danger)
+                            accessibleName: root.keyName(modelData.action, modelData.label)
+                            onTriggered: root.activate(modelData.action)
                         }
                     }
                 }

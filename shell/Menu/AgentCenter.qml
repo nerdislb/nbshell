@@ -5,6 +5,7 @@ import Quickshell.Wayland
 import qs.Common
 import qs.Services
 import qs.Widgets
+import "../Widgets/FocusScroll.js" as FocusScroll
 
 // A scan-first agent overview with detailed work and configuration kept on
 // separate pages. It follows Omarchy's hierarchy and nbshell's TUI grid.
@@ -37,7 +38,7 @@ PanelWindow {
     }
     function confirmTeamAction(action, teamId) {
         const key = "team-" + action + ":" + teamId;
-        if (["apply", "install", "push", "reject"].includes(action) && pendingJobAction !== key) {
+        if (["apply", "install", "push", "reject", "cancel"].includes(action) && pendingJobAction !== key) {
             pendingJobAction = key; approvalReset.restart(); return;
         }
         pendingJobAction = ""; Agents.hermesTeamAction(action, teamId);
@@ -63,6 +64,15 @@ PanelWindow {
         const value = String(path || "");
         const home = Quickshell.env("HOME");
         return home && value.indexOf(home) === 0 ? "~" + value.slice(home.length) : value;
+    }
+
+    function revealFocusedItem(item) {
+        if (!item || !agentFlick.visible)
+            return;
+        const mapped = item.mapToItem(body, 0, 0);
+        agentFlick.contentY = FocusScroll.contentYForFocus(
+            mapped.y, item.height, agentFlick.contentY, agentFlick.height,
+            agentFlick.contentHeight, Theme.spaceMd);
     }
     function money(value) {
         const amount = Number(value || 0);
@@ -126,12 +136,13 @@ PanelWindow {
                         font.pixelSize: Theme.fontHeading
                         font.bold: true
                     }
-                    Line {
+                    ActionButton {
                         id: refreshLine
-                        text: Agents.loading ? "…" : "F5  REFRESH"
-                        color: Theme.readable(Theme.accent, Theme.bg, 4.5)
-                        font.pixelSize: Theme.fontCaption
-                        TapHandler { onTapped: Agents.refresh() }
+                        text: "REFRESH"
+                        compact: true
+                        busy: Agents.loading
+                        accessibleDescription: "Refresh agent and Hermes status"
+                        onTriggered: Agents.refresh()
                     }
                 }
 
@@ -172,32 +183,68 @@ PanelWindow {
                             Line { text: "AGENTS"; color: Theme.fgDim }
                             Repeater {
                                 model: Agents.agents
-                                Rectangle {
-                                    id: agentRow
+                                Item {
+                                    id: agentEntry
                                     required property var modelData
                                     width: body.width
                                     height: Theme.cellH * 2
-                                    radius: Theme.radius
-                                    color: modelData.id === Agents.defaultAgent ? Theme.selectedSurface(Theme.accent)
-                                        : (agentHover.hovered ? Theme.hover : "transparent")
-                                    border.width: Theme.borderWidth
-                                    border.color: modelData.id === Agents.defaultAgent ? Theme.focusBorder : Theme.panelBorder
-                                    Rectangle { width: Theme.borderWidth * 2; height: parent.height * 0.55; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; color: agentRow.modelData.installed ? Theme.green : Theme.muted }
-                                    Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW * 1.5; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.36; text: agentRow.modelData.name; color: agentRow.modelData.installed ? Theme.fg : Theme.muted; elide: Text.ElideRight }
-                                    Line { anchors.horizontalCenter: parent.horizontalCenter; anchors.verticalCenter: parent.verticalCenter; text: agentRow.modelData.kind.toUpperCase(); color: Theme.fgDim }
-                                    Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: !agentRow.modelData.installed ? "INSTALL…" : (agentRow.modelData.id === Agents.defaultAgent ? "DEFAULT · OPEN" : "SET DEFAULT · OPEN"); color: !agentRow.modelData.installed ? Theme.accent : (agentRow.modelData.id === Agents.defaultAgent ? Theme.accent : Theme.muted) }
-                                    HoverHandler { id: agentHover; cursorShape: Qt.PointingHandCursor }
-                                    TapHandler {
-                                        acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                        onTapped: (point, button) => {
-                                            if (!agentRow.modelData.installed) Agents.install(agentRow.modelData.id);
-                                            else if (button === Qt.RightButton) Agents.setDefault(agentRow.modelData.id);
-                                            else Agents.launch(agentRow.modelData.id, Agents.config.lastProject || "");
+
+                                    InteractiveSurface {
+                                        id: agentRow
+                                        property var modelData: agentEntry.modelData
+                                        accessibleName: modelData.name
+                                        accessibleDescription: modelData.installed ? "Open " + modelData.name : "Install " + modelData.name
+                                        accessibleSelected: modelData.id === Agents.defaultAgent
+                                        width: defaultAgentButton.visible
+                                            ? parent.width - defaultAgentButton.width - Theme.spaceSm
+                                            : parent.width
+                                        height: parent.height
+                                        radius: Theme.radius
+                                        color: modelData.id === Agents.defaultAgent ? Theme.selectedSurface(Theme.accent)
+                                            : (agentHover.hovered || visualFocus ? Theme.hover : "transparent")
+                                        border.width: Theme.borderWidth
+                                        border.color: modelData.id === Agents.defaultAgent || visualFocus ? Theme.focusBorder : Theme.panelBorder
+                                        onTriggered: {
+                                            if (!modelData.installed)
+                                                Agents.install(modelData.id);
+                                            else
+                                                Agents.launch(modelData.id, Agents.config.lastProject || "");
                                         }
+                                        onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(agentRow)
+                                        Rectangle { width: Theme.borderWidth * 2; height: parent.height * 0.55; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; color: agentRow.modelData.installed ? Theme.green : Theme.muted }
+                                        Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW * 1.5; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.36; text: agentRow.modelData.name; color: agentRow.modelData.installed ? Theme.fg : Theme.muted; elide: Text.ElideRight }
+                                        Line { anchors.horizontalCenter: parent.horizontalCenter; anchors.verticalCenter: parent.verticalCenter; text: agentRow.modelData.kind.toUpperCase(); color: Theme.fgDim }
+                                        Line { visible: !agentRow.modelData.installed || agentRow.modelData.id === Agents.defaultAgent; anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: !agentRow.modelData.installed ? "INSTALL…" : "DEFAULT · OPEN"; color: Theme.accent }
+                                        HoverHandler { id: agentHover; cursorShape: Qt.PointingHandCursor }
+                                        TapHandler {
+                                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                            onTapped: (point, button) => {
+                                                agentRow.forceActiveFocus(Qt.MouseFocusReason);
+                                                if (button === Qt.RightButton && agentRow.modelData.installed)
+                                                    Agents.setDefault(agentRow.modelData.id);
+                                                else
+                                                    agentRow.activate();
+                                            }
+                                        }
+                                    }
+
+                                    ActionButton {
+                                        id: defaultAgentButton
+                                        visible: agentEntry.modelData.installed && agentEntry.modelData.id !== Agents.defaultAgent
+                                        anchors.right: parent.right
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: "SET DEFAULT"
+                                        compact: true
+                                        accessibleDescription: "Set " + agentEntry.modelData.name + " as the default agent"
+                                        onTriggered: {
+                                            agentRow.forceActiveFocus(Qt.OtherFocusReason);
+                                            Agents.setDefault(agentEntry.modelData.id);
+                                        }
+                                        onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(defaultAgentButton)
                                     }
                                 }
                             }
-                            Line { text: "Left click opens · right click sets default"; color: Theme.muted }
+                            Line { text: "Enter opens · Set Default is a separate action"; color: Theme.muted }
                         }
 
                         Column {
@@ -209,18 +256,17 @@ PanelWindow {
                                 spacing: Theme.cellW
                                 Repeater {
                                     model: ["safe", "balanced", "autonomous"]
-                                    Rectangle {
+                                    ControlButton {
                                         id: approval
                                         required property string modelData
                                         width: (body.width - Theme.cellW * 2) / 3
                                         height: Theme.cellH * 2
-                                        radius: Theme.radius
-                                        color: modelData === Agents.approvalProfile ? Theme.selectedSurface(Theme.accent) : (approvalHover.hovered ? Theme.hover : "transparent")
-                                        border.width: Theme.borderWidth
-                                        border.color: modelData === Agents.approvalProfile ? Theme.focusBorder : Theme.panelBorder
-                                        Line { anchors.centerIn: parent; text: approval.modelData.toUpperCase(); color: approval.modelData === Agents.approvalProfile ? Theme.selectedForeground(Theme.accent) : (approval.modelData === "autonomous" ? Theme.yellow : Theme.fg) }
-                                        HoverHandler { id: approvalHover; cursorShape: Qt.PointingHandCursor }
-                                        TapHandler { onTapped: Agents.setProfile(approval.modelData) }
+                                        text: modelData.toUpperCase()
+                                        selected: modelData === Agents.approvalProfile
+                                        textColor: modelData === "autonomous" ? Theme.yellow : Theme.fg
+                                        accessibleDescription: "Use the " + modelData + " approval profile"
+                                        onTriggered: Agents.setProfile(modelData)
+                                        onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(approval)
                                     }
                                 }
                             }
@@ -234,17 +280,22 @@ PanelWindow {
                             Line { text: "Isolated note · independent privacy review · human-only commit and push"; color: Theme.muted; font.pixelSize: Theme.fontCaption }
                             Repeater {
                                 model: (Agents.brainProposals || []).slice(0, 4)
-                                Rectangle {
+                                InteractiveSurface {
                                     id: brainRow
                                     required property var modelData
+                                    accessibleName: String(modelData.target)
+                                    accessibleDescription: String(modelData.author) + " reviewed by " + String(modelData.reviewer) + ", status " + String(modelData.status)
+                                    accessibleSelected: String(modelData.id) === Agents.selectedBrainProposalId
                                     width: body.width; height: Theme.cellH * 2.4; radius: Theme.radius
-                                    color: String(modelData.id) === Agents.selectedBrainProposalId ? Theme.selectedSurface(Theme.accent) : (brainHover.hovered ? Theme.hover : "transparent")
-                                    border.width: Theme.borderWidth; border.color: String(modelData.id) === Agents.selectedBrainProposalId ? Theme.focusBorder : Theme.panelBorder
+                                    color: String(modelData.id) === Agents.selectedBrainProposalId ? Theme.selectedSurface(Theme.accent) : (brainHover.hovered || visualFocus ? Theme.hover : "transparent")
+                                    border.width: Theme.borderWidth; border.color: String(modelData.id) === Agents.selectedBrainProposalId || visualFocus ? Theme.focusBorder : Theme.panelBorder
+                                    onTriggered: Agents.selectBrainProposal(modelData.id)
+                                    onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(brainRow)
                                     Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.48; text: String(brainRow.modelData.target); color: Theme.fg; elide: Text.ElideMiddle }
                                     Line { anchors.horizontalCenter: parent.horizontalCenter; anchors.verticalCenter: parent.verticalCenter; text: String(brainRow.modelData.author).toUpperCase() + " → " + String(brainRow.modelData.reviewer).toUpperCase(); color: Theme.fgDim }
                                     Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: String(brainRow.modelData.status).toUpperCase(); color: String(brainRow.modelData.status) === "awaiting_approval" ? Theme.green : (["failed","rejected","revision_requested"].includes(String(brainRow.modelData.status)) ? Theme.red : Theme.yellow) }
                                     HoverHandler { id: brainHover; cursorShape: Qt.PointingHandCursor }
-                                    TapHandler { onTapped: Agents.selectBrainProposal(brainRow.modelData.id) }
+                                    TapHandler { onTapped: { brainRow.forceActiveFocus(Qt.MouseFocusReason); brainRow.activate(); } }
                                 }
                             }
                             Rectangle {
@@ -267,15 +318,16 @@ PanelWindow {
                                                 {"id":"push", "enabled":Boolean(Agents.brainProposalDetail.can_push)},
                                                 {"id":"reject", "enabled":!["applied","pushed","rejected"].includes(String(Agents.brainProposalDetail.status))}
                                             ]
-                                            Rectangle {
+                                            ControlButton {
                                                 id: brainAction
                                                 required property var modelData
-                                                width: (brainDetail.width - Theme.cellW * 2) / 3; height: Theme.cellH * 2; radius: Theme.radius
-                                                opacity: modelData.enabled ? 1 : 0.32; color: brainActionHover.hovered && modelData.enabled ? Theme.hover : "transparent"
-                                                border.width: Theme.borderWidth; border.color: modelData.enabled ? (modelData.id === "reject" ? Theme.red : Theme.accent) : Theme.panelBorder
-                                                Line { anchors.centerIn: parent; text: root.pendingJobAction === "brain-" + brainAction.modelData.id + ":" + Agents.brainProposalDetail.id ? "CONFIRM" : String(brainAction.modelData.id).toUpperCase(); color: brainAction.modelData.id === "reject" ? Theme.red : Theme.fg }
-                                                HoverHandler { id: brainActionHover; cursorShape: brainAction.modelData.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor }
-                                                TapHandler { enabled: brainAction.modelData.enabled; onTapped: root.confirmBrainAction(brainAction.modelData.id, Agents.brainProposalDetail.id) }
+                                                width: (brainDetail.width - Theme.cellW * 2) / 3; height: Theme.cellH * 2
+                                                enabled: modelData.enabled
+                                                danger: modelData.id === "reject"
+                                                text: root.pendingJobAction === "brain-" + modelData.id + ":" + Agents.brainProposalDetail.id ? "CONFIRM" : String(modelData.id).toUpperCase()
+                                                accessibleDescription: String(modelData.id) + " brain proposal " + Agents.brainProposalDetail.id
+                                                onTriggered: root.confirmBrainAction(modelData.id, Agents.brainProposalDetail.id)
+                                                onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(brainAction)
                                             }
                                         }
                                     }
@@ -327,15 +379,16 @@ PanelWindow {
                                                     {"id":"install", "enabled":Boolean(teamRow.modelData.can_install)},
                                                     {"id":"push", "enabled":Boolean(teamRow.modelData.can_push)}
                                                 ]
-                                                Rectangle {
+                                                ControlButton {
                                                     id: teamAction
                                                     required property var modelData
-                                                    width: (teamBody.width - Theme.cellW * 5) / 6; height: Theme.cellH * 1.8; radius: Theme.radius
-                                                    opacity: modelData.enabled ? 1 : 0.32; color: teamActionHover.hovered && modelData.enabled ? Theme.hover : "transparent"
-                                                    border.width: Theme.borderWidth; border.color: modelData.enabled ? Theme.accent : Theme.panelBorder
-                                                    Line { anchors.centerIn: parent; text: root.pendingJobAction === "team-" + teamAction.modelData.id + ":" + teamRow.modelData.id ? "CONFIRM" : String(teamAction.modelData.id).toUpperCase(); color: Theme.fg; font.pixelSize: Theme.fontCaption }
-                                                    HoverHandler { id: teamActionHover; cursorShape: teamAction.modelData.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor }
-                                                    TapHandler { enabled: teamAction.modelData.enabled; onTapped: root.confirmTeamAction(teamAction.modelData.id, teamRow.modelData.id) }
+                                                    width: (teamBody.width - Theme.cellW * 5) / 6; height: Theme.cellH * 1.8
+                                                    enabled: modelData.enabled
+                                                    danger: modelData.id === "cancel"
+                                                    text: root.pendingJobAction === "team-" + modelData.id + ":" + teamRow.modelData.id ? "CONFIRM" : String(modelData.id).toUpperCase()
+                                                    accessibleDescription: String(modelData.id) + " supervised team " + teamRow.modelData.id
+                                                    onTriggered: root.confirmTeamAction(modelData.id, teamRow.modelData.id)
+                                                    onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(teamAction)
                                                 }
                                             }
                                         }
@@ -353,20 +406,25 @@ PanelWindow {
 
                             Repeater {
                                 model: (Agents.hermesJobs || []).slice(0, 5)
-                                Rectangle {
+                                InteractiveSurface {
                                     id: transactionRow
                                     required property var modelData
+                                    accessibleName: String(modelData.provider).toUpperCase() + " job"
+                                    accessibleDescription: String(modelData.task) + ", status " + String(modelData.status)
+                                    accessibleSelected: String(modelData.id) === Agents.selectedJobId
                                     width: body.width
                                     height: Theme.cellH * 2.3
                                     radius: Theme.radius
-                                    color: String(modelData.id) === Agents.selectedJobId ? Theme.selectedSurface(Theme.accent) : (transactionHover.hovered ? Theme.hover : "transparent")
+                                    color: String(modelData.id) === Agents.selectedJobId ? Theme.selectedSurface(Theme.accent) : (transactionHover.hovered || visualFocus ? Theme.hover : "transparent")
                                     border.width: Theme.borderWidth
-                                    border.color: String(modelData.id) === Agents.selectedJobId ? Theme.focusBorder : Theme.panelBorder
+                                    border.color: String(modelData.id) === Agents.selectedJobId || visualFocus ? Theme.focusBorder : Theme.panelBorder
+                                    onTriggered: Agents.selectHermesJob(modelData.id)
+                                    onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(transactionRow)
                                     Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.2; text: String(transactionRow.modelData.provider).toUpperCase(); color: Theme.accent }
                                     Line { anchors.centerIn: parent; width: parent.width * 0.45; text: String(transactionRow.modelData.task); elide: Text.ElideRight; color: Theme.fg }
                                     Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: String(transactionRow.modelData.status).toUpperCase(); color: ["failed", "rejected"].includes(String(transactionRow.modelData.status)) ? Theme.red : (["reviewed", "applied", "installed", "pushed"].includes(String(transactionRow.modelData.status)) ? Theme.green : Theme.yellow) }
                                     HoverHandler { id: transactionHover; cursorShape: Qt.PointingHandCursor }
-                                    TapHandler { onTapped: Agents.selectHermesJob(transactionRow.modelData.id) }
+                                    TapHandler { onTapped: { transactionRow.forceActiveFocus(Qt.MouseFocusReason); transactionRow.activate(); } }
                                 }
                             }
 
@@ -395,18 +453,15 @@ PanelWindow {
                                         visible: Boolean(Agents.jobDetail.can_review)
                                         Repeater {
                                             model: ["codex", "claude", "gemini"].filter(name => name !== Agents.jobDetail.provider)
-                                            Rectangle {
+                                            ControlButton {
                                                 id: reviewerButton
                                                 required property string modelData
                                                 width: (transactionDetail.width - Theme.cellW) / 2
                                                 height: Theme.cellH * 2
-                                                radius: Theme.radius
-                                                color: reviewerHover.hovered ? Theme.hover : "transparent"
-                                                border.width: Theme.borderWidth
-                                                border.color: Theme.panelBorder
-                                                Line { anchors.centerIn: parent; text: "REVIEW WITH " + reviewerButton.modelData.toUpperCase(); color: Theme.accent }
-                                                HoverHandler { id: reviewerHover; cursorShape: Qt.PointingHandCursor }
-                                                TapHandler { onTapped: Agents.hermesJobAction("review", Agents.jobDetail.id, reviewerButton.modelData) }
+                                                text: "REVIEW WITH " + modelData.toUpperCase()
+                                                accessibleDescription: "Review this job with " + modelData
+                                                onTriggered: Agents.hermesJobAction("review", Agents.jobDetail.id, modelData)
+                                                onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(reviewerButton)
                                             }
                                         }
                                     }
@@ -420,19 +475,18 @@ PanelWindow {
                                                 { "id": "push", "label": "PUSH", "enabled": Boolean(Agents.jobDetail.can_push) },
                                                 { "id": "reject", "label": "REJECT", "enabled": !["applied", "installed", "pushed", "rejected"].includes(String(Agents.jobDetail.status)) }
                                             ]
-                                            Rectangle {
+                                            ControlButton {
                                                 id: transactionAction
                                                 required property var modelData
                                                 width: (transactionDetail.width - Theme.cellW * 3) / 4
                                                 height: Theme.cellH * 2
-                                                radius: Theme.radius
-                                                color: root.pendingJobAction === modelData.id + ":" + Agents.jobDetail.id ? Theme.yellow : (transactionActionHover.hovered && modelData.enabled ? Theme.hover : "transparent")
-                                                opacity: modelData.enabled ? 1 : 0.35
-                                                border.width: Theme.borderWidth
-                                                border.color: modelData.enabled ? (modelData.id === "reject" ? Theme.red : Theme.accent) : Theme.panelBorder
-                                                Line { anchors.centerIn: parent; text: root.pendingJobAction === transactionAction.modelData.id + ":" + Agents.jobDetail.id ? "CONFIRM" : transactionAction.modelData.label; color: root.pendingJobAction === transactionAction.modelData.id + ":" + Agents.jobDetail.id ? Theme.bg : (transactionAction.modelData.id === "reject" ? Theme.red : Theme.fg) }
-                                                HoverHandler { id: transactionActionHover; cursorShape: transactionAction.modelData.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor }
-                                                TapHandler { enabled: transactionAction.modelData.enabled; onTapped: root.confirmJobAction(transactionAction.modelData.id, Agents.jobDetail.id) }
+                                                enabled: modelData.enabled
+                                                danger: modelData.id === "reject"
+                                                selected: root.pendingJobAction === modelData.id + ":" + Agents.jobDetail.id
+                                                text: selected ? "CONFIRM" : modelData.label
+                                                accessibleDescription: modelData.label + " job " + Agents.jobDetail.id
+                                                onTriggered: root.confirmJobAction(modelData.id, Agents.jobDetail.id)
+                                                onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(transactionAction)
                                             }
                                         }
                                     }
@@ -562,25 +616,32 @@ PanelWindow {
                                     model: [
                                         { "id": "codex", "label": "CODEX", "hint": "native" },
                                         { "id": "claude", "label": "CLAUDE", "hint": "native" },
-                                        { "id": "gemini", "label": "GEMINI", "hint": "agy bridge" }
+                                        { "id": "gemini", "label": "GEMINI", "hint": "API bridge" }
                                     ]
-                                    Rectangle {
+                                    InteractiveSurface {
                                         id: hermesProviderButton
                                         required property var modelData
                                         readonly property var providerState: (Agents.hermes.providers || {})[modelData.id] || ({ "ready": false })
+                                        interactive: providerState.ready
+                                        accessibilityIgnored: !interactive
+                                        accessibleName: modelData.label
+                                        accessibleDescription: providerState.ready ? "Use " + modelData.label + " for Hermes" : modelData.label + " is not ready"
+                                        accessibleSelected: modelData.id === Agents.hermesProvider
                                         width: (body.width - Theme.cellW * 2) / 3
                                         height: Theme.cellH * 2.6
                                         radius: Theme.radius
-                                        color: modelData.id === Agents.hermesProvider ? Theme.selectedSurface(Theme.accent) : (hermesProviderHover.hovered ? Theme.hover : "transparent")
+                                        color: modelData.id === Agents.hermesProvider ? Theme.selectedSurface(Theme.accent) : (hermesProviderHover.hovered || visualFocus ? Theme.hover : "transparent")
                                         border.width: Theme.borderWidth
-                                        border.color: modelData.id === Agents.hermesProvider ? Theme.focusBorder : Theme.panelBorder
+                                        border.color: modelData.id === Agents.hermesProvider || visualFocus ? Theme.focusBorder : Theme.panelBorder
+                                        onTriggered: Agents.setHermesProvider(modelData.id)
+                                        onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(hermesProviderButton)
                                         Column {
                                             anchors.centerIn: parent
                                             Line { anchors.horizontalCenter: parent.horizontalCenter; text: hermesProviderButton.modelData.label; color: hermesProviderButton.providerState.ready ? Theme.fg : Theme.muted }
                                             Line { anchors.horizontalCenter: parent.horizontalCenter; text: hermesProviderButton.providerState.ready ? hermesProviderButton.modelData.hint : "not ready"; color: Theme.muted; font.pixelSize: Theme.fontCaption }
                                         }
                                         HoverHandler { id: hermesProviderHover; cursorShape: hermesProviderButton.providerState.ready ? Qt.PointingHandCursor : Qt.ArrowCursor }
-                                        TapHandler { enabled: hermesProviderButton.providerState.ready; onTapped: Agents.setHermesProvider(hermesProviderButton.modelData.id) }
+                                        TapHandler { enabled: hermesProviderButton.providerState.ready; onTapped: { hermesProviderButton.forceActiveFocus(Qt.MouseFocusReason); hermesProviderButton.activate(); } }
                                     }
                                 }
                             }
@@ -596,22 +657,27 @@ PanelWindow {
                                         { "id": "workspace", "label": "WORKSPACE", "hint": "pilot + terminal" },
                                         { "id": "trusted", "label": "TRUSTED", "hint": "project + YOLO" }
                                     ]
-                                    Rectangle {
+                                    InteractiveSurface {
                                         id: hermesModeButton
                                         required property var modelData
+                                        accessibleName: modelData.label
+                                        accessibleDescription: "Use Hermes " + modelData.label.toLowerCase() + " mode: " + modelData.hint
+                                        accessibleSelected: modelData.id === Agents.hermesMode
                                         width: (body.width - Theme.cellW * 3) / 4
                                         height: Theme.cellH * 2.6
                                         radius: Theme.radius
-                                        color: modelData.id === Agents.hermesMode ? Theme.selectedSurface(Theme.accent) : (hermesModeHover.hovered ? Theme.hover : "transparent")
+                                        color: modelData.id === Agents.hermesMode ? Theme.selectedSurface(Theme.accent) : (hermesModeHover.hovered || visualFocus ? Theme.hover : "transparent")
                                         border.width: Theme.borderWidth
-                                        border.color: modelData.id === Agents.hermesMode ? Theme.focusBorder : Theme.panelBorder
+                                        border.color: modelData.id === Agents.hermesMode || visualFocus ? Theme.focusBorder : Theme.panelBorder
+                                        onTriggered: Agents.setHermesMode(modelData.id)
+                                        onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(hermesModeButton)
                                         Column {
                                             anchors.centerIn: parent
                                             Line { anchors.horizontalCenter: parent.horizontalCenter; text: hermesModeButton.modelData.label; color: ["workspace", "trusted"].includes(hermesModeButton.modelData.id) ? Theme.yellow : Theme.fg }
                                             Line { anchors.horizontalCenter: parent.horizontalCenter; text: hermesModeButton.modelData.hint; color: Theme.muted; font.pixelSize: Theme.fontCaption }
                                         }
                                         HoverHandler { id: hermesModeHover; cursorShape: Qt.PointingHandCursor }
-                                        TapHandler { onTapped: Agents.setHermesMode(hermesModeButton.modelData.id) }
+                                        TapHandler { onTapped: { hermesModeButton.forceActiveFocus(Qt.MouseFocusReason); hermesModeButton.activate(); } }
                                     }
                                 }
                             }
@@ -625,25 +691,27 @@ PanelWindow {
                                 Line { text: "RECENT HERMES SESSIONS"; color: Theme.fgDim }
                                 Repeater {
                                     model: (Agents.hermes.sessions || []).slice(0, 2)
-                                    Rectangle {
+                                    InteractiveSurface {
                                         id: hermesSession
                                         required property var modelData
+                                        accessibleName: modelData.title || modelData.id
+                                        accessibleDescription: "Resume Hermes session " + modelData.id
                                         width: body.width
                                         height: Theme.cellH * 2
                                         radius: Theme.radius
-                                        color: hermesSessionHover.hovered ? Theme.hover : "transparent"
+                                        color: hermesSessionHover.hovered || visualFocus ? Theme.hover : "transparent"
                                         border.width: Theme.borderWidth
-                                        border.color: Theme.panelBorder
+                                        border.color: visualFocus ? Theme.focusBorder : Theme.panelBorder
+                                        onTriggered: {
+                                            Agents.resumeHermes(modelData.id);
+                                            root.close();
+                                        }
+                                        onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(hermesSession)
                                         Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.5; text: String(hermesSession.modelData.title || hermesSession.modelData.id); color: Theme.fg; elide: Text.ElideRight }
                                         Line { anchors.horizontalCenter: parent.horizontalCenter; anchors.verticalCenter: parent.verticalCenter; text: root.sessionTime(hermesSession.modelData.lastActive); color: Theme.fgDim }
                                         Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: root.compactTokens(hermesSession.modelData.inputTokens + hermesSession.modelData.outputTokens) + " TOK · RESUME"; color: Theme.accent }
                                         HoverHandler { id: hermesSessionHover; cursorShape: Qt.PointingHandCursor }
-                                        TapHandler {
-                                            onTapped: {
-                                                Agents.resumeHermes(hermesSession.modelData.id);
-                                                root.close();
-                                            }
-                                        }
+                                        TapHandler { onTapped: { hermesSession.forceActiveFocus(Qt.MouseFocusReason); hermesSession.activate(); } }
                                     }
                                 }
                             }

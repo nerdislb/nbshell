@@ -5,6 +5,7 @@ import Quickshell.Wayland
 import qs.Common
 import qs.Services
 import qs.Widgets
+import "../Widgets/FocusScroll.js" as FocusScroll
 
 PanelWindow {
     id: root
@@ -48,6 +49,15 @@ PanelWindow {
             Quickshell.execDetached([Apps.terminal, "-e", "sh", "-c", command + "; printf '\nEnter closes this window … '; read -r _"]);
     }
 
+    function revealFocusedItem(item) {
+        if (!item)
+            return;
+        const mapped = item.mapToItem(content, 0, 0);
+        systemScroll.contentY = FocusScroll.contentYForFocus(
+            mapped.y, item.height, systemScroll.contentY, systemScroll.height,
+            systemScroll.contentHeight, Theme.spaceMd);
+    }
+
     onVisibleChanged: if (visible) { refresh(); keys.forceActiveFocus(); }
 
     Process {
@@ -88,17 +98,19 @@ PanelWindow {
                 Row {
                     width: parent.width
                     Line { width: parent.width - reload.width; text: Icons.matrix + "  SYSTEM & PLUGINS"; color: Theme.fg; font.pixelSize: Theme.fontHeading; font.bold: true }
-                    Line {
+                    ActionButton {
                         id: reload
-                        text: root.loading ? "…" : "F5  REFRESH"
-                        color: Theme.readable(Theme.accent, Theme.bg, 4.5)
-                        font.pixelSize: Theme.fontCaption
-                        TapHandler { onTapped: root.refresh() }
+                        text: "REFRESH"
+                        compact: true
+                        busy: root.loading
+                        accessibleDescription: "Refresh system and plugin status"
+                        onTriggered: root.refresh()
                     }
                 }
                 Line { visible: root.error !== ""; text: root.error; color: Theme.red }
 
                 Flickable {
+                    id: systemScroll
                     width: parent.width
                     height: parent.height - Theme.cellH * 4
                     contentHeight: content.implicitHeight
@@ -129,14 +141,26 @@ PanelWindow {
                                         readonly property bool expanded: root.expandedId === modelData.id
                                         readonly property bool hasDetails: modelData.details && modelData.details.length > 0
 
-                                        Rectangle {
+                                        InteractiveSurface {
                                             id: row
+                                            interactive: itemBlock.hasDetails || !!itemBlock.modelData.command
+                                            accessibilityIgnored: !interactive
+                                            accessibleName: itemBlock.modelData.label
+                                            accessibleDescription: itemBlock.modelData.detail
+                                                + (itemBlock.hasDetails ? (itemBlock.expanded ? ", expanded" : ", collapsed") : "")
                                             width: itemBlock.width
                                             height: Theme.cellH * 2
                                             radius: Theme.radius
-                                            color: hover.hovered ? Theme.hover : Theme.panelSurfaceRaised
+                                            color: hover.hovered || visualFocus ? Theme.hover : Theme.panelSurfaceRaised
                                             border.width: Theme.borderWidth
-                                            border.color: itemBlock.expanded ? Theme.focusBorder : Theme.panelBorder
+                                            border.color: itemBlock.expanded || visualFocus ? Theme.focusBorder : Theme.panelBorder
+                                            onTriggered: {
+                                                if (itemBlock.hasDetails)
+                                                    root.expandedId = itemBlock.expanded ? "" : itemBlock.modelData.id;
+                                                else if (itemBlock.modelData.command)
+                                                    root.run(itemBlock.modelData.command);
+                                            }
+                                            onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(row)
 
                                             Rectangle {
                                                 width: Theme.borderWidth * 2
@@ -151,34 +175,54 @@ PanelWindow {
                                             TapHandler {
                                                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                                                 onTapped: (point, button) => {
-                                                    if (button === Qt.RightButton && itemBlock.modelData.command) root.run(itemBlock.modelData.command);
-                                                    else if (itemBlock.hasDetails) root.expandedId = itemBlock.expanded ? "" : itemBlock.modelData.id;
-                                                    else if (itemBlock.modelData.command) root.run(itemBlock.modelData.command);
+                                                    row.forceActiveFocus(Qt.MouseFocusReason);
+                                                    if (button === Qt.RightButton && itemBlock.modelData.command)
+                                                        root.run(itemBlock.modelData.command);
+                                                    else
+                                                        row.activate();
                                                 }
                                             }
                                         }
 
                                         Repeater {
                                             model: itemBlock.expanded ? itemBlock.modelData.details : []
-                                            Rectangle {
+                                            InteractiveSurface {
                                                 id: detailRow
                                                 required property var modelData
+                                                interactive: !!modelData.command
+                                                accessibilityIgnored: !interactive
+                                                accessibleName: modelData.label
+                                                accessibleDescription: modelData.detail
                                                 width: itemBlock.width
                                                 height: Theme.cellH * 1.65
                                                 radius: Theme.radius
-                                                color: Theme.panelSurfaceRaised
+                                                color: detailHover.hovered || visualFocus ? Theme.hover : Theme.panelSurfaceRaised
+                                                border.width: visualFocus ? Theme.borderWidth : 0
+                                                border.color: Theme.focusBorder
+                                                onTriggered: if (modelData.command) root.run(modelData.command)
+                                                onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(detailRow)
                                                 Rectangle { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: Theme.borderWidth * 2; height: parent.height * 0.45; color: detailRow.modelData.state === "warn" ? Theme.yellow : Theme.green }
                                                 Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW * 2; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.35; text: detailRow.modelData.label; color: Theme.fg; elide: Text.ElideRight }
                                                 Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.56; horizontalAlignment: Text.AlignRight; text: detailRow.modelData.detail; color: Theme.fgDim; elide: Text.ElideRight }
-                                                HoverHandler { cursorShape: detailRow.modelData.command ? Qt.PointingHandCursor : Qt.ArrowCursor }
-                                                TapHandler { enabled: !!detailRow.modelData.command; onTapped: root.run(detailRow.modelData.command) }
+                                                HoverHandler { id: detailHover; cursorShape: detailRow.modelData.command ? Qt.PointingHandCursor : Qt.ArrowCursor }
+                                                TapHandler {
+                                                    enabled: !!detailRow.modelData.command
+                                                    onTapped: {
+                                                        detailRow.forceActiveFocus(Qt.MouseFocusReason);
+                                                        detailRow.activate();
+                                                    }
+                                                }
                                             }
                                         }
 
-                                        Line {
+                                        ActionButton {
+                                            id: externalAction
                                             visible: itemBlock.expanded && !!itemBlock.modelData.command
-                                            text: "  Open externally: right-click the header"
-                                            color: Theme.muted
+                                            text: "OPEN EXTERNALLY"
+                                            compact: true
+                                            accessibleDescription: "Open " + itemBlock.modelData.label
+                                            onTriggered: root.run(itemBlock.modelData.command)
+                                            onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(externalAction)
                                         }
                                     }
                                 }
@@ -186,7 +230,7 @@ PanelWindow {
                         }
                     }
                 }
-                Line { text: "Esc closes · F5 refreshes · click opens details"; color: Theme.muted }
+                Line { text: "Esc closes · F5 refreshes · Enter opens details"; color: Theme.muted }
             }
         }
     }

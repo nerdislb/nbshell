@@ -9,6 +9,7 @@ InteractiveSurface {
     property bool danger: false
     property color textColor: Theme.fg
     property color selectedTextColor: Theme.selectedForeground(Theme.accent)
+    property Item pointerFocusTarget: null
     accessibleName: text
     accessibleSelected: selected
     accessiblePressed: tap.pressed
@@ -42,7 +43,10 @@ InteractiveSurface {
         id: tap
         enabled: root.interactive && root.enabled
         onTapped: {
-            root.forceActiveFocus();
+            if (root.pointerFocusTarget)
+                root.pointerFocusTarget.forceActiveFocus(Qt.MouseFocusReason);
+            else
+                root.forceActiveFocus(Qt.MouseFocusReason);
             root.activate();
         }
     }

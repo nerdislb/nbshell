@@ -192,6 +192,21 @@ for removed in (
 ):
     if removed in agent_center:
         raise SystemExit(f"Agent Center overview regained secondary detail: {removed}")
+for snippet in (
+    "InteractiveSurface {",
+    "accessibleName: modelData.name",
+    "defaultAgentButton",
+    "brainRow.activate();",
+    "transactionRow.activate();",
+    "hermesSession.activate();",
+    "FocusScroll.contentYForFocus(",
+    '["apply", "install", "push", "reject", "cancel"]',
+    '"hint": "API bridge"',
+):
+    if snippet not in agent_center:
+        raise SystemExit(f"Agent Center keyboard action contract is incomplete: {snippet}")
+if '"hint": "agy bridge"' in agent_center:
+    raise SystemExit("Agent Center regained the broken Gemini bridge label")
 
 keys = (ROOT / "shell/Keys/KeysWindow.qml").read_text(encoding="utf-8")
 for snippet in (
@@ -345,6 +360,40 @@ for unsafe in ('"detached:xdg-open " + link', '"detached:python3 " + str(Path(__
         raise SystemExit(f"System Hub dynamic action returned to shell-string construction: {unsafe}")
 if 'def arch_news_link(value):' not in system_hub_backend or 'host.endswith(".archlinux.org")' not in system_hub_backend:
     raise SystemExit("System Hub Arch News links are no longer origin constrained")
+for snippet in (
+    "InteractiveSurface {",
+    "accessibleName: itemBlock.modelData.label",
+    "row.activate();",
+    "systemScroll.contentY = FocusScroll.contentYForFocus(",
+    'text: "OPEN EXTERNALLY"',
+):
+    if snippet not in system_hub:
+        raise SystemExit(f"System Hub keyboard action contract is incomplete: {snippet}")
+
+notes_window = (ROOT / "shell/Notes/NotesWindow.qml").read_text(encoding="utf-8")
+for snippet in (
+    "delegate: InteractiveSurface {",
+    "accessibleSelected:",
+    "noteList.positionViewAtIndex(index, ListView.Contain)",
+    "function requestNewNote()",
+    "function requestEditNote(note)",
+    "function requestDelete()",
+    'text: root.confirmDelete ? "CONFIRM DELETE" : "DELETE"',
+    "Accessible.role: Accessible.EditableText",
+):
+    if snippet not in notes_window:
+        raise SystemExit(f"Notes keyboard/safety contract is incomplete: {snippet}")
+
+calculator_window = (ROOT / "shell/Calculator/CalculatorWindow.qml").read_text(encoding="utf-8")
+for snippet in (
+    "function copyResult()",
+    "function keyName(action, label)",
+    "ControlButton {",
+    "accessibleName: root.keyName(modelData.action, modelData.label)",
+    "onTriggered: root.activate(modelData.action)",
+):
+    if snippet not in calculator_window:
+        raise SystemExit(f"Calculator keyboard action contract is incomplete: {snippet}")
 
 shopping_window = (ROOT / "shell/Shopping/ShoppingListWindow.qml").read_text(encoding="utf-8")
 shopping_service = (ROOT / "shell/Services/ShoppingDraft.qml").read_text(encoding="utf-8")
