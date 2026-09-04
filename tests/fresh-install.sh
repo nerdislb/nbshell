@@ -66,7 +66,18 @@ case " $* " in
         rm -f "$enabled_file" "$active_file"
         touch "$masked_file"
         ;;
-    *" stop "*) rm -f "$active_file" ;;
+    *" stop "*)
+        # systemctl accepts multiple units in one stop call. Model each one so
+        # stale watchdog timer/service races can be exercised faithfully.
+        for target in "$@"; do
+            case "$target" in
+                --user|stop) continue ;;
+            esac
+            target_active_file="$state/active-$target"
+            [ "$target" = "nbshell.service" ] && target_active_file="$state/active"
+            rm -f "$target_active_file"
+        done
+        ;;
     *" start "*)
         if [ "$unit" = "nbshell.service" ] \
                 && [ -f "$state/fail-next-nbshell-start" ]; then
@@ -498,6 +509,11 @@ killed_rollback="$(find "$XDG_CONFIG_HOME/quickshell" -maxdepth 1 -type d \
     -name '.nbshell-rollback.*' -print -quit)"
 test -n "$killed_transaction"
 test -n "$killed_rollback"
+IFS= read -r killed_recovery_unit <"$killed_transaction/recovery-unit"
+# Model the original timer having fired while its service waits for the install
+# lock. The retry must cancel both before queuing restart-mode recovery.
+touch "$FAKE_SYSTEMD_STATE/active-$killed_recovery_unit.timer" \
+    "$FAKE_SYSTEMD_STATE/active-$killed_recovery_unit.service"
 # A retry owned by nbshell.service must not stop or replace its own live shell.
 # It queues stale recovery behind the lock and exits; the helper runs only after
 # that retry has left the service cgroup.
@@ -512,6 +528,8 @@ test -d "$killed_rollback"
 test "$(cat "$killed_transaction/mode")" = deferred
 test -f "$FAKE_SYSTEMD_STATE/active"
 test -f "$FAKE_SYSTEMD_STATE/fail-next-nbshell-start"
+test ! -e "$FAKE_SYSTEMD_STATE/active-$killed_recovery_unit.timer"
+test ! -e "$FAKE_SYSTEMD_STATE/active-$killed_recovery_unit.service"
 grep -Fq "flock $HOME/.local/state/nbshell/install.lock" \
     "$FAKE_SYSTEMD_STATE/last-systemd-run"
 grep -Fq ' restart ' "$FAKE_SYSTEMD_STATE/last-systemd-run"
