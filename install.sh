@@ -242,6 +242,9 @@ rollback_transaction_units() {
 rollback_is_runtime() {
     [ -d "$ROLLBACK_SHELL" ] && [ -f "$ROLLBACK_SHELL/shell.qml" ]
 }
+runtime_identity() {
+    stat -Lc '%d:%i' -- "$1" 2>/dev/null
+}
 restore_runtime_from_backup() {
     if ! rm -rf -- "$STAGED_SHELL" \
             || ! cp -a -- "$ROLLBACK_SHELL" "$STAGED_SHELL"; then
@@ -428,6 +431,9 @@ QMLLINT_BIN="$(command -v qmllint || true)"
 if [ -n "$QMLLINT_BIN" ]; then
     "$QMLLINT_BIN" "$STAGED_SHELL/shell.qml" >/dev/null 2>&1
 fi
+if [ -f "$TRANSACTION_BACKUP/original-runtime-present" ]; then
+    runtime_identity "$SHELL_DIR" >"$TRANSACTION_BACKUP/original-runtime-identity"
+fi
 if [ "${NBSHELL_INSTALL_TEST_FAULT:-}" = "pre-watchdog-kill" ]; then
     kill -KILL "$$"
 fi
@@ -569,17 +575,20 @@ elif [ "$was_running" = "1" ]; then
     sleep 0.3
 fi
 if [ -d "$SHELL_DIR" ]; then
-    # mv cannot replace the reserved directory itself. Removing that empty
-    # inode is safe: the unpredictable name remains ours and installs are
-    # serialized. Cleanup validates the moved contents, not a flag.
+    # Put the validated tree at the rollback name first, while the old runtime
+    # remains live. The exchange then changes both names in one syscall, so a
+    # service-hosted install can never observe SHELL_DIR missing.
     rmdir -- "$ROLLBACK_SHELL"
-    mv -T -- "$SHELL_DIR" "$ROLLBACK_SHELL"
-    rollback_occupied=1
+    mv -T -- "$STAGED_SHELL" "$ROLLBACK_SHELL"
     [ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-first-rename" ] || exit 98
-    [ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-first-rename-kill" ] || kill -KILL "$$"
+    mv --exchange -T -- "$SHELL_DIR" "$ROLLBACK_SHELL"
+    rollback_occupied=1
+    runtime_swapped=1
+    [ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-runtime-exchange-kill" ] || kill -KILL "$$"
+else
+    mv -T -- "$STAGED_SHELL" "$SHELL_DIR"
+    runtime_swapped=1
 fi
-mv -T -- "$STAGED_SHELL" "$SHELL_DIR"
-runtime_swapped=1
 
 green "Shell   -> $SHELL_DIR"
 

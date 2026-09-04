@@ -488,7 +488,7 @@ import subprocess
 import sys
 
 environment = os.environ.copy()
-environment["NBSHELL_INSTALL_TEST_FAULT"] = "post-first-rename-kill"
+environment["NBSHELL_INSTALL_TEST_FAULT"] = "post-runtime-exchange-kill"
 environment["NBSHELL_INSTALL_DEFER_RESTART"] = "1"
 result = subprocess.run(
     [sys.argv[1]],

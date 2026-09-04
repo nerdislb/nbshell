@@ -23,6 +23,18 @@ rollback_has_contents() {
     [ -d "$ROLLBACK_DIR" ] && [ -n "$(find "$ROLLBACK_DIR" -mindepth 1 -print -quit)" ]
 }
 
+runtime_identity() {
+    stat -Lc '%d:%i' -- "$1" 2>/dev/null
+}
+
+runtime_matches_original() {
+    local expected actual
+    [ -f "$TRANSACTION_DIR/original-runtime-identity" ] || return 1
+    IFS= read -r expected <"$TRANSACTION_DIR/original-runtime-identity"
+    actual="$(runtime_identity "$1")" || return 1
+    [ -n "$expected" ] && [ "$actual" = "$expected" ]
+}
+
 discard_empty_reservation() {
     if [ -d "$ROLLBACK_DIR" ] && [ -z "$(find "$ROLLBACK_DIR" -mindepth 1 -print -quit)" ]; then
         rmdir -- "$ROLLBACK_DIR"
@@ -186,9 +198,19 @@ if [ -d "$TRANSACTION_DIR" ]; then
     fi
     restore_transaction_paths
     if [ -f "$TRANSACTION_DIR/original-runtime-present" ]; then
-        if rollback_has_contents; then
+        if runtime_matches_original "$SHELL_DIR"; then
+            # The installer died before the atomic exchange. The original is
+            # still live; any occupied rollback name contains only the staged
+            # replacement and must not be restored.
+            :
+        elif runtime_matches_original "$ROLLBACK_DIR"; then
             restore_runtime_from_backup || true
-        elif [ ! -e "$SHELL_DIR" ]; then
+        elif [ ! -f "$TRANSACTION_DIR/original-runtime-identity" ] \
+                && rollback_has_contents; then
+            # Compatibility with transactions created before runtime identity
+            # metadata was introduced.
+            restore_runtime_from_backup || true
+        else
             recovery_failed=1
         fi
     else
