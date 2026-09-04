@@ -65,7 +65,11 @@ only when the dependency is installed or the service is available:
   already open floating PiP window.
 - Theme synchronization cannot force already-open websites to repaint.
 - Some provider integrations depend on unofficial or rate-limited services.
-- There is no stable configuration-migration guarantee before version 1.0.
+- The nbshell shell settings envelope has Config Schema v1 and one supported
+  unversioned-to-v1 migration. Individual feature data, plugin state and
+  Umbriel TOML files keep independent compatibility contracts; there is no
+  general cross-subsystem migration guarantee before version 1.0. See
+  [Persistent state and Config Schema v1](persistent-state.md).
 - Only English UI and documentation are supported for the first public beta.
 
 Test nbshell before relying on it on a production machine and keep backups of

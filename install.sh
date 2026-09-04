@@ -516,8 +516,8 @@ install -m 644 "$SRC/VERSION" "$STAGED_SHELL/VERSION"
 bash -n "$SRC/install.sh"
 bash -n "$SRC/bin/nbshell" "$SRC/bin/nbshell-install-recover"
 while IFS= read -r -d '' script; do bash -n "$script"; done < <(find "$SRC/shell/scripts" -type f -name '*.sh' -print0)
-python3 -c 'import ast, pathlib, sys; ast.parse(pathlib.Path(sys.argv[1]).read_text())' \
-    "$STAGED_SHELL/scripts/agents.py"
+python3 -c 'import ast, pathlib, sys; [ast.parse(pathlib.Path(name).read_text()) for name in sys.argv[1:]]' \
+    "$STAGED_SHELL/scripts/agents.py" "$STAGED_SHELL/scripts/config-migrations.py"
 QMLLINT_BIN="$(command -v qmllint || true)"
 [ -n "$QMLLINT_BIN" ] || [ ! -x /usr/lib/qt6/bin/qmllint ] || QMLLINT_BIN=/usr/lib/qt6/bin/qmllint
 if [ -n "$QMLLINT_BIN" ]; then
@@ -658,6 +658,7 @@ systemctl --user disable --now nbshell-whatsapp.service >/dev/null 2>&1 || true
 rm -f "$UNIT_DIR/nbshell-whatsapp.service"
 mkdir -p "$BIN_DIR"
 install -m 755 "$SRC/bin/nbshell-install-recover" "$BIN_DIR/nbshell-install-recover"
+install -m 755 "$SRC/bin/nbshell" "$BIN_DIR/nbshell"
 systemctl --user daemon-reload 2>/dev/null || true
 systemctl --user enable nbshell-umbriel-resume-guard.service >/dev/null 2>&1 || true
 systemctl --user enable --now nbshell-upstream-audit.timer >/dev/null 2>&1 || true
@@ -673,6 +674,14 @@ elif [ "$was_running" = "1" ]; then
     fi
     sleep 0.3
 fi
+
+# A stopped shell cannot race the config snapshot. Service-hosted installs keep
+# their already-loaded old QML process alive and defer migration to the next
+# start, which is safe because the new CLI has already been installed above.
+if [ $defer_service_restart -ne 1 ] && [ -f "$DATA_DIR/config.json" ]; then
+    python3 "$SRC/shell/scripts/config-migrations.py" apply >/dev/null
+fi
+
 if [ -d "$SHELL_DIR" ]; then
     # Put the validated tree at the rollback name first, while the old runtime
     # remains live. The exchange then changes both names in one syscall, so a
@@ -721,6 +730,7 @@ if [ ! -f "$DATA_DIR/config.json" ]; then
     transaction_backup_path "$DATA_DIR/config.json" config.json
     cat > "$DATA_DIR/config.json" <<'JSON'
 {
+  "schemaVersion": 1,
   "theme": "tokyo-night",
   "mode": "bar",
   "edge": "top",
@@ -746,6 +756,13 @@ else
     echo "Config  -> $DATA_DIR/config.json (existing file kept)"
 fi
 [ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-config" ] || exit 99
+
+# Fresh installs reach this point without a prior config. Non-deferred installs
+# also record the baseline ledger here; deferred service-hosted updates migrate
+# on their next start, before the new QML process launches.
+if [ $defer_service_restart -ne 1 ]; then
+    python3 "$SHELL_DIR/scripts/config-migrations.py" apply >/dev/null
+fi
 
 # ── Plugins ──────────────────────────────────────────────────────────────
 # Nur das Verzeichnis anlegen und die Vorlage hineinlegen, falls sie fehlt.
@@ -913,8 +930,6 @@ rm -f "${XDG_DATA_HOME:-$HOME/.local/share}/nbshell/bin/umbriel-workspaces" \
 rmdir "${XDG_DATA_HOME:-$HOME/.local/share}/nbshell/native" 2>/dev/null || true
 
 # ── Befehl ───────────────────────────────────────────────────────────────
-mkdir -p "$BIN_DIR"
-install -m 755 "$SRC/bin/nbshell" "$BIN_DIR/nbshell"
 green "Command -> $BIN_DIR/nbshell"
 
 # Aether supports custom applications with a post-apply hook. Register the

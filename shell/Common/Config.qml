@@ -4,7 +4,9 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Einstellungen aus ~/.config/nbshell/config.json.
+// Settings from ~/.config/nbshell/config.json. This singleton owns the live
+// shell settings only; plugin manifests and Umbriel configuration have separate
+// formats and lifecycle contracts.
 //
 // Bewusst eine einzige flache JSON-Datei, die man auch von Hand bearbeiten
 // kann -- sie ist die Einstellungsoberflaeche, solange es keine gibt. Die
@@ -17,8 +19,10 @@ Singleton {
 
     readonly property string configDir: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/nbshell"
     readonly property string themeDir: configDir + "/themes"
+    readonly property int supportedSchemaVersion: 1
 
-    property var data: ({})
+    property var data: ({ "schemaVersion": supportedSchemaVersion })
+    property bool configValid: false
 
     // ── Werte mit Vorgaben ────────────────────────────────────────────────
     // Alles, was die Oberflaeche kennt, steht hier einmal -- so ist die Liste
@@ -157,12 +161,21 @@ Singleton {
     }
 
     function set(key, val) {
+        if (!configValid) {
+            console.warn("nbshell: refusing to overwrite config.json because no valid schema was loaded");
+            return false;
+        }
+        if (key === "schemaVersion") {
+            console.warn("nbshell: schemaVersion is managed by the migration runner");
+            return false;
+        }
         const next = JSON.parse(JSON.stringify(data));
         next[key] = val;
         data = next;
         if (key === "theme")
             theme = String(val || "tokyo-night");
         file.setText(JSON.stringify(next, null, 2) + "\n");
+        return true;
     }
 
     function toggleBarTransparency() {
@@ -184,17 +197,26 @@ Singleton {
         onFileChanged: reload()
         onLoaded: {
             try {
-                root.data = JSON.parse(text() || "{}");
-                root.theme = String(root.data.theme || "tokyo-night");
+                const candidate = JSON.parse(text());
+                if (candidate === null || Array.isArray(candidate) || typeof candidate !== "object")
+                    throw new Error("the top level must be an object");
+                if (!Number.isInteger(candidate.schemaVersion))
+                    throw new Error("schemaVersion must be an integer");
+                if (candidate.schemaVersion !== root.supportedSchemaVersion)
+                    throw new Error("unsupported schemaVersion " + candidate.schemaVersion);
+                root.data = candidate;
+                root.theme = String(candidate.theme || "tokyo-night");
+                root.configValid = true;
             } catch (e) {
-                console.warn("nbshell: config.json ist kaputt --", e);
+                // Keep the last valid in-memory snapshot. Invalid state is never
+                // replaced with defaults or written back silently.
+                root.configValid = false;
+                console.warn("nbshell: config.json was rejected --", e);
             }
         }
         // Fehlt die Datei, bleiben die Vorgaben oben stehen. Kein Grund zu
         // meckern: beim ersten Start ist das der Normalfall.
-        onLoadFailed: {
-            root.data = ({});
-            root.theme = "tokyo-night";
-        }
+        // A later read failure also keeps the last valid in-memory snapshot.
+        onLoadFailed: root.configValid = false
     }
 }

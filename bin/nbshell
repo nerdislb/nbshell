@@ -12,6 +12,7 @@ VERSION_FILE="$RUNTIME_DIR/VERSION"
 THEME_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/theme-install.sh"
 PLUGIN_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/plugins.sh"
 DISPLAY_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/displays.py"
+MIGRATION_TOOL="$RUNTIME_DIR/scripts/config-migrations.py"
 
 qs_bin() {
     if command -v qs >/dev/null 2>&1; then echo qs; else echo quickshell; fi
@@ -21,6 +22,11 @@ QS="$(qs_bin)"
 
 ipc() {
     "$QS" -c "$CONFIG_NAME" ipc call "$@"
+}
+
+run_config_migrations() {
+    [ -f "$MIGRATION_TOOL" ] || die "Config migration runner is missing: $MIGRATION_TOOL"
+    python3 "$MIGRATION_TOOL" apply
 }
 
 warn() { printf '\033[33m%s\033[0m\n' "$1"; }
@@ -546,6 +552,8 @@ nbshell -- an independent Quickshell desktop shell for Umbriel
   nbshell get <key>         read a configuration value
   nbshell set <key> <value>  set a value; JSON is supported
   nbshell config            show the full configuration
+  nbshell migrate [status|apply] [--json] [--dry-run]
+                            inspect or migrate nbshell shell configuration
   nbshell state             show open surfaces
   nbshell status            show bar status
 
@@ -592,6 +600,12 @@ case "$cmd" in
         printf 'nbshell %s\n' "$(cat "$VERSION_FILE" 2>/dev/null || printf 'development')"
         ;;
     start)
+        # A live shell is already using a validated config and may write it at
+        # any time. Do not race that writer merely because a duplicate start
+        # was requested.
+        if ! ipc config dump >/dev/null 2>&1; then
+            run_config_migrations
+        fi
         exec "$QS" -c "$CONFIG_NAME" "$@"
         ;;
     stop)
@@ -1224,6 +1238,23 @@ for b in d["binds"]:
     get)
         ipc config get "${1:?key is required}"
         ;;
+    migrate)
+        [ $# -gt 0 ] || set -- status
+        migration_action=status
+        mutating=1
+        for arg in "$@"; do
+            case "$arg" in
+                apply|status) migration_action="$arg" ;;
+                --dry-run) mutating=0 ;;
+            esac
+        done
+        if [ "$migration_action" = apply ] && [ $mutating -eq 1 ] \
+                && ipc config dump >/dev/null 2>&1; then
+            die "stop nbshell before applying config migrations"
+        fi
+        [ -f "$MIGRATION_TOOL" ] || die "Config migration runner is missing: $MIGRATION_TOOL"
+        exec python3 "$MIGRATION_TOOL" "$@"
+        ;;
     set)
         # Quickshells IPC-Aufrufer liest eckige Klammern als ARGUMENTLISTE und
         # zerlegt ausserdem an Kommas und Semikola: aus '["a","b"]' werden drei
@@ -1232,6 +1263,7 @@ for b in d["binds"]:
         # Trennzeichen. Also gehen die vier Zeichen prozentkodiert ueber die
         # Leitung; shell.qml dreht das zurueck.
         key="${1:?key is required}"
+        [ "$key" != "schemaVersion" ] || die "schemaVersion is managed by nbshell migrations"
         value="${2:?value is required}"
         value="${value//%/%25}"
         value="${value//,/%2C}"

@@ -118,6 +118,31 @@ Third-party QML shares the shell process. Report the plugin source and the
 relevant lines from `nbshell log`, but remove tokens, addresses, message text,
 and other personal data first.
 
+## Configuration migration blocks startup
+
+Inspect the shell-config domain without changing it:
+
+```bash
+nbshell migrate status
+nbshell migrate status --json
+nbshell migrate apply --dry-run --json
+```
+
+Migration errors do not reset `~/.config/nbshell/config.json`. A mutating
+migration first stores an immutable copy below
+`~/.local/state/nbshell/migration-backups/`; the machine-readable status names
+the exact backup associated with a pending or failed migration. Stop nbshell
+before manually restoring or applying configuration because normal QML writes
+do not take the migration lock.
+
+A `pending` migration normally resumes at the next start. A `failed` migration
+does not retry automatically, and a malformed ledger is not discarded. Preserve
+both config and `~/.local/state/nbshell/config-migrations.json`, inspect the
+reported error, and only then restore the named backup or move a damaged ledger
+aside explicitly. Restoring shell config does not roll back Umbriel or plugin
+state. Full ordering, downgrade limits and ownership boundaries are documented
+in [Persistent state and Config Schema v1](persistent-state.md).
+
 ## Report a useful bug
 
 Include the nbshell revision, Umbriel and Quickshell versions, graphics

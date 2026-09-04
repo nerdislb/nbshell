@@ -355,6 +355,7 @@ test ! -e "$WORK/config/nbshell/plugins/removable/.git"
 mkdir -p "$WORK/config/nbshell"
 cat >"$WORK/config/nbshell/config.json" <<'JSON'
 {
+  "schemaVersion": 1,
   "enabledPlugins": ["test.removable"],
   "rightWidgets": ["clock", "test.removable"],
   "pluginSettings": {"test.removable": {"example": true}}
