@@ -123,6 +123,16 @@ for snippet in (
 ):
     if snippet not in bar:
         raise SystemExit(f"Clock-adjacent update signal contract is incomplete: {snippet}")
+for snippet in (
+    "InteractiveSurface {\n                        id: rightSectionToggle",
+    'accessibleName: Config.rightSectionExpanded',
+    'accessibleCheckable: true',
+    'accessibleChecked: Config.rightSectionExpanded',
+    'onTriggered: Config.set("rightSectionExpanded", !Config.rightSectionExpanded)',
+    'rightSectionToggle.activate()',
+):
+    if snippet not in bar:
+        raise SystemExit(f"Right bar section accessibility contract is missing: {snippet}")
 if dashboard.count("UpdatePanel {") != 1 or "shellUpdatesOpen" in dashboard:
     raise SystemExit("Dashboard regressed to separate system and desktop updater surfaces")
 modal_surface = (ROOT / "shell/Widgets/ModalSurface.qml").read_text(encoding="utf-8")

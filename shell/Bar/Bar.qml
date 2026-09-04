@@ -514,11 +514,22 @@ Variants {
                     // The configured separator becomes a compact boundary
                     // control. It stays visible while every widget to its right
                     // slides away, and does not touch the tray's own expansion.
-                    Item {
+                    InteractiveSurface {
                         id: rightSectionToggle
                         visible: rightGroup.collapseIndex >= 0
                         width: visible ? Theme.cellW * 1.8 : 0
                         height: Theme.cellH
+                        accessibleName: Config.rightSectionExpanded
+                            ? "Collapse right bar section" : "Expand right bar section"
+                        accessibleDescription: "Shows or hides the widgets after the separator"
+                        accessibleCheckable: true
+                        accessibleChecked: Config.rightSectionExpanded
+                        accessiblePressed: rightSectionTap.pressed
+                        radius: Theme.radius
+                        color: visualFocus ? Theme.controlFill(true, false, false) : "transparent"
+                        border.width: visualFocus ? Theme.borderWidth : 0
+                        border.color: Theme.focusBorder
+                        onTriggered: Config.set("rightSectionExpanded", !Config.rightSectionExpanded)
 
                         Rectangle {
                             anchors.left: parent.left
@@ -549,7 +560,11 @@ Variants {
                         }
 
                         TapHandler {
-                            onTapped: Config.set("rightSectionExpanded", !Config.rightSectionExpanded)
+                            id: rightSectionTap
+                            onTapped: {
+                                rightSectionToggle.forceActiveFocus(Qt.MouseFocusReason);
+                                rightSectionToggle.activate();
+                            }
                         }
                     }
 
