@@ -144,7 +144,7 @@ PanelWindow {
                                         InteractiveSurface {
                                             id: row
                                             interactive: itemBlock.hasDetails || !!itemBlock.modelData.command
-                                            accessibilityIgnored: !interactive
+                                            accessibleRole: interactive ? Accessible.Button : Accessible.StaticText
                                             accessibleName: itemBlock.modelData.label
                                             accessibleDescription: itemBlock.modelData.detail
                                                 + (itemBlock.hasDetails ? (itemBlock.expanded ? ", expanded" : ", collapsed") : "")
@@ -190,7 +190,7 @@ PanelWindow {
                                                 id: detailRow
                                                 required property var modelData
                                                 interactive: !!modelData.command
-                                                accessibilityIgnored: !interactive
+                                                accessibleRole: interactive ? Accessible.Button : Accessible.StaticText
                                                 accessibleName: modelData.label
                                                 accessibleDescription: modelData.detail
                                                 width: itemBlock.width

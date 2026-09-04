@@ -636,10 +636,11 @@ PanelWindow {
                                         id: hermesProviderButton
                                         required property var modelData
                                         readonly property var providerState: (Agents.hermes.providers || {})[modelData.id] || ({ "ready": false })
-                                        interactive: providerState.ready
-                                        accessibilityIgnored: !interactive
+                                        enabled: providerState.ready
+                                        accessibleRole: Accessible.RadioButton
                                         accessibleName: modelData.label
-                                        accessibleDescription: providerState.ready ? "Use " + modelData.label + " for Hermes" : modelData.label + " is not ready"
+                                        accessibleDescription: (modelData.id === Agents.hermesProvider ? "Selected. " : "")
+                                            + (providerState.ready ? "Use " + modelData.label + " for Hermes" : modelData.label + " is not ready")
                                         accessibleSelected: modelData.id === Agents.hermesProvider
                                         width: (body.width - Theme.cellW * 2) / 3
                                         height: Theme.cellH * 2.6
@@ -666,16 +667,18 @@ PanelWindow {
                                 spacing: Theme.cellW
                                 Repeater {
                                     model: [
-                                        { "id": "restricted", "label": "RESTRICTED", "hint": "workspace files" },
-                                        { "id": "research", "label": "RESEARCH", "hint": "+ read-only web" },
-                                        { "id": "workspace", "label": "WORKSPACE", "hint": "pilot + terminal" },
-                                        { "id": "trusted", "label": "TRUSTED", "hint": "project + YOLO" }
+                                        { "id": "restricted", "label": "RESTRICTED", "hint": "workspace files", "description": "Workspace files only" },
+                                        { "id": "research", "label": "RESEARCH", "hint": "+ read-only web", "description": "Workspace files and read-only web access" },
+                                        { "id": "workspace", "label": "WORKSPACE", "hint": "pilot + terminal", "description": "Workspace access with pilot and terminal tools" },
+                                        { "id": "trusted", "label": "TRUSTED", "hint": "no approvals", "description": "Full project access; command approvals are disabled" }
                                     ]
                                     InteractiveSurface {
                                         id: hermesModeButton
                                         required property var modelData
+                                        accessibleRole: Accessible.RadioButton
                                         accessibleName: modelData.label
-                                        accessibleDescription: "Use Hermes " + modelData.label.toLowerCase() + " mode: " + modelData.hint
+                                        accessibleDescription: (modelData.id === Agents.hermesMode ? "Selected. " : "")
+                                            + "Use Hermes " + modelData.label.toLowerCase() + " mode. " + modelData.description
                                         accessibleSelected: modelData.id === Agents.hermesMode
                                         width: (body.width - Theme.cellW * 3) / 4
                                         height: Theme.cellH * 2.6

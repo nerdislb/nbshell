@@ -222,6 +222,13 @@ for snippet in (
 ):
     if snippet not in agent_center:
         raise SystemExit(f"Agent Center keyboard action contract is incomplete: {snippet}")
+if agent_center.count("accessibleRole: Accessible.RadioButton") < 2 \
+        or agent_center.count("accessibleSelected: modelData.id === Agents.hermes") < 2:
+    raise SystemExit("Hermes provider and mode choices no longer expose radio selection semantics")
+if '"Full project access; command approvals are disabled"' not in agent_center:
+    raise SystemExit("Hermes trusted mode no longer exposes its approval consequence accessibly")
+if '"hint": "no approvals"' not in agent_center or '"project + YOLO"' in agent_center:
+    raise SystemExit("Hermes trusted mode no longer presents its approval consequence clearly")
 if '"hint": "agy bridge"' in agent_center:
     raise SystemExit("Agent Center regained the broken Gemini bridge label")
 
@@ -386,6 +393,13 @@ for snippet in (
 ):
     if snippet not in system_hub:
         raise SystemExit(f"System Hub keyboard action contract is incomplete: {snippet}")
+if system_hub.count("accessibleRole: interactive ? Accessible.Button : Accessible.StaticText") < 2:
+    raise SystemExit("System Hub passive status content is no longer exposed as static text")
+if "accessibilityIgnored: !interactive" in system_hub:
+    raise SystemExit("System Hub passive status content is hidden from accessibility")
+for focus_target in ("row", "detailRow", "externalAction"):
+    if f"onActiveFocusChanged: if (activeFocus) root.revealFocusedItem({focus_target})" not in system_hub:
+        raise SystemExit(f"System Hub no longer reveals focused {focus_target} controls")
 
 notes_window = (ROOT / "shell/Notes/NotesWindow.qml").read_text(encoding="utf-8")
 for snippet in (
