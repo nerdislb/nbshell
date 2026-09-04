@@ -31,6 +31,13 @@ with tempfile.TemporaryDirectory(prefix="nbshell-auth-test-") as temporary:
     store.load()
     token = store.start_pairing(ttl=30)
     assert token
+    try:
+        store.pair(token, {"device_id": "", "public_key_pem": "invalid"})
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("invalid pairing payload was accepted")
+    assert AUTH.token_hash(token) in store.pair_tokens, "invalid payload consumed one-time token"
     created = store.create_request("sudo", "nerdi", 10)
     assert created["service"] == "sudo"
     assert created["expires_at"] > time.time()
@@ -53,11 +60,13 @@ with tempfile.TemporaryDirectory(prefix="nbshell-auth-test-") as temporary:
         ["openssl", "dgst", "-sha256", "-sign", str(key), "-out", str(signature), str(data)],
         check=True, capture_output=True,
     )
-    store.devices["phone"] = {
+    paired = store.pair(token, {
+        "device_id": "phone",
         "name": "test",
         "public_key_pem": public.read_text(encoding="utf-8"),
-        "bearer_hash": AUTH.token_hash("bearer"),
-    }
+    })
+    assert AUTH.token_hash(token) not in store.pair_tokens
+    assert store.authenticate_device("phone", paired["bearer_token"])["name"] == "test"
     store.approve(created["id"], "phone", signature.read_bytes())
     assert store.consume_when_approved(created["id"], 1)
     assert not store.consume_when_approved(created["id"], 1)

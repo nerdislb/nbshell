@@ -35,7 +35,7 @@ ok "nbshell phone authentication broker is running."
 printf '%s\n' \
     "PAM has not been changed." \
     "Log out and back in once if nbshell-auth was newly added to your groups." \
-    "Create a pairing link with:" \
+    "Create and display a pairing QR code with:" \
     "  /usr/lib/nbshell/nbshell_phone_auth.py pair" \
     "Approve the next sudo or Polkit action with:" \
     "  /usr/lib/nbshell/nbshell_phone_auth.py authorize-next" \

@@ -79,7 +79,7 @@ missing_optional="$(
     optional_check jq            "helper scripts"             "jq"
     optional_check syncthing     "task sync"                  "syncthing"
     optional_check headsetcontrol "headset battery"           "headsetcontrol"
-    optional_check qrencode      "Wi-Fi QR codes"             "qrencode"
+    optional_check qrencode      "Wi-Fi and phone pairing QR codes" "qrencode"
     optional_check speedtest-cli "network speed tests"        "speedtest-cli"
     optional_check magick        "transparent-bar contrast"   "imagemagick"
     optional_check patch         "WhatsApp layout integration" "patch"

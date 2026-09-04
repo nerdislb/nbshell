@@ -13,11 +13,13 @@ import os
 from pathlib import Path
 import pwd
 import secrets
+import shutil
 import socket
 import socketserver
 import ssl
 import struct
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -93,13 +95,14 @@ class Store:
         with self.lock:
             self.cleanup()
             hashed = token_hash(token)
-            expiry = self.pair_tokens.pop(hashed, 0)
+            expiry = self.pair_tokens.get(hashed, 0)
             if expiry <= time.time():
                 raise ValueError("invalid or expired pairing token")
             device_id = str(payload.get("device_id") or "")
             public_key = str(payload.get("public_key_pem") or "")
             if not device_id or len(device_id) > 128 or "BEGIN PUBLIC KEY" not in public_key:
                 raise ValueError("invalid device identity")
+            self.pair_tokens.pop(hashed, None)
             bearer = secrets.token_urlsafe(48)
             self.devices[device_id] = {
                 "name": str(payload.get("name") or "nbOS")[:80],
@@ -411,6 +414,18 @@ def control(socket_path: Path, payload: dict) -> dict:
     return json.loads(response)
 
 
+def show_pairing_qr(pairing_uri: str) -> None:
+    """Render the local pairing URI for humans without contaminating JSON stdout."""
+    qrencode = shutil.which("qrencode")
+    if not qrencode or not sys.stderr.isatty():
+        return
+    subprocess.run(
+        [qrencode, "-t", "ANSIUTF8", pairing_uri],
+        stdout=sys.stderr,
+        check=False,
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--state", type=Path, default=DEFAULT_STATE)
@@ -454,6 +469,7 @@ def main() -> int:
             "cert_sha256": certificate_fingerprint(certificate),
         })
         result["pairing_uri"] = f"nbos-auth://pair?{query}"
+        show_pairing_qr(result["pairing_uri"])
     print(json.dumps(result))
     return 0 if result.get("ok") else 1
 
