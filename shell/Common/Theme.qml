@@ -270,7 +270,10 @@ Singleton {
         if (pressed) return mix(bg, accent, 0.26);
         if (selected) return selectedSurface(accent);
         if (hot) return hover;
-        return alpha(bgLight, 0.72);
+        // Light controls can sit inside a raised panel that is itself hosted by
+        // a transparent layer-shell window. Keep that stack opaque so muted
+        // text contrast never depends on the wallpaper.
+        return isLight ? mix(bg, bgLight, 0.72) : alpha(bgLight, 0.72);
     }
 
     function controlBorder(hot, selected, urgent) {
@@ -286,7 +289,7 @@ Singleton {
 
     function textFieldFill(hot, focused, readOnly) {
         if (readOnly)
-            return alpha(bgLight, 0.42);
+            return isLight ? mix(bg, bgLight, 0.42) : alpha(bgLight, 0.42);
         return controlFill(hot || focused, false, false);
     }
 
