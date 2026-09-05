@@ -35,7 +35,7 @@ HERMES_BROKER_TOOLS = [
 ]
 
 HERMES_PROVIDERS = {
-    "codex": {"provider": "openai-codex", "model": "gpt-5.6-sol", "label": "Codex", "native": True},
+    "codex": {"provider": "openai-codex", "model": "gpt-6-astra", "label": "Codex", "native": True},
     "claude": {"provider": "anthropic", "model": "anthropic/claude-sonnet-4.6", "label": "Claude", "native": True},
     "gemini": {"provider": "agy", "model": "", "label": "Gemini", "native": False},
 }

@@ -83,6 +83,7 @@ with tempfile.TemporaryDirectory() as temporary:
 
     codex = launch_for("codex", "restricted")
     assert "--provider" in codex and "openai-codex" in codex
+    assert "--model gpt-6-astra" in codex
     assert "--toolsets" in codex and "file,nbshell-ai-broker" in codex
     assert "--yolo" not in codex
 
@@ -91,6 +92,7 @@ with tempfile.TemporaryDirectory() as temporary:
     assert "file,web,nbshell-ai-broker" in claude and "--resume" in claude and "session-1" in claude
 
     workspace = launch_for("codex", "workspace")
+    assert "--model gpt-6-astra" in workspace
     assert "file,web,terminal,nbshell-ai-broker" in workspace
     assert "--yolo" not in workspace
 
@@ -105,6 +107,7 @@ with tempfile.TemporaryDirectory() as temporary:
         run.return_value.returncode = 0
         agents.launch("hermes", str(trusted_project))
     trusted = " ".join(popen.call_args.args[0])
+    assert "--model gpt-6-astra" in trusted
     assert str(trusted_project) in trusted and "file,web,terminal,code_execution,todo,clarify,delegation,session_search,skills,nbshell-ai-broker" in trusted
     assert "--yolo" in trusted and str(agents.HERMES_PILOT) not in trusted
     assert popen.call_args.kwargs["cwd"] == trusted_project
