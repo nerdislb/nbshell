@@ -10,9 +10,9 @@ if [[ ! -x $RUNNER ]]; then
 fi
 
 python3 "$ROOT/tests/design-system-contracts.py"
-python3 -m unittest "$ROOT/tests/test_security_correctness.py"
-python3 -m unittest "$ROOT/tests/test_shopping_list_send.py"
-python3 -m unittest "$ROOT/tests/test_system_hub.py"
+python3 -m unittest discover -s "$ROOT/tests" -p test_security_correctness.py
+python3 -m unittest discover -s "$ROOT/tests" -p test_shopping_list_send.py
+python3 -m unittest discover -s "$ROOT/tests" -p test_system_hub.py
 
 imports="$(mktemp -d)"
 trap 'rm -rf -- "$imports"' EXIT

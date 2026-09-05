@@ -6,7 +6,7 @@ TOOL="$ROOT/shell/scripts/plugins.sh"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/nbshell-plugin-test.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 
-python3 -m unittest "$ROOT/tests/test_plugin_porting_lab.py"
+python3 -m unittest discover -s "$ROOT/tests" -p test_plugin_porting_lab.py
 
 for plugin in beispiel wetter headset buds-control hermarchy-agent omamail ytmusic pit-wall; do
     bash "$TOOL" validate "$ROOT/plugins/$plugin" >/dev/null
