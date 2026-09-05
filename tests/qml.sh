@@ -10,6 +10,7 @@ if [[ ! -x $RUNNER ]]; then
 fi
 
 python3 "$ROOT/tests/design-system-contracts.py"
+python3 "$ROOT/tests/widget-host-drag.py"
 python3 -m unittest discover -s "$ROOT/tests" -p test_security_correctness.py
 python3 -m unittest discover -s "$ROOT/tests" -p test_shopping_list_send.py
 python3 -m unittest discover -s "$ROOT/tests" -p test_system_hub.py

@@ -1,0 +1,152 @@
+import QtQuick
+import QtTest
+
+TestCase {
+    id: testCase
+    name: "WidgetHostDrag"
+    when: windowShown
+    visible: true
+    width: 500
+    height: 200
+
+    property var sourceHost: null
+    property var targetHost: null
+    property var moves: []
+    property var cleanupAtMove: []
+    property bool destroyOnMove: false
+    property int clicks: 0
+
+    Component {
+        id: hostComponent
+        WidgetHost {
+            MouseArea {
+                anchors.fill: parent
+                onClicked: testCase.clicks++
+            }
+        }
+    }
+
+    function init() {
+        moves = [];
+        cleanupAtMove = [];
+        clicks = 0;
+        destroyOnMove = false;
+        sourceHost = hostComponent.createObject(testCase, { x: 10, y: 10, layoutKey: "leftWidgets", layoutIndex: 0 });
+        targetHost = hostComponent.createObject(testCase, { x: 200, y: 10, layoutKey: "rightWidgets", layoutIndex: 1 });
+        targetHost.reorderAction = function(fromKey, fromIndex, toKey, toIndex, after) {
+            cleanupAtMove = [sourceHost.dropTarget === null, sourceHost.proxy.Drag.active,
+                sourceHost.proxy.x, sourceHost.proxy.y];
+            moves.push([fromKey, fromIndex, toKey, toIndex, after]);
+            if (destroyOnMove) {
+                sourceHost.destroy();
+                targetHost.destroy();
+            }
+        };
+        wait(1);
+    }
+
+    function cleanup() {
+        if (sourceHost) sourceHost.destroy();
+        if (targetHost) targetHost.destroy();
+        wait(1);
+    }
+
+    function startDrag() {
+        mousePress(testCase, 60, 30, Qt.LeftButton, Qt.MetaModifier);
+        mouseMove(testCase, 100, 30, 20, Qt.LeftButton, Qt.MetaModifier);
+        tryCompare(sourceHost.handler, "active", true);
+    }
+
+    function moveTo(x, y, modifiers = Qt.MetaModifier) {
+        mouseMove(testCase, x, y, 20, Qt.LeftButton, modifiers);
+        wait(1);
+    }
+
+    function test_normal_click() {
+        mouseClick(testCase, 60, 30);
+        compare(clicks, 1);
+        compare(moves.length, 0);
+        compare(sourceHost.handler.active, false);
+    }
+
+    function test_shift_is_not_module_drag() {
+        mousePress(testCase, 60, 30, Qt.LeftButton, Qt.ShiftModifier);
+        moveTo(250, 30, Qt.ShiftModifier);
+        compare(sourceHost.handler.active, false);
+        mouseRelease(testCase, 250, 30, Qt.LeftButton, Qt.ShiftModifier);
+        compare(moves.length, 0);
+    }
+
+    function test_move_data() {
+        return [{ tag: "before", x: 210, after: false }, { tag: "after", x: 290, after: true }];
+    }
+
+    function test_move(data) {
+        startDrag();
+        moveTo(data.x, 30);
+        tryCompare(sourceHost, "dropTarget", targetHost);
+        mouseRelease(testCase, data.x, 30, Qt.LeftButton, Qt.MetaModifier);
+        compare(moves.length, 1);
+        compare(moves[0], ["leftWidgets", 0, "rightWidgets", 1, data.after]);
+        compare(cleanupAtMove, [true, false, 0, 0]);
+        wait(1);
+        compare(sourceHost.proxy.x, 0);
+        compare(sourceHost.proxy.y, 0);
+        compare(clicks, 0);
+    }
+
+    function test_exit_then_release_outside() {
+        startDrag();
+        moveTo(250, 30);
+        tryCompare(sourceHost, "dropTarget", targetHost);
+        moveTo(400, 120);
+        tryCompare(sourceHost, "dropTarget", null);
+        mouseRelease(testCase, 400, 120, Qt.LeftButton, Qt.MetaModifier);
+        compare(moves.length, 0);
+        compare(sourceHost.proxy.x, 0);
+        compare(sourceHost.proxy.y, 0);
+    }
+
+    function test_move_destroys_delegates() {
+        destroyOnMove = true;
+        startDrag();
+        moveTo(250, 30);
+        tryCompare(sourceHost, "dropTarget", targetHost);
+        mouseRelease(testCase, 250, 30, Qt.LeftButton, Qt.MetaModifier);
+        compare(moves.length, 1);
+        wait(10);
+        compare(cleanupAtMove, [true, false, 0, 0]);
+    }
+
+    function test_target_destroyed_mid_drag() {
+        startDrag();
+        moveTo(250, 30);
+        tryCompare(sourceHost, "dropTarget", targetHost);
+        targetHost.destroy();
+        wait(1);
+        compare(sourceHost.dropTarget, null);
+        mouseRelease(testCase, 250, 30, Qt.LeftButton, Qt.MetaModifier);
+        compare(moves.length, 0);
+    }
+
+    function test_source_destroyed_mid_drag() {
+        startDrag();
+        moveTo(250, 30);
+        tryCompare(sourceHost, "dropTarget", targetHost);
+        sourceHost.destroy();
+        wait(1);
+        mouseRelease(testCase, 250, 30, Qt.LeftButton, Qt.MetaModifier);
+        compare(moves.length, 0);
+        compare(targetHost.dropArea.dragSource, null);
+    }
+
+    function test_duplicate_not_reorderable() {
+        sourceHost.layoutOccurrenceCount = 2;
+        compare(sourceHost.reorderable, false);
+        mousePress(testCase, 60, 30, Qt.LeftButton, Qt.MetaModifier);
+        moveTo(250, 30);
+        compare(sourceHost.handler.active, false);
+        mouseRelease(testCase, 250, 30, Qt.LeftButton, Qt.MetaModifier);
+        compare(moves.length, 0);
+    }
+}

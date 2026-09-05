@@ -67,19 +67,19 @@ Item {
                     dragProxy.Drag.active = true;
                 } else {
                     const targetHost = root.dropTarget;
+                    const point = targetHost ? dragProxy.mapToItem(targetHost,
+                        dragProxy.Drag.hotSpot.x, dragProxy.Drag.hotSpot.y) : null;
+                    // Config writes rebuild the Repeater delegates. Finish all
+                    // local cleanup before calling out, with no deferred ID access.
+                    root.dropTarget = null;
+                    dragProxy.Drag.cancel();
+                    dragProxy.x = 0;
+                    dragProxy.y = 0;
                     if (targetHost && targetHost.reorderAction) {
-                        const point = dragProxy.mapToItem(targetHost,
-                            dragProxy.Drag.hotSpot.x, dragProxy.Drag.hotSpot.y);
                         targetHost.reorderAction(root.layoutKey, root.layoutIndex,
                             targetHost.layoutKey, targetHost.layoutIndex,
                             point.x > targetHost.width / 2);
                     }
-                    root.dropTarget = null;
-                    dragProxy.Drag.cancel();
-                    Qt.callLater(() => {
-                        dragProxy.x = 0;
-                        dragProxy.y = 0;
-                    });
                 }
             }
         }
@@ -106,18 +106,26 @@ Item {
 
     DropArea {
         id: reorderDrop
+        property var dragSource: null
+
+        function clearSource() {
+            if (dragSource && dragSource.dropTarget === root)
+                dragSource.dropTarget = null;
+            dragSource = null;
+        }
+
         anchors.fill: parent
         enabled: root.reorderable && !moduleDrag.active
         onEntered: drag => {
             if (!drag.source || !drag.source.reorderable)
                 return;
+            reorderDrop.dragSource = drag.source;
             drag.source.dropTarget = root;
             drag.acceptProposedAction();
         }
-        onExited: drag => {
-            if (drag.source && drag.source.dropTarget === root)
-                drag.source.dropTarget = null;
-        }
+        // exited() has no DragEvent, and drag.source may already be cleared.
+        onExited: reorderDrop.clearSource()
+        Component.onDestruction: reorderDrop.clearSource()
     }
 
     Rectangle {
