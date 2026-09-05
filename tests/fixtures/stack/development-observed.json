@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "components": {
+    "nbshell": {
+      "value": "0.1.0-beta.10",
+      "available": true
+    },
+    "quickshell": {
+      "value": "0.3.1",
+      "available": true
+    },
+    "qt": {
+      "value": "6.11.2",
+      "available": true
+    },
+    "umbriel": {
+      "value": "9b6472f5e408",
+      "available": true,
+      "dirty": true
+    },
+    "portal": {
+      "value": null,
+      "available": null
+    },
+    "platform": {
+      "value": "linux:arch",
+      "available": true
+    }
+  }
+}

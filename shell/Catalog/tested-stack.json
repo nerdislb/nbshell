@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "manifestVersion": 1,
+  "nbshellVersion": "0.1.0-beta.10",
+  "releaseNotes": [
+    "CHANGELOG.md",
+    "docs/compatibility.md",
+    "docs/tested-stack.md"
+  ],
+  "components": {
+    "nbshell": {
+      "kind": "version",
+      "minimum": null,
+      "supported": [
+        "0.1.0-beta.10"
+      ],
+      "incompatible": [],
+      "securityBlocked": [],
+      "notes": [
+        "VERSION identifies the payload, not a clean checkout or release attestation."
+      ]
+    },
+    "quickshell": {
+      "kind": "version",
+      "minimum": null,
+      "supported": [
+        "0.3.1"
+      ],
+      "incompatible": [],
+      "securityBlocked": [],
+      "notes": [
+        "docs/releasing.md documents the supported Arch 0.3.1 package. Native AT-SPI traversal is limited; see docs/compatibility.md. No minimum has been established."
+      ]
+    },
+    "qt": {
+      "kind": "version",
+      "minimum": null,
+      "supported": [],
+      "incompatible": [],
+      "securityBlocked": [],
+      "notes": [
+        "tests/accessibility/README.md records Qt 6.11.2 in a scoped accessibility test, not a full-stack certification. No minimum or supported range has been established."
+      ]
+    },
+    "umbriel": {
+      "kind": "revision",
+      "minimum": null,
+      "supported": [
+        "e677dbbe2728ee65156bdbcc6775b0b36b388b64"
+      ],
+      "incompatible": [],
+      "securityBlocked": [],
+      "notes": [
+        "Reviewed setup-umbriel.sh baseline; capability contract tests are not full-stack release certification."
+      ]
+    },
+    "portal": {
+      "kind": "revision",
+      "minimum": null,
+      "supported": [
+        "d996f0c2bd4e8c868c0a143f0c9ce060f3c47ed5"
+      ],
+      "incompatible": [],
+      "securityBlocked": [],
+      "notes": [
+        "Umbriel portal backend revision, not the xdg-desktop-portal broker package version. Reviewed setup-umbriel.sh baseline."
+      ]
+    },
+    "platform": {
+      "kind": "platform",
+      "minimum": null,
+      "supported": [
+        "linux:arch"
+      ],
+      "incompatible": [],
+      "securityBlocked": [],
+      "notes": [
+        "docs/compatibility.md targets current Arch and Arch-based systems. Derivatives remain compatible-unverified; distro identity alone proves neither hardware nor session readiness."
+      ]
+    }
+  },
+  "testedStacks": [],
+  "notes": [
+    "No complete release-tested stack is attested yet. Empty lists mean no recorded claims, not absence of vulnerabilities or incompatibilities. Unknown minimums are null. Development candidates must not be promoted to tested based on local version probes."
+  ]
+}
