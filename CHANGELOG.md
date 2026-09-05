@@ -6,6 +6,25 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+### Added
+
+- `nbshell doctor [--json]` provides a read-only, allowlisted support report that
+  separates session health from tested-stack support without exporting private
+  configuration, paths, window titles or journal contents.
+- A versioned stack manifest and evaluator distinguish documented support,
+  unverified combinations, degraded operation and explicit security blocks.
+  Complete tested-stack certification remains unclaimed until evidence exists.
+- A documented recovery matrix and consolidated automated release gate cover
+  migration, diagnostic and rollback contracts without implying whole-system
+  recovery or replacing live desktop acceptance.
+
+### Fixed
+
+- Bar drag cleanup no longer accesses destroyed delegates after a reorder, and
+  leaving or destroying a drop target clears the pending target safely.
+- Python test discovery works with Python 3.14 when QML and plugin test scripts
+  are invoked outside the repository directory.
+
 ### Changed
 
 - Installed sessions disable QML hot reload, optional phone and tailnet services

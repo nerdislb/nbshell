@@ -33,7 +33,11 @@ run python3 iso/profile/tests/test_installer.py
 run python3 tests/umbriel-capability-contract.py
 run python3 tests/umbriel-contracts.py
 run python3 tests/umbriel-update.py
+run python3 tests/config-migrations.py
+run python3 tests/stack-status.py
+run python3 tests/doctor.py
 run python3 tests/install-tree-transaction.py
+run python3 tests/recovery-contracts.py
 run python3 tests/phone_auth.py
 run python3 tests/ai-local-stats.py
 run python3 tests/hermes-hub.py
@@ -57,6 +61,7 @@ run python3 tests/cli-consistency.py
 run python3 tests/accessibility/test_atspi_probe.py
 run bash tests/calendar-backend.sh
 run bash tests/release-audit.sh
+run python3 tests/release-gate.py
 
 if command -v umbriel >/dev/null 2>&1; then
     run bash tests/greeter.sh

@@ -106,6 +106,17 @@ candidate or the remaining work is explicitly separated into bounded changes.
 
 This phase is required before a stable 1.0 contract.
 
+Implementation references for the remaining foundation work:
+
+- [Tested stack manifest and evaluator](tested-stack.md).
+- [Read-only doctor and shareable support report](doctor.md).
+- [Recovery matrix and explicit recovery boundaries](recovery-matrix.md).
+- [Consolidated automated release gate and separate live acceptance](release-gate.md).
+
+These implementations do not assert full-stack certification. The manifest keeps
+complete tested-stack attestations empty until release evidence exists, and the
+automated gate does not replace live desktop or physical recovery acceptance.
+
 ### 1. Persistent-state inventory and schema v1
 
 Inventory every nbshell-owned persistent file and record:
