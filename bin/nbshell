@@ -81,6 +81,7 @@ BROWSER_THEME_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts
 OMACUT_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/omacut.sh"
 SHELL_UPDATE_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/nbshell-update.py"
 SYSTEM_REPORT_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/system-report.py"
+DOCTOR_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/doctor.py"
 MEMORY_GUARD_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/memory-guard.sh"
 DEMO_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/demo.sh"
 UMBRIEL_UPDATE_TOOL="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/umbriel-update.py"
@@ -451,6 +452,7 @@ nbshell -- an independent Quickshell desktop shell for Umbriel
   nbshell system-report     print an agent-safe local system map
   nbshell system-report --write [path]
                             write an agent-safe local system map to file
+  nbshell doctor [--json]   report stack support and session health safely
   nbshell memory-guard      show runaway application protection
   nbshell memory-guard setup|remove
                             configure or remove runaway application service
@@ -708,6 +710,9 @@ case "$cmd" in
         ;;
     system-report|report)
         python3 "$SYSTEM_REPORT_TOOL" "$@"
+        ;;
+    doctor)
+        python3 "$DOCTOR_TOOL" "$@"
         ;;
     memory-guard|oomd)
         bash "$MEMORY_GUARD_TOOL" "$@"

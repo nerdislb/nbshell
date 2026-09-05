@@ -93,6 +93,7 @@ required_catalog_commands = (
     "nbshell shopping",
     "nbshell store",
     "nbshell system-report",
+    "nbshell doctor [--json]",
     "nbshell memory-guard",
     "nbshell demo start|stop",
     "nbshell whatsapp setup",
