@@ -25,7 +25,7 @@ def require(condition, message):
 def inside(args):
     require(os.environ.get('NBSHELL_LIFECYCLE_TEST') == '1', 'Missing sandbox marker')
     require(not Path('/run/dbus/system_bus_socket').exists(), 'Host system bus exposed')
-    config = Path('/home/test/.config/nbshell')
+    config = Path('/home/user/.config/nbshell')
     config.mkdir(parents=True)
     (config / 'themes').symlink_to('/source/themes')
     (config / 'config.json').write_text(json.dumps({
@@ -35,9 +35,9 @@ def inside(args):
         'rightWidgets': [], 'collapsedWidgets': ['clock'],
     }))
     Path('/run/test').mkdir(mode=0o700)
-    os.environ.update(HOME='/home/test', XDG_CONFIG_HOME='/home/test/.config',
-                      XDG_CACHE_HOME='/home/test/.cache', XDG_STATE_HOME='/home/test/.local/state',
-                      XDG_DATA_HOME='/home/test/.local/share', XDG_RUNTIME_DIR='/run/test',
+    os.environ.update(HOME='/home/user', XDG_CONFIG_HOME='/home/user/.config',
+                      XDG_CACHE_HOME='/home/user/.cache', XDG_STATE_HOME='/home/user/.local/state',
+                      XDG_DATA_HOME='/home/user/.local/share', XDG_RUNTIME_DIR='/run/test',
                       WLR_BACKENDS='headless', WLR_HEADLESS_OUTPUTS='1', WLR_LIBINPUT_NO_DEVICES='1',
                       WLR_RENDER_DRM_DEVICE=args.render_node, QT_QPA_PLATFORM='wayland',
                       QT_QUICK_BACKEND='software', QT_QPA_PLATFORMTHEME='',
