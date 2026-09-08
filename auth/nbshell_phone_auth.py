@@ -277,6 +277,59 @@ class AuthHTTPHandler(http.server.BaseHTTPRequestHandler):
 class ThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
 
+    def __init__(self, address, handler, *, ssl_context: ssl.SSLContext,
+                 max_workers: int = 16, connection_timeout: float = 10):
+        self.ssl_context = ssl_context
+        self.connection_timeout = connection_timeout
+        self.workers = threading.BoundedSemaphore(max_workers)
+        super().__init__(address, handler)
+
+    def process_request(self, request, client_address):
+        # Accept stays plain TCP and never waits for a TLS handshake. Refuse
+        # excess connections before creating a thread, including unauthenticated
+        # slow clients. Every admitted connection has an absolute lifetime.
+        if not self.workers.acquire(blocking=False):
+            self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self.workers.release()
+            self.shutdown_request(request)
+            raise
+
+    def process_request_thread(self, request, client_address):
+        connection = request
+        deadline = None
+        try:
+            connection = self.ssl_context.wrap_socket(
+                request, server_side=True, do_handshake_on_connect=False,
+            )
+            connection.settimeout(self.connection_timeout)
+
+            def expire():
+                try:
+                    connection.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+                connection.close()
+
+            deadline = threading.Timer(self.connection_timeout, expire)
+            deadline.daemon = True
+            deadline.start()
+            connection.do_handshake()
+            self.finish_request(connection, client_address)
+        except (OSError, ssl.SSLError):
+            # Invalid handshakes and disconnected slow clients are normal input.
+            pass
+        except Exception:
+            self.handle_error(request, client_address)
+        finally:
+            if deadline is not None:
+                deadline.cancel()
+            self.shutdown_request(connection)
+            self.workers.release()
+
 
 class UnixHandler(socketserver.StreamRequestHandler):
     def handle(self) -> None:
@@ -391,12 +444,11 @@ def serve(args: argparse.Namespace) -> int:
     os.chmod(args.socket, 0o660)
     threading.Thread(target=unix_server.serve_forever, daemon=True).start()
 
-    http_server = ThreadingHTTPServer((args.bind, args.port), AuthHTTPHandler)
-    http_server.store = store
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.minimum_version = ssl.TLSVersion.TLSv1_3
     context.load_cert_chain(certificate, key)
-    http_server.socket = context.wrap_socket(http_server.socket, server_side=True)
+    http_server = ThreadingHTTPServer((args.bind, args.port), AuthHTTPHandler, ssl_context=context)
+    http_server.store = store
     try:
         http_server.serve_forever()
     finally:
