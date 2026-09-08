@@ -29,7 +29,8 @@ jobs:
         run: |
           useradd --create-home nbshell-ci
           chown -R nbshell-ci:nbshell-ci "${GITHUB_WORKSPACE}"
-          runuser -u nbshell-ci -- ./tests/all.sh
+          install -d -m 0700 -o nbshell-ci -g nbshell-ci /tmp/nbshell-ci-runtime
+          runuser -u nbshell-ci -- env XDG_RUNTIME_DIR=/tmp/nbshell-ci-runtime ./tests/all.sh
 
       # The headless CI image verifies the installed greeter payload in the
       # fresh-install test. Full QML/Umbriel/greetd integration remains part of the

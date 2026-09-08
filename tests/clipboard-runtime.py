@@ -32,7 +32,8 @@ ShellRoot {
     Timer { interval: 1500; running: true; onTriggered: Qt.quit() }
 }
 ''')
-    env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_QPA_PLATFORMTHEME='',
+    (root / 'runtime').mkdir(mode=0o700)
+    env = dict(os.environ, XDG_RUNTIME_DIR=str(root / 'runtime'), QT_QPA_PLATFORM='offscreen', QT_QPA_PLATFORMTHEME='',
                QT_QUICK_BACKEND='software', XDG_STATE_HOME=str(root / 'state'))
     try:
         result = subprocess.run([qs, '-p', str(root)], env=env, capture_output=True, text=True, timeout=8)
