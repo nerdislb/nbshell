@@ -46,12 +46,12 @@
       "kind": "revision",
       "minimum": null,
       "supported": [
-        "e677dbbe2728ee65156bdbcc6775b0b36b388b64"
+        "a850083bb3279ffb0516b729de3fca01e462b809"
       ],
       "incompatible": [],
       "securityBlocked": [],
       "notes": [
-        "Reviewed setup-umbriel.sh baseline; capability contract tests are not full-stack release certification."
+        "Setup baseline accepted with real query/action and QML IPC reconnect tests; physical DPMS and full-stack release acceptance remain separate."
       ]
     },
     "portal": {

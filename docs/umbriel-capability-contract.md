@@ -205,3 +205,35 @@ with the newly built pinned binary, and runs the contract tests before
 installation continues. Repository tests use captured help output and failure
 fixtures so discovery, validation, mapping, and error behavior are repeatable
 without a running compositor.
+
+## Reference acceptance on 2026-09-08
+
+The contract and setup baseline now use Umbriel
+`a850083bb3279ffb0516b729de3fca01e462b809`. Captured help fixtures come from a
+clean source build of that revision. The build passed 56 Meson tests; the GBM
+device renderer test was skipped. This updates the compositor reference only,
+not the portal pin or a complete-stack release certification.
+
+The private real-session acceptance test is reproducible with:
+
+```bash
+python3 tests/wayland-lifecycle.py --compositor /usr/local/bin/umbriel \
+  --render-node /dev/dri/renderD128 --output /tmp/nbshell-action-contract \
+  --cycles 1 --settle-seconds 0 --action-contract
+```
+
+It creates two fixture windows, checks focus, floating/tiling, three layouts,
+workspace movement/switching, focus-warp, width changes, close events, and clean
+compositor exit. It also checks reload and DPMS command acknowledgements.
+A private forwarding socket is disconnected three times while an unmodified
+copy of the production Compositor QML service in a separate observer process is observed: cached state must
+clear and fresh snapshots must return. This tests IPC transport recovery with
+the Wayland server alive, not recovery from an entire Wayland server crash.
+
+The reconnect probe covers the service module, not every bar/widget consumer.
+Focus-warp checks focus and workspace state, not pointer coordinates across
+multiple outputs.
+
+Physical DPMS output changes, GPU-specific behavior, login, lock, and suspend
+remain part of the hardware/VM release gate. A headless acknowledgement is not
+evidence that a physical monitor powered off or resumed correctly.

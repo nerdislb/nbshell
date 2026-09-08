@@ -12,7 +12,7 @@ Usage: umbriel [-s <command>] [-c <config>]   run the compositor
        umbriel output-create <name>           create a headless output (headless sessions only)
        umbriel output-destroy <name>          destroy an output (headless sessions only)
        umbriel subscribe <event>[,<event>…]   stream events as JSON lines
-               events: theme, overview, keyboard_layout, windows, workspaces
+               events: theme, overview, keyboard_layout, windows, workspaces, submap
        umbriel outputs                        list outputs and modes
        umbriel validate [-c <config>]         check the config file
        umbriel help | -h | --help             show this help
