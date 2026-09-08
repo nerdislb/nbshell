@@ -8,6 +8,7 @@ import argparse
 import json
 import os
 import re
+import runpy
 from collections import Counter
 from pathlib import Path
 import shutil
@@ -76,6 +77,9 @@ def inside(args):
         function closePanels(): string {
             Runtime.settingsOpen = false;
             Runtime.modulesOpen = false;
+            Runtime.agentCenterOpen = false;
+            Runtime.dashboardOpen = false;
+            Runtime.pluginDeveloperOpen = false;
             Runtime.closeMenu();
             return "closed";
         }
@@ -142,6 +146,10 @@ def inside(args):
         function settings(): string { root.openSettings(); return "open"; }
     }
 ''' + text[end:])
+    panel_profile = None
+    if args.panel_profile:
+        panel_profile = runpy.run_path('/source/tests/panel-profile.py')
+        panel_profile['instrument'](Path('/work/shell'), args.panel_async)
     processes, handles = [], []
 
     def launch(command, name):
@@ -213,6 +221,12 @@ def inside(args):
         shell = launch(['/test-bin/qs', '-p', '/work/shell', '--no-color'], 'shell.log')
         wait(lambda: run(['/test-bin/qs', '-p', '/work/shell', 'ipc', 'call', 'state', 'dump'], False).returncode == 0, 'shell IPC')
         time.sleep(2)
+        if args.panel_profile:
+            time.sleep(4)
+            panel_profile['measure'](ipc, wait, mapped, args.cycles, args.panel_async)
+            log = Path('/work/shell.log').read_text()
+            require(not any(word in log for word in ('ReferenceError', 'TypeError', 'Binding loop')), 'Panel profile QML error')
+            return
         if args.startup_profile:
             def snapshot():
                 log = Path('/work/shell.log').read_text()
@@ -318,6 +332,8 @@ def main():
     parser.add_argument('--cycles', type=int, default=100)
     parser.add_argument('--settle-seconds', type=int, default=60)
     parser.add_argument('--theme', default='tokyo-night')
+    parser.add_argument('--panel-profile', action='store_true', help='Measure Qt first output, visible readback and event-loop gaps')
+    parser.add_argument('--panel-async', action='store_true', help='Experiment with async MotionLoader only in the private profile copy')
     parser.add_argument('--startup-embedded-settings', action='store_true', help='Exercise first cursor demand through the main menu')
     parser.add_argument('--startup-ai-widget', action='store_true', help='Include the AI widget in the isolated startup fixture')
     parser.add_argument('--startup-profile', action='store_true', help='Measure private service/process startup and subsequent demand')
@@ -329,6 +345,7 @@ def main():
     parser.add_argument('--inside', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args()
     require(1 <= args.cycles <= 1000 and 0 <= args.settle_seconds <= 3600, 'Invalid duration/cycle count')
+    require(not args.panel_async or args.panel_profile, '--panel-async requires --panel-profile')
     if args.inside:
         inside(args); return
     root = Path(__file__).resolve().parents[1]

@@ -54,6 +54,60 @@ startup baseline from caches retained after normal use. Performance numbers
 are diagnostics rather than release-test thresholds because GPU drivers,
 screen count, plugins, and enabled modules materially change them.
 
+## Panel loading profile
+
+The isolated Wayland fixture can compare synchronous panel creation with an
+asynchronous experiment. It requires Umbriel, Quickshell, Bubblewrap,
+`dbus-run-session`, `grim`, Python Pillow, and an accessible DRM render node.
+Run the variants sequentially from the same source tree, using fresh output
+paths:
+
+```bash
+python3 tests/wayland-lifecycle.py --compositor /usr/local/bin/umbriel \
+  --render-node /dev/dri/renderD128 --output /tmp/nbshell-panel-sync \
+  --cycles 20 --settle-seconds 0 --panel-profile
+python3 tests/wayland-lifecycle.py --compositor /usr/local/bin/umbriel \
+  --render-node /dev/dri/renderD128 --output /tmp/nbshell-panel-async \
+  --cycles 20 --settle-seconds 0 --panel-profile --panel-async
+```
+
+The experiment changes only the private shell copy. Both outputs contain a
+`panel-profile.json`, screenshots, and logs. Compare `baselineQmlSha256` before
+comparing results. The fixture opens Settings, Modules, Agents, Dashboard, and
+the Plugin Manager, destroys each panel after closing, and requires exactly
+one first-swap event per new panel instance.
+
+The three measurements answer different questions:
+
+- `qtFirstSwapMs`: in-process open request to that panel's first Qt
+  `frameSwapped` callback. This may still be an initial transparent frame;
+  it does not measure physical display scanout.
+- `visibleReadbackUpperBoundMs`: request through screenshot capture, PNG
+  decoding, and central-region pixel comparison. It confirms visible output
+  but includes substantial IPC/readback overhead. The fixed pixel threshold
+  is intended for the default 800×600 fixture, not cross-resolution comparisons.
+- `maxHeartbeatGapMs`: largest Qt timer gap during the request/readback window.
+  It includes render scheduling and unrelated shell activity, so it does not
+  attribute blocked CPU time to a particular component.
+
+On 2026-09-08, 20 openings per panel and variant on the same source produced
+these p95 values in the private software-rendered 800×600 fixture (milliseconds):
+
+| Panel | First Qt swap, sync / async | Heartbeat gap, sync / async |
+| --- | --- | --- |
+| Settings | 10 / 11 | 20 / 18 |
+| Modules | 15 / 16 | 21 / 23 |
+| Agents | 15 / 15 | 17 / 18 |
+| Dashboard | 34 / 30 | 29 / 25 |
+| Plugin Manager | 13 / 12 | 17 / 17 |
+
+Keep synchronous loading: the experiment did not establish a consistent
+improvement. Screenshot upper bounds were lower for several async panels,
+but include measurement overhead and sequential-run host-load differences.
+These small samples are diagnostic evidence, not a general performance
+promise or a release threshold. Raw cycles include the first opening, allowing
+it to be inspected separately from subsequent openings.
+
 ## Runaway application protection
 
 nbshell can optionally enable systemd-oomd for graphical applications:
