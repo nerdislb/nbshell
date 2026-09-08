@@ -4,10 +4,15 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
+import copy
 import json
 import os
 from pathlib import Path
 import shutil
+import socket
+import threading
+import time
 import subprocess
 import sys
 import tempfile
@@ -117,6 +122,176 @@ class UmbrielCapabilityContractTests(unittest.TestCase):
         if check and result.returncode != 0:
             self.fail(f"contract failed ({result.returncode}): {result.stdout!r} {result.stderr!r}")
         return result
+
+    @contextmanager
+    def wire_server(self, transform=lambda name, event, value: value):
+        path = self.root / "wire.sock"
+        self.environment["UMBRIEL_SOCKET"] = str(path)
+        stopped = threading.Event()
+        requests = []
+        failures = []
+        windows = [{"id": "window-1", "workspace": "out:1", "app_id": "fixture",
+                    "title": "PRIVATE-TITLE", "active": True, "floating": False,
+                    "focused": True, "urgent": False, "xwayland": False,
+                    "x": -10, "y": 0, "w": 400, "h": 300}]
+        workspaces = [{"id": "out:1", "name": "PRIVATE-WORKSPACE", "index": 1,
+                       "output": "out", "active": True, "focused": True, "layout": "scrolling"}]
+        snapshots = {"windows": windows, "workspaces": workspaces}
+        server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        server.bind(str(path)); server.listen(); server.settimeout(0.05)
+
+        def serve():
+            while not stopped.is_set():
+                try:
+                    connection, _ = server.accept()
+                except socket.timeout:
+                    continue
+                with connection:
+                    connection.settimeout(1)
+                    data = b""
+                    while b"\n" not in data:
+                        chunk = connection.recv(4096)
+                        if not chunk:
+                            break  # Discovery's connect-only readiness probe.
+                        data += chunk
+                    if not data:
+                        continue
+                    request = json.loads(data)
+                    requests.append(request)
+                    event = request["cmd"] == "subscribe"
+                    # Intentionally reverse initial event order and fragment frames.
+                    names = ["workspaces", "windows"] if event else [request["cmd"]]
+                    for name in names:
+                        reply = ({"event": name, "data": snapshots[name]} if event else {"ok": snapshots[name]})
+                        reply = transform(name, event, copy.deepcopy(reply))
+                        if callable(reply):
+                            reply(connection, stopped)
+                            return
+                        if reply is None:
+                            stopped.wait(4)
+                            return
+                        wire = reply if isinstance(reply, bytes) else json.dumps(reply).encode() + b"\n"
+                        try:
+                            connection.sendall(wire[:7]); connection.sendall(wire[7:])
+                        except (BrokenPipeError, ConnectionResetError):
+                            break
+
+        def guarded():
+            try:
+                serve()
+            except Exception as error:
+                failures.append(error)
+        thread = threading.Thread(target=guarded, daemon=True); thread.start()
+        try:
+            yield requests
+        finally:
+            stopped.set(); thread.join(2); server.close()
+            self.assertFalse(thread.is_alive(), "Fixture server did not stop")
+            self.assertEqual(failures, [])
+
+    def test_wire_verifies_queries_and_reordered_fragmented_snapshots_privately(self):
+        with self.wire_server() as requests:
+            result = self.run_contract("verify-wire")
+        value = json.loads(result.stdout)
+        self.assertEqual(value["protocol"]["status"], "verified")
+        self.assertEqual(len(value["protocol"]["checked"]), 4)
+        self.assertNotIn("PRIVATE", result.stdout + result.stderr)
+        self.assertEqual([r["cmd"] for r in requests], ["windows", "workspaces", "subscribe"])
+
+    def test_plain_discovery_does_not_read_state(self):
+        with self.wire_server() as requests:
+            value = json.loads(self.run_contract("status").stdout)
+        self.assertEqual(requests, [])
+        self.assertEqual(value["protocol"]["status"], "not-checked")
+
+    def test_valid_wire_does_not_override_revision_policy(self):
+        self.environment["NBSHELL_UMBRIEL_VERSION"] = "umbriel 99.0 (deadbeefdead)"
+        with self.wire_server():
+            result = self.run_contract("verify-wire", check=False)
+        value = json.loads(result.stdout)
+        self.assertEqual(result.returncode, 1)
+        self.assertFalse(value["compatible"])
+        self.assertEqual(value["protocol"]["status"], "verified")
+
+    def test_wire_rejects_bad_query_and_event_field_types(self):
+        for event in (False, True):
+            for name, field, bad in (("windows", "focused", "false"),
+                                     ("workspaces", "index", True),
+                                     ("windows", "x", None)):
+                with self.subTest(event=event, name=name, field=field):
+                    def transform(current, is_event, reply):
+                        if current == name and is_event == event:
+                            reply["data" if event else "ok"][0][field] = bad
+                        return reply
+                    with self.wire_server(transform):
+                        result = self.run_contract("verify-wire", check=False)
+                    (self.root / "wire.sock").unlink()
+                    value = json.loads(result.stdout)
+                    self.assertEqual(result.returncode, 1)
+                    self.assertEqual(value["protocol"]["error"]["code"], "wire-schema-invalid")
+                    self.assertNotIn("PRIVATE", result.stdout + result.stderr)
+
+    def test_wire_accepts_empty_snapshots_and_additive_fields(self):
+        for empty in (False, True):
+            def transform(name, event, reply):
+                key = "data" if event else "ok"
+                if empty:
+                    reply[key] = []
+                else:
+                    reply[key][0]["future_field"] = {"something": True}
+                return reply
+            with self.wire_server(transform):
+                self.run_contract("verify-wire")
+            (self.root / "wire.sock").unlink()
+
+    def test_wire_rejects_error_malformed_truncated_and_oversized_frames(self):
+        for reply, code in (({"err": "PRIVATE-SERVER-ERROR"}, "wire-reply-invalid"),
+                            (b"not json\n", "wire-json-invalid"),
+                            (b'{"ok": []}', "wire-truncated"),
+                            (b"x" * (4 * 1024 * 1024 + 1), "wire-frame-too-large")):
+            with self.subTest(code=code):
+                with self.wire_server(lambda *_: reply):
+                    result = self.run_contract("verify-wire", check=False)
+                (self.root / "wire.sock").unlink()
+                value = json.loads(result.stdout)
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(value["protocol"]["error"]["code"], code)
+                self.assertNotIn("PRIVATE", result.stdout + result.stderr)
+
+    def test_wire_deadline_and_missing_initial_event_are_failures(self):
+        with self.wire_server(lambda *_: None):
+            result = self.run_contract("verify-wire", check=False)
+        self.assertEqual(json.loads(result.stdout)["protocol"]["error"]["code"], "wire-timeout")
+        (self.root / "wire.sock").unlink()
+        def omit_event(name, event, reply):
+            if event:
+                return {"event": "windows", "data": []}
+            return reply
+        with self.wire_server(omit_event):
+            result = self.run_contract("verify-wire", check=False)
+        self.assertEqual(json.loads(result.stdout)["protocol"]["error"]["code"], "wire-truncated")
+        self.assertEqual(result.returncode, 1)
+
+    def test_wire_slow_trickle_cannot_extend_total_deadline(self):
+        def trickle(connection, stopped):
+            while not stopped.wait(0.05):
+                try:
+                    connection.sendall(b" ")
+                except (BrokenPipeError, ConnectionResetError):
+                    return
+        started = time.monotonic()
+        with self.wire_server(lambda *_: trickle):
+            result = self.run_contract("verify-wire", check=False)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(json.loads(result.stdout)["protocol"]["error"]["code"], "wire-timeout")
+        self.assertLess(time.monotonic() - started, 6)
+
+    def test_wire_offline_is_failure_even_when_executable_is_compatible(self):
+        result = self.run_contract("verify-wire", check=False)
+        value = json.loads(result.stdout)
+        self.assertTrue(value["compatible"])
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(value["protocol"]["error"]["code"], "wire-unavailable")
 
     def test_reference_fixture_discovers_every_required_capability(self) -> None:
         result = self.run_contract("check")

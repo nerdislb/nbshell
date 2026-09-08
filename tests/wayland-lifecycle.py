@@ -221,6 +221,21 @@ def inside(args):
         shell = launch(['/test-bin/qs', '-p', '/work/shell', '--no-color'], 'shell.log')
         wait(lambda: run(['/test-bin/qs', '-p', '/work/shell', 'ipc', 'call', 'state', 'dump'], False).returncode == 0, 'shell IPC')
         time.sleep(2)
+        if args.wire_contract:
+            client = Path('/work/wire-client')
+            client.mkdir()
+            (client / 'shell.qml').write_text('import QtQuick\nimport Quickshell\nShellRoot { Window { visible: true; width: 320; height: 200; title: "Contract fixture" } }\n')
+            launch(['/test-bin/qs', '-p', str(client), '--no-color'], 'wire-client.log')
+            wait(lambda: len(json.loads(run(['/test-bin/umbriel', 'windows', '--json']).stdout)) > 0, 'contract fixture window')
+            result = run(['python3', '/source/shell/scripts/umbriel-contract.py', 'verify-wire', '--binary', '/test-bin/umbriel', '--json'], False)
+            value = json.loads(result.stdout)
+            Path('/work/wire-contract.json').write_text(json.dumps(value, indent=2))
+            require(value['protocol']['status'] == 'verified', 'Live wire schema verification failed')
+            require(all(count > 0 for count in value['protocol']['rowCounts'].values()), 'Live contract coverage requires nonempty snapshots')
+            # Schema verification does not override the independent revision gate.
+            require(result.returncode == (0 if value['compatible'] else 1), 'Revision gate was bypassed')
+            print(json.dumps({'wireSchema': 'verified', 'revisionMatchesReference': value['runtime']['revisionMatchesReference']}))
+            return
         if args.panel_profile:
             time.sleep(4)
             panel_profile['measure'](ipc, wait, mapped, args.cycles, args.panel_async)
@@ -332,6 +347,7 @@ def main():
     parser.add_argument('--cycles', type=int, default=100)
     parser.add_argument('--settle-seconds', type=int, default=60)
     parser.add_argument('--theme', default='tokyo-night')
+    parser.add_argument('--wire-contract', action='store_true', help='Verify query and subscription schemas with a private real window')
     parser.add_argument('--panel-profile', action='store_true', help='Measure Qt first output, visible readback and event-loop gaps')
     parser.add_argument('--panel-async', action='store_true', help='Experiment with async MotionLoader only in the private profile copy')
     parser.add_argument('--startup-embedded-settings', action='store_true', help='Exercise first cursor demand through the main menu')

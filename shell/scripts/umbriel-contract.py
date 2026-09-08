@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -12,6 +13,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import time
 from typing import Any
 
 
@@ -260,6 +262,7 @@ def build_status(contract: dict[str, Any], explicit_binary: str | None) -> dict[
         "referenceRevision": contract["referenceRevision"],
         "status": status,
         "compatible": compatible,
+        "protocol": {"status": "not-checked"},
         "runtime": {
             "binary": binary,
             "version": discovery["version"] if discovery else None,
@@ -273,6 +276,119 @@ def build_status(contract: dict[str, Any], explicit_binary: str | None) -> dict[
         "capabilities": capabilities,
         "errors": errors,
     }
+
+
+
+# These are the fields consumed by the shell, not an exhaustive server schema.
+# Unknown fields are allowed so additive upstream changes remain compatible.
+WIRE_FIELDS = {
+    "windows": {
+        **dict.fromkeys(("id", "workspace", "app_id", "title"), "string"),
+        **dict.fromkeys(("active", "floating", "focused", "urgent", "xwayland"), "boolean"),
+        **dict.fromkeys(("x", "y", "w", "h"), "number"),
+    },
+    "workspaces": {
+        **dict.fromkeys(("id", "name", "output", "layout"), "string"),
+        "index": "integer", "active": "boolean", "focused": "boolean",
+    },
+}
+MAX_WIRE_FRAME_BYTES = 4 * 1024 * 1024
+
+
+def validate_snapshot(name: str, value: Any) -> int:
+    if not isinstance(value, list):
+        raise ContractError("wire-schema-invalid", "Snapshot must be an array", name)
+    for row in value:
+        if not isinstance(row, dict):
+            raise ContractError("wire-schema-invalid", "Snapshot rows must be objects", name)
+        for field, kind in WIRE_FIELDS[name].items():
+            item = row.get(field)
+            valid = {
+                "string": isinstance(item, str),
+                "boolean": type(item) is bool,
+                "integer": type(item) is int,
+                "number": type(item) in (int, float) and (type(item) is int or math.isfinite(item)),
+            }[kind]
+            if not valid:
+                # Never include server values (window titles, names, errors) in diagnostics.
+                raise ContractError("wire-schema-invalid", f"Invalid {kind} field: {field}", name)
+    return len(value)
+
+
+def verify_wire(path: Path) -> dict[str, Any]:
+    """Read bounded query/snapshot frames; return metadata only, never user state."""
+    deadline = time.monotonic() + PROBE_TIMEOUT_SECONDS
+    checked: list[str] = []
+    counts: dict[str, int] = {}
+
+    def connect(request):
+        connection = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            connection.settimeout(max(0.001, deadline - time.monotonic()))
+            connection.connect(str(path))
+            connection.sendall(json.dumps(request).encode() + b"\n")
+            return connection
+        except BaseException:
+            connection.close()
+            raise
+
+    def frames(connection):
+        pending = b""
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise ContractError("wire-timeout", "Protocol verification timed out")
+            connection.settimeout(remaining)
+            chunk = connection.recv(65536)
+            if not chunk:
+                raise ContractError("wire-truncated", "Connection ended before a complete snapshot")
+            pending += chunk
+            while b"\n" in pending:
+                line, pending = pending.split(b"\n", 1)
+                if len(line) > MAX_WIRE_FRAME_BYTES:
+                    raise ContractError("wire-frame-too-large", "Protocol frame exceeds the verification limit")
+                try:
+                    def reject_constant(_):
+                        raise ValueError("Non-JSON constant")
+                    value = json.loads(line, parse_constant=reject_constant)
+                except (ValueError, UnicodeError, RecursionError):
+                    raise ContractError("wire-json-invalid", "Protocol frame is not valid JSON") from None
+                if not isinstance(value, dict) or "err" in value:
+                    raise ContractError("wire-reply-invalid", "Protocol returned an invalid or error envelope")
+                yield value
+            if len(pending) > MAX_WIRE_FRAME_BYTES:
+                raise ContractError("wire-frame-too-large", "Protocol frame exceeds the verification limit")
+
+    try:
+        for name in WIRE_FIELDS:
+            with connect({"cmd": name}) as connection:
+                reply = next(frames(connection))
+                if "ok" not in reply or "event" in reply:
+                    raise ContractError("wire-reply-invalid", "Query requires an ok envelope", name)
+                counts["query." + name] = validate_snapshot(name, reply["ok"])
+                checked.append("query." + name)
+        pending = set(WIRE_FIELDS)
+        with connect({"cmd": "subscribe", "events": list(WIRE_FIELDS)}) as connection:
+            for event in frames(connection):
+                name = event.get("event")
+                if not isinstance(name, str) or name not in WIRE_FIELDS or "ok" in event:
+                    raise ContractError("wire-reply-invalid", "Subscription requires a requested event envelope")
+                counts["event." + name] = validate_snapshot(name, event.get("data"))
+                if name in pending:
+                    checked.append("event." + name)
+                    pending.remove(name)
+                if not pending:
+                    break
+        return {"status": "verified", "checked": checked, "rowCounts": counts,
+                "scope": "required queries and initial subscription snapshots"}
+    except (ContractError, OSError) as error:
+        if isinstance(error, ContractError):
+            payload = error.payload()
+        elif isinstance(error, TimeoutError):
+            payload = {"code": "wire-timeout", "message": "Protocol verification timed out"}
+        else:
+            payload = {"code": "wire-unavailable", "message": "Cannot read the compositor protocol"}
+        return {"status": "failed", "checked": checked, "error": payload}
 
 
 def action_map(contract: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -372,6 +488,9 @@ def emit(value: dict[str, Any], json_output: bool) -> None:
         print(f"Binary: {runtime['binary'] or 'not found'}")
         print(f"Version: {runtime['version'] or 'unknown'}")
         print(f"IPC socket: {'available' if runtime['socketAvailable'] else 'unavailable'}")
+        print(f"Wire schema: {value['protocol']['status']}")
+        if value["protocol"].get("error"):
+            print(value["protocol"]["error"]["message"])
         print(f"Required capabilities missing: {len(value['missingRequired'])}")
         print(f"Optional capabilities missing: {len(value['missingOptional'])}")
     else:
@@ -381,7 +500,7 @@ def emit(value: dict[str, Any], json_output: bool) -> None:
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(description="nbshell Umbriel capability contract")
     commands = root.add_subparsers(dest="command", required=True)
-    for name in ("status", "check"):
+    for name in ("status", "check", "verify-wire"):
         command = commands.add_parser(name)
         command.add_argument("--json", action="store_true")
         command.add_argument("--binary")
@@ -398,8 +517,12 @@ def main(arguments: list[str] | None = None) -> int:
     json_output = bool(options.json)
     try:
         contract = load_contract()
-        if options.command in {"status", "check"}:
+        if options.command in {"status", "check", "verify-wire"}:
             value = build_status(contract, options.binary)
+            if options.command == "verify-wire":
+                value["protocol"] = verify_wire(socket_path())
+                emit(value, json_output)
+                return 0 if value["compatible"] and value["protocol"]["status"] == "verified" else 1
             emit(value, json_output)
             return 0 if options.command == "status" or value["compatible"] else 1
         value = invoke_action(contract, options.name, options.value, options.binary)

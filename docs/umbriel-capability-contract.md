@@ -74,6 +74,55 @@ Umbriel does not expose a wire-protocol version or a machine-readable capability
 command at the pinned revision. Contract discovery is consequently anchored to
 the full revision and the CLI surfaces advertised by that build.
 
+## Explicit wire verification
+
+```bash
+nbshell compositor verify-wire --json
+```
+
+This opt-in diagnostic reads `windows` and `workspaces` queries and their
+initial subscription snapshots directly from the selected socket. It validates
+required field types, JSON framing, and query/event envelopes. Additional fields
+and empty snapshots are accepted. It sends no actions and prints only schema
+results and row counts; window titles and workspace names are neither printed
+nor persisted. Ordinary discovery remains state-free.
+
+The additive `protocol` field reports `not-checked`, `verified`, or `failed`.
+Its `checked` list identifies completed query/event checks; failures carry a
+structured `error`. Diagnostic limits are a three-second total deadline and
+four MiB per reply frame. Exceeding these limits is a verification failure,
+not evidence of an unsupported compositor revision.
+
+`verify-wire` exits successfully only when both the existing executable
+compatibility gate and the live schema check pass. The existing `status` and
+`compatible` fields keep their discovery meaning: inspect `protocol` separately.
+A newer executable can pass the wire check while remaining revision-incompatible.
+An offline executable can be compatible while wire verification fails.
+
+This checks the required query and initial-event surface, not action behavior,
+future updates in a long-running subscription, the optional keyboard event, or
+the identity of the already-running server. Empty snapshots cannot demonstrate
+row-field compatibility; the real Wayland test creates a private window and
+requires nonempty query and event coverage. There is no claim of complete
+protocol certification and no automatic revision-policy relaxation.
+
+Wire failures use `wire-unavailable`, `wire-timeout`, `wire-truncated`,
+`wire-frame-too-large`, `wire-json-invalid`, `wire-reply-invalid`, and
+`wire-schema-invalid`. Messages contain no server-provided values.
+
+Run the private real-server schema test with:
+
+```bash
+python3 tests/wayland-lifecycle.py --compositor /usr/local/bin/umbriel \
+  --render-node /dev/dri/renderD128 --output /tmp/nbshell-wire-contract \
+  --cycles 1 --settle-seconds 0 --wire-contract
+```
+
+The artifact records provenance and wire results separately. This test verifies
+the schema even for a non-reference executable and checks that the CLI still
+returns failure for that revision. It is not a substitute for the pinned
+source/binary installation gate.
+
 ## Stable actions
 
 The public action boundary accepts only names declared in the contract:

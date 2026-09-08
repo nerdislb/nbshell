@@ -576,6 +576,8 @@ nbshell -- an independent Quickshell desktop shell for Umbriel
                             show the Umbriel backend or structured contract status
   nbshell compositor capabilities [--json]
                             discover supported Umbriel capabilities
+  nbshell compositor verify-wire [--json]
+                            verify live query and event schemas (reads state)
   nbshell compositor action <name> [value] [--json]
                             invoke a stable, typed compositor action
 
@@ -1044,13 +1046,17 @@ for b in d["binds"]:
                 shift
                 exec "$UMBRIEL_CONTRACT_TOOL" status "$@"
                 ;;
+            verify-wire)
+                shift
+                exec "$UMBRIEL_CONTRACT_TOOL" verify-wire "$@"
+                ;;
             action)
                 shift
                 [ $# -gt 0 ] || { echo "Usage: nbshell compositor action <name> [value] [--json]" >&2; exit 2; }
                 exec "$UMBRIEL_CONTRACT_TOOL" action "$@"
                 ;;
             nested|test-umbriel) bash "$UMBRIEL_NESTED_TOOL" ;;
-            *) echo "Usage: nbshell compositor [status|capabilities|action|nested]" >&2; exit 2 ;;
+            *) echo "Usage: nbshell compositor [status|capabilities|verify-wire|action|nested]" >&2; exit 2 ;;
         esac
         ;;
     bongo|cat)
