@@ -21,12 +21,19 @@ Singleton {
     readonly property string script: Qt.resolvedUrl("../scripts/cursors.sh").toString().replace("file://", "")
 
     property var themes: []
+    property bool themesLoaded: false
 
     readonly property string theme: Config.value("cursorTheme", "")
     readonly property int size: Config.value("cursorSize", 24)
 
     function refresh() {
-        lister.running = true;
+        if (!lister.running)
+            lister.running = true;
+    }
+
+    function ensureThemes() {
+        if (!themesLoaded)
+            refresh();
     }
 
     function apply() {
@@ -53,12 +60,15 @@ Singleton {
         id: lister
 
         command: ["bash", root.script, "list"]
-        running: true
 
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
-                    root.themes = JSON.parse(text);
+                    const candidate = JSON.parse(text);
+                    if (!Array.isArray(candidate))
+                        throw new Error("Cursor themes must be an array");
+                    root.themes = candidate;
+                    root.themesLoaded = true;
                 } catch (e) {
                     console.warn("nbshell/cursor: Themenliste unlesbar —", e);
                     root.themes = [];

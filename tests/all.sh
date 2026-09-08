@@ -40,6 +40,7 @@ run python3 tests/update-terminal.py
 run python3 tests/update-coordinator.py
 run python3 tests/config-migrations.py
 run python3 tests/config-recovery.py
+run python3 tests/startup-services.py
 run python3 tests/config-write.py
 run python3 tests/stack-status.py
 run python3 tests/doctor.py

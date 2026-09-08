@@ -19,6 +19,7 @@ Singleton {
     readonly property var candidates: [Config.value("aiHelper", ""), bundledHelper]
 
     property string helper: ""
+    property bool discovering: true
     property bool available: helper !== ""
 
     // Welche Anbieter gefragt werden -- das Skript nimmt sie als Kommaliste.
@@ -101,6 +102,7 @@ Singleton {
     // Sucht beim Start einmal, welcher der Kandidaten wirklich da ist.
     Process {
         id: find
+        onExited: root.discovering = false
 
         running: true
         command: ["sh", "-c", "for f in " + root.candidates.filter(c => c !== "").map(c => JSON.stringify(c)).join(" ") + "; do [ -r \"$f\" ] && { printf '%s' \"$f\"; exit 0; }; done"]

@@ -526,6 +526,7 @@ Item {
         });
     }
     function requestOpen() {
+        Cursor.ensureThemes();
         if (Config.readError !== "")
             pane = 2;
         closing = false;
@@ -653,10 +654,15 @@ Item {
     onPaneChanged: Qt.callLater(root.syncFocus)
     onGroupChanged: Qt.callLater(root.syncFocus)
     onSelectedChanged: Qt.callLater(root.syncFocus)
-    Component.onCompleted: Qt.callLater(root.syncFocus)
+    Component.onCompleted: {
+        if (visible)
+            Cursor.ensureThemes();
+        Qt.callLater(root.syncFocus);
+    }
 
     onVisibleChanged: {
         if (visible) {
+            Cursor.ensureThemes();
             closing = false;
             // Rechts anfangen: dann bleibt es bei ↑↓ waehlen, ←→ aendern --
             // so, wie die Liste sich vorher bedienen liess.

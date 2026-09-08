@@ -7,6 +7,8 @@ frame presentation. Never targets the host session or uses its configuration.
 import argparse
 import json
 import os
+import re
+from collections import Counter
 from pathlib import Path
 import shutil
 import signal
@@ -32,7 +34,7 @@ def inside(args):
         'schemaVersion': 1, 'theme': args.theme, 'motionProfile': args.motion,
         'idle': False,
         'mode': 'bar', 'leftWidgets': ['clock'], 'centerWidgets': [],
-        'rightWidgets': [], 'collapsedWidgets': ['clock'],
+        'rightWidgets': ['ai'] if args.startup_ai_widget else [], 'collapsedWidgets': ['clock'],
     }))
     Path('/run/test').mkdir(mode=0o700)
     os.environ.update(HOME='/home/user', XDG_CONFIG_HOME='/home/user/.config',
@@ -45,7 +47,21 @@ def inside(args):
     Path('/work/umbriel.toml').write_text('[general]\nxwayland = false\nshow_cheatsheet = false\nautostart = []\n'
                                         f'[output.HEADLESS-1]\nmode = "{args.width}x{args.height}@60"\nscale = 1.0\n')
     shutil.copytree('/source/shell', '/work/shell')
-    root = Path('/work/shell/recovery.qml' if args.recovery else '/work/shell/shell.qml')
+    if args.startup_profile:
+        # Process labels only: never log command arguments or user data.
+        for service in Path('/work/shell/Services').glob('*.qml'):
+            text = service.read_text()
+            if 'pragma Singleton' not in text or 'Singleton {' not in text:
+                continue
+            text = text.replace('Singleton {', 'Singleton {\n    QtObject { Component.onCompleted: console.info("STARTUP_SERVICE ' + service.stem + '") }', 1)
+            if 'onStarted:' not in text:
+                number = [0]
+                def trace(match):
+                    number[0] += 1
+                    return match.group(0) + '\n        onStarted: console.info("STARTUP_PROCESS ' + service.stem + '.' + str(number[0]) + '")\n'
+                text = re.sub(r'\bProcess\s*\{', trace, text)
+            service.write_text(text)
+    root = Path('/work/shell/recovery.qml'  if args.recovery else '/work/shell/shell.qml')
     source = root.read_text(); end = source.rfind('}')
     # Diagnostic IPC lives only in the disposable copy, never production.
     source = source[:end] + '''
@@ -96,8 +112,15 @@ def inside(args):
     source = settings.read_text(); end = source.rfind('}')
     source = 'import Quickshell.Io\n' + source[:end] + '''
     IpcHandler {
-        target: "lifecycleSettings"
-        enabled: root.visible && !root.embedded
+        target: root.embedded ? "lifecycleEmbeddedSettings" : "lifecycleSettings"
+        enabled: root.visible
+        function cursorThemesReady(): bool { return Cursor.themesLoaded; }
+        function showCursorChoices(): string {
+            root.group = root.groups.findIndex(group => group.head === "APPEARANCE");
+            root.selected = 1;
+            root.pane = 1;
+            return "shown";
+        }
         function focusRecovery(): string {
             root.pane = 1;
             root.switchPane();
@@ -110,6 +133,15 @@ def inside(args):
     }
 ''' + source[end:]
     settings.write_text(source)
+    if args.startup_profile:
+        menu = Path('/work/shell/Menu/Menu.qml')
+        text = menu.read_text(); end = text.rfind('}')
+        menu.write_text('import Quickshell.Io\n' + text[:end] + '''
+    IpcHandler {
+        target: "startupMenu"
+        function settings(): string { root.openSettings(); return "open"; }
+    }
+''' + text[end:])
     processes, handles = [], []
 
     def launch(command, name):
@@ -181,6 +213,52 @@ def inside(args):
         shell = launch(['/test-bin/qs', '-p', '/work/shell', '--no-color'], 'shell.log')
         wait(lambda: run(['/test-bin/qs', '-p', '/work/shell', 'ipc', 'call', 'state', 'dump'], False).returncode == 0, 'shell IPC')
         time.sleep(2)
+        if args.startup_profile:
+            def snapshot():
+                log = Path('/work/shell.log').read_text()
+                return {'services': sorted(set(re.findall(r'STARTUP_SERVICE (\w+)', log))),
+                        'processStarts': dict(Counter(re.findall(r'STARTUP_PROCESS ([\w.]+)', log))),
+                        'memory': memory()}
+            time.sleep(4)
+            before = snapshot()
+            require(before['processStarts'].get('Cursor.1', 0) == 0, 'Cursor enumeration ran before demand')
+            for process in ['AiUsage.1', 'AiUsage.2', 'AiUsage.3']:
+                require((before['processStarts'].get(process, 0) > 0) == args.startup_ai_widget, 'AI startup demand mismatch: ' + process)
+            settings_target = 'lifecycleEmbeddedSettings' if args.startup_embedded_settings else 'lifecycleSettings'
+            if args.startup_embedded_settings:
+                ipc('menu', 'open')
+                time.sleep(0.3)
+                require(snapshot()['processStarts'].get('Cursor.1', 0) == 0, 'Main menu enumerated hidden settings choices')
+                ipc('startupMenu', 'settings')
+            else:
+                ipc('settings', 'open')
+                wait(lambda: len(mapped('settings')) == 1, 'settings map')
+            wait(lambda: ipc(settings_target, 'cursorThemesReady') == 'true', 'cursor choices')
+            ipc(settings_target, 'showCursorChoices')
+            time.sleep(0.3)
+            run(['grim', '/work/settings.png'])
+            ipc('lifecycleProbe', 'closePanels')
+            wait(lambda: not mapped('settings'), 'settings unmap')
+            ipc('settings', 'open')
+            wait(lambda: len(mapped('settings')) == 1, 'settings reopen')
+            time.sleep(0.3)
+            settings = snapshot()
+            require(settings['processStarts'].get('Cursor.1', 0) == 1, 'Cursor enumeration was repeated or not started')
+            ipc('lifecycleProbe', 'closePanels')
+            first_status = ipc('ai', 'status')
+            require(first_status != 'helper script not found', 'First AI access falsely reported a missing helper')
+            ipc('ai', 'refresh')
+            time.sleep(2)
+            after = snapshot()
+            require(all(after['processStarts'].get(process, 0) > 0 for process in ['AiUsage.1', 'AiUsage.2', 'AiUsage.3']), 'AI first request did not start its helpers')
+            result = {'measurement': 'Observed QML Process starts in a private six-second startup window; excludes detached commands and child processes; no provider accounts/network.',
+                      'startup': before, 'afterSettings': settings, 'afterUsageRequest': after,
+                      'aiWidget': args.startup_ai_widget, 'embeddedSettings': args.startup_embedded_settings, 'firstAiStatus': first_status}
+            Path('/work/startup-profile.json').write_text(json.dumps(result, indent=2))
+            log = Path('/work/shell.log').read_text()
+            require(not any(word in log for word in ('ReferenceError', 'TypeError', 'Binding loop')), 'Startup profiling QML error')
+            print(json.dumps(result, indent=2))
+            return
         if args.settings_error:
             ipc('lifecycleProbe', 'showConfigError')
         rows, samples = [], [memory()]
@@ -240,6 +318,9 @@ def main():
     parser.add_argument('--cycles', type=int, default=100)
     parser.add_argument('--settle-seconds', type=int, default=60)
     parser.add_argument('--theme', default='tokyo-night')
+    parser.add_argument('--startup-embedded-settings', action='store_true', help='Exercise first cursor demand through the main menu')
+    parser.add_argument('--startup-ai-widget', action='store_true', help='Include the AI widget in the isolated startup fixture')
+    parser.add_argument('--startup-profile', action='store_true', help='Measure private service/process startup and subsequent demand')
     parser.add_argument('--recovery', action='store_true', help='Exercise recovery preview and restore in a private Wayland session')
     parser.add_argument('--settings-error', action='store_true', help='Show a persistence error in the isolated settings fixture')
     parser.add_argument('--motion', choices=['standard', 'reduced'], default='standard')

@@ -68,7 +68,8 @@ ShellRoot {
         void Clipboard.entries;
         void Procs.list;
         void CaptureService.recording;
-        void AiUsage.available;
+        // Usage queries are started by the AI widget, dashboard or explicit
+        // IPC request. Sessions without those consumers need no provider scan.
         void Agents.defaultAgent;
         void Dictation.state;
         void BongoCat.active;
@@ -90,7 +91,9 @@ ShellRoot {
         // Blick auf die Zelle: sonst begaenne die Frist erst, wenn jemand die
         // Leiste anfasst -- also nie.
         void Idle.enabled;
-        void Cursor.themes;
+        // Keep cursor setting propagation live; enumerate installed themes
+        // only when Settings actually needs the choices.
+        void Cursor.theme;
         void Nearby.enabled;
         void ZenPip.active;
     }

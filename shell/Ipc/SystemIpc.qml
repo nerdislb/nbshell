@@ -225,6 +225,8 @@ Scope {
         target: "ai"
 
         function status(): string {
+            if (AiUsage.discovering)
+                return "Checking usage providers …";
             if (!AiUsage.available)
                 return "helper script not found";
             if (AiUsage.list.length === 0)
