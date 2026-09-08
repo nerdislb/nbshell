@@ -138,6 +138,33 @@ test "$(stat -c %a "$fake_root/etc/greetd/config.toml")" = 644
 test "$(stat -c %a "$fake_root/etc/pam.d/nbshell-greetd")" = 644
 test "$(stat -c %a "$fake_root/usr/local/libexec/nbshell-greeter-session")" = 755
 test "$(stat -c %a "$fake_root/usr/local/share/nbshell/greeter/shell.qml")" = 644
+# QML files are a single interface bundle. In particular, a new required
+# GreeterView property must never ship with an older shell.qml caller.
+for component in shell.qml GreeterView.qml OrbitalClock.qml ClockMath.js qmldir; do
+    cmp -s "$ROOT/greeter/qml/$component" "$fake_root/usr/local/share/nbshell/greeter/$component"
+done
+
+# Reproduce the September 2026 invisible-greeter incident. A still-running
+# Quickshell process is not readiness: mismatched components must block sync
+# before any active files change, even when initial greetd setup already exists.
+cp -a "$fake_root" "$stage/before-rejected-sync"
+cp -a "$ROOT/greeter/qml" "$stage/broken-qml"
+sed -i '/reducedMotion: shell.reducedMotion/d' "$stage/broken-qml/shell.qml"
+if NBSHELL_GREETER_TEST_ROOT="$fake_root" \
+    NBSHELL_GREETER_QML_SOURCE="$stage/broken-qml" \
+    NBSHELL_GREETER_WALLPAPER="$test_config/nbshell/themes/test/backgrounds/test.jpg" \
+    XDG_CONFIG_HOME="$test_config" \
+    "$ROOT/setup-greeter.sh" sync >"$stage/rejected.log" 2>&1; then
+    echo "Invisible greeter was unexpectedly accepted" >&2
+    exit 1
+fi
+grep -Fq 'Greeter component creation failed' "$stage/rejected.log"
+diff -r "$stage/before-rejected-sync/etc" "$fake_root/etc"
+diff -r "$stage/before-rejected-sync/usr/local/share/nbshell/greeter" \
+    "$fake_root/usr/local/share/nbshell/greeter"
+
+# A successful exchange keeps the previous complete bundle as a recovery copy.
+printf 'old bundle marker\n' >"$fake_root/usr/local/share/nbshell/greeter/rollback-marker"
 
 NBSHELL_GREETER_TEST_ROOT="$fake_root" \
 NBSHELL_GREETER_WALLPAPER="$test_config/nbshell/themes/test/backgrounds/test.jpg" \
@@ -146,6 +173,11 @@ XDG_CONFIG_HOME="$test_config" \
 grep -Fq '[initial_session]' "$fake_root/etc/greetd/config.toml"
 grep -Fq 'command = "/usr/local/bin/start-umbriel"' "$fake_root/etc/greetd/config.toml"
 cmp -s "$fake_root/etc/greetd/config.toml.before-nbshell-greeter" <(printf 'original greetd config\n')
+test ! -e "$fake_root/usr/local/share/nbshell/greeter/rollback-marker"
+test "$(find "$fake_root/usr/local/share/nbshell" -name rollback-marker | wc -l)" = 1
+
+# Test the shipped checker against the installed bundle, too.
+python3 "$ROOT/shell/scripts/greeter-check.py" "$fake_root/usr/local/share/nbshell/greeter"
 
 bash "$ROOT/tests/qml.sh"
 python3 "$ROOT/tests/greetd-mock.py"

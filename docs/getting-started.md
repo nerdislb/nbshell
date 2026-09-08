@@ -207,6 +207,19 @@ Inspect the staged frontend without restarting the current graphical session:
 nbshell greeter status
 ```
 
+Both install and sync validate the complete candidate QML bundle in a private
+headless Umbriel session before replacing active files. The real Quickshell
+frontend must map an Orbital surface on both test outputs; merely starting a
+process is insufficient. This requires Bubblewrap, the root-owned Umbriel build,
+Quickshell, and an accessible DRM render node. A failed check stops deployment.
+It catches component mismatches but does not replace a real boot/login test.
+
+The validated bundle is exchanged atomically, retaining the previous bundle at
+the printed `/usr/local/share/nbshell/.greeter-bundle.*` path. Failed candidates
+are also retained for diagnosis, so use the path explicitly reported as the
+previous bundle when recovering. Running greeters do not hot-reload QML;
+updated visuals take effect when the next greeter process starts.
+
 The sync updates only public root-owned QML, compositor color, session
 allowlist, the copied wallpaper, and nbshell's own password-first PAM service.
 It does not rewrite existing PAM services. The recovery file

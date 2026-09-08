@@ -6,8 +6,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUNTIME="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell"
 if [[ -f $ROOT/shell/scripts/greeter-theme.py ]]; then
     THEME_RENDERER="$ROOT/shell/scripts/greeter-theme.py"
+    GREETER_CHECK="$ROOT/shell/scripts/greeter-check.py"
 else
     THEME_RENDERER="$RUNTIME/scripts/greeter-theme.py"
+    GREETER_CHECK="$RUNTIME/scripts/greeter-check.py"
 fi
 QML_SOURCE="${NBSHELL_GREETER_QML_SOURCE:-$ROOT/greeter/qml}"
 TEST_ROOT="${NBSHELL_GREETER_TEST_ROOT:-}"
@@ -117,18 +119,37 @@ if [[ $MODE == install && -z $TEST_ROOT ]]; then
     as_root pacman -S --needed greetd quickshell
 fi
 
-as_root install -d -m 755 "$TARGET" "$PAM_TARGET" "$DATA" "$LIBEXEC" "$QML_TARGET"
+# Build a complete, root-owned candidate. Never overwrite individual live QML
+# files: a caller/component mismatch can leave Quickshell running invisibly.
+as_root install -d -m 755 "$DATA"
+candidate="$(as_root mktemp -d "$DATA/.greeter-bundle.XXXXXX")"
+as_root chmod 755 "$candidate"
+as_root install -m 644 \
+    "$QML_SOURCE/shell.qml" "$QML_SOURCE/GreeterView.qml" \
+    "$QML_SOURCE/OrbitalClock.qml" "$QML_SOURCE/ClockMath.js" \
+    "$QML_SOURCE/qmldir" "$candidate/"
+as_root install -m 644 "$stage/config.json" "$candidate/config.json"
+if [[ -z $TEST_ROOT ]]; then
+    python3 - "$candidate" <<'PY'
+import pathlib, stat, sys
+directory = pathlib.Path(sys.argv[1])
+for path in (directory, *directory.iterdir()):
+    info = path.lstat()
+    expected = 0o755 if path == directory else 0o644
+    if info.st_uid != 0 or info.st_gid != 0 or stat.S_IMODE(info.st_mode) != expected:
+        sys.exit(f"Unsafe greeter bundle ownership or permissions: {path}")
+PY
+fi
+python3 "$GREETER_CHECK" "$candidate" \
+    || fail "Greeter validation failed. The active bundle is unchanged; rejected candidate: $candidate"
+
+as_root install -d -m 755 "$TARGET" "$PAM_TARGET" "$LIBEXEC"
 if [[ -f $CONFIG && ! -f $BACKUP ]]; then
     as_root install -m 644 "$CONFIG" "$BACKUP"
 fi
 as_root install -m 644 "$ROOT/greeter/nbshell-greetd.pam" "$PAM_TARGET/nbshell-greetd"
 as_root install -m 755 "$ROOT/greeter/nbshell-greeter-session" "$GREETER_LAUNCHER"
 as_root install -m 644 "$stage/umbriel.toml" "$GREETER_CONFIG"
-as_root install -m 644 "$stage/config.json" "$QML_TARGET/config.json"
-as_root install -m 644 \
-    "$QML_SOURCE/shell.qml" "$QML_SOURCE/GreeterView.qml" \
-    "$QML_SOURCE/OrbitalClock.qml" "$QML_SOURCE/ClockMath.js" \
-    "$QML_SOURCE/qmldir" "$QML_TARGET/"
 
 case "${WALLPAPER##*.}" in
     jpg|JPG|jpeg|JPEG)
@@ -188,8 +209,17 @@ as_root test -r "$RECOVERY"
 as_root test -r "$DATA/greeter-wallpaper.jpg"
 as_root test -x "$prefix/usr/bin/quickshell"
 as_root test -x "$prefix/usr/bin/agreety"
-as_root test -r "$QML_TARGET/config.json"
-as_root test -r "$QML_TARGET/shell.qml"
+as_root test -r "$candidate/config.json"
+as_root test -r "$candidate/shell.qml"
+
+# Linux rename exchange keeps the boot path present even if this installer is
+# killed. Keep the previous complete bundle at the candidate path for recovery.
+if [[ -e $QML_TARGET || -L $QML_TARGET ]]; then
+    as_root mv --exchange --no-copy -T -- "$candidate" "$QML_TARGET"
+    printf 'Previous greeter bundle retained at %s\n' "$candidate"
+else
+    as_root mv --no-copy -T -- "$candidate" "$QML_TARGET"
+fi
 
 # Commit the boot selector only after compositor, frontend, PAM, wallpaper and
 # independent agreety recovery payloads have all been verified.

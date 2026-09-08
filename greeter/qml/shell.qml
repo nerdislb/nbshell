@@ -318,7 +318,11 @@ ShellRoot {
         }
     }
 
-    Component.onCompleted: loadConfig()
+    Component.onCompleted: {
+        // A greeter keeps its validated bundle until the next session start.
+        Quickshell.watchFiles = false;
+        loadConfig();
+    }
 
     Variants {
         model: Quickshell.screens
