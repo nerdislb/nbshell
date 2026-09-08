@@ -31,7 +31,9 @@ Item {
     signal quitPreview()
     function fileUrl(path) { return path ? "file://" + String(path).split("/").map(encodeURIComponent).join("/") : ""; }
     onResetSerialChanged: { passwordInput.text = ""; if (primary) passwordInput.forceActiveFocus(); }
-    Component.onCompleted: if (primary) Qt.callLater(() => passwordInput.forceActiveFocus())
+    function focusPassword() { if (primary) passwordInput.forceActiveFocus(); }
+    onPrimaryChanged: Qt.callLater(focusPassword)
+    Component.onCompleted: Qt.callLater(focusPassword)
     // The outer seconds ring is deliberately smooth. When it is disabled,
     // the remaining minute ring does not justify rebuilding Date bindings at
     // ~30 Hz; a one-second cadence still keeps its fractional position exact.
