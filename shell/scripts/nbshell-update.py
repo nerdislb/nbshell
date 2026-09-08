@@ -208,7 +208,7 @@ def install(channel: str, assume_yes: bool) -> int:
         print(f"Release notes: {info['url']}")
     if not assume_yes and input("Download, verify, and install this release? [y/N] ").strip().lower() not in {"y", "yes"}:
         print("Update cancelled.")
-        return 0
+        return 125
 
     with tempfile.TemporaryDirectory(prefix="nbshell-update-") as temp_name:
         temp = pathlib.Path(temp_name)
@@ -236,12 +236,26 @@ def main() -> int:
     parser.add_argument("command", nargs="?", choices=("check", "install"), default="check")
     parser.add_argument("--channel", choices=("stable", "beta"), default="beta")
     parser.add_argument("--yes", action="store_true", help="skip the terminal confirmation")
+    parser.add_argument("--coordinated", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.command == "check":
         print(json.dumps(status(args.channel), ensure_ascii=False))
         return 0
     try:
+        if not args.coordinated:
+            command = [sys.executable, str(pathlib.Path(__file__).with_name("update-coordinator.py")), "shell"]
+            command += ["--channel", args.channel]
+            if args.yes:
+                command.append("--yes")
+            return subprocess.call(command)
+        import runpy
+        guard = runpy.run_path(str(pathlib.Path(__file__).with_name("update-coordinator.py")))
+        if not guard["inherited_guard"]():
+            raise ValueError("The internal updater requires an active update coordinator")
         return install(args.channel, args.yes)
+    except EOFError:
+        print("Confirmation requires a terminal; rerun interactively or pass --yes.", file=sys.stderr)
+        return 125
     except (OSError, ValueError, subprocess.CalledProcessError, urllib.error.URLError) as exc:
         print(f"Update failed: {exc}", file=sys.stderr)
         return 1

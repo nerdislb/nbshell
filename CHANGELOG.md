@@ -8,6 +8,10 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Added
 
+- Desktop and system updates share a workflow lock, logind sleep inhibition and
+  minimum free-space checks. `nbshell update transaction` reports step outcomes;
+  `nbshell update retry` retries unfinished steps without repeating successful ones.
+
 - `nbshell doctor [--json]` provides a read-only, allowlisted support report that
   separates session health from tested-stack support without exporting private
   configuration, paths, window titles or journal contents.

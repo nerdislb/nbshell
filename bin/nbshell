@@ -406,6 +406,10 @@ nbshell -- an independent Quickshell desktop shell for Umbriel
   nbshell update install    verify and install the latest nbshell release
   nbshell update umbriel    build, test and install the Umbriel stack
   nbshell update all        install all available desktop updates
+  nbshell update system     update system packages and Flatpak
+  nbshell update transaction
+                            show the last update workflow and step results
+  nbshell update retry      retry unfinished steps of the last workflow
   nbshell updates           system packages: status, check, list, run
   nbshell ai                open the Agent Center (also: usage, refresh)
   nbshell agent list [--json]
@@ -969,12 +973,11 @@ for b in d["binds"]:
                 ;;
             install|run)     python3 "$SHELL_UPDATE_TOOL" install --channel "${2:-beta}" ;;
             umbriel|compositor) python3 "$UMBRIEL_UPDATE_TOOL" install ;;
-            all)
-                python3 "$SHELL_UPDATE_TOOL" install --channel "${2:-beta}"
-                python3 "$UMBRIEL_UPDATE_TOOL" install
-                ;;
+            all) python3 "$RUNTIME_DIR/scripts/update-coordinator.py" desktop --channel "${2:-beta}" ;;
+            system|retry) python3 "$RUNTIME_DIR/scripts/update-coordinator.py" "$1" ;;
+            transaction) python3 "$RUNTIME_DIR/scripts/update-coordinator.py" status ;;
             notes)           ipc shellUpdate notes ;;
-            *) echo "Usage: nbshell update [check|install|umbriel|all|notes] [beta|stable]" >&2; exit 2 ;;
+            *) echo "Usage: nbshell update [check|install|umbriel|all|system|retry|transaction|notes] [beta|stable]" >&2; exit 2 ;;
         esac
         ;;
     ai)

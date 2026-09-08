@@ -10,16 +10,14 @@ case "$channel" in
 esac
 
 case "$mode" in
-    shell) python3 "$script_dir/nbshell-update.py" install --channel "$channel"; code=$? ;;
-    compositor) python3 "$script_dir/umbriel-update.py" install --yes; code=$? ;;
-    desktop)
-        python3 "$script_dir/nbshell-update.py" install --channel "$channel" &&
-            python3 "$script_dir/umbriel-update.py" install --yes
-        code=$?
-        ;;
-    system) bash "$script_dir/updates.sh" run; code=$? ;;
+    shell|desktop|system|compositor|retry) ;;
     *) echo 'Invalid update workflow' >&2; exit 2 ;;
 esac
+args=("$mode" --channel "$channel")
+# Preserve the explicit dashboard choice for the compositor confirmation.
+[[ "$mode" == compositor || "$mode" == desktop ]] && args+=(--yes-compositor)
+python3 "$script_dir/update-coordinator.py" "${args[@]}"
+code=$?
 printf '\nUpdate finished with exit code %s.\n' "$code"
 if [[ -t 0 ]]; then
     read -r -n1 -p 'Press any key to close this window' || true

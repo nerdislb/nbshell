@@ -218,9 +218,18 @@ command)
 	flatpak_command
 	;;
 run)
-	# Beide Teile laufen, auch wenn der erste etwas zu meckern hatte: ein
-	# fehlgeschlagenes AUR-Paket soll die Flatpaks nicht aufhalten. Der
-	# Rueckgabewert bleibt trotzdem der schlechteste von beiden.
+    exec python3 "$(dirname "${BASH_SOURCE[0]}")/update-coordinator.py" system
+    ;;
+_packages|_flatpak)
+    python3 "$(dirname "${BASH_SOURCE[0]}")/update-coordinator.py" _guard || {
+        echo 'The internal updater requires an active update coordinator' >&2
+        exit 1
+    }
+    if [ "$1" = "_flatpak" ]; then
+        have flatpak || exit 0
+        run_flatpak_update
+        exit $?
+    fi
 	rc=0
 	pkg_rc=0
 	critical="$(
@@ -229,7 +238,7 @@ run)
 				reboot_package "$package" && printf '%s\n' "$package"
 			done
 	)"
-	echo ":: Systempakete"
+	echo ":: System packages"
 	run_pkg_update || { pkg_rc=$?; rc=$pkg_rc; }
 	if [ "$pkg_rc" -eq 0 ]; then
 		write_reboot_state "$critical"
@@ -238,11 +247,6 @@ run)
 			echo "Restart recommended: core system components were updated ($(printf '%s' "$critical" | paste -sd ',' - | sed 's/,/, /g'))."
 			have notify-send && notify-send -a nbshell -u normal "Restart recommended" "Core system components were updated. Restart when convenient."
 		fi
-	fi
-	if have flatpak; then
-		echo
-		echo ":: Flatpak"
-		run_flatpak_update || rc=$?
 	fi
 	exit $rc
 	;;

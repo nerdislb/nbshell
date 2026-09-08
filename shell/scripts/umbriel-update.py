@@ -224,7 +224,7 @@ def install(assume_yes: bool) -> int:
         print(f"  {name}: {row['current']} → {row['latest']}")
     if not assume_yes and input("Build, test, and install both projects? [y/N] ").strip().lower() not in {"y", "yes"}:
         print("Update cancelled.")
-        return 0
+        return 125
 
     root = pathlib.Path(info["sourceRoot"])
     with tempfile.TemporaryDirectory(prefix="nbshell-umbriel-update-") as temp_name:
@@ -270,6 +270,7 @@ def main() -> int:
     parser.add_argument("--source", type=pathlib.Path, help=argparse.SUPPRESS)
     parser.add_argument("--yes", action="store_true")
     parser.add_argument("--offline", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--coordinated", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.command == "build" and (args.source is None or args.project is None):
         parser.error("build requires --source and --project")
@@ -280,7 +281,19 @@ def main() -> int:
         if args.command == "build":
             build_project(args.source.resolve(), args.project)
             return 0
+        if not args.coordinated:
+            command = [sys.executable, str(pathlib.Path(__file__).with_name("update-coordinator.py")), "compositor"]
+            if args.yes:
+                command.append("--yes")
+            return subprocess.call(command)
+        import runpy
+        guard = runpy.run_path(str(pathlib.Path(__file__).with_name("update-coordinator.py")))
+        if not guard["inherited_guard"]():
+            raise ValueError("The internal updater requires an active update coordinator")
         return install(args.yes)
+    except EOFError:
+        print("Confirmation requires a terminal; rerun interactively or pass --yes.", file=sys.stderr)
+        return 125
     except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as exc:
         print(f"Umbriel update failed: {exc}", file=sys.stderr)
         return 1

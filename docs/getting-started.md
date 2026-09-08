@@ -141,7 +141,35 @@ nbshell update
 nbshell update install
 nbshell update umbriel
 nbshell update all
+nbshell update system
+nbshell update transaction
+nbshell update retry
 ```
+
+Shell, compositor and system update actions share a per-user workflow lock and a
+logind sleep inhibitor, including direct updater CLI calls. If either protection
+or a minimum free-space check fails, installation does not begin. Concurrent
+nbshell updates are rejected instead of queued. External package managers and
+manual developer installs retain their own locks; this is not a machine-wide
+package-manager lock. Sleep inhibition does not prevent a forced shutdown.
+
+`all` updates the desktop (shell, then compositor); `system` updates packages and
+Flatpak. If the shell step fails or is cancelled, the compositor remains pending.
+Packages and Flatpak are independent, so both are attempted. The terminal reports
+each outcome. `transaction` prints the saved step results as JSON, including
+whether a workflow is still active. `retry` rechecks and retries only unfinished
+steps of the last workflow, using its original release channel. A failed step may
+already have made changes; retry is not rollback. Starting a new workflow replaces
+the previous retry record after preflight succeeds.
+
+Space checks cover temporary/build storage and the relevant installation, state,
+package-cache and boot paths. They use conservative minimum free-space floors,
+not predicted download or installed sizes; package managers retain their own
+transaction-specific checks. A stop signal to the coordinator lets the current
+step finish before releasing protection and starting no further steps. If an
+update helper dies, the coordinator also waits for its orphaned installers,
+including children that cannot inherit the lock descriptors through sudo. A forced
+kill is recorded as interrupted when the lock is next observed free.
 
 To follow stable releases instead of beta releases, use `stable` as the final
 argument. From a repository checkout, developers can still update manually:
