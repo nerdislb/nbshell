@@ -523,6 +523,12 @@ print_incoming_summary() {
 	git -C "$dir" diff --stat "$current..$candidate" | tail -20
 }
 
+cleanup_update_stage() {
+	local repository="$1" stage="$2"
+	git -c core.hooksPath=/dev/null -C "$repository" worktree remove --force "$stage" >/dev/null 2>&1 || true
+	rm -rf -- "$stage"
+}
+
 cmd_update() {
 	local only="" assume_yes=0
 	while [ $# -gt 0 ]; do
@@ -546,6 +552,10 @@ cmd_update() {
 		name="$(basename "$dir")"
 		[ -z "$only" ] || [ "$only" = "$name" ] || continue
 		found=1
+		if [ -n "$(git -C "$dir" status --porcelain)" ]; then
+			echo "$name skipped: installed plugin has local changes"
+			continue
+		fi
 		printf '%-16s ' "$name"
 
 		# Validate the fetched revision in a disposable directory before the
@@ -554,61 +564,61 @@ cmd_update() {
 		stage="$(mktemp -d "${TMPDIR:-/tmp}/nbshell-plugin-update.XXXXXX")" || continue
 		if ! git -c core.hooksPath=/dev/null -C "$dir" fetch --quiet; then
 			echo "Fetch failed"
-			rm -rf "$stage"
+			cleanup_update_stage "$dir" "$stage"
 			continue
 		fi
 		upstream="$(git -C "$dir" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null)" || upstream="origin/$(git -C "$dir" branch --show-current)"
 		candidate="$(git -C "$dir" rev-parse "$upstream" 2>/dev/null)" || {
 			echo "no upstream"
-			rm -rf "$stage"
+			cleanup_update_stage "$dir" "$stage"
 			continue
 		}
 		current="$(git -C "$dir" rev-parse HEAD)" || {
-			rm -rf "$stage"
+			cleanup_update_stage "$dir" "$stage"
 			continue
 		}
 		if [ "$current" = "$candidate" ]; then
 			echo "up to date"
-			rm -rf "$stage"
+			cleanup_update_stage "$dir" "$stage"
 			continue
 		fi
-		git -C "$dir" archive "$candidate" | tar -x -C "$stage" || {
-			echo "Validation copy failed"
-			rm -rf "$stage"
+		git -c core.hooksPath=/dev/null -C "$dir" worktree add --quiet --detach "$stage" "$candidate" || {
+			echo "Validation checkout failed"
+			cleanup_update_stage "$dir" "$stage"
 			continue
 		}
 		message="$(check_plugin "$stage" label 2>&1)" || {
 			echo "abgelehnt: $message"
-			rm -rf "$stage"
+			cleanup_update_stage "$dir" "$stage"
 			continue
 		}
 		current_id="$(plugin_id_for "$dir")" || {
 			echo "installed manifest is invalid"
-			rm -rf "$stage"
+			cleanup_update_stage "$dir" "$stage"
 			continue
 		}
 		candidate_id="$(plugin_id_for "$stage")" || {
 			echo "candidate manifest is invalid"
-			rm -rf "$stage"
+			cleanup_update_stage "$dir" "$stage"
 			continue
 		}
 		if [ "$candidate_id" != "$current_id" ]; then
 			echo "rejected: plugin ID changed from '$current_id' to '$candidate_id'"
-			rm -rf "$stage"
+			cleanup_update_stage "$dir" "$stage"
 			continue
 		fi
 		if conflict="$(plugin_id_conflict "$candidate_id" "$dir")"; then
 			echo "rejected: plugin ID '$candidate_id' is also installed at $conflict"
-			rm -rf "$stage"
+			cleanup_update_stage "$dir" "$stage"
 			continue
 		fi
 		if ! cmd_design_check "$stage" --strict >/dev/null; then
 			echo "rejected: strict design contract failed"
 			cmd_design_check "$stage" --strict >&2 || true
-			rm -rf "$stage"
+			cleanup_update_stage "$dir" "$stage"
 			continue
 		fi
-		rm -rf "$stage"
+		cleanup_update_stage "$dir" "$stage"
 
 		echo
 		print_incoming_summary "$dir" "$current" "$candidate"
@@ -628,6 +638,10 @@ cmd_update() {
 			esac
 		fi
 		printf '%-16s ' "$name"
+		if [ -n "$(git -C "$dir" status --porcelain)" ]; then
+			echo "Skipped: installed plugin changed during review"
+			continue
+		fi
 		git -c core.hooksPath=/dev/null -C "$dir" merge --ff-only "$candidate" 2>&1 | tail -1
 	done
 	[ $found -eq 1 ] || echo "Nothing to update (no plugin with .git in $PLUGIN_DIR)."

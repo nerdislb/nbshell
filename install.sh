@@ -20,6 +20,7 @@ QS_BIN="$(command -v qs || command -v quickshell || true)"
 
 green() { printf '\033[32m%s\033[0m\n' "$1"; }
 warn()  { printf '\033[33m%s\033[0m\n' "$1"; }
+die() { printf '%s\n' "$1" >&2; exit 1; }
 
 # Serialize installs started by terminals, the dashboard, or agent sessions.
 mkdir -p "$STATE_DIR"

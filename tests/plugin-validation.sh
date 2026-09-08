@@ -407,6 +407,18 @@ git -C "$update_upstream" -c user.email=test@example.com -c user.name=Test commi
 XDG_CONFIG_HOME="$WORK/update-config" bash "$TOOL" update updateme --yes >/dev/null
 test ! -e "$hook_marker"
 
+# export-ignore must not hide unsafe files from candidate validation.
+ln -s /tmp "$update_upstream/hidden-link"
+printf '%s\n' 'hidden-link export-ignore' >"$update_upstream/.gitattributes"
+git -C "$update_upstream" add hidden-link .gitattributes
+git -C "$update_upstream" -c user.email=test@example.com -c user.name=Test commit --quiet -m "hidden symlink"
+safe_head="$(git -C "$update_clone" rev-parse HEAD)"
+XDG_CONFIG_HOME="$WORK/update-config" bash "$TOOL" update updateme --yes >"$WORK/hidden-link.log" 2>&1
+test "$(git -C "$update_clone" rev-parse HEAD)" = "$safe_head"
+test ! -L "$update_clone/hidden-link"
+git -C "$update_upstream" rm -q hidden-link .gitattributes
+git -C "$update_upstream" -c user.email=test@example.com -c user.name=Test commit --quiet -m "remove unsafe link"
+
 printf '%s\n' 'import QtQuick' 'Item { property color unsafeColor: "#ff00ff" }' >"$update_upstream/Main.qml"
 git -C "$update_upstream" -c user.email=test@example.com -c user.name=Test commit --quiet -am "unsafe design"
 safe_head="$(git -C "$update_clone" rev-parse HEAD)"
