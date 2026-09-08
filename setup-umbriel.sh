@@ -58,7 +58,7 @@ checkout() {
     git -C "$destination" submodule update --init --recursive
 }
 
-checkout "$UMBRIEL_REPO" "$SOURCE_ROOT/umbriel" "$UMBRIEL_REVISION"
+python3 "$ROOT/shell/scripts/prepare-umbriel-source.py" "$SOURCE_ROOT/umbriel"
 checkout "$PORTAL_REPO" "$SOURCE_ROOT/xdg-desktop-portal-umbriel" "$PORTAL_REVISION"
 
 build_project() {

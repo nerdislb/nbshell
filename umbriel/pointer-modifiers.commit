@@ -1,0 +1,6 @@
+tree 1ffd77e40fd28e19373dab493c79fa7827ed89a3
+parent d269327d11c793450636c0afbef0b18683b1a302
+author nerdi <erni1983@gmail.com> 1788579909 +0200
+committer nerdi <erni1983@gmail.com> 1788788350 +0200
+
+fix: forward keyboard modifiers to pointer-focused clients

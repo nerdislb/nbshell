@@ -237,3 +237,14 @@ multiple outputs.
 Physical DPMS output changes, GPU-specific behavior, login, lock, and suspend
 remain part of the hardware/VM release gate. A headless acknowledgement is not
 evidence that a physical monitor powered off or resumed correctly.
+
+### Reproducible setup sources
+
+The tested revision includes a downstream patch and is not hosted by upstream.
+`umbriel/source.json` therefore pins the public parent, patch checksum, expected
+Git tree, and original commit object. `prepare-umbriel-source.py` fetches the
+public parent, applies the checksum-verified patch, verifies the resulting tree,
+and reconstructs the exact tested commit locally. It never pushes to upstream.
+Dirty source checkouts are rejected. This preserves exact revision checks while
+making a fresh installation independent of a pre-existing local Git object.
+The normal test gate exercises a remote containing only the parent commit.
