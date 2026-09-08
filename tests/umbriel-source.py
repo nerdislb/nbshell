@@ -39,6 +39,13 @@ class SourceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'local changes'):
             prepare(self.destination, self.recipe, self.root)
         self.assertEqual((self.destination/'file').read_text(), 'user edit\n')
+    def test_unrelated_clean_checkout_is_untouched(self):
+        subprocess.run(['git', 'clone', '-q', str(self.root/'source'), str(self.destination)], check=True)
+        before = subprocess.check_output(['git','-C',str(self.destination),'rev-parse','HEAD'])
+        with self.assertRaisesRegex(ValueError, 'origin'):
+            prepare(self.destination, self.recipe, self.root)
+        self.assertEqual(subprocess.check_output(['git','-C',str(self.destination),'rev-parse','HEAD']), before)
+        self.assertEqual((self.destination/'file').read_text(), 'after\n')
     def test_tampered_inputs_fail(self):
         for key in ('patchSha256', 'revision', 'tree'):
             recipe = copy.deepcopy(self.recipe); recipe[key] = '0' * len(recipe[key])

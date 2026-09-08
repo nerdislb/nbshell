@@ -24,6 +24,8 @@ def prepare(destination, recipe, root=ROOT):
     if destination.exists():
         if not (destination / '.git').is_dir():
             raise ValueError('Source destination must be a standalone Git checkout')
+        if 'origin' not in git('remote').splitlines() or git('remote', 'get-url', 'origin') != recipe['repository']:
+            raise ValueError('Source checkout origin does not match the Umbriel recipe')
         if git('status', '--porcelain'):
             raise ValueError('Source checkout has local changes; refusing to overwrite them')
     else:
@@ -31,7 +33,7 @@ def prepare(destination, recipe, root=ROOT):
         subprocess.run(['git', 'init', '-q', str(destination)], check=True)
     if 'origin' not in git('remote').splitlines():
         git('remote', 'add', 'origin', recipe['repository'])
-    # Always contact the explicit public URL, even if an existing origin differs.
+    # Fetch the public parent; the downstream commit need not exist on origin.
     git('fetch', '--no-tags', recipe['repository'], recipe['baseRevision'])
     git('checkout', '--detach', recipe['baseRevision'])
     git('apply', '--check', '--index', '-', data=patch)
