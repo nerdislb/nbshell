@@ -24,6 +24,12 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Fixed
 
+- Shell settings use locked per-key patches instead of replacing a stale full
+  configuration. Conflicts are reported, independent queued edits are preserved,
+  and lost write acknowledgements are retried safely. Plugin settings writers and
+  initial installation share the migration lock.
+- Settings values stay within the available column width on small screens.
+
 - Bar drag cleanup no longer accesses destroyed delegates after a reorder, and
   leaving or destroying a drop target clears the pending target safely.
 - Python test discovery works with Python 3.14 when QML and plugin test scripts

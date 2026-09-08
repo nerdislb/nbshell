@@ -12,8 +12,8 @@ import Quickshell.Io
 // kann -- sie ist die Einstellungsoberflaeche, solange es keine gibt. Die
 // FileView beobachtet sie, Aenderungen greifen also sofort.
 //
-// Geschrieben wird atomar (`atomicWrites`), sonst liest der eigene Beobachter
-// die Datei mitten im Schreiben und sieht halbes JSON.
+// Writes use per-setting compare-and-swap patches under the migration lock.
+// FileView only reads; unrelated external changes are never copied over.
 Singleton {
     id: root
 
@@ -23,6 +23,14 @@ Singleton {
 
     property var data: ({ "schemaVersion": supportedSchemaVersion })
     property bool configValid: false
+    property string writeError: ""
+    property var diskData: ({ "schemaVersion": supportedSchemaVersion })
+    property var pendingPatch: ({})
+    property var activePatch: ({})
+    property int retryAttempt: 0
+    readonly property bool saving: writer.running || Object.keys(activePatch).length > 0 || Object.keys(pendingPatch).length > 0
+    readonly property string writeScript: Qt.resolvedUrl("../scripts/config-write.py").toString().replace("file://", "")
+    signal writeFailed(string message)
 
     // ── Werte mit Vorgaben ────────────────────────────────────────────────
     // Alles, was die Oberflaeche kennt, steht hier einmal -- so ist die Liste
@@ -160,43 +168,111 @@ Singleton {
         return v === undefined || v === null ? fallback : v;
     }
 
+    function copy(value) { return JSON.parse(JSON.stringify(value)); }
+
     function set(key, val) {
-        if (!configValid) {
-            console.warn("nbshell: refusing to overwrite config.json because no valid schema was loaded");
-            return false;
-        }
-        if (key === "schemaVersion") {
-            console.warn("nbshell: schemaVersion is managed by the migration runner");
-            return false;
-        }
-        const next = JSON.parse(JSON.stringify(data));
-        next[key] = val;
-        data = next;
-        if (key === "theme")
-            theme = String(val || "tokyo-night");
-        file.setText(JSON.stringify(next, null, 2) + "\n");
-        return true;
+        const values = {};
+        values[key] = val;
+        return setValues(values);
     }
 
     function setValues(values) {
         if (!configValid) {
-            console.warn("nbshell: refusing to overwrite config.json because no valid schema was loaded");
+            writeError = "Changes were not saved. Reload or repair the configuration before changing settings.";
+            writeFailed(writeError);
             return false;
         }
         if (!values || typeof values !== "object" || Array.isArray(values))
             return false;
-        if (Object.prototype.hasOwnProperty.call(values, "schemaVersion")) {
-            console.warn("nbshell: schemaVersion is managed by the migration runner");
+        if (Object.prototype.hasOwnProperty.call(values, "schemaVersion"))
             return false;
+        const next = copy(data);
+        const patch = copy(pendingPatch);
+        for (const key of Object.keys(values)) {
+            if (values[key] === undefined)
+                return false;
+            if (!Object.prototype.hasOwnProperty.call(patch, key)) {
+                patch[key] = { "present": Object.prototype.hasOwnProperty.call(next, key) };
+                if (patch[key].present)
+                    patch[key].before = copy(next[key]);
+            }
+            patch[key].value = copy(values[key]);
+            next[key] = copy(values[key]);
         }
-        const next = JSON.parse(JSON.stringify(data));
-        for (const key of Object.keys(values))
-            next[key] = values[key];
+        pendingPatch = patch;
+        writeError = "";
         data = next;
-        if (Object.prototype.hasOwnProperty.call(values, "theme"))
-            theme = String(values.theme || "tokyo-night");
-        file.setText(JSON.stringify(next, null, 2) + "\n");
-        return true;
+        theme = String(next.theme || "tokyo-night");
+        startSave.restart();
+        return true; // Accepted into the queue; saving/writeError report persistence.
+    }
+
+    function displaySnapshot(candidate) {
+        diskData = copy(candidate);
+        const next = copy(candidate);
+        for (const patch of [activePatch, pendingPatch]) {
+            for (const key of Object.keys(patch))
+                next[key] = copy(patch[key].value);
+        }
+        data = next;
+        theme = String(next.theme || "tokyo-night");
+    }
+
+    Timer {
+        id: startSave
+        interval: 0
+        onTriggered: {
+            if (writer.running)
+                return;
+            if (Object.keys(root.activePatch).length === 0) {
+                if (Object.keys(root.pendingPatch).length === 0)
+                    return;
+                root.activePatch = root.pendingPatch;
+                root.pendingPatch = ({});
+                root.retryAttempt = 0;
+            }
+            writer.stdinEnabled = true;
+            writer.running = true;
+        }
+    }
+
+    Process {
+        id: writer
+        command: ["timeout", "--kill-after=2", "15", "python3", root.writeScript]
+        property string resultText: ""
+        stdout: StdioCollector { onStreamFinished: writer.resultText = text }
+        onStarted: {
+            resultText = "";
+            write(JSON.stringify(root.activePatch));
+            stdinEnabled = false;
+        }
+        onExited: code => {
+            let result = ({});
+            try { result = JSON.parse(resultText); } catch (e) {}
+            if (result.ok !== true && (result.ok !== false || result.uncertain === true) && root.retryAttempt === 0) {
+                // The helper may have committed before losing its reply.
+                // Replaying the same CAS patch once is idempotent.
+                root.retryAttempt = 1;
+                startSave.restart();
+                return;
+            }
+            const completedPatch = root.activePatch;
+            root.activePatch = ({});
+            if (result.ok !== true) {
+                const pending = root.copy(root.pendingPatch);
+                for (const key of Object.keys(completedPatch))
+                    delete pending[key]; // These edits depended on the rejected value.
+                root.pendingPatch = pending;
+                root.writeError = result.ok === false && result.uncertain !== true
+                    ? "Changes were not saved. " + result.error
+                    : "Could not confirm whether changes were saved. Check the current settings before retrying.";
+                root.displaySnapshot(root.diskData);
+                root.writeFailed(root.writeError);
+                console.warn("nbshell:", root.writeError);
+            }
+            file.reload();
+            startSave.restart();
+        }
     }
 
     function toggleBarTransparency() {
@@ -225,8 +301,7 @@ Singleton {
                     throw new Error("schemaVersion must be an integer");
                 if (candidate.schemaVersion !== root.supportedSchemaVersion)
                     throw new Error("unsupported schemaVersion " + candidate.schemaVersion);
-                root.data = candidate;
-                root.theme = String(candidate.theme || "tokyo-night");
+                root.displaySnapshot(candidate);
                 root.configValid = true;
             } catch (e) {
                 // Keep the last valid in-memory snapshot. Invalid state is never

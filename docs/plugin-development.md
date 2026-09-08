@@ -174,6 +174,33 @@ programs. Test malformed input as well as the happy path. A plugin intended for
 the curated store must also pass `tests/plugin-validation.sh` in an nbshell
 checkout.
 
+## Shell settings persistence
+
+Use `Config.set(key, value)` or `Config.setValues(values)` for shell settings;
+copy objects/arrays before editing them. A true return value means the request
+was queued, not that it has reached disk. `Config.saving` and `Config.writeError`
+report pending persistence and errors; `nbshell config status` exposes the same
+state without exporting settings values.
+
+The writer shares the migration lock and compares the original values of changed
+top-level keys against the current file. Unrelated external settings are retained.
+A multi-key batch is atomic: a conflict rejects the entire batch, including any
+later queued changes that depended on its rejected keys. Unrelated queued keys
+continue. Nested objects and arrays are compared as complete top-level settings,
+not merged element by element. Missing, malformed or unsupported configuration
+is never replaced by defaults as part of a normal settings write.
+
+Unconfirmed replies are replayed once with the same idempotent patch; unresolved
+outcomes are reported as uncertain. A settings writer waits at most five seconds
+for the lock, and the shell bounds its helper lifetime with `timeout`. Errors
+appear in Settings and as a desktop notification, and remain in status until a
+new change is submitted. A queued request is not durable across shell shutdown.
+
+The guarantee applies to cooperating nbshell writers. Editors that ignore
+`config-migration.lock` can still race the final filesystem replacement; the
+writer detects observed changes but cannot make an arbitrary external editor
+participate in an advisory lock. Schema changes belong to the migration runner.
+
 ## Publishing
 
 A public plugin repository should contain:

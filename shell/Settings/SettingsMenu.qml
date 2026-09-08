@@ -747,6 +747,14 @@ Item {
                     badgeColor: Theme.accent
                 }
 
+                Line {
+                    width: content.width
+                    visible: Config.writeError !== ""
+                    text: Config.writeError
+                    color: Theme.readable(Theme.red, Theme.panelSurface)
+                    wrapMode: Text.Wrap
+                }
+
                 Row {
                     width: content.width
                     height: Theme.controlHeight + root.maxItems * box.rowHeight
@@ -805,7 +813,7 @@ Item {
 
                     Column {
                         id: itemColumn
-                        width: box.rightWidth
+                        width: Math.max(0, parent.width - navigation.width - parent.spacing)
                         height: parent.height
                         spacing: 0
 

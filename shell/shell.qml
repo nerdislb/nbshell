@@ -95,6 +95,14 @@ ShellRoot {
         void ZenPip.active;
     }
 
+    Connections {
+        target: Config
+        function onWriteFailed(message) {
+            Quickshell.execDetached(["notify-send", "-a", "nbshell", "-u", "critical",
+                "Settings were not saved", message]);
+        }
+    }
+
     Bar {}
 
     Wallpaper {}

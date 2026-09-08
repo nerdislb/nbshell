@@ -51,6 +51,10 @@ def inside(args):
     source = source[:end] + '''
     IpcHandler {
         target: "lifecycleProbe"
+        function showConfigError(): string {
+            Config.writeError = "Changes were not saved. An edited setting changed elsewhere; review the current value and retry your change.";
+            return "shown";
+        }
         function closePanels(): string {
             Runtime.settingsOpen = false;
             Runtime.modulesOpen = false;
@@ -110,6 +114,8 @@ def inside(args):
         shell = launch(['/test-bin/qs', '-p', '/work/shell', '--no-color'], 'shell.log')
         wait(lambda: run(['/test-bin/qs', '-p', '/work/shell', 'ipc', 'call', 'state', 'dump'], False).returncode == 0, 'shell IPC')
         time.sleep(2)
+        if args.settings_error:
+            ipc('lifecycleProbe', 'showConfigError')
         rows, samples = [], [memory()]
         for panel, command in [('settings', ('settings', 'open')), ('modules', ('settings', 'modules'))]:
             for index in range(args.cycles):
@@ -163,6 +169,7 @@ def main():
     parser.add_argument('--cycles', type=int, default=100)
     parser.add_argument('--settle-seconds', type=int, default=60)
     parser.add_argument('--theme', default='tokyo-night')
+    parser.add_argument('--settings-error', action='store_true', help='Show a persistence error in the isolated settings fixture')
     parser.add_argument('--motion', choices=['standard', 'reduced'], default='standard')
     parser.add_argument('--width', type=int, default=800)
     parser.add_argument('--height', type=int, default=600)

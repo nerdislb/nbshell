@@ -155,13 +155,28 @@ def paths_from_environment() -> tuple[pathlib.Path, pathlib.Path, pathlib.Path]:
     return config_path, state_dir / "config-migrations.json", state_dir
 
 
-def migration_lock(state_dir: pathlib.Path):
+def migration_lock(state_dir: pathlib.Path, timeout: float | None = None):
     ensure_directory(state_dir)
     lock_path = state_dir / "config-migration.lock"
     handle = lock_path.open("a+b")
     os.chmod(lock_path, 0o600)
-    fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
-    return handle
+    try:
+        if timeout is None:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        else:
+            deadline = time.monotonic() + timeout
+            while True:
+                try:
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError:
+                    if time.monotonic() >= deadline:
+                        raise StateError("Configuration is busy; retry after the other writer finishes")
+                    time.sleep(0.025)
+        return handle
+    except BaseException:
+        handle.close()
+        raise
 
 
 def backup_config(state_dir: pathlib.Path, source: bytes) -> pathlib.Path:
@@ -213,7 +228,8 @@ def write_ledger(path: pathlib.Path, ledger: dict[str, Any]) -> None:
 
 
 def apply_migrations(
-    config_path: pathlib.Path, ledger_path: pathlib.Path, state_dir: pathlib.Path, dry_run: bool
+    config_path: pathlib.Path, ledger_path: pathlib.Path, state_dir: pathlib.Path, dry_run: bool,
+    lock_timeout: float | None = None
 ) -> dict[str, Any]:
     if dry_run:
         if not config_path.exists():
@@ -241,7 +257,7 @@ def apply_migrations(
         status["wouldWriteLedger"] = ledger["migrations"].get(MIGRATION_ID) is None
         return status
 
-    with migration_lock(state_dir):
+    with migration_lock(state_dir, lock_timeout):
         testing = os.environ.get("NBSHELL_MIGRATION_TESTING") == "1"
         ready_file = os.environ.get("NBSHELL_MIGRATION_TEST_READY_FILE") if testing else None
         if ready_file:

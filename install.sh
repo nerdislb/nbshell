@@ -307,6 +307,10 @@ restore_runtime_from_backup() {
 }
 recover_install() {
     result=$?
+    if [ -n "${config_guard:-}" ]; then
+        exec {config_guard}>&-
+        unset config_guard
+    fi
     local runtime_restored=0
     recovery_failed=0
     # Recovery continues across independent destinations. If any restoration
@@ -732,10 +736,21 @@ fi
 green "Images  -> $NEW_WALLPAPERS ($(find "$NEW_WALLPAPERS" -type f | wc -l) available)"
 
 # ── Config ───────────────────────────────────────────────────────────────
-# Nur anlegen, nie ueberschreiben: sie gehoert dem Benutzer.
+# Initial creation participates in the same lock as settings and migrations.
+exec {config_guard}>"$STATE_DIR/config-migration.lock"
+flock "$config_guard"
 if [ ! -f "$DATA_DIR/config.json" ]; then
     transaction_backup_path "$DATA_DIR/config.json" config.json
-    cat > "$DATA_DIR/config.json" <<'JSON'
+    transaction_backup_path "$STATE_DIR/config-migrations.json" config-migrations.json
+    python3 -c '
+import pathlib, runpy, sys
+m = runpy.run_path(sys.argv[1])
+ledger, _ = m["read_ledger"](m["paths_from_environment"]()[1])
+if ledger["migrations"]:
+    raise SystemExit("Configuration is missing but migration history exists; restore config.json before installing.")
+m["atomic_write"](pathlib.Path(sys.argv[2]), sys.stdin.buffer.read())
+' \
+        "$SRC/shell/scripts/config-migrations.py" "$DATA_DIR/config.json" <<'JSON'
 {
   "schemaVersion": 1,
   "theme": "tokyo-night",
@@ -762,6 +777,8 @@ JSON
 else
     echo "Config  -> $DATA_DIR/config.json (existing file kept)"
 fi
+exec {config_guard}>&-
+unset config_guard
 [ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-config" ] || exit 99
 
 # Fresh installs reach this point without a prior config. Non-deferred installs

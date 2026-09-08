@@ -298,8 +298,13 @@ Scope {
             try {
                 parsed = JSON.parse(parsed);
             } catch (e) {}
-            Config.set(key, parsed);
-            return key + " = " + JSON.stringify(parsed);
+            if (!Config.set(key, parsed))
+                return "Settings change rejected; check configuration validity.";
+            return "Queued " + key + " = " + JSON.stringify(parsed);
+        }
+
+        function status(): string {
+            return JSON.stringify({valid: Config.configValid, saving: Config.saving, error: Config.writeError});
         }
 
         function dump(): string {

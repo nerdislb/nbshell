@@ -39,27 +39,22 @@ install_wacli() (
 
 switch_config() {
     local selected=$1
-    python3 - "$config_file" "$selected" <<'PY'
-import json, os, sys, tempfile
-path, selected = sys.argv[1:]
-with open(path, encoding="utf-8") as handle:
-    data = json.load(handle)
-old, new = ("prettyzap", "omawhatsapp") if selected == "omawhatsapp" else ("omawhatsapp", "prettyzap")
-for key in ("collapsedWidgets", "leftWidgets", "centerWidgets", "rightWidgets"):
-    values = [str(value) for value in data.get(key, [])]
-    values = [new if value in (old, "whatsapp") else value for value in values]
-    data[key] = list(dict.fromkeys(values))
-enabled = [str(value) for value in data.get("enabledPlugins", []) if str(value) not in (old, new, "whatsapp")]
-enabled.append(new)
-data["enabledPlugins"] = enabled
-directory = os.path.dirname(path)
-fd, temporary = tempfile.mkstemp(prefix=".config.", dir=directory)
-with os.fdopen(fd, "w", encoding="utf-8") as handle:
-    json.dump(data, handle, ensure_ascii=False, indent=2)
-    handle.write("\n")
-    handle.flush(); os.fsync(handle.fileno())
-os.replace(temporary, path)
-PY
+    python3 - "$(dirname "${BASH_SOURCE[0]}")/config-write.py" "$selected" <<'PYCODE' || return $?
+import runpy, sys
+api = runpy.run_path(sys.argv[1])
+selected = sys.argv[2]
+def transform(data):
+    old, new = ("prettyzap", "omawhatsapp") if selected == "omawhatsapp" else ("omawhatsapp", "prettyzap")
+    for key in ("collapsedWidgets", "leftWidgets", "centerWidgets", "rightWidgets"):
+        values = [str(value) for value in data.get(key, [])]
+        values = [new if value in (old, "whatsapp") else value for value in values]
+        data[key] = list(dict.fromkeys(values))
+    enabled = [str(value) for value in data.get("enabledPlugins", []) if str(value) not in (old, new, "whatsapp")]
+    enabled.append(new)
+    data["enabledPlugins"] = enabled
+    return data
+api['update_config'](transform)
+PYCODE
     printf '%s\n' "$selected" >"$provider_file"
 }
 

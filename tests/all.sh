@@ -39,6 +39,7 @@ run python3 tests/update-build-gate.py
 run python3 tests/update-terminal.py
 run python3 tests/update-coordinator.py
 run python3 tests/config-migrations.py
+run python3 tests/config-write.py
 run python3 tests/stack-status.py
 run python3 tests/doctor.py
 run python3 tests/install-tree-transaction.py

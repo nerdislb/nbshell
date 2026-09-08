@@ -26,14 +26,6 @@ PLUGIN_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/nbshell/plugins"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_ROOT="$SCRIPT_DIR/../templates/plugins"
 DESIGN_CHECK="$SCRIPT_DIR/plugin-design-check.py"
-CONFIG_MIGRATION_LOCK="${XDG_STATE_HOME:-$HOME/.local/state}/nbshell/config-migration.lock"
-
-lock_shell_config() {
-	mkdir -p "$(dirname "$CONFIG_MIGRATION_LOCK")"
-	exec 8>"$CONFIG_MIGRATION_LOCK"
-	flock 8
-}
-
 cmd_list() {
 	local first=1
 	declare -A seen_ids=()
@@ -475,42 +467,22 @@ cmd_remove() {
 	local manifest_id config
 	manifest_id="$(check_plugin "$target" json 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])' 2>/dev/null)" || manifest_id="$name"
 	config="${XDG_CONFIG_HOME:-$HOME/.config}/nbshell/config.json"
-	lock_shell_config
-	python3 - "$config" "$manifest_id" <<'PY'
-import json, os, sys, tempfile
-
-path, ident = sys.argv[1], sys.argv[2]
-try:
-    with open(path, encoding="utf-8") as handle:
-        data = json.load(handle)
-except FileNotFoundError:
-    data = {"schemaVersion": 1}
-if not isinstance(data, dict):
-    raise SystemExit("config.json must be an object")
-if data.get("schemaVersion") != 1:
-    raise SystemExit("config.json must use schemaVersion 1; run 'nbshell migrate apply' first")
-for key in ("enabledPlugins", "collapsedWidgets", "leftWidgets", "centerWidgets", "rightWidgets"):
-    values = data.get(key, [])
-    if isinstance(values, list):
-        data[key] = [value for value in values if str(value) != ident]
-settings = data.get("pluginSettings", {})
-if isinstance(settings, dict):
-    settings.pop(ident, None)
-    data["pluginSettings"] = settings
-directory = os.path.dirname(path)
-os.makedirs(directory, exist_ok=True)
-fd, temporary = tempfile.mkstemp(prefix=".config.", dir=directory)
-try:
-    with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        json.dump(data, handle, ensure_ascii=False, indent=2)
-        handle.write("\n")
-        handle.flush()
-        os.fsync(handle.fileno())
-    os.replace(temporary, path)
-finally:
-    if os.path.exists(temporary):
-        os.unlink(temporary)
-PY
+	python3 - "$SCRIPT_DIR/config-write.py" "$manifest_id" <<'PYCODE' || return $?
+import runpy, sys
+api = runpy.run_path(sys.argv[1])
+ident = sys.argv[2]
+def transform(data):
+    for key in ("enabledPlugins", "collapsedWidgets", "leftWidgets", "centerWidgets", "rightWidgets"):
+        values = data.get(key, [])
+        if isinstance(values, list):
+            data[key] = [value for value in values if str(value) != ident]
+    settings = data.get("pluginSettings", {})
+    if isinstance(settings, dict):
+        settings.pop(ident, None)
+        data["pluginSettings"] = settings
+    return data
+api['update_config'](transform, create=True)
+PYCODE
 	rm -rf "$target"
 	echo "$name removed."
 }
@@ -693,40 +665,21 @@ set_enabled() {
 
 	local config="${XDG_CONFIG_HOME:-$HOME/.config}/nbshell/config.json"
 	mkdir -p "$(dirname "$config")"
-	lock_shell_config
-	python3 - "$config" "$id" "$enabled" <<'PY'
-import json, os, sys, tempfile
-
-path, ident, enabled = sys.argv[1], sys.argv[2], sys.argv[3] == "1"
-try:
-    with open(path, encoding="utf-8") as handle:
-        data = json.load(handle)
-except FileNotFoundError:
-    data = {"schemaVersion": 1}
-if not isinstance(data, dict):
-    raise SystemExit("config.json muss ein Objekt sein")
-if data.get("schemaVersion") != 1:
-    raise SystemExit("config.json must use schemaVersion 1; run 'nbshell migrate apply' first")
-items = data.get("enabledPlugins", [])
-if not isinstance(items, list):
-    items = []
-items = [str(item) for item in items if str(item) != ident]
-if enabled:
-    items.append(ident)
-data["enabledPlugins"] = items
-directory = os.path.dirname(path)
-fd, temp = tempfile.mkstemp(prefix=".config.", dir=directory)
-try:
-    with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        json.dump(data, handle, ensure_ascii=False, indent=2)
-        handle.write("\n")
-        handle.flush()
-        os.fsync(handle.fileno())
-    os.replace(temp, path)
-finally:
-    if os.path.exists(temp):
-        os.unlink(temp)
-PY
+	python3 - "$SCRIPT_DIR/config-write.py" "$id" "$enabled" <<'PYCODE' || return $?
+import runpy, sys
+api = runpy.run_path(sys.argv[1])
+ident, enabled = sys.argv[2], sys.argv[3] == "1"
+def transform(data):
+    items = data.get("enabledPlugins", [])
+    if not isinstance(items, list):
+        items = []
+    items = [str(item) for item in items if str(item) != ident]
+    if enabled:
+        items.append(ident)
+    data["enabledPlugins"] = items
+    return data
+api['update_config'](transform, create=True)
+PYCODE
 	[ "$enabled" = 1 ] && echo "$id enabled" || echo "$id disabled"
 }
 

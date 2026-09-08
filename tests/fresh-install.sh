@@ -253,6 +253,7 @@ test ! -e "$XDG_CONFIG_HOME/quickshell/nbshell"
 test ! -e "$XDG_CONFIG_HOME/systemd/user/nbshell.service"
 test ! -e "$XDG_CONFIG_HOME/nbshell/themes"
 test ! -e "$XDG_CONFIG_HOME/nbshell/config.json"
+test ! -e "$XDG_STATE_HOME/nbshell/config-migrations.json"
 test ! -e "$XDG_CONFIG_HOME/nbshell/plugins/beispiel"
 test ! -e "$XDG_CONFIG_HOME/umbriel/nbshell.toml"
 test ! -e "$XDG_CONFIG_HOME/aether/custom/nbshell"
@@ -557,12 +558,21 @@ assert_no_reservations
 # Config creation, managed plugins, and Umbriel integration participate in the
 # same rollback contract as the runtime swap.
 mv "$XDG_CONFIG_HOME/nbshell/config.json" "$WORK/config.saved"
+# Missing configuration with migration history is not a fresh installation.
+if "$ROOT/install.sh" >"$WORK/missing-config.log" 2>&1; then
+    echo "Install recreated missing configuration despite existing migration history" >&2
+    exit 1
+fi
+grep -Fq 'Configuration is missing but migration history exists' "$WORK/missing-config.log"
+test ! -e "$XDG_CONFIG_HOME/nbshell/config.json"
+mv "$XDG_STATE_HOME/nbshell/config-migrations.json" "$WORK/config-ledger.saved"
 if NBSHELL_INSTALL_TEST_FAULT=post-config "$ROOT/install.sh" >/dev/null 2>&1; then
     echo "Install unexpectedly succeeded at the post-config fault" >&2
     exit 1
 fi
 test ! -e "$XDG_CONFIG_HOME/nbshell/config.json"
 mv "$WORK/config.saved" "$XDG_CONFIG_HOME/nbshell/config.json"
+mv "$WORK/config-ledger.saved" "$XDG_STATE_HOME/nbshell/config-migrations.json"
 assert_no_reservations
 
 printf '%s\n' plugin-before >"$XDG_CONFIG_HOME/nbshell/plugins/beispiel/transaction-sentinel"

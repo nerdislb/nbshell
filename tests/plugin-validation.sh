@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TOOL="$ROOT/shell/scripts/plugins.sh"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/nbshell-plugin-test.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
+export XDG_STATE_HOME="$WORK/state"
 
 python3 -m unittest discover -s "$ROOT/tests" -p test_plugin_porting_lab.py
 
