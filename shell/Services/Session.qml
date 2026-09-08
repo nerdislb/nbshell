@@ -21,7 +21,7 @@ Singleton {
     // Use the exact source currently displayed by Wallpaper.qml. Passing it
     // to the lock process also covers the short interval before an atomic
     // config write becomes visible to a separate process.
-    readonly property string activeWallpaper: Config.value("wallpaperOverride", "") || (ThemeIndex.current?.wallpaper ?? "")
+    readonly property string activeWallpaper: DynamicWallpaper.stillPath
 
     function lockArgs(action) {
         return ["env", "NBSHELL_LOCK_WALLPAPER=" + root.activeWallpaper, root.lockScript, action];
