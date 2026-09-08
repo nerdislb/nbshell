@@ -18,3 +18,5 @@ NBSHELL_ALLOW_INSTALL=ERASE nbshell-install --install
 
 Run unit tests with `tests/run.sh`. Build orchestration and QEMU acceptance are
 owned by their respective tracks and are intentionally not duplicated here.
+See [desktop acceptance](../ACCEPTANCE.md) for the real installation, session,
+greeter and recovery evidence required beyond a successful boot smoke test.

@@ -22,7 +22,7 @@ pkgdesc="nbshell shell sources and installer entrypoints (offline-packaged)"
 arch=('x86_64')
 url="https://github.com/nerdislb/nbshell"
 license=('MIT')
-depends=('quickshell' 'bash' 'jq')
+depends=('quickshell' 'bash' 'jq' 'python' 'python-dbus' 'python-gobject' 'qt6-imageformats')
 source=("nbshell-src.tar.gz")
 sha256sums=('SKIP')
 
@@ -30,6 +30,10 @@ package() {
     local dest="$pkgdir/usr/share/nbshell"
     install -dm755 "$dest"
     cp -a --no-preserve=ownership "$srcdir"/* "$dest"/
+    rm -f "$dest/nbshell-src.tar.gz"
+    # Private working trees often use 0700/0600. Runtime sources and executable
+    # entrypoints must remain readable/executable by the installed desktop user.
+    chmod -R u=rwX,go=rX "$dest"
 
     install -dm755 "$pkgdir/usr/bin"
     ln -s "/usr/share/nbshell/bin/nbshell" "$pkgdir/usr/bin/nbshell"

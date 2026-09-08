@@ -3,9 +3,11 @@ Description=Validate nbshell desktop before first graphical boot
 Before=greetd.service graphical.target
 After=local-fs.target
 OnFailure=nbshell-recovery.service
+ConditionPathExists=!/var/lib/nbshell/firstboot-complete
 
 [Service]
 Type=oneshot
+RemainAfterExit=yes
 ExecStart=/usr/local/lib/nbshell/firstboot.sh
 
 [Install]

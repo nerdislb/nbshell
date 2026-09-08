@@ -93,11 +93,11 @@ if [ "$SOURCE" = "local" ]; then
     trap 'rm -rf -- "$WORK"' EXIT
     cp -a "$PKGBUILD_DIR" "$WORK/build"
     if [ "$DIRTY_FLAG" = true ]; then
-        # Internal preview only: package the current tracked working files so
+        # Internal preview only: package the current non-ignored working files so
         # the ISO can exercise staged changes. Provenance remains dirty=true
         # and publication verification rejects it unless the explicit internal
         # override is set.
-        git -C "$SRC_ROOT" ls-files -z \
+        git -C "$SRC_ROOT" ls-files --cached --others --exclude-standard -z \
             | tar -C "$SRC_ROOT" --null --verbatim-files-from -T - -czf "$WORK/build/$expected_source"
     else
         git -C "$SRC_ROOT" archive --format=tar.gz -o "$WORK/build/$expected_source" "$COMMIT"

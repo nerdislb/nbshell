@@ -264,7 +264,16 @@ git -C "$LOCAL_SRC" checkout -q -- payload.txt
 #     to certify that repository as complete/clean.
 echo "uncommitted change" >> "$LOCAL_SRC/payload.txt"
 DIRTY_OUT="$ROOT/cache/custom-dirty/fixture-local"
+printf 'new runtime helper\n' > "$LOCAL_SRC/new-helper.py"
+printf 'ignored-secret\n' > "$LOCAL_SRC/.git/info/exclude"
+printf 'must not ship\n' > "$LOCAL_SRC/ignored-secret"
 if MANIFEST="$LOCAL_MANIFEST" "$SCRIPTS_DIR/build-package.sh" fixture-local --allow-dirty --out "$DIRTY_OUT" >/tmp/dirty.$$.log 2>&1; then
+    if bsdtar -tf "$DIRTY_OUT"/fixture-local-*.pkg.tar.zst | grep -q '/new-helper.py$' \
+        && ! bsdtar -tf "$DIRTY_OUT"/fixture-local-*.pkg.tar.zst | grep -q '/ignored-secret$'; then
+        ok "private package includes new helpers and excludes ignored files"
+    else
+        bad "private package omitted a new helper or included ignored data"
+    fi
     dirty_flag="$(jq -r '.dirty' "$DIRTY_OUT/fixture-local.provenance.json" 2>/dev/null)"
     if [ "$dirty_flag" = "true" ]; then
         ok "build-package.sh --allow-dirty records dirty=true in provenance"

@@ -13,6 +13,7 @@ import subprocess
 import tempfile
 import uuid
 import re
+from contextlib import contextmanager
 
 TARGET_MOUNT = Path("/mnt/archinstall")
 TARGET_PACKAGES = [
@@ -20,12 +21,46 @@ TARGET_PACKAGES = [
     "sudo", "greetd", "quickshell", "umbriel", "xdg-desktop-portal",
     "xdg-desktop-portal-umbriel", "nbshell", "pipewire", "pipewire-pulse",
     "wireplumber", "wl-clipboard", "hyprpolkitagent",
-    "ttf-jetbrains-mono-nerd",
+    "ttf-jetbrains-mono-nerd", "python", "python-dbus", "python-gobject", "qt6-imageformats",
 ]
 
 
 def run(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(args, check=check, text=True, capture_output=True)
+    result = subprocess.run(args, text=True, capture_output=True)
+    if check and result.returncode:
+        print(result.stdout, end="")
+        print(result.stderr, end="")
+        result.check_returncode()
+    return result
+
+
+@contextmanager
+def offline_repositories(path: Path = Path('/etc/pacman.conf')):
+    """Archinstall --offline still syncs every enabled pacman repository.
+
+    Restrict the live installer to its ISO repository, then restore normal
+    repositories for subsequent target provisioning (also after failures).
+    """
+    original = path.read_text()
+    keep = True
+    found = False
+    lines = []
+    for line in original.splitlines(keepends=True):
+        match = re.fullmatch(r'\s*\[([^]]+)\]\s*', line.strip())
+        if match:
+            # Archinstall adds mirror_config.custom_repositories itself.
+            # Keeping our existing section would register nbshell twice.
+            keep = match[1] == 'options'
+            found |= match[1] == 'nbshell'
+        if keep:
+            lines.append(line)
+    if not found:
+        raise RuntimeError('The offline nbshell repository is missing')
+    try:
+        path.write_text(''.join(lines))
+        yield
+    finally:
+        path.write_text(original)
 
 
 def serial_log(message: str) -> None:
@@ -177,6 +212,9 @@ def provision_target(
         shutil.copy2(source_lib / name, target_lib / name)
     for name in ("nbshell-firstboot.service", "nbshell-recovery.service"):
         shutil.copy2(source_units / name, target_units / name)
+    dropin = Path('greetd.service.d/nbshell-firstboot.conf')
+    (target_units / dropin.parent).mkdir(exist_ok=True)
+    shutil.copy2(source_units / dropin, target_units / dropin)
     target_config = TARGET_MOUNT / "etc/nbshell"
     target_config.mkdir(parents=True, exist_ok=True)
     (target_config / "install-user").write_text(username + "\n", encoding="utf-8")
@@ -186,7 +224,8 @@ def provision_target(
 def invoke_archinstall(config_path: Path, creds_path: Path) -> None:
     command = (
         "archinstall", "--config", str(config_path), "--creds", str(creds_path),
-        "--silent", "--offline",
+        "--silent", "--offline", "--skip-ntp", "--skip-wkd",
+        "--mountpoint", str(TARGET_MOUNT),
     )
     # Mandatory parser/schema validation before archinstall can touch a disk.
     run(*command, "--dry-run")
@@ -208,6 +247,10 @@ def main() -> int:
     if not Path("/sys/firmware/efi").is_dir():
         raise SystemExit("Refusing: this v1 installer requires UEFI.")
     device, disk_bytes, encrypted, luks, timezone, username, password_hash = collect()
+    # The trimmed live image does not run releng's pacman-init.service.
+    # Seed trust from the shipped Arch keyring, without online WKD requests.
+    run('pacman-key', '--init')
+    run('pacman-key', '--populate', 'archlinux')
     cfg, creds = config(device, encrypted, disk_bytes=disk_bytes, timezone=timezone)
     creds["users"] = [{"username": username, "enc_password": password_hash, "sudo": True}]
     if encrypted:
@@ -218,7 +261,13 @@ def main() -> int:
         creds_path.write_text(json.dumps(creds) + "\n")
         config_path.chmod(0o600)
         creds_path.chmod(0o600)
-        invoke_archinstall(config_path, creds_path)
+        with offline_repositories():
+            invoke_archinstall(config_path, creds_path)
+    if not (TARGET_MOUNT / 'etc/os-release').is_file():
+        raise RuntimeError('Archinstall did not leave the installed target mounted')
+    # The target must retain the regular Arch repositories after target-setup
+    # removes the temporary ISO-only section.
+    shutil.copy2('/etc/pacman.conf', TARGET_MOUNT / 'etc/pacman.conf')
     provision_target(username)
     run("arch-chroot", str(TARGET_MOUNT), "/usr/local/lib/nbshell/target-setup.sh")
     print("Installation complete. Remove the ISO and reboot.")

@@ -31,6 +31,13 @@ runuser -u "$install_user" -- env \
 [[ -f "$install_home/.config/quickshell/nbshell/shell.qml" ]] \
     || { echo "nbshell first boot: user runtime was not installed" >&2; exit 1; }
 
+# install.sh deliberately preserves opt-in autostart on ordinary desktops.
+# A fresh nbshell image must enable its shell before the first user session;
+# --no-reload makes this an offline unit-file operation without a user bus.
+runuser -u "$install_user" -- env \
+    HOME="$install_home" XDG_CONFIG_HOME="$install_home/.config" \
+    "$systemctl_cmd" --user --no-reload enable nbshell.service
+
 install -m 0644 /usr/share/nbshell/shell/lock/nbshell-lock.pam /etc/pam.d/nbshell-lock
 cat >/etc/greetd/config.toml <<EOF
 [terminal]

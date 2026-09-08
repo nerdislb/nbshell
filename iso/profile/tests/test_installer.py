@@ -5,6 +5,7 @@ from pathlib import Path
 import stat
 import tempfile
 import unittest
+import tomllib
 from unittest.mock import patch
 
 HERE = Path(__file__).resolve().parent
@@ -21,6 +22,28 @@ class Result:
 
 
 class InstallerTests(unittest.TestCase):
+    def test_offline_manifest_covers_requested_and_implicit_packages(self):
+        manifest = tomllib.loads((HERE.parents[1] / 'packages/MANIFEST.toml').read_text())
+        available = set(manifest['official']['packages']) | {item['name'] for item in manifest['custom']}
+        required = set(installer.TARGET_PACKAGES) | {'zram-generator', 'efibootmgr'}
+        self.assertEqual(set(), required - available)
+        self.assertIn('python', installer.TARGET_PACKAGES)
+
+    def test_offline_repositories_restore_even_on_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, 'pacman.conf')
+            original = ('[options]\nSigLevel = Required\n'
+                        '[nbshell]\nServer = file:///var/cache/nbshell/repo\n'
+                        '[core]\nInclude = /etc/pacman.d/mirrorlist\n'
+                        '[extra]\nInclude = /etc/pacman.d/mirrorlist\n')
+            path.write_text(original)
+            with self.assertRaisesRegex(RuntimeError, 'test failure'):
+                with installer.offline_repositories(path):
+                    self.assertNotIn('[nbshell]', path.read_text())
+                    self.assertNotIn('mirrorlist', path.read_text())
+                    raise RuntimeError('test failure')
+            self.assertEqual(original, path.read_text())
+
     def test_temporary_directory_is_portable(self):
         with tempfile.TemporaryDirectory() as directory:
             self.assertTrue(Path(directory).is_dir())
@@ -72,6 +95,11 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual("--dry-run", mocked.call_args_list[0].args[-1])
         self.assertNotIn("--dry-run", mocked.call_args_list[1].args)
         self.assertIn("--offline", mocked.call_args_list[0].args)
+        for call in mocked.call_args_list:
+            self.assertIn("--skip-ntp", call.args)
+            self.assertIn("--skip-wkd", call.args)
+            position = call.args.index("--mountpoint")
+            self.assertEqual(str(installer.TARGET_MOUNT), call.args[position + 1])
 
     def test_sensitive_files_are_mode_600(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -92,6 +120,9 @@ class InstallerTests(unittest.TestCase):
                 (source_lib / name).write_text("#!/bin/sh\n")
             for name in ("nbshell-firstboot.service", "nbshell-recovery.service"):
                 (source_units / name).write_text("[Service]\n")
+            (source_units / 'greetd.service.d').mkdir()
+            (source_units / 'greetd.service.d/nbshell-firstboot.conf').write_text(
+                '[Unit]\nRequires=nbshell-firstboot.service\n')
             with patch.object(installer, "TARGET_MOUNT", root / "target"):
                 installer.provision_target(
                     "alice", source_lib=source_lib, source_units=source_units
@@ -99,6 +130,8 @@ class InstallerTests(unittest.TestCase):
             marker = root / "target/etc/nbshell/install-user"
             self.assertEqual("alice\n", marker.read_text())
             self.assertEqual(0o600, stat.S_IMODE(marker.stat().st_mode))
+            self.assertIn('Requires=nbshell-firstboot.service',
+                          (root / 'target/etc/systemd/system/greetd.service.d/nbshell-firstboot.conf').read_text())
 
     def test_password_hash_does_not_pass_secret_in_argv(self):
         completed = Result("$6$salt$hash\n")

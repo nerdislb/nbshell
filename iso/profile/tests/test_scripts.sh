@@ -10,6 +10,10 @@ archiso_mkinitcpio="$profile/airootfs/etc/mkinitcpio.conf.d/archiso.conf"
 work="$(mktemp -d "${TMPDIR:-/tmp}/nbshell-profile-test.XXXXXX")"
 trap 'rm -rf -- "$work"' EXIT
 
+# The trimmed profile omits zsh, which releng otherwise sets as root's shell.
+# Reaching the dry-run marker must not leave both recovery TTYs unusable.
+test "$(cut -d: -f7 "$profile/airootfs/etc/passwd")" = /usr/bin/bash
+
 # The installer must be enabled through a real systemd symlink without an
 # ordering cycle against the target that pulls it in. The initramfs keeps all
 # optical/PXE Archiso hooks but omits the unavailable memdisk helper.
@@ -54,8 +58,11 @@ if NBSHELL_TARGET_ROOT="$work/target" "$target_setup" 2>/dev/null; then
 fi
 
 # Missing desktop binary disables greetd and enters the unit's recovery path.
+# Do not inherit installed desktop binaries: this test also runs inside a
+# desktop-equipped build VM and must never execute its real firstboot setup.
+ln -s "$(command -v bash)" "$work/bin/bash"
 : >"$work/systemctl.log"
-if PATH="$work/bin:/usr/bin:/bin" "$firstboot" 2>/dev/null; then
+if PATH="$work/bin" "$firstboot" 2>/dev/null; then
     echo "firstboot accepted missing desktop binaries" >&2
     exit 1
 fi

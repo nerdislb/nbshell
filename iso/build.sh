@@ -49,20 +49,27 @@ fi
 "$PACKAGES/tests/test-manifest-consistency.sh"
 
 if [[ $SKIP_PACKAGES == 0 ]]; then
-    if [[ ! -f $PACKAGES/cache/official/RESOLVED.json ]]; then
+    if ! python3 - "$PACKAGES/MANIFEST.toml" "$PACKAGES/cache/official/RESOLVED.json" <<'PY'
+import json, pathlib, sys, tomllib
+try:
+    requested = tomllib.loads(pathlib.Path(sys.argv[1]).read_text())["official"]["packages"]
+    resolved = json.loads(pathlib.Path(sys.argv[2]).read_text())
+    sys.exit(0 if set(requested) <= set(resolved) else 1)
+except (OSError, ValueError):
+    sys.exit(1)
+PY
+    then
         "$PACKAGES/scripts/fetch-official-packages.sh"
     fi
     for package in umbriel xdg-desktop-portal-umbriel nbshell; do
         output="$PACKAGES/cache/custom/$package"
-        # The local nbshell payload follows this exact working tree/commit and
-        # must never be reused from an older build cache. Pinned upstream
-        # packages may be reused because their manifest revisions are stable.
-        if [[ $package == nbshell ]] || ! compgen -G "$output/*.pkg.tar.zst" >/dev/null; then
-            rm -rf -- "$output"
-            args=("$package" --out "$output")
-            [[ $package != nbshell || $INTERNAL == 0 ]] || args+=(--allow-dirty)
-            "$PACKAGES/scripts/build-package.sh" "${args[@]}"
-        fi
+        # A pin, recipe or checked-in patch may have changed since the cache
+        # was built. Rebuild custom packages; --skip-packages remains the
+        # explicit path for reusing an already verified repository.
+        rm -rf -- "$output"
+        args=("$package" --out "$output")
+        [[ $package != nbshell || $INTERNAL == 0 ]] || args+=(--allow-dirty)
+        "$PACKAGES/scripts/build-package.sh" "${args[@]}"
     done
     "$PACKAGES/scripts/make-repo.sh"
 fi
@@ -83,6 +90,9 @@ fi
 mkdir -p "$WORK_ROOT" "$OUT_ROOT"
 cp -a /usr/share/archiso/configs/releng "$PREPARED"
 cp -a "$PROFILE_SOURCE"/. "$PREPARED"/
+# pacman_conf selects the build input; mkarchiso does not install that file
+# as the live system's /etc/pacman.conf. Ship its runtime repository URL too.
+install -Dm644 "$PROFILE_SOURCE/pacman.conf" "$PREPARED/airootfs/etc/pacman.conf"
 find "$PREPARED" -type d -name __pycache__ -prune -exec rm -rf {} +
 find "$PREPARED" -type f -name '*.pyc' -delete
 
@@ -103,7 +113,18 @@ import sys
 source, target, repo = map(Path, sys.argv[1:])
 text = source.read_text(encoding="utf-8")
 text = text.replace("Server = file:///var/cache/nbshell/repo", f"Server = file://{repo.resolve()}")
-target.write_text(text, encoding="utf-8")
+# mkarchiso synchronizes every configured repository. Keep normal mirrors in
+# the live profile for the installed target, but build only from the verified
+# offline repository rather than silently mixing in moving mirror packages.
+lines = []
+keep = True
+for line in text.splitlines(keepends=True):
+    header = line.split("#", 1)[0].strip()
+    if header.startswith("[") and header.endswith("]"):
+        keep = header in ("[options]", "[nbshell]")
+    if keep:
+        lines.append(line)
+target.write_text("".join(lines), encoding="utf-8")
 PY
 
 rm -f -- "$OUT_ROOT"/nbshell-*.iso "$OUT_ROOT"/nbshell-*.iso.sha256

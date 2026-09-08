@@ -14,6 +14,7 @@ ok() { printf '  ok   - %s\n' "$1"; pass=$((pass + 1)); }
 bad() { printf '  FAIL - %s\n' "$1"; fail=$((fail + 1)); }
 
 echo "== test-manifest-consistency.sh =="
+bash "$TESTS_DIR/test-nbshell-package.sh"
 
 # 1. Schema validates.
 if python3 "$PACKAGES_DIR/scripts/lib/manifest.py" load "$MANIFEST" >/dev/null 2>&1; then

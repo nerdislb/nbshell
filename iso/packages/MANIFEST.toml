@@ -34,11 +34,15 @@ packages = [
     "mkinitcpio-archiso",
     "openssl",
     "sudo",
+    "zram-generator", # archinstall installs this when swap.enabled is true
 
     # PKG_BASIS -- nothing runs without these.
     "quickshell",
     "ttf-jetbrains-mono-nerd",
     "python",
+    "python-dbus",
+    "python-gobject",
+    "qt6-imageformats",
     "jq",
     "git",
     "curl",
