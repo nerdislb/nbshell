@@ -11,8 +11,8 @@
 
 pkgname=xdg-desktop-portal-umbriel
 _url=https://github.com/noctalia-dev/xdg-desktop-portal-umbriel.git
-_commit=d996f0c2bd4e8c868c0a143f0c9ce060f3c47ed5
-pkgver=0.1.0.r23.gd996f0c
+_commit=b5206970652dd618bc8df1105a39fa628ecd635a
+pkgver=0.1.0.r34.gb520697
 pkgrel=1
 pkgdesc="xdg-desktop-portal backend for Umbriel"
 arch=('x86_64')

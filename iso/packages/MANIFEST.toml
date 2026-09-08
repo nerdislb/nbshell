@@ -138,14 +138,14 @@ packages = [
 name = "umbriel"
 pkgbuild = "pkgbuilds/umbriel"
 source = "https://github.com/noctalia-dev/umbriel.git"
-revision = "e677dbbe2728ee65156bdbcc6775b0b36b388b64"
+revision = "d269327d11c793450636c0afbef0b18683b1a302"
 description = "Umbriel Wayland compositor (nbshell's supported session)"
 
 [[custom]]
 name = "xdg-desktop-portal-umbriel"
 pkgbuild = "pkgbuilds/xdg-desktop-portal-umbriel"
 source = "https://github.com/noctalia-dev/xdg-desktop-portal-umbriel.git"
-revision = "d996f0c2bd4e8c868c0a143f0c9ce060f3c47ed5"
+revision = "b5206970652dd618bc8df1105a39fa628ecd635a"
 description = "xdg-desktop-portal backend for Umbriel"
 
 [[custom]]

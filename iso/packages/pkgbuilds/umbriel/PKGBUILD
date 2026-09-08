@@ -11,8 +11,8 @@
 
 pkgname=umbriel
 _url=https://github.com/noctalia-dev/umbriel.git
-_commit=e677dbbe2728ee65156bdbcc6775b0b36b388b64
-pkgver=0.1.0.r727.ge677dbb
+_commit=d269327d11c793450636c0afbef0b18683b1a302
+pkgver=0.1.0.r847.gd269327
 pkgrel=1
 pkgdesc="Umbriel Wayland compositor (nbshell's supported session)"
 arch=('x86_64')
@@ -24,14 +24,14 @@ depends=(
     'jemalloc' 'sdbus-cpp' 'pipewire' 'gtk4' 'wlr-randr'
     'xwayland-satellite' 'xdg-desktop-portal'
 )
-makedepends=('gcc' 'git' 'meson' 'ninja' 'pkgconf' 'just')
+makedepends=('gcc' 'git' 'meson' 'ninja' 'pkgconf' 'just' 'patch')
 provides=('umbriel')
-source=("git+${_url}#commit=${_commit}")
+source=("git+${_url}#commit=${_commit}" "pointer-modifiers.patch")
 # The tarball's integrity is guaranteed by the pinned commit hash above
 # (verified against MANIFEST.toml before this PKGBUILD is ever built), not
 # by a content checksum -- SKIP is the standard makepkg convention for VCS
 # sources pinned this way.
-sha256sums=('SKIP')
+sha256sums=('SKIP' 'e6f08757e566daed7822fdcea40692cc1d5beaffbfda5ff72df92eccd68de4a2')
 
 pkgver() {
     cd "$pkgname"
@@ -41,11 +41,13 @@ pkgver() {
 prepare() {
     cd "$pkgname"
     git submodule update --init --recursive
+    # Reviewed local commit a850083; ship its exact patch without publishing it.
+    patch -Np1 -i "$srcdir/pointer-modifiers.patch"
 }
 
 build() {
     local build_dir="$pkgname/build-nbshell"
-    meson setup "$build_dir" "$pkgname" --buildtype=release --prefix=/usr
+    meson setup "$build_dir" "$pkgname" --buildtype=release --prefix=/usr -Dtests=enabled
     meson compile -C "$build_dir"
 }
 
