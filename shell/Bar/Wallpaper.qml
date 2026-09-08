@@ -86,7 +86,7 @@ Scope {
             }
 
             property bool showA: true
-            readonly property string source: Config.value("wallpaperOverride", "") || (ThemeIndex.current?.wallpaper ?? "")
+            readonly property string source: DynamicWallpaper.stillPath
 
             // Keep both textures only for the duration of the cross-fade.
             // A decoded screen-sized wallpaper can occupy tens of MiB; leaving
@@ -95,7 +95,7 @@ Scope {
 
             Timer {
                 id: releaseHidden
-                interval: 500
+                interval: Theme.motionEffectsSlow + 50
                 onTriggered: {
                     if (win.showA)
                         imageB.source = "";
@@ -105,13 +105,14 @@ Scope {
             }
 
             function stage(path) {
+                releaseHidden.stop();
                 if (!path) {
                     imageA.source = "";
                     imageB.source = "";
                     return;
                 }
 
-                const url = "file://" + path;
+                const url = DynamicWallpaper.url(path);
                 const target = showA ? imageB : imageA;
 
                 // Beim Rueckwechsel liegt das gewuenschte Bild oft noch
@@ -127,11 +128,20 @@ Scope {
                 target.source = url;
             }
 
+            function imageFailed(image) {
+                const fallbackUrl = DynamicWallpaper.url(DynamicWallpaper.fallback);
+                if (image.source != fallbackUrl && fallbackUrl) {
+                    DynamicWallpaper.error = "Image unavailable; using current theme wallpaper.";
+                    image.source = fallbackUrl;
+                }
+            }
+
             onSourceChanged: win.stage(source)
 
             Connections {
                 target: imageA
                 function onStatusChanged() {
+                    if (imageA.status === Image.Error) win.imageFailed(imageA);
                     if (imageA.status === Image.Ready && !win.showA && imageA.source != "")
                         win.showA = true;
                 }
@@ -140,8 +150,47 @@ Scope {
             Connections {
                 target: imageB
                 function onStatusChanged() {
+                    if (imageB.status === Image.Error) win.imageFailed(imageB);
                     if (imageB.status === Image.Ready && win.showA && imageB.source != "")
                         win.showA = false;
+                }
+            }
+
+            // Destroying the loader releases the decoder as well as its output.
+            // Restart only after a short quiet period when a workspace clears.
+            readonly property bool mayPlay: DynamicWallpaper.videoEligible
+                && DynamicWallpaper.clearDesktop(win.screen.name)
+            property bool playReady: false
+            property string failedVideo: ""
+            onMayPlayChanged: {
+                playReady = false;
+                if (mayPlay) resumeVideo.restart();
+                else resumeVideo.stop();
+            }
+            Timer {
+                id: resumeVideo
+                interval: 750 // Debounce workspace/window changes, not a visual animation.
+                running: win.mayPlay
+                onTriggered: win.playReady = true
+            }
+            Connections {
+                target: DynamicWallpaper
+                function onVideoPathChanged() { win.failedVideo = ""; }
+                function onSettingsChanged() { win.failedVideo = ""; }
+            }
+            Loader {
+                id: video
+                anchors.fill: parent
+                active: win.mayPlay && win.playReady && win.failedVideo !== DynamicWallpaper.videoPath
+                source: "../Wallpaper/VideoWallpaper.qml"
+                onLoaded: item.source = Qt.binding(() => DynamicWallpaper.url(DynamicWallpaper.videoPath))
+                onStatusChanged: if (status === Loader.Error) DynamicWallpaper.error = "Video player unavailable; using still image."
+            }
+            Connections {
+                target: video.item
+                function onFailed(message) {
+                    win.failedVideo = DynamicWallpaper.videoPath;
+                    DynamicWallpaper.error = "Video unavailable; using still image. " + message;
                 }
             }
 
@@ -167,7 +216,7 @@ Scope {
 
             Component.onCompleted: {
                 if (win.source)
-                    imageA.source = "file://" + win.source;
+                    imageA.source = DynamicWallpaper.url(win.source);
             }
         }
     }

@@ -57,7 +57,7 @@ Variants {
             .concat(expandedCenterWidgetNames).concat(expandedRightWidgetNames)
         property bool hovering: false
         property real edgeDragY: 0
-        readonly property string wallpaperSource: Config.value("wallpaperOverride", "") || (ThemeIndex.current?.wallpaper ?? "")
+        readonly property string wallpaperSource: DynamicWallpaper.stillPath
 
         // The update signal is a desktop status, not a module users need to
         // position manually. Keep exactly one instance immediately after the

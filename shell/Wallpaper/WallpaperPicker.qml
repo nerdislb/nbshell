@@ -17,6 +17,7 @@ import qs.Widgets
 PanelWindow {
     id: root
 
+    property bool preferencesOpen: false
     property int selected: 0
     property string previous: ""
 
@@ -46,7 +47,7 @@ PanelWindow {
     anchors.bottom: true
 
     function close() {
-        box.dismiss(() => Runtime.wallpaperOpen = false);
+        (preferencesOpen ? preferences : box).dismiss(() => Runtime.wallpaperOpen = false);
     }
 
     function syncSelection() {
@@ -86,6 +87,7 @@ PanelWindow {
     onVisibleChanged: {
         if (!visible)
             return;
+        preferencesOpen = false;
         previous = Config.value("wallpaperOverride", "");
         jumpPending = true;
         Wallpapers.refresh();
@@ -116,7 +118,8 @@ PanelWindow {
         id: keys
 
         anchors.fill: parent
-        focus: root.visible
+        focus: root.visible && !root.preferencesOpen
+        visible: !root.preferencesOpen
 
         Keys.onEscapePressed: root.cancel()
         Keys.onLeftPressed: root.preview(root.selected - 1)
@@ -125,6 +128,11 @@ PanelWindow {
         Keys.onEnterPressed: root.close()
         Keys.onTabPressed: root.toggleScope()
         Keys.onPressed: event => {
+            if (event.key === Qt.Key_D) {
+                root.preferencesOpen = true;
+                editor.forceActiveFocus();
+                event.accepted = true;
+            }
             // `r` zurueck auf das Bild, das das Theme selbst mitbringt.
             if (event.key === Qt.Key_R) {
                 Wallpapers.reset();
@@ -158,6 +166,8 @@ PanelWindow {
                 anchors.margins: Theme.cellW
                 height: Theme.cellH * 1.6
                 text: {
+                    if (DynamicWallpaper.settings.daytimeEnabled || DynamicWallpaper.settings.image)
+                        return "WALLPAPERS · dynamic active · select fallback";
                     if (Wallpapers.loading)
                         return "WALLPAPER  ·  searching …";
                     if (root.list.length === 0)
@@ -178,6 +188,14 @@ PanelWindow {
                 height: header.height
                 spacing: Theme.spaceXs
 
+                ControlButton {
+                    text: "DYNAMIC"
+                    height: scopeButtons.height
+                    onTriggered: {
+                        root.preferencesOpen = true;
+                        editor.forceActiveFocus();
+                    }
+                }
                 Repeater {
                     model: [
                         { "value": "theme", "label": "CURRENT THEME" },
@@ -314,9 +332,28 @@ PanelWindow {
                 anchors.bottom: parent.bottom
                 anchors.right: parent.right
                 anchors.margins: Theme.cellW
-                text: "←→ browse · Tab scope · Enter apply · r theme default · Esc back"
+                text: "←→ browse · Tab scope · d dynamic · Enter apply · r theme default · Esc back"
                 color: Theme.muted
             }
         }
     }
+    MotionSurface {
+        id: preferences
+        visible: root.preferencesOpen
+        accentBorder: true
+        anchors.centerIn: parent
+        width: Math.min(parent.width - Theme.spaceXl * 2, Theme.cellW * 80)
+        height: Math.min(parent.height - Theme.spaceXl * 2, editor.implicitHeight + Theme.panelPadding * 2)
+        MouseArea { anchors.fill: parent }
+        WallpaperSettings {
+            id: editor
+            anchors.fill: parent
+            anchors.margins: Theme.panelPadding
+            onBack: {
+                root.preferencesOpen = false;
+                keys.forceActiveFocus();
+            }
+        }
+    }
+
 }
