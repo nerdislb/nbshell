@@ -32,8 +32,16 @@ ShellRoot {
     Timer { interval: 1500; running: true; onTriggered: Qt.quit() }
 }
 ''')
-    env = dict(os.environ, QT_QPA_PLATFORM='offscreen', XDG_STATE_HOME=str(root / 'state'))
-    result = subprocess.run([qs, '-p', str(root)], env=env, capture_output=True, text=True, timeout=8)
+    env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_QPA_PLATFORMTHEME='',
+               QT_QUICK_BACKEND='software', XDG_STATE_HOME=str(root / 'state'))
+    try:
+        result = subprocess.run([qs, '-p', str(root)], env=env, capture_output=True, text=True, timeout=8)
+    except subprocess.TimeoutExpired as error:
+        print('Clipboard runtime timed out; partial Quickshell output:', flush=True)
+        for output in (error.stdout, error.stderr):
+            if output:
+                print(output.decode(errors='replace') if isinstance(output, bytes) else output, flush=True)
+        raise
     assert result.returncode == 0, result.stdout + result.stderr
     saved = root / 'state/nbshell/clipboard.json'
     assert saved.exists(), result.stdout + result.stderr
