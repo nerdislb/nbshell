@@ -93,12 +93,10 @@ def _clean_output(text: str) -> str:
 
 
 def _base_env() -> dict[str, str]:
-    env = os.environ.copy()
-    for key in tuple(env):
-        if key.startswith(("HERDR_", "HERMES_WRITE_", "CLAUDE_CODE_")):
-            env.pop(key, None)
-    env["NO_COLOR"] = "1"
-    env["TERM"] = "dumb"
+    env = {"HOME": str(Path.home()), "PATH": str(Path.home() / ".local/bin") + ":/usr/local/bin:/usr/bin",
+           "LANG": "C.UTF-8", "NO_COLOR": "1", "TERM": "dumb"}
+    for key in ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME"):
+        if os.environ.get(key): env[key] = os.environ[key]
     return env
 
 
@@ -131,7 +129,8 @@ def _gemini_command(prompt: str) -> tuple[list[str], str]:
     cli = f"{home}/.gemini/antigravity-cli"
     data = f"{home}/.local/share"
     command = [
-        bwrap, "--die-with-parent", "--new-session",
+        bwrap, "--die-with-parent", "--new-session", "--unshare-all", "--share-net",
+        "--clearenv", "--cap-drop", "ALL",
         "--ro-bind", "/usr", "/usr", "--symlink", "usr/bin", "/bin",
         "--symlink", "usr/lib", "/lib", "--symlink", "usr/lib", "/lib64",
         "--ro-bind", "/etc", "/etc", "--dir", "/run", "--dir", "/run/systemd",
@@ -148,7 +147,13 @@ def _gemini_command(prompt: str) -> tuple[list[str], str]:
         "--dir", f"{home}/.local", "--dir", data,
         "--ro-bind", f"{data}/antigravity", f"{data}/antigravity",
         "--ro-bind", str(BROKER_HOME), str(BROKER_HOME),
-        "--setenv", "HOME", home, "--chdir", str(BROKER_HOME), str(agy),
+        "--dir", f"{home}/.config", "--dir", f"{cli}/state", "--dir", "/tmp/runtime",
+        "--setenv", "HOME", home, "--setenv", "PATH", "/usr/bin",
+        "--setenv", "LANG", "C.UTF-8", "--setenv", "NO_COLOR", "1", "--setenv", "TERM", "dumb",
+        "--setenv", "XDG_CONFIG_HOME", f"{home}/.config",
+        "--setenv", "XDG_DATA_HOME", data, "--setenv", "XDG_CACHE_HOME", f"{cli}/cache",
+        "--setenv", "XDG_STATE_HOME", f"{cli}/state", "--setenv", "XDG_RUNTIME_DIR", "/tmp/runtime",
+        "--chdir", str(BROKER_HOME), str(agy),
         "--sandbox", "--mode", "plan", "--print", prompt, "--output-format", "text",
     ]
     return command, str(BROKER_HOME)
@@ -237,7 +242,7 @@ def _safe_markdown(value: object) -> str:
 def _broker_repository(value: object) -> str:
     text = _safe_text(value, "repository")
     path = Path(text).expanduser().resolve()
-    root = (Path.home() / "projects").resolve()
+    root = Path.home().resolve()
     if path != root and root not in path.parents:
         raise ValueError(f"transaction repositories must be under {root}")
     return str(path)
@@ -388,19 +393,19 @@ async def call_tool(_context, params):
     arguments = params.arguments or {}
     if params.name == "prepare_brain_proposal":
         try:
-            result = _brain_command("create", _safe_text(arguments.get("target"), "target"), _safe_markdown(arguments.get("markdown")), _safe_text(arguments.get("mode"), "mode"),
+            result = await asyncio.to_thread(_brain_command, "create", _safe_text(arguments.get("target"), "target"), _safe_markdown(arguments.get("markdown")), _safe_text(arguments.get("mode"), "mode"),
                                     _safe_text(arguments.get("author_provider"), "author_provider"), _safe_text(arguments.get("reviewer_provider"), "reviewer_provider"),
                                     _safe_text(arguments.get("rationale"), "rationale"))
             return types.CallToolResult(content=[types.TextContent(text=json.dumps(result))])
         except (ValueError, RuntimeError) as exc: return types.CallToolResult(content=[types.TextContent(text=str(exc))], isError=True)
     if params.name == "revise_brain_proposal":
         try:
-            result = _brain_command("revise", _safe_text(arguments.get("proposal_id"), "proposal_id"), _safe_markdown(arguments.get("markdown")))
+            result = await asyncio.to_thread(_brain_command, "revise", _safe_text(arguments.get("proposal_id"), "proposal_id"), _safe_markdown(arguments.get("markdown")))
             return types.CallToolResult(content=[types.TextContent(text=json.dumps(result))])
         except (ValueError, RuntimeError) as exc: return types.CallToolResult(content=[types.TextContent(text=str(exc))], isError=True)
     if params.name == "brain_proposal_status":
         try:
-            result = _brain_command("list", "--proposal", _safe_text(arguments.get("proposal_id"), "proposal_id")); result.pop("diff", None)
+            result = await asyncio.to_thread(_brain_command, "list", "--proposal", _safe_text(arguments.get("proposal_id"), "proposal_id")); result.pop("diff", None)
             return types.CallToolResult(content=[types.TextContent(text=json.dumps(result))])
         except (ValueError, RuntimeError) as exc: return types.CallToolResult(content=[types.TextContent(text=str(exc))], isError=True)
     if params.name == "start_supervised_team":
@@ -408,13 +413,13 @@ async def call_tool(_context, params):
             repository = _broker_repository(arguments.get("repository"))
             goal = _safe_text(arguments.get("goal"), "goal")
             plan = json.dumps({"tasks": arguments.get("tasks", []), "checks": arguments.get("checks", [])})
-            result = _team_command("create", repository, goal, plan)
+            result = await asyncio.to_thread(_team_command, "create", repository, goal, plan)
             return types.CallToolResult(content=[types.TextContent(text=json.dumps(result))])
         except (ValueError, RuntimeError) as exc:
             return types.CallToolResult(content=[types.TextContent(text=str(exc))], isError=True)
     if params.name == "supervised_team_status":
         try:
-            result = _team_command("list", "--team", _safe_text(arguments.get("team_id"), "team_id"))
+            result = await asyncio.to_thread(_team_command, "list", "--team", _safe_text(arguments.get("team_id"), "team_id"))
             result.pop("diff", None)
             return types.CallToolResult(content=[types.TextContent(text=json.dumps(result))])
         except (ValueError, RuntimeError) as exc:
@@ -423,7 +428,7 @@ async def call_tool(_context, params):
         try:
             repository = _broker_repository(arguments.get("repository"))
             task = _safe_text(arguments.get("task"), "task")
-            result = _job_command("create", JOB_TOOLS[params.name], repository, task)
+            result = await asyncio.to_thread(_job_command, "create", JOB_TOOLS[params.name], repository, task)
             return types.CallToolResult(content=[types.TextContent(text=json.dumps(result))])
         except (ValueError, RuntimeError) as exc:
             return types.CallToolResult(content=[types.TextContent(text=str(exc))], isError=True)
@@ -431,14 +436,14 @@ async def call_tool(_context, params):
         try:
             job_id = _safe_text(arguments.get("job_id"), "job_id")
             provider = _safe_text(arguments.get("provider"), "provider")
-            result = _job_command("review", job_id, provider)
+            result = await asyncio.to_thread(_job_command, "review", job_id, provider)
             return types.CallToolResult(content=[types.TextContent(text=json.dumps(result))])
         except (ValueError, RuntimeError) as exc:
             return types.CallToolResult(content=[types.TextContent(text=str(exc))], isError=True)
     if params.name == "agent_job_status":
         try:
             job_id = _safe_text(arguments.get("job_id"), "job_id")
-            result = _job_command("list", "--job", job_id)
+            result = await asyncio.to_thread(_job_command, "list", "--job", job_id)
             result.pop("diff", None)
             return types.CallToolResult(content=[types.TextContent(text=json.dumps(result))])
         except (ValueError, RuntimeError) as exc:

@@ -73,6 +73,7 @@ with tempfile.TemporaryDirectory() as temporary:
             run.return_value.returncode = 0
             agents.launch("hermes", None, resume=resume)
         launched = popen.call_args.args[0]
+        assert popen.call_args.kwargs["env"]["HERMES_WRITE_SAFE_ROOT"] == str(agents.HERMES_PILOT)
         assert launched[:6] == [
             "systemd-run", "--user", "--scope", "--quiet", "--collect",
             "--slice=app.slice",
@@ -112,6 +113,7 @@ with tempfile.TemporaryDirectory() as temporary:
     assert "--yolo" in trusted and str(agents.HERMES_PILOT) not in trusted
     assert popen.call_args.kwargs["cwd"] == trusted_project
     assert popen.call_args.kwargs["env"]["TERMINAL_CWD"] == str(trusted_project)
+    assert popen.call_args.kwargs["env"]["HERMES_WRITE_SAFE_ROOT"] == str(root)
     run.assert_called_once()
     assert run.call_args.args[0][-2:] == ["terminal.cwd", str(trusted_project)]
 
@@ -121,6 +123,7 @@ with tempfile.TemporaryDirectory() as temporary:
     trusted_home = " ".join(popen.call_args.args[0])
     assert "--in " + str(root) in trusted_home and "--yolo" in trusted_home
     assert popen.call_args.kwargs["cwd"] == root
+    assert popen.call_args.kwargs["env"]["HERMES_WRITE_SAFE_ROOT"] == str(root)
 
     trusted_config["hermesProvider"] = "gemini"; agents.CONFIG_FILE.write_text(json.dumps(trusted_config))
     with patch.object(agents.Path, "home", return_value=root), patch.object(agents.shutil, "which", side_effect=binary), patch.object(agents.subprocess, "run") as run, patch.object(agents.subprocess, "Popen") as popen:

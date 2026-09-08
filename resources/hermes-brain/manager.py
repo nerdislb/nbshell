@@ -95,9 +95,12 @@ def _target(value: str) -> tuple[str, Path]:
     relative = Path(str(value or ""))
     if relative.is_absolute() or ".." in relative.parts or len(relative.parts) < 2 or relative.parts[0] not in ALLOWED_ROOTS or relative.suffix != ".md":
         raise SystemExit("Target must be a Markdown note below 01_Projects, 02_Knowledge, 03_Daily, or 04_Inbox")
-    target = (BRAIN_ROOT / relative).resolve(strict=False)
+    target = BRAIN_ROOT
+    for part in relative.parts:
+        target = target / part
+        if target.is_symlink(): raise SystemExit("Symlink targets are not allowed")
+    target = target.resolve(strict=False)
     if BRAIN_ROOT not in target.parents: raise SystemExit("Target escapes the Second Brain")
-    if target.exists() and target.is_symlink(): raise SystemExit("Symlink targets are not allowed")
     return relative.as_posix(), target
 
 
@@ -203,7 +206,9 @@ def review_worker(proposal_id: str) -> None:
         task = ("Review this proposed update to the user's Second Brain. The workspace contains only the target note, not the full vault. "
                 "Check that the change records confirmed facts, distinguishes decisions from assumptions, contains no credentials or unnecessary personal data, follows Markdown structure, and stays within the stated rationale. "
                 "Do not edit. End with VERDICT: APPROVE or VERDICT: REVISE.\n\nTARGET: " + proposal["target"] + "\nRATIONALE: " + proposal["rationale"])
-        result = jobs._run_agent({"id": proposal_id, "task": task}, proposal["reviewer"], review=True, workspace_override=_workspace(proposal_id))
+        result = jobs._run_agent({"id": proposal_id, "task": task, "base": proposal["workspace_base"],
+                                  "commit": proposal["commit"]}, proposal["reviewer"],
+                                 review=True, workspace_override=_workspace(proposal_id))
         output = ((result.stdout or "") + "\n" + (result.stderr or ""))[-60000:]
         verdicts = re.findall(r"(?im)^\s*VERDICT:\s*(APPROVE|REVISE)\s*$", output)
         status = "awaiting_approval" if result.returncode == 0 and verdicts and verdicts[-1].upper() == "APPROVE" else "revision_requested"

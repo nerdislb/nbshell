@@ -531,7 +531,9 @@ def launch(agent_id: str | None, project: str | None, prompt: str = "", quick: b
         else:
             cwd = HERMES_PILOT
         launch_env = os.environ.copy()
-        launch_env["HERMES_WRITE_SAFE_ROOT"] = str(cwd)
+        # Trusted sessions may switch projects without changing their write
+        # boundary. The initial cwd is navigation, not an authorization scope.
+        launch_env["HERMES_WRITE_SAFE_ROOT"] = str(Path.home().resolve() if trusted else cwd)
         if provider["native"]:
             # Hermes' TUI gateway prefers terminal.cwd from config.yaml over
             # both the process cwd and the CLI's explicit --in directory when

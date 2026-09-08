@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+from functools import cache
 import importlib.util
 import json
 import os
@@ -89,9 +90,10 @@ def _process_alive(record: dict) -> bool:
 
 
 def _git(repo: Path, *args: str, timeout: int = 120, check: bool = True):
-    return subprocess.run(["git", "-C", str(repo), *args], text=True, capture_output=True, timeout=timeout, check=check)
+    return _jobs()._git(repo, *args, timeout=timeout, check=check)
 
 
+@cache
 def _jobs():
     spec = importlib.util.spec_from_file_location("nbshell_hermes_jobs", JOB_MANAGER)
     if not spec or not spec.loader: raise SystemExit("Hermes transaction manager is unavailable")
@@ -138,7 +140,8 @@ def create(repository: str, goal: str, plan_json: str) -> dict:
         running = list_teams()["running"]
         if running: raise SystemExit("Only one supervised team may run at a time")
         team_id = time.strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(3)
-        team = {"schema": 1, "id": team_id, "repository": str(repo), "base": base, "branch": branch,
+        team = {"schema": 1, "isolationVersion": jobs.ISOLATION_VERSION,
+                "id": team_id, "repository": str(repo), "base": base, "branch": branch,
                 "goal": goal, "status": "planning", "created": _now(), "updated": _now(), "started": _now(),
                 "pid": 0, "pid_start": "", "launcher_pid": os.getpid(), "launcher_start": _process_start(os.getpid()),
                 "tasks": tasks, "checks": checks, "check_results": [], "integration_commit": "",
@@ -197,12 +200,14 @@ def _reviewer(provider: str, attempt: int) -> str:
 
 def _integrate(team: dict) -> None:
     jobs = _jobs(); target = _workspace(team["id"])
+    jobs.require_isolation(team)
     if target.exists(): shutil.rmtree(target)
     target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    subprocess.run(["git", "clone", "--no-hardlinks", "--no-checkout", team["repository"], str(target)], check=True, capture_output=True, timeout=180)
+    _git(target.parent, "clone", "--no-hardlinks", "--no-checkout", team["repository"], str(target), timeout=180)
     _git(target, "checkout", "--detach", team["base"]); _git(target, "config", "user.name", "nbshell Hermes Team"); _git(target, "config", "user.email", "noreply@nbshell.local")
     for task in team["tasks"]:
         job = jobs._read(task["job_id"]); source = jobs._workspace(job["id"])
+        jobs.require_isolation(job)
         _git(target, "fetch", "--no-tags", str(source), job["commit"])
         picked = _git(target, "cherry-pick", "FETCH_HEAD", check=False)
         if picked.returncode:
@@ -210,9 +215,10 @@ def _integrate(team: dict) -> None:
                 "Resolve only the current Git cherry-pick conflicts in /workspace. Preserve the intent of both the already integrated work and this task: "
                 + task["title"] + ". Inspect the conflict, edit the files, and run focused checks. Do not abort or finish the cherry-pick yourself.")}
             result = jobs._run_agent(repair, "codex", workspace_override=target)
+            team["repairProvider"] = "codex"
             (_dir(team["id"]) / f"integration-repair-{task['id']}.log").write_text(((result.stdout or "") + (result.stderr or ""))[-60000:])
             _git(target, "add", "-A")
-            continued = _git(target, "cherry-pick", "--continue", check=False)
+            continued = _git(target, "-c", "core.editor=true", "cherry-pick", "--continue", check=False)
             if result.returncode or continued.returncode:
                 _git(target, "cherry-pick", "--abort", check=False)
                 raise RuntimeError(f"Integration conflict in {task['title']} could not be resolved safely")
@@ -224,16 +230,62 @@ def _checks(team: dict) -> None:
     target = _workspace(team["id"]); team["check_results"] = []
     for command in team["checks"]:
         started = time.monotonic()
-        sandbox = ["bwrap", "--die-with-parent", "--new-session", "--unshare-all", "--ro-bind", "/usr", "/usr",
+        sandbox = ["bwrap", "--die-with-parent", "--new-session", "--unshare-all",
+                   "--clearenv", "--cap-drop", "ALL", "--ro-bind", "/usr", "/usr",
                    "--ro-bind", "/etc", "/etc", "--ro-bind", "/opt", "/opt", "--proc", "/proc", "--dev", "/dev",
                    "--symlink", "usr/bin", "/bin", "--symlink", "usr/lib", "/lib", "--symlink", "usr/lib", "/lib64",
-                   "--tmpfs", "/tmp", "--tmpfs", "/home", "--bind", str(target), "/workspace", "--chdir", "/workspace",
+                   "--tmpfs", "/tmp", "--tmpfs", "/home", "--bind", str(target), "/workspace",
+                   "--ro-bind", str(target / ".git"), "/workspace/.git", "--chdir", "/workspace",
+                   "--setenv", "PATH", "/usr/bin", "--setenv", "LANG", "C.UTF-8",
                    "--setenv", "HOME", "/tmp", "--setenv", "NO_COLOR", "1", "--setenv", "CI", "1"]
-        result = subprocess.run(sandbox + command, text=True, capture_output=True, timeout=900, check=False)
+        result = subprocess.run(sandbox + command, env=_jobs().process_environment(),
+                                text=True, capture_output=True, timeout=900, check=False)
         row = {"command": command, "returncode": result.returncode, "seconds": round(time.monotonic() - started, 2),
                "output": ((result.stdout or "") + (result.stderr or ""))[-6000:]}
         team["check_results"].append(row)
         if result.returncode: raise RuntimeError("Integration check failed: " + " ".join(command))
+
+
+def _review_integration(team: dict) -> None:
+    """Review exactly the commit that Apply will import, after any repair."""
+    jobs = _jobs(); target = _workspace(team["id"])
+    jobs.require_isolation(team)
+    commit = team["integration_commit"]
+    # Checks may create artifacts or edit source files, but cannot write .git.
+    # Restore the immutable deliverable before presenting it to the reviewer.
+    _git(target, "reset", "--hard", commit)
+    _git(target, "clean", "-ffdx")
+    authors = {task["provider"] for task in team["tasks"]}
+    if team.get("repairProvider"): authors.add(team["repairProvider"])
+    outsiders = [provider for provider in PROVIDERS if provider not in authors]
+    # If all providers contributed, two separate final reviews ensure every
+    # author's changes receive approval from another provider.
+    providers = outsiders[:1] or list(PROVIDERS[:2])
+    reviews = []
+    stamp = {"commit": commit, "providers": providers, "approved": False,
+             "independent": False, "reviews": reviews}
+    team["integrationReview"] = stamp
+    for provider in providers:
+        review = {"id": team["id"], "base": team["base"], "commit": commit,
+                  "task": "Review the final integrated team result, including conflict resolutions.\n" + team["goal"]}
+        result = jobs._run_agent(review, provider, review=True, workspace_override=target)
+        output = ((result.stdout or "") + "\n" + (result.stderr or ""))[-60000:]
+        verdicts = re.findall(r"(?im)^\s*VERDICT:\s*(APPROVE|REVISE)\s*$", output)
+        approved = result.returncode == 0 and bool(verdicts) and verdicts[-1].upper() == "APPROVE"
+        reviews.append({"provider": provider, "approved": approved, "summary": output})
+        stamp["finished"] = _now()
+        if not approved:
+            raise RuntimeError("Final integration review did not approve this commit")
+    stamp["independent"] = all(any(provider != author for provider in providers) for author in authors)
+    stamp["approved"] = stamp["independent"]
+
+
+def _approved_integration(team: dict) -> bool:
+    review = team.get("integrationReview", {})
+    return (team.get("isolationVersion") == _jobs().ISOLATION_VERSION
+            and bool(team.get("integration_commit")) and review.get("approved") is True
+            and review.get("independent") is True
+            and review.get("commit") == team["integration_commit"])
 
 
 def coordinator(team_id: str) -> None:
@@ -242,6 +294,7 @@ def coordinator(team_id: str) -> None:
         with _locked(team_id):
             team = _read(team_id)
             if team["status"] not in ACTIVE: return
+            jobs.require_isolation(team)
             pid = int(team.get("pid") or 0)
             if pid and pid != os.getpid(): return
             if not pid and not _process_alive({"pid": team.get("launcher_pid", 0), "pid_start": team.get("launcher_start", "")}): return
@@ -280,13 +333,19 @@ def coordinator(team_id: str) -> None:
                         task["status"] = "reviewing"; changed = True
                 elif status == "reviewed": task["status"] = "approved"; changed = True
                 else: task["status"] = status
-            if all(task["status"] == "approved" for task in team["tasks"]):
+            if all(task["status"] in {"approved", "integrated"} for task in team["tasks"]):
                 team["status"] = "integrating"; team["summary"] = "All tasks approved; integrating isolated commits"
                 if not _persist_active(team): return
                 _integrate(team); team["status"] = "testing"
                 if not _persist_active(team): return
                 _checks(team)
-                team["status"] = "awaiting_approval"; team["summary"] = "Team result reviewed, integrated, and checked; human approval required"
+                try:
+                    _review_integration(team)
+                finally:
+                    _persist_active(team)
+                team["status"] = "awaiting_approval"
+                check_summary = "Checks passed" if team["checks"] else "No automated checks were requested"
+                team["summary"] = "Final integrated commit reviewed. " + check_summary + "; human approval required"
                 changed = True
             else:
                 states = {task["status"] for task in team["tasks"]}
@@ -312,6 +371,7 @@ def control(team_id: str, action: str, yes: bool = False) -> dict:
             team["status"] = "paused"; team["summary"] = "Paused; already-running isolated jobs may finish safely"
         elif action == "resume":
             if team["status"] not in {"paused", "failed"}: raise SystemExit("Only paused or failed teams can resume")
+            _jobs().require_isolation(team)
             team["status"] = "running"; team["error"] = ""; team["pid"] = _spawn(team_id); team["pid_start"] = _process_start(team["pid"])
         elif action == "cancel":
             jobs = _jobs()
@@ -338,6 +398,7 @@ def control(team_id: str, action: str, yes: bool = False) -> dict:
             team["status"] = "rejected"; shutil.rmtree(DATA_ROOT / team_id, ignore_errors=True)
         elif action == "apply":
             if team["status"] != "awaiting_approval": raise SystemExit("Team is not ready for human approval")
+            if not _approved_integration(team): raise SystemExit("The final integrated commit requires independent review")
             repo = Path(team["repository"])
             if _git(repo, "rev-parse", "HEAD").stdout.strip() != team["base"] or _git(repo, "status", "--porcelain").stdout.strip():
                 raise SystemExit("Source repository moved or is dirty; no changes were applied")
@@ -348,13 +409,15 @@ def control(team_id: str, action: str, yes: bool = False) -> dict:
         elif action == "install":
             if team["status"] not in {"applied", "installed"}: raise SystemExit("Apply before installation")
             installer = Path(team["repository"]) / "install.sh"
-            if not installer.is_file(): raise SystemExit("Repository has no install.sh")
-            result = subprocess.run([str(installer)], cwd=team["repository"], timeout=900, check=False)
+            if not installer.is_file() or not os.access(installer, os.X_OK): raise SystemExit("Repository has no executable install.sh")
+            result = subprocess.run([str(installer)], cwd=team["repository"], text=True,
+                                    capture_output=True, timeout=900, check=False)
+            (_dir(team_id) / "install.log").write_text(((result.stdout or "") + (result.stderr or ""))[-60000:])
             if result.returncode: raise SystemExit(f"Installer exited with {result.returncode}")
             team["status"] = "installed"
         elif action == "push":
             if team["status"] not in {"applied", "installed"}: raise SystemExit("Apply before push")
-            result = _git(Path(team["repository"]), "push", "origin", team["branch"], timeout=180, check=False)
+            result = _jobs()._host_push(Path(team["repository"]), team["branch"])
             if result.returncode: raise SystemExit((result.stderr or "Push failed").splitlines()[-1])
             team["status"] = "pushed"
         else: raise SystemExit("Unknown team action")
@@ -363,15 +426,15 @@ def control(team_id: str, action: str, yes: bool = False) -> dict:
 
 
 def public(team: dict, detail: bool = False) -> dict:
-    result = {key: team.get(key) for key in ("id", "repository", "branch", "base", "goal", "status", "created", "updated", "summary", "error", "tasks", "checks", "check_results", "actions")}
+    result = {key: team.get(key) for key in ("id", "repository", "branch", "base", "goal", "status", "created", "updated", "summary", "error", "tasks", "checks", "check_results", "actions", "integrationReview")}
     complete = sum(task.get("status") in {"approved", "integrated"} for task in team.get("tasks", []))
     result["progress"] = 100 if team.get("status") in {"awaiting_approval", "applied", "installed", "pushed"} else round(complete * 80 / max(1, len(team.get("tasks", []))))
     result["elapsed"] = max(0, _now() - team.get("started", team.get("created", _now())))
     result["agent_calls"] = sum(int(task.get("attempt", 0)) + sum(
         1 for item in task.get("history", []) if item.get("reviewer")) for task in team.get("tasks", []))
-    result["can_apply"] = team.get("status") == "awaiting_approval"; result["can_install"] = team.get("status") in {"applied", "installed"}
+    result["can_apply"] = team.get("status") == "awaiting_approval" and _approved_integration(team); result["can_install"] = team.get("status") in {"applied", "installed"}
     result["can_push"] = team.get("status") in {"applied", "installed"}; result["can_resume"] = team.get("status") in {"paused", "failed"}
-    if detail and team.get("integration_commit") and _workspace(team["id"]).is_dir():
+    if detail and team.get("isolationVersion") == _jobs().ISOLATION_VERSION and team.get("integration_commit") and _workspace(team["id"]).is_dir():
         result["diff"] = _git(_workspace(team["id"]), "diff", "--no-ext-diff", f"{team['base']}..{team['integration_commit']}").stdout[-120000:]
     return result
 

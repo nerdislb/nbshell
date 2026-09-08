@@ -65,7 +65,44 @@ with tempfile.TemporaryDirectory() as temporary:
         # The documented local release gate exercises the real namespace. GitHub's
         # container blocks user-namespace creation even when bubblewrap is installed.
         teams._checks(current)
+    with patch.object(jobs, "_run_agent", return_value=subprocess.CompletedProcess([], 0, "VERDICT: REVISE", "")):
+        try:
+            teams._review_integration(current)
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError("rejected integration was accepted")
+    assert not teams._approved_integration(current)
+    with patch.object(jobs, "_run_agent", return_value=subprocess.CompletedProcess([], 0, "VERDICT: APPROVE", "")) as reviewer:
+        teams._review_integration(current)
+        assert reviewer.call_args.kwargs["review"] is True
+        assert reviewer.call_args.args[0]["commit"] == current["integration_commit"]
+    assert teams._approved_integration(current)
+    original_tasks = current["tasks"]
+    current["tasks"] = [{"provider": provider} for provider in teams.PROVIDERS]
+    with patch.object(jobs, "_run_agent", return_value=subprocess.CompletedProcess([], 0, "VERDICT: APPROVE", "")) as reviewer:
+        teams._review_integration(current)
+        reviewed_by = [call.args[1] for call in reviewer.call_args_list]
+        assert len(reviewed_by) == 2
+        assert all(any(provider != author for provider in reviewed_by) for author in teams.PROVIDERS)
+        assert teams._approved_integration(current)
+    with patch.object(jobs, "_run_agent", side_effect=[subprocess.CompletedProcess([], 0, "VERDICT: APPROVE", ""), subprocess.CompletedProcess([], 0, "VERDICT: REVISE", "")]):
+        try: teams._review_integration(current); raise AssertionError("second review rejection ignored")
+        except RuntimeError: pass
+    assert not teams._approved_integration(current)
+    current["tasks"] = original_tasks
+    with patch.object(jobs, "_run_agent", return_value=subprocess.CompletedProcess([], 0, "VERDICT: APPROVE", "")):
+        teams._review_integration(current)
     current.update(status="awaiting_approval", updated=teams._now()); teams._write(current)
+    saved_review = dict(current["integrationReview"])
+    current["integrationReview"]["commit"] = "0" * 40; teams._write(current)
+    try:
+        teams.control(team["id"], "apply", True)
+    except SystemExit as exc:
+        assert "requires independent review" in str(exc)
+    else:
+        raise AssertionError("review for another commit was accepted")
+    current["integrationReview"] = saved_review; teams._write(current)
     assert not (repo / "marker.txt").exists()
     try: teams.control(team["id"], "apply", False); raise AssertionError("approval gate failed")
     except SystemExit as exc: assert "requires --yes" in str(exc)

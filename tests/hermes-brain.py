@@ -34,8 +34,10 @@ with tempfile.TemporaryDirectory() as temporary:
     proposal_id = created["id"]
     assert note.read_text() == "# Existing\n" and unrelated.read_text() == "user work\n"
     jobs = brain._jobs()
-    with patch.object(jobs, "_run_agent", return_value=subprocess.CompletedProcess([], 0, "Reviewed\nVERDICT: APPROVE", "")), patch.object(brain, "_jobs", return_value=jobs):
+    with patch.object(jobs, "_run_agent", return_value=subprocess.CompletedProcess([], 0, "Reviewed\nVERDICT: APPROVE", "")) as reviewer, patch.object(brain, "_jobs", return_value=jobs):
         brain.review_worker(proposal_id)
+    reviewed = reviewer.call_args.args[0]
+    assert reviewed["base"] != reviewed["commit"]
     assert brain.list_proposals(proposal_id)["can_apply"] is True
     try: brain.control(proposal_id, "apply", False); raise AssertionError("approval gate failed")
     except SystemExit as exc: assert "requires --yes" in str(exc)
@@ -53,6 +55,17 @@ with tempfile.TemporaryDirectory() as temporary:
     for forbidden in ("00_Meta/AGENTS.md", "05_Sources/source.md", "../escape.md", "01_Projects/not.txt"):
         try: brain._target(forbidden); raise AssertionError(f"accepted forbidden target {forbidden}")
         except SystemExit: pass
+
+    (vault / "01_Projects/link.md").symlink_to(note)
+    (vault / "01_Projects/linked-dir").symlink_to(note.parent, target_is_directory=True)
+    for linked in ("01_Projects/link.md", "01_Projects/linked-dir/project.md"):
+        try:
+            brain._target(linked)
+            raise AssertionError("symlink target accepted")
+        except SystemExit:
+            pass
+    (vault / "01_Projects/link.md").unlink()
+    (vault / "01_Projects/linked-dir").unlink()
 
     with patch.object(brain, "_spawn_review", return_value=os.getpid()):
         late = brain.create("04_Inbox/late.md", "# Late\n", "create", "codex", "claude", "test stale completion")

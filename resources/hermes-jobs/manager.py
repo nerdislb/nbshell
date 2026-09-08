@@ -32,6 +32,7 @@ MAX_TASK_CHARS = 12_000
 MAX_JOBS = 30
 MAX_CONCURRENT_JOBS = 3
 GEMINI_PRINT_TIMEOUT = "25m"
+ISOLATION_VERSION = 2
 SECRET_PATTERNS = (
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
     re.compile(r"\b(?:sk|ghp|github_pat|xox[baprs])[-_][A-Za-z0-9_-]{16,}\b"),
@@ -128,14 +129,47 @@ def _terminate_process(job: dict) -> bool:
         os.close(descriptor)
 
 
-def _run(command: list[str], *, cwd: Path | None = None, timeout: int = 30,
-         capture: bool = True, check: bool = True) -> subprocess.CompletedProcess:
-    return subprocess.run(command, cwd=cwd, text=True, capture_output=capture,
-                          timeout=timeout, check=check)
-
-
 def _git(repo: Path, *args: str, timeout: int = 30, check: bool = True) -> subprocess.CompletedProcess:
-    return _run(["git", "-C", str(repo), *args], timeout=timeout, check=check)
+    # Transaction Git never inherits filters, hooks, helpers or GIT_* variables
+    # from a provider or the interactive shell. Its metadata is host-owned and
+    # mounted read-only whenever an agent or project test can run.
+    env = process_environment()
+    env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL="/dev/null",
+               GIT_ATTR_NOSYSTEM="1", GIT_TERMINAL_PROMPT="0", GIT_EDITOR="true")
+    command = ["/usr/bin/git", "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false",
+               "-c", "core.attributesFile=/dev/null", "-c", "protocol.ext.allow=never",
+               "-c", "submodule.recurse=false", "-c", "user.name=nbshell Hermes Transaction",
+               "-c", "user.email=noreply@nbshell.local", "-C", str(repo), *args]
+    return subprocess.run(command, env=env, text=True, capture_output=True, timeout=timeout, check=check)
+
+
+def _host_push(repo: Path, branch: str) -> subprocess.CompletedProcess:
+    # Called only after explicit human approval, on the user's source checkout.
+    # Preserve trusted credential helpers and URL rewrites for HTTPS remotes.
+    env = process_environment()
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    for key in ("DBUS_SESSION_BUS_ADDRESS", "XDG_RUNTIME_DIR"):
+        if os.environ.get(key): env[key] = os.environ[key]
+    return subprocess.run(["/usr/bin/git", "-c", "core.hooksPath=/dev/null",
+                           "-c", "core.fsmonitor=false", "-c", "protocol.ext.allow=never",
+                           "-C", str(repo), "push", "origin", branch], env=env,
+                          text=True, capture_output=True, timeout=180, check=False)
+
+
+def process_environment() -> dict[str, str]:
+    """Host-side launch environment; provider sandboxes clear it again."""
+    env = {"HOME": str(Path.home()), "PATH": str(Path.home() / ".local/bin") + ":/usr/local/bin:/usr/bin", "LANG": "C.UTF-8"}
+    for key in ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME"):
+        if os.environ.get(key): env[key] = os.environ[key]
+    # Only human-facing Git push needs the user's existing SSH agent.
+    if os.environ.get("SSH_AUTH_SOCK"):
+        env["SSH_AUTH_SOCK"] = os.environ["SSH_AUTH_SOCK"]
+    return env
+
+
+def require_isolation(record: dict) -> None:
+    if record.get("isolationVersion") != ISOLATION_VERSION:
+        raise RuntimeError("This transaction predates protected Git metadata; create a new transaction")
 
 
 def _safe_task(value: str) -> str:
@@ -184,7 +218,8 @@ def create(provider: str, repository: str, task: str) -> dict:
             raise SystemExit(f"At most {MAX_CONCURRENT_JOBS} transaction jobs may run concurrently")
         job_id = time.strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(3)
         job = {
-            "schema": 1, "id": job_id, "provider": provider, "repository": str(repo),
+            "schema": 1, "isolationVersion": ISOLATION_VERSION,
+            "id": job_id, "provider": provider, "repository": str(repo),
             "branch": branch, "base": base, "task": task, "status": "queued",
             "created": _now(), "updated": _now(), "pid": 0, "pid_start": "",
             "launcher_pid": os.getpid(), "launcher_start": _process_start(os.getpid()), "commit": "",
@@ -246,6 +281,7 @@ def _bwrap(job_id: str, workspace: Path, writable: bool, provider: str) -> tuple
     home = _sandbox_home(job_id, provider)
     command = [
         "bwrap", "--die-with-parent", "--new-session", "--unshare-all", "--share-net",
+        "--clearenv", "--cap-drop", "ALL",
         "--ro-bind", "/usr", "/usr", "--ro-bind", "/opt", "/opt",
         "--symlink", "usr/bin", "/bin", "--symlink", "usr/lib", "/lib",
         "--symlink", "usr/lib", "/lib64", "--ro-bind", "/etc", "/etc",
@@ -260,6 +296,10 @@ def _bwrap(job_id: str, workspace: Path, writable: bool, provider: str) -> tuple
     if resolver.exists():
         command.extend(["--ro-bind", str(resolver), str(resolver)])
     command.extend(["--bind" if writable else "--ro-bind", str(workspace), "/workspace"])
+    metadata = workspace / ".git"
+    if not metadata.is_dir() or metadata.is_symlink():
+        raise RuntimeError("Transaction requires a real, protected .git directory")
+    command.extend(["--ro-bind", str(metadata), "/workspace/.git"])
     command.extend(["--bind", str(home), "/sandbox-home"])
     real_home = Path.home()
     provider_files = {
@@ -275,7 +315,7 @@ def _bwrap(job_id: str, workspace: Path, writable: bool, provider: str) -> tuple
             _copy_private_file(source, home / relative)
         else:
             _bind_file(command, source, Path("/sandbox-home") / relative)
-    env = {"HOME": "/sandbox-home", "XDG_CONFIG_HOME": "/sandbox-home/.config", "XDG_CACHE_HOME": "/sandbox-home/.cache", "XDG_RUNTIME_DIR": "/sandbox-home/runtime", "NO_COLOR": "1", "TERM": "dumb"}
+    env = {"HOME": "/sandbox-home", "PATH": "/usr/bin", "LANG": "C.UTF-8", "XDG_CONFIG_HOME": "/sandbox-home/.config", "XDG_CACHE_HOME": "/sandbox-home/.cache", "XDG_RUNTIME_DIR": "/sandbox-home/runtime", "NO_COLOR": "1", "TERM": "dumb"}
     for key, value in env.items():
         command.extend(["--setenv", key, value])
     command.extend(["--chdir", "/workspace"])
@@ -287,9 +327,12 @@ def _agent_prompt(job: dict, review: bool = False) -> str:
         "You are working inside a disposable transaction workspace. Never push, never access another "
         "directory, never request credentials, and never alter system configuration. The only project "
         "directory is /workspace; create and edit every deliverable there, never in a scratch directory. "
+        "Git metadata is read-only. Do not stage, commit, reset, or change Git configuration; "
+        "leave file changes in the working tree for the host to collect. "
     )
     if review:
-        return boundary + "Review the existing change read-only. Identify correctness, security, regressions, and missing tests. End with VERDICT: APPROVE or VERDICT: REVISE.\n\nTASK:\n" + job["task"]
+        revision = f"Review git diff {job.get('base', 'HEAD')}..{job.get('commit', 'HEAD')}. "
+        return boundary + revision + "Identify correctness, security, regressions, and missing tests. End with VERDICT: APPROVE or VERDICT: REVISE.\n\nTASK:\n" + job["task"]
     return boundary + (
         "Implement the task completely in this workspace. Run proportionate tests. Do not merely describe "
         "the solution. Leave all intended changes in the working tree and finish with a concise summary.\n\nTASK:\n"
@@ -329,7 +372,8 @@ def _run_agent(job: dict, provider: str, review: bool = False,
             "--setenv", "PATH", "/usr/bin",
         ])
         command[0] = "/sandbox-home/.local/share/antigravity/bin/agy"
-    return subprocess.run(prefix + command, text=True, capture_output=True, timeout=1800, check=False)
+    return subprocess.run(prefix + command, env=process_environment(), text=True,
+                          capture_output=True, timeout=1800, check=False)
 
 
 def worker(job_id: str) -> None:
@@ -349,7 +393,8 @@ def worker(job_id: str) -> None:
     workspace = _workspace(job_id)
     workspace.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     try:
-        _run(["git", "clone", "--no-hardlinks", "--no-checkout", job["repository"], str(workspace)], timeout=180)
+        require_isolation(job)
+        _git(workspace.parent, "clone", "--no-hardlinks", "--no-checkout", job["repository"], str(workspace), timeout=180)
         _git(workspace, "checkout", "--detach", job["base"], timeout=60)
         _git(workspace, "config", "user.name", "nbshell Hermes Transaction")
         _git(workspace, "config", "user.email", "noreply@nbshell.local")
@@ -390,6 +435,7 @@ def start_review(job_id: str, provider: str) -> dict:
         raise SystemExit("Unknown provider")
     with _locked(job_id):
         job = _read(job_id)
+        require_isolation(job)
         if job["status"] not in {"ready", "reviewed"}:
             raise SystemExit("Job is not ready for review")
         if provider == job["provider"]:
@@ -437,6 +483,7 @@ def review_worker(job_id: str, provider: str) -> None:
             job = _read(job_id)
             if job["status"] != "reviewing" or not any(row.get("provider") == provider and row.get("status") == "running" for row in job["reviews"]):
                 return
+            require_isolation(job)
             _record_process(job, os.getpid())
             job["launcher_pid"] = 0; job["launcher_start"] = ""; job["updated"] = _now(); _write(job)
         result = _run_agent(job, provider, review=True)
@@ -477,6 +524,7 @@ def apply_job(job_id: str, yes: bool) -> dict:
     _require_yes(yes)
     with _locked(job_id):
         job = _read(job_id)
+        require_isolation(job)
         if job["status"] != "reviewed" or not any(r.get("status") == "approved" for r in job["reviews"]):
             raise SystemExit("A different provider must approve the job before it can be applied")
         repo = Path(job["repository"])
@@ -523,7 +571,7 @@ def push_job(job_id: str, yes: bool) -> dict:
         repo = Path(job["repository"])
         if _git(repo, "branch", "--show-current").stdout.strip() != job["branch"]:
             raise SystemExit("Source repository is no longer on the original branch")
-        result = _git(repo, "push", "origin", job["branch"], timeout=180, check=False)
+        result = _host_push(repo, job["branch"])
         if result.returncode:
             raise SystemExit((result.stderr or "Push failed").strip().splitlines()[-1])
         job["status"] = "pushed"; job["updated"] = _now(); job["actions"].append({"action": "push", "timestamp": _now()}); _write(job)
@@ -555,11 +603,14 @@ def public_job(job: dict, detail: bool = False) -> dict:
         result["task"] = str(result.get("task") or "")[:1200]
         result["summary"] = str(result.get("summary") or "")[:1200]
         result["error"] = str(result.get("error") or "")[:500]
-    result["can_review"] = job.get("status") in {"ready", "reviewed"}
-    result["can_apply"] = job.get("status") == "reviewed" and any(r.get("status") == "approved" for r in job.get("reviews", []))
+    protected = job.get("isolationVersion") == ISOLATION_VERSION
+    result["can_review"] = protected and job.get("status") in {"ready", "reviewed"}
+    result["can_apply"] = protected and job.get("status") == "reviewed" and any(r.get("status") == "approved" for r in job.get("reviews", []))
+    if not protected:
+        result["error"] = "Legacy transaction: create a new job with protected Git metadata"
     result["can_install"] = job.get("status") in {"applied", "installed"} and (Path(job["repository"]) / "install.sh").is_file()
     result["can_push"] = job.get("status") in {"applied", "installed"}
-    if detail and job.get("commit") and _workspace(job["id"]).is_dir():
+    if protected and detail and job.get("commit") and _workspace(job["id"]).is_dir():
         result["diff"] = _git(_workspace(job["id"]), "diff", "--no-ext-diff", f"{job['base']}..{job['commit']}", timeout=60).stdout[-120000:]
     return result
 
