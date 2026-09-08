@@ -4,6 +4,9 @@ import os
 import pathlib
 import subprocess
 import tempfile
+from unittest.mock import patch
+from contextlib import redirect_stderr
+import io
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SPEC = importlib.util.spec_from_file_location("umbriel_update", ROOT / "shell/scripts/umbriel-update.py")
@@ -16,7 +19,7 @@ assert UPDATE.canonical_remote("https://github.com/noctalia-dev/umbriel.git") ==
     "https://github.com/noctalia-dev/umbriel"
 
 updates_qml = (ROOT / "shell/Services/ShellUpdates.qml").read_text()
-assert updates_qml.count("' install --yes;") == 2
+assert '"-e", "sh", "-c"' not in updates_qml
 
 
 def run(*args, cwd):
@@ -108,14 +111,55 @@ with tempfile.TemporaryDirectory() as name:
     else:
         raise AssertionError("invalid update target was accepted")
 
+    checkout = source_root / "umbriel"
+    run("git", "switch", "-c", "fix/pointer-focus-modifiers", cwd=checkout)
+    run("git", "config", "user.email", "test@nbshell.local", cwd=checkout)
+    run("git", "config", "user.name", "nbshell test", cwd=checkout)
+    (checkout / "modifier-fix").write_text("preserve keyboard modifiers\n")
+    run("git", "add", "modifier-fix", cwd=checkout)
+    run("git", "commit", "-qm", "fix: forward keyboard modifiers to pointer-focused clients", cwd=checkout)
+    local_head = UPDATE.git(checkout, "rev-parse", "HEAD")
+    ahead = UPDATE.status()
+    assert ahead["ok"] and not ahead["installable"] and not ahead["available"]
+    assert ahead["projects"]["umbriel"]["ahead"] == 1
+    assert ahead["projects"]["umbriel"]["behind"] == 0
+    (umbriel_seed / "README").write_text("another upstream change\n")
+    run("git", "commit", "-qam", "upstream-only", cwd=umbriel_seed)
+    run("git", "push", "-q", "origin", "main", cwd=umbriel_seed)
+    divergent = UPDATE.status()
+    assert divergent["ok"] and divergent["error"] == ""
+    assert not divergent["installable"] and not divergent["available"]
+    assert "Local development branch fix/pointer-focus-modifiers" in divergent["blockedReason"]
+    assert divergent["projects"]["umbriel"]["ahead"] == 1
+    assert divergent["projects"]["umbriel"]["behind"] == 1
+    with patch.object(UPDATE, "build_project", side_effect=AssertionError("must not build")):
+        message = io.StringIO()
+        with redirect_stderr(message):
+            assert UPDATE.install(True) == 1
+        assert "preserve your local work" in message.getvalue()
+    assert UPDATE.git(checkout, "rev-parse", "HEAD") == local_head
+    assert (checkout / "modifier-fix").read_text() == "preserve keyboard modifiers\n"
+    try:
+        UPDATE.prepare_worktree(checkout, str(remotes / "umbriel.git"),
+                                divergent["projects"]["umbriel"]["target"], prepared)
+    except RuntimeError as exc:
+        assert "does not fast-forward" in str(exc)
+    else:
+        raise AssertionError("divergent worktree accepted")
+    with patch.object(UPDATE, "remote_head", side_effect=RuntimeError("network unavailable")):
+        failed = UPDATE.status()
+        assert not failed["ok"] and not failed["installable"]
+        assert "remote check failed" in failed["error"]
+        assert failed["blockedReason"] == ""
+
     run("git", "checkout", "--orphan", "replacement", cwd=umbriel_seed)
     (umbriel_seed / "README").write_text("replacement history\n")
     run("git", "add", "README", cwd=umbriel_seed)
     run("git", "commit", "-qm", "replacement history", cwd=umbriel_seed)
     run("git", "push", "-qf", "origin", "HEAD:main", cwd=umbriel_seed)
     divergent = UPDATE.status(fetch=True)
-    assert not divergent["ok"] and not divergent["available"] and not divergent["installable"]
-    assert "does not fast-forward" in divergent["error"]
+    assert divergent["ok"] and not divergent["available"] and not divergent["installable"]
+    assert "Local development branch" in divergent["blockedReason"]
 
     (source_root / "umbriel" / "README").write_text("local change\n")
     dirty = UPDATE.status(fetch=False)

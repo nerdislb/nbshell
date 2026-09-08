@@ -353,11 +353,9 @@ PanelWindow {
                                 + (ShellUpdates.updateAvailable ? 1 : 0)
                                 + (ShellUpdates.compositorUpdateAvailable ? 1 : 0)
                             label: "Updates"
-                            detail: Updates.checking || ShellUpdates.checking || ShellUpdates.compositorChecking
-                                ? "checking all sources …"
-                                : (availableKinds > 0 ? availableKinds + " update sources ready" : "system, nbshell and Umbriel current")
+                            detail: ShellUpdates.summary
                             glyph: Icons.download
-                            tone: availableKinds > 0 ? Theme.yellow : Theme.green
+                            tone: ShellUpdates.allCurrent ? Theme.green : Theme.yellow
                             run: () => {
                                 root.updatesOpen = true;
                                 if (!Updates.ready)

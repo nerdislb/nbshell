@@ -63,14 +63,7 @@ checkout "$PORTAL_REPO" "$SOURCE_ROOT/xdg-desktop-portal-umbriel" "$PORTAL_REVIS
 
 build_project() {
     local source="$1"
-    local build="$source/build-nbshell"
-    if [ -d "$build" ]; then
-        meson setup "$build" "$source" --reconfigure --buildtype=release --prefix="$PREFIX"
-    else
-        meson setup "$build" "$source" --buildtype=release --prefix="$PREFIX"
-    fi
-    meson compile -C "$build"
-    meson test -C "$build" --print-errorlogs
+    NBSHELL_UMBRIEL_PREFIX="$PREFIX" python3 "$ROOT/shell/scripts/umbriel-update.py" build --source "$source" --project "$(basename "$source")"
 }
 
 build_project "$SOURCE_ROOT/umbriel"

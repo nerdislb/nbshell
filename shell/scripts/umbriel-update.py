@@ -80,19 +80,27 @@ def project_status(path: pathlib.Path, expected_remote: str, fetch: bool = True)
                for line in status_lines]
     latest = current
     error = ""
+    blocked_reason = ""
+    branch = git(path, "branch", "--show-current") or "detached HEAD"
+    ahead = behind = 0
     if fetch:
         try:
             latest = remote_head(expected_remote)
             if latest != current:
                 git(path, "fetch", "--quiet", "--no-tags", expected_remote, latest)
                 if not is_ancestor(path, current, latest):
-                    error = "remote HEAD does not fast-forward the current checkout"
-        except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+                    ahead, behind = map(int, git(path, "rev-list", "--left-right", "--count",
+                                                 f"{current}...{latest}").split())
+                    blocked_reason = (f"Local development branch {branch}: {ahead} local and "
+                                      f"{behind} upstream-only commits. Automatic updates are paused "
+                                      "to preserve your local work.")
+        except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as exc:
             error = f"remote check failed: {exc}"
     return {
         "current": current[:8], "latest": latest[:8],
-        "available": latest != current and not error,
+        "available": latest != current and not error and not blocked_reason,
         "clean": clean, "changes": changes, "target": latest, "error": error,
+        "blockedReason": blocked_reason, "branch": branch, "ahead": ahead, "behind": behind,
     }
 
 
@@ -109,31 +117,70 @@ def status(fetch: bool = True) -> dict:
             result["projects"][name] = project_status(root / name, remote, fetch)
         rows = list(result["projects"].values())
         result["available"] = any(row["available"] for row in rows)
-        result["installable"] = all(row["clean"] and not row["error"] for row in rows)
+        result["installable"] = all(row["clean"] and not row["error"]
+                                    and not row.get("blockedReason") for row in rows)
         result["ok"] = not any(row["error"] for row in rows)
         errors = [f"{name}: {row['error']}" for name, row in result["projects"].items() if row["error"]]
+        blocks = [f"{name}: {row['blockedReason']}" for name, row in result["projects"].items()
+                  if row.get("blockedReason")]
+        result["blockedReason"] = "; ".join(blocks)
         if errors:
             result["error"] = "; ".join(errors)
-        elif result["available"] and not result["installable"]:
+        if result["available"] and any(not row["clean"] for row in rows):
             dirty = []
             for name, row in result["projects"].items():
                 if not row["clean"]:
                     paths = ", ".join(row.get("changes", [])) or "unknown files"
                     dirty.append(f"{name}: {paths}")
-            result["blockedReason"] = "Local source changes block this update: " + "; ".join(dirty)
+            result["blockedReason"] = "; ".join(filter(None, [result["blockedReason"],
+                "Local source changes block this update: " + "; ".join(dirty)]))
     except (OSError, subprocess.SubprocessError) as exc:
         result["error"] = f"Umbriel check failed: {exc}"
     return result
 
 
-def build_project(source: pathlib.Path) -> pathlib.Path:
+def build_project(source: pathlib.Path, project_name: str) -> pathlib.Path:
+    if project_name not in dict(PROJECTS):
+        raise RuntimeError("Unknown compositor stack project")
     build = source / "build-nbshell"
     setup = ["meson", "setup", str(build), str(source), "--buildtype=release", f"--prefix={PREFIX}"]
     if build.is_dir():
         setup.append("--reconfigure")
     subprocess.run(setup, check=True)
+    options = json.loads(subprocess.check_output(
+        ["meson", "introspect", str(build), "--buildoptions"], text=True,
+    ))
+    project = json.loads(subprocess.check_output(
+        ["meson", "introspect", str(build), "--projectinfo"], text=True,
+    ))
+    compositor = project_name == "umbriel"
+    test_option = next((option for option in options if option.get("name") == "tests"), None)
+    if compositor and test_option:
+        value = "true" if test_option.get("type") == "boolean" else "enabled"
+        subprocess.run(["meson", "configure", str(build), "-Dtests=" + value], check=True)
     subprocess.run(["meson", "compile", "-C", str(build)], check=True)
+    tests = json.loads(subprocess.check_output(
+        ["meson", "introspect", str(build), "--tests"], text=True,
+    ))
+    if compositor and not tests:
+        raise RuntimeError("Umbriel defines no tests; refusing an untested compositor install")
+    if not tests:
+        print(f"{project.get('descriptive_name', source.name)} defines no upstream tests.")
     subprocess.run(["meson", "test", "-C", str(build), "--print-errorlogs"], check=True)
+    if compositor:
+        # Check required commands/actions without pretending every newer commit
+        # has the exact provenance of the pinned reference fixture.
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("umbriel_contract", pathlib.Path(__file__).with_name("umbriel-contract.py"))
+        contract = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(contract)
+        try:
+            discovered = contract.discover(str(build / "umbriel"), contract.load_contract())
+        except contract.ContractError as exc:
+            raise RuntimeError(str(exc)) from exc
+        missing = [row["id"] for row in discovered["capabilities"] if row["required"] and not row["available"]]
+        if missing:
+            raise RuntimeError("Umbriel is missing required capabilities: " + ", ".join(missing))
     return build
 
 
@@ -166,7 +213,8 @@ def advance_checkout(path: pathlib.Path, expected_remote: str, target: str) -> N
 def install(assume_yes: bool) -> int:
     info = status(fetch=True)
     if not info["ok"] or not info["installable"]:
-        print(info["error"], file=sys.stderr)
+        print(info["error"] or info["blockedReason"] or "Local source changes block this update.",
+              file=sys.stderr)
         return 1
     if not info["available"]:
         print("Umbriel and its portal are already up to date.")
@@ -191,7 +239,7 @@ def install(assume_yes: bool) -> int:
                 target = info["projects"][name]["target"]
                 worktrees.append((source, worktree))
                 prepare_worktree(source, remote, target, worktree)
-                builds.append(build_project(worktree))
+                builds.append(build_project(worktree, name))
                 installed.append((source, remote, target))
             stage = temp / "install-stage"
             for build in builds:
@@ -217,16 +265,23 @@ def install(assume_yes: bool) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Check and update the Umbriel compositor stack")
-    parser.add_argument("command", nargs="?", choices=("check", "install"), default="check")
+    parser.add_argument("command", nargs="?", choices=("check", "install", "build"), default="check")
+    parser.add_argument("--project", choices=tuple(dict(PROJECTS)), help=argparse.SUPPRESS)
+    parser.add_argument("--source", type=pathlib.Path, help=argparse.SUPPRESS)
     parser.add_argument("--yes", action="store_true")
     parser.add_argument("--offline", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.command == "build" and (args.source is None or args.project is None):
+        parser.error("build requires --source and --project")
     if args.command == "check":
         print(json.dumps(status(fetch=not args.offline)))
         return 0
     try:
+        if args.command == "build":
+            build_project(args.source.resolve(), args.project)
+            return 0
         return install(args.yes)
-    except (OSError, subprocess.SubprocessError) as exc:
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as exc:
         print(f"Umbriel update failed: {exc}", file=sys.stderr)
         return 1
 

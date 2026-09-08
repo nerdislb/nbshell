@@ -26,6 +26,7 @@ Singleton {
     property var aur: []
     property var flatpak: []
     property bool checking: false
+    property string error: ""
     property date lastCheck: new Date(0)
     property bool rebootRecommended: false
     property var rebootPackages: []
@@ -72,8 +73,10 @@ Singleton {
     // Das Skript macht beides in einem Durchlauf (Pakete, dann Flatpaks) und
     // meldet danach die Zahlen neu.
     function update() {
-        const line = root.env + "bash '" + root.script + "' run; echo; read -n1 -r -p 'done — press any key to close the window'";
-        Quickshell.execDetached([root.terminal, "-e", "sh", "-c", line]);
+        ShellUpdates.launchUpdateTerminal([
+            "env", "NBSHELL_UPDATE_NOCONFIRM=" + (root.noconfirm ? "1" : "0"),
+            "bash", ShellUpdates.terminalScript, "system"
+        ], "System Updates");
         // Nach einem Update stimmt die Zahl in der Leiste nicht mehr. Wann das
         // Terminal fertig ist, weiss die Shell nicht -- also einmal nach einer
         // Weile nachsehen.
@@ -104,11 +107,18 @@ Singleton {
                     root.aur = data.aur ?? [];
                     root.flatpak = data.flatpak ?? [];
                     root.lastCheck = new Date();
+                    root.error = "";
                 } catch (e) {
+                    root.error = "System update check returned unreadable data";
                     console.warn("nbshell/updates: Antwort unlesbar —", e);
                 }
                 root.checking = false;
             }
+        }
+        onExited: code => {
+            if (code !== 0)
+                root.error = "System update check failed";
+            root.checking = false;
         }
     }
 

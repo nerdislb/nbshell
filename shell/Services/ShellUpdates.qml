@@ -14,7 +14,8 @@ Singleton {
 
     readonly property string script: Qt.resolvedUrl("../scripts/nbshell-update.py").toString().replace("file://", "")
     readonly property string compositorScript: Qt.resolvedUrl("../scripts/umbriel-update.py").toString().replace("file://", "")
-    readonly property string channel: Config.value("shellUpdateChannel", "beta")
+    readonly property string channel: Config.value("shellUpdateChannel", "beta") === "stable" ? "stable" : "beta"
+    readonly property string terminalScript: Qt.resolvedUrl("../scripts/update-terminal.sh").toString().replace("file://", "")
     readonly property string terminal: Config.value("terminal", "") || Quickshell.env("TERMINAL") || "xterm"
     property string current: ""
     property string latest: ""
@@ -36,8 +37,27 @@ Singleton {
     property var compositorProjects: ({})
 
     readonly property bool anyUpdateAvailable: updateAvailable || compositorUpdateAvailable
+    readonly property bool allCurrent: Updates.ready && ready && compositorReady
+        && compositorInstalled && !Updates.checking && !checking && !compositorChecking
+        && Updates.error === "" && error === "" && compositorError === ""
+        && compositorBlockedReason === "" && !anyUpdateAvailable && Updates.count === 0
+    readonly property string summary: {
+        if (Updates.checking || checking || compositorChecking)
+            return qsTr("Checking all sources …");
+        if (Updates.error !== "" || error !== "" || compositorError !== "")
+            return qsTr("Update check needs attention");
+        if (compositorBlockedReason !== "")
+            return qsTr("Umbriel automatic update paused");
+        if (!Updates.ready || !ready || !compositorReady)
+            return qsTr("Not all sources checked yet");
+        if (!compositorInstalled)
+            return qsTr("Umbriel sources unavailable");
+        if (anyUpdateAvailable || Updates.count > 0)
+            return qsTr("Updates available — review sources");
+        return qsTr("System, nbshell and Umbriel current");
+    }
 
-    function launchUpdateTerminal(line, title) {
+    function launchUpdateTerminal(command, title) {
         // The installer deliberately restarts nbshell.service. A terminal
         // launched as a direct Quickshell child would share that cgroup and be
         // killed halfway through the update. Give it its own transient user
@@ -47,12 +67,12 @@ Singleton {
         const binary = String(root.terminal).split("/").pop();
         if (binary === "ghostty")
             terminal.push("--gtk-single-instance=false", "--class=dev.nerdi.nbshell.updater", "--title=" + title);
-        terminal.push("-e", "sh", "-c", line);
+        terminal.push("-e");
         const unit = "nbshell-update-" + Date.now();
         Quickshell.execDetached([
             "systemd-run", "--user", "--quiet", "--collect",
             "--unit=" + unit, "--property=Type=exec", "--"
-        ].concat(terminal));
+        ].concat(terminal, command));
     }
 
     function refresh() {
@@ -68,23 +88,19 @@ Singleton {
     }
 
     function install() {
-        const line = "python3 '" + root.script + "' install --channel '" + root.channel
-            + "'; code=$?; echo; read -n1 -r -p 'done — press any key to close the window'; exit $code";
-        root.launchUpdateTerminal(line, "nbshell Update");
+        root.launchUpdateTerminal(["bash", root.terminalScript, "shell", root.channel], "nbshell Update");
     }
 
     function installCompositor() {
-        const line = "python3 '" + root.compositorScript
-            + "' install --yes; code=$?; echo; read -n1 -r -p 'done — press any key to close the window'; exit $code";
-        root.launchUpdateTerminal(line, "Umbriel Update");
+        if (compositorChecking || !compositorReady || !compositorInstallable
+                || !compositorUpdateAvailable || compositorBlockedReason !== "" || compositorError !== "")
+            return;
+        root.launchUpdateTerminal(["bash", root.terminalScript, "compositor"], "Umbriel Update");
     }
 
     function installAll() {
         if (root.updateAvailable && root.installable && root.compositorUpdateAvailable && root.compositorInstallable) {
-            const line = "python3 '" + root.script + "' install --channel '" + root.channel
-                + "' && python3 '" + root.compositorScript
-                + "' install --yes; code=$?; echo; read -n1 -r -p 'done — press any key to close the window'; exit $code";
-            root.launchUpdateTerminal(line, "Desktop Update");
+            root.launchUpdateTerminal(["bash", root.terminalScript, "desktop", root.channel], "Desktop Update");
         } else if (root.updateAvailable && root.installable) {
             root.install();
         } else if (root.compositorUpdateAvailable && root.compositorInstallable) {
@@ -113,6 +129,9 @@ Singleton {
                     root.prerelease = data.prerelease === true;
                     root.ready = true;
                 } catch (e) {
+                    root.ready = false;
+                    root.updateAvailable = false;
+                    root.installable = false;
                     root.error = "Release check returned unreadable data";
                 }
                 root.checking = false;
@@ -140,6 +159,10 @@ Singleton {
                     root.compositorError = data.error ?? "";
                     root.compositorReady = true;
                 } catch (e) {
+                    root.compositorReady = false;
+                    root.compositorUpdateAvailable = false;
+                    root.compositorInstallable = false;
+                    root.compositorBlockedReason = "";
                     root.compositorError = "Umbriel update check returned unreadable data";
                 }
                 root.compositorChecking = false;

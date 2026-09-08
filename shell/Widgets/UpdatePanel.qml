@@ -74,10 +74,10 @@ Column {
     function compositorDetail() {
         if (ShellUpdates.compositorChecking)
             return qsTr("Checking official repositories …");
-        if (ShellUpdates.compositorBlockedReason !== "")
-            return ShellUpdates.compositorBlockedReason;
         if (ShellUpdates.compositorError !== "")
             return ShellUpdates.compositorError;
+        if (ShellUpdates.compositorBlockedReason !== "")
+            return ShellUpdates.compositorBlockedReason;
         if (!ShellUpdates.compositorReady)
             return qsTr("Umbriel and portal have not been checked yet");
         if (!ShellUpdates.compositorInstalled)
@@ -99,6 +99,8 @@ Column {
     function systemState() {
         if (Updates.checking)
             return qsTr("CHECKING");
+        if (Updates.error !== "")
+            return qsTr("ERROR");
         if (!Updates.ready)
             return qsTr("PENDING");
         return Updates.count > 0 ? "" : qsTr("CURRENT");
@@ -117,14 +119,16 @@ Column {
     function compositorState() {
         if (ShellUpdates.compositorChecking)
             return qsTr("CHECKING");
+        if (ShellUpdates.compositorError !== "")
+            return qsTr("ERROR");
+        if (ShellUpdates.compositorBlockedReason !== "")
+            return qsTr("PAUSED");
         if (!ShellUpdates.compositorReady)
             return qsTr("PENDING");
         if (!ShellUpdates.compositorInstalled)
             return qsTr("NOT INSTALLED");
         if (ShellUpdates.compositorUpdateAvailable && !ShellUpdates.compositorInstallable)
             return qsTr("BLOCKED");
-        if (ShellUpdates.compositorError !== "")
-            return qsTr("ERROR");
         return ShellUpdates.compositorUpdateAvailable ? "" : qsTr("CURRENT");
     }
 
@@ -137,10 +141,9 @@ Column {
             rowWidth: root.rowWidth - headerActions.width - Theme.spaceLg
             icon: root.checking ? Icons.refresh : Icons.download
             title: qsTr("Updates")
-            subtitle: root.checking ? qsTr("Checking all sources")
-                : (root.availableKinds > 0 ? qsTr("Ready to install") : qsTr("Everything is current"))
+            subtitle: ShellUpdates.summary
             badge: root.checking ? "…" : String(root.availableKinds)
-            badgeColor: root.availableKinds > 0 ? Theme.yellow : Theme.green
+            badgeColor: ShellUpdates.allCurrent ? Theme.green : Theme.yellow
         }
 
         Row {
@@ -175,7 +178,7 @@ Column {
         glyph: Icons.download
         title: qsTr("System packages")
         detail: Updates.checking ? qsTr("Checking repositories, AUR and Flatpak …")
-            : (!Updates.ready ? qsTr("Not checked yet")
+            : (Updates.error !== "" ? Updates.error : !Updates.ready ? qsTr("Not checked yet")
             : (Updates.count > 0
                 ? qsTr("%1 repositories · %2 AUR · %3 Flatpak").arg(Updates.repo.length).arg(Updates.aur.length).arg(Updates.flatpak.length)
                 : qsTr("Repositories, AUR and Flatpak are current")))
@@ -298,7 +301,8 @@ Column {
         title: qsTr("Umbriel stack")
         detail: root.compositorDetail()
         value: root.compositorState()
-        tone: ShellUpdates.compositorUpdateAvailable || ShellUpdates.compositorError !== "" ? Theme.yellow : Theme.green
+        tone: ShellUpdates.compositorUpdateAvailable || ShellUpdates.compositorError !== ""
+            || ShellUpdates.compositorBlockedReason !== "" ? Theme.yellow : Theme.green
         selected: ShellUpdates.compositorUpdateAvailable
         trailingInset: umbrielAction.visible ? umbrielAction.width + Theme.spaceLg : 0
 
@@ -315,6 +319,15 @@ Column {
             compact: true
             onTriggered: root.closeAfter(() => ShellUpdates.installCompositor())
         }
+    }
+
+    Line {
+        width: root.rowWidth
+        visible: !ShellUpdates.compositorChecking && ShellUpdates.compositorBlockedReason !== ""
+        text: ShellUpdates.compositorBlockedReason
+        wrapMode: Text.Wrap
+        color: Theme.fg
+        font.pixelSize: Theme.fontCaption
     }
 
     Row {
