@@ -376,17 +376,9 @@ def locker_running(command: list[str] | None = None) -> bool:
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
         return result.returncode == 0
-    if "-p" in command and str(LOCK_DIR) in command:
-        result = subprocess.run(
-            ["pgrep", "-f", f"(^|/)(quickshell|qs).* -p {str(LOCK_DIR)}($| )"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-        )
-        return result.returncode == 0
-    process_name = Path(command[0]).name
-    result = subprocess.run(
-        ["pgrep", "-x", process_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-    )
-    return result.returncode == 0
+    # A process name cannot prove that the compositor granted a session lock.
+    # External lockers are launched normally, but are never treated as ready.
+    return False
 
 
 def umbriel_binary() -> str | None:
@@ -452,10 +444,14 @@ def start_lock(suspend: bool = False) -> int:
     config = load_json(CONFIG_PATH)
     command, environment, native = selected_locker(config, generated, native_config)
     fallback_command = lock_command(config, generated)
-    # A fallback started after an earlier native failure is still a valid,
-    # secure locker. Do not race it with a second session-lock client.
-    if native and locker_running(fallback_command):
-        command, environment, native = fallback_command, os.environ.copy(), False
+    if suspend and not native:
+        message = "Suspend requires the native locker's secure readiness confirmation."
+        print("nbshell: " + message, file=sys.stderr)
+        notifier = shutil.which("notify-send")
+        if notifier:
+            subprocess.run([notifier, "--app-name=nbshell", "--urgency=critical", "Suspend blocked", message],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        return 1
     if not shutil.which(command[0]):
         print(f"nbshell: screen locker is not installed: {command[0]}", file=sys.stderr)
         return 127
@@ -495,26 +491,8 @@ def start_lock(suspend: bool = False) -> int:
         (str(row.get("id")) for row in windows_before if row.get("focused")), ""
     )
 
-    locker = None
-    if not locker_running(command):
-        if native:
-            READY_PATH.unlink(missing_ok=True)
-        locker = subprocess.Popen(command, env=environment)
-        deadline = time.monotonic() + (4.0 if native else 1.5)
-        while time.monotonic() < deadline:
-            code = locker.poll()
-            if code is not None:
-                print(f"nbshell: screen locker exited before suspend ({code})", file=sys.stderr)
-                return code or 1
-            if native and READY_PATH.is_file():
-                break
-            time.sleep(0.05)
-        else:
-            if native:
-                print("nbshell: screen locker did not confirm secure output coverage", file=sys.stderr)
-                return 1
-    elif native and not READY_PATH.is_file():
-        print("nbshell: native locker is running but not ready for suspend", file=sys.stderr)
+    if not locker_running(command) or not READY_PATH.is_file():
+        print("nbshell: native locker is not ready for suspend", file=sys.stderr)
         return 1
     result = subprocess.run(["systemctl", "suspend"])
     if result.returncode == 0 and umbriel and workspaces_before:
@@ -538,7 +516,7 @@ def main() -> int:
         running = locker_running(command)
         if native and not running:
             running = locker_running(lock_command(config, generated))
-        print("locked" if running else "unlocked")
+        print(("locked" if READY_PATH.is_file() else "locking") if native and running else ("unlocked" if native else "unknown"))
         return 0
     if action == "lock":
         return start_lock()

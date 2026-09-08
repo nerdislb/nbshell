@@ -186,41 +186,40 @@ def check_qml_contract() -> None:
 
 
 def check_suspend_guard() -> None:
-    alive = mock.Mock()
-    alive.poll.return_value = None
-    completed = mock.Mock(returncode=0)
+    # Neither an alive external process nor a forged process name proves locking.
     with (
         mock.patch.object(LOCKSCREEN, "render", return_value=Path("generated.conf")),
+        mock.patch.object(LOCKSCREEN, "render_native", return_value=Path("native.json")),
         mock.patch.object(LOCKSCREEN, "load_json", return_value={}),
         mock.patch.object(LOCKSCREEN, "native_command", return_value=None),
-        mock.patch.object(LOCKSCREEN, "locker_running", return_value=False),
-        mock.patch.object(LOCKSCREEN, "umbriel_binary", return_value=None),
-        mock.patch.object(LOCKSCREEN.shutil, "which", return_value="/usr/bin/hyprlock"),
-        mock.patch.object(LOCKSCREEN.subprocess, "Popen", return_value=alive),
-        mock.patch.object(LOCKSCREEN.subprocess, "run", return_value=completed) as run,
-        mock.patch.object(LOCKSCREEN.time, "monotonic", side_effect=[0.0, 0.5, 1.0, 1.5]),
-        mock.patch.object(LOCKSCREEN.time, "sleep"),
-    ):
-        assert LOCKSCREEN.start_lock(suspend=True) == 0
-        run.assert_called_once_with(["systemctl", "suspend"])
-
-    failed = mock.Mock()
-    failed.poll.side_effect = [None, None, 5]
-    with (
-        mock.patch.object(LOCKSCREEN, "render", return_value=Path("generated.conf")),
-        mock.patch.object(LOCKSCREEN, "load_json", return_value={}),
-        mock.patch.object(LOCKSCREEN, "native_command", return_value=None),
-        mock.patch.object(LOCKSCREEN, "locker_running", return_value=False),
-        mock.patch.object(LOCKSCREEN, "umbriel_binary", return_value=None),
-        mock.patch.object(LOCKSCREEN.shutil, "which", return_value="/usr/bin/hyprlock"),
-        mock.patch.object(LOCKSCREEN.subprocess, "Popen", return_value=failed),
+        mock.patch.object(LOCKSCREEN.shutil, "which", return_value=None),
         mock.patch.object(LOCKSCREEN.subprocess, "run") as run,
-        mock.patch.object(LOCKSCREEN.time, "monotonic", side_effect=[0.0, 0.0, 0.5, 1.0]),
-        mock.patch.object(LOCKSCREEN.time, "sleep"),
+        contextlib.redirect_stderr(io.StringIO()),
     ):
-        with contextlib.redirect_stderr(io.StringIO()):
-            assert LOCKSCREEN.start_lock(suspend=True) == 5
+        assert LOCKSCREEN.start_lock(suspend=True) == 1
+        assert LOCKSCREEN.locker_running(["hyprlock"]) is False
         run.assert_not_called()
+
+    with tempfile.TemporaryDirectory() as temporary:
+        ready = Path(temporary) / "ready"
+        command = ["systemctl", "--user", "start", LOCKSCREEN.NATIVE_UNIT]
+        with (
+            mock.patch.object(LOCKSCREEN, "render", return_value=Path("generated.conf")),
+            mock.patch.object(LOCKSCREEN, "render_native", return_value=Path("native.json")),
+            mock.patch.object(LOCKSCREEN, "load_json", return_value={}),
+            mock.patch.object(LOCKSCREEN, "selected_locker", return_value=(command, {}, True)),
+            mock.patch.object(LOCKSCREEN, "locker_running", return_value=True),
+            mock.patch.object(LOCKSCREEN, "umbriel_binary", return_value=None),
+            mock.patch.object(LOCKSCREEN, "READY_PATH", ready),
+            mock.patch.object(LOCKSCREEN.shutil, "which", return_value="/usr/bin/systemctl"),
+            mock.patch.object(LOCKSCREEN.subprocess, "run", return_value=mock.Mock(returncode=0)) as run,
+            contextlib.redirect_stderr(io.StringIO()),
+        ):
+            assert LOCKSCREEN.start_lock(suspend=True) == 1
+            run.assert_not_called()
+            ready.write_text("secure")
+            assert LOCKSCREEN.start_lock(suspend=True) == 0
+            run.assert_called_once_with(["systemctl", "suspend"])
 
 
 def check_umbriel_resume_repair() -> None:
