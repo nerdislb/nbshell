@@ -125,6 +125,7 @@ Item {
         }
 
         Text {
+          textFormat: Text.PlainText
           id: label
           anchors.bottom: parent.bottom
           anchors.horizontalCenter: parent.horizontalCenter

@@ -101,6 +101,7 @@ Item {
     spacing: Style.spacing.controlGap
 
     Text {
+      textFormat: Text.PlainText
       visible: root.iconText !== ""
       text: root.iconText
       color: root.selected
@@ -112,6 +113,7 @@ Item {
     }
 
     Text {
+      textFormat: Text.PlainText
       visible: root.text !== ""
       text: root.text
       color: root.foreground

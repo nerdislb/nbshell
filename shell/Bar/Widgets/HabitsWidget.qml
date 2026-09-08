@@ -102,6 +102,7 @@ Cell {
                         spacing: 8
 
                         Text {
+                            textFormat: Text.PlainText
                             text: modelData.icon || "✨"
                             font.pixelSize: 13
                             anchors.verticalCenter: parent.verticalCenter
@@ -148,6 +149,7 @@ Cell {
                             border.color: Theme.panelBorder
 
                             Text {
+                                textFormat: Text.PlainText
                                 anchors.centerIn: parent
                                 text: "+1"
                                 font.family: Theme.fontFamily
@@ -176,6 +178,7 @@ Cell {
                             border.color: row.isDone ? Theme.green : Theme.magenta
 
                             Text {
+                                textFormat: Text.PlainText
                                 anchors.centerIn: parent
                                 text: row.isDone ? "✔" : "▶"
                                 font.family: Theme.fontFamily
@@ -201,6 +204,7 @@ Cell {
                             border.color: row.isDone ? Theme.green : Theme.muted
 
                             Text {
+                                textFormat: Text.PlainText
                                 anchors.centerIn: parent
                                 text: row.isDone ? "✔" : ""
                                 font.family: Theme.fontFamily

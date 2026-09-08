@@ -269,6 +269,7 @@ Item {
       }
 
       Text {
+        textFormat: Text.PlainText
         id: countLabel
         anchors.verticalCenter: parent.verticalCenter
         text: root.visibleItems.length
@@ -381,6 +382,7 @@ Item {
     }
 
     Text {
+      textFormat: Text.PlainText
       id: emptyLabel
       width: parent.width
       height: visible ? contentHeight : 0
@@ -432,6 +434,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
 
         Text {
+          textFormat: Text.PlainText
           width: parent.width
           text: root.dragItem ? String(root.dragItem.name || "Untitled") : ""
           color: Color.foreground
@@ -442,6 +445,7 @@ Item {
         }
 
         Text {
+          textFormat: Text.PlainText
           width: parent.width
           text: root.dragItem ? String(root.dragItem.subtitle || "") : ""
           color: Qt.darker(Color.foreground, 1.3)

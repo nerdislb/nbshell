@@ -82,6 +82,7 @@ Column {
     implicitHeight: Style.space(70)
 
     Text {
+      textFormat: Text.PlainText
       anchors.centerIn: parent
       width: parent.width - Style.space(20)
       horizontalAlignment: Text.AlignHCenter

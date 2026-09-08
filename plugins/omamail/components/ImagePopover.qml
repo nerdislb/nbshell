@@ -88,6 +88,7 @@ Item {
           : Style.space(120)
 
         Text {
+          textFormat: Text.PlainText
           anchors.centerIn: parent
           width: picture.width - Style.space(20)
           horizontalAlignment: Text.AlignHCenter

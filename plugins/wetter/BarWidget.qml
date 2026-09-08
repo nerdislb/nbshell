@@ -195,6 +195,7 @@ Cell {
             spacing: Theme.cellH * 0.25
 
             component Line: Text {
+                textFormat: Text.PlainText
                 color: Theme.fg
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontBody

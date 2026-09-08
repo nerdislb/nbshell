@@ -111,6 +111,7 @@ Column {
     border.color: Style.hoverBorderFor(root.textColor, root.accentColor)
 
     Text {
+      textFormat: Text.PlainText
       id: missingText
       anchors.left: parent.left
       anchors.right: parent.right
@@ -141,6 +142,7 @@ Column {
       spacing: Style.space(10)
 
       Text {
+        textFormat: Text.PlainText
         width: parent.width
         text: "Create an OAuth client with application type Desktop app, and enable the Gmail API on the same project."
         color: root.dimColor
@@ -245,6 +247,7 @@ Column {
       // in Testing is issued seven-day refresh tokens, so the app would sign
       // the user out every week. It belongs beside the button it affects.
       Text {
+        textFormat: Text.PlainText
         width: parent.width
         text: "Press \"Publish app\" on your project first, or Google expires the session every seven days. An \"unverified app\" warning is expected — you are the developer."
         color: root.dimColor
@@ -284,6 +287,7 @@ Column {
       }
 
       Text {
+        textFormat: Text.PlainText
         width: parent.width
         visible: !!root.service && root.service.signInProgress !== ""
         text: root.service ? root.service.signInProgress : ""
@@ -349,6 +353,7 @@ Column {
   }
 
   Text {
+    textFormat: Text.PlainText
     width: parent.width
     visible: root.detailVisible
     text: "In Google Cloud, pick or create a project. Under APIs and Services, enable the Gmail API. "
@@ -392,6 +397,7 @@ Column {
       implicitHeight: Style.space(18)
 
       Text {
+        textFormat: Text.PlainText
         anchors.left: parent.left
         anchors.top: parent.top
         visible: !step.done
@@ -432,6 +438,7 @@ Column {
       spacing: Style.space(8)
 
       Text {
+        textFormat: Text.PlainText
         width: parent.width
         text: step.done && step.doneSummary !== "" ? step.doneSummary : step.title
         color: step.done ? root.dimColor : root.textColor

@@ -18,6 +18,7 @@ Column {
   spacing: Style.space(8)
 
   Text {
+    textFormat: Text.PlainText
     text: "CALENDARS"
     color: root.dimColor
     font.family: root.panelFontFamily
@@ -58,6 +59,7 @@ Column {
         spacing: Style.space(2)
 
         Text {
+          textFormat: Text.PlainText
           width: parent.width
           text: String(modelData.name || modelData.id || "Calendar")
           color: root.textColor
@@ -66,6 +68,7 @@ Column {
           elide: Text.ElideRight
         }
         Text {
+          textFormat: Text.PlainText
           width: parent.width
           text: modelData.kind === "google" ? "Google Calendar" : String(modelData.url || "CalDAV")
           color: root.dimColor

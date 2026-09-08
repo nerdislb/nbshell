@@ -135,6 +135,7 @@ Item {
                             }
 
                             Label {
+                                textFormat: Text.PlainText
                                 width: parent.width
                                 text: root.race
                                     ? ("ROUND " + root.race.round + "  ·  " + root.race.circuit)
@@ -181,6 +182,7 @@ Item {
                                 horizontalAlignment: Text.AlignHCenter
                             }
                             Label {
+                                textFormat: Text.PlainText
                                 width: parent.width
                                 text: service ? service.errorText : ""
                                 color: Theme.fgDim
@@ -207,6 +209,7 @@ Item {
                         }
 
                         Label {
+                            textFormat: Text.PlainText
                             width: Theme.cellW * 10
                             text: service && service.trackTag !== "" ? service.trackTag : ""
                             color: Theme.yellow
@@ -214,6 +217,7 @@ Item {
                         }
 
                         Label {
+                            textFormat: Text.PlainText
                             width: parent.width - Theme.cellW * 32 - parent.spacing * 2
                             text: service && service.isLive
                                 ? "AUTO REFRESH · " + (service.bridgeAvailable ? "2 S" : "20 S")
@@ -227,14 +231,14 @@ Item {
                         width: content.width
                         spacing: Theme.cellW
 
-                        Label { width: Theme.cellW * 4; text: "POS"; color: Theme.muted }
-                        Label { width: Theme.cellW * 9; text: "DRIVER"; color: Theme.muted }
-                        Label { width: Theme.cellW * 8; text: "TYRE"; color: Theme.muted }
-                        Label { width: Theme.cellW * 9; text: "S1"; color: Theme.muted; horizontalAlignment: Text.AlignRight }
-                        Label { width: Theme.cellW * 9; text: "S2"; color: Theme.muted; horizontalAlignment: Text.AlignRight }
-                        Label { width: Theme.cellW * 9; text: "S3"; color: Theme.muted; horizontalAlignment: Text.AlignRight }
-                        Label { width: Theme.cellW * 12; text: "BEST"; color: Theme.muted; horizontalAlignment: Text.AlignRight }
-                        Label { width: content.width - Theme.cellW * 60 - parent.spacing * 7; text: "GAP"; color: Theme.muted; horizontalAlignment: Text.AlignRight }
+                        Label { textFormat: Text.PlainText; width: Theme.cellW * 4; text: "POS"; color: Theme.muted }
+                        Label { textFormat: Text.PlainText; width: Theme.cellW * 9; text: "DRIVER"; color: Theme.muted }
+                        Label { textFormat: Text.PlainText; width: Theme.cellW * 8; text: "TYRE"; color: Theme.muted }
+                        Label { textFormat: Text.PlainText; width: Theme.cellW * 9; text: "S1"; color: Theme.muted; horizontalAlignment: Text.AlignRight }
+                        Label { textFormat: Text.PlainText; width: Theme.cellW * 9; text: "S2"; color: Theme.muted; horizontalAlignment: Text.AlignRight }
+                        Label { textFormat: Text.PlainText; width: Theme.cellW * 9; text: "S3"; color: Theme.muted; horizontalAlignment: Text.AlignRight }
+                        Label { textFormat: Text.PlainText; width: Theme.cellW * 12; text: "BEST"; color: Theme.muted; horizontalAlignment: Text.AlignRight }
+                        Label { textFormat: Text.PlainText; width: content.width - Theme.cellW * 60 - parent.spacing * 7; text: "GAP"; color: Theme.muted; horizontalAlignment: Text.AlignRight }
                     }
 
                     Rectangle {
@@ -256,6 +260,7 @@ Item {
                                 horizontalAlignment: Text.AlignHCenter
                             }
                             Label {
+                                textFormat: Text.PlainText
                                 width: parent.width
                                 text: root.session
                                     ? root.session.label.toUpperCase() + " starts " + root.localTime(root.session.startMs)
@@ -285,9 +290,10 @@ Item {
                                 anchors.rightMargin: Theme.cellW
                                 spacing: Theme.cellW
 
-                                Label { width: Theme.cellW * 3; text: String(modelData.pos).padStart(2, " "); font.bold: index === 0 }
-                                Label { width: Theme.cellW * 9; text: modelData.acronym; color: index === 0 ? Theme.green : Theme.fg; font.bold: true }
+                                Label { textFormat: Text.PlainText; width: Theme.cellW * 3; text: String(modelData.pos).padStart(2, " "); font.bold: index === 0 }
+                                Label { textFormat: Text.PlainText; width: Theme.cellW * 9; text: modelData.acronym; color: index === 0 ? Theme.green : Theme.fg; font.bold: true }
                                 Label {
+                                    textFormat: Text.PlainText
                                     width: Theme.cellW * 8
                                     text: root.tyreLabel(modelData.details)
                                     color: root.tyreColor(modelData.details ? modelData.details.compound : "")
@@ -297,6 +303,7 @@ Item {
                                     model: modelData.details && modelData.details.sectors
                                         ? modelData.details.sectors : [{}, {}, {}]
                                     Label {
+                                        textFormat: Text.PlainText
                                         required property var modelData
                                         width: Theme.cellW * 9
                                         text: modelData.value || "—"
@@ -306,12 +313,14 @@ Item {
                                     }
                                 }
                                 Label {
+                                    textFormat: Text.PlainText
                                     width: Theme.cellW * 12
                                     text: modelData.details && modelData.details.bestLap
                                         ? modelData.details.bestLap : "—"
                                     horizontalAlignment: Text.AlignRight
                                 }
                                 Label {
+                                    textFormat: Text.PlainText
                                     width: parent.width - Theme.cellW * 59 - parent.spacing * 7
                                     text: modelData.details && modelData.details.inPit ? "PIT" : modelData.gap
                                     color: modelData.details && modelData.details.inPit ? Theme.yellow : Theme.fg
@@ -328,12 +337,14 @@ Item {
                         spacing: Theme.cellW * 2
 
                         Label {
+                            textFormat: Text.PlainText
                             width: parent.width * 0.55
                             text: "DATA · JOLPICA F1 + F1 LIVE TIMING"
                             color: Theme.muted
                         }
 
                         Label {
+                            textFormat: Text.PlainText
                             width: parent.width * 0.45 - parent.spacing
                             text: service && service.lastUpdated.getTime() > 0
                                 ? "UPDATED " + Qt.formatDateTime(service.lastUpdated, "HH:mm:ss") + "  ·  R TO REFRESH"

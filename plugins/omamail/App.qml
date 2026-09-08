@@ -851,6 +851,7 @@ Item {
           }
 
           Text {
+            textFormat: Text.PlainText
             anchors.verticalCenter: parent.verticalCenter
             visible: !root.compact
             text: "Mail"
@@ -1419,6 +1420,7 @@ Item {
         }
 
         Text {
+          textFormat: Text.PlainText
           id: accountLine
           anchors.left: railToggle.visible ? railToggle.right : parent.left
           anchors.leftMargin: railToggle.visible ? Style.space(8) : Style.space(14)

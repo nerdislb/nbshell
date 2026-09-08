@@ -90,7 +90,7 @@ PanelWindow {
                         radius: Theme.radius
                         border.width: index === root.selected ? Theme.borderWidth : 0
                         border.color: Theme.focusBorder
-                        Text { anchors.centerIn: parent; text: modelData.e; font.pixelSize: Theme.fontDisplay }
+                        Text { textFormat: Text.PlainText; anchors.centerIn: parent; text: modelData.e; font.pixelSize: Theme.fontDisplay }
                         TapHandler { onTapped: root.choose(index) }
                     }
                 }

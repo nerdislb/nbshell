@@ -142,6 +142,7 @@ Column {
     spacing: Style.space(4)
 
     Text {
+      textFormat: Text.PlainText
       width: parent.width
       text: "Add a mailbox"
       color: root.textColor
@@ -151,6 +152,7 @@ Column {
     }
 
     Text {
+      textFormat: Text.PlainText
       width: parent.width
       text: "Any mailbox that speaks IMAP — Fastmail, iCloud, Zoho, a server of your own. The address is usually all it takes."
       color: root.dimColor
@@ -170,6 +172,7 @@ Column {
     border.color: Style.hoverBorderFor(root.textColor, root.accentColor)
 
     Text {
+      textFormat: Text.PlainText
       id: missingText
       anchors.left: parent.left
       anchors.right: parent.right
@@ -208,6 +211,7 @@ Column {
     // the address names one, because someone typing their everyday password
     // into this box will otherwise be told only that it was rejected.
     Text {
+      textFormat: Text.PlainText
       width: parent.width
       visible: root.suggestion.note !== ""
       text: root.suggestion.note
@@ -255,6 +259,7 @@ Column {
     }
 
     Text {
+      textFormat: Text.PlainText
       id: errorText
       width: parent.width
       visible: text !== ""
@@ -358,6 +363,7 @@ Column {
     }
 
     Text {
+      textFormat: Text.PlainText
       width: parent.width
       visible: root.serversVisible
       text: "Connections are TLS on the port given. Plain text is refused unless the server is on this machine."

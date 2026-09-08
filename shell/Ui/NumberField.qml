@@ -41,6 +41,7 @@ SpinBox {
   }
 
   up.indicator: Text {
+      textFormat: Text.PlainText
     x: root.width - width - Style.space(8)
     height: root.height
     text: "+"
@@ -50,6 +51,7 @@ SpinBox {
   }
 
   down.indicator: Text {
+      textFormat: Text.PlainText
     x: Style.space(8)
     height: root.height
     text: "−"

@@ -79,6 +79,7 @@ Cell {
             spacing: Theme.cellH * 0.25
 
             Text {
+                textFormat: Text.PlainText
                 text: root.ready ? String(root.data.geraet).toUpperCase() : "HEADSET"
                 color: Theme.readable(Theme.accent, Theme.bg)
                 font.family: Theme.fontFamily
@@ -87,6 +88,7 @@ Cell {
             }
 
             Text {
+                textFormat: Text.PlainText
                 width: panel.rowWidth
                 text: root.ready ? (root.level + " %" + (root.charging ? "   charging" : "")) : "no device"
                 color: Theme.fg

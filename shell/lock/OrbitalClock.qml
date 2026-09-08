@@ -39,6 +39,7 @@ Item {
                     opacity: parent.major ? 0.3 + parent.highlight * 0.65 : 0.13 + parent.highlight * 0.46
                 }
                 Text {
+                    textFormat: Text.PlainText
                     visible: parent.major
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.top: dial.outer ? parent.verticalCenter : undefined
@@ -57,6 +58,7 @@ Item {
     Dial { id: secondRing; outer: true; visible: root.showSecondsRing; dialRadius: root.secondRadius; dialRotation: ClockMath.visibleEdgeRotation(ClockMath.secondAngle(root.currentTime)) }
     Dial { id: minuteRing; outer: false; dialRadius: root.minuteRadius; dialRotation: ClockMath.visibleEdgeRotation(ClockMath.minuteAngle(root.currentTime)) }
     Text {
+        textFormat: Text.PlainText
         x: parent.width / 2 + 72 * root.unit; anchors.verticalCenter: parent.verticalCenter
         text: ClockMath.hourText(root.currentTime, root.hourFormat); color: root.foreground
         font.family: root.fontFamily; font.pixelSize: 118 * root.unit; font.weight: Font.Black

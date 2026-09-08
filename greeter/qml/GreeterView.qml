@@ -174,6 +174,7 @@ Item {
             spacing: 22 * root.uiScale
 
             Text {
+                textFormat: Text.PlainText
                 text: "NBSHELL"
                 color: root.foreground
                 font.family: root.fontFamily
@@ -220,6 +221,7 @@ Item {
             spacing: 8 * root.uiScale
 
             Text {
+                textFormat: Text.PlainText
                 width: parent.width
                 text: Qt.formatDate(root.currentTime, "dd MMM yyyy").toUpperCase()
                 color: root.muted
@@ -229,6 +231,7 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
             }
             Text {
+                textFormat: Text.PlainText
                 width: parent.width
                 text: Qt.formatDate(root.currentTime, "dddd").toUpperCase()
                 color: root.foreground
@@ -251,6 +254,7 @@ Item {
             transform: Translate { id: failureOffset }
 
             Text {
+                textFormat: Text.PlainText
                 width: parent.width
                 text: root.username.toUpperCase()
                 color: root.foreground
@@ -307,6 +311,7 @@ Item {
                     Behavior on scale { enabled: !root.reducedMotion; NumberAnimation { duration: 550; easing.type: Easing.InOutSine } }
 
                     Text {
+                        textFormat: Text.PlainText
                         anchors.centerIn: parent
                         text: "󰌾"
                         color: root.responseRequired ? root.foreground : root.muted
@@ -373,6 +378,7 @@ Item {
                 }
 
                 Text {
+                    textFormat: Text.PlainText
                     anchors.fill: passwordInput
                     visible: passwordInput.text.length === 0
                     text: root.previewMode ? "GREETER PREVIEW" : (root.launching ? "STARTING SESSION" : (root.responseRequired ? (root.promptMessage || (root.echoResponse ? "ENTER RESPONSE" : "ENTER PASSWORD")) : "WAITING FOR PASSWORD PROMPT"))
@@ -387,6 +393,7 @@ Item {
             }
 
             Text {
+                textFormat: Text.PlainText
                 width: parent.width
                 text: root.statusMessage + (root.failedAttempts > 0 && root.statusError ? "  ·  ATTEMPT " + root.failedAttempts : "")
                 color: root.statusError ? root.danger : root.muted
@@ -400,6 +407,7 @@ Item {
             }
 
             Text {
+                textFormat: Text.PlainText
                 width: parent.width
                 text: "F2  SESSION   ·   ESC  " + (root.previewMode ? "CLOSE PREVIEW" : "CANCEL")
                 color: root.alpha(root.muted, 0.76)
@@ -411,6 +419,7 @@ Item {
         }
 
         Text {
+            textFormat: Text.PlainText
             visible: !root.primary
             anchors.right: parent.right
             anchors.bottom: parent.bottom
@@ -478,6 +487,7 @@ Item {
         }
 
         Text {
+            textFormat: Text.PlainText
             id: actionText
             text: actionRoot.label
             color: actionRoot.active || actionRoot.activeFocus || actionMouse.containsMouse ? root.foreground : root.muted

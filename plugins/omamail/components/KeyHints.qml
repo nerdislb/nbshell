@@ -41,6 +41,7 @@ Row {
         color: Style.normalFillFor(root.textColor, root.accentColor)
 
         Text {
+          textFormat: Text.PlainText
           id: cap
           anchors.centerIn: parent
           text: pair.modelData.key
@@ -51,6 +52,7 @@ Row {
       }
 
       Text {
+        textFormat: Text.PlainText
         anchors.verticalCenter: parent.verticalCenter
         text: pair.modelData.label
         color: root.dimColor

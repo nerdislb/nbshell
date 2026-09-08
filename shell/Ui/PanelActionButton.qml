@@ -97,6 +97,7 @@ BorderSurface {
   Behavior on color { ColorAnimation { duration: Common.Theme.motionEffectsFast } }
 
   Text {
+      textFormat: Text.PlainText
     anchors.centerIn: parent
     text: root.iconText
     color: root.enabled

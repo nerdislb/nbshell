@@ -799,6 +799,7 @@ DropArea {
       implicitHeight: fromButton.implicitHeight + Style.space(14)
 
       Text {
+        textFormat: Text.PlainText
         id: fromLabel
         anchors.left: parent.left
         anchors.leftMargin: root.formInset
@@ -872,6 +873,7 @@ DropArea {
       implicitHeight: toField.implicitHeight + Style.space(14)
 
       Text {
+        textFormat: Text.PlainText
         id: toLabel
         anchors.left: parent.left
         anchors.leftMargin: root.formInset
@@ -984,6 +986,7 @@ DropArea {
       implicitHeight: ccField.implicitHeight + Style.space(14)
 
       Text {
+        textFormat: Text.PlainText
         id: ccLabel
         anchors.left: parent.left
         anchors.leftMargin: root.formInset
@@ -1060,6 +1063,7 @@ DropArea {
       implicitHeight: bccField.implicitHeight + Style.space(14)
 
       Text {
+        textFormat: Text.PlainText
         id: bccLabel
         anchors.left: parent.left
         anchors.leftMargin: root.formInset
@@ -1139,6 +1143,7 @@ DropArea {
       implicitHeight: subjectField.implicitHeight + Style.space(14)
 
       Text {
+        textFormat: Text.PlainText
         id: subjectLabel
         anchors.left: parent.left
         anchors.leftMargin: root.formInset
@@ -1184,6 +1189,7 @@ DropArea {
       implicitHeight: attachmentSummary.implicitHeight + Style.space(14)
 
       Text {
+        textFormat: Text.PlainText
         id: attachmentLabel
         anchors.left: parent.left
         anchors.leftMargin: root.formInset
@@ -1470,6 +1476,7 @@ DropArea {
               }
 
               Text {
+                textFormat: Text.PlainText
                 anchors.verticalCenter: parent.verticalCenter
                 text: Mail.formatSize(attachItem.modelData.size)
                 color: root.dimmerColor

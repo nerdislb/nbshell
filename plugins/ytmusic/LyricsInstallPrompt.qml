@@ -29,6 +29,7 @@ Item {
     spacing: Style.space(9)
 
     Text {
+      textFormat: Text.PlainText
       objectName: "lyrics-install-title"
       width: parent.width
       text: root.availability === "disabled" ? "Enable Lyrics?"
@@ -42,6 +43,7 @@ Item {
     }
 
     Text {
+      textFormat: Text.PlainText
       objectName: "lyrics-install-description"
       width: parent.width
       text: root.availability === "disabled"
@@ -56,6 +58,7 @@ Item {
     }
 
     Text {
+      textFormat: Text.PlainText
       width: parent.width
       visible: root.availability === "missing"
       text: "Lyrics are optional and are not installed or managed by nbshell."
@@ -66,6 +69,7 @@ Item {
     }
 
     Text {
+      textFormat: Text.PlainText
       objectName: "lyrics-install-error"
       width: parent.width
       visible: text !== ""

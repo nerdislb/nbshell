@@ -13,6 +13,7 @@ import qs.Common
 // Derselbe Trick wie im KI-Baustein -- dort war er noetig, um den Fuellstand
 // zu treffen, hier, damit das Symbol so hoch steht wie der Text daneben.
 Text {
+    textFormat: Text.PlainText
     id: root
 
     // Gewuenschte Hoehe der Zeichnung, nicht der Zeile.

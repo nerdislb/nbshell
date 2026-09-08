@@ -58,6 +58,7 @@ Item {
     Item { width: 1; height: Style.space(4) }
 
     Text {
+      textFormat: Text.PlainText
       width: parent.width
       horizontalAlignment: Text.AlignHCenter
       text: root.searching && root.service
@@ -71,6 +72,7 @@ Item {
     }
 
     Text {
+      textFormat: Text.PlainText
       width: parent.width
       horizontalAlignment: Text.AlignHCenter
       text: {
@@ -112,6 +114,7 @@ Item {
           implicitHeight: Style.space(17)
 
           Text {
+            textFormat: Text.PlainText
             anchors.right: parent.horizontalCenter
             anchors.rightMargin: Style.space(12)
             anchors.verticalCenter: parent.verticalCenter
@@ -122,6 +125,7 @@ Item {
           }
 
           Text {
+            textFormat: Text.PlainText
             anchors.left: parent.horizontalCenter
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
@@ -137,6 +141,7 @@ Item {
       Item { width: 1; height: Style.space(6) }
 
       Text {
+        textFormat: Text.PlainText
         width: parent.width
         horizontalAlignment: Text.AlignHCenter
         text: "Ctrl+K for every shortcut"

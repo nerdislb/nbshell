@@ -224,6 +224,7 @@ BorderSurface {
       spacing: Style.space(3)
 
       Text {
+        textFormat: Text.PlainText
         id: titleText
         objectName: "media-row-title"
         width: parent.width
@@ -257,6 +258,7 @@ BorderSurface {
       spacing: Style.space(2)
 
       Text {
+        textFormat: Text.PlainText
         id: durationLabel
         objectName: "media-row-duration"
         visible: root.durationActionVisible

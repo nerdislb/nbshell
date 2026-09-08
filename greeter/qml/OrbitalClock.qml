@@ -49,6 +49,7 @@ Item {
                     opacity: parent.major ? 0.28 + parent.highlight * 0.62 : 0.12 + parent.highlight * 0.42
                 }
                 Text {
+                    textFormat: Text.PlainText
                     visible: parent.major
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.top: parent.verticalCenter
@@ -94,6 +95,7 @@ Item {
                     opacity: parent.major ? 0.34 + parent.highlight * 0.66 : 0.15 + parent.highlight * 0.48
                 }
                 Text {
+                    textFormat: Text.PlainText
                     visible: parent.major
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.bottom: parent.verticalCenter
@@ -112,6 +114,7 @@ Item {
     }
 
     Text {
+        textFormat: Text.PlainText
         x: parent.width / 2 + 72 * root.unit
         anchors.verticalCenter: parent.verticalCenter
         text: ClockMath.hourText(root.currentTime, root.hourFormat)

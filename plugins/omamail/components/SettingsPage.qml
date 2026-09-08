@@ -39,6 +39,7 @@ Column {
   }
 
   Text {
+    textFormat: Text.PlainText
     text: "Settings"
     color: root.textColor
     font.family: root.panelFontFamily
@@ -49,6 +50,7 @@ Column {
   // --------------------------------------------------------------- reading
 
   Text {
+    textFormat: Text.PlainText
     text: "READING"
     color: root.dimColor
     font.family: root.panelFontFamily
@@ -73,6 +75,7 @@ Column {
       spacing: Style.space(2)
 
       Text {
+        textFormat: Text.PlainText
         width: parent.width
         text: "Always show remote images"
         color: root.textColor
@@ -81,6 +84,7 @@ Column {
       }
 
       Text {
+        textFormat: Text.PlainText
         width: parent.width
         // The cost, in the words of what it actually tells whom. Off, the
         // reader asks about each message and the answer covers that one.
@@ -123,6 +127,7 @@ Column {
       spacing: Style.space(2)
 
       Text {
+        textFormat: Text.PlainText
         width: parent.width
         text: "Always render heavy messages"
         color: root.textColor
@@ -131,6 +136,7 @@ Column {
       }
 
       Text {
+        textFormat: Text.PlainText
         width: parent.width
         text: "Renders without falling back first; layout can stall the shell while it works"
         color: root.dimColor
@@ -157,6 +163,7 @@ Column {
   // --------------------------------------------------------------- writing
 
   Text {
+    textFormat: Text.PlainText
     text: "WRITING"
     color: root.dimColor
     font.family: root.panelFontFamily
@@ -181,6 +188,7 @@ Column {
       spacing: Style.space(2)
 
       Text {
+        textFormat: Text.PlainText
         width: parent.width
         text: "Undo send window"
         color: root.textColor
@@ -189,6 +197,7 @@ Column {
       }
 
       Text {
+        textFormat: Text.PlainText
         width: parent.width
         text: "Mail waits before delivery. Press Alt+Z or select Undo to cancel. Set 0 to send now."
         color: root.dimColor
@@ -221,6 +230,7 @@ Column {
   // ------------------------------------------------------------- mailboxes
 
   Text {
+    textFormat: Text.PlainText
     text: "MAILBOXES"
     color: root.dimColor
     font.family: root.panelFontFamily
@@ -269,6 +279,7 @@ Column {
           }
 
           Text {
+            textFormat: Text.PlainText
             width: parent.width
             text: {
               if (row.modelData.error !== undefined && row.modelData.error !== "")
@@ -338,6 +349,7 @@ Column {
   // ---------------------------------------------------------- oauth client
 
   Text {
+    textFormat: Text.PlainText
     text: "GOOGLE OAUTH CLIENT"
     color: root.dimColor
     font.family: root.panelFontFamily
@@ -358,6 +370,7 @@ Column {
       spacing: Style.space(2)
 
       Text {
+        textFormat: Text.PlainText
         width: parent.width
         text: root.auth && root.auth.credentialsPresent
           ? String(root.auth.clientDescription || "Google OAuth client") : "No client yet"
@@ -368,6 +381,7 @@ Column {
       }
 
       Text {
+        textFormat: Text.PlainText
         width: parent.width
         // Every mailbox signs in through this one client, which is why adding
         // an account never asks for another.

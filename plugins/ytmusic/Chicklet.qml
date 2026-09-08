@@ -51,6 +51,7 @@ Item {
   }
 
   Text {
+    textFormat: Text.PlainText
     anchors.centerIn: parent
     text: root.iconText
     color: root.selected

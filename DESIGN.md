@@ -44,6 +44,14 @@ Prefer the highest-level shared primitive that matches the task:
 
 Do not rebuild a standard button, row, text field, slider, focus surface, or panel shell from `Rectangle` and `MouseArea`. Extract a new shared primitive only after the same intent appears in at least three places.
 
+## Text safety
+
+Every core, lock-screen, and greeter `Text` or `Label` renders plain text, including
+external titles, names, and previews. `tests/text-format-contracts.py` enforces this.
+Bundled plugin labels follow the same rule, with a narrow audited exception for
+the escaped artist-link hit map. Formatted content must opt in explicitly, escape interpolated data, and prevent unintended
+image or URL loading. Do not rely on Qt automatic rich-text detection.
+
 ## Interaction
 
 - Pointer hover and keyboard cursor use the same visible state.

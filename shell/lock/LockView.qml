@@ -51,27 +51,28 @@ Item {
             showSecondsRing: root.showSecondsRing && !root.reducedMotion; fontFamily: root.fontFamily
         }
         Text {
+            textFormat: Text.PlainText
             anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 48 * root.unit
             text: "NBSHELL  ·  SESSION LOCKED"; color: root.foreground; font.family: root.fontFamily
             font.pixelSize: 11 * root.unit; font.bold: true; font.letterSpacing: 3 * root.unit
         }
         Column {
             anchors.centerIn: parent; spacing: 8 * root.unit
-            Text { width: 520*root.unit; text: Qt.formatDate(root.currentTime,"dd MMM yyyy").toUpperCase(); color: root.muted; font.family: root.fontFamily; font.pixelSize: 15*root.unit; font.letterSpacing: 4*root.unit; horizontalAlignment: Text.AlignHCenter }
-            Text { width: 520*root.unit; text: Qt.formatDate(root.currentTime,"dddd").toUpperCase(); color: root.foreground; font.family: root.fontFamily; font.pixelSize: 22*root.unit; font.bold: true; font.letterSpacing: 8*root.unit; horizontalAlignment: Text.AlignHCenter }
+            Text { textFormat: Text.PlainText; width: 520*root.unit; text: Qt.formatDate(root.currentTime,"dd MMM yyyy").toUpperCase(); color: root.muted; font.family: root.fontFamily; font.pixelSize: 15*root.unit; font.letterSpacing: 4*root.unit; horizontalAlignment: Text.AlignHCenter }
+            Text { textFormat: Text.PlainText; width: 520*root.unit; text: Qt.formatDate(root.currentTime,"dddd").toUpperCase(); color: root.foreground; font.family: root.fontFamily; font.pixelSize: 22*root.unit; font.bold: true; font.letterSpacing: 8*root.unit; horizontalAlignment: Text.AlignHCenter }
         }
         Column {
             id: panel; visible: root.primary; width: Math.min(450*root.unit,parent.width*0.86)
             anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 58*root.unit; spacing: 9*root.unit
             transform: Translate { id: failureOffset }
-            Text { width: parent.width; text: root.username.toUpperCase(); color: root.foreground; font.family: root.fontFamily; font.pixelSize: 19*root.unit; font.bold: true; font.letterSpacing: 7*root.unit; horizontalAlignment: Text.AlignRight }
+            Text { textFormat: Text.PlainText; width: parent.width; text: root.username.toUpperCase(); color: root.foreground; font.family: root.fontFamily; font.pixelSize: 19*root.unit; font.bold: true; font.letterSpacing: 7*root.unit; horizontalAlignment: Text.AlignRight }
             Rectangle {
                 width: parent.width; height: 62*root.unit; radius: height/2; color: Qt.rgba(root.background.r,root.background.g,root.background.b,0.78)
                 border.width: Math.max(1,1.5*root.unit); border.color: root.statusError ? root.danger : (passwordInput.activeFocus ? root.accent : Qt.rgba(root.foreground.r,root.foreground.g,root.foreground.b,0.5))
                 Rectangle {
                     anchors.left: parent.left; anchors.leftMargin: 18*root.unit; anchors.verticalCenter: parent.verticalCenter
                     width: 42*root.unit; height: width; radius: width/2; color: Qt.rgba(root.foreground.r,root.foreground.g,root.foreground.b,0.1)
-                    Text { anchors.centerIn: parent; text: "󰌾"; color: root.foreground; font.family: root.fontFamily; font.pixelSize: 23*root.unit }
+                    Text { textFormat: Text.PlainText; anchors.centerIn: parent; text: "󰌾"; color: root.foreground; font.family: root.fontFamily; font.pixelSize: 23*root.unit }
                     SequentialAnimation on opacity { running: root.authenticating && !root.reducedMotion; loops: Animation.Infinite; NumberAnimation { to: .45; duration: 520 } NumberAnimation { to: 1; duration: 520 } }
                 }
                 Controls.TextField {
@@ -83,12 +84,12 @@ Item {
                     onAccepted: { const secret=text; text=""; if (secret.length && !root.previewMode) root.submitted(secret); }
                     Keys.onPressed: event => { if (event.key===Qt.Key_Escape) { passwordInput.text=""; root.previewMode ? root.quitPreview() : root.resetRequested(); event.accepted=true; } else if ((event.modifiers & Qt.ControlModifier) && event.key===Qt.Key_U) { passwordInput.text=""; event.accepted=true; } }
                 }
-                Text { anchors.fill: passwordInput; visible: !passwordInput.text.length; text: root.previewMode ? "LOCK PREVIEW · PAM DISABLED" : (root.authenticating ? "AUTHENTICATING" : "ENTER PASSWORD"); color: root.statusError ? root.danger : root.muted; font.family: root.fontFamily; font.pixelSize: 11*root.unit; font.letterSpacing: 3*root.unit; horizontalAlignment: Text.AlignRight; verticalAlignment: Text.AlignVCenter }
+                Text { textFormat: Text.PlainText; anchors.fill: passwordInput; visible: !passwordInput.text.length; text: root.previewMode ? "LOCK PREVIEW · PAM DISABLED" : (root.authenticating ? "AUTHENTICATING" : "ENTER PASSWORD"); color: root.statusError ? root.danger : root.muted; font.family: root.fontFamily; font.pixelSize: 11*root.unit; font.letterSpacing: 3*root.unit; horizontalAlignment: Text.AlignRight; verticalAlignment: Text.AlignVCenter }
             }
-            Text { width: parent.width; text: root.statusMessage; color: root.statusError ? root.danger : root.muted; font.family: root.fontFamily; font.pixelSize: 9*root.unit; font.letterSpacing: 2.5*root.unit; horizontalAlignment: Text.AlignRight }
-            Text { width: parent.width; text: "CTRL+U  CLEAR   ·   ESC  RESET"; color: root.muted; font.family: root.fontFamily; font.pixelSize: 8*root.unit; font.letterSpacing: 2*root.unit; horizontalAlignment: Text.AlignRight }
+            Text { textFormat: Text.PlainText; width: parent.width; text: root.statusMessage; color: root.statusError ? root.danger : root.muted; font.family: root.fontFamily; font.pixelSize: 9*root.unit; font.letterSpacing: 2.5*root.unit; horizontalAlignment: Text.AlignRight }
+            Text { textFormat: Text.PlainText; width: parent.width; text: "CTRL+U  CLEAR   ·   ESC  RESET"; color: root.muted; font.family: root.fontFamily; font.pixelSize: 8*root.unit; font.letterSpacing: 2*root.unit; horizontalAlignment: Text.AlignRight }
         }
-        Text { visible: !root.primary; anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 46*root.unit; text: "UNLOCK CONTROLS ON PRIMARY DISPLAY"; color: root.muted; font.family: root.fontFamily; font.pixelSize: 9*root.unit; font.letterSpacing: 2.5*root.unit }
+        Text { textFormat: Text.PlainText; visible: !root.primary; anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 46*root.unit; text: "UNLOCK CONTROLS ON PRIMARY DISPLAY"; color: root.muted; font.family: root.fontFamily; font.pixelSize: 9*root.unit; font.letterSpacing: 2.5*root.unit }
     }
     onStatusErrorChanged: if (statusError) { failureOffset.x = 0; if (!reducedMotion) failureShake.restart(); }
     onReducedMotionChanged: if (reducedMotion) { failureShake.stop(); failureOffset.x = 0; }

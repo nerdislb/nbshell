@@ -5,6 +5,7 @@ import qs.Commons
 // "Wi-Fi networks", "Output device", "Paired devices"). Sits between a
 // PanelSeparator and the content rows.
 Text {
+    textFormat: Text.PlainText
   id: root
 
   property color foreground: Color.foreground

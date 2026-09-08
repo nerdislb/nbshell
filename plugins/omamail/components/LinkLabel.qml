@@ -12,6 +12,7 @@ import qs.Ui
 // controls elsewhere in the panel keep the arrow, and `tests/test_source.sh`
 // enforces that for the files that hold them.
 Text {
+  textFormat: Text.PlainText
   id: root
 
   property string tooltipText: ""

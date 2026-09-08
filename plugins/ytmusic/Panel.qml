@@ -506,6 +506,7 @@ Item {
       width: parent.width
       spacing: Style.space(8)
       Text {
+        textFormat: Text.PlainText
         text: "Add to playlist"
         color: root.foreground
         font.pixelSize: Style.font.subtitle
@@ -554,6 +555,7 @@ Item {
       width: parent.width
       spacing: Style.space(8)
       Text {
+        textFormat: Text.PlainText
         text: "Create playlist"
         color: root.foreground
         font.pixelSize: Style.font.subtitle
@@ -610,6 +612,7 @@ Item {
       width: parent.width
       spacing: Style.space(6)
       Text {
+        textFormat: Text.PlainText
         text: "Sleep timer"
         color: root.foreground
         font.pixelSize: Style.font.subtitle
@@ -669,6 +672,7 @@ Item {
       width: parent.width
       spacing: Style.space(6)
       Text {
+        textFormat: Text.PlainText
         text: "Keyboard shortcuts"
         color: root.foreground
         font.pixelSize: Style.font.subtitle
@@ -696,6 +700,7 @@ Item {
           width: shortcutHelpPopup.width - Style.space(32)
           spacing: Style.space(10)
           Text {
+            textFormat: Text.PlainText
             width: Style.space(160)
             text: modelData.keys
             color: root.foreground
@@ -703,6 +708,7 @@ Item {
             font.bold: true
           }
           Text {
+            textFormat: Text.PlainText
             text: modelData.action
             color: Qt.darker(root.foreground, 1.35)
             font.pixelSize: Style.font.caption
@@ -743,6 +749,7 @@ Item {
         spacing: Style.space(12)
 
         Text {
+          textFormat: Text.PlainText
           width: parent.width
           text: "YouTube Music has no official desktop API. If Chromium on this computer is already signed in at music.youtube.com, copy that session. No DevTools paste."
           color: Qt.darker(root.foreground, 1.3)
@@ -776,6 +783,7 @@ Item {
           spacing: Style.space(8)
           visible: root.showHeaderPaste
           Text {
+            textFormat: Text.PlainText
             width: parent.width
             text: "1. Open music.youtube.com and sign in.\n2. DevTools → Network → click Library.\n3. Copy the request headers of a browse call (must include Cookie).\n4. Paste them below."
             color: Qt.darker(root.foreground, 1.4)
@@ -804,6 +812,7 @@ Item {
           }
         }
         Text {
+          textFormat: Text.PlainText
           width: parent.width
           visible: root.service && root.service.statusMessage !== ""
           text: root.service ? root.service.statusMessage : ""
@@ -811,6 +820,7 @@ Item {
           wrapMode: Text.WordWrap
         }
         Text {
+          textFormat: Text.PlainText
           width: parent.width
           visible: root.service && root.service.lastError !== ""
           text: root.service ? root.service.lastError : ""
@@ -840,6 +850,7 @@ Item {
         width: parent.width
         spacing: Style.space(10)
       Text {
+        textFormat: Text.PlainText
         width: parent.width
         visible: root.service && root.service.homeLoading
           && root.service.homeShelfCount === 0
@@ -918,6 +929,7 @@ Item {
         }
       }
       Text {
+        textFormat: Text.PlainText
         width: parent.width
         visible: !root.service || (root.service.homeShelfCount === 0
           && (root.service.history || []).length === 0
@@ -1087,6 +1099,7 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
           spacing: Style.space(6)
           Text {
+            textFormat: Text.PlainText
             width: parent.width
             text: root.service && root.service.detailItem
               ? (root.service.detailItem.description || root.service.detailItem.subtitle || "") : ""
@@ -1183,6 +1196,7 @@ Item {
         spacing: Style.space(10)
 
         Text {
+          textFormat: Text.PlainText
           width: parent.width
           text: root.accountConnected
             ? ("Signed in" + (root.service && root.service.backendState
@@ -1213,6 +1227,7 @@ Item {
         PanelSeparator { foreground: root.foreground }
 
         Text {
+          textFormat: Text.PlainText
           text: "Bar and shortcuts"
           color: root.foreground
           font.pixelSize: Style.font.subtitle
@@ -1247,6 +1262,7 @@ Item {
         Row {
           spacing: Style.space(8)
           Text {
+            textFormat: Text.PlainText
             anchors.verticalCenter: parent.verticalCenter
             text: "Stop when idle (minutes)"
             color: root.foreground
@@ -1263,6 +1279,7 @@ Item {
           }
         }
         Text {
+          textFormat: Text.PlainText
           width: parent.width
           text: "Playback uses mpv and yt-dlp on this computer. There is no Chromium and no official YouTube Music desktop client."
           color: Qt.darker(root.foreground, 1.45)
@@ -1273,12 +1290,14 @@ Item {
         PanelSeparator { foreground: root.foreground }
 
         Text {
+          textFormat: Text.PlainText
           text: "Equalizer"
           color: root.foreground
           font.pixelSize: Style.font.subtitle
           font.bold: true
         }
         Text {
+          textFormat: Text.PlainText
           width: parent.width
           text: "Drag a band to adjust gain. Preset: "
             + (root.service ? root.service.eqPreset : "Flat")
@@ -1453,6 +1472,7 @@ Item {
               spacing: Style.space(9)
 
               Text {
+                textFormat: Text.PlainText
                 anchors.verticalCenter: parent.verticalCenter
                 text: "󰝚"
                 color: root.accent
@@ -1466,6 +1486,7 @@ Item {
                 width: Math.max(40, parent.width - Style.space(38))
                 anchors.verticalCenter: parent.verticalCenter
                 Text {
+                  textFormat: Text.PlainText
                   width: parent.width
                   text: "Music"
                   color: root.foreground
@@ -1474,6 +1495,7 @@ Item {
                   Accessible.ignored: true
                 }
                 Text {
+                  textFormat: Text.PlainText
                   width: parent.width
                   text: "for YouTube"
                   color: Qt.darker(root.foreground, 1.4)
@@ -1711,6 +1733,7 @@ Item {
                   - parent.spacing * 3)
                 anchors.verticalCenter: parent.verticalCenter
                 Text {
+                  textFormat: Text.PlainText
                   width: parent.width
                   text: root.pageTitle()
                   color: root.foreground
@@ -1719,6 +1742,7 @@ Item {
                   elide: Text.ElideRight
                 }
                 Text {
+                  textFormat: Text.PlainText
                   width: parent.width
                   text: root.pageSubtitle()
                   color: Qt.darker(root.foreground, 1.4)
@@ -1782,6 +1806,7 @@ Item {
                 spacing: Style.space(8)
 
                 Text {
+                  textFormat: Text.PlainText
                   id: messageText
                   width: Math.max(40, parent.width
                     - (signInBannerButton.visible
@@ -1893,6 +1918,7 @@ Item {
                   width: parent.width
                   implicitHeight: nowPlayingTitle.implicitHeight
                   Text {
+                    textFormat: Text.PlainText
                     id: nowPlayingTitle
                     width: parent.width
                     text: root.service && root.service.title ? root.service.title : "Nothing playing"
@@ -2024,6 +2050,7 @@ Item {
                 width: parent.width
                 spacing: Style.space(6)
                 Text {
+                  textFormat: Text.PlainText
                   text: Api.millisecondsToClock((root.service ? root.service.positionSeconds : 0) * 1000)
                   color: Qt.darker(root.foreground, 1.4)
                   font.pixelSize: Style.font.caption
@@ -2049,6 +2076,7 @@ Item {
                   }
                 }
                 Text {
+                  textFormat: Text.PlainText
                   text: Api.millisecondsToClock((root.service ? root.service.lengthSeconds : 0) * 1000)
                   color: Qt.darker(root.foreground, 1.4)
                   font.pixelSize: Style.font.caption
@@ -2059,6 +2087,7 @@ Item {
                 }
               }
               Text {
+                textFormat: Text.PlainText
                 width: parent.width
                 visible: !root.mediumWidth && !root.compactHeight
                 text: root.playerHintLine()
@@ -2126,6 +2155,7 @@ Item {
               }
 
               Text {
+                textFormat: Text.PlainText
                 id: volumePercentLabel
                 anchors.bottom: parent.bottom
                 anchors.horizontalCenter: parent.horizontalCenter

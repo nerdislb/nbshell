@@ -75,6 +75,7 @@ Column {
       spacing: 0
 
       Text {
+        textFormat: Text.PlainText
         text: "Install the "
         color: root.textColor
         font.family: root.panelFontFamily
@@ -94,6 +95,7 @@ Column {
     }
 
     Text {
+      textFormat: Text.PlainText
       width: parent.width
       text: "Run this in a terminal:"
       color: root.dimColor
@@ -132,6 +134,7 @@ Column {
     }
 
     Text {
+      textFormat: Text.PlainText
       width: parent.width
       text: "Install the official HEY CLI from hey.com. Its installer places the client in ~/.local/bin, which Mail detects automatically."
       color: root.dimColor
@@ -157,6 +160,7 @@ Column {
     spacing: Style.space(10)
 
     Text {
+      textFormat: Text.PlainText
       width: parent.width
       text: "Sign in to HEY"
       color: root.textColor
@@ -166,6 +170,7 @@ Column {
     }
 
     Text {
+      textFormat: Text.PlainText
       width: parent.width
       text: "This opens HEY in your browser. The token comes back to the HEY CLI, which keeps it in your keyring and refreshes it — Omamail never holds it and never asks for your HEY password."
       color: root.dimColor
@@ -196,6 +201,7 @@ Column {
       }
 
       Text {
+        textFormat: Text.PlainText
         visible: root.busy
         anchors.verticalCenter: parent.verticalCenter
         text: "Waiting for the browser"
@@ -214,6 +220,7 @@ Column {
     spacing: Style.space(4)
 
     Text {
+      textFormat: Text.PlainText
       width: parent.width
       text: "Connected"
       color: root.textColor
@@ -258,6 +265,7 @@ Column {
     spacing: Style.space(4)
 
     Text {
+      textFormat: Text.PlainText
       width: parent.width
       text: "What is different about HEY"
       color: root.textColor
@@ -267,6 +275,7 @@ Column {
     }
 
     Text {
+      textFormat: Text.PlainText
       width: parent.width
       text: "No star and no archive — HEY has neither. A thread is moved to Set Aside, Reply Later or Paper Trail instead, and those are mailboxes in the rail. No Sent either: the HEY CLI does not serve one yet. Reading, marking read, replying, searching, labels and reporting spam all work. A row here is one conversation rather than one message, and attachments and the Screener stay in HEY's own app."
       color: root.dimColor
@@ -301,6 +310,7 @@ Column {
   // The sign-out above is `hey`'s own, because the token is `hey`'s. Said next
   // to the button rather than after it has been pressed.
   Text {
+    textFormat: Text.PlainText
     width: parent.width
     visible: root.signedIn
     text: "Signing out signs the HEY CLI out, so anything else on this machine that uses it — the HEY terminal app, the bar plugin — is signed out too."

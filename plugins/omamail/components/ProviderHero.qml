@@ -78,6 +78,7 @@ Item {
       spacing: 0
 
       Text {
+        textFormat: Text.PlainText
         anchors.verticalCenter: parent.verticalCenter
         visible: root.parts.before !== ""
         text: root.parts.before
@@ -101,6 +102,7 @@ Item {
 
       // The same word, plain, for a provider with no website to point at.
       Text {
+        textFormat: Text.PlainText
         anchors.verticalCenter: parent.verticalCenter
         visible: root.parts.brand !== "" && !root.linked
         text: root.parts.brand
@@ -111,6 +113,7 @@ Item {
       }
 
       Text {
+        textFormat: Text.PlainText
         anchors.verticalCenter: parent.verticalCenter
         visible: root.parts.after !== ""
         text: root.parts.after
@@ -122,6 +125,7 @@ Item {
     }
 
     Text {
+      textFormat: Text.PlainText
       width: parent.width
       text: root.detail
       color: root.dimColor

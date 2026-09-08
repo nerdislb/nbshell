@@ -21,6 +21,7 @@ import qs.Common
 // Ueberschreiben geht wie bei jedem Text: `font.pixelSize`, `font.bold`,
 // `color` einfach am Aufrufort setzen.
 Text {
+    textFormat: Text.PlainText
     color: Theme.fg
     font.family: Theme.fontFamily
     font.pixelSize: Theme.fontSize

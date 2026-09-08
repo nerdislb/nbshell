@@ -102,6 +102,7 @@ Rectangle {
         spacing: Style.space(6)
 
         Text {
+          textFormat: Text.PlainText
           text: "Keyboard shortcuts"
           color: root.textColor
           font.family: root.panelFontFamily
@@ -143,6 +144,7 @@ Rectangle {
                   }
 
                   Text {
+                    textFormat: Text.PlainText
                     text: group.modelData.name
                     color: root.dimColor
                     font.family: root.panelFontFamily
@@ -159,6 +161,7 @@ Rectangle {
                       implicitHeight: Style.space(20)
 
                       Text {
+                        textFormat: Text.PlainText
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
                         // Keeps its share of the column rather than a fixed
@@ -173,6 +176,7 @@ Rectangle {
                       }
 
                       Text {
+                        textFormat: Text.PlainText
                         anchors.left: parent.left
                         anchors.leftMargin: Math.round(parent.width * 0.54) + Style.space(5)
                         anchors.right: parent.right

@@ -41,6 +41,7 @@ Column {
     spacing: Style.space(4)
 
     Text {
+      textFormat: Text.PlainText
       width: parent.width
       text: "Add a mailbox"
       color: root.textColor
@@ -50,6 +51,7 @@ Column {
     }
 
     Text {
+      textFormat: Text.PlainText
       width: parent.width
       text: "Which kind?"
       color: root.dimColor

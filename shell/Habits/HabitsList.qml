@@ -154,6 +154,7 @@ PanelWindow {
                     spacing: Theme.cellW
 
                     Text {
+                        textFormat: Text.PlainText
                         text: Icons.habit
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontTitle
@@ -162,6 +163,7 @@ PanelWindow {
                     }
 
                     Text {
+                        textFormat: Text.PlainText
                         text: "HABITS"
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontTitle
@@ -185,6 +187,7 @@ PanelWindow {
                         anchors.verticalCenter: parent.verticalCenter
 
                         Text {
+                            textFormat: Text.PlainText
                             id: themeLabel
                             anchors.centerIn: parent
                             text: Config.theme.toUpperCase()
@@ -195,6 +198,7 @@ PanelWindow {
                     }
 
                     Text {
+                        textFormat: Text.PlainText
                         text: "Esc closes"
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontCaption
@@ -226,6 +230,7 @@ PanelWindow {
                         height: Theme.cellH
 
                         Text {
+                            textFormat: Text.PlainText
                             anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
                             text: "STATUS  ·  " + Habits.todayString
@@ -235,6 +240,7 @@ PanelWindow {
                         }
 
                         Text {
+                            textFormat: Text.PlainText
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
                             text: root.shortPath !== "" ? root.shortPath : "Sync active"
@@ -245,6 +251,7 @@ PanelWindow {
                     }
 
                     Text {
+                        textFormat: Text.PlainText
                         text: Habits.doneCount + " / " + Habits.count + " DONE  ·  " + Habits.progressPercent + "%"
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontBody
@@ -281,6 +288,7 @@ PanelWindow {
                         height: Theme.cellH
 
                         Text {
+                            textFormat: Text.PlainText
                             anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
                             text: "HISTORY  ·  20 WEEKS"
@@ -290,6 +298,7 @@ PanelWindow {
                         }
 
                         Text {
+                            textFormat: Text.PlainText
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
                             text: "LESS  ░ ▒ ▓ █  MORE"
@@ -359,6 +368,7 @@ PanelWindow {
                         border.color: root.selectedRoutine === modelData.id ? Theme.accent : Theme.muted
 
                         Text {
+                            textFormat: Text.PlainText
                             id: tabText
                             anchors.centerIn: parent
                             text: modelData.label
@@ -421,6 +431,7 @@ PanelWindow {
                         spacing: Theme.cellW
 
                         Text {
+                            textFormat: Text.PlainText
                             text: root.selected === index ? "▸" : " "
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontBody
@@ -430,6 +441,7 @@ PanelWindow {
 
                         // Icon
                         Text {
+                            textFormat: Text.PlainText
                             text: row.isDone ? Icons.check : Icons.circleOutline
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontBody
@@ -446,6 +458,7 @@ PanelWindow {
                             Row {
                                 spacing: 8
                                 Text {
+                                    textFormat: Text.PlainText
                                     text: modelData.name
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontBody
@@ -456,6 +469,7 @@ PanelWindow {
                                 }
 
                                 Text {
+                                    textFormat: Text.PlainText
                                     text: "· " + String(modelData.routine || "all").toUpperCase()
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontCaption
@@ -463,6 +477,7 @@ PanelWindow {
                                 }
 
                                 Text {
+                                    textFormat: Text.PlainText
                                     text: "STREAK " + row.streakData.current + "D"
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontCaption
@@ -470,6 +485,7 @@ PanelWindow {
                                 }
 
                                 Text {
+                                    textFormat: Text.PlainText
                                     text: "SHIELDS " + (modelData.shields || 2)
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontCaption
@@ -482,6 +498,7 @@ PanelWindow {
                                 visible: modelData.mode === "COUNTER" || modelData.mode === "NUMBER" || modelData.mode === "DURATION" || modelData.mode === "TIMER"
 
                                 Text {
+                                    textFormat: Text.PlainText
                                     text: row.curVal + " / " + modelData.targetValue + " " + (modelData.unit || "")
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontCaption
@@ -509,6 +526,7 @@ PanelWindow {
                                 border.color: Theme.muted
 
                                 Text {
+                                    textFormat: Text.PlainText
                                     anchors.centerIn: parent
                                     text: "−"
                                     font.family: Theme.fontFamily
@@ -533,6 +551,7 @@ PanelWindow {
                                 border.color: Theme.panelBorder
 
                                 Text {
+                                    textFormat: Text.PlainText
                                     anchors.centerIn: parent
                                     text: "+1"
                                     font.family: Theme.fontFamily
@@ -558,6 +577,7 @@ PanelWindow {
                                 border.color: Theme.panelBorder
 
                                 Text {
+                                    textFormat: Text.PlainText
                                     anchors.centerIn: parent
                                     text: "+15m"
                                     font.family: Theme.fontFamily
@@ -585,6 +605,7 @@ PanelWindow {
                                 border.color: Theme.magenta
 
                                 Text {
+                                    textFormat: Text.PlainText
                                     anchors.centerIn: parent
                                     text: row.isDone ? "FOCUS ✓" : "FOCUS"
                                     font.family: Theme.fontFamily
@@ -610,6 +631,7 @@ PanelWindow {
                                 border.color: row.isDone ? Theme.green : Theme.muted
 
                                 Text {
+                                    textFormat: Text.PlainText
                                     anchors.centerIn: parent
                                     text: row.isDone ? "DONE" : "COMPLETE"
                                     font.family: Theme.fontFamily
@@ -627,6 +649,7 @@ PanelWindow {
 
                             // Delete Button
                             Text {
+                                textFormat: Text.PlainText
                                 text: "×"
                                 font.family: Theme.fontFamily
                                 font.pixelSize: Theme.fontTitle
@@ -653,6 +676,7 @@ PanelWindow {
                 border.color: input.activeFocus ? Theme.accent : Theme.muted
 
                 Text {
+                    textFormat: Text.PlainText
                     id: prompt
                     anchors.left: parent.left
                     anchors.leftMargin: Theme.cellW
@@ -700,6 +724,7 @@ PanelWindow {
                     }
 
                     Text {
+                        textFormat: Text.PlainText
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
                         visible: input.text === ""
@@ -711,6 +736,7 @@ PanelWindow {
                 }
 
                 Text {
+                    textFormat: Text.PlainText
                     id: hintText
                     anchors.right: parent.right
                     anchors.rightMargin: Theme.cellW
