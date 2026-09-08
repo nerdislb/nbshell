@@ -263,6 +263,11 @@ restore_transaction_units() {
         esac
         if [ "$active" = 1 ]; then
             recover_command systemctl --user start "$unit" >/dev/null 2>&1
+        elif [ "$enabled" = not-found ] \
+                && [ "$(systemctl --user show --property=LoadState --value "$unit" 2>/dev/null)" = not-found ]; then
+            # Optional services can be absent on a fresh installation. Their
+            # restored absence is already inactive; stop would report failure.
+            :
         else
             recover_command systemctl --user stop "$unit" >/dev/null 2>&1
         fi

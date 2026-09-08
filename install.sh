@@ -257,6 +257,10 @@ rollback_transaction_units() {
         esac
         if [ "$active" -eq 1 ]; then
             recover_command systemctl --user start "$unit" >/dev/null 2>&1
+        elif [ "$enabled" = not-found ] \
+                && [ "$(systemctl --user show --property=LoadState --value "$unit" 2>/dev/null)" = not-found ]; then
+            # Missing optional units already have their original inactive state.
+            :
         else
             recover_command systemctl --user stop "$unit" >/dev/null 2>&1
         fi

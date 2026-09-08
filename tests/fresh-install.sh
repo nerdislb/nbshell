@@ -38,6 +38,14 @@ linked_runtime_file="$state/linked-runtime-$unit"
 masked_file="$state/masked-$unit"
 masked_runtime_file="$state/masked-runtime-$unit"
 [ "$unit" = "nbshell.service" ] && active_file="$state/active"
+if [ "${FAKE_MISSING_OPTIONAL:-0}" = 1 ] && [ "$unit" = nbshell-agent-host.service ]; then
+    case " $* " in
+        *" is-enabled "*) echo not-found; exit 1 ;;
+        *" --property=LoadState "*) echo not-found; exit 0 ;;
+        *" is-active "*) exit 3 ;;
+        *" stop "*) exit 5 ;;
+    esac
+fi
 case " $* " in
     *" is-active "*) test -f "$active_file" ;;
     *" is-enabled "*)
@@ -538,7 +546,7 @@ assert_no_reservations
 
 # A catchable exit immediately after RENAME_EXCHANGE must use the persisted
 # runtime identity rather than process-local flags to restore the old tree.
-if NBSHELL_INSTALL_TEST_FAULT=post-runtime-exchange-exit "$ROOT/install.sh" >/dev/null 2>&1; then
+if FAKE_MISSING_OPTIONAL=1 NBSHELL_INSTALL_TEST_FAULT=post-runtime-exchange-exit "$ROOT/install.sh" >/dev/null 2>&1; then
     echo "Install unexpectedly succeeded at the post-runtime-exchange-exit fault" >&2
     exit 1
 fi

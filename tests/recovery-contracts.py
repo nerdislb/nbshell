@@ -154,6 +154,22 @@ class RecoveryContracts(unittest.TestCase):
         self.assertFalse(stage.exists())
         self.assertFalse(self.calls.exists())
 
+    def test_absent_optional_unit_does_not_block_recovery(self):
+        tx, rollback, stage = self.transaction()
+        unit = "nbshell-agent-host.service"
+        unit_path = self.config_home / "systemd/user" / unit
+        (tx / "units").write_bytes(
+            b"\0".join(os.fsencode(value) for value in
+                       (unit, "not-found", "0", "", str(unit_path))) + b"\0")
+        (self.bin / "systemctl").write_text(
+            '#!/usr/bin/env bash\n'
+            'printf "%s\\n" "$*" >> "$CONTRACT_SERVICE_CALLS"\n'
+            'case "$2" in show) printf "not-found\\n";; stop) exit 5;; esac\n')
+        result = self.recover(tx, rollback, stage)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(tx.exists())
+        self.assertNotIn("--user stop " + unit, self.calls.read_text())
+
     def test_post_exchange_interruption_restores_original_without_quickshell(self):
         tx, rollback, stage = self.transaction()
         exchanged = self.run_command([str(self.bin / "mv"), "--exchange", "-T",
