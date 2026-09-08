@@ -1,7 +1,7 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Services.SystemTray
-import Quickshell.Widgets
 import qs.Common
 import qs.Widgets
 
@@ -28,24 +28,34 @@ Cell {
     readonly property var items: SystemTray.items?.values ?? []
 
     readonly property bool expanded: Config.value("trayExpanded", false)
+    readonly property real itemExtent: Theme.barIconSlot + Theme.barItemPadding * 2
+
+    function isSymbolic(source) {
+        // Preserve Quickshell's resolved URL, including fallback theme paths.
+        // Only named symbolic icons opt into recoloring; app artwork stays intact.
+        return String(source || "").split("?")[0].endsWith("-symbolic");
+    }
 
     shown: items.length > 0
     custom: true
 
     Row {
-        spacing: Theme.cellW / 2
+        spacing: 0
 
         // Der Pfeil zeigt zugleich Aktion und Zustand, ohne einen Zaehler.
-        Line {
+        Item {
             id: toggle
+            width: root.itemExtent
+            height: root.implicitHeight
 
-            anchors.verticalCenter: parent.verticalCenter
-            text: root.expanded ? "<" : ">"
-            color: Theme.textDim
+            Line {
+                anchors.centerIn: parent
+                text: root.expanded ? "<" : ">"
+                color: Theme.textDim
+            }
 
             MouseArea {
                 anchors.fill: parent
-                anchors.margins: -Theme.cellW / 2
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: Config.set("trayExpanded", !root.expanded)
@@ -60,18 +70,39 @@ Cell {
 
                 required property var modelData
 
-                width: Theme.cellH
-                height: Theme.cellH
+                width: root.itemExtent
+                height: root.implicitHeight
 
-                IconImage {
+                Item {
                     id: icon
 
-                    anchors.fill: parent
-                    source: entry.modelData.icon
+                    anchors.centerIn: parent
+                    width: Theme.barIconHeight
+                    height: width
+                    readonly property bool symbolic: root.isSymbolic(entry.modelData.icon)
                     // Nicht abschalten, wenn das Programm "passiv" meldet --
                     // nur blasser: verschwundene Symbole verwirren mehr, als
                     // sie Platz sparen.
                     opacity: entry.modelData.status === Status.Passive ? 0.5 : 1
+
+                    Image {
+                        id: artwork
+                        anchors.fill: parent
+                        source: entry.modelData.icon
+                        fillMode: Image.PreserveAspectFit
+                        sourceSize.width: Math.round(width * Screen.devicePixelRatio)
+                        sourceSize.height: Math.round(height * Screen.devicePixelRatio)
+                        visible: !icon.symbolic
+                        layer.enabled: icon.symbolic
+                    }
+
+                    MultiEffect {
+                        anchors.fill: artwork
+                        source: artwork
+                        visible: icon.symbolic
+                        colorization: 1
+                        colorizationColor: root.shownColor
+                    }
                 }
 
                 MouseArea {

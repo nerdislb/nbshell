@@ -234,7 +234,10 @@ Item {
         return dim ? Theme.readable(Theme.mix(tinted, Theme.barSurface, 0.45), Theme.barSurface, 3.0) : Theme.readable(tinted, Theme.barSurface, 4.5);
     }
 
-    readonly property real contentWidth: Math.max(custom ? contentItem.childrenRect.width : line.implicitWidth, root.slotChars * Theme.cellW)
+    // Text reservations stabilize changing numbers, but must not leave empty
+    // space around an icon-only status button. Custom content keeps its sizing.
+    readonly property real contentWidth: Math.max(custom ? contentItem.childrenRect.width : line.implicitWidth,
+        root.custom || root.wantText ? root.slotChars * Theme.cellW : 0)
 
     implicitWidth: root.concealed ? 0 : contentWidth + Theme.barItemPadding * 2
     implicitHeight: Theme.barHeight - Theme.padY
@@ -261,9 +264,9 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: Theme.radius
-        color: root.active || root.popoutVisible || root.previewVisible ? Theme.mix(Theme.barSurface, root.shownColor, 0.15) : (mouse.containsMouse && root.clickable ? Theme.barHover : "transparent")
-        border.width: root.boxed ? Theme.borderWidth : 0
-        border.color: root.active || popupLoader.item?.visible ? root.shownColor : Theme.muted
+        color: root.active || root.popoutVisible || root.previewVisible ? Theme.mix(Theme.barSurface, root.shownColor, 0.15) : ((mouse.containsMouse || root.activeFocus) && root.clickable ? Theme.barHover : "transparent")
+        border.width: root.boxed || root.activeFocus ? Theme.borderWidth : 0
+        border.color: root.activeFocus ? Theme.focusBorder : (root.active || popupLoader.item?.visible ? root.shownColor : Theme.muted)
     }
 
     IconText {

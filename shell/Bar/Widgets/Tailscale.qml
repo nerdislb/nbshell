@@ -8,13 +8,87 @@ Cell {
     id: root
 
     shown: Tailnet.available
-    quiet: Tailnet.state !== "Running"
-    slotChars: 3
+    readonly property bool connected: Tailnet.state === "Running"
+    readonly property bool needsAttention: Tailnet.state === "NeedsLogin" || Tailnet.state === "NeedsMachineAuth"
+    readonly property string stateDescription: connected ? "connected"
+        : Tailnet.state === "NeedsLogin" ? "sign-in required"
+        : Tailnet.state === "NeedsMachineAuth" ? "device approval required"
+        : Tailnet.state === "Starting" ? "starting"
+        : "disconnected"
+
     interactive: true
     label: "VPN"
-    icon: "󰖂"
-    text: Tailnet.onlinePeers
-    color: Tailnet.state === "Running" ? Theme.green : Theme.yellow
+    // Cell uses this nonempty marker for its icon/text display contract.
+    // The native dot mark below supplies the actual icon.
+    icon: "tailscale"
+    custom: true
+    color: connected ? Theme.barFg : (needsAttention ? Theme.yellow : Theme.fgDim)
+    accessibilityName: "Tailscale, " + stateDescription
+        + ", " + Tailnet.onlinePeers + " online devices"
+
+    Item {
+        width: root.wantIcon ? Theme.barIconSlot : fallback.implicitWidth
+        height: Theme.cellH
+
+        Item {
+            id: mark
+            anchors.centerIn: parent
+            visible: root.wantIcon
+            width: Theme.barIconHeight
+            height: width
+            // Ratios describe the brand's nine-dot silhouette, not UI spacing.
+            readonly property real dotSize: width * 0.24
+
+            Repeater {
+                model: 9
+                Rectangle {
+                    required property int index
+                    width: mark.dotSize
+                    height: width
+                    radius: width / 2
+                    x: (index % 3) * (mark.width - width) / 2
+                    y: Math.floor(index / 3) * (mark.height - height) / 2
+                    color: root.shownColor
+                    opacity: (index >= 3 && index <= 5) || index === 7 ? 1 : 0.24
+                }
+            }
+
+            Rectangle {
+                visible: !root.connected && !root.needsAttention
+                anchors.centerIn: parent
+                width: parent.width * 1.22
+                height: Theme.borderWidth * 2
+                radius: height / 2
+                rotation: -45
+                color: root.shownColor
+            }
+
+            Rectangle {
+                visible: root.needsAttention
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                width: parent.width * 0.6
+                height: width
+                radius: width / 2
+                color: root.shownColor
+                Line {
+                    anchors.centerIn: parent
+                    text: "!"
+                    font.pixelSize: parent.height * 0.85
+                    font.bold: true
+                    color: Theme.on(root.shownColor)
+                }
+            }
+        }
+
+        Line {
+            id: fallback
+            anchors.centerIn: parent
+            visible: !root.wantIcon
+            text: root.shownText
+            color: root.shownColor
+        }
+    }
 
     onPopoutVisibleChanged: if (popoutVisible) Tailnet.refresh()
 
