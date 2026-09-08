@@ -41,9 +41,12 @@ setup = (ROOT / "setup-umbriel.sh").read_text()
 assert f'UMBRIEL_REVISION="{reference_revision}"' in setup
 manifest = tomllib.loads((ROOT / "iso/packages/MANIFEST.toml").read_text())
 manifest_umbriel = next(row for row in manifest["custom"] if row["name"] == "umbriel")
-assert manifest_umbriel["revision"] == reference_revision
+# The ISO can ship a newer independently reviewed build than the capability
+# reference fixture. Its recipe must still use the exact manifest source pin.
+package_revision = manifest_umbriel["revision"]
+assert re.fullmatch(r"[0-9a-f]{40}", package_revision)
 pkgbuild = (ROOT / "iso/packages/pkgbuilds/umbriel/PKGBUILD").read_text()
-assert re.search(rf"^_commit={reference_revision}$", pkgbuild, re.MULTILINE)
+assert re.search(rf"^_commit={package_revision}$", pkgbuild, re.MULTILINE)
 external_sources = json.loads((ROOT / "shell/Catalog/external-sources.json").read_text())
 external_umbriel = next(row for row in external_sources["sources"] if row["name"] == "Umbriel")
 assert reference_revision.startswith(external_umbriel["reviewedCommit"])
