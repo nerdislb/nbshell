@@ -5,23 +5,7 @@ import Quickshell
 import Quickshell.Io
 import qs.Common
 
-// Zwischenablage mit Verlauf.
-//
-// Kein `cliphist` und kein weiterer Dienst: `wl-paste --watch` meldet jede
-// Aenderung, und der Verlauf liegt als JSON in ~/.local/state. wl-clipboard
-// ist ohnehin da, sobald man unter Wayland etwas kopieren will.
-//
-// Der Wachhund schickt jeden Eintrag base64-kodiert und in EINER Zeile --
-// sonst zerfiele ein mehrzeiliger Text in lauter Einzelmeldungen. Decoding
-// stays in JavaScript: Qt's string atob overload is deprecated and behaves
-// differently from the browser API for non-ASCII clipboard contents.
-//
-// Passwoerter kommen hier NICHT an: wer ein Geheimnis in die Zwischenablage
-// legt, haengt dem Angebot den Mime-Typ `x-kde-passwordManagerHint` an
-// (KeePassXC, 1Password, Bitwarden, Vaultwarden-Clients, gnome-keyring). Der
-// Wachhund fragt die Typen des laufenden Angebots ab und schweigt dann --
-// sonst laege jedes kopierte Passwort im Klartext in ~/.local/state, und zwar
-// dauerhaft, waehrend es in der echten Zwischenablage nach Sekunden verfaellt.
+// Clipboard ingestion and disk reads are bounded by clipboard-text.py.
 Singleton {
     id: root
 
@@ -39,38 +23,29 @@ Singleton {
     readonly property string imageDir: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/nbshell/clipboard-images"
     readonly property string imageScript: Qt.resolvedUrl("../scripts/clipboard-images.py").toString().replace("file://", "")
 
-    function decode(base64) {
-        const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        const input = String(base64 || "").replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
-        const bytes = [];
-        var bits = 0;
-        var value = 0;
-        for (var i = 0; i < input.length; i++) {
-            if (input[i] === "=") break;
-            const digit = alphabet.indexOf(input[i]);
-            if (digit < 0) continue;
-            value = (value << 6) | digit;
-            bits += 6;
-            if (bits >= 8) {
-                bits -= 8;
-                bytes.push((value >> bits) & 0xff);
-            }
-        }
-        var encoded = "";
-        for (var j = 0; j < bytes.length; j++)
-            encoded += "%" + bytes[j].toString(16).padStart(2, "0");
-        try { return decodeURIComponent(encoded); }
-        catch (e) { return bytes.map(b => String.fromCharCode(b)).join(""); }
+    readonly property string textScript: Qt.resolvedUrl("../scripts/clipboard-text.py").toString().replace("file://", "")
+    property string pendingSave: ""
+    property string activeSave: ""
+
+    function persist() {
+        pendingSave = JSON.stringify(entries);
+        startSave();
+    }
+
+    function startSave() {
+        if (writer.running || pendingSave === "") return;
+        activeSave = pendingSave;
+        pendingSave = "";
+        writer.stdinEnabled = true;
+        writer.running = true;
     }
 
     function add(text) {
-        if (!text || text.trim() === "")
-            return;
-        // Dasselbe zweimal hintereinander ist kein zweiter Eintrag -- es
-        // wandert nur nach oben.
-        const rest = entries.filter(e => e !== text);
-        entries = [text].concat(rest).slice(0, keep);
-        store.setText(JSON.stringify(entries));
+        if (typeof text !== "string" || text.length > 65536 || text.trim() === "") return;
+        var rows = [text].concat(entries.filter(e => e !== text)).slice(0, Math.max(1, Math.min(100, keep)));
+        while (rows.length && JSON.stringify(rows).length > 262144) rows.pop();
+        entries = rows;
+        persist();
     }
 
     function copy(text) {
@@ -79,13 +54,13 @@ Singleton {
 
     function remove(text) {
         entries = entries.filter(e => e !== text);
-        store.setText(JSON.stringify(entries));
+        persist();
     }
 
     function clear() {
         entries = [];
         images = [];
-        store.setText("[]");
+        persist();
         Quickshell.execDetached(["python3", imageScript, "clear", imageDir]);
         Quickshell.execDetached(["wl-copy", "--clear"]);
     }
@@ -109,46 +84,41 @@ Singleton {
         return flat.length > width ? (flat.substring(0, width - 1) + "…") : flat;
     }
 
-    FileView {
-        id: store
-
-        path: root.statePath
-        atomicWrites: true
-        printErrors: false
-
-        onLoaded: {
-            try {
-                root.entries = JSON.parse(text() || "[]");
-            } catch (e) {
-                root.entries = [];
+    Process {
+        id: loader
+        running: root.enabled
+        command: ["python3", root.textScript, "load", root.statePath]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { root.entries = JSON.parse(text || "[]"); }
+                catch (e) { root.entries = []; }
+                watcher.running = root.enabled;
             }
         }
-        onLoadFailed: root.entries = []
-    }
-
-    // Erst lesen, dann pruefen, dann erst weitergeben: `wl-paste --watch`
-    // schiebt den Inhalt in die Standardeingabe des Befehls: wer sie nicht
-    // leert und einfach aussteigt, schickt dem Wachhund ein SIGPIPE. Deshalb
-    // wird immer gelesen und nur die Ausgabe unterdrueckt.
-    readonly property string watchCommand: {
-        const read = "data=$(base64 -w0)";
-        const guard = root.guardSecrets ? "wl-paste --list-types 2>/dev/null | grep -qi passwordmanagerhint && exit 0" : ":";
-        return "wl-paste --type text --watch sh -c '" + read + "; " + guard + "; printf \"%s\\n\" \"$data\"'";
     }
 
     Process {
+        id: writer
+        command: ["python3", root.textScript, "save", root.statePath]
+        onStarted: {
+            write(root.activeSave);
+            stdinEnabled = false;
+        }
+        onExited: saveAgain.restart()
+    }
+    Timer { id: saveAgain; interval: 0; onTriggered: root.startSave() }
+
+    Process {
         id: watcher
-
-        running: root.enabled
-        command: ["sh", "-c", root.watchCommand]
-
+        command: ["wl-paste", "--type", "text", "--watch", "python3", root.textScript, "capture", String(root.guardSecrets)]
         stdout: SplitParser {
             onRead: line => {
-                if (line.trim() !== "")
-                    root.add(root.decode(line.trim()));
+                try { root.add(JSON.parse(line)); }
+                catch (e) { console.warn("nbshell/clipboard: invalid entry"); }
             }
         }
     }
+    onEnabledChanged: { if (!enabled) watcher.running = false; }
 
     Process {
         id: imageLoader
