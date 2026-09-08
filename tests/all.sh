@@ -23,6 +23,8 @@ done < <(git ls-files --cached --others --exclude-standard -z -- '*.py')
 run bash tests/plugin-validation.sh
 run bash tests/plugin-smoke.sh
 run python3 tests/lockscreen.py
+run python3 tests/clipboard-text.py
+run python3 tests/clipboard-runtime.py
 run python3 tests/theme-contrast.py
 run python3 tests/shell-update.py
 run bash tests/bootstrap.sh
@@ -33,6 +35,8 @@ run python3 iso/profile/tests/test_installer.py
 run python3 tests/umbriel-capability-contract.py
 run python3 tests/umbriel-contracts.py
 run python3 tests/umbriel-update.py
+run python3 tests/update-build-gate.py
+run python3 tests/update-terminal.py
 run python3 tests/config-migrations.py
 run python3 tests/stack-status.py
 run python3 tests/doctor.py
@@ -43,6 +47,7 @@ run python3 tests/ai-local-stats.py
 run python3 tests/hermes-hub.py
 run python3 tests/hermes-broker.py
 run python3 tests/hermes-jobs.py
+run python3 tests/hermes-sandbox.py
 run python3 tests/hermes-team.py
 run python3 tests/hermes-brain.py
 run bash tests/performance-smoke.sh
@@ -55,10 +60,14 @@ run bash tests/motion.sh
 run bash tests/memory-guard.sh
 run bash tests/system-report.sh
 run bash tests/browser-theme.sh
+run python3 tests/brave-theme-policy.py
+run python3 tests/text-format-contracts.py
+run python3 plugins/omamail/tests/test_qml_text_format.py
+run python3 tests/text-safety.py
 run bash tests/hermes-theme.sh
 run python3 tests/hermarchy-theme.py
 run python3 tests/cli-consistency.py
-run python3 tests/accessibility/test_atspi_probe.py
+run python3 -m unittest discover -s tests/accessibility -p 'test_*.py'
 run bash tests/calendar-backend.sh
 run bash tests/release-audit.sh
 run python3 tests/release-gate.py
