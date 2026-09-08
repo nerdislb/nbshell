@@ -195,9 +195,9 @@ Bounded follow-ups, not guarantees supplied by this document:
    rollback. Snapshot integration should remain detection-only unless explicitly
    requested.
 
-Implementation sources: [`install.sh`](../install.sh),
-[`nbshell-install-recover`](../bin/nbshell-install-recover),
-[`config-migrations.py`](../shell/scripts/config-migrations.py),
-[`umbriel-update.py`](../shell/scripts/umbriel-update.py),
-[`install-tree-transaction.py`](../shell/scripts/install-tree-transaction.py),
-and [`setup-greeter.sh`](../setup-greeter.sh).
+Implementation sources: [`install.sh`](https://github.com/nerdislb/nbshell/blob/main/install.sh),
+[`nbshell-install-recover`](https://github.com/nerdislb/nbshell/blob/main/bin/nbshell-install-recover),
+[`config-migrations.py`](https://github.com/nerdislb/nbshell/blob/main/shell/scripts/config-migrations.py),
+[`umbriel-update.py`](https://github.com/nerdislb/nbshell/blob/main/shell/scripts/umbriel-update.py),
+[`install-tree-transaction.py`](https://github.com/nerdislb/nbshell/blob/main/shell/scripts/install-tree-transaction.py),
+and [`setup-greeter.sh`](https://github.com/nerdislb/nbshell/blob/main/setup-greeter.sh).
