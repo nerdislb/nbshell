@@ -102,8 +102,10 @@ A Schema v1 document without a ledger is accepted as a current baseline and the
 migration is recorded as applied without rewriting or backing up the config.
 
 Migration IDs are zero-padded, monotone and immutable. Their implementation
-checksum is recorded in the ledger; an applied or pending ID with another
-checksum is rejected.
+semantic contract checksum is recorded in the ledger; an applied or pending ID
+with another checksum is rejected. The existing v1 checksum is retained for
+compatibility. It identifies the reviewed transformation contract, not a hash
+of Python source; released transforms must remain immutable during code review.
 
 ### Runner ordering and status
 
@@ -130,29 +132,66 @@ A controlled transformation failure records `failed`, leaves config unchanged,
 and is not retried automatically. An interruption before replacement leaves
 `pending`, the original and its backup intact; the next start resumes. An
 interruption after replacement but before the final ledger write also leaves
-`pending`; the next start recognizes Schema v1 and completes the ledger without
-rewriting config. Concurrent runners serialize on the same lock.
+`pending`; the next start compares the current document with the deterministic result
+of its verified backup before completing the ledger without rewriting config. Concurrent runners serialize on the same lock.
 
-Normal QML and plugin-helper writes already use atomic replacement; plugin
-helpers also take the migration lock. QML does not, so supported startup and
-installer paths migrate before starting a new QML writer, duplicate starts skip
-migration when live config IPC is available, and the public CLI refuses a
-mutating apply while the shell is live. Stop the shell before invoking the
-runner directly or restoring a backup; `status` and `--dry-run` are read-only.
+QML and plugin helpers use the shared migration lock through `config-write.py`.
+Startup and installer paths migrate before starting a new QML writer, duplicate
+starts skip migration when live config IPC is available, and the migration CLI
+still refuses a mutating apply while the main shell is live. `status` and
+`--dry-run` are read-only. Their unlocked snapshots can show an intermediate
+pending state during a concurrent write; they are not commit acknowledgements.
+
+The runner uses an ordered registry of immutable transformations, with one
+backup and durable pending/applied entry per step. A release must supply a
+contiguous path to its supported schema. This release still ships only the
+necessary v1 transformation; multi-step ordering and interruption are exercised
+with isolated v2/v3 fixtures. Non-finite numbers are rejected as invalid JSON.
 
 ### Recovery and downgrade limits
 
-- A `failed` entry blocks automatic retry. Read the reported error, preserve the
-  ledger, and restore the exact `backup` path shown by `nbshell migrate status
-  --json` before deciding whether to retry with a corrected/newer nbshell.
-- A malformed ledger is never discarded or rebuilt silently. Move it aside only
-  as an explicit operator recovery step after preserving it and confirming the
-  config and backup state.
-- Backups are not automatically restored or deleted. This avoids converting an
-  interrupted recovery into data loss.
-- Downgrade is not generally supported. Schema v1 only adds an unknown JSON
-  member, so pre-schema nbshell builds are expected to preserve it, but that is
-  compatibility behavior rather than a rollback guarantee. A runner that sees
-  a future schema version or unknown ledger migration must stop.
-- Restoring `config.json` does not roll back Umbriel, plugin, task, notification,
-  agent, or installer state; use each subsystem's own recovery path.
+If startup validation or migration fails, `nbshell start` opens a separate
+recovery window. It loads no main-shell services or plugins. It preserves the
+files and offers **Retry startup** after manual correction, or an explicit
+candidate restoration. **Preview current file** lets you preserve a manually
+corrected configuration while explicitly rebuilding a failed or corrupt history;
+it goes through the same preview and confirmation as any other candidate.
+A running shell retains its last readable settings,
+rejects settings writes while config is invalid, and offers recovery in Settings.
+
+```sh
+nbshell config repair                  # open the recovery window
+nbshell config repair inspect          # status, pending token and backup paths
+nbshell config repair preview /absolute/path/to/saved-config.json
+nbshell config repair apply TOKEN_FROM_PREVIEW
+```
+
+Preview validates the complete candidate, applies supported pure migrations to
+its in-memory copy, and saves a private immutable repair record. It does not
+replace config or history. Restoration replaces the entire configuration with
+that reviewed candidate and rebuilds migration history as an explicit baseline.
+Settings absent from the candidate are therefore lost from the active file;
+review the selected saved copy before restoring it. There is no automatic reset
+or guess at correcting malformed JSON.
+
+The repair record at `$XDG_STATE_HOME/nbshell/config-repairs/<token>.json` retains
+`beforeConfig` and `beforeLedger` as base64-encoded exact original bytes, or null
+if absent. It also stores the reviewed candidate and resulting history. Records
+are private (0600) and are not pruned. They can contain sensitive settings, so
+keep them private. Migration backups remain separately available as JSON files.
+
+Apply holds the shared lock and refuses changes made since preview. A durable
+`repair-pending.json` journal protects the two replacements. If interrupted,
+`inspect` returns the token: apply that same token again to resume. Both files
+must match their recorded before or after bytes; unexpected edits stop recovery.
+Migration and normal config writers refuse to run while a repair is pending.
+The originals stay in the repair record even when the original ledger was corrupt.
+As with other writers, editors that ignore the advisory lock can still race the
+last check and replacement; stop editing during restoration.
+
+A failed migration is not retried automatically, and malformed history is never
+silently discarded. Restore a reviewed, supported candidate explicitly or inspect
+the exact backup and ledger before further migration work. Downgrade is not
+automatic: future schemas and unknown migration IDs stop normal startup.
+Restoring shell configuration does not roll back Umbriel, plugins, tasks,
+notifications, agents or installer state; use each subsystem's recovery path.

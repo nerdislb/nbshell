@@ -304,7 +304,7 @@ Scope {
         }
 
         function status(): string {
-            return JSON.stringify({valid: Config.configValid, saving: Config.saving, error: Config.writeError});
+            return JSON.stringify({valid: Config.configValid, saving: Config.saving, error: Config.writeError, readError: Config.readError});
         }
 
         function dump(): string {

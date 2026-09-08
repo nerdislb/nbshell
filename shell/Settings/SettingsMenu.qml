@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import qs.Common
 import qs.Services
 import qs.Widgets
@@ -525,6 +526,8 @@ Item {
         });
     }
     function requestOpen() {
+        if (Config.readError !== "")
+            pane = 2;
         closing = false;
         afterClose = null;
         box.enter();
@@ -589,6 +592,8 @@ Item {
                 });
             return;
         }
+        if (!Config.configValid)
+            return;
         const current = valueOf(entry);
         if (entry.values) {
             var i = entry.values.indexOf(current);
@@ -618,13 +623,14 @@ Item {
     }
 
     function switchPane() {
-        root.pane = root.pane === 0 ? 1 : 0;
+        root.pane = Config.readError !== "" ? (root.pane + 1) % 3 : (root.pane === 0 ? 1 : 0);
     }
 
     function syncFocus() {
         if (!root.visible || root.closing)
             return;
-        const row = root.pane === 0 ? groupRows.itemAt(root.group) : settingRows.itemAt(root.selected);
+        const row = root.pane === 2 && recoveryButton.visible ? recoveryButton
+            : root.pane === 0 ? groupRows.itemAt(root.group) : settingRows.itemAt(root.selected);
         (row || closeButton).forceActiveFocus();
         revealFocusedItem(row || closeButton);
     }
@@ -654,7 +660,7 @@ Item {
             closing = false;
             // Rechts anfangen: dann bleibt es bei ↑↓ waehlen, ←→ aendern --
             // so, wie die Liste sich vorher bedienen liess.
-            pane = 1;
+            pane = Config.readError !== "" ? 2 : 1;
             group = 0;
             selected = 0;
             Qt.callLater(root.syncFocus);
@@ -745,6 +751,22 @@ Item {
                         : "Appearance, behavior and services  ·  changes apply immediately"
                     badge: root.groups[root.group]?.head || ""
                     badgeColor: Theme.accent
+                }
+
+                Line {
+                    width: content.width
+                    visible: Config.readError !== ""
+                    text: Config.readError + " Settings are read-only until the file is repaired."
+                    color: Theme.readable(Theme.red, Theme.panelSurface)
+                    wrapMode: Text.Wrap
+                }
+                ControlButton {
+                    id: recoveryButton
+                    Keys.forwardTo: [keys]
+                    onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(recoveryButton)
+                    visible: Config.readError !== ""
+                    text: "Open configuration recovery"
+                    onTriggered: Quickshell.execDetached(["nbshell", "config", "repair"])
                 }
 
                 Line {

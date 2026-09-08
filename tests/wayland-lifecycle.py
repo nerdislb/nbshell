@@ -45,13 +45,15 @@ def inside(args):
     Path('/work/umbriel.toml').write_text('[general]\nxwayland = false\nshow_cheatsheet = false\nautostart = []\n'
                                         f'[output.HEADLESS-1]\nmode = "{args.width}x{args.height}@60"\nscale = 1.0\n')
     shutil.copytree('/source/shell', '/work/shell')
-    root = Path('/work/shell/shell.qml')
+    root = Path('/work/shell/recovery.qml' if args.recovery else '/work/shell/shell.qml')
     source = root.read_text(); end = source.rfind('}')
     # Diagnostic IPC lives only in the disposable copy, never production.
     source = source[:end] + '''
     IpcHandler {
         target: "lifecycleProbe"
         function showConfigError(): string {
+            Config.readError = "Configuration could not be loaded. The file contains invalid JSON.";
+            Config.configValid = false;
             Config.writeError = "Changes were not saved. An edited setting changed elsewhere; review the current value and retry your change.";
             return "shown";
         }
@@ -63,6 +65,32 @@ def inside(args):
         }
     }
 ''' + source[end:]
+    if args.recovery:
+        # Recovery runs without loading the main shell or any plugin services.
+        source = root.read_text(); end = source.rfind('}')
+        source = source[:end] + '''
+    IpcHandler {
+        target: "recoveryProbe"
+        function ready(): bool { return !worker.running; }
+        function preview(): string { root.run("preview", "/work/candidate.json"); return "started"; }
+        function tokenReady(): bool { return !worker.running && root.token !== ""; }
+        function apply(): string { root.run("apply", root.token); return "started"; }
+        function restored(): bool { return !worker.running && root.token === "" && root.message.indexOf("restored") >= 0; }
+        function retryStartup(): string { root.run("retry", ""); return "started"; }
+        function focusVisible(): bool {
+            const control = restore.activeFocus ? restore : retry;
+            const y = control.mapToItem(viewport, 0, 0).y;
+            return control.activeFocus && y >= 0 && y + control.height <= viewport.height;
+        }
+    }
+''' + source[end:]
+        Path('/work/candidate.json').write_bytes((config / 'config.json').read_bytes())
+        if args.theme == 'tokyo-night':
+            (config / 'config.json').write_text('{invalid startup config')
+        else:
+            state = Path('/home/user/.local/state/nbshell')
+            state.mkdir(parents=True)
+            (state / 'config-migrations.json').write_text('{invalid migration history')
     root.write_text(source)
     settings = Path('/work/shell/Settings/SettingsMenu.qml')
     source = settings.read_text(); end = source.rfind('}')
@@ -70,6 +98,12 @@ def inside(args):
     IpcHandler {
         target: "lifecycleSettings"
         enabled: root.visible && !root.embedded
+        function focusRecovery(): string {
+            root.pane = 1;
+            root.switchPane();
+            return "focused";
+        }
+        function recoveryFocused(): bool { return recoveryButton.activeFocus; }
         function headerVisible(): bool {
             return content.mapToItem(viewport, 0, 0).y >= 0;
         }
@@ -96,7 +130,7 @@ def inside(args):
         raise RuntimeError('Timed out: ' + label)
 
     def ipc(*argv):
-        return run(['/test-bin/qs', '-p', '/work/shell', 'ipc', 'call', *argv]).stdout.strip()
+        return run(['/test-bin/qs', '-p', str(root) if args.recovery else '/work/shell', 'ipc', 'call', *argv]).stdout.strip()
 
     def mapped(name):
         layers = json.loads(run(['/test-bin/umbriel', 'layers', '--json']).stdout)
@@ -111,6 +145,39 @@ def inside(args):
         launch(['/test-bin/umbriel', '-c', '/work/umbriel.toml'], 'compositor.log')
         wait(lambda: Path('/run/test/umbriel-wayland-0.sock').exists(), 'compositor')
         os.environ.update(WAYLAND_DISPLAY='wayland-0', UMBRIEL_SOCKET='/run/test/umbriel-wayland-0.sock')
+        if args.recovery:
+            shell = launch(['/test-bin/qs', '-p', str(root), '--no-color'], 'shell.log')
+            wait(lambda: run(['/test-bin/qs', '-p', str(root), 'ipc', 'call', 'recoveryProbe', 'ready'], False).stdout.strip() == 'true', 'recovery IPC')
+            time.sleep(1)
+            run(['grim', '/work/recovery.png'])
+            ipc('recoveryProbe', 'preview')
+            wait(lambda: ipc('recoveryProbe', 'tokenReady') == 'true', 'candidate preview')
+            time.sleep(0.5)
+            require(ipc('recoveryProbe', 'focusVisible') == 'true', 'Restore focus is clipped')
+            run(['grim', '/work/preview.png'])
+            ipc('recoveryProbe', 'apply')
+            wait(lambda: ipc('recoveryProbe', 'restored') == 'true', 'candidate restoration')
+            time.sleep(0.5)
+            require(ipc('recoveryProbe', 'focusVisible') == 'true', 'Retry focus is clipped')
+            run(['grim', '/work/restored.png'])
+            require(json.loads((config / 'config.json').read_text())['theme'] == args.theme, 'Candidate not restored')
+            log = Path('/work/shell.log').read_text()
+            require(not any(word in log for word in ('ReferenceError', 'TypeError', 'Binding loop')), 'Recovery QML runtime error')
+            # Exercise the production Retry startup action and CLI fallback in
+            # this private session, with no user systemd manager available.
+            runtime = Path('/home/user/.config/quickshell')
+            runtime.mkdir(parents=True)
+            (runtime / 'nbshell').symlink_to('/work/shell')
+            # The running recovery inherits its original PATH, so use a bridge
+            # at a path already included when launching it.
+            Path('/test-bin/nbshell').symlink_to('/source/bin/nbshell')
+            ipc('recoveryProbe', 'retryStartup')
+            wait(lambda: run(['/test-bin/qs', '-c', 'nbshell', 'ipc', 'call', 'config', 'status'], False).returncode == 0, 'recovered main shell IPC')
+            status = json.loads(run(['/test-bin/qs', '-c', 'nbshell', 'ipc', 'call', 'config', 'status']).stdout)
+            require(status['valid'], 'Recovered main shell rejected config')
+            run(['/test-bin/qs', '-c', 'nbshell', 'kill'])
+            Path('/work/results.json').write_text(json.dumps({'recovery': True, 'previewApplied': True, 'mainShellRestarted': True, 'focusVisible': True, 'theme': args.theme, 'motion': args.motion}))
+            return
         shell = launch(['/test-bin/qs', '-p', '/work/shell', '--no-color'], 'shell.log')
         wait(lambda: run(['/test-bin/qs', '-p', '/work/shell', 'ipc', 'call', 'state', 'dump'], False).returncode == 0, 'shell IPC')
         time.sleep(2)
@@ -129,6 +196,10 @@ def inside(args):
                     run(['grim', '/work/' + panel + '.png'])
                     if panel == 'settings':
                         require(ipc('lifecycleSettings', 'headerVisible') == 'true', 'Settings opened with a clipped header')
+                        if args.settings_error:
+                            ipc('lifecycleSettings', 'focusRecovery')
+                            wait(lambda: ipc('lifecycleSettings', 'recoveryFocused') == 'true', 'Recovery keyboard focus')
+                            run(['grim', '/work/settings-recovery-focus.png'])
                 ipc('lifecycleProbe', 'closePanels')
                 wait(lambda: not mapped(panel), panel + ' unmap')
                 rows.append({'panel': panel, 'cycle': index, 'mapped_latency_ms': elapsed})
@@ -169,6 +240,7 @@ def main():
     parser.add_argument('--cycles', type=int, default=100)
     parser.add_argument('--settle-seconds', type=int, default=60)
     parser.add_argument('--theme', default='tokyo-night')
+    parser.add_argument('--recovery', action='store_true', help='Exercise recovery preview and restore in a private Wayland session')
     parser.add_argument('--settings-error', action='store_true', help='Show a persistence error in the isolated settings fixture')
     parser.add_argument('--motion', choices=['standard', 'reduced'], default='standard')
     parser.add_argument('--width', type=int, default=800)

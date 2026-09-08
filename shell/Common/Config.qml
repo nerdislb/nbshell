@@ -24,6 +24,7 @@ Singleton {
     property var data: ({ "schemaVersion": supportedSchemaVersion })
     property bool configValid: false
     property string writeError: ""
+    property string readError: ""
     property var diskData: ({ "schemaVersion": supportedSchemaVersion })
     property var pendingPatch: ({})
     property var activePatch: ({})
@@ -303,16 +304,21 @@ Singleton {
                     throw new Error("unsupported schemaVersion " + candidate.schemaVersion);
                 root.displaySnapshot(candidate);
                 root.configValid = true;
+                root.readError = "";
             } catch (e) {
                 // Keep the last valid in-memory snapshot. Invalid state is never
                 // replaced with defaults or written back silently.
                 root.configValid = false;
+                root.readError = "Configuration could not be loaded. " + e;
                 console.warn("nbshell: config.json was rejected --", e);
             }
         }
         // Fehlt die Datei, bleiben die Vorgaben oben stehen. Kein Grund zu
         // meckern: beim ersten Start ist das der Normalfall.
         // A later read failure also keeps the last valid in-memory snapshot.
-        onLoadFailed: root.configValid = false
+        onLoadFailed: {
+            root.configValid = false;
+            root.readError = "Configuration could not be read. Check the file or open recovery.";
+        }
     }
 }

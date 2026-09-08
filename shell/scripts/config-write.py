@@ -21,6 +21,8 @@ def update_config(transform, *, create=False):
     if create and not path.exists():
         M['apply_migrations'](path, ledger, state, False, lock_timeout=5.0)
     with M['migration_lock'](state, timeout=5.0):
+        if (state / 'repair-pending.json').exists():
+            raise RuntimeError('An interrupted configuration repair must be resumed first')
         current, source = M['read_json_object'](path, 'shell configuration')
         if M['config_schema'](current) != M['SCHEMA_VERSION']:
             raise ValueError("Run 'nbshell migrate apply' before changing settings")

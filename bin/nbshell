@@ -560,6 +560,9 @@ nbshell -- an independent Quickshell desktop shell for Umbriel
   nbshell set <key> <value>  set a value; JSON is supported
   nbshell config            show the full configuration
   nbshell config status     show pending writes and persistence errors
+  nbshell config repair     open configuration recovery
+  nbshell config repair inspect|preview <file>|apply <token>
+                            inspect, preview or restore a configuration candidate
   nbshell migrate [status|apply] [--json] [--dry-run]
                             inspect or migrate nbshell shell configuration
   nbshell state             show open surfaces
@@ -619,7 +622,10 @@ case "$cmd" in
         # any time. Do not race that writer merely because a duplicate start
         # was requested.
         if ! ipc config dump >/dev/null 2>&1; then
-            run_config_migrations
+            if ! run_config_migrations; then
+                warn "Configuration needs attention; opening recovery. Existing settings are preserved."
+                exec "$QS" -p "$RUNTIME_DIR/recovery.qml" "$@"
+            fi
         fi
         exec "$QS" -c "$CONFIG_NAME" "$@"
         ;;
@@ -641,7 +647,7 @@ case "$cmd" in
             grep -qz -- "$CONFIG_NAME" "/proc/$pid/cmdline" 2>/dev/null && kill "$pid" 2>/dev/null
         done
         sleep 0.4
-        exec "$QS" -c "$CONFIG_NAME" -d
+        exec "$0" start -d
         ;;
     bar|island|pill)
         ipc bar mode "$cmd" >/dev/null && echo "$cmd"
@@ -1308,7 +1314,14 @@ for b in d["binds"]:
         case "${1:-dump}" in
             dump) ipc config dump ;;
             status) ipc config status ;;
-            *) die "Usage: nbshell config [status]" ;;
+            repair)
+                shift
+                if [ "$#" -eq 0 ]; then
+                    exec "$QS" -p "$RUNTIME_DIR/recovery.qml"
+                fi
+                exec python3 "$RUNTIME_DIR/scripts/config-repair.py" "$@"
+                ;;
+            *) die "Usage: nbshell config [status|repair [inspect|preview <file>|apply <token>]]" ;;
         esac
         ;;
     status)
