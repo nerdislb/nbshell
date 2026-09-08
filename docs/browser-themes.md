@@ -14,9 +14,13 @@ The command performs two explicit changes:
 - Zen receives a single managed import in each existing `userChrome.css` and a
   generated `nbshell-theme.css`. Existing personal CSS stays in place.
 - Brave receives a managed Linux policy under
-  `/etc/brave/policies/managed/nbshell-color.json`. Creating that file asks for
-  sudo once; the file is then owned by the current user so normal theme changes
-  never need elevated privileges.
+  `/etc/brave/policies/managed/nbshell-color.json`. Setup asks for sudo once and installs
+  a root-owned policy, a root-owned color helper, and a Polkit action. Active
+  local sessions may pass exactly one `#RRGGBB` color to that helper; they cannot
+  choose policy keys or paths. Normal theme changes need no password.
+  Repeat `setup-brave` to repair older user-owned policy installations.
+  Unsafe parent directories are rejected; unrelated administrator policies
+  remain untouched.
 
 Restart Zen once after the first setup. Later nbshell theme changes rewrite the
 managed CSS automatically. Zen's Browser Toolbox can reload `userChrome.css`
@@ -78,4 +82,7 @@ nbshell browser-theme apply
 ```
 
 Removing the managed import from Zen's `userChrome.css` disables the Zen
-integration. Removing `nbshell-color.json` with sudo disables the Brave policy.
+integration. Removing `nbshell-color.json` with sudo disables automatic Brave theme updates.
+To remove the integration entirely, also remove the root-owned
+`/usr/lib/nbshell/brave-theme-policy` helper and
+`/usr/share/polkit-1/actions/org.nbshell.brave-theme.policy` action with sudo.

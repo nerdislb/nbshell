@@ -1034,6 +1034,11 @@ elif [ "$was_running" = "1" ]; then
     green "Restarted the shell."
 fi
 
+# Existing user-owned enterprise policies remain unsafe until administrator repair.
+if [ "$(python3 -I "$SRC/shell/scripts/brave-theme-health.py")" = insecure ]; then
+    printf '\nWARNING: Brave has insecure policy permissions. Run nbshell browser-theme setup-brave to repair them.\n' >&2
+fi
+
 # Ruft setup.sh dieses Skript auf, folgt sein eigener Abspann gleich danach --
 # zweimal dasselbe untereinander liest sich wie ein Fehler.
 if [ -n "${NBSHELL_FROM_SETUP:-}" ]; then

@@ -163,6 +163,11 @@ def service_status(name):
             "probe": state if state != "ok" else "ok" if text in STATES else "invalid"}
 
 
+def browser_policy_status():
+    state, value = probe([sys.executable, "-I", str(SCRIPTS / "brave-theme-health.py")])
+    return value if state == "ok" and value in {"secure", "insecure", "absent", "unknown"} else "unknown"
+
+
 def collect():
     stack = stack_status()
     compositor = compositor_status()
@@ -172,7 +177,12 @@ def collect():
     shell_health = "healthy" if shell == "active" else "unknown" if shell == "unknown" else "unhealthy"
     core = (compositor["health"], shell_health)
     health = "unhealthy" if "unhealthy" in core else "unknown" if "unknown" in core else "healthy"
+    browser_policy = browser_policy_status()
     advice = []
+    if browser_policy == "insecure":
+        advice.append("Brave policy permissions are insecure; run nbshell browser-theme setup-brave.")
+    if browser_policy == "unknown":
+        advice.append("Could not verify Brave policy permissions; inspect nbshell browser-theme status and the installed helper.")
     if stack["status"] not in {"tested", "supported"}:
         advice.append("Check the tested stack documentation before updating components.")
     if compositor["health"] != "healthy":
@@ -184,12 +194,13 @@ def collect():
     return {"schemaVersion": 1, "reportType": "nbshell-support", "shareable": True,
             "support": stack, "runtime": {"health": health, "shell": shell_health,
             "compositor": compositor, "portal": portal}, "services": services,
-            "remediation": advice}
+            "browserPolicy": browser_policy, "remediation": advice}
 
 
 def healthy(data):
     return (data["support"]["status"] in {"tested", "supported"} and data["runtime"]["health"] == "healthy"
-            and data["runtime"]["portal"]["health"] == "healthy")
+            and data["runtime"]["portal"]["health"] == "healthy"
+            and data.get("browserPolicy") not in {"insecure", "unknown"})
 
 
 def human(data):

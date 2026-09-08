@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import subprocess
 import unittest
+import tempfile
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,6 +15,7 @@ spec = importlib.util.spec_from_file_location("doctor", ROOT / "shell/scripts/do
 assert spec is not None and spec.loader is not None
 doctor = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(doctor)
+REAL_BROWSER_POLICY_STATUS = doctor.browser_policy_status
 SECRET = "private-host /home/private-user token=VERY_SECRET window-title"
 
 
@@ -25,6 +27,32 @@ def compositor(socket=True, required=True):
 
 
 class DoctorTests(unittest.TestCase):
+    def setUp(self):
+        mocked = patch.object(doctor, "browser_policy_status", return_value="absent")
+        mocked.start()
+        self.addCleanup(mocked.stop)
+
+    def test_real_browser_health_projection_and_missing_helper(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(doctor, "SCRIPTS", Path(directory)):
+            self.assertEqual(REAL_BROWSER_POLICY_STATUS(), "unknown")
+            helper = Path(directory) / "brave-theme-health.py"
+            for source, expected in [("print('secure')", "secure"), ("print('" + SECRET + "')", "unknown"), ("broken syntax !", "unknown")]:
+                helper.write_text(source)
+                self.assertEqual(REAL_BROWSER_POLICY_STATUS(), expected)
+
+    def test_unknown_browser_policy_has_remediation(self):
+        with patch.object(doctor, "probe", side_effect=self.fixture), patch.object(doctor, "browser_policy_status", return_value="unknown"):
+            data = doctor.collect()
+        self.assertTrue(any("Could not verify Brave" in advice for advice in data["remediation"]))
+
+    def test_insecure_browser_policy_is_reported(self):
+        with patch.object(doctor, "probe", side_effect=self.fixture), patch.object(doctor, "browser_policy_status", return_value="insecure"):
+            data = doctor.collect()
+        data["support"]["status"] = "supported"
+        self.assertFalse(doctor.healthy(data))
+        self.assertEqual(data["browserPolicy"], "insecure")
+        self.assertTrue(any("setup-brave" in advice for advice in data["remediation"]))
+
     def fixture(self, command, timeout=3):
         self.assertGreater(timeout, 0)
         self.assertLessEqual(timeout, 20)

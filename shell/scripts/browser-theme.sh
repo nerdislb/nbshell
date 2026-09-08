@@ -3,7 +3,9 @@ set -euo pipefail
 
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 PALETTE="$CONFIG_HOME/nbshell/palette.sh"
-BRAVE_POLICY="${NBSHELL_BRAVE_POLICY:-/etc/brave/policies/managed/nbshell-color.json}"
+BRAVE_POLICY=/etc/brave/policies/managed/nbshell-color.json
+BRAVE_HELPER=/usr/lib/nbshell/brave-theme-policy
+BRAVE_ACTION=/usr/share/polkit-1/actions/org.nbshell.brave-theme.policy
 BRAVE_FLAGS="$CONFIG_HOME/brave-flags.conf"
 BRAVE_FLAGS_BEGIN='# nbshell browser theme begin'
 BRAVE_FLAGS_END='# nbshell browser theme end'
@@ -24,7 +26,11 @@ die() { printf 'nbshell browser theme: %s\n' "$1" >&2; exit 1; }
 palette_value() {
 	local key="$1" fallback="$2" value
 	value=$(sed -n "s/^${key}=['\"]\([^'\"]*\)['\"]$/\1/p" "$PALETTE" 2>/dev/null | tail -1)
-	printf '%s' "${value:-$fallback}"
+	value="${value:-$fallback}"
+	if [[ $key != NB_MODE && ! $value =~ ^#[[:xdigit:]]{6}$ ]]; then
+		die "invalid palette color for $key"
+	fi
+	printf '%s' "$value"
 }
 
 zen_profiles() {
@@ -197,16 +203,21 @@ EOF
 	fi
 }
 
+brave_health() {
+	/usr/bin/python3 -I "$SCRIPT_DIR/brave-theme-health.py" 2>/dev/null || printf 'unknown\n'
+}
+
+brave_configured() {
+	# No implicit authentication or writes through the legacy user-owned policy.
+	[[ -x $BRAVE_HELPER && -r $BRAVE_ACTION && -f $BRAVE_POLICY && ! -L $BRAVE_POLICY ]] || return 1
+	[[ $(brave_health) == secure ]] || return 1
+}
+
 setup_brave() {
 	command -v brave >/dev/null 2>&1 || die "Brave is not installed"
-	local owner group temporary
-	owner=$(id -un)
-	group=$(id -gn)
-	temporary=$(mktemp)
-	printf '%s\n' '{"BrowserThemeColor":"#1c2027"}' > "$temporary"
-	sudo install -d -m 0755 /etc/brave/policies/managed
-	sudo install -o "$owner" -g "$group" -m 0644 "$temporary" "$BRAVE_POLICY"
-	rm -f "$temporary"
+	[[ -x /usr/bin/pkexec && -x /usr/bin/sudo ]] || die "polkit and sudo are required"
+	/usr/bin/sudo /usr/bin/python3 -I "$SCRIPT_DIR/brave-theme-setup.py"
+	brave_configured || die "Brave policy setup verification failed"
 	apply_brave
 	printf 'Brave theme policy installed.\n'
 }
@@ -232,7 +243,8 @@ apply_brave_mode() {
 }
 
 apply_brave() {
-	[[ -r $PALETTE && -w $BRAVE_POLICY ]] || return 0
+	[[ -r $PALETTE ]] || return 0
+	brave_configured || return 0
 	local browser_color mode
 	mode=$(palette_value NB_MODE 'dark')
 	if [[ $mode == light ]]; then
@@ -243,8 +255,12 @@ apply_brave() {
 		# from the actual background so dark palettes remain visibly dark.
 		browser_color=$(palette_value NB_BG '#1c2027')
 	fi
-	printf '{"BrowserThemeColor":"%s"}\n' "$browser_color" > "$BRAVE_POLICY"
+	[[ $browser_color =~ ^#[[:xdigit:]]{6}$ ]] || die "invalid Brave theme color"
 	apply_brave_mode
+	/usr/bin/pkexec --disable-internal-agent "$BRAVE_HELPER" "$browser_color" || {
+		printf 'nbshell browser theme: Brave policy update denied; apply from an active local session.\n' >&2
+		return 0
+	}
 	if command -v brave >/dev/null 2>&1 && pgrep -x brave >/dev/null 2>&1; then
 		brave --refresh-platform-policy --no-startup-window >/dev/null 2>&1 &
 	fi
@@ -259,7 +275,11 @@ status() {
 	printf 'Palette   %s\n' "$([[ -r $PALETTE ]] && echo ready || echo missing)"
 	printf 'Zen CSS   %s profile(s), %s using the restart fallback\n' "$profiles" "$configured"
 	printf 'Zen live  %s\n' "$(omazen_configured && echo configured || echo 'setup required')"
-	printf 'Brave     %s (%s mode)\n' "$([[ -w $BRAVE_POLICY ]] && echo configured || echo 'setup required')" "$(palette_value NB_MODE dark)"
+	if [[ $(brave_health) == insecure ]]; then
+		printf 'Brave     INSECURE policy permissions; run nbshell browser-theme setup-brave\n'
+		return 0
+	fi
+	printf 'Brave     %s (%s mode)\n' "$(brave_configured && echo configured || echo 'setup required')" "$(palette_value NB_MODE dark)"
 }
 
 case "${1:-status}" in
