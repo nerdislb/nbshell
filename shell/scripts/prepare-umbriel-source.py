@@ -17,6 +17,8 @@ def prepare(destination, recipe, root=ROOT):
     if hashlib.sha256(patch).hexdigest() != recipe['patchSha256']:
         raise ValueError('Umbriel patch checksum mismatch')
     digest = hashlib.sha1(b'commit ' + str(len(commit)).encode() + b'\0' + commit).hexdigest()
+    if not commit.startswith(('tree ' + recipe['tree'] + '\nparent ' + recipe['baseRevision'] + '\n').encode()):
+        raise ValueError('Umbriel commit tree or parent mismatch')
     if digest != recipe['revision']:
         raise ValueError('Umbriel commit object mismatch')
     if destination.exists():
