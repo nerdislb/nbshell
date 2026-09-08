@@ -190,6 +190,7 @@ Item {
 
         function cleanup() {
             modal.visible = false;
+            modalOpener.parent = host;
             modalBackground.enabled = true;
             host.modalBackgroundClicks = 0;
             host.pointerTargetClicks = 0;
@@ -246,6 +247,8 @@ Item {
         }
 
         function test_modal_surface_focus_blocking_and_escape() {
+            // The actual opener is inside the disabled dashboard background.
+            modalOpener.parent = modalBackground;
             modalOpener.forceActiveFocus();
             tryCompare(modalOpener, "activeFocus", true);
             modal.visible = true;

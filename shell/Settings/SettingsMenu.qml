@@ -2,6 +2,7 @@ import QtQuick
 import qs.Common
 import qs.Services
 import qs.Widgets
+import "../Widgets/FocusScroll.js" as FocusScroll
 
 // Einstellungen.
 //
@@ -24,6 +25,7 @@ Item {
     property bool embedded: false
     property bool externalLifecycle: false
     property var afterClose: null
+    property bool closing: false
     signal backRequested()
     signal closeRequested()
 
@@ -498,6 +500,7 @@ Item {
     }
 
     function close() {
+        closing = true;
         if (root.externalLifecycle) {
             Runtime.settingsOpen = false;
             return;
@@ -513,6 +516,7 @@ Item {
         });
     }
     function requestClose(done) {
+        closing = true;
         box.dismiss(() => {
             const next = root.afterClose;
             root.afterClose = null;
@@ -521,8 +525,10 @@ Item {
         });
     }
     function requestOpen() {
+        closing = false;
         afterClose = null;
         box.enter();
+        Qt.callLater(root.syncFocus);
     }
     function openSurface(fn) {
         afterClose = fn;
@@ -615,14 +621,43 @@ Item {
         root.pane = root.pane === 0 ? 1 : 0;
     }
 
+    function syncFocus() {
+        if (!root.visible || root.closing)
+            return;
+        const row = root.pane === 0 ? groupRows.itemAt(root.group) : settingRows.itemAt(root.selected);
+        (row || closeButton).forceActiveFocus();
+        revealFocusedItem(row || closeButton);
+    }
+
+    function revealFocusedItem(item) {
+        if (viewport.height <= 0 || item.height <= 0)
+            return;
+        const mapped = item.mapToItem(content, 0, 0);
+        // Early delegate focus can scroll before layout has its final size.
+        // The first row should keep the panel heading visible whenever it fits.
+        const firstRow = root.pane === 0 ? root.group === 0 : root.selected === 0;
+        if (firstRow && mapped.y + item.height + Theme.spaceSm <= viewport.height) {
+            viewport.contentY = 0;
+            return;
+        }
+        viewport.contentY = FocusScroll.contentYForFocus(mapped.y, item.height,
+            viewport.contentY, viewport.height, viewport.contentHeight, Theme.spaceSm);
+    }
+
+    onPaneChanged: Qt.callLater(root.syncFocus)
+    onGroupChanged: Qt.callLater(root.syncFocus)
+    onSelectedChanged: Qt.callLater(root.syncFocus)
+    Component.onCompleted: Qt.callLater(root.syncFocus)
+
     onVisibleChanged: {
         if (visible) {
+            closing = false;
             // Rechts anfangen: dann bleibt es bei ↑↓ waehlen, ←→ aendern --
             // so, wie die Liste sich vorher bedienen liess.
             pane = 1;
             group = 0;
             selected = 0;
-            keys.forceActiveFocus();
+            Qt.callLater(root.syncFocus);
         }
     }
 
@@ -663,12 +698,7 @@ Item {
             else
                 root.step(root.items[root.selected], 1);
         }
-        Keys.onReturnPressed: {
-            if (root.pane === 0)
-                root.pane = 1;
-            else
-                root.step(root.items[root.selected], 1);
-        }
+
 
         OverlaySurface {
             id: box
@@ -690,10 +720,20 @@ Item {
                 anchors.fill: parent
             }
 
-            Column {
-                id: content
+            Flickable {
+                id: viewport
                 anchors.fill: parent
                 anchors.margins: Theme.spaceXl
+                contentWidth: width
+                contentHeight: content.implicitHeight
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+            }
+
+            Column {
+                id: content
+                parent: viewport.contentItem
+                width: viewport.width
                 spacing: Theme.spaceLg
 
                 PanelHead {
@@ -733,7 +773,9 @@ Item {
                             }
 
                             Repeater {
+                                id: groupRows
                                 model: root.groups
+                                onItemAdded: Qt.callLater(root.syncFocus)
 
                                 PanelRow {
                                     id: groupRow
@@ -746,12 +788,15 @@ Item {
                                     value: String(groupRow.modelData.items.length)
                                     glyph: root.groupIcon(groupRow.modelData.head)
                                     selected: groupRow.index === root.group
-                                    visualFocus: groupRow.selected && root.pane === 0
+                                    visualFocus: activeFocus
                                     interactive: true
+                                    Keys.forwardTo: [keys]
+                                    onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(groupRow)
                                     onTriggered: {
                                         root.group = groupRow.index;
                                         root.selected = 0;
                                         root.pane = 1;
+                                        Qt.callLater(root.syncFocus);
                                     }
                                 }
                             }
@@ -771,7 +816,9 @@ Item {
                         }
 
                         Repeater {
+                            id: settingRows
                             model: root.items
+                            onItemAdded: Qt.callLater(root.syncFocus)
 
                             PanelRow {
                                 id: settingRow
@@ -788,12 +835,15 @@ Item {
                                     + root.shown(settingRow.modelData)
                                     + (settingRow.current && root.pane === 1 ? "  ▸" : "")
                                 selected: settingRow.current && root.pane === 1
-                                visualFocus: settingRow.selected
+                                visualFocus: activeFocus
                                 interactive: true
+                                Keys.forwardTo: [keys]
+                                onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(settingRow)
                                 onTriggered: {
                                     root.selected = settingRow.index;
                                     root.pane = 1;
                                     root.step(settingRow.modelData, 1);
+                                    Qt.callLater(root.syncFocus);
                                 }
 
                                 TapHandler {
@@ -834,6 +884,8 @@ Item {
                         id: closeButton
                         text: root.embedded ? "Back" : "Close"
                         compact: true
+                        Keys.forwardTo: [keys]
+                        onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(closeButton)
                         onTriggered: root.back()
                     }
                 }

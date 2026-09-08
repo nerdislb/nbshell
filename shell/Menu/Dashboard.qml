@@ -81,13 +81,23 @@ PanelWindow {
         Calendar.ensure(new Date());
         AiUsage.refresh();
         refreshWeather();
-        keys.forceActiveFocus();
+        focusPage();
     } else {
         Runtime.calendarOpen = false;
     }
     onPageChanged: {
         Runtime.dashboardPage = page;
         Runtime.calendarOpen = root.visible && page === 1;
+        Qt.callLater(root.focusPage);
+    }
+
+    function focusPage() {
+        if (!root.visible || root.updatesOpen)
+            return;
+        if (root.page === 2)
+            toolsFlow.children[0].forceActiveFocus(Qt.OtherFocusReason);
+        else
+            keys.forceActiveFocus(Qt.OtherFocusReason);
     }
 
     Connections {
@@ -161,7 +171,15 @@ PanelWindow {
         }
     }
 
-    component Action: DashboardAction {}
+    component Action: DashboardAction {
+        directionalNavigation: true
+        readonly property bool navigationFocus: activeFocus || secondaryButton.activeFocus
+        onNavigationFocusChanged: if (navigationFocus) {
+            const top = toolsFlow.y + y;
+            toolsScroll.contentY = Math.max(0, Math.min(top - Theme.spaceXs,
+                Math.max(toolsScroll.contentY, top + height + Theme.spaceXs - toolsScroll.height)));
+        }
+    }
 
     Item {
         id: keys
@@ -174,7 +192,7 @@ PanelWindow {
                 root.close();
         }
         Keys.onPressed: event => {
-            if (event.key >= Qt.Key_1 && event.key <= Qt.Key_3) {
+            if (!root.updatesOpen && event.key >= Qt.Key_1 && event.key <= Qt.Key_3) {
                 root.page = event.key - Qt.Key_1;
                 event.accepted = true;
             }
@@ -338,9 +356,20 @@ PanelWindow {
                     width: parent.width
                     height: parent.height - Theme.cellH * 8.2
 
+                    Flickable {
+                        id: toolsScroll
+                        anchors.fill: parent
+                        anchors.margins: root.cardGap
+                        clip: true
+                        contentWidth: width
+                        contentHeight: toolsFlow.height + Theme.spaceXs * 2
+                        boundsBehavior: Flickable.StopAtBounds
+
                     Flow {
-                        anchors.centerIn: parent
-                        width: Theme.cellW * 84 + root.cardGap * 3
+                        id: toolsFlow
+                        x: (parent.width - width) / 2
+                        y: Theme.spaceXs
+                        width: Math.min(toolsScroll.width, Theme.cellW * 84 + root.cardGap * 3)
                         height: childrenRect.height
                         spacing: root.cardGap
 
@@ -374,6 +403,7 @@ PanelWindow {
                         Action { label: "Audio"; detail: "Mixer and equalizer"; glyph: Icons.volumeHigh; run: () => root.openSurface(() => Runtime.audioToolsOpen = true) }
                         Action { label: "Displays"; detail: Displays.outputs.length + " connected"; glyph: Displays.outputs.length > 1 ? Icons.monitors : Icons.monitor; run: () => root.openSurface(() => Runtime.displayOpen = true) }
                         Action { label: "Settings"; detail: "Appearance and behavior"; glyph: Icons.cp(0xF0493); run: () => root.openSurface(() => Runtime.settingsOpen = true) }
+                    }
                     }
                 }
 
@@ -410,7 +440,7 @@ PanelWindow {
                         anchors.centerIn: parent
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
-                        text: "Esc closes  ·  1–3 switch pages  ·  R marks a right-click action"
+                        text: "Esc close  ·  1–3 pages  ·  ↑↓←→ tools  ·  Tab actions"
                         color: Theme.muted
                     }
                 }

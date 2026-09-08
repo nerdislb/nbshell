@@ -55,3 +55,65 @@ fix while keeping installed-package and source-build evidence distinct.
 
 Do not set `QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1` globally. Use it only for a
 bounded isolated diagnostic process. Do not commit generated snapshots.
+
+## Settings and Modules focus regression
+
+`tests/wayland-panel-focus.py` runs the real production shell under a private
+headless Umbriel session, D-Bus, HOME and runtime namespace. It requires
+`bwrap`, `wtype`, `python-atspi`, a built Umbriel `pointer-client`, and an explicit
+Quickshell executable containing the accessibility export fix. It does not
+install anything or send input to the live desktop.
+
+```bash
+python3 tests/wayland-panel-focus.py \
+  --quickshell /path/to/quickshell-build/src/quickshell \
+  --compositor /path/to/umbriel \
+  --pointer-client /path/to/umbriel-build/tests/pointer-client \
+  --render-node /dev/dri/renderD128
+```
+
+Choose an available render node explicitly. Optional `--theme catppuccin-latte`,
+`--motion reduced`, `--width 1920` and `--height 1080` select additional cases.
+The default is Tokyo Night, standard motion, 800×600. Missing prerequisites or
+an empty AT-SPI tree fail explicitly; they are not successful skips.
+
+The regression checks named native focus, Tab/Shift+Tab between panes, arrow
+navigation, keyboard/pointer/AT-SPI activation, module reorder/removal and
+cross-group movement, empty-group recovery, scroll visibility, and removal of
+closed panels from both the compositor and AT-SPI trees. Temporary configuration
+is disposable. Captured output does not establish visual focus quality, motion
+timing, physical-keyboard behavior or Orca speech acceptance.
+
+Geometry checks use native AT-SPI output bounds in both axes and read-only
+diagnostic IPC injected into a disposable copy of the shell. The IPC measures
+the actual focused row against every clipping QML ancestor in scene coordinates;
+it does not alter production focus or scroll behavior. Only the visible,
+non-embedded Settings instance registers the Settings probe. Source and installed
+QML remain untouched by the harness. Initial rows, both panes, and every step of
+the scroll traversal are checked, not just the final position.
+
+Use `--screenshots /path/to/new-directory` to export synthetic screenshots of
+initial, scrolled and empty-group states. This requires `grim`; the output
+directory must not already exist. These images require human visual inspection.
+
+Use `--orca-log /path/to/new-log.txt` to run the installed Orca in the same
+isolated session. This was exercised with Orca 50.2, including its native
+`READY=1` notification. It checks real focus-to-speech-text generation, ordered
+pane/row announcements, changing setting values, and the empty-group fallback.
+The private Orca customization only enables line-buffered diagnostic output;
+focus processing and speech generation are not mocked. Selected input steps
+wait for a fresh expected utterance: otherwise Orca may legitimately discard
+an intermediate focus event superseded by the next rapid test key.
+
+Speech Dispatcher is deliberately unavailable in this mode. No host audio,
+physical input, user Orca preferences, or desktop session bus is exposed.
+A passing log does **not** establish audible synthesis, pronunciation, physical
+keyboard behavior, or subjective screen-reader usability. The log path must not
+already exist; logs contain only the disposable test session's synthetic data.
+
+Run the clipping predicate's boundary and negative-control tests together with
+the AT-SPI probe tests:
+
+```bash
+python3 -m unittest discover -s tests/accessibility -p 'test_*.py'
+```

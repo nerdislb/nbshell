@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import qs.Common
 import qs.Services
 import qs.Widgets
+import "../Widgets/FocusScroll.js" as FocusScroll
 
 // Bausteine anordnen -- links die vier Gruppen mit ihrem Inhalt, rechts alles,
 // was es gibt.
@@ -55,6 +56,7 @@ PanelWindow {
     property int dragIndex: -1
     property int dropGroup: -1
     property int dropIndex: -1
+    property bool closing: false
 
     readonly property var currentList: configuredList(groups[groupIndex].key)
 
@@ -74,10 +76,37 @@ PanelWindow {
     anchors.bottom: true
 
     function close() {
+        closing = true;
         Runtime.modulesOpen = false;
     }
-    function requestClose(done) { box.dismiss(done); }
-    function requestOpen() { box.enter(); }
+    function requestClose(done) { closing = true; box.dismiss(done); }
+    function requestOpen() { closing = false; box.enter(); Qt.callLater(root.syncFocus); }
+
+    function syncFocus() {
+        if (!root.visible || root.closing || root.dragGroup >= 0)
+            return;
+        const group = groupRows.itemAt(root.groupIndex);
+        const row = root.inCatalog ? catalogRows.itemAt(root.catalogIndex)
+            : (group ? group.rowAt(root.itemIndex) : null);
+        (row || closeButton).forceActiveFocus();
+        if (row)
+            revealFocusedItem(row, root.inCatalog ? rightScroll : leftScroll);
+    }
+
+    function revealFocusedItem(item, viewport) {
+        const mapped = item.mapToItem(viewport.contentItem, 0, 0);
+        viewport.contentY = FocusScroll.contentYForFocus(mapped.y, item.height,
+            viewport.contentY, viewport.height, viewport.contentHeight, Theme.spaceSm);
+    }
+
+    onGroupIndexChanged: Qt.callLater(root.syncFocus)
+    onItemIndexChanged: Qt.callLater(root.syncFocus)
+    onInCatalogChanged: Qt.callLater(root.syncFocus)
+    onCatalogIndexChanged: Qt.callLater(root.syncFocus)
+    onCurrentListChanged: Qt.callLater(root.syncFocus)
+    onCatalogChanged: Qt.callLater(root.syncFocus)
+    onDragGroupChanged: if (dragGroup < 0) Qt.callLater(root.syncFocus)
+    Component.onCompleted: Qt.callLater(root.syncFocus)
 
     function configuredList(key) {
         if (key === "collapsedWidgets") return Config.collapsedWidgets;
@@ -208,6 +237,8 @@ PanelWindow {
     function addFromCatalog() {
         const list = listOf(groupIndex);
         const item = catalog[catalogIndex];
+        if (item === undefined)
+            return;
         const existing = item === "sep" ? -1 : list.indexOf(item);
         if (existing >= 0) {
             itemIndex = existing;
@@ -221,6 +252,8 @@ PanelWindow {
 
     function activateCatalog() {
         const item = catalog[catalogIndex];
+        if (item === undefined)
+            return;
         if (!selectConfigured(item))
             addFromCatalog();
     }
@@ -247,13 +280,14 @@ PanelWindow {
 
     onVisibleChanged: {
         if (visible) {
+            closing = false;
             // The collapsed list is not rendered in bar/pill mode. Start in
             // the left group so adding a module cannot silently put it into a
             // hidden island-only layout.
             groupIndex = (Config.mode === "bar" || Config.mode === "pill") ? 1 : 0;
             itemIndex = 0;
             inCatalog = false;
-            keys.forceActiveFocus();
+            Qt.callLater(root.syncFocus);
         }
     }
 
@@ -267,10 +301,10 @@ PanelWindow {
 
         Keys.onEscapePressed: root.close()
         Keys.onTabPressed: root.inCatalog = !root.inCatalog
+        Keys.onBacktabPressed: root.inCatalog = !root.inCatalog
         Keys.onUpPressed: root.inCatalog ? root.catalogIndex = Math.max(0, root.catalogIndex - 1) : root.stepItem(-1)
         Keys.onDownPressed: root.inCatalog ? root.catalogIndex = Math.min(root.catalog.length - 1, root.catalogIndex + 1) : root.stepItem(1)
-        Keys.onReturnPressed: if (root.inCatalog)
-            root.activateCatalog()
+
         Keys.onLeftPressed: event => {
             if (root.inCatalog)
                 return;
@@ -357,12 +391,15 @@ PanelWindow {
                                     spacing: Theme.spaceSm
 
                                     Repeater {
+                                        id: groupRows
                                         model: root.groups
+                                        onItemAdded: Qt.callLater(root.syncFocus)
 
                                         Column {
                                             id: group
                                             required property var modelData
                                             required property int index
+                                            function rowAt(index) { return moduleRows.itemAt(index); }
                                             readonly property var widgets: group.modelData.key === "collapsedWidgets" ? Config.collapsedWidgets
                                                 : (group.modelData.key === "leftWidgets" ? Config.leftWidgets
                                                 : (group.modelData.key === "centerWidgets" ? Config.centerWidgets : Config.rightWidgets))
@@ -404,7 +441,10 @@ PanelWindow {
                                             }
 
                                             Repeater {
+                                                id: moduleRows
                                                 model: group.widgets
+                                                onItemAdded: Qt.callLater(root.syncFocus)
+                                                onItemRemoved: Qt.callLater(root.syncFocus)
 
                                                 delegate: PanelRow {
                                                     id: moduleRow
@@ -420,8 +460,10 @@ PanelWindow {
                                                     detail: Plugins.source(moduleRow.modelData) === "" ? "Built in" : "Plugin"
                                                     value: moduleRow.current ? "DRAG  ·  ← →" : ""
                                                     selected: moduleRow.current
-                                                    visualFocus: moduleRow.current
+                                                    visualFocus: activeFocus
                                                     interactive: true
+                                                    Keys.forwardTo: [keys]
+                                                    onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(moduleRow, leftScroll)
                                                     opacity: moduleDrag.active ? 0.45 : 1
                                                     z: moduleDrag.active ? 20 : 0
 
@@ -429,6 +471,7 @@ PanelWindow {
                                                         root.inCatalog = false;
                                                         root.groupIndex = group.index;
                                                         root.itemIndex = moduleRow.index;
+                                                        Qt.callLater(root.syncFocus);
                                                     }
 
                                                     Item {
@@ -559,7 +602,10 @@ PanelWindow {
                                     spacing: 0
 
                                     Repeater {
+                                        id: catalogRows
                                         model: root.catalog
+                                        onItemAdded: Qt.callLater(root.syncFocus)
+                                        onItemRemoved: Qt.callLater(root.syncFocus)
 
                                         PanelRow {
                                             id: catalogRow
@@ -575,12 +621,15 @@ PanelWindow {
                                             detail: placement !== "" ? "Placed: " + placement : Plugins.describe(catalogRow.modelData)
                                             value: placementState === "ADD" && catalogRow.current ? "ENTER  ·  ADD" : placementState
                                             selected: catalogRow.current
-                                            visualFocus: catalogRow.current
+                                            visualFocus: activeFocus
                                             interactive: true
+                                            Keys.forwardTo: [keys]
+                                            onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(catalogRow, rightScroll)
                                             onTriggered: {
                                                 root.inCatalog = true;
                                                 root.catalogIndex = catalogRow.index;
                                                 root.activateCatalog();
+                                                Qt.callLater(root.syncFocus);
                                             }
                                         }
                                     }
@@ -608,6 +657,7 @@ PanelWindow {
                         id: closeButton
                         text: "Close"
                         compact: true
+                        Keys.forwardTo: [keys]
                         onTriggered: root.close()
                     }
                 }

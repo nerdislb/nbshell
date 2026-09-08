@@ -13,6 +13,7 @@ InteractiveSurface {
     property var rightRun: null
     property string rightLabel: ""
     property bool centered: false
+    property bool directionalNavigation: false
     readonly property alias secondaryButton: rightHint
 
     interactive: run !== null
@@ -28,6 +29,43 @@ InteractiveSurface {
     border.width: Theme.borderWidth
     border.color: visualFocus ? Theme.focusBorder
         : (hover.hovered ? root.tone : Theme.controlBorder(false, false, false))
+
+    // Use the laid-out tile coordinates, not a fixed column count. Secondary
+    // buttons bubble arrow keys here while retaining their own Tab/activation.
+    function navigate(key) {
+        if (!directionalNavigation || !enabled || !visible)
+            return false;
+        const horizontal = key === Qt.Key_Left || key === Qt.Key_Right;
+        if (!horizontal && key !== Qt.Key_Up && key !== Qt.Key_Down)
+            return false;
+        const sign = key === Qt.Key_Left || key === Qt.Key_Up ? -1 : 1;
+        let target = null;
+        let distance = Infinity;
+        let alignment = Infinity;
+        for (const item of parent.children) {
+            if (item === root || !item.visible || !item.enabled || !item.directionalNavigation || !item.interactive)
+                continue;
+            const dx = item.x + item.width / 2 - (x + width / 2);
+            const dy = item.y + item.height / 2 - (y + height / 2);
+            const along = (horizontal ? dx : dy) * sign;
+            const across = Math.abs(horizontal ? dy : dx);
+            if (along <= 0 || (horizontal && across >= Math.min(height, item.height) / 2))
+                continue;
+            if (across < alignment || (across === alignment && along < distance)) {
+                target = item;
+                alignment = across;
+                distance = along;
+            }
+        }
+        if (target)
+            target.forceActiveFocus(Qt.OtherFocusReason);
+        return true;
+    }
+
+    Keys.onPressed: event => {
+        if (event.modifiers === Qt.NoModifier && root.navigate(event.key))
+            event.accepted = true;
+    }
 
     function triggerSecondary() {
         if (root.enabled && root.rightRun)

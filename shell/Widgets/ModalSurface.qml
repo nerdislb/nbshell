@@ -86,8 +86,12 @@ FocusScope {
             root.enterModal();
         else {
             const target = restoreFocusItem || previousFocusItem;
-            if (target && target.visible && target.enabled)
-                Qt.callLater(() => target.forceActiveFocus(Qt.OtherFocusReason));
+            // The blockedItem binding may still disable the target during
+            // visibleChanged. Check it after that binding has been restored.
+            Qt.callLater(() => {
+                if (!root.visible && target && target.visible && target.enabled)
+                    target.forceActiveFocus(Qt.OtherFocusReason);
+            });
             previousFocusItem = null;
         }
     }
