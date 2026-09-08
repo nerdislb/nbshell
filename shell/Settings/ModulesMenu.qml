@@ -46,7 +46,7 @@ PanelWindow {
     // Feste Breiten am Fenster statt `width: <Column>.width` an den Zeilen:
     // die Verweise vom Kind auf den Positionierer haben hier dazu gefuehrt,
     // dass die Zeilen gar nicht erst entstanden -- ohne Fehler, ohne Meldung.
-    readonly property real leftWidth: Theme.cellW * 62
+    readonly property real leftWidth: Math.min(Theme.cellW * 62, (box.width - Theme.spaceXl * 3) * 0.55)
 
     property int groupIndex: 0
     property int itemIndex: 0
@@ -433,7 +433,7 @@ PanelWindow {
                                             Line {
                                                 visible: group.widgets.length === 0
                                                 width: parent.width
-                                                height: Theme.rowHeight
+                                                height: Math.max(Theme.rowHeight, Theme.cellH * 2 + Theme.spaceSm)
                                                 leftPadding: Theme.spaceXl
                                                 verticalAlignment: Text.AlignVCenter
                                                 text: "No modules"
@@ -455,7 +455,7 @@ PanelWindow {
                                                         && moduleRow.index === root.itemIndex
 
                                                     width: group.width
-                                                    height: Theme.rowHeight
+                                                    height: Math.max(Theme.rowHeight, Theme.cellH * 2 + Theme.spaceSm)
                                                     title: Plugins.label(moduleRow.modelData)
                                                     detail: Plugins.source(moduleRow.modelData) === "" ? "Built in" : "Plugin"
                                                     value: moduleRow.current ? "DRAG  ·  ← →" : ""
@@ -616,7 +616,7 @@ PanelWindow {
                                             readonly property string placementState: root.placementStatus(catalogRow.modelData)
 
                                             width: available.width
-                                            height: Theme.rowHeight
+                                            height: Math.max(Theme.rowHeight, Theme.cellH * 2 + Theme.spaceSm)
                                             title: Plugins.label(catalogRow.modelData)
                                             detail: placement !== "" ? "Placed: " + placement : Plugins.describe(catalogRow.modelData)
                                             value: placementState === "ADD" && catalogRow.current ? "ENTER  ·  ADD" : placementState

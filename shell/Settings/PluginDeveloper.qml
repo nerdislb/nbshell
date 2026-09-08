@@ -277,11 +277,13 @@ PanelWindow {
 
             Column {
                 id: pluginContent
+                readonly property real bodyHeight: Math.max(0, height - pluginHead.height - tabsRow.height - topRule.height - bottomRule.height - footerText.height - spacing * 5)
                 anchors.fill: parent
                 anchors.margins: Theme.spaceLg
                 spacing: Theme.spaceSm
 
                 PanelHead {
+                    id: pluginHead
                     rowWidth: box.width - Theme.spaceLg * 2
                     icon: Icons.cp(0xF12E)
                     title: "Plugins"
@@ -292,17 +294,18 @@ PanelWindow {
                 }
 
                 Row {
+                    id: tabsRow
                     width: parent.width
                     height: Theme.controlHeight
                     spacing: Theme.spaceSm
 
-                    ControlButton { text: "INSTALLED"; selected: root.tab === "installed"; onTriggered: root.selectTab("installed") }
-                    ControlButton { text: "STORE"; selected: root.tab === "store"; onTriggered: root.selectTab("store") }
-                    ControlButton { text: "PORTING LAB"; selected: root.tab === "porting"; onTriggered: root.selectTab("porting") }
+                    ControlButton { id: installedTab; text: "INSTALLED"; selected: root.tab === "installed"; onTriggered: root.selectTab("installed") }
+                    ControlButton { id: storeTab; text: "STORE"; selected: root.tab === "store"; onTriggered: root.selectTab("store") }
+                    ControlButton { id: portingTab; text: "PORTING LAB"; selected: root.tab === "porting"; onTriggered: root.selectTab("porting") }
 
                     Rectangle {
                         visible: root.tab !== "porting"
-                        width: parent.width - Theme.cellW * 39
+                        width: Math.max(0, tabsRow.width - installedTab.width - storeTab.width - portingTab.width - tabsRow.spacing * 3)
                         height: Theme.controlHeight
                         radius: Theme.radius
                         color: Theme.alpha(Theme.fg, 0.06)
@@ -354,12 +357,12 @@ PanelWindow {
                     }
                 }
 
-                Rule { rowWidth: parent.width }
+                Rule { id: topRule; rowWidth: parent.width }
 
                 Row {
                     visible: root.tab !== "porting"
                     width: parent.width
-                    height: Theme.cellH * 28
+                    height: pluginContent.bodyHeight
                     spacing: Theme.spaceLg
 
                     Flickable {
@@ -467,11 +470,12 @@ PanelWindow {
                     id: portingLab
                     visible: root.tab === "porting"
                     width: parent.width
-                    height: Theme.cellH * 28
+                    height: pluginContent.bodyHeight
                 }
 
-                Rule { rowWidth: parent.width }
+                Rule { id: bottomRule; rowWidth: parent.width }
                 Line {
+                    id: footerText
                     width: parent.width
                     text: root.tab === "porting"
                         ? "Alt+1/2/3 tabs · Enter analyze · report: j/k or arrows scroll · Esc close"
