@@ -39,6 +39,37 @@ Variants {
         // Balken sitzt die Leiste direkt an der Kante.
         readonly property bool sameSideAsBar: atTop === (Config.edge === "top")
         readonly property real barSpace: sameSideAsBar ? Theme.barHeight + (Config.mode === "bar" ? 0 : Config.gap) : 0
+        readonly property real heightBudget: Math.max(0, Math.min(screen.height * 0.85,
+            screen.height - barSpace) - Theme.spaceMd * 2)
+        readonly property real toastWidth: Math.max(1, Math.min(Theme.cellW * 48,
+            screen.width - margins.right - Theme.spaceMd * 2))
+        property int shownCount: 0
+        readonly property int overflowCount: Math.max(0, cards.count - shownCount)
+
+        function reflow() {
+            let total = 0;
+            const heights = [];
+            for (let i = 0; i < cards.count; i++) {
+                const card = cards.itemAt(i);
+                if (!card)
+                    return;
+                heights.push(card.implicitHeight);
+                total += card.implicitHeight + (i > 0 ? stack.spacing : 0);
+            }
+            const budget = total <= heightBudget ? heightBudget
+                : Math.max(0, heightBudget - more.implicitHeight - stack.spacing);
+            let used = 0;
+            let count = 0;
+            for (const height of heights) {
+                const next = used + height + (count > 0 ? stack.spacing : 0);
+                if (next > budget)
+                    break;
+                used = next;
+                count++;
+            }
+            shownCount = count;
+        }
+        onHeightBudgetChanged: Qt.callLater(reflow)
 
         screen: modelData
         visible: Notify.popups.length > 0
@@ -70,8 +101,8 @@ Variants {
         // nimmt (Theme.cellH). Vorher stand hier cellW*2, was schmaler war als
         // der rechte Stapelrand -- die linke Kartenkante rutschte dadurch knapp
         // aus dem Fenster und der linke Rahmen wurde abgeschnitten.
-        implicitWidth: stack.implicitWidth + Theme.spaceMd * 2
-        implicitHeight: Math.min(screen.height * 0.85, stack.implicitHeight + Theme.spaceMd * 2)
+        implicitWidth: toastWidth + Theme.spaceMd * 2
+        implicitHeight: stack.implicitHeight + Theme.spaceMd * 2
 
         margins.top: win.atTop ? win.barSpace : 0
         margins.bottom: win.atTop ? 0 : win.barSpace
@@ -91,12 +122,18 @@ Variants {
             spacing: Theme.spaceSm
 
             Repeater {
+                id: cards
                 model: Notify.popups
+                onItemAdded: win.reflow()
+                onItemRemoved: Qt.callLater(win.reflow)
+                onCountChanged: Qt.callLater(win.reflow)
 
                 NotificationToast {
                     required property var modelData
-                    width: Math.max(1, Math.min(implicitWidth,
-                        win.screen.width - Theme.overlayMarginX * 2))
+                    required property int index
+                    width: win.toastWidth
+                    visible: index < win.shownCount
+                    onImplicitHeightChanged: Qt.callLater(win.reflow)
                     entry: modelData
                     onOpened: {
                         if (!Notify.open(modelData))
@@ -104,6 +141,15 @@ Variants {
                     }
                     onRemoved: Notify.dismissPopup(modelData.key)
                 }
+            }
+
+            ActionButton {
+                id: more
+                width: win.toastWidth
+                visible: win.overflowCount > 0
+                text: "+" + win.overflowCount + " more · Open history"
+                onImplicitHeightChanged: Qt.callLater(win.reflow)
+                onTriggered: Runtime.notificationCenterOpen = true
             }
         }
     }

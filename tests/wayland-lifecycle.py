@@ -46,8 +46,10 @@ def inside(args):
                       QT_QUICK_BACKEND='software', QT_QPA_PLATFORMTHEME='',
                       NBSHELL_DISABLE_HOT_RELOAD='1')
     Path('/work/umbriel.toml').write_text('[general]\nxwayland = false\nshow_cheatsheet = false\nautostart = []\n'
-                                        f'[output.HEADLESS-1]\nmode = "{args.width}x{args.height}@60"\nscale = 1.0\n')
+                                        f'[output.HEADLESS-1]\nmode = "{args.width}x{args.height}@60"\nscale = {args.scale}\n')
     shutil.copytree('/source/shell', '/work/shell')
+    if args.notification_contract:
+        runpy.run_path('/source/tests/notification-lifecycle.py')['instrument'](Path('/work/shell'))
     if args.startup_profile:
         # Process labels only: never log command arguments or user data.
         for service in Path('/work/shell/Services').glob('*.qml'):
@@ -221,6 +223,9 @@ def inside(args):
         shell = launch(['/test-bin/qs', '-p', '/work/shell', '--no-color'], 'shell.log')
         wait(lambda: run(['/test-bin/qs', '-p', '/work/shell', 'ipc', 'call', 'state', 'dump'], False).returncode == 0, 'shell IPC')
         time.sleep(2)
+        if args.notification_contract:
+            runpy.run_path('/source/tests/notification-lifecycle.py')['exercise'](run, launch, wait, ipc, processes, shell, args)
+            return
         if args.wire_contract or args.action_contract:
             client = Path('/work/wire-client')
             client.mkdir()
@@ -363,10 +368,16 @@ def main():
     parser.add_argument('--motion', choices=['standard', 'reduced'], default='standard')
     parser.add_argument('--width', type=int, default=800)
     parser.add_argument('--height', type=int, default=600)
+    parser.add_argument('--scale', type=float, default=1.0)
+    parser.add_argument('--notification-contract', action='store_true')
+    parser.add_argument('--notification-corner', choices=['top', 'bottom'], default='top')
+    parser.add_argument('--pointer-client', type=Path)
     parser.add_argument('--inside', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args()
     require(1 <= args.cycles <= 1000 and 0 <= args.settle_seconds <= 3600, 'Invalid duration/cycle count')
     require(not args.panel_async or args.panel_profile, '--panel-async requires --panel-profile')
+    require(0.5 <= args.scale <= 3, 'Invalid scale')
+    require(not args.notification_contract or args.pointer_client, 'Notification tests require --pointer-client')
     if args.inside:
         inside(args); return
     root = Path(__file__).resolve().parents[1]
@@ -388,6 +399,8 @@ def main():
                    '--setenv', 'LANG', 'C.UTF-8', '--setenv', 'NBSHELL_LIFECYCLE_TEST', '1',
                    '--setenv', 'PYTHONDONTWRITEBYTECODE', '1', '--chdir', '/work',
                    '--', 'dbus-run-session', '--', 'python3', '/source/tests/wayland-lifecycle.py', *sys.argv[1:], '--inside']
+        if args.notification_contract:
+            command[1:1] = ['--ro-bind', str(args.pointer_client.resolve()), '/test-bin/pointer-client']
         try:
             result = subprocess.run(command, timeout=args.cycles * 10 + args.settle_seconds + 90)
             require(result.returncode == 0, 'Isolated lifecycle run failed; inspect output logs')
