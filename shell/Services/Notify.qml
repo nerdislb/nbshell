@@ -157,6 +157,45 @@ Singleton {
         return transient || app === "nbshell-action";
     }
 
+    function copyUpdate(notification, entry) {
+        Object.assign(entry, {
+            appName: notification.appName,
+            summary: notification.summary,
+            body: notification.body,
+            appIcon: notification.appIcon ?? "",
+            desktopEntry: notification.desktopEntry ?? "",
+            urgency: notification.urgency,
+            expireTimeout: notification.expireTimeout ?? 0
+        });
+    }
+
+    function watchUpdates(notification, entry) {
+        // replaces_id updates this QObject without another onNotification.
+        // Coalesce its property signals so each refresh sees the whole update.
+        let pending = false;
+        function refresh() {
+            if (pending)
+                return;
+            pending = true;
+            Qt.callLater(() => {
+                pending = false;
+                if (entry.notification !== notification
+                        || !root.popups.some(e => e.key === entry.key && e.notification === notification))
+                    return;
+                root.copyUpdate(notification, entry);
+                root.popupRemaining[entry.key] = root.popupDuration(entry);
+                // Reassign the models to notify views of the changed snapshot.
+                root.history = root.history.slice();
+                root.popups = root.popups.slice();
+                root.save();
+            });
+        }
+        for (const name of ["appNameChanged", "summaryChanged", "bodyChanged",
+                "appIconChanged", "desktopEntryChanged", "urgencyChanged", "expireTimeoutChanged"])
+            if (notification[name] && typeof notification[name].connect === "function")
+                notification[name].connect(refresh);
+    }
+
     function release(entry, reason) {
         const notification = entry?.notification;
         if (!notification) {
@@ -164,6 +203,8 @@ Singleton {
             return;
         }
         try {
+            // Preserve an update even if close/eviction beats callLater.
+            root.copyUpdate(notification, entry);
             if (notification.tracked) {
                 if (reason === "expire" && typeof notification.expire === "function")
                     notification.expire();
@@ -500,11 +541,15 @@ Singleton {
                 };
 
                 notification.closed.connect(() => {
+                    root.copyUpdate(notification, entry);
                     root.popups = root.popups.filter(p => p.key !== entry.key);
                     entry.notification = null;
+                    root.history = root.history.slice();
                     root.forgetPopupLifetime(entry.key);
                     root.save();
                 });
+
+                root.watchUpdates(notification, entry);
 
                 const showPopup = !root.dnd || root.shouldBypassDnd(notification);
                 const keepHistory = showPopup || !root.isEphemeral(notification);
