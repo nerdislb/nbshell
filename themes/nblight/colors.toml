@@ -1,0 +1,39 @@
+# nblight — paper-inspired light palette adapted from Harbor for nbshell.
+# Warm parchment surfaces with dark ink and restrained, readable accents.
+mode = "light"
+accent = "#005459"
+# Quiet inactive outlines make the wider petrol focus frame unmistakable.
+inactive_border_color = "#b5ae95"
+outer_border_color = "#dad4b9"
+border_width = 4
+cursor = "#1c2d28"
+foreground = "#1c2d28"
+background = "#dad4b9"
+selection_foreground = "#1c2d28"
+selection_background = "#c2c5ad"
+
+# Explicit paper surfaces avoid automatic black-mixed light-theme backgrounds.
+dark_background = "#d2ccb1"
+darker_background = "#c9c3a8"
+lighter_background = "#e2ddc6"
+muted = "#414c41"
+dark_foreground = "#414c41"
+light_foreground = "#384f54"
+bright_foreground = "#1c2d28"
+
+color0 = "#dad4b9"
+color1 = "#7f333b"
+color2 = "#3d4e3a"
+color3 = "#793925"
+color4 = "#314d6d"
+color5 = "#653f5f"
+color6 = "#2a5058"
+color7 = "#384f54"
+color8 = "#414c41"
+color9 = "#7f333b"
+color10 = "#3d4e3a"
+color11 = "#793925"
+color12 = "#314d6d"
+color13 = "#653f5f"
+color14 = "#2a5058"
+color15 = "#1c2d28"

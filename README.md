@@ -253,6 +253,20 @@ nbshell makes that window floating and remembers its size. Use the `PIP` module
 or `Mod+Alt+P` to cycle its Umbriel width; move it directly with Umbriel's
 floating-window pointer controls.
 
+## nblight and nbdark
+
+The bundled **nblight** theme pairs warm parchment surfaces with dark green text,
+petrol focus accents, and restrained status colors. It includes four original
+Midjourney wallpapers: two coastal landscapes and two paper terminal scenes.
+
+```bash
+nbshell theme nblight
+nbshell theme nbdark
+```
+
+**nbdark** is its dark companion, using the bundled Catppuccin Mocha palette
+and two matching nighttime terminal wallpapers.
+
 ## Wallpapers
 
 Fresh installs include an original nbshell starter collection and enable the

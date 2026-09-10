@@ -88,6 +88,10 @@ Singleton {
         const c = Theme.c;
         const active = String(Theme.accent);
         const inactive = c.muted ?? c.dark_foreground ?? "#555555";
+        const inactiveBorder = c.inactive_border_color ?? inactive;
+        const outerBorder = c.outer_border_color;
+        const requestedWidth = Number(c.border_width ?? 2);
+        const borderWidth = Number.isFinite(requestedWidth) ? Math.max(1, Math.min(8, Math.round(requestedWidth))) : 2;
         const warning = c.yellow ?? "#ffff00";
         const error = c.red ?? "#ff0000";
         const alpha = value => String(value).length === 7 ? String(value) + "FF" : String(value);
@@ -106,11 +110,11 @@ Singleton {
         out += "backdrop = \"" + alpha(c.background ?? "#000000") + "\"\n\n";
         out += "[colors.border]\n";
         out += "focused = \"" + alpha(active) + "\"\n";
-        out += "unfocused = \"" + alpha(inactive) + "\"\n";
-        out += "outer = \"" + withAlpha(active, "80") + "\"\n\n";
+        out += "unfocused = \"" + alpha(inactiveBorder) + "\"\n";
+        out += "outer = \"" + (outerBorder !== undefined ? alpha(outerBorder) : withAlpha(active, "80")) + "\"\n\n";
         out += "[appearance]\n";
         out += "corner_radius = " + Number(Config.radius ?? 2) + "\n";
-        out += "border_width = 2\nouter_border_width = 1\n";
+        out += "border_width = " + borderWidth + "\nouter_border_width = 1\n";
         return out;
     }
 
