@@ -186,8 +186,9 @@ install_item() {
         moonlight) install_packages moonlight-qt ;;
         geforce-now)
             install_packages flatpak
-            flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-            flatpak install flathub com.nvidia.geforcenow
+            flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+            flatpak remote-add --user --if-not-exists GeForceNOW https://international.download.nvidia.com/GFNLinux/flatpak/geforcenow.flatpakrepo
+            flatpak install --user GeForceNOW com.nvidia.geforcenow
             ;;
         xbox-cloud)
             mkdir -p "$APP_DIR"
