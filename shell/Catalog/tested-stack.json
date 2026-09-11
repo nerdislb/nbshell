@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "manifestVersion": 1,
-  "nbshellVersion": "0.1.0-beta.10",
+  "nbshellVersion": "0.1.0-beta.11",
   "releaseNotes": [
     "CHANGELOG.md",
     "docs/compatibility.md",
@@ -12,7 +12,7 @@
       "kind": "version",
       "minimum": null,
       "supported": [
-        "0.1.0-beta.10"
+        "0.1.0-beta.11"
       ],
       "incompatible": [],
       "securityBlocked": [],

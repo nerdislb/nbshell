@@ -1,0 +1,2 @@
+# Preserve the reviewed patch bytes, including unified-diff context lines.
+umbriel/pointer-modifiers.patch -whitespace

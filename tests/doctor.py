@@ -141,7 +141,7 @@ class DoctorTests(unittest.TestCase):
         self.assertEqual(doctor.probe([python, "-c", "import sys; print('private',file=sys.stderr); print('safe')"]), ("ok", "safe"))
 
     def test_stack_evaluator_projection(self):
-        values = {"nbshell": "0.1.0-beta.10", "quickshell": "0.3.1", "qt": "6.11.2",
+        values = {"nbshell": "0.1.0-beta.11", "quickshell": "0.3.1", "qt": "6.11.2",
                   "umbriel": "a" * 40, "portal": "b" * 40, "platform": "linux:arch"}
         data = {"schemaVersion": 1, "status": "supported", "components": {
             name: {"value": value, "status": "supported", "reason": "documented-baseline",

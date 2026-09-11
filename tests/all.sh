@@ -28,6 +28,7 @@ run python3 tests/clipboard-runtime.py
 run python3 tests/theme-contrast.py
 run python3 tests/shell-update.py
 run bash tests/bootstrap.sh
+run python3 tests/setup-failures.py
 run bash iso/packages/tests/test-manifest-consistency.sh
 run bash iso/packages/tests/test-repo-pipeline.sh
 run bash iso/profile/tests/test_scripts.sh

@@ -26,10 +26,11 @@ curl -fsSL https://raw.githubusercontent.com/nerdislb/nbshell/main/bootstrap.sh 
 ```
 
 The command does not pipe network content into a shell. The bootstrap verifies
-the release archive's SHA-256 checksum to detect corruption, safely extracts
-one nbshell source tree, and starts `setup.sh`. Pass `--full` for the complete
-optional tool set. The checksum is shipped beside the archive and is not an
-independent cryptographic signature.
+the release archive's SHA-256 checksum and its Sigstore signature against the
+repository's release workflow identity before safely extracting one nbshell
+source tree and starting `setup.sh`. Pass `--full` for the complete optional
+tool set. Verification requires Cosign; the bootstrap offers to install it
+when it is missing.
 
 ### From a Git clone
 

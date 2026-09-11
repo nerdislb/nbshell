@@ -24,6 +24,8 @@
 set -euo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Fresh console sessions may not have the user executable directory yet.
+export PATH="${XDG_BIN_HOME:-$HOME/.local/bin}:$PATH"
 
 WITH_PACKAGES=1
 WITH_DOTFILES=0
@@ -176,7 +178,7 @@ if [ $WITH_OPTIONAL -eq 1 ]; then
 else
 	ALLE=("${PKG_BASIS[@]}" "${PKG_SYSTEM[@]}" "${PKG_CORE[@]}")
 fi
-[ "$WANT_GREETER_SETUP" = "0" ] || ALLE+=(greetd imagemagick)
+[ "$WANT_GREETER_SETUP" = "0" ] || ALLE+=(greetd imagemagick bubblewrap)
 
 if [ $WITH_PACKAGES -eq 1 ]; then
 	command -v pacman >/dev/null || die "pacman was not found. This installer targets Arch Linux. On other systems, use --no-packages and install the listed dependencies manually."
@@ -196,14 +198,11 @@ if [ $WITH_PACKAGES -eq 1 ]; then
 		printf '\n'
 		if ask "Install with pacman?"; then
 			# --needed: schon Vorhandenes wird nicht neu gebaut.
-			#
-			# Bricht pacman ab (Abbruch an seiner eigenen Frage, kein Netz,
-			# ein Konflikt), darf das NICHT das ganze Skript beenden: die
-			# Files weiter unten will man dann trotzdem haben.
+			# An accepted package transaction must finish before deployment.
 			if sudo pacman -S --needed "${fehlend[@]}"; then
 				green "Packages installed."
 			else
-				warn "pacman failed -- file installation will continue."
+				die "Package installation failed; deployment stopped. Resolve pacman errors and rerun setup."
 			fi
 		else
 			warn "Skipped -- related modules will remain unavailable."
@@ -217,7 +216,7 @@ if [ $WITH_PACKAGES -eq 1 ]; then
 	#
 	# Das ist der einzige Schritt, der Fremdcode uebersetzt -- deshalb wird
 	# gefragt, auch mit --yes nicht uebergangen, und die Adresse steht dabei.
-	if [ $WITH_OPTIONAL -eq 1 ] && [ $WITH_AUR -eq 1 ] && ! command -v paru >/dev/null 2>&1 && ! command -v yay >/dev/null 2>&1; then
+	if { [ $WITH_OPTIONAL -eq 1 ] || [ $WITH_DOTFILES -eq 1 ]; } && [ $WITH_AUR -eq 1 ] && ! command -v paru >/dev/null 2>&1 && ! command -v yay >/dev/null 2>&1; then
 		head2 "AUR helper"
 		echo "paru or yay is required to include AUR updates."
 		echo "Build from https://aur.archlinux.org/paru-bin.git (uses your sudo and makepkg)."
@@ -321,7 +320,7 @@ if [ $WITH_DOTFILES -eq 1 ]; then
 	if [ -d "$DOTFILES_DIR/.git" ]; then
 		printf '  %s exists -- fetching the latest revision.\n' "${DOTFILES_DIR/#$HOME/\~}"
 		git -C "$DOTFILES_DIR" pull --ff-only --quiet 2>/dev/null ||
-			warn "  git pull failed (local changes?) -- using the existing checkout."
+			die "Dotfiles update failed. Resolve the checkout state and rerun setup."
 	elif [ -e "$DOTFILES_DIR" ]; then
 		die "$DOTFILES_DIR exists but is not a Git repository. Move or remove it first."
 	else
@@ -363,14 +362,14 @@ if [ $WITH_DOTFILES -eq 1 ]; then
 		else
 			printf '\n  Missing %d packages from pkglist.txt:\n    %s\n\n' "${#rest[@]}" "${rest[*]}"
 			if ask "  Install them?"; then
-				sudo pacman -S --needed "${rest[@]}" || warn "  pacman failed."
+				sudo pacman -S --needed "${rest[@]}" || die "Personal package installation failed; restore stopped."
 			fi
 		fi
 	fi
 
 	# AUR: nur wenn ein Helfer da ist. Ohne einen ginge es nur mit makepkg
 	# je Paket, und das ist kein Schritt fuer ein Einrichtungsskript.
-	if [ $WITH_PACKAGES -eq 1 ] && [ -f "$DOTFILES_DIR/pkglist-aur.txt" ]; then
+	if [ $WITH_PACKAGES -eq 1 ] && [ $WITH_AUR -eq 1 ] && [ -f "$DOTFILES_DIR/pkglist-aur.txt" ]; then
 		helper="$(command -v paru || command -v yay || true)"
 		if [ -n "$helper" ]; then
 			aur=()
@@ -384,7 +383,7 @@ if [ $WITH_DOTFILES -eq 1 ]; then
 			else
 				printf '\n  Missing %d packages from pkglist-aur.txt:\n    %s\n\n' "${#aur[@]}" "${aur[*]}"
 				if ask "  Build with $(basename "$helper")?"; then
-					"$helper" -S --needed "${aur[@]}" || warn "  $(basename "$helper") failed."
+					"$helper" -S --needed "${aur[@]}" || die "Personal AUR package installation failed; restore stopped."
 				fi
 			fi
 		else
@@ -395,16 +394,15 @@ if [ $WITH_DOTFILES -eq 1 ]; then
 	# ── Die Einstellungen selbst ─────────────────────────────────────
 	if [ -x "$DOTFILES_DIR/bin/restore.sh" ]; then
 		echo
-		warn "  restore.sh REPLACES ~/.local/bin. Files not stored in the dotfiles"
-		warn "  repository will be removed. It creates .bak copies first."
+		warn "  Restore applies personal configuration and backs up replaced files."
 		echo
 		if ask "  Run restore.sh now?"; then
 			# Es fragt selbst noch einmal nach. Mit --yes soll nichts
 			# stehen bleiben, also wird die Antwort hineingereicht.
 			if [ "$ASSUME_YES" = "1" ]; then
-				printf 'y\n' | "$DOTFILES_DIR/bin/restore.sh" || warn "  restore.sh failed."
+				printf 'y\n' | "$DOTFILES_DIR/bin/restore.sh" || die "Dotfiles restore failed; shell deployment stopped."
 			else
-				"$DOTFILES_DIR/bin/restore.sh" || warn "  restore.sh failed."
+				"$DOTFILES_DIR/bin/restore.sh" || die "Dotfiles restore failed; shell deployment stopped."
 			fi
 		fi
 	else
@@ -450,11 +448,12 @@ fi
 if [ "$WANT_GREETER_SETUP" = "1" ]; then
 	head2 "Login screen"
 	greeter_ready=1
-	for command in umbriel start-umbriel quickshell agreety; do
+	for command in umbriel start-umbriel quickshell agreety bwrap; do
 		command -v "$command" >/dev/null 2>&1 || greeter_ready=0
 	done
+	python3 -c 'import glob, sys; sys.exit(not glob.glob("/dev/dri/renderD*"))' || greeter_ready=0
 	if [ "$greeter_ready" = "0" ] && [ "$GREETER_MODE" = "auto" ]; then
-		warn "Orbital skipped because its dependencies were not installed. Run nbshell greeter install later."
+		warn "Orbital skipped: required commands or a DRM render node are unavailable. Run nbshell greeter install after preparing graphics."
 	elif [ "$GREETER_MODE" = "on" ] || ask "Install the Orbital login screen?" y; then
 		GREETER_SETUP="${XDG_DATA_HOME:-$HOME/.local/share}/nbshell/setup-greeter.sh"
 		[ -x "$GREETER_SETUP" ] || die "The installed greeter setup payload is missing: $GREETER_SETUP"
@@ -481,7 +480,8 @@ if [ $WITH_PACKAGES -eq 1 ]; then
 			fehlt=1
 		}
 	done
-	[ $fehlt -eq 0 ] && green "All required commands are available."
+	[ $fehlt -eq 0 ] || die "Required commands are missing; setup is incomplete."
+	green "All required commands are available."
 fi
 
 echo

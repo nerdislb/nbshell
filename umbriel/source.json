@@ -3,7 +3,7 @@
   "baseRevision": "9929e70c92f1ab0ac65307192d0e0f4e4f782a0a",
   "revision": "7cb4ebd6302f55b507765f259e8a30eee440f2a3",
   "tree": "485b5e1501701e28a898c3b27e1a6d8b3bdb49e4",
-  "patch": "iso/packages/pkgbuilds/umbriel/pointer-modifiers.patch",
+  "patch": "umbriel/pointer-modifiers.patch",
   "patchSha256": "4c43398876eb202b3820d2852edabc7ddf2be1640f633534a73f267f146f7237",
   "commit": "umbriel/pointer-modifiers.commit"
 }

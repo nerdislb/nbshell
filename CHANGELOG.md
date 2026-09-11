@@ -6,7 +6,12 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+## [0.1.0-beta.11] - 2026-09-11
+
 ### Added
+
+- Matching nblight and nbdark themes and wallpapers, scheduled wallpaper changes,
+  and power-aware video wallpaper loops.
 
 - Desktop and system updates share a workflow lock, logind sleep inhibition and
   minimum free-space checks. `nbshell update transaction` reports step outcomes;
@@ -23,6 +28,16 @@ configuration and plugin interfaces before `1.0.0`.
   recovery or replacing live desktop acceptance.
 
 ### Fixed
+
+- Fresh console installation resolves user executables without a new login and
+  stops when accepted package installation, personal restore or required final
+  checks fail. Personal package migration now honors `--no-aur`.
+- Tray menus and custom popups close consistently; notification replacements
+  refresh their content and toast stacks fit the available screen height.
+- Network lists, compact panels and Buds previews retain usable geometry and
+  keyboard focus. The GeForce NOW installer uses NVIDIA's repository.
+- Umbriel installation reconstructs and verifies the reviewed public source
+  revision while preserving unrelated source repositories.
 
 - Shell settings use locked per-key patches instead of replacing a stale full
   configuration. Conflicts are reported, independent queued edits are preserved,
@@ -612,7 +627,8 @@ First public beta candidate.
   declared dependencies before activation.
 - Credentials remain outside the repository and plugin configuration.
 
-[Unreleased]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.10...HEAD
+[Unreleased]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.11...HEAD
+[0.1.0-beta.11]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.10...v0.1.0-beta.11
 [0.1.0-beta.10]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.9...v0.1.0-beta.10
 [0.1.0-beta.9]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.8...v0.1.0-beta.9
 [0.1.0-beta.8]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.7...v0.1.0-beta.8

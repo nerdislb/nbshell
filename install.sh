@@ -39,9 +39,16 @@ command -v start-umbriel >/dev/null 2>&1 || missing+=("start-umbriel")
 
 if [ ${#missing[@]} -gt 0 ]; then
     warn "Missing: ${missing[*]}"
-    echo "  sudo pacman -S ${missing[*]}"
+    echo "  Run ./setup.sh for packages and the verified Umbriel source build."
     echo
 fi
+
+for required in python3 jq; do
+    if ! command -v "$required" >/dev/null 2>&1; then
+        warn "Required installer command missing: $required. Run ./setup.sh first."
+        exit 1
+    fi
+done
 
 # `grep -c` statt `grep -q`: -q steigt beim ersten Treffer aus, das schickt
 # fc-list ein SIGPIPE -- und unter `set -o pipefail` gilt die ganze Kette dann

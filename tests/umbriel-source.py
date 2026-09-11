@@ -2,10 +2,12 @@
 """Rebuild an unpublished commit from a remote containing only its parent."""
 import copy
 import hashlib
+import io
 import json
 from pathlib import Path
 import runpy
 import subprocess
+import tarfile
 import tempfile
 import unittest
 
@@ -59,5 +61,46 @@ class SourceTests(unittest.TestCase):
         self.assertTrue(commit.startswith(('tree '+recipe['tree']+'\nparent '+recipe['baseRevision']+'\n').encode()))
         self.assertEqual(hashlib.sha1(b'commit '+str(len(commit)).encode()+b'\0'+commit).hexdigest(), recipe['revision'])
         self.assertEqual(hashlib.sha256((ROOT/recipe['patch']).read_bytes()).hexdigest(), recipe['patchSha256'])
+
+    def test_release_archive_contains_complete_source_recipe(self):
+        # Exercise the actual release pathspec against a Git tree containing
+        # the shipped recipe inputs, including the ISO-only package consumer.
+        recipe = json.loads((ROOT/'umbriel/source.json').read_text())
+        archive_repo = self.root/'archive-repo'
+        archive_repo.mkdir()
+        paths = {'umbriel/source.json', recipe['patch'], recipe['commit'],
+                 'shell/scripts/prepare-umbriel-source.py'}
+        for relative in paths:
+            target = archive_repo/relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes((ROOT/relative).read_bytes())
+        (archive_repo/'iso').mkdir(exist_ok=True)
+        (archive_repo/'iso/excluded').write_text('internal ISO content')
+        def git(*args):
+            return subprocess.check_output(['git', '-C', str(archive_repo), *args])
+        git('init', '-q')
+        git('add', '.')
+        tree = git('write-tree').decode().strip()
+        workflow = (ROOT/'.github/workflows/release.yml').read_text()
+        self.assertIn("-- . ':(exclude)iso'", workflow)
+        payload = git('archive', '--format=tar', tree, '--', '.', ':(exclude)iso')
+        with tarfile.open(fileobj=io.BytesIO(payload)) as archive:
+            names = set(archive.getnames())
+            self.assertFalse(any(name == 'iso' or name.startswith('iso/') for name in names))
+            self.assertFalse(any(member.issym() or member.islnk() for member in archive))
+            bundled = json.load(archive.extractfile('umbriel/source.json'))
+            patch = archive.extractfile(bundled['patch']).read()
+            commit = archive.extractfile(bundled['commit']).read()
+            self.assertIn('shell/scripts/prepare-umbriel-source.py', names)
+        self.assertEqual(hashlib.sha256(patch).hexdigest(), bundled['patchSha256'])
+        self.assertEqual(hashlib.sha1(b'commit '+str(len(commit)).encode()+b'\0'+commit).hexdigest(), bundled['revision'])
+        self.assertTrue(commit.startswith(('tree '+bundled['tree']+'\nparent '+bundled['baseRevision']+'\n').encode()))
+
+    def test_iso_recipe_uses_canonical_patch(self):
+        recipe = json.loads((ROOT/'umbriel/source.json').read_text())
+        package_patch = ROOT/'iso/packages/pkgbuilds/umbriel/pointer-modifiers.patch'
+        self.assertEqual(package_patch.resolve(), (ROOT/recipe['patch']).resolve())
+        pkgbuild = (package_patch.parent/'PKGBUILD').read_text()
+        self.assertIn(recipe['patchSha256'], pkgbuild)
 
 if __name__ == '__main__': unittest.main()

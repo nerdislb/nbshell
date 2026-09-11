@@ -44,6 +44,8 @@ jobs:
           git archive --format=tar --prefix="nbshell-${version}/" "${GITHUB_SHA}" \
             -- . ':(exclude)iso' | gzip -9 > "${archive}"
           python3 - "${archive}" "${version}" <<'PY'
+          import hashlib
+          import json
           import pathlib
           import sys
           import tarfile
@@ -52,8 +54,19 @@ jobs:
           prefix = f"nbshell-{sys.argv[2]}/"
           with tarfile.open(archive, "r:gz") as bundle:
               members = bundle.getmembers()
+              recipe = json.load(bundle.extractfile(prefix + "umbriel/source.json"))
+              patch = bundle.extractfile(prefix + recipe["patch"]).read()
+              commit = bundle.extractfile(prefix + recipe["commit"]).read()
+              if hashlib.sha256(patch).hexdigest() != recipe["patchSha256"]:
+                  raise SystemExit("release archive Umbriel patch checksum mismatch")
+              if hashlib.sha1(b"commit " + str(len(commit)).encode() + b"\0" + commit).hexdigest() != recipe["revision"]:
+                  raise SystemExit("release archive Umbriel commit mismatch")
           names = {member.name for member in members}
-          required = {prefix + name for name in ("VERSION", "setup.sh", "install.sh")}
+          required = {prefix + name for name in (
+              "VERSION", "setup.sh", "install.sh", "setup-umbriel.sh",
+              "shell/scripts/prepare-umbriel-source.py", "umbriel/source.json",
+              recipe["patch"], recipe["commit"],
+          )}
           if not required <= names:
               raise SystemExit(f"release archive is missing: {sorted(required - names)}")
           if any(member.name.startswith(prefix + "iso/") for member in members):
