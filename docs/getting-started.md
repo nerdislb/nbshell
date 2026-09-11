@@ -96,6 +96,24 @@ already installed.
 
 ## Verify the installation
 
+### Recover an interrupted setup
+
+Accepted package or build failures stop setup before dependent steps run.
+Correct the reported error and repeat the setup command; already installed
+packages are skipped. AUR helpers are tested by running them, not merely by
+checking that their executable exists. When available, the configured
+repository's paru package can repair a broken helper together with a full
+system update; a working yay is also accepted.
+
+If the failure occurs at the Orbital step after deployment, retry just the
+login screen with `nbshell greeter install`. A full setup retry remembers an
+unfinished initial greeter installation even though shell files now exist.
+`--no-greeter` explicitly cancels that pending step. The isolated Orbital test
+supports the NVIDIA driver's additional device nodes without exposing host
+input devices or the running desktop.
+
+### Runtime checks
+
 ```bash
 nbshell switch status
 nbshell status

@@ -41,6 +41,7 @@ GREETER_MODE=auto
 NBSHELL_USER_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/nbshell/config.json"
 NBSHELL_RUNTIME_VERSION="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/VERSION"
 NBSHELL_COMMAND="${XDG_BIN_HOME:-$HOME/.local/bin}/nbshell"
+GREETER_PENDING="${XDG_STATE_HOME:-$HOME/.local/state}/nbshell/setup/greeter-pending"
 FRESH_NBSHELL_INSTALL=1
 if [ -e "$NBSHELL_USER_CONFIG" ] || [ -e "$NBSHELL_RUNTIME_VERSION" ] || [ -e "$NBSHELL_COMMAND" ]; then
 	FRESH_NBSHELL_INSTALL=0
@@ -101,7 +102,7 @@ if [ "$WITH_PACKAGES" = "0" ] && [ "$GREETER_MODE" = "on" ]; then
 fi
 
 WANT_GREETER_SETUP=0
-if [ "$WITH_PACKAGES" = "1" ] && { [ "$GREETER_MODE" = "on" ] || { [ "$GREETER_MODE" = "auto" ] && [ "$FRESH_NBSHELL_INSTALL" = "1" ]; }; }; then
+if [ "$WITH_PACKAGES" = "1" ] && { [ "$GREETER_MODE" = "on" ] || { [ "$GREETER_MODE" = "auto" ] && { [ "$FRESH_NBSHELL_INSTALL" = "1" ] || [ -f "$GREETER_PENDING" ]; }; }; }; then
 	WANT_GREETER_SETUP=1
 fi
 
@@ -128,6 +129,65 @@ ask() {
 }
 
 [ "$(id -u)" != "0" ] || die "Do not run this script as root. nbshell is installed in your home directory."
+if [ "$GREETER_MODE" = "off" ]; then
+	rm -f -- "$GREETER_PENDING"
+fi
+# Remember first-login intent before personal restore or shell deployment
+# creates configuration that would make a retry look like an existing desktop.
+if [ "$WANT_GREETER_SETUP" = "1" ]; then
+	mkdir -p -- "$(dirname "$GREETER_PENDING")"
+	printf 'pending\n' > "$GREETER_PENDING"
+fi
+
+AUR_HELPER=""
+find_aur_helper() {
+	local name path
+	AUR_HELPER=""
+	for name in paru yay; do
+		path="$(command -v "$name" || true)"
+		[ -n "$path" ] || continue
+		if "$path" --version >/dev/null 2>&1; then
+			AUR_HELPER="$path"
+			return 0
+		fi
+		warn "$name is installed but cannot run (possibly a libalpm version mismatch)."
+	done
+	return 1
+}
+
+ensure_aur_helper() {
+	find_aur_helper && return 0
+	head2 "AUR helper"
+	# CachyOS provides a repository build. Reinstall even when pacman reports
+	# the same version: the old executable may target the previous libalpm ABI.
+	if pacman -Si paru >/dev/null 2>&1; then
+		if ask "Install or repair paru from the configured repositories and update the system?"; then
+			sudo pacman -Syu paru || die "AUR helper repair failed; resolve pacman errors and rerun setup."
+			find_aur_helper || die "The repository AUR helper still cannot run. Check paru --version; setup stopped before restoring files."
+			return 0
+		fi
+	else
+		# Build against this machine's libalpm instead of fetching a prebuilt
+		# AUR binary. Keep explicit consent for executing an external PKGBUILD.
+		local answer="" tmp
+		echo "Build paru from https://aur.archlinux.org/paru.git using this system's libraries."
+		read -r -p "Build paru now? [y/N] " answer || answer=""
+		if [[ $answer =~ ^[jJyY] ]]; then
+			sudo pacman -S --needed base-devel rust || die "AUR build dependencies could not be installed."
+			tmp="$(mktemp -d)"
+			if git clone --depth 1 https://aur.archlinux.org/paru.git "$tmp/paru" &&
+				(cd "$tmp/paru" && makepkg -si --noconfirm); then
+				rm -rf -- "$tmp"
+				find_aur_helper || die "Built paru cannot run; setup stopped before restoring files."
+				return 0
+			fi
+			die "AUR helper build failed. Inspect $tmp/paru and rerun setup."
+		fi
+	fi
+	[ "$WITH_DOTFILES" = "0" ] || die "Personal AUR packages require a working helper. Rerun with --no-aur to explicitly skip them."
+	warn "No working AUR helper; the updater will only count repository updates."
+	return 0
+}
 
 # ── Die Packages ───────────────────────────────────────────────────────────
 #
@@ -209,38 +269,10 @@ if [ $WITH_PACKAGES -eq 1 ]; then
 		fi
 	fi
 
-	# ── AUR helper ───────────────────────────────────────────────────
-	#
-	# Nur fuer EINE Sache: der Updater zaehlt damit auch AUR-Packages. Er
-	# running ohne, dann fehlen in der Zahl eben die AUR-Updates.
-	#
-	# Das ist der einzige Schritt, der Fremdcode uebersetzt -- deshalb wird
-	# gefragt, auch mit --yes nicht uebergangen, und die Adresse steht dabei.
-	if { [ $WITH_OPTIONAL -eq 1 ] || [ $WITH_DOTFILES -eq 1 ]; } && [ $WITH_AUR -eq 1 ] && ! command -v paru >/dev/null 2>&1 && ! command -v yay >/dev/null 2>&1; then
-		head2 "AUR helper"
-		echo "paru or yay is required to include AUR updates."
-		echo "Build from https://aur.archlinux.org/paru-bin.git (uses your sudo and makepkg)."
-		echo
-		# Hier wird bewusst IMMER gefragt, auch mit --yes: das ist der einzige
-		# Schritt, der Code of ausserhalb der Repos uebersetzt und ausfuehrt.
-		# Das soll niemand aus Versehen anstossen.
-		aur_ans=""
-		read -r -p "Build paru-bin now? [y/N] " aur_ans || aur_ans=""
-		if [[ $aur_ans =~ ^[jJyY] ]]; then
-			pacman -Qq base-devel >/dev/null 2>&1 || sudo pacman -S --needed base-devel
-			tmp="$(mktemp -d)"
-			# Nicht im Trap: das Verzeichnis soll stehen bleiben, wenn der
-			# Bau schiefgeht -- sonst ist auch das Protokoll weg.
-			if git clone --depth 1 --quiet https://aur.archlinux.org/paru-bin.git "$tmp/paru-bin" &&
-				(cd "$tmp/paru-bin" && makepkg -si --noconfirm); then
-				rm -rf "$tmp"
-				green "paru installed."
-			else
-				warn "Build failed. The directory was kept for inspection: $tmp/paru-bin"
-			fi
-		else
-			warn "Without an AUR helper, the updater only counts repository updates."
-		fi
+	# Personal packages can update libalpm later; validate again immediately
+	# before their AUR transaction rather than trusting an executable's presence.
+	if [ "$WITH_OPTIONAL" = "1" ] && [ "$WITH_DOTFILES" = "0" ] && [ "$WITH_AUR" = "1" ]; then
+		ensure_aur_helper
 	fi
 
 	# ── Services ──────────────────────────────────────────────────────
@@ -326,7 +358,7 @@ if [ $WITH_DOTFILES -eq 1 ]; then
 	else
 		printf '  cloning %s\n' "$DOTFILES_REPO"
 		git clone --quiet "$DOTFILES_REPO" "$DOTFILES_DIR" ||
-			die "Clone failed. Check GitHub authentication with: ssh -T git@github.com"
+			die "Clone failed. Check access to the configured repository; for GitHub HTTPS use gh auth login and gh auth setup-git."
 	fi
 
 	# ── Die Paketliste des anderen Rechners ──────────────────────────
@@ -370,7 +402,8 @@ if [ $WITH_DOTFILES -eq 1 ]; then
 	# AUR: nur wenn ein Helfer da ist. Ohne einen ginge es nur mit makepkg
 	# je Paket, und das ist kein Schritt fuer ein Einrichtungsskript.
 	if [ $WITH_PACKAGES -eq 1 ] && [ $WITH_AUR -eq 1 ] && [ -f "$DOTFILES_DIR/pkglist-aur.txt" ]; then
-		helper="$(command -v paru || command -v yay || true)"
+		ensure_aur_helper
+		helper="$AUR_HELPER"
 		if [ -n "$helper" ]; then
 			aur=()
 			while read -r p; do
@@ -457,8 +490,12 @@ if [ "$WANT_GREETER_SETUP" = "1" ]; then
 	elif [ "$GREETER_MODE" = "on" ] || ask "Install the Orbital login screen?" y; then
 		GREETER_SETUP="${XDG_DATA_HOME:-$HOME/.local/share}/nbshell/setup-greeter.sh"
 		[ -x "$GREETER_SETUP" ] || die "The installed greeter setup payload is missing: $GREETER_SETUP"
-		"$GREETER_SETUP" install
+		if ! "$GREETER_SETUP" install; then
+			die "Orbital setup failed. The desktop files are installed. After fixing the reported error, retry only this step with: $NBSHELL_COMMAND greeter install"
+		fi
+		rm -f -- "$GREETER_PENDING"
 	else
+		rm -f -- "$GREETER_PENDING"
 		warn "Orbital skipped. Run nbshell greeter install later."
 	fi
 fi

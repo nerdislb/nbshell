@@ -244,6 +244,10 @@ case "$MODE" in
         ok "The Orbital greeter now matches the current nbshell theme and wallpaper."
         ;;
     install)
+        # A direct CLI retry also completes a previously interrupted setup.
+        if [[ -z $TEST_ROOT ]]; then
+            rm -f -- "${XDG_STATE_HOME:-$HOME/.local/state}/nbshell/setup/greeter-pending"
+        fi
         ok "The Umbriel-hosted nbshell Orbital greeter is staged."
         printf '%s\n' \
             "It becomes active after a reboot; greetd and the current session were not restarted." \

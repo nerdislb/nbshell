@@ -36,10 +36,19 @@ elif name == 'pacman':
         if scenario == 'missing-bubblewrap':
             missing.add('bubblewrap')
         sys.exit(int(args[1] in missing))
+    if args[0] == '-Syu' and 'paru' in args:
+        if scenario == 'helper-repair-failure':
+            sys.exit(1)
+        if scenario != 'helper-still-broken':
+            (pathlib.Path(os.environ['HOME']) / 'helper-repaired').touch()
     sys.exit(1 if scenario in {'core-failure', 'legacy-failure'} else 0)
 elif name == 'git':
     sys.exit(int(scenario == 'pull-failure'))
-elif name == 'paru':
+elif name in {'paru', 'yay'}:
+    if args == ['--version']:
+        broken = scenario in {'broken-helper', 'helper-repair-failure', 'helper-still-broken', 'healthy-yay'}
+        repaired = (pathlib.Path(os.environ['HOME']) / 'helper-repaired').exists()
+        sys.exit(int(name == 'paru' and broken and not repaired))
     sys.exit(int(scenario == 'aur-failure'))
 elif name == 'restore.sh':
     sys.stdin.read()
@@ -53,17 +62,20 @@ elif name == 'setup-umbriel.sh':
     for command in ('umbriel', 'start-umbriel'):
         executable(bindir / command, 'exit 0')
 elif name == 'install.sh':
+    runtime = pathlib.Path(os.environ['HOME']) / '.config/quickshell/nbshell'
+    runtime.mkdir(parents=True, exist_ok=True)
+    (runtime / 'VERSION').write_text('fixture')
     data = pathlib.Path(os.environ['HOME']) / '.local/share/nbshell'
     for script in ('setup-locker.sh', 'setup-greeter.sh'):
         text = 'echo "[\\"' + script + '\\"]" >> "$CALL_LOG"'
-        if script == 'setup-greeter.sh' and scenario == 'no-render':
+        if script == 'setup-greeter.sh' and scenario in {'no-render', 'greeter-failure'}:
             text += '\necho "No render device available" >&2\nexit 1'
         executable(data / script, text)
 '''
 
 
 class SetupTransactions(unittest.TestCase):
-    def run_setup(self, scenario, *options, legacy=False, custom_bin=False):
+    def run_setup(self, scenario, *options, legacy=False, custom_bin=False, retry=False):
         with tempfile.TemporaryDirectory(prefix='nbshell-setup-test-') as temp:
             base = Path(temp)
             home, repo, bindir = (base / name for name in ('home', 'repo', 'bin'))
@@ -81,6 +93,10 @@ class SetupTransactions(unittest.TestCase):
                         'notify-send', 'xdg-open', 'pactl')
             for command in commands:
                 (bindir / command).symlink_to(mock)
+            for command in ('mkdir', 'rm'):
+                (bindir / command).symlink_to('/usr/bin/' + command)
+            if scenario == 'healthy-yay':
+                (bindir / 'yay').symlink_to(mock)
             for command in ('install.sh', 'setup-umbriel.sh'):
                 (repo / command).symlink_to(mock)
             if legacy:
@@ -101,6 +117,16 @@ class SetupTransactions(unittest.TestCase):
                                     env=env, input='', text=True, capture_output=True,
                                     timeout=15)
             calls = [json.loads(line) for line in log.read_text().splitlines()]
+            if retry:
+                self.assertNotEqual(result.returncode, 0)
+                self.assertTrue((home / '.local/state/nbshell/setup/greeter-pending').exists())
+                self.assertIn('greeter install', result.stderr)
+                env['SCENARIO'] = 'success'
+                log.write_text('')
+                result = subprocess.run(['/bin/bash', str(repo / 'setup.sh'), '--yes', *options],
+                                        env=env, input='', text=True, capture_output=True, timeout=15)
+                calls = [json.loads(line) for line in log.read_text().splitlines()]
+                self.assertFalse((home / '.local/state/nbshell/setup/greeter-pending').exists())
             return result, calls
 
     def assert_stopped(self, scenario, message, *, legacy=False):
@@ -137,6 +163,31 @@ class SetupTransactions(unittest.TestCase):
         self.assertNotIn('paru', [call[0] for call in calls])
         self.assertIn('restore.sh', [call[0] for call in calls])
         self.assertIn('install.sh', [call[0] for call in calls])
+
+    def test_broken_helper_is_reinstalled_and_verified_before_aur(self):
+        result, calls = self.run_setup('broken-helper', legacy=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        repair = calls.index(['pacman', '-Syu', 'paru'])
+        aur = next(i for i, call in enumerate(calls) if call[:2] == ['paru', '-S'])
+        self.assertLess(repair, aur)
+        self.assertIn(['paru', '--version'], calls[repair + 1:aur])
+
+    def test_healthy_yay_is_used_when_paru_cannot_start(self):
+        result, calls = self.run_setup('healthy-yay', legacy=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn(['pacman', '-Syu', 'paru'], calls)
+        self.assertTrue(any(call[:2] == ['yay', '-S'] for call in calls))
+
+    def test_failed_helper_repair_stops_before_restore(self):
+        self.assert_stopped('helper-repair-failure', 'AUR helper repair failed', legacy=True)
+
+    def test_successful_package_transaction_is_not_enough_for_broken_helper(self):
+        self.assert_stopped('helper-still-broken', 'still cannot run', legacy=True)
+
+    def test_retry_after_greeter_failure_keeps_fresh_install_intent(self):
+        result, calls = self.run_setup('greeter-failure', retry=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('setup-greeter.sh', [call[0] for call in calls])
 
     def test_fresh_console_finds_new_compositor_for_greeter_and_final_check(self):
         for custom_bin in (False, True):
