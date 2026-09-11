@@ -212,7 +212,7 @@ for removed in ("// ── MEDIA", "MediaService.player?.trackArtUrl"):
 desktop_ipc = (ROOT / "shell/Ipc/DesktopIpc.qml").read_text(encoding="utf-8")
 clock_widget = (ROOT / "shell/Bar/Widgets/Clock.qml").read_text(encoding="utf-8")
 for snippet in (
-    'onClicked: Plugins.summon("io.github.nbshell.calendar", "{}")',
+    'Plugins.summon("io.github.nbshell.calendar", "{}")',
     'accessibilityName: "Open calendar, " + root.text',
     'onRightClicked:',
     'Config.set("clockFormat", list[(at + 1) % list.length]);',

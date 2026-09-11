@@ -42,7 +42,13 @@ Cell {
     interactive: true
     accessibilityName: "Open calendar, " + root.text
 
-    onClicked: Plugins.summon("io.github.nbshell.calendar", "{}")
+    preview: Component { ClockPreview {} }
+    onPreviewVisibleChanged: if (previewVisible) CalendarAgenda.refresh()
+
+    onClicked: {
+        setPreview(false);
+        Plugins.summon("io.github.nbshell.calendar", "{}");
+    }
 
     onRightClicked: {
         const list = root.formats;
@@ -55,5 +61,6 @@ Cell {
     SystemClock {
         id: clock
         precision: SystemClock.Minutes
+        onDateChanged: if (root.previewVisible) CalendarAgenda.refresh()
     }
 }

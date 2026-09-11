@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 2,
+  "id": "io.github.nbshell.calendar",
+  "name": "Calendar",
+  "version": "0.2.0",
+  "author": "nbshell",
+  "license": "MIT",
+  "description": "Standalone iCloud and Google calendar with independent accounts.",
+  "kinds": [
+    "panel"
+  ],
+  "hosts": [
+    "panel",
+    "window"
+  ],
+  "entryPoints": {
+    "panel": "Panel.qml"
+  },
+  "activation": "on-demand",
+  "dependencies": {
+    "commands": [
+      "python3",
+      "secret-tool"
+    ],
+    "packages": [
+      "python-requests",
+      "python-icalendar",
+      "khal",
+      "python-pytz",
+      "libsecret"
+    ]
+  }
+}

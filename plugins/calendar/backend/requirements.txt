@@ -1,0 +1,5 @@
+# khal's tested SQLite recurrence API is intentionally bounded.
+khal>=0.14.1,<0.15
+icalendar>=7.3,<8
+requests>=2.32,<3
+pytz>=2025.2
