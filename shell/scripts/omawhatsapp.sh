@@ -84,7 +84,6 @@ setup() (
     install -Dm644 "$runtime_shell/integrations/omawhatsapp/FastScrollHandler.qml" "$staged_plugin/FastScrollHandler.qml"
     install -Dm644 "$source/LICENSE" "$staged_plugin/LICENSE"
     patch -d "$source" -p1 < "$runtime_shell/integrations/omawhatsapp/nbshell-wacli-parity.patch"
-    patch -d "$source" -p1 < "$runtime_shell/integrations/omawhatsapp/nbshell-wacli-parity.patch"
     install -Dm755 "$source/bin/omawhatsapp" "$bin_dir/omawhatsapp"
     install -Dm644 "$source/bin/omawhatsapp_assets.py" "$bin_dir/omawhatsapp_assets.py"
     install -Dm644 "$runtime_shell/integrations/omawhatsapp/wacli-sync.service" "$unit_dir/wacli-sync.service"
