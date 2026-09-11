@@ -12,7 +12,7 @@ BRAVE_FLAGS_END='# nbshell browser theme end'
 IMPORT='@import url("nbshell-theme.css"); /* managed by nbshell */'
 OMAZEN_COLORS="${NBSHELL_OMAZEN_COLORS:-$CONFIG_HOME/nbshell/omazen-colors.toml}"
 OMAZEN_PROGRAM_DIR="${NBSHELL_OMAZEN_PROGRAM_DIR:-/opt/zen-browser-bin}"
-OMAZEN_REVISION=1c11bc65c6a5c6d075ecd4019a6ae0ec615cad94
+OMAZEN_REVISION=38653941ea493a8a9dbe0277b903552340b6976c
 OMAZEN_REPOSITORY=https://github.com/hemagome/omazen.git
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -f $SCRIPT_DIR/../integrations/omazen/nbshell-external-provider-arch.patch ]]; then
@@ -131,7 +131,7 @@ install_zen_live() (
 	OMAZEN_BIN="$stage/source/target/release/omazen-rust" tests/test.sh
 	OMAZEN_RUST_BINARY="$stage/source/target/release/omazen-rust" \
 		OMAZEN_ACTIVE_COLORS="$OMAZEN_COLORS" OMAZEN_SKIP_THEME_HOOK=1 ./install.sh
-	printf '%s\n' "Omazen 1.5.0 installed for nbshell's external palette provider. Restart Zen once."
+	printf '%s\n' "Omazen installed for nbshell's external palette provider. Restart Zen once."
 )
 
 doctor_zen_live() {

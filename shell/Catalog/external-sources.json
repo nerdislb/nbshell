@@ -3,7 +3,7 @@
   "sources": [
     {"name": "Umbriel", "repository": "https://github.com/noctalia-dev/umbriel", "reviewedCommit": "7cb4ebd6302f55b507765f259e8a30eee440f2a3"},
     {"name": "Umbriel portal", "repository": "https://github.com/noctalia-dev/xdg-desktop-portal-umbriel", "reviewedCommit": "d996f0c"},
-    {"name": "Omazen", "repository": "https://github.com/hemagome/omazen", "reviewedCommit": "1c11bc6", "patch": "integrations/omazen/nbshell-external-provider-arch.patch"},
+    {"name": "Omazen", "repository": "https://github.com/hemagome/omazen", "reviewedCommit": "3865394", "patch": "integrations/omazen/nbshell-external-provider-arch.patch"},
     {"name": "WhatsApp", "repository": "https://github.com/MoizIbnYousaf/Omarchy-Whatsapp", "reviewedCommit": "1f58d8d"},
     {"name": "Mail", "repository": "https://github.com/huacnlee/omamail", "reviewedCommit": "6fdf290"},
     {"name": "Quick Translate", "repository": "https://github.com/seshna/quick-translate", "reviewedCommit": "284cac8"},
