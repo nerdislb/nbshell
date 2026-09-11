@@ -29,6 +29,49 @@ Singleton {
     property bool genericAttention: false
     property string attentionKind: ""
     property bool overviewVisible: false
+    property int monitorUsers: 0
+    property string monitorError: ""
+
+    function refreshSessions() {
+        if (!sessionStatus.running)
+            sessionStatus.running = true;
+    }
+
+    Timer {
+        interval: 3000
+        running: root.monitorUsers > 0
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: root.refreshSessions()
+    }
+
+    Process {
+        id: sessionStatus
+        command: ["python3", root.tool, "sessions", "--json"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const next = JSON.parse(text);
+                    if (!Array.isArray(next)) throw new Error("Invalid sessions");
+                    root.monitorError = "";
+                    root.sessionNotifications(next);
+                    if (JSON.stringify(root.sessions) !== JSON.stringify(next))
+                        root.sessions = next;
+                } catch (e) {
+                    root.monitorError = "Herdr status unavailable";
+                    root.sessions = [];
+                    root.sessionsReady = false;
+                }
+            }
+        }
+        onExited: (exitCode, exitStatus) => {
+            if (exitCode !== 0) {
+                root.monitorError = "Herdr status unavailable";
+                root.sessions = [];
+                root.sessionsReady = false;
+            }
+        }
+    }
 
     readonly property bool completionAttention: genericAttention || attentionSessions.length > 0
 
@@ -229,8 +272,10 @@ Singleton {
                     root.agents = data.agents ?? [];
                     root.projects = data.projects ?? [];
                     const nextSessions = data.sessions ?? [];
-                    root.sessionNotifications(nextSessions);
-                    root.sessions = nextSessions;
+                    if (root.monitorUsers === 0) {
+                        root.sessionNotifications(nextSessions);
+                        root.sessions = nextSessions;
+                    }
                     root.ollama = data.ollama ?? ({ "installed": false, "running": false, "models": [] });
                     root.hermes = data.hermes ?? ({ "installed": false, "authenticated": false, "gateway": "inactive", "provider": "", "model": "", "selected": "codex", "mode": "restricted", "running": false, "sessions": [], "providers": ({}) });
                     root.hermesJobs = root.hermes.jobs ?? [];

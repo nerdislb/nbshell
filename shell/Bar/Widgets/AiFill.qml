@@ -11,17 +11,41 @@ Cell {
 
     property int selectedProviderIndex: 0
 
+    readonly property var monitorSessions: Agents.sessions.filter(row => row.backend === "herdr")
+        .sort((a, b) => sessionRank(a) - sessionRank(b))
+    readonly property var visibleSessions: monitorSessions.slice(0, 4)
+
+    function sessionRank(row) {
+        if (row.status === "working") return 0;
+        if (["waiting", "permission", "blocked"].includes(row.status)) return 1;
+        return 2;
+    }
+
+    function sessionState(row) {
+        if (row.status === "working") return "Working";
+        if (["waiting", "permission", "blocked"].includes(row.status)) return "Input";
+        if (row.status === "done") return "Done";
+        if (row.status === "idle") return "Idle";
+        return "Unknown";
+    }
+
+    Component.onCompleted: Agents.monitorUsers++
+    Component.onDestruction: Agents.monitorUsers = Math.max(0, Agents.monitorUsers - 1)
+    onPreviewVisibleChanged: if (previewVisible) Agents.refreshSessions()
+
     readonly property bool agentActive: Agents.workingCount > 0 || Agents.waitingCount > 0
     readonly property bool limitWarning: AiUsage.list.some(entry =>
         (entry.limits ?? []).some(window => (window.percent ?? 0) >= 90))
 
-    shown: Agents.completionAttention || root.agentActive || (AiUsage.available && AiUsage.list.length > 0)
+    shown: monitorSessions.length > 0 || Agents.completionAttention || root.agentActive || (AiUsage.available && AiUsage.list.length > 0)
     interactive: true
     popoutTakesKeyboard: true
-    slotChars: 1
+    slotChars: 5
     label: "AI"
     icon: Icons.agent
-    text: ""
+    text: Agents.workingCount > 0 ? "● " + Agents.workingCount
+        : (Agents.waitingCount > 0 ? "! " + Agents.waitingCount : "")
+    accessibilityName: "AI · " + Agents.workingCount + " working · " + Agents.waitingCount + " waiting"
     color: root.limitWarning ? Theme.red : (Agents.completionAttention ? (Agents.attentionKind === "decision" ? Theme.yellow : Theme.cyan) : (root.agentActive ? Theme.green : Theme.textDim))
 
     onPopoutVisibleChanged: Agents.setOverviewVisible(root.popoutVisible)
@@ -58,22 +82,39 @@ Cell {
     preview: Component {
         BarPreview {
             id: card
-            readonly property var highest: AiUsage.list.reduce((best, entry) =>
-                !best || (entry.percent ?? 0) > (best.percent ?? 0) ? entry : best, null)
-
             icon: Icons.agent
-            title: "AI usage"
-            subtitle: Agents.completionAttention ? (Agents.attentionKind === "decision" ? "Agent needs your input" : "Agent task completed") : (root.agentActive ? "Other agent work in progress" : "Provider usage and limits")
-            badge: Agents.completionAttention ? (Agents.attentionKind === "decision" ? "INPUT" : "NEW") : (root.agentActive ? "ACTIVE" : "IDLE")
-            badgeColor: root.limitWarning ? Theme.red : (Agents.completionAttention ? (Agents.attentionKind === "decision" ? Theme.yellow : Theme.cyan) : (root.agentActive ? Theme.green : Theme.fgDim))
+            title: "Herdr agents"
+            subtitle: Agents.monitorError || (root.monitorSessions.length === 0
+                ? "No active Herdr sessions"
+                : Agents.workingCount + " working · " + Agents.waitingCount + " waiting")
+            badge: Agents.monitorError ? "OFFLINE" : (Agents.workingCount > 0 ? "LIVE" : (Agents.waitingCount > 0 ? "INPUT" : "IDLE"))
+            badgeColor: Agents.monitorError ? Theme.yellow : (Agents.workingCount > 0 ? Theme.green : (Agents.waitingCount > 0 ? Theme.yellow : Theme.fgDim))
             content: [
-                Facts {
-                    rowWidth: parent.width
-                    pairs: [
-                        { "label": "Running", "value": String(Agents.workingCount), "color": Agents.workingCount > 0 ? Theme.green : Theme.fgDim },
-                        { "label": "Waiting", "value": String(Agents.waitingCount), "color": Agents.waitingCount > 0 ? Theme.yellow : Theme.fgDim },
-                        { "label": "Highest limit", "value": card.highest ? (card.highest.id + "  " + card.highest.percent + " %") : "unavailable", "color": root.limitWarning ? Theme.red : Theme.fg }
-                    ]
+                Repeater {
+                    model: root.visibleSessions
+                    PanelRow {
+                        required property var modelData
+                        width: card.rowWidth
+                        title: String(modelData.name || "Agent") + " · Tab " + String(modelData.tab || "—")
+                        detail: String(modelData.title || modelData.project || "Herdr session")
+                        value: root.sessionState(modelData)
+                        glyph: modelData.status === "working" ? "●" : "·"
+                    }
+                },
+                Line {
+                    width: card.rowWidth
+                    visible: root.monitorSessions.length > 4
+                    text: "+" + (root.monitorSessions.length - 4) + " more sessions"
+                    color: Theme.fgDim
+                    font.pixelSize: Theme.fontCaption
+                },
+                Line {
+                    width: card.rowWidth
+                    text: Agents.completionAttention ? "Click to return to your agent"
+                        : "Click for AI usage · Right-click to start an agent"
+                    wrapMode: Text.WordWrap
+                    color: Theme.fgDim
+                    font.pixelSize: Theme.fontCaption
                 }
             ]
         }

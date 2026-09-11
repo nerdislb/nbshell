@@ -341,29 +341,45 @@ def hermes_status(config: dict) -> dict:
     return result
 
 
-def herdr_sessions() -> list[dict]:
+def normalize_herdr_sessions(raw: list[dict], tabs: list[dict] = ()) -> list[dict]:
+    labels = {str(tab.get("tab_id")): str(tab.get("label") or tab.get("number") or "")
+              for tab in tabs if isinstance(tab, dict)}
+    return [{
+        "id": "herdr:" + str(row.get("agent_id") or row.get("id") or row.get("pane_id") or ""),
+        "name": str(row.get("agent") or row.get("name") or "Agent"),
+        "status": str(row.get("agent_status") or row.get("status") or "unknown"),
+        "project": str(row.get("cwd") or ""),
+        "title": str(row.get("terminal_title_stripped") or row.get("title") or ""),
+        "focused": bool(row.get("focused", False)),
+        "workspace": str(row.get("workspace_id") or ""),
+        "tab": labels.get(str(row.get("tab_id"))) or str(row.get("tab_id") or row.get("pane_id") or ""),
+        "backend": "herdr",
+    } for row in raw if isinstance(row, dict)]
+
+
+def herdr_sessions(strict: bool = False) -> list[dict]:
     if not shutil.which("herdr"):
+        if strict:
+            raise SystemExit("Herdr is not installed.")
         return []
-    attempts = (["herdr", "agent", "list", "--json"], ["herdr", "agent", "list"])
-    for command in attempts:
+    # One atomic snapshot includes the user's tab labels as well as agent state.
+    # Older Herdr versions can still supply their agent list.
+    for command in (["herdr", "api", "snapshot"], ["herdr", "agent", "list"], ["herdr", "agent", "list", "--json"]):
         result = subprocess.run(command, text=True, capture_output=True, timeout=3, check=False)
         if result.returncode:
             continue
         try:
             data = json.loads(result.stdout)
-            raw = data.get("result", {}).get("agents", data.get("agents", []))
-            return [{
-                "id": "herdr:" + str(row.get("agent_id") or row.get("id") or row.get("pane_id") or ""),
-                "name": str(row.get("agent") or row.get("name") or "Agent"),
-                "status": str(row.get("agent_status") or row.get("status") or "unknown"),
-                "project": str(row.get("cwd") or ""),
-                "title": str(row.get("terminal_title_stripped") or row.get("title") or ""),
-                "focused": bool(row.get("focused", False)),
-                "workspace": str(row.get("workspace_id") or ""),
-                "backend": "herdr",
-            } for row in raw]
-        except (ValueError, AttributeError):
-            return []
+            payload = data.get("result", data)
+            snapshot = payload.get("snapshot", payload)
+            raw = snapshot.get("agents", [])
+            if not isinstance(raw, list):
+                continue
+            return normalize_herdr_sessions(raw, snapshot.get("tabs", []))
+        except (ValueError, AttributeError, TypeError):
+            continue
+    if strict:
+        raise SystemExit("Herdr status unavailable")
     return []
 
 
@@ -957,7 +973,7 @@ def main() -> int:
             for row in rows: print(row["path"])
         return 0
     if command == "sessions":
-        rows = herdr_sessions()
+        rows = herdr_sessions(strict=True)
         if args.json: print(json.dumps(rows))
         else:
             for row in rows: print(f"{row['id']:<12} {row['name']:<10} {row['status']:<12} {row['project']}")
