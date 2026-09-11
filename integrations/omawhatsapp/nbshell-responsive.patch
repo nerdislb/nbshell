@@ -1,12 +1,24 @@
 --- a/App.qml
 +++ b/App.qml
-@@ -96 +96 @@
+@@ -116,7 +116,7 @@
+     foreground.g * 0.45 + background.g * 0.55,
+     foreground.b * 0.45 + background.b * 0.55, 1)
+   readonly property bool narrow: window.width < Style.space(640)
 -  readonly property bool compact: window.width < Style.space(900)
 +  readonly property bool compact: window.width < Style.space(1040)
-@@ -1577,2 +1577,4 @@
+   readonly property bool textEntryActive: composer.activeFocus
+     || messageSearchField.activeFocus || chatSearchField.activeFocus
+   readonly property var sourceItems: root.demoMode
+@@ -2046,8 +2046,10 @@
+         anchors.bottom: parent.bottom
+         anchors.left: parent.left
+         visible: root.narrow ? !root.narrowConversation : width > 0
 -        width: root.narrow ? parent.width : (root.sidebarCollapsed ? 0
 -          : Math.min(Style.space(340), Math.max(Style.space(250), window.width * 0.30)))
 +        width: root.narrow ? parent.width
 +          : (root.sidebarCollapsed ? 0
 +            : (root.compact ? Style.space(272)
 +              : Math.min(Style.space(340), Math.max(Style.space(250), window.width * 0.30))))
+         opacity: root.narrow || !root.sidebarCollapsed ? 1 : 0
+         clip: true
+         color: Style.normalFillFor(root.foreground, root.accent)

@@ -1,0 +1,45 @@
+--- a/bin/omawhatsapp
++++ b/bin/omawhatsapp
+@@ -117,7 +117,7 @@
+   AND COALESCE(groups.linked_parent_jid, '') = ''
+ ))"""
+ 
+-WACLI_PARITY_VERSION = "0.17.1"
++WACLI_PARITY_VERSION = "0.18.1"
+ WACLI_GLOBAL_FLAGS = frozenset({
+     "--account", "--events", "--full", "--json", "--lock-wait",
+     "--read-only", "--store", "--timeout",
+@@ -138,7 +138,7 @@
+     ("send", "voice"),
+ })
+ 
+-# Existing-target selectors accepted by wacli 0.17.1. The gateway resolves
++# Existing-target selectors accepted by wacli 0.18.1. The gateway resolves
+ # these against the selected account's local mirror so names, phone numbers,
+ # and --pick can never choose a recipient or destructive target implicitly.
+ WACLI_REQUIRED_CHAT_FLAGS: dict[tuple[str, ...], tuple[str, ...]] = {
+@@ -183,6 +183,7 @@
+     ("groups", "locked"),
+     ("groups", "participants", "add"),
+     ("groups", "participants", "demote"),
++    ("groups", "participants", "list"),
+     ("groups", "participants", "promote"),
+     ("groups", "participants", "remove"),
+     ("groups", "rename"),
+@@ -221,7 +222,7 @@
+     ("send", "select"): ("--to", "--id"),
+ }
+ 
+-# Every user-facing leaf in wacli 0.17.1 is classified here. Unknown leaves
++# Every user-facing leaf in wacli 0.18.1 is classified here. Unknown leaves
+ # fail closed; a future wacli release can therefore never silently broaden an
+ # agent's mutation surface. A few flag-dependent operations are narrowed by
+ # _transport_policy (for example, cleanup --dry-run is a local read).
+@@ -277,6 +278,7 @@
+     ("groups", "locked"): "whatsapp-write",
+     ("groups", "participants", "add"): "whatsapp-write",
+     ("groups", "participants", "demote"): "destructive",
++    ("groups", "participants", "list"): "local-read",
+     ("groups", "participants", "promote"): "whatsapp-write",
+     ("groups", "participants", "remove"): "destructive",
+     ("groups", "prune"): "local-write",

@@ -9,11 +9,11 @@ config_file="$config_home/nbshell/config.json"
 provider_file="$config_home/nbshell/whatsapp-provider"
 unit_dir="$config_home/systemd/user"
 bin_dir=${XDG_BIN_HOME:-$HOME/.local/bin}
-source_revision=1f58d8da93565f020a63a61ad314c965cbcd8cdc
-source_sha=02aa33b7664bf7a3cd69c95529f11f121d1d683d7a2711c3a9da9b1ebbd15aad
-wacli_version=0.17.1
-wacli_amd64_sha=cbd5e74d5b805550cc36c7479aca552970cc1b314c5c08e02367e08b785714fd
-wacli_arm64_sha=8e5d21f8d5f097e5d3a883cdb42848a9e50a7383e4de049c807cc44e6e7c81b6
+source_revision=7ee1540f01d4f7fb698d683577fecd57063a9204
+source_sha=fbd39edbc26b7661eb929912da9531ebff4fd6c1f9646857f2b2bd5b32a39b30
+wacli_version=0.18.1
+wacli_amd64_sha=36e8c48065f224f58428db9802767e8c6d9e10c0e847bbb5d9072fac72c272cd
+wacli_arm64_sha=e41465ac95baea79586d43ea102adb501abd0aa84f371138a9a1bda625bfc01d
 
 provider() {
     [ -f "$provider_file" ] && tr -d '\n' <"$provider_file" || printf 'prettyzap'
@@ -74,7 +74,6 @@ setup() (
     cp -a "$source/plugins/omawhatsapp/." "$staged_plugin/"
     patch -d "$staged_plugin" -p1 < "$runtime_shell/integrations/omawhatsapp/nbshell-responsive.patch"
     patch -d "$staged_plugin" -p1 < "$runtime_shell/integrations/omawhatsapp/nbshell-refresh.patch"
-    patch -d "$staged_plugin" -p1 < "$runtime_shell/integrations/omawhatsapp/nbshell-composer-scroll.patch"
     patch -d "$staged_plugin" -p1 < "$runtime_shell/integrations/omawhatsapp/nbshell-wheel-scroll.patch"
     # Keep the upstream/internal identity stable while presenting this as a
     # normal nbshell WhatsApp client in every user-facing QML string.
@@ -84,6 +83,8 @@ setup() (
     install -Dm644 "$runtime_shell/integrations/omawhatsapp/ToggleSwitch.qml" "$staged_plugin/ToggleSwitch.qml"
     install -Dm644 "$runtime_shell/integrations/omawhatsapp/FastScrollHandler.qml" "$staged_plugin/FastScrollHandler.qml"
     install -Dm644 "$source/LICENSE" "$staged_plugin/LICENSE"
+    patch -d "$source" -p1 < "$runtime_shell/integrations/omawhatsapp/nbshell-wacli-parity.patch"
+    patch -d "$source" -p1 < "$runtime_shell/integrations/omawhatsapp/nbshell-wacli-parity.patch"
     install -Dm755 "$source/bin/omawhatsapp" "$bin_dir/omawhatsapp"
     install -Dm644 "$source/bin/omawhatsapp_assets.py" "$bin_dir/omawhatsapp_assets.py"
     install -Dm644 "$runtime_shell/integrations/omawhatsapp/wacli-sync.service" "$unit_dir/wacli-sync.service"

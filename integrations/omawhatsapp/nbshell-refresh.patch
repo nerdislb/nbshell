@@ -1,6 +1,6 @@
 --- a/Service.qml
 +++ b/Service.qml
-@@ -35,7 +35,6 @@
+@@ -38,7 +38,6 @@
    property bool membersPending: false
    property bool statusPending: false
    property bool statusReady: false
@@ -8,8 +8,8 @@
    property string activeWriteKind: ""
    property string activeWriteChatJid: ""
    property string activeWriteAccount: ""
-@@ -71,8 +70,6 @@
-
+@@ -74,8 +73,6 @@
+ 
    readonly property bool windowOpen: appOpen || dropdownOpen
    readonly property bool multiAccount: AccountModel.isMultiAccount(accounts)
 -  readonly property var storeDirectories:
@@ -17,7 +17,7 @@
    function sameChat(chat, account, jid) {
      return AccountModel.sameChat(chat, account, jid)
    }
-@@ -90,9 +87,6 @@
+@@ -94,9 +91,6 @@
      onRefreshRequested: { root.refreshStatus(); root.refreshChats() }
    }
    readonly property string helper: Quickshell.env("HOME") + "/.local/bin/omawhatsapp"
@@ -27,7 +27,7 @@
    readonly property int unreadCount: chats.reduce(function(total, chat) {
      return total + Number(chat.unread || 0)
    }, 0)
-@@ -178,10 +172,6 @@
+@@ -182,10 +176,6 @@
      statusProcess.requestedAccount = account
      statusProcess.command = [helper, "status", "--account", account]
      statusProcess.running = true
@@ -38,14 +38,17 @@
    }
    function refreshChats() {
      if (chatsProcess.running) return
-@@ -587,58 +577,6 @@
-     function toggleApp(payload: string): string {
-       root.toggleApp(payload)
+@@ -599,61 +589,6 @@
+       try { data = JSON.parse(payload || "{}") } catch (e) {}
+       root.openDropdownRequested(data)
        return "ok"
 -    }
 -  }
 -
--  // One watcher per account store; they share the debounce below.
+-  // One watcher per account store; they share the debounce below. SQLite can
+-  // open WAL sidecars writable even for read-only queries, so CLOSE_WRITE does
+-  // not mean chat data changed. Keep writes, checkpoints, replacement and removal
+-  // events; a read completing must not schedule another read of itself.
 -  Instantiator {
 -    id: storeWatchers
 -    model: root.storeDirectories
@@ -55,7 +58,7 @@
 -      command: [
 -        "setpriv", "--pdeathsig", "TERM",
 -        "inotifywait", "-m", "-q",
--        "-e", "close_write,create,delete,move,modify",
+-        "-e", "create,delete,move,modify",
 -        "--format", "%f", modelData
 -      ]
 -      stdout: SplitParser {
@@ -96,8 +99,8 @@
 -      }
      }
    }
-
-@@ -742,7 +680,6 @@
+ 
+@@ -762,7 +697,6 @@
      onStarted: { write(payload + "\n"); payload = ""; stdinEnabled = false }
      onExited: function(exitCode) {
        root.loadingChats = false
