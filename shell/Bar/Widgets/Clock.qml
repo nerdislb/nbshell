@@ -7,7 +7,7 @@ import qs.Widgets
 // Uhr. Das Format steht in der Config (`clockFormat`), damit man es ohne
 // Codeaenderung kuerzen kann.
 //
-// Ein Klick oeffnet das Dashboard mit Kalender, Wetter, Medien und Werkzeugen.
+// The dashboard is opened from Home or Mod+P.
 // Ein Rechtsklick geht reihum durch `clockFormats`: die lange Form, die kurze,
 // die Kalenderwoche, das amerikanische 12-Stunden-Format. Wer ein eigenes
 // Format setzt, das nicht in der Liste steht, faengt beim naechsten
@@ -40,8 +40,6 @@ Cell {
     // `clickable` haengt an `interactive` -- stuende hier die Kalenderoption,
     // waere die Uhr ohne khal ein totes Feld.
     interactive: true
-
-    onClicked: Runtime.dashboardOpen = true
 
     onRightClicked: {
         const list = root.formats;

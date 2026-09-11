@@ -5,6 +5,7 @@ import Quickshell.Wayland
 import qs.Common
 import qs.Services
 import qs.Widgets
+import "Widgets" as BarWidgets
 
 // Die Leiste -- je nach Betriebsart eine freistehende Insel oder ein
 // durchgehender Balken. Ein Fenster je Bildschirm.
@@ -420,6 +421,10 @@ Variants {
                 Row {
                     id: leftGroup
                     spacing: Theme.barItemGap
+
+                    BarWidgets.Home {
+                        popupOutput: win.modelData?.name ?? ""
+                    }
 
                     Repeater {
                         model: win.expandedLeftWidgetNames
