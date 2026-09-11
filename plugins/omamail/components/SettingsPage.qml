@@ -736,11 +736,11 @@ Column {
       bottomPadding: Style.space(4)
     }
 
-    Dropdown {
+    AccountPicker {
       objectName: "settings-signature-account-picker"
+      Accessible.name: "Mailbox signature"
       visible: root.signatureAccounts.length > 1
       width: parent.width
-      showLabel: false
       value: root.selectedSignatureAccountId
       options: root.signatureOptions()
       foreground: root.textColor
@@ -924,11 +924,11 @@ Column {
       font.pixelSize: Style.font.bodySmall
     }
 
-    Dropdown {
+    AccountPicker {
       objectName: "settings-name-account-picker"
+      Accessible.name: "Mailbox name"
       visible: root.signatureAccounts.length > 1
       width: parent.width
-      showLabel: false
       value: root.selectedNameAccountId
       options: root.nameOptions()
       foreground: root.textColor

@@ -35,7 +35,7 @@ QML_FILES := Service.qml BarWidget.qml App.qml \
 	components/ReaderNotice.qml \
 	components/InviteCard.qml \
 	components/SwitcherSearch.qml \
-	components/AccountNameField.qml \
+	components/AccountNameField.qml components/AccountPicker.qml \
 	components/ReaderBlankSlate.qml \
 	components/ReaderSkeleton.qml \
 	components/ComposeView.qml \
@@ -70,7 +70,7 @@ QML_FILES := Service.qml BarWidget.qml App.qml \
 	components/WeekCalendarView.qml
 
 .PHONY: test test-js test-shell test-shell-portable test-shell-libcurl \
-	test-qml qml-check validate bench install
+	test-qml test-shell-imports qml-check validate bench install
 
 test: test-js test-shell test-qml
 
@@ -191,7 +191,10 @@ bench:
 qml-check:
 	$(QMLLINT) -I ../../shell $(QML_FILES)
 
-validate: test qml-check
+test-shell-imports:
+	bash tests/test_shell_imports.sh
+
+validate: test qml-check test-shell-imports
 	nbshell plugin validate .
 	git diff --check
 
