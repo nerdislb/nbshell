@@ -33,9 +33,9 @@ def inside(args):
     (config / 'themes').symlink_to('/source/themes')
     (config / 'config.json').write_text(json.dumps({
         'schemaVersion': 1, 'theme': args.theme, 'motionProfile': args.motion,
-        'idle': False,
+        'idle': False, 'bongoActive': False,
         'mode': 'bar', 'leftWidgets': ['clock'], 'centerWidgets': [],
-        'rightWidgets': ['ai'] if args.startup_ai_widget else [], 'collapsedWidgets': ['clock'],
+        'rightWidgets': ['control'] if args.control_contract else (['ai'] if args.startup_ai_widget else []), 'collapsedWidgets': ['clock'],
     }))
     Path('/run/test').mkdir(mode=0o700)
     os.environ.update(HOME='/home/user', XDG_CONFIG_HOME='/home/user/.config',
@@ -43,11 +43,15 @@ def inside(args):
                       XDG_DATA_HOME='/home/user/.local/share', XDG_RUNTIME_DIR='/run/test',
                       WLR_BACKENDS='headless', WLR_HEADLESS_OUTPUTS='1', WLR_LIBINPUT_NO_DEVICES='1',
                       WLR_RENDER_DRM_DEVICE=args.render_node, QT_QPA_PLATFORM='wayland',
-                      QT_QUICK_BACKEND='software', QT_QPA_PLATFORMTHEME='',
+                      QT_QUICK_BACKEND='software' if args.qt_backend == 'software' else '', QT_QPA_PLATFORMTHEME='',
                       NBSHELL_DISABLE_HOT_RELOAD='1')
     Path('/work/umbriel.toml').write_text('[general]\nxwayland = false\nshow_cheatsheet = false\nautostart = []\n'
                                         f'[output.HEADLESS-1]\nmode = "{args.width}x{args.height}@60"\nscale = {args.scale}\n')
     shutil.copytree('/source/shell', '/work/shell')
+    if args.control_contract:
+        runpy.run_path('/source/tests/control-focus.py')['instrument'](Path('/work/shell'))
+    if args.menu_contract:
+        runpy.run_path('/source/tests/menu-lifecycle.py')['instrument'](Path('/work/shell'))
     if args.notification_contract:
         runpy.run_path('/source/tests/notification-lifecycle.py')['instrument'](Path('/work/shell'))
     if args.startup_profile:
@@ -223,6 +227,12 @@ def inside(args):
         shell = launch(['/test-bin/qs', '-p', '/work/shell', '--no-color'], 'shell.log')
         wait(lambda: run(['/test-bin/qs', '-p', '/work/shell', 'ipc', 'call', 'state', 'dump'], False).returncode == 0, 'shell IPC')
         time.sleep(2)
+        if args.control_contract:
+            runpy.run_path('/source/tests/control-focus.py')['exercise'](run, launch, wait, ipc, processes, shell, args)
+            return
+        if args.menu_contract:
+            runpy.run_path('/source/tests/menu-lifecycle.py')['exercise'](run, launch, wait, ipc, processes, shell, args)
+            return
         if args.notification_contract:
             runpy.run_path('/source/tests/notification-lifecycle.py')['exercise'](run, launch, wait, ipc, processes, shell, args)
             return
@@ -369,6 +379,9 @@ def main():
     parser.add_argument('--width', type=int, default=800)
     parser.add_argument('--height', type=int, default=600)
     parser.add_argument('--scale', type=float, default=1.0)
+    parser.add_argument('--qt-backend', choices=['software', 'rhi'], default='software')
+    parser.add_argument('--control-contract', action='store_true')
+    parser.add_argument('--menu-contract', action='store_true')
     parser.add_argument('--notification-contract', action='store_true')
     parser.add_argument('--notification-corner', choices=['top', 'bottom'], default='top')
     parser.add_argument('--pointer-client', type=Path)
@@ -377,7 +390,7 @@ def main():
     require(1 <= args.cycles <= 1000 and 0 <= args.settle_seconds <= 3600, 'Invalid duration/cycle count')
     require(not args.panel_async or args.panel_profile, '--panel-async requires --panel-profile')
     require(0.5 <= args.scale <= 3, 'Invalid scale')
-    require(not args.notification_contract or args.pointer_client, 'Notification tests require --pointer-client')
+    require(not (args.notification_contract or args.menu_contract or args.control_contract) or args.pointer_client, 'Native keyboard tests require --pointer-client')
     if args.inside:
         inside(args); return
     root = Path(__file__).resolve().parents[1]
@@ -399,7 +412,7 @@ def main():
                    '--setenv', 'LANG', 'C.UTF-8', '--setenv', 'NBSHELL_LIFECYCLE_TEST', '1',
                    '--setenv', 'PYTHONDONTWRITEBYTECODE', '1', '--chdir', '/work',
                    '--', 'dbus-run-session', '--', 'python3', '/source/tests/wayland-lifecycle.py', *sys.argv[1:], '--inside']
-        if args.notification_contract:
+        if args.notification_contract or args.menu_contract or args.control_contract:
             command[1:1] = ['--ro-bind', str(args.pointer_client.resolve()), '/test-bin/pointer-client']
         try:
             result = subprocess.run(command, timeout=args.cycles * 10 + args.settle_seconds + 90)

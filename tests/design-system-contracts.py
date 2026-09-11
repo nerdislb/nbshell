@@ -558,7 +558,7 @@ for snippet in (
     if snippet not in panel_row_source:
         raise SystemExit(f"PanelRow overlay interaction contract is incomplete: {snippet}")
 for snippet in (
-    "readonly property Item initialFocusItem: wifiRepeater.count > 0",
+    "readonly property Item initialFocusItem: portalAction.visible ? portalAction : wifiRepeater.count > 0",
     "readonly property Item focusTarget: wifiRow",
     "id: vpnRepeater",
     "id: btRepeater",

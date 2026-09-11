@@ -5,6 +5,8 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Networking
 import "NetMetrics.js" as NetMetrics
+import "NetWifiRows.js" as WifiRows
+import "NetConnectivity.js" as Connectivity
 
 // Netzwerk. Quickshell spricht selbst mit dem NetworkManager; hier steht nur,
 // was das Control Center davon zeigt.
@@ -23,21 +25,7 @@ Singleton {
 
     readonly property var activeWifi: (wifiDevice?.networks?.values ?? []).find(n => n.connected) ?? null
 
-    // Staerkste zuerst, und jedes Netz nur einmal: ein Zugangspunkt kann mit
-    // mehreren Frequenzen auftauchen.
-    readonly property var wifiNetworks: {
-        const seen = ({});
-        const out = [];
-        const all = wifiDevice?.networks?.values ?? [];
-        for (var i = 0; i < all.length; i++) {
-            const n = all[i];
-            if (!n.name || seen[n.name])
-                continue;
-            seen[n.name] = true;
-            out.push(n);
-        }
-        return out.sort((a, b) => b.signalStrength - a.signalStrength);
-    }
+    readonly property var wifiNetworks: WifiRows.rows(wifiDevice?.networks?.values ?? [])
 
     // Kurzfassung fuer die Zelle in der Leiste.
     readonly property string summary: {
@@ -51,6 +39,33 @@ Singleton {
     }
 
     readonly property bool online: activeWifi !== null || wiredConnected
+    readonly property bool connectivityChecksEnabled: Networking.backend === NetworkBackendType.NetworkManager
+        && Networking.canCheckConnectivity && Networking.connectivityCheckEnabled
+    readonly property string connectivity: Connectivity.state(online, connectivityChecksEnabled, Networking.connectivity, {
+        Portal: NetworkConnectivity.Portal, Limited: NetworkConnectivity.Limited,
+        Full: NetworkConnectivity.Full, None: NetworkConnectivity.None
+    })
+    readonly property bool hasCaptivePortal: connectivity === "portal"
+    readonly property bool internetRestricted: hasCaptivePortal || connectivity === "limited" || connectivity === "none"
+    readonly property string connectivityLabel: Connectivity.label(connectivity, connectivityChecksEnabled)
+
+    function refreshConnectivity() {
+        if (online && connectivityChecksEnabled) Networking.checkConnectivity();
+    }
+
+    function openCaptivePortal() {
+        if (!hasCaptivePortal) return;
+        // Let the browser handle captive redirects from a fixed HTTP endpoint.
+        // Never execute or automatically open a network-supplied URL.
+        Quickshell.execDetached(["xdg-open", "http://ping.archlinux.org/nm-check.txt"]);
+    }
+
+    Timer {
+        interval: 15000
+        running: root.trafficMonitoring && root.internetRestricted && root.connectivityChecksEnabled
+        repeat: true
+        onTriggered: root.refreshConnectivity()
+    }
 
     // NetworkManager VPN profiles are handled through nmcli because
     // Quickshell's networking API currently exposes Wi-Fi and devices, but
@@ -227,7 +242,8 @@ Singleton {
         return !network.known && network.security !== WifiSecurityType.Open;
     }
 
-    function connect(network, psk) {
+    function connect(row, psk) {
+        const network = WifiRows.resolve(wifiDevice?.networks?.values ?? [], row);
         if (!network)
             return;
         if (psk && psk.length > 0)
@@ -236,7 +252,8 @@ Singleton {
             network.connect();
     }
 
-    function disconnect(network) {
+    function disconnect(row) {
+        const network = WifiRows.resolve(wifiDevice?.networks?.values ?? [], row);
         network?.disconnect();
     }
 

@@ -18,23 +18,24 @@ Cell {
 
     // Kabel schlaegt Funk: haengt beides, ist das Kabel die Verbindung, ueber
     // die es laeuft.
-    icon: Net.wiredConnected ? Icons.lan
-        : (Net.activeWifi ? Icons.wifiSignal(Net.activeWifi.signalStrength)
+    icon: Net.wiredConnected ? (Net.internetRestricted ? Icons.lanRestricted : Icons.lan)
+        : (Net.activeWifi ? (Net.internetRestricted ? Icons.wifiRestricted : Icons.wifiSignal(Net.activeWifi.signalStrength))
             : (Net.wifiEnabled ? Icons.wifiDisconnected : Icons.wifiOff))
     // Der Netzname stand frueher daneben. Das Symbol sagt schon, ob und
     // wie man haengt -- im Popout steht der Name ohnehin. Ohne Symbole
     // bleibt er, sonst waere die Zelle leer.
     label: "NET"
     text: Config.widgetIcons ? "" : (Net.summary.length > 12 ? (Net.summary.substring(0, 11) + "…") : Net.summary)
-    color: Net.online ? Theme.text : Theme.textDim
+    color: Net.internetRestricted ? Theme.yellow : (Net.online ? Theme.text : Theme.textDim)
+    accessibilityName: "Network, " + Net.summary + ", " + Net.connectivityLabel
 
     preview: Component {
         BarPreview {
             icon: root.icon
             title: Net.summary
-            subtitle: Net.activeWifi ? "Wi-Fi" : (Net.wiredConnected ? "Wired network" : "Offline")
+            subtitle: Net.connectivityLabel
             badge: Net.activeWifi ? Net.percentOf(Net.activeWifi.signalStrength) + " %" : (Net.wiredConnected ? "LAN" : "")
-            badgeColor: Net.online ? Theme.green : Theme.fgDim
+            badgeColor: Net.internetRestricted ? Theme.yellow : (Net.online ? Theme.fg : Theme.fgDim)
             content: [
                 Facts {
                     rowWidth: parent.width
@@ -60,14 +61,14 @@ Cell {
 
             // Welches Netz gerade nach einem Passwort fragt. Leer heisst: kein
             // Eingabefeld open.
-            property var pendingNetwork: null
+            property string pendingNetwork: ""
             property string pendingBtRemoval: ""
 
             readonly property real rowWidth: 44 * Theme.cellW
-            readonly property Item initialFocusItem: wifiRepeater.count > 0
+            readonly property Item initialFocusItem: portalAction.visible ? portalAction : wifiRepeater.count > 0
                 ? wifiRepeater.itemAt(0).focusTarget
                 : (vpnRepeater.count > 0 ? vpnRepeater.itemAt(0)
-                    : (btRepeater.count > 0 ? btRepeater.itemAt(0) : null))
+                    : (btRepeater.count > 0 ? btRepeater.itemAt(0) : (connectivityCheck.visible ? connectivityCheck : wifiToggle)))
 
             spacing: Theme.cellH * 0.4
 
@@ -80,6 +81,7 @@ Cell {
                 Net.setScanner(true);
                 Net.setTrafficMonitoring(true);
                 Net.refreshVpns();
+                Net.refreshConnectivity();
             }
             Component.onDestruction: {
                 Net.setScanner(false);
@@ -117,11 +119,33 @@ Cell {
             // Abgeschaut bei Omarchys Netz-Panel.
             PanelHead {
                 rowWidth: panel.rowWidth
-                icon: Net.online ? (Net.activeWifi ? Icons.wifiSignal(Net.activeWifi.signalStrength) : Icons.lan) : Icons.wifiOff
+                icon: root.icon
                 title: Net.summary
-                subtitle: Net.activeWifi ? "Wi-Fi" : (Net.wiredConnected ? "Wired" : "not connected")
+                subtitle: Net.connectivityLabel
                 badge: Net.activeWifi ? (Net.percentOf(Net.activeWifi.signalStrength) + " %") : (Net.wiredConnected ? "LAN" : "")
-                badgeColor: Net.online ? Theme.green : Theme.fgDim
+                badgeColor: Net.internetRestricted ? Theme.yellow : (Net.online ? Theme.fg : Theme.fgDim)
+            }
+
+            ActionButton {
+                id: portalAction
+                visible: Net.hasCaptivePortal
+                text: "Sign in to network"
+                tone: "primary"
+                onTriggered: Net.openCaptivePortal()
+                onVisibleChanged: {
+                    if (!visible && activeFocus) Qt.callLater(() => {
+                        const target = panel.initialFocusItem;
+                        if (target) target.forceActiveFocus();
+                    });
+                }
+            }
+
+            ActionButton {
+                id: connectivityCheck
+                visible: Net.online && Net.connectivityChecksEnabled
+                text: "Check connection"
+                compact: true
+                onTriggered: Net.refreshConnectivity()
             }
 
             Facts {
@@ -285,6 +309,7 @@ Cell {
                     }
 
                     Action {
+                        id: wifiToggle
                         on: Net.wifiEnabled
                         text: Net.wifiEnabled ? "Wi-Fi on" : "Wi-Fi off"
                         onTriggered: Net.setWifiEnabled(!Net.wifiEnabled)
@@ -310,7 +335,7 @@ Cell {
                     required property var modelData
 
                     readonly property bool isCurrent: modelData.connected
-                    readonly property bool asksPassword: panel.pendingNetwork === modelData
+                    readonly property bool asksPassword: panel.pendingNetwork === modelData.key
                     readonly property Item focusTarget: wifiRow
 
                     spacing: 0
@@ -336,7 +361,7 @@ Cell {
                                 return;
                             }
                             if (Net.needsPassword(entry.modelData)) {
-                                panel.pendingNetwork = entry.modelData;
+                                panel.pendingNetwork = entry.modelData.key;
                                 return;
                             }
                             Net.connect(entry.modelData, "");
@@ -371,11 +396,11 @@ Cell {
                             onAccepted: {
                                 Net.connect(entry.modelData, text);
                                 text = "";
-                                panel.pendingNetwork = null;
+                                panel.pendingNetwork = "";
                             }
                             Keys.onEscapePressed: {
                                 text = "";
-                                panel.pendingNetwork = null;
+                                panel.pendingNetwork = "";
                             }
 
                             Line {

@@ -22,6 +22,8 @@ PopupWindow {
     property bool closing: false
     property real lockedContentWidth: 0
     property real lockedContentHeight: 0
+    property real maximumContentHeight: Infinity
+    property real minimumContentHeight: 1
     readonly property var focusWindow: loader.item
         && ("initialFocusItem" in loader.item)
         && loader.item.initialFocusItem
@@ -82,12 +84,12 @@ PopupWindow {
             open();
     }
 
-    // Reuse this native popup for preview -> interactive-menu transitions.
-    // Creating a second xdg_popup either races the old popup's unmap or loses
-    // the click serial while waiting for it. Updating an already mapped host
-    // avoids both protocol boundaries; grabFocus is changed while still in the
-    // original click handler.
+    // A passive preview has no xdg_popup keyboard grab. Changing grabFocus
+    // after mapping cannot acquire one. Remap synchronously in the original
+    // input handler when the interaction mode changes, preserving its serial.
     function show(component, keyboard, delayOverride) {
+        if (visible && takesKeyboard !== keyboard)
+            closeImmediately();
         leaveTimer.stop();
         contentComponent = component;
         takesKeyboard = keyboard;
@@ -125,7 +127,7 @@ PopupWindow {
         // grow the content; the viewport below makes that overflow scrollable
         // instead of asking the compositor to resize and re-anchor the popup.
         lockedContentWidth = Math.max(1, loader.item.implicitWidth);
-        lockedContentHeight = Math.max(1, loader.item.implicitHeight);
+        lockedContentHeight = Math.max(1, Math.min(maximumContentHeight, Math.max(minimumContentHeight, loader.item.implicitHeight)));
         if (!visible)
             surface.enter();
         visible = true;
@@ -328,6 +330,7 @@ PopupWindow {
         target: loader.item
         ignoreUnknownSignals: true
         function onInitialFocusItemChanged() { root.focusInitialItem(); }
+
     }
 
     Connections {
@@ -346,6 +349,7 @@ PopupWindow {
     MotionSurface {
         id: surface
         anchors.fill: parent
+        clip: true
         accentBorder: true
         autoEnter: false
         enterOffsetY: Config.edge === "bottom" ? Theme.spaceSm : -Theme.spaceSm

@@ -620,6 +620,12 @@ case "$cmd" in
         printf 'nbshell %s\n' "$(cat "$VERSION_FILE" 2>/dev/null || printf 'development')"
         ;;
     start)
+        # Match the configured desktop icons even when the systemd session has
+        # no Qt platform theme plugin. Explicit Quickshell overrides win.
+        if [ -z "${QS_ICON_THEME:-}" ] && [ -f "$RUNTIME_DIR/scripts/icon-theme.py" ]; then
+            QS_ICON_THEME="$(python3 "$RUNTIME_DIR/scripts/icon-theme.py")"
+            if [ -n "$QS_ICON_THEME" ]; then export QS_ICON_THEME; else unset QS_ICON_THEME; fi
+        fi
         # A live shell is already using a validated config and may write it at
         # any time. Do not race that writer merely because a duplicate start
         # was requested.

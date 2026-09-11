@@ -40,6 +40,19 @@ PanelWindow {
     // `sub` der obersten -- oder der Wurzelbaum, wenn der Stapel leer ist.
     property var trail: []
     property int selected: 0
+    onSelectedChanged: Qt.callLater(revealSelection)
+    onItemsChanged: Qt.callLater(revealSelection)
+
+    function revealSelection() {
+        const row = menuRows.itemAt(root.selected);
+        if (!root.visible || !row || menuScroll.height < row.height) return;
+        const top = row.y;
+        const bottom = top + row.height;
+        if (top < menuScroll.contentY) menuScroll.contentY = top;
+        else if (bottom > menuScroll.contentY + menuScroll.height)
+            menuScroll.contentY = bottom - menuScroll.height;
+        menuScroll.returnToBounds();
+    }
     property string filterText: ""
     property bool settingsPage: false
     readonly property bool closing: box.closing
@@ -154,6 +167,8 @@ PanelWindow {
             root.selected = 0;
             root.filterText = "";
             root.settingsPage = false;
+            menuScroll.contentY = 0;
+            Qt.callLater(root.revealSelection);
             keys.forceActiveFocus();
         }
     }
@@ -376,9 +391,10 @@ PanelWindow {
             visible: !root.settingsPage
 
             anchors.centerIn: parent
-            width: Theme.cellW * 48
-            height: column.implicitHeight + Theme.cellH * 2
+            width: Math.max(1, Math.min(Theme.cellW * 48, parent.width - Theme.panelPadding * 2))
+            height: Math.max(1, Math.min(column.implicitHeight + Theme.cellH * 2, parent.height - Theme.panelPadding * 2))
 
+            clip: true
             accentBorder: true
 
             // Klick im Kasten NICHT durchreichen (sonst schliesst der Backdrop).
@@ -386,11 +402,20 @@ PanelWindow {
                 anchors.fill: parent
             }
 
+            Flickable {
+                id: menuScroll
+                anchors.fill: parent
+                anchors.margins: Theme.cellW
+                clip: true
+                contentWidth: width
+                contentHeight: column.implicitHeight
+                flickableDirection: Flickable.VerticalFlick
+                boundsBehavior: Flickable.StopAtBounds
+                onHeightChanged: Qt.callLater(root.revealSelection)
+
             Column {
                 id: column
-
-                anchors.centerIn: parent
-                width: parent.width - Theme.cellW * 2
+                width: menuScroll.width
                 spacing: Theme.cellH * 0.2
 
                 Rectangle {
@@ -417,6 +442,7 @@ PanelWindow {
                 Line { visible: root.items.length === 0; text: "No results"; color: Theme.muted; topPadding: Theme.cellH }
 
                 Repeater {
+                    id: menuRows
                     model: root.items
 
                     Rectangle {
@@ -521,10 +547,13 @@ PanelWindow {
                 }
 
                 Line {
+                    width: column.width
+                    wrapMode: Text.Wrap
                     text: root.filterText !== "" ? "Search menus and apps · Backspace deletes · Enter launches" : (root.trail.length ? "Esc/← back · type to search" : "Esc closes · type to search")
                     color: Theme.muted
                     topPadding: Theme.cellH * 0.4
                 }
+            }
             }
         }
 

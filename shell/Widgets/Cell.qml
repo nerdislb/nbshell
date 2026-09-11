@@ -367,8 +367,8 @@ Item {
             root.setPreview(true)
     }
 
-    // Exactly one native popup exists per cell. A hover preview is upgraded in
-    // place to the click menu, avoiding an xdg_popup unmap/map handoff.
+    // One popup controller per cell; Popout remaps its native window when a
+    // passive preview changes into an interactive menu requiring a grab.
     Loader {
         id: popupLoader
         active: root.popout !== null || root.preview !== null
@@ -380,6 +380,7 @@ Item {
 
         Popout {
             anchorItem: root
+            maximumContentHeight: Math.max(1, root.Screen.height - Theme.barHeight - Theme.panelPadding * 4)
         }
     }
 

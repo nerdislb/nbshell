@@ -44,8 +44,10 @@ Singleton {
     readonly property string wifi: cp(0xF05A9)
     readonly property string wifiOff: cp(0xF05AA)
     readonly property string wifiDisconnected: "󰤮"
+    readonly property string wifiRestricted: "󰤩"
     readonly property var wifiLevels: ["󰤯", "󰤟", "󰤢", "󰤥", "󰤨"]
     readonly property string lan: "󰈀"
+    readonly property string lanRestricted: "󰈂"
     readonly property string bluetooth: "󰂯"
     readonly property string bluetoothConnected: "󰂱"
     readonly property string bluetoothOff: "󰂲"

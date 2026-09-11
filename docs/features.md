@@ -31,6 +31,16 @@ main menu, the bar, or the `nbshell` command.
 - Optional Hermes Agent skin generation through the example theme hook, with
   atomic live updates for Hermes CLI, TUI, and desktop surfaces
 - Notification center, clipboard history, system tray, and on-screen displays
+- Tray favorites and hidden apps: click the arrow to expand the drawer; right-click
+  it (or focus it and press Menu / Shift+F10) to manage icons. Pin keeps an active
+  app visible, Hide removes it, and Show returns it to the drawer. Passive icons
+  are omitted from the bar but remain in the manager. Choices persist by the
+  application's SNI ID; instances sharing an ID share the same preference.
+- Tray app submenus show one level at a time. Use Back or Left to return; Right
+  opens a submenu without activating leaf actions. Tall menus remain scrollable.
+- Shell startup reads the installed icon theme selected in qt6ct, KDE or GTK
+  settings, with installed Papirus/Adwaita fallbacks. An explicit `QS_ICON_THEME`
+  override takes precedence. Restart the shell after changing the icon theme.
 - Optional 1Password actions in the System > Security menu and searchable
   command catalog, with global Quick Access on `Ctrl+Shift+Space`; all vault
   handling remains inside the official 1Password client
