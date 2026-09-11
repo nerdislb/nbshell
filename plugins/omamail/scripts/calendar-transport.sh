@@ -10,11 +10,14 @@ validate_config_value() {
 escape() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
 encode() { base64 < "$1" | tr -d '\n'; }
 
+. "$(dirname "$0")/curl-config.sh"
+
 IFS= read -r line || fail 'calendar-transport.sh: no request on stdin'
 # The three fields are base64 and therefore contain no spaces.
 # shellcheck disable=SC2086
 set -- $line
 [ $# -eq 3 ] || fail 'calendar-transport.sh: expected URL, credentials and report'
+validate_config_fields "$@"
 
 url=$(decode "$1")
 credentials=$(decode "$2")
@@ -39,10 +42,11 @@ build_config() {
   printf 'data = "%s"\n' "$(escape "$report")"
   printf 'proto = "=https"\n'
   printf 'proto-redir = "=https"\n'
+  printf 'max-redirs = 0\n'
 }
 
 set +e
-build_config | curl --config - --silent --show-error \
+build_config | curl -q --globoff --config - --silent --show-error \
   --dump-header "$work/headers" --max-time 60 --connect-timeout 20 \
   > "$work/out" 2> "$work/err"
 status=$?

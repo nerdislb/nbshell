@@ -20,7 +20,6 @@ Column {
   required property color dangerColor
   required property color accentColor
   required property string panelFontFamily
-  property bool canLeave: false
   property int accountCount: 1
   property bool secretVisible: false
   property bool detailVisible: false
@@ -29,7 +28,6 @@ Column {
   // break the binding that closes it again.
   property bool clientStepReopened: false
 
-  signal backRequested()
   signal removeRequested()
 
   readonly property var auth: service ? service.auth : null
@@ -46,13 +44,28 @@ Column {
   // The fields show what is on disk, so the page always says what the app is
   // actually using rather than going blank after a save.
   function syncFromStore() {
+    nameField.syncFromStore()
     if (!auth) return
     clientIdField.text = String(auth.clientId || "")
     clientSecretField.text = auth.credentials ? String(auth.credentials.clientSecret || "") : ""
   }
 
+  // The name goes on the entry whenever the page acts — saving the client,
+  // or signing in — since either may be the only button pressed.
+  function saveName() {
+    if (service && nameField.value() !== String(service.accountName || ""))
+      service.configureCurrentAccount({ label: nameField.value() })
+  }
+
+  function signInNamed() {
+    if (!service) return
+    saveName()
+    service.signIn()
+  }
+
   function save() {
     if (!auth) return
+    saveName()
     var secret = clientSecretField.text.trim()
     // The secret stays in the field. Clearing it on success looked exactly
     // like losing it, which is a bad thing for a credential to look like.
@@ -76,14 +89,6 @@ Column {
   // beside the hero, because that is where it sits on the reader and the
   // compose form, and a control that moves between pages reads as a different
   // control on each of them.
-  BackBar {
-    visible: root.canLeave
-    textColor: root.textColor
-    dimColor: root.dimColor
-    panelFontFamily: root.panelFontFamily
-    onActivated: root.backRequested()
-  }
-
   // ------------------------------------------------------------------ hero
 
   ProviderHero {
@@ -97,6 +102,18 @@ Column {
     dimColor: root.dimColor
     panelFontFamily: root.panelFontFamily
     onWebsiteRequested: if (root.service) root.service.openProviderWebsite("gmail")
+  }
+
+  // Above the steps rather than in one: the OAuth client is shared by every
+  // Gmail mailbox and its step folds away once it exists, which is exactly
+  // when a second mailbox is being added and wants a name.
+  AccountNameField {
+    id: nameField
+    service: root.service
+    width: parent.width
+    foreground: root.textColor
+    font.family: root.panelFontFamily
+    font.pixelSize: Style.font.bodySmall
   }
 
   // Missing dependencies come first: neither step below can finish without
@@ -265,7 +282,7 @@ Column {
           bordered: true
           fontSize: Style.font.bodySmall
           enabled: !!root.auth && !root.auth.loginBusy
-          onClicked: root.service.signIn()
+          onClicked: root.signInNamed()
         }
 
         Button {
@@ -302,8 +319,15 @@ Column {
   Row {
     visible: root.signedIn || root.accountCount > 1
     spacing: Style.space(8)
+    // An unbordered button carries its padding inside an invisible box, so
+    // standing first in the row it looks indented. Pulled left by that much
+    // whenever it is first, so its text sits on the content edge like
+    // everything above it.
+    anchors.left: parent.left
+    anchors.leftMargin: signOutButton.visible ? 0 : -removeButton.horizontalPadding
 
     Button {
+      id: signOutButton
       visible: root.signedIn
       text: "Sign out"
       foreground: root.textColor
@@ -313,6 +337,7 @@ Column {
     }
 
     Button {
+      id: removeButton
       visible: root.accountCount > 1
       text: "Remove account"
       foreground: root.dangerColor
@@ -342,12 +367,17 @@ Column {
     foreground: root.textColor
   }
 
+  // Padding kept — without it the hover box hugs the text — and the button
+  // pulled left by the same amount, so the text still sits on the content
+  // edge with the paragraphs above it.
   Button {
+    id: detailToggle
     text: root.detailVisible ? "Hide the details" : "Need more detail?"
     foreground: root.dimColor
     bordered: false
     leftAlign: true
-    horizontalPadding: 0
+    anchors.left: parent.left
+    anchors.leftMargin: -detailToggle.horizontalPadding
     fontSize: Style.font.caption
     onClicked: root.detailVisible = !root.detailVisible
   }
@@ -359,7 +389,7 @@ Column {
     text: "In Google Cloud, pick or create a project. Under APIs and Services, enable the Gmail API. "
       + "On the consent screen add the Gmail address you want to read as a test user, then press Publish app. "
       + "Under Credentials, create an OAuth client with application type Desktop app, and paste its client ID above.\n\n"
-      + "Steps one and two have a CLI: run scripts/google-cloud-setup.sh if you have gcloud. "
+      + "Steps one and two have a CLI: run scripts/google-cloud-project.sh if you have gcloud. "
       + "The consent screen and the client itself are console-only.\n\n"
       + (root.auth ? "The client is saved to " + root.auth.credentialsPath + ", readable only by you. "
         + "You can also copy the JSON the console downloads to that path instead of pasting. " : "")

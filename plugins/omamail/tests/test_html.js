@@ -43,6 +43,13 @@ const html = load("message/Html.js")
   assert.strictEqual(html.stripColors("<img src=a.png width=600>"),
     "<img src=\"a.png\" width=\"600\">")
   assert.strictEqual(html.stripColors("<input disabled>"), "<input disabled>")
+  const closing = { end: 0, terminated: false }
+  const closingToken = html.readTag("</p>", 0, closing)
+  assert.strictEqual(closingToken.type, "end")
+  assert.strictEqual(closingToken.name, "p")
+  assert.strictEqual(closingToken.attrs, undefined,
+    "an ordinary closing tag does not allocate an attribute list")
+  assert.strictEqual(closing.end, 4)
   // A single-quoted value is re-quoted, so the quote inside it has to go.
   assert.strictEqual(html.stripColors("<a title='say \"hi\"'>t</a>"),
     "<a title=\"say &quot;hi&quot;\">t</a>")
@@ -82,6 +89,19 @@ const html = load("message/Html.js")
   // A title is not body text either, and nearly every marketing mail ships one.
   assert.strictEqual(html.sanitize("<head><title>Newsletter</title></head><p>real</p>").html,
     "<head></head><p>real</p>")
+}
+
+// The sanitised and reading documents ask the same source element about its
+// style. Parsing that declaration list once per phase made style-heavy mail do
+// the same character scan repeatedly.
+{
+  const node = html.parse('<p style="color:red; padding: 4px">x</p>').children[0]
+  const first = html.sourceDeclarations(node)
+  const second = html.sourceDeclarations(node)
+  assert.strictEqual(first, second, "source declarations are cached on their node")
+  assert.strictEqual(first.length, 2)
+  assert.strictEqual(first[1].name, "padding")
+  assert.strictEqual(html.sourceDeclarations(html.parse("<p>x</p>").children[0]), null)
 }
 
 // A tree is walked by recursion everywhere downstream, so a message nested a
@@ -322,11 +342,11 @@ assert.strictEqual(html.sanitize(many, { allowRemoteImages: true, maxImages: 3 }
 
   const ready = html.sanitize(source, {
     allowRemoteImages: true,
-    remoteImageData: ({ "https://cdn.example.com/photo.png": "data:image/png;base64,AAAA" }),
+    remoteImageData: ({ "https://cdn.example.com/photo.png": "data:image/png;base64,iVBORw0KGgo=" }),
     withReader: true
   })
-  assert.ok(ready.html.indexOf("data:image/png;base64,AAAA") > 0)
-  assert.ok(ready.reader.html.indexOf("data:image/png;base64,AAAA") > 0)
+  assert.ok(ready.html.indexOf("data:image/png;base64,iVBORw0KGgo=") > 0)
+  assert.ok(ready.reader.html.indexOf("data:image/png;base64,iVBORw0KGgo=") > 0)
 }
 
 // -------------------------------------------------------------- complexity
@@ -387,7 +407,13 @@ for (const source of localSources) {
   assert.strictEqual(asked.images, 0, source + " must never be fetched")
   assert.ok(asked.html.indexOf("img") < 0, source + " must not reach the renderer")
   assert.strictEqual(asked.remoteImages, 0, source + " is not something to offer")
+  assert.strictEqual(html.externallyOpenableHttpUrl(source), "",
+    source + " must not open in a browser")
 }
+assert.strictEqual(html.externallyOpenableHttpUrl("https://meet.google.com/abc-defg-hij"),
+  "https://meet.google.com/abc-defg-hij")
+assert.strictEqual(html.externallyOpenableHttpUrl("javascript:alert(1)"), "")
+assert.strictEqual(html.externallyOpenableHttpUrl("file:///etc/passwd"), "")
 
 // A public address in a URL is fine, however it is written.
 assert.strictEqual(html.sanitize("<img src=\"https://93.184.216.34/x.png\" width=\"90\">",
@@ -455,13 +481,32 @@ assert.ok(html.sanitize("<div style=\"background-image:url(https://track.example
     ["https://cdn.example.com/one.png", "https://cdn.example.com/two.png"])
 }
 
-// What the plain-text reader may hand to an Image element.
-assert.strictEqual(html.isDisplayableImageUrl("https://cdn.example.com/a.png"), true)
+// What the plain-text reader may hand to an Image element. Qt fetches a
+// remote src itself, so only prepared raster bytes qualify.
+assert.strictEqual(html.isDisplayableImageUrl("https://cdn.example.com/a.png"), false)
 assert.strictEqual(html.isDisplayableImageUrl("http://127.0.0.1/a.png"), false)
 assert.strictEqual(html.isDisplayableImageUrl("file:///etc/hostname"), false)
-assert.strictEqual(html.isDisplayableImageUrl("data:image/png;base64,AAA"), true)
+const tinyPng = "data:image/png;base64,iVBORw0KGgo="
+assert.strictEqual(html.isDisplayableImageUrl(tinyPng), true)
+assert.strictEqual(html.isDisplayableImageUrl("data:image/svg+xml;base64,AAA"), false)
 assert.strictEqual(html.isDisplayableImageUrl("cid:logo"), false)
 assert.strictEqual(html.isDisplayableImageUrl(""), false)
+assert.strictEqual(html.isRasterDataImage(tinyPng), true)
+assert.strictEqual(html.isRasterDataImage("data:image/svg+xml;base64,AAA"), false)
+const disguisedSvg = "data:image/png;base64," + Buffer.from(
+  '<svg xmlns="http://www.w3.org/2000/svg"><image href="http://127.0.0.1/private"/></svg>'
+).toString("base64")
+assert.strictEqual(html.isRasterDataImage(disguisedSvg), false,
+  "a sender's MIME spelling is not evidence of raster bytes")
+assert.strictEqual(html.isDisplayableImageUrl(disguisedSvg), false,
+  "disguised SVG must not reach a Qt Image source")
+for (const invalid of [
+  "data:image/png;base64,iVBORw0KGgo",       // truncated quartet
+  "data:image/png;base64,iVBORw0KGgo===",    // excess padding
+  "data:image/png;base64,iVBORw0KGgo=tail",  // trailing bytes after padding
+  "data:image/jpeg;base64,iVBORw0KGgo=",     // declaration does not match bytes
+  "data:image/png;base64,iVBORw0KGgp="        // noncanonical padding bits
+]) assert.strictEqual(html.isRasterDataImage(invalid), false, invalid)
 
 assert.strictEqual(html.hasRemoteImages(tracked), true)
 assert.strictEqual(html.hasRemoteImages("<p>none</p>"), false)
@@ -554,6 +599,20 @@ assert.strictEqual(
 // ...and to hide the thing that says it is hidden.
 assert.strictEqual(html.sanitize("<p style=\"display:&#110;one\">secret</p><p>real</p>").html,
   "<p>real</p>")
+// CSS escapes and comments are the same smuggle after entities are gone.
+// A hex escape is at most six digits; the space form is the other spelling.
+for (const hidden of ["\\000075rl", "\\75 rl", "url/**/", "\\\\75rl", "url/\\*\\*/", "url/\\2a\\2a/"]) {
+  for (const options of [{}, { keepColors: true }]) {
+    const out = html.sanitize("<div style=\"background-image:" + hidden
+      + "(https://x.example.com/a.png)\">t</div>", options).html
+    assert.ok(out.indexOf("x.example.com") < 0,
+      hidden + " reached the renderer " + JSON.stringify(options) + ": " + out)
+  }
+}
+// Duplicate src: only the first is judged, so the second must not survive.
+assert.ok(html.sanitize(
+  "<img src=\"data:image/png;base64,AAA\" src=\"https://x.example.com/a.png\" width=\"90\">"
+).html.indexOf("x.example.com") < 0)
 
 // A `src` is an image's attribute and is checked as one. Anywhere else it is
 // the same address with none of that checking behind it.
@@ -563,13 +622,15 @@ for (const source of ["<input type=\"image\" src=\"https://x.example.com/a.png\"
     "a src survived on " + source)
 }
 
-// A data: URL is the message's own bytes only when it is a picture. Anything
-// else is a document with references of its own, and whether Qt follows them
-// depends on which image plugins happen to be installed.
-assert.ok(html.sanitize("<img src=\"data:image/png;base64,AAA\">").html.indexOf("data:image/png") > 0)
+// A data: URL is the message's own bytes only when it is a raster picture.
+// SVG is a document with references of its own; the fetch worker refuses it
+// and so does the sanitiser, even with remote images off.
+assert.ok(html.sanitize("<img src=\"" + tinyPng + "\">").html.indexOf("data:image/png") > 0)
+assert.strictEqual(html.sanitize("<img src=\"" + disguisedSvg + "\">").html, "",
+  "a disguised document must be removed before rendering")
 assert.strictEqual(html.sanitize("<img src=\"data:text/html,<b>x\">").html, "")
-assert.strictEqual(html.sanitize("<img src=\"data:image/svg+xml;base64,AAA\">").html,
-  "<img src=\"data:image/svg+xml;base64,AAA\">")
+assert.strictEqual(html.sanitize("<img src=\"data:image/svg+xml;base64,AAA\">").html, "")
+assert.strictEqual(html.imageSourceKind("data:image/svg+xml;base64,AAA"), "unsafe")
 
 // The host is the one question where reading an address twice is not the safe
 // direction: a second decoding can turn up a "@" and hand the authority to a
@@ -1252,12 +1313,12 @@ function activityMail() {
   const shown = reading("<p><img src=\"https://cdn.example.com/hero.png\" alt=\"Hero\">"
     + "<img src=\"file:///etc/x.png\"><img src=\"http://127.0.0.1/a.png\">"
     + "<img src=\"//cdn.example.com/protocol.png\">"
-    + "<img src=\"data:image/png;base64,AAAA\">"
+    + "<img src=\"data:image/png;base64,iVBORw0KGgo=\">"
     + "<img src=\"cid:part1\"></p>", { allowRemoteImages: true })
   assert.strictEqual(shown.html,
     "<p><img src=\"https://cdn.example.com/hero.png\">"
     + "<img src=\"//cdn.example.com/protocol.png\">"
-    + "<img src=\"data:image/png;base64,AAAA\">"
+    + "<img src=\"data:image/png;base64,iVBORw0KGgo=\">"
     + "<img src=\"cid:part1\"></p>")
   assert.strictEqual(shown.images, 2)
 
@@ -1592,6 +1653,71 @@ function activityMail() {
   assert.strictEqual(html.readingColumnWidth(700, 0), 700)
   assert.strictEqual(html.readingColumnWidth(0, 0), 80)
   assert.strictEqual(html.readingColumnOffset(0, 80), 0)
+}
+
+// ------------------------------------------------------------------ direction
+//
+// Qt's rich text engine reads the `dir` attribute and ignores the CSS
+// `direction` property, so a template written for a browser states its
+// direction in the one spelling that will be thrown away.
+{
+  const rtl = html.sanitize('<div style="direction:rtl">مرحبا</div>', {})
+  assert.ok(/dir="rtl"/.test(rtl.html),
+    "a CSS direction is promoted to the attribute Qt reads")
+  assert.ok(/direction:\s*rtl/.test(rtl.html),
+    "and the sender's own declaration is left where it was")
+
+  const ltr = html.sanitize('<div style="direction:ltr">hello</div>', {})
+  assert.ok(/dir="ltr"/.test(ltr.html))
+
+  // The sender's own attribute is the more specific statement of the two.
+  const both = html.sanitize('<div dir="ltr" style="direction:rtl">x</div>', {})
+  assert.ok(/dir="ltr"/.test(both.html), "an existing attribute is not overwritten")
+  assert.ok(!/dir="rtl"/.test(both.html))
+
+  // Only the two values mean anything. `inherit` and friends are not directions
+  // a renderer can be handed.
+  const junk = html.sanitize('<div style="direction:inherit">x</div>', {})
+  assert.ok(!/ dir=/.test(junk.html), "an unusable value promotes nothing")
+}
+
+// The stylesheet's physical sides follow the document's direction; the `dir` on
+// the body is written only when the reader has actually chosen one.
+{
+  const reader = html.readerDocumentFor("<p>مرحبا</p>", { direction: "rtl" })
+  assert.ok(/margin-right:26px/.test(reader), "a list indents from the start edge")
+  assert.ok(/text-align:right/.test(reader), "a header aligns to the start edge")
+  assert.ok(/padding-left:/.test(reader), "a cell's gutter follows its text")
+  // The side and the `dir` are one statement: Qt puts a list marker on the side
+  // the block runs from, so a right-hand indent without a right-to-left block
+  // loses the bullet entirely.
+  assert.ok(/<body dir="rtl">/.test(reader),
+    "the sheet's sides and the body's direction agree")
+
+  const ltr = html.readerDocumentFor("<p>hello</p>", { direction: "ltr" })
+  assert.ok(/margin-left:26px/.test(ltr))
+  assert.ok(/text-align:left/.test(ltr))
+  assert.ok(/<body dir="ltr">/.test(ltr))
+
+  // No answer at all leaves every side where it was.
+  const unknown = html.readerDocumentFor("<p>123</p>", { direction: "" })
+  assert.ok(/margin-left:26px/.test(unknown))
+  assert.ok(!/<body dir=/.test(unknown))
+}
+
+{
+  const formatted = html.documentFor("<p>مرحبا</p>", { direction: "rtl" })
+  assert.ok(/margin-right:8px/.test(formatted), "the quote bar sits on the start edge")
+  assert.ok(/<body dir="rtl">/.test(formatted))
+
+  const plain = html.plainTextDocument("مرحبا", { direction: "rtl" }, false)
+  assert.ok(/<body dir="rtl">/.test(plain))
+
+  // A base direction is a default. A sender who states one of their own keeps
+  // it, which is why supplying one is safe.
+  const sender = html.sanitize('<div dir="ltr">hello</div>', {})
+  assert.ok(/dir="ltr"/.test(sender.html),
+    "the sender's own direction survives into the document it is wrapped in")
 }
 
 console.log("test_html.js ok")

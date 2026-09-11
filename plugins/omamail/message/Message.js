@@ -1,4 +1,6 @@
 .pragma library
+.import "Direction.js" as Direction
+.import "Signature.js" as Signature
 
 // Everything that turns a Gmail API message resource into something a row or a
 // reader can show. Two things force real work here rather than a few property
@@ -95,21 +97,20 @@ function bytesToLatin1(bytes) {
   return out
 }
 
-// Qt.atob is native C++ and skips the per-character base64 loop entirely; it
-// hands back a string of raw bytes, which still needs UTF-8 decoding. The pure
-// JS path stays for the node tests, and as the fallback anywhere Qt is absent.
-function binaryStringToUtf8(binary) {
-  var bytes = []
-  for (var i = 0; i < binary.length; i++) bytes.push(binary.charCodeAt(i) & 0xff)
-  return bytesToUtf8(bytes)
-}
-
+// Qt.atob is native C++ and skips the per-character base64 loop entirely. It
+// does not hand back raw bytes: Qt's implementation is QString::fromUtf8 over
+// the decoded bytes, so the result is already text. Measured on Qt 6.11 —
+// "Alex à l'école" comes back 14 characters with U+00E0 in it, not 16 bytes
+// with C3 A0. Decoding that text a second time as UTF-8 bytes is what turned
+// every accented calendar title and 8-bit mail body into CJK mojibake. The
+// pure JS path stays for the node tests, and as the fallback anywhere Qt is
+// absent.
 function decodeBase64Url(text) {
   var input = String(text || "")
   if (input === "") return ""
   if (typeof Qt !== "undefined" && typeof Qt.atob === "function") {
     try {
-      return binaryStringToUtf8(Qt.atob(input.replace(/-/g, "+").replace(/_/g, "/")))
+      return Qt.atob(input.replace(/-/g, "+").replace(/_/g, "/"))
     } catch (e) {
       // Fall through to the portable path rather than losing the message.
     }
@@ -180,11 +181,67 @@ function decodeQuotedPrintableWord(text) {
   return bytes
 }
 
+// Whether these bytes are UTF-8 that a single-byte charset could not have
+// produced: at least one well-formed multi-byte sequence, and nothing
+// malformed anywhere.
+//
+// A charset header is a claim, and this is the evidence. Mail that declares
+// `us-ascii` or `iso-8859-1` while carrying UTF-8 is common enough that every
+// other client sniffs for it, and the two readings are never both plausible:
+// read as one byte each, the UTF-8 for "ń" is "Å" followed by a control
+// character, which is not something anybody wrote. Genuine Latin-1 and
+// Latin-2 text does not survive this test — a lone "ł" in ISO 8859-2 is 0xB3,
+// a continuation byte with no lead, which is malformed UTF-8 and hands the
+// decision back to the declaration.
+//
+// Strict on purpose. An overlong form, a surrogate or a truncated tail all
+// count as malformed, because each is likelier to be single-byte text that
+// happens to begin a sequence than UTF-8 worth trusting over the header.
+function looksLikeUtf8(bytes) {
+  var values = bytes || []
+  var multi = 0
+  var i = 0
+  while (i < values.length) {
+    var byte1 = values[i++]
+    if (byte1 < 0x80) continue
+    var needed = 0
+    var codePoint = 0
+    if (byte1 >= 0xc2 && byte1 <= 0xdf) {
+      needed = 1
+      codePoint = byte1 & 0x1f
+    } else if (byte1 >= 0xe0 && byte1 <= 0xef) {
+      needed = 2
+      codePoint = byte1 & 0x0f
+    } else if (byte1 >= 0xf0 && byte1 <= 0xf4) {
+      needed = 3
+      codePoint = byte1 & 0x07
+    } else {
+      // 0x80-0xc1 is a continuation with no lead, or an overlong two-byte
+      // form; 0xf5 and above is past the last code point.
+      return false
+    }
+    if (i + needed > values.length) return false
+    for (var n = 0; n < needed; n++) {
+      var next = values[i + n]
+      if (next < 0x80 || next > 0xbf) return false
+      codePoint = (codePoint << 6) | (next & 0x3f)
+    }
+    i += needed
+    if (needed === 1 && codePoint < 0x80) return false
+    if (needed === 2 && codePoint < 0x800) return false
+    if (needed === 3 && (codePoint < 0x10000 || codePoint > 0x10ffff)) return false
+    if (codePoint >= 0xd800 && codePoint <= 0xdfff) return false
+    multi += 1
+  }
+  return multi > 0
+}
+
 function decodeWordBytes(charset, bytes) {
   var name = String(charset || "").toLowerCase()
   if (name.indexOf("utf-8") === 0 || name.indexOf("utf8") === 0) return bytesToUtf8(bytes)
   if (name.indexOf("iso-8859") === 0 || name.indexOf("windows-125") === 0
-    || name.indexOf("us-ascii") === 0 || name === "") return bytesToLatin1(bytes)
+    || name.indexOf("us-ascii") === 0 || name === "")
+    return looksLikeUtf8(bytes) ? bytesToUtf8(bytes) : bytesToLatin1(bytes)
   // GB18030, Shift_JIS and friends need a table this plugin does not carry.
   // UTF-8 decoding degrades to Latin-1 per byte, which at least keeps the
   // ASCII parts of the header readable.
@@ -754,10 +811,52 @@ function decodeSnippet(text) {
   return htmlToText(String(text || "")).replace(/\s+/g, " ").trim()
 }
 
+// The conversation a row stands for:
+//
+//   { id, count, unread, flagged, memberIds }
+//
+// Every summary carries one, whatever provider it came from, so a row and a
+// cached row are the same shape and nothing above has to ask whether the block
+// is there. `memberIds` are the counted members oldest first and `count` is
+// their length — a count of 0 means the provider does not group its listing, or
+// does not know, and the row draws no badge. A conversation is never one
+// message: a count of 1 draws nothing either.
+//
+// `unread` and `flagged` are the whole conversation's, which is why the row's
+// own `unread` and `starred` below take them as well as the message's. A
+// provider that reports no block reports neither, so nothing changes for it.
+function threadOf(message) {
+  var source = message && message.thread && typeof message.thread === "object"
+    ? message.thread : {}
+  return normalizeThread(source, message ? message.threadId : "")
+}
+
+// A block in the shape above, whatever shape it arrived in: the ids trimmed
+// and emptied of blanks, the count their length, the flags read as booleans,
+// and `fallbackId` the thread id when the block names none. This is the one
+// normalisation; `Conversation.blockOf` reads a cached row through it too.
+function normalizeThread(block, fallbackId) {
+  var source = block && typeof block === "object" ? block : {}
+  var list = Array.isArray(source.memberIds) ? source.memberIds : []
+  var ids = []
+  for (var i = 0; i < list.length; i++) {
+    var id = String(list[i] === undefined || list[i] === null ? "" : list[i]).trim()
+    if (id !== "") ids.push(id)
+  }
+  return {
+    id: String(source.id || fallbackId || "").trim(),
+    count: ids.length,
+    unread: source.unread === true,
+    flagged: source.flagged === true,
+    memberIds: ids
+  }
+}
+
 function summarize(message, now) {
   var from = parseAddress(headerValue(message, "From"))
   var date = messageDate(message)
   var subject = decodedHeader(message, "Subject").replace(/\s+/g, " ").trim()
+  var thread = threadOf(message)
   return {
     id: String(message && message.id ? message.id : ""),
     threadId: String(message && message.threadId ? message.threadId : ""),
@@ -776,11 +875,20 @@ function summarize(message, now) {
     date: date,
     time: relativeTime(date, now),
     fullTime: fullTime(date),
-    unread: hasLabel(message, "UNREAD"),
-    starred: hasLabel(message, "STARRED"),
+    thread: thread,
+    // The conversation's, not only the representative's. A thread whose unread
+    // reply is not the message the server returned for this view is still an
+    // unread row, and the representative is a counted member of its own
+    // conversation in every view that can produce one — so the two readings
+    // agree wherever both have an answer, and the message's own is what is left
+    // when the block has none.
+    unread: hasLabel(message, "UNREAD") || thread.unread,
+    starred: hasLabel(message, "STARRED") || thread.flagged,
     important: hasLabel(message, "IMPORTANT"),
     inInbox: hasLabel(message, "INBOX"),
     inTrash: hasLabel(message, "TRASH"),
+    inSpam: hasLabel(message, "SPAM"),
+    isSent: hasLabel(message, "SENT"),
     isDraft: hasLabel(message, "DRAFT"),
     labelIds: labelIds(message).slice(),
     sizeEstimate: Math.max(0, Math.floor(Number(message && message.sizeEstimate) || 0))
@@ -808,6 +916,9 @@ function draftFields(summary, body) {
     to: draftAddressText(source.to),
     cc: draftAddressText(source.cc),
     bcc: draftAddressText(source.bcc),
+    // A Reply-To the draft was saved with comes back into the field it was
+    // typed in, or the next save would drop it.
+    replyTo: String(source.replyTo && source.replyTo.email ? source.replyTo.email : ""),
     subject: subject === "(no subject)" ? "" : subject,
     body: String(body || ""),
     threadId: String(source.threadId || ""),
@@ -886,6 +997,28 @@ function quoteBody(summary, body) {
   return (header ? header + "\n" : "") + quoted.join("\n")
 }
 
+// The body a compose window opens with. Two blank lines to type into, then
+// whatever the user did not type but must be able to edit.
+//
+// A signature and a quote are the same kind of thing here — text placed under
+// the cursor rather than by it — so they are joined the same way instead of
+// being special-cased against each other. That is what keeps the signature
+// next to the words it signs: below the reply, above the quoted thread, rather
+// than stranded under a screen of somebody else's message.
+//
+// With no signature set this returns exactly what the caller used to build by
+// hand, which is what makes the field optional rather than a new shape of
+// draft.
+function composeBody(signature, quoted) {
+  var parts = []
+  var sign = String(signature === undefined || signature === null ? "" : signature).trim()
+  var quote = String(quoted === undefined || quoted === null ? "" : quoted)
+  if (sign !== "") parts.push(sign)
+  if (quote !== "") parts.push(quote)
+  if (parts.length === 0) return ""
+  return "\n\n" + parts.join("\n\n")
+}
+
 function replySubject(subject) {
   var text = String(subject || "").trim()
   if (/^re:/i.test(text)) return text
@@ -932,6 +1065,67 @@ function mimeBoundary(given) {
   return "=_Omamail_" + (new Date()).getTime().toString(36) + "_" + random
 }
 
+// The domain of an address, reduced to the characters a domain may hold, or
+// "" when the value carries none.
+function addressDomain(value) {
+  var address = headerSafe(value).trim()
+  var at = address.lastIndexOf("@")
+  return at < 0 ? "" : address.substring(at + 1).replace(/[^A-Za-z0-9.-]/g, "")
+}
+
+// The domain half of a Message-ID is the sender's own, so the id agrees with
+// the address the message is from — or, when the From line is left for the
+// provider to fill in, the address the mailbox is signed in as. Gmail writes
+// its own From and the IMAP client puts the account on the envelope rather
+// than in the headers, so a compose window sending none is ordinary; a JMAP
+// server stores exactly the bytes it was handed, so there the fallback is what
+// keeps the id in the account's own domain.
+function messageIdDomain(from, accountAddress) {
+  var domain = addressDomain(from) || addressDomain(accountAddress)
+  // RFC 2606 reserves .invalid, so a message with no address at all borrows no domain that belongs to somebody else.
+  return domain === "" ? "omamail.invalid" : domain
+}
+
+// Unique by the rule mimeBoundary already uses, and the caller may state one, which is what lets a test read it.
+function messageIdValue(given, from, nowMs, accountAddress) {
+  var stated = String(given === undefined || given === null ? "" : given)
+  // A stated id is this client's own choice rather than a stranger's, so one that is not an id is replaced.
+  if (stated.length <= 250
+      && /^<[A-Za-z0-9!#$%&'*+\/=?^_\x60{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+\/=?^_\x60{|}~-]+)*@[A-Za-z0-9!#$%&'*+\/=?^_\x60{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+\/=?^_\x60{|}~-]+)*>$/.test(stated))
+    return stated
+  var now = Math.floor(Number(nowMs) || Date.now())
+  var random = Math.floor(Math.random() * 0x100000000).toString(36)
+  return "<" + now.toString(36) + "." + random + ".omamail@"
+    + messageIdDomain(from, accountAddress) + ">"
+}
+
+// The date a message states, in RFC 5322's own shape: a numeric zone rather than toUTCString's obsolete GMT.
+function sentDate(given, nowMs) {
+  var stated = headerSafe(given).trim()
+  // JavaScript also parses ISO dates and shorthand spellings that are not
+  // legal header values, so a stated date needs this client's canonical shape
+  // and RFC 5322's semantic calendar constraints.
+  var canonical = /^(Sun|Mon|Tue|Wed|Thu|Fri|Sat), (0[1-9]|[12][0-9]|3[01]) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) ([0-9]{4}) ([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9] [+-][0-9]{2}[0-5][0-9]$/
+  var parts = stated.match(canonical)
+  if (parts) {
+    var day = Number(parts[2])
+    var month = MONTHS.indexOf(parts[3])
+    var year = Number(parts[4])
+    var calendar = new Date(Date.UTC(year, month, day))
+    if (year >= 1900 && calendar.getUTCFullYear() === year && calendar.getUTCMonth() === month
+        && calendar.getUTCDate() === day && WEEKDAYS[calendar.getUTCDay()] === parts[1])
+      return stated
+  }
+  var date = new Date(nowMs === undefined || nowMs === null ? Date.now() : Number(nowMs))
+  if (isNaN(date.getTime())) date = new Date()
+  var offset = -date.getTimezoneOffset()
+  var minutes = Math.abs(offset)
+  return WEEKDAYS[date.getDay()] + ", " + pad(date.getDate()) + " " + MONTHS[date.getMonth()]
+    + " " + date.getFullYear() + " " + pad(date.getHours()) + ":" + pad(date.getMinutes())
+    + ":" + pad(date.getSeconds()) + " " + (offset < 0 ? "-" : "+")
+    + pad(Math.floor(minutes / 60)) + pad(minutes % 60)
+}
+
 // One method name, and nothing that could end the header early: this string
 // arrives from a calendar file somebody else wrote.
 function calendarMethod(value) {
@@ -939,19 +1133,179 @@ function calendarMethod(value) {
   return text === "" ? "REPLY" : text.substring(0, 20)
 }
 
+// Which way a message being sent runs.
+//
+// Qt resolves a compose field from the text already in it, so a writer sees
+// their own paragraph against the right edge as they type it — but none of
+// that travels with the message. A `text/plain` part states no direction at
+// all, and a client with nothing to read falls back to left-to-right, which is
+// why a Persian mail written here arrives in Gmail against the wrong edge.
+//
+// Read off the body by the same rule the reader uses, so a message arrives
+// looking the way it looked while it was written.
+function outgoingDirection(body) {
+  return Direction.resolve(body, Direction.AUTO)
+}
+
+// The body again as the least markup that can carry a direction: the text
+// escaped, its line breaks kept, and `dir` on the element every client reads
+// it from. Not a rendering of the message — a statement about it, which is why
+// nothing here styles anything. A recipient who prefers plain text still has
+// the plain part, unchanged and listed first.
+function directionalHtmlBody(text, direction) {
+  var body = String(text === undefined || text === null ? "" : text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\r\n/g, "\n")
+    .replace(/\n/g, "<br>\n")
+  return "<html><body dir=\"" + direction + "\">" + body + "</body></html>"
+}
+
+// A nested boundary the enclosing one cannot be mistaken for. `splitMultipart`
+// finds a delimiter by searching for "--" + boundary anywhere in the body, so
+// an inner boundary that began with the outer one would be found by the outer
+// scan too and the message would come apart at the wrong line. A prefix cannot
+// collide that way; a suffix can.
+function nestedBoundary(outer) {
+  return mimeBoundary("alt_" + String(outer || ""))
+}
+
+// The body with an HTML signature: the plain text as the plain part, and an
+// HTML part that is the same text escaped, paragraph by paragraph, with the
+// stored signature markup in place of the plain signature at the end. The
+// signature's data: images travel as related parts by cid, because Gmail's
+// web client draws no data: image in HTML mail and a related part it does.
+// `multipart/related` holds the alternative and the images; `mixed` holds
+// that and any attachments, as before.
+function htmlBodyWithSignature(body, plainSignature, signatureHtml, direction) {
+  var text = String(body === undefined || body === null ? "" : body)
+  var sign = String(plainSignature === undefined || plainSignature === null ? "" : plainSignature).trim()
+  var dir = Direction.isRightToLeft(direction) ? " dir=\"rtl\"" : ""
+  // The first occurrence: the writer's own sign-off comes before any quote
+  // that happens to repeat it. A plain signature the writer took out of the
+  // body is not put back as markup — the two readings must say the same.
+  var at = sign === "" ? -1 : text.indexOf(sign)
+  if (sign !== "" && at < 0)
+    return "<html><body" + dir + ">" + escapedParagraphs(text) + "</body></html>"
+  var before, after
+  if (at >= 0) {
+    before = text.slice(0, at)
+    after = text.slice(at + sign.length)
+  } else {
+    // A signature that is only a picture has no words to find: it goes
+    // where the plain one would have, before the quote if there is one.
+    var quoteAt = text.search(/(^|\n)>/)
+    before = quoteAt >= 0 ? text.slice(0, quoteAt) : text
+    after = quoteAt >= 0 ? text.slice(quoteAt) : ""
+  }
+  return "<html><body" + dir + ">" + escapedParagraphs(before)
+    + String(signatureHtml || "") + escapedParagraphs(after) + "</body></html>"
+}
+
+function escapedParagraphs(text) {
+  var lines = String(text || "").replace(/\r\n/g, "\n").split("\n")
+  var out = []
+  for (var i = 0; i < lines.length; i++) {
+    out.push(lines[i].replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"))
+  }
+  var joined = out.join("<br>")
+  return joined === "" ? "" : "<div>" + joined + "</div>"
+}
+
+function pushSignedBodyPart(lines, values, direction, boundary) {
+  var swapped = Signature.inlineParts(values.signatureHtml, "sig")
+  var html = htmlBodyWithSignature(values.body, values.signature, swapped.html, direction)
+  var alt = nestedBoundary(boundary)
+  var related = swapped.parts.length > 0 ? boundary : ""
+  if (related !== "") {
+    lines.push("Content-Type: multipart/related; boundary=\"" + related + "\"; type=\"multipart/alternative\"")
+    lines.push("")
+    lines.push("--" + related)
+  }
+  lines.push("Content-Type: multipart/alternative; boundary=\"" + alt + "\"")
+  lines.push("")
+  lines.push("--" + alt)
+  lines.push("Content-Type: text/plain; charset=UTF-8")
+  lines.push("Content-Transfer-Encoding: base64")
+  lines.push("")
+  lines.push(base64Body(values.body))
+  lines.push("--" + alt)
+  lines.push("Content-Type: text/html; charset=UTF-8")
+  lines.push("Content-Transfer-Encoding: base64")
+  lines.push("")
+  lines.push(base64Body(html))
+  lines.push("--" + alt + "--")
+  for (var i = 0; i < swapped.parts.length; i++) {
+    var part = swapped.parts[i]
+    lines.push("--" + related)
+    lines.push("Content-Type: " + part.mimeType)
+    lines.push("Content-Transfer-Encoding: base64")
+    lines.push("Content-ID: <" + part.cid + ">")
+    lines.push("Content-Disposition: inline")
+    lines.push("")
+    lines.push(mimeBase64(part.data))
+  }
+  if (related !== "") lines.push("--" + related + "--")
+}
+
+function pushBodyPart(lines, body, direction, boundary, values) {
+  if (values && String(values.signatureHtml || "") !== "") {
+    pushSignedBodyPart(lines, values, direction, boundary)
+    return
+  }
+  if (!Direction.isRightToLeft(direction)) {
+    lines.push("Content-Type: text/plain; charset=UTF-8")
+    lines.push("Content-Transfer-Encoding: base64")
+    lines.push("")
+    lines.push(base64Body(body))
+    return
+  }
+  // Least preferred first: a client that shows only one alternative should
+  // show the last it understands, and the HTML twin is the one that carries
+  // the direction.
+  lines.push("Content-Type: multipart/alternative; boundary=\"" + boundary + "\"")
+  lines.push("")
+  lines.push("--" + boundary)
+  lines.push("Content-Type: text/plain; charset=UTF-8")
+  lines.push("Content-Transfer-Encoding: base64")
+  lines.push("")
+  lines.push(base64Body(body))
+  lines.push("--" + boundary)
+  lines.push("Content-Type: text/html; charset=UTF-8")
+  lines.push("Content-Transfer-Encoding: base64")
+  lines.push("")
+  lines.push(base64Body(directionalHtmlBody(body, direction)))
+  lines.push("--" + boundary + "--")
+}
+
 function buildRawMessage(fields) {
   var values = fields || {}
+  // One reading of the clock for both headers, so a message cannot be dated a
+  // millisecond apart from the id that names it.
+  var now = Date.now()
   var lines = []
   if (values.from) lines.push(fromHeader(values.from, values.fromName))
   lines.push(foldHeader("To", values.to || ""))
   if (values.cc) lines.push(foldHeader("Cc", values.cc))
   if (values.bcc) lines.push(foldHeader("Bcc", values.bcc))
+  // Where answers should go when that is not the sender: one header, folded
+  // like the rest, so a line break typed into it cannot start a second one.
+  if (values.replyTo) lines.push(foldHeader("Reply-To", values.replyTo))
   lines.push(foldHeader("Subject", values.subject || ""))
   var inReplyTo = referenceValue(values.inReplyTo)
   if (inReplyTo) {
     lines.push("In-Reply-To: " + inReplyTo)
     lines.push("References: " + (referenceValue(values.references) || inReplyTo))
   }
+  // Behind the addressing rather than in front of it: RFC 5322 makes header
+  // order insignificant outside the trace fields, so the raw form still opens
+  // with the From line everything that reads one here already expects.
+  // RFC 5322 requires a Date on a message this client originates, and the writer's clock is the one it means.
+  lines.push("Date: " + sentDate(values.date, now))
+  // RFC 5322 asks every message for an id, and a relay told not to add missing headers relays none.
+  lines.push("Message-ID: "
+    + messageIdValue(values.messageId, values.from, now, values.accountAddress))
   lines.push("MIME-Version: 1.0")
 
   var calendar = values.calendar && String(values.calendar.text || "") !== ""
@@ -963,11 +1317,14 @@ function buildRawMessage(fields) {
     if (attachment.data === undefined || attachment.data === null) continue
     included.push(attachment)
   }
+
+  // Resolved once, here, so a message and the draft it was saved as cannot
+  // disagree about which way the same words run.
+  var direction = outgoingDirection(values.body)
+
   if (!calendar && included.length === 0) {
-    lines.push("Content-Type: text/plain; charset=UTF-8")
-    lines.push("Content-Transfer-Encoding: base64")
-    lines.push("")
-    return lines.join("\r\n") + "\r\n" + base64Body(values.body) + "\r\n"
+    pushBodyPart(lines, values.body, direction, mimeBoundary(values.boundary), values)
+    return lines.join("\r\n") + "\r\n"
   }
 
   if (included.length > 0) {
@@ -975,10 +1332,7 @@ function buildRawMessage(fields) {
     lines.push("Content-Type: multipart/mixed; boundary=\"" + mixedBoundary + "\"")
     lines.push("")
     lines.push("--" + mixedBoundary)
-    lines.push("Content-Type: text/plain; charset=UTF-8")
-    lines.push("Content-Transfer-Encoding: base64")
-    lines.push("")
-    lines.push(base64Body(values.body))
+    pushBodyPart(lines, values.body, direction, nestedBoundary(mixedBoundary), values)
     for (var includedIndex = 0; includedIndex < included.length; includedIndex++) {
       var file = included[includedIndex]
       var filename = String(file.filename || "attachment")
@@ -997,7 +1351,11 @@ function buildRawMessage(fields) {
   // `multipart/alternative`, not `mixed`: the calendar part and the sentence
   // beside it are two readings of one answer, and a client that understands
   // the first should not also show the second as a file to open. It is also
-  // the shape every calendar server recognises a reply in.
+  // the shape every calendar server recognises a reply in — and the reason no
+  // HTML twin joins it the way one joins an ordinary body. An RSVP's sentence
+  // is generated rather than composed, so there is no writer's direction to
+  // carry, and a third alternative is a shape some of those servers do not
+  // expect.
   var boundary = mimeBoundary(values.boundary)
   lines.push("Content-Type: multipart/alternative; boundary=\"" + boundary + "\"")
   lines.push("")
@@ -1019,6 +1377,12 @@ function buildRawMessage(fields) {
 function buildSendPayload(fields) {
   var payload = { raw: encodeBase64Url(buildRawMessage(fields)) }
   if (fields && fields.threadId) payload.threadId = String(fields.threadId)
+  // The draft this message replaces, so a provider that can destroy it in the
+  // same request as the send or the save does not leave the old copy behind.
+  // Always present and empty when the compose window was not opened from one,
+  // because a client reading it asks whether there is one to destroy rather
+  // than whether the field exists.
+  payload.draftId = String((fields && fields.draftId) || "")
   var files = Array.isArray(fields && fields.attachments) ? fields.attachments : []
   var paths = []
   for (var i = 0; i < files.length; i++) {

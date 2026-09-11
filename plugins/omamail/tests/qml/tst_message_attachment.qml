@@ -11,6 +11,12 @@ Item {
 
     property string openedMessageId: ""
     property var openedAttachment: null
+    property string starredId: ""
+    property string browsedId: ""
+    // What the service answers to. It is the summary's own id in a single
+    // mailbox and the mailbox plus that id in a list made of several, and the
+    // reader has to hand back this one rather than the one on the summary.
+    property string selectedId: "message-4"
     property var selectedMessage: ({
       id: "message-4",
       subject: "Forwarded report",
@@ -44,10 +50,32 @@ Item {
       attachmentId: "att-7"
     })]
 
+    property string savedMessageId: ""
+    property var savedAttachment: null
+
+    // Keyed by mailbox and attachment on the real service, because two
+    // mailboxes can be saving parts whose ids collide. Empty here, so a reader
+    // that looks up a bare attachment id finds nothing — which is what it did.
+    property var savingAttachmentIds: ({})
+    property string savingFor: ""
+
     function openAttachment(messageId, attachment) {
       openedMessageId = messageId
       openedAttachment = attachment
     }
+
+    function saveAttachment(messageId, attachment) {
+      savedMessageId = messageId
+      savedAttachment = attachment
+    }
+
+    function attachmentIsSaving(messageId, attachmentId) {
+      return savingFor !== "" && String(messageId) === savingFor
+        && String(attachmentId) === "att-7"
+    }
+
+    function toggleStar(id) { starredId = String(id) }
+    function openInBrowser(id) { browsedId = String(id) }
   }
 
   Omamail.MessageReader {
@@ -91,6 +119,66 @@ Item {
       link.activated()
       compare(mailService.openedMessageId, "message-4")
       compare(mailService.openedAttachment.attachmentId, "att-7")
+    }
+
+    // A row in a list made of several mailboxes is addressed by mailbox and
+    // id. The account that owns the message knows only its own half of that,
+    // so a reader that called back with `selectedMessage.id` named no mailbox
+    // and the star, the attachment and the browser link all did nothing.
+    function test_the_reader_answers_with_the_id_the_service_gave_it() {
+      mailService.selectedId = "b@example.net message-4"
+
+      mailService.openedMessageId = ""
+      var link = named(reader, "attachment-open-link")
+      verify(link)
+      link.activated()
+      compare(mailService.openedMessageId, "b@example.net message-4")
+
+      var web = named(reader, "openWebButton")
+      verify(web, "the browser link has to be there to be pressed")
+      web.clicked()
+      compare(mailService.browsedId, "b@example.net message-4")
+
+      mailService.selectedId = "message-4"
+    }
+
+    // Saving was the one that kept `selectedMessage.id`, so the file came down
+    // from whichever mailbox was active — and on two IMAP accounts a part id
+    // is a number in a tree, so A's part could arrive under B's filename.
+    function test_saving_answers_with_the_id_the_service_gave_it() {
+      mailService.selectedId = "b@example.net message-4"
+      mailService.savedMessageId = ""
+
+      var save = named(reader, "attachment-save-button")
+      verify(save, "the save control has to be there to be pressed")
+      save.clicked()
+
+      compare(mailService.savedMessageId, "b@example.net message-4")
+      compare(mailService.savedAttachment.attachmentId, "att-7")
+
+      mailService.selectedId = "message-4"
+    }
+
+    // And the spinner is asked the same way. The service keys it by mailbox,
+    // so a lookup by attachment alone found nothing and the row stayed idle
+    // through the whole save.
+    function test_the_row_goes_busy_for_the_mailbox_that_owns_it() {
+      mailService.selectedId = "b@example.net message-4"
+      var row = named(reader, "attachment-save-button").parent
+      verify(row, "the save control sits in the row it belongs to")
+
+      mailService.savingFor = ""
+      compare(row.saving, false)
+
+      mailService.savingFor = "b@example.net message-4"
+      compare(row.saving, true,
+        "asked by mailbox and attachment, which is how the service holds it")
+
+      mailService.savingFor = "a@example.org message-4"
+      compare(row.saving, false, "another mailbox's save is not this row's")
+
+      mailService.savingFor = ""
+      mailService.selectedId = "message-4"
     }
   }
 }

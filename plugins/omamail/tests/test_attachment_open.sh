@@ -55,4 +55,85 @@ fi
 [ ! -e "$work/opened" ] \
   || { echo "test_attachment_open.sh: malformed attachment data reached xdg-open" >&2; exit 1; }
 
+rm -f "$work/opened"
+mixed_name=$(printf '%s' 'invoice.HTML' | base64 | tr -d '\n')
+if printf '%s\n%s\n' "$mixed_name" "$body" \
+  | XDG_RUNTIME_DIR="$work/runtime" OPEN_CAPTURE="$work/opened" \
+    PATH="$work/bin:$PATH" "$script" >/dev/null 2>&1; then
+  echo "test_attachment_open.sh: a mixed-case HTML attachment was opened" >&2
+  exit 1
+fi
+[ ! -e "$work/opened" ] \
+  || { echo "test_attachment_open.sh: a mixed-case HTML attachment reached xdg-open" >&2; exit 1; }
+
+rm -f "$work/opened"
+wide_name=$(python3 -c 'import base64,sys; sys.stdout.write(base64.b64encode("invoice．html".encode()).decode())')
+if printf '%s\n%s\n' "$wide_name" "$body" \
+  | XDG_RUNTIME_DIR="$work/runtime" OPEN_CAPTURE="$work/opened" \
+    PATH="$work/bin:$PATH" "$script" >/dev/null 2>&1; then
+  echo "test_attachment_open.sh: a fullwidth-dot HTML attachment was opened" >&2
+  exit 1
+fi
+[ ! -e "$work/opened" ] \
+  || { echo "test_attachment_open.sh: a fullwidth-dot HTML attachment reached xdg-open" >&2; exit 1; }
+
+rm -f "$work/opened"
+dot_name=$(printf '%s' 'invoice.html.' | base64 | tr -d '\n')
+if printf '%s\n%s\n' "$dot_name" "$body" \
+  | XDG_RUNTIME_DIR="$work/runtime" OPEN_CAPTURE="$work/opened" \
+    PATH="$work/bin:$PATH" "$script" >/dev/null 2>&1; then
+  echo "test_attachment_open.sh: a trailing-dot HTML attachment was opened" >&2
+  exit 1
+fi
+[ ! -e "$work/opened" ] \
+  || { echo "test_attachment_open.sh: a trailing-dot HTML attachment reached xdg-open" >&2; exit 1; }
+
+rm -f "$work/opened"
+html_name=$(printf '%s' 'invoice.html' | base64 | tr -d '\n')
+if printf '%s\n%s\n' "$html_name" "$body" \
+  | XDG_RUNTIME_DIR="$work/runtime" OPEN_CAPTURE="$work/opened" \
+    PATH="$work/bin:$PATH" "$script" >/dev/null 2>&1; then
+  echo "test_attachment_open.sh: an HTML attachment was opened" >&2
+  exit 1
+fi
+[ ! -e "$work/opened" ] \
+  || { echo "test_attachment_open.sh: an HTML attachment reached xdg-open" >&2; exit 1; }
+
+rm -f "$work/opened"
+desktop_name=$(printf '%s' 'invoice.pdf.desktop' | base64 | tr -d '\n')
+if printf '%s\n%s\n' "$desktop_name" "$body" \
+  | XDG_RUNTIME_DIR="$work/runtime" OPEN_CAPTURE="$work/opened" \
+    PATH="$work/bin:$PATH" "$script" >/dev/null 2>&1; then
+  echo "test_attachment_open.sh: a desktop entry was opened" >&2
+  exit 1
+fi
+[ ! -e "$work/opened" ] \
+  || { echo "test_attachment_open.sh: a desktop entry reached xdg-open" >&2; exit 1; }
+
+refuse_active_bytes() {
+  label=$1
+  sent_name=$2
+  sent_body=$3
+  rm -f "$work/opened"
+  before=$(find "$work/runtime" -mindepth 1 | wc -l)
+  encoded_name=$(printf '%s' "$sent_name" | base64 | tr -d '\n')
+  encoded_body=$(printf '%s' "$sent_body" | base64 | tr -d '\n')
+  if printf '%s\n%s\n' "$encoded_name" "$encoded_body" \
+    | XDG_RUNTIME_DIR="$work/runtime" OPEN_CAPTURE="$work/opened" \
+      PATH="$work/bin:$PATH" "$script" >/dev/null 2>&1; then
+    echo "test_attachment_open.sh: $label was opened" >&2
+    exit 1
+  fi
+  [ ! -e "$work/opened" ] \
+    || { echo "test_attachment_open.sh: $label reached xdg-open" >&2; exit 1; }
+  after=$(find "$work/runtime" -mindepth 1 | wc -l)
+  [ "$after" -eq "$before" ] \
+    || { echo "test_attachment_open.sh: $label was written before refusal" >&2; exit 1; }
+}
+
+refuse_active_bytes "HTML bytes disguised as PDF" "invoice.pdf" \
+  '<!doctype html><script src="https://sender.example/run.js"></script>'
+refuse_active_bytes "SVG bytes disguised as PNG" "chart.png" \
+  '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+
 printf 'test_attachment_open.sh ok\n'

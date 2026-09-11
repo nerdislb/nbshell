@@ -18,7 +18,7 @@ import "../message/Message.js" as Mail
 // `HeyCli.js`. This file is the part in between — which invocation a given
 // request becomes, and how HEY's answer is rebuilt as a message.
 //
-// One difference from the other two is worth stating, because it shapes the
+// One difference from the other providers is worth stating, because it shapes the
 // rest of the file: **HEY is thread-shaped, and there is no RFC 822 anywhere.**
 // A row is a posting, a body is a conversation, and neither arrives as a
 // message with headers — so this client composes the resource rather than
@@ -72,7 +72,7 @@ Item {
   // ------------------------------------------------------------- transport
 
   // One invocation, one answer. `hey` holds the token and refreshes it itself,
-  // so unlike the other two clients there is no credential to fetch first and
+  // so unlike the other clients there is no credential to fetch first and
   // nothing to retry on a 401: a command that failed because the session ended
   // tells the auth object to look again, and the user is asked to sign in.
   function run(args, stdinText, callback, existingHandle) {
@@ -298,6 +298,21 @@ Item {
     return handle
   }
 
+  // The counted members of a conversation, for the reader's conversation rail.
+  //
+  // Always empty, and HEY is never asked: a HEY row already *is* a conversation
+  // and carries no member ids, so its `thread` block reports a count of 0 —
+  // unknown — and the rail draws nothing. The body on screen is the whole
+  // conversation here, which is the thing the rail would otherwise be for.
+  function getSummaries(ids, callback) {
+    var handle = newHandle()
+    Qt.callLater(function() {
+      if (!root || handle.aborted || typeof callback !== "function") return
+      callback([], "")
+    })
+    return handle
+  }
+
   // A whole page with no round trips at all: the listing that produced these
   // ids carried every field a row needs, so this is the cache answering.
   //
@@ -511,12 +526,28 @@ Item {
     return act(verb, ids, callback)
   }
 
+  // HEY's labels are HEY's own. The capability is off, so no button reaches
+  // these; they exist so every client answers the same calls.
+  function createLabel(name, callback) { return refuseLabelChange(callback) }
+  function renameLabel(id, name, callback) { return refuseLabelChange(callback) }
+  function deleteLabel(id, callback) { return refuseLabelChange(callback) }
+  function refuseLabelChange(callback) {
+    if (typeof callback === "function")
+      Qt.callLater(function() { if (root) callback(null, "HEY labels are managed on HEY") })
+    return newHandle()
+  }
+
+  // One id or a list of them. A HEY message id is `<posting>:<topic>`, and a
+  // conversation's members all share the topic — so a list arriving from a row
+  // that stands for a conversation can name the same posting more than once.
+  // `Cli.actionCommand` already keeps each posting once, which is why the list
+  // is handed straight to it rather than wrapped in another array.
   function trashMessage(id, callback) {
-    return act("trash", [id], callback)
+    return act("trash", Array.isArray(id) ? id : [id], callback)
   }
 
   function untrashMessage(id, callback) {
-    return act("untrash", [id], callback)
+    return act("untrash", Array.isArray(id) ? id : [id], callback)
   }
 
   // One verb, however many threads: every HEY command takes a list of ids, so a
@@ -608,6 +639,11 @@ Item {
     return handle
   }
 
+  function deleteDraft(messageId, callback) {
+    if (typeof callback === "function") Qt.callLater(function() { if (root) callback(null, "") })
+    return newHandle()
+  }
+
   function saveDraft(payload, callback) {
     var handle = newHandle()
     var raw = payload && payload.raw ? String(payload.raw) : ""
@@ -623,15 +659,19 @@ Item {
     if (threadId === "" && payload && payload.threadId)
       threadId = String(payload.threadId)
 
-    var command = Cli.draftCommand({
+    var fields = {
       threadId: threadId,
       to: Mail.headerFrom(parsed.headers, "To"),
       cc: Mail.headerFrom(parsed.headers, "Cc"),
       bcc: Mail.headerFrom(parsed.headers, "Bcc"),
       subject: Mail.decodeHeaderValue(Mail.headerFrom(parsed.headers, "Subject")),
+      body: body,
       attachments: files
-    })
-    run(command, body, function(text, error) {
+    }
+    var draftId = payload ? String(payload.draftId || "") : ""
+    var command = draftId === ""
+      ? Cli.draftCommand(fields) : Cli.draftEditCommand(draftId, fields)
+    run(command, draftId === "" ? body : "", function(text, error) {
       if (handle.aborted) return
       var answer = error ? null : Cli.payload(text)
       if (typeof callback === "function") callback(error ? null : (answer ? answer.data : {}), error)

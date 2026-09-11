@@ -13,15 +13,15 @@
 // follows it — a context that is not text entry parks the focus rather than
 // leaving it wherever the last click put it. Keeping those two as separate
 // things is what let a dismissed compose field go on eating j and k.
-var CONTEXTS = ["list", "reader", "search", "compose", "page", "calendar"]
+var CONTEXTS = ["list", "reader", "search", "compose", "page", "calendar", "assistant", "assistantCommands"]
 
 // Shorthands, so a row says where it lives rather than restating the set.
 var MAIL = ["list", "reader"]
 var ANY = ["*"]
 
 var BINDINGS = [
-  // These two survive the shortcut sheet, and they are the only mailbox keys
-  // that do: behind the sheet they scroll it. A reference sheet taller than the
+  // These survive the shortcut sheet, and they are the only mailbox keys that
+  // do: behind the sheet they scroll it. A reference sheet taller than the
   // window that could only be read with a mouse would be the one screen here
   // that contradicts the rest. The account switcher is not on this list — it is
   // a popup, and a popup takes every key before the shortcut map sees it, so it
@@ -33,28 +33,74 @@ var BINDINGS = [
   { id: "cursorUp", keys: ["k", "Up"], contexts: MAIL,
     survivesOverlay: true,
     group: "Moving", label: "Move up" },
+  { id: "scrollDown", keys: ["Shift+J"], contexts: ["reader"],
+    survivesOverlay: true,
+    group: "Moving", label: "Scroll down",
+    hintKey: "Shift+J / Shift+K", hint: { reader: "scroll" } },
+  { id: "scrollUp", keys: ["Shift+K"], contexts: ["reader"],
+    survivesOverlay: true,
+    group: "Moving", label: "Scroll up" },
   // Live in the reader as well as the list. Moving is deliberately not opening
   // — stepping through with j used to mark half a mailbox read without anyone
   // looking at it — so with the reader up there has to be a key that says open,
   // or the only way to read the next message is to leave and come back.
-  { id: "open", keys: ["Return", "o"], contexts: MAIL,
+  { id: "open", keys: ["Return", "Enter", "o"], contexts: MAIL,
     group: "Moving", label: "Open the selected message",
     hintKey: "o", hint: { list: "open", reader: "open" } },
-  { id: "backToList", keys: ["u"], contexts: ["reader"],
+  { id: "openReader", keys: ["Right"], contexts: ["list"],
+    group: "Moving", label: "Open the selected message" },
+  { id: "backToList", keys: ["u", "Left"], contexts: ["reader"],
     group: "Moving", label: "Back to the list" },
+  // Along the conversation rail, which only the reader has. Two letters rather
+  // than a reuse of `j` and `k`: those move the list cursor, and they go on
+  // moving it while the reader is open — the cursor and the open message are
+  // two different things, and a key that moved both would collapse them. Gmail
+  // uses this pair for the same movement, and both were unbound here.
+  //
+  // A conversation of one draws no rail and these do nothing, which is the
+  // context doing its job: what a key means is a property of the application,
+  // and whether there is anywhere to go is a property of the message.
+  //
+  // No status hint. The hint row says what the keyboard does *here*, and here
+  // is any open message — while these two do something only on a conversation
+  // of two or more. Offering them on every message would be the promise the
+  // hint filter exists to stop being made, one line lower down. They are on the
+  // shortcut sheet, with the rest of the table.
+  { id: "nextMember", keys: ["n"], contexts: ["reader"],
+    group: "Moving", label: "Next message in the conversation" },
+  { id: "previousMember", keys: ["p"], contexts: ["reader"],
+    group: "Moving", label: "Previous message in the conversation" },
 
   { id: "archive", keys: ["e"], contexts: MAIL,
     group: "Acting", label: "Archive",
     hint: { list: "archive", reader: "archive" } },
   { id: "trash", keys: ["d"], contexts: MAIL,
     group: "Acting", label: "Move to trash",
-    hint: { reader: "trash" } },
+    hint: { list: "trash", reader: "trash" } },
   { id: "star", keys: ["s"], contexts: MAIL,
     group: "Acting", label: "Star or unstar" },
+  // `v` because that is the key Gmail moves a message with, and issue #58 asks
+  // for those shortcuts one for one. Not `m`: free here, but Gmail's `m` mutes
+  // a conversation, and taking it for a move would be the one binding somebody
+  // arriving from Gmail has to unlearn.
+  //
+  // "Move to" rather than "Move to a label" because the destination is a label
+  // on Gmail and a folder on IMAP, and the sheet has no provider to ask.
+  { id: "moveToLabel", keys: ["v"], contexts: MAIL,
+    group: "Acting", label: "Move to",
+    hint: { list: "move to", reader: "move to" },
+    hintNeedsSelection: true, hintUnavailableId: "move" },
   { id: "markRead", keys: ["Shift+I"], contexts: MAIL,
     group: "Acting", label: "Mark read" },
   { id: "markUnread", keys: ["Shift+U"], contexts: MAIL,
     group: "Acting", label: "Mark unread" },
+  // Space or Gmail's x toggles the cursor row, including while the reader
+  // is open beside the list.
+  { id: "toggleCheck", keys: ["x", "Space"], contexts: MAIL,
+    group: "Acting", label: "Select or deselect the message",
+    hintKey: "Space", hint: { list: "select" } },
+  { id: "checkAll", keys: ["Ctrl+A"], contexts: ["list"],
+    group: "Acting", label: "Select every message loaded, or none" },
 
   // Answering works from the list too, the way the row's own menu does: the
   // message is opened first and the draft waits for it. Binding these to the
@@ -66,7 +112,7 @@ var BINDINGS = [
   { id: "forward", keys: ["f"], contexts: MAIL,
     group: "Writing", label: "Forward" },
   { id: "compose", keys: ["c"], contexts: MAIL,
-    group: "Writing", label: "Compose", hint: { list: "compose" } },
+    group: "Writing", label: "Compose or edit a draft", hint: { list: "compose" } },
   { id: "createEvent", keys: ["c"], contexts: ["calendar"],
     group: "Writing", label: "Create an event", hint: { calendar: "create" } },
   { id: "calendarNext", keys: ["j", "Down"], contexts: ["calendar"],
@@ -87,7 +133,9 @@ var BINDINGS = [
     group: "Calendar", label: "Show week view" },
   { id: "calendarMonth", keys: ["m"], contexts: ["calendar"],
     group: "Calendar", label: "Show month view" },
-  { id: "send", keys: ["Ctrl+Return"], contexts: ["compose"],
+  // Both Enters: the main keyboard's is Return, the numpad's is Enter, and
+  // a hand on the numpad expects the same thing of them.
+  { id: "send", keys: ["Ctrl+Return", "Ctrl+Enter"], contexts: ["compose"],
     group: "Writing", label: "Send", hint: { compose: "send" } },
   { id: "undoSend", keys: ["Alt+Z"], contexts: ANY,
     survivesOverlay: true,
@@ -124,9 +172,23 @@ var BINDINGS = [
   // One key, not nine, and modified rather than bare. Switching mailboxes is
   // not frequent enough to spend a letter on — the bare ones are the scarce
   // thing here — and not a chord either, because it opens a list the keyboard
-  // then walks: `j`/`k` to move, `Enter` or `o` to take one.
+  // then walks — or types into: letters narrow it, the arrows move, `Enter`
+  // takes one.
   { id: "switchAccount", keys: ["Alt+A"], contexts: MAIL,
     group: "Going", label: "Switch account" },
+  // The message agent, on the cursor row. A popup, so the same shape as the
+  // account switcher: opened through the table, then answering its own keys.
+  { id: "askAgent", keys: ["Alt+G"], contexts: ["list", "reader", "compose"],
+    group: "Acting", label: "Ask AI about the message or draft" },
+  { id: "assistantSend", keys: ["Return", "Enter", "Ctrl+Return", "Ctrl+Enter"], contexts: ["assistant", "assistantCommands"],
+    sequenceContexts: { "Return": ["assistant"], "Enter": ["assistant"] },
+    group: "AI", label: "Send the AI message" },
+  { id: "assistantCommandUp", keys: ["Up"], contexts: ["assistantCommands"],
+    group: "AI", label: "Previous AI command" },
+  { id: "assistantCommandDown", keys: ["Down"], contexts: ["assistantCommands"],
+    group: "AI", label: "Next AI command" },
+  { id: "assistantChooseCommand", keys: ["Return", "Enter"], contexts: ["assistantCommands"],
+    group: "AI", label: "Fill the selected AI command" },
 
   { id: "calendar", keys: ["Alt+C"], contexts: ["list", "reader", "calendar"],
     group: "Going", label: "Switch between mail and calendar" },
@@ -146,14 +208,13 @@ var BINDINGS = [
   { id: "zoomReset", keys: ["Ctrl+Shift+0"], contexts: ["reader"],
     group: "Reading", label: "Reset the zoom" },
 
-  { id: "refresh", keys: ["F5"], contexts: ANY,
+  { id: "refresh", keys: ["F5", "Ctrl+R"], contexts: ANY,
     group: "Mailbox", label: "Check for mail" },
   { id: "settings", keys: ["Ctrl+,"], contexts: ANY,
     group: "Mailbox", label: "Open settings" },
-  // One action and one help row. The old keys remain mailbox-only. Ctrl+K
-  // reaches the same action from fields, forms, drafts, and the calendar.
-  { id: "help", keys: ["Ctrl+K", "?", "Ctrl+/", "Ctrl+?"], contexts: MAIL,
-    sequenceContexts: { "Ctrl+K": ANY },
+  // A question mark asks for the key reference while the keyboard belongs to
+  // mail. Text-entry contexts keep it as text instead.
+  { id: "help", keys: ["?"], contexts: MAIL,
     survivesOverlay: true,
     group: "Mailbox", label: "Toggle all keybindings" },
   { id: "back", keys: ["Escape"], contexts: ANY,
@@ -167,6 +228,7 @@ var BINDINGS = [
 // the toast offers Alt+Z and its button.
 function contextFor(state) {
   var value = state || ({})
+  if (value.assistantEditing) return value.assistantCommands ? "assistantCommands" : "assistant"
   if (value.showPage) return "page"
   if (value.composing) return "compose"
   if (value.searchFocused) return "search"
@@ -235,8 +297,7 @@ function bindingsFor(context) {
 
 // One entry per sequence rather than per row, because that is the shape a
 // Shortcut needs: each sequence is its own object, and each decides its own
-// `enabled` — a row holding both `/` and Ctrl+K has them disagree while the
-// user is typing.
+// `enabled` — each sequence still carries the context that owns it.
 function sequencesFor(context) {
   var out = []
   var rows = BINDINGS
@@ -273,7 +334,12 @@ function displayFor(binding) {
   if (binding.display) return binding.display
   var keys = binding.keys || []
   var out = []
-  for (var i = 0; i < keys.length; i++) out.push(readableSequence(keys[i]))
+  // Return and the numpad's Enter are two keys with one keycap name; the
+  // sheet names the keycap once.
+  for (var i = 0; i < keys.length; i++) {
+    var readable = readableSequence(keys[i])
+    if (out.indexOf(readable) < 0) out.push(readable)
+  }
   return out.join(", ")
 }
 
@@ -316,16 +382,19 @@ function helpGroups() {
 // What the status bar offers from where the user is standing.
 //
 // `unavailable` is the ids the active provider cannot honour — a mailbox with
-// no archive and no star should not be offering `e` and `s` in the row that
-// says what the keyboard does here. The table itself stays whole: what a key
-// means is a property of the application, and only whether it is on offer
-// depends on which mailbox is open.
-function hintsFor(context, unavailable) {
+// no archive, star, or named destination should not offer those actions in the
+// row that says what the keyboard does here. The table itself stays whole:
+// what a key means is a property of the application, and only whether it is on
+// offer depends on which mailbox is open. `hasSelection` makes the few hints
+// that act on a particular row contextual without changing their bindings.
+function hintsFor(context, unavailable, hasSelection) {
   var out = []
   var rows = bindingsFor(context)
   var missing = Array.isArray(unavailable) ? unavailable : []
   for (var i = 0; i < rows.length; i++) {
-    if (missing.indexOf(rows[i].id) >= 0) continue
+    if (rows[i].hintNeedsSelection && hasSelection !== true) continue
+    var unavailableId = rows[i].hintUnavailableId || rows[i].id
+    if (missing.indexOf(unavailableId) >= 0) continue
     var text = hintTextFor(rows[i], context)
     if (text !== "") out.push(({ key: hintKeyFor(rows[i]), label: text }))
   }

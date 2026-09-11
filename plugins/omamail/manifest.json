@@ -3,7 +3,7 @@
   "id": "omamail",
   "name": "Mail",
   "category": "Communication",
-  "version": "0.6.0",
+  "version": "0.8.2-nbshell.1",
   "author": "Jason Lee <huacnlee@gmail.com>",
   "license": "MIT",
   "repository": "https://github.com/huacnlee/omamail",
@@ -35,7 +35,7 @@
       "libnotify"
     ]
   },
-  "description": "Native Gmail and IMAP/SMTP mail client with keyring-backed credentials.",
+  "description": "Native Gmail, Outlook, HEY, JMAP and IMAP mail with keyring-backed credentials.",
   "kinds": [
     "service",
     "bar-widget",
@@ -66,15 +66,28 @@
     "defaultSection": "right",
     "defaults": {
       "refreshIntervalSec": 120,
-      "maxMessages": 25,
+      "maxMessages": 50,
       "heavyMessageRendering": "Show plain text first",
+      "contentDirection": "Auto",
       "defaultQuery": "in:inbox",
       "notifyNewMail": "On",
       "oauthPort": 9481,
       "undoSendSeconds": 10,
+      "unifiedCalendarView": false,
+      "openOnClick": "Window",
+      "showBarIcon": true,
+      "previewOnCursor": false,
+      "markReadDelaySec": 2,
       "contactSuggestions": "Off"
     },
     "schema": [
+      {
+        "key": "showBarIcon",
+        "type": "boolean",
+        "label": "Show the icon in the bar",
+        "defaultValue": true,
+        "description": "Turn this off to run Omamail with no envelope in the bar. Mail is still checked and still notifies; only the icon goes. With it off the window opens from a keybinding or a terminal and nowhere else, so bind a key first: o.bind(\"SUPER + SHIFT + G\", \"Omamail\", \"omarchy shell shell toggle omamail '{}'\")"
+      },
       {
         "key": "refreshIntervalSec",
         "type": "integer",
@@ -92,7 +105,24 @@
         "min": 5,
         "max": 100,
         "step": 5,
-        "defaultValue": 25
+        "defaultValue": 50
+      },
+      {
+        "key": "previewOnCursor",
+        "type": "boolean",
+        "label": "Preview as the cursor moves",
+        "defaultValue": false,
+        "description": "Show a message as soon as the cursor reaches it, instead of waiting for Enter. Off by default because stepping through a list would otherwise mark every message it passed read; with this on, a previewed message is marked read only once the cursor has stayed on it. Not applied in a narrow window, where the reader takes the list's place."
+      },
+      {
+        "key": "markReadDelaySec",
+        "type": "integer",
+        "label": "Mark a previewed message read after (seconds)",
+        "min": 0,
+        "max": 30,
+        "step": 1,
+        "defaultValue": 2,
+        "description": "How long the cursor has to stay on a message before it counts as read. 0 marks it read as soon as it is previewed. Only applies while Preview as the cursor moves is on; Enter always marks it read."
       },
       {
         "key": "heavyMessageRendering",
@@ -104,6 +134,18 @@
         ],
         "defaultValue": "Show plain text first",
         "description": "Choose whether potentially expensive rich text falls back to plain text with a Show anyway action."
+      },
+      {
+        "key": "contentDirection",
+        "type": "enum",
+        "label": "Message direction",
+        "options": [
+          "Auto",
+          "Left to right",
+          "Right to left"
+        ],
+        "defaultValue": "Auto",
+        "description": "Which way a message's own text runs. Auto reads it from the text itself, so an Arabic, Hebrew or Persian message lays out right-to-left and an English one does not. Set a direction to use that one for every message. The interface itself is unaffected."
       },
       {
         "key": "defaultQuery",
@@ -124,17 +166,6 @@
         "description": "Sends a desktop notification when a new unread message arrives in the inbox."
       },
       {
-        "key": "contactSuggestions",
-        "type": "enum",
-        "label": "Local contact suggestions",
-        "options": [
-          "Off",
-          "On"
-        ],
-        "defaultValue": "Off",
-        "description": "When enabled, Mail reads addresses from local Thunderbird and Betterbird profile databases without modifying them."
-      },
-      {
         "key": "oauthPort",
         "type": "integer",
         "label": "Sign-in callback port",
@@ -153,6 +184,35 @@
         "step": 1,
         "defaultValue": 10,
         "description": "Delays outgoing mail so you can cancel it. Set this to 0 to send immediately."
+      },
+      {
+        "key": "unifiedCalendarView",
+        "type": "boolean",
+        "label": "Unified calendar view",
+        "defaultValue": false,
+        "description": "Show calendars from every connected account instead of following the current mailbox."
+      },
+      {
+        "key": "openOnClick",
+        "type": "enum",
+        "label": "Clicking the bar icon opens",
+        "options": [
+          "Window",
+          "Quick preview"
+        ],
+        "defaultValue": "Window",
+        "description": "The full window, or a small card with the most recent unread mail."
+      },
+      {
+        "key": "contactSuggestions",
+        "type": "enum",
+        "label": "Local contact suggestions",
+        "options": [
+          "Off",
+          "On"
+        ],
+        "defaultValue": "Off",
+        "description": "When enabled, Mail reads addresses from local Thunderbird and Betterbird profile databases without modifying them."
       }
     ]
   }

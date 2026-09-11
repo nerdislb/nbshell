@@ -6,7 +6,7 @@ import qs.Widgets
 Cell {
   id: root
   readonly property var mail: Plugins.serviceFor("omamail")
-  shown: true
+  shown: !mail || !mail.settings || mail.settings.showBarIcon !== false
   quiet: mail && mail.anyAccountReady && mail.unreadTotal === 0
   active: !!mail && mail.windowOpen
   slotChars: 2

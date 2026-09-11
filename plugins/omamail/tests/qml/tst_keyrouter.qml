@@ -70,6 +70,29 @@ Item {
       compare(host.lastId, "archive")
     }
 
+    function test_space_toggles_selection_in_the_list() {
+      keyClick(Qt.Key_Space)
+      compare(host.lastId, "toggleCheck")
+    }
+
+    function test_space_stays_text_in_a_draft() {
+      host.context = "compose"
+      compose.opened = true
+      composeField.text = ""
+      scope.applyContextFocus()
+      wait(20)
+      keyClick(Qt.Key_Space)
+      compare(host.lastId, "")
+      compare(composeField.text, " ")
+    }
+
+    function test_space_toggles_selection_while_reading() {
+      host.context = "reader"
+      wait(20)
+      keyClick(Qt.Key_Space)
+      compare(host.lastId, "toggleCheck")
+    }
+
     function test_the_same_letter_is_dead_on_a_form() {
       host.context = "page"
       wait(20)
@@ -91,12 +114,11 @@ Item {
       compare(host.lastId, "", "e is a letter in a query")
     }
 
-    function test_a_modified_key_still_reaches_a_draft() {
+    function test_old_help_key_is_dead_in_a_draft() {
       host.context = "compose"
       wait(20)
       keyClick(Qt.Key_K, Qt.ControlModifier)
-      compare(host.lastId, "help",
-        "Ctrl+K opens the shortcut sheet from inside a draft")
+      compare(host.lastId, "", "Ctrl+K is no longer Help")
     }
 
     function test_alt_z_undoes_send_while_composing() {
@@ -115,9 +137,9 @@ Item {
       keyClick(Qt.Key_Z, Qt.AltModifier)
       compare(host.lastId, "undoSend")
       host.lastId = ""
-      keyClick(Qt.Key_Down)
-      compare(host.lastId, "cursorDown",
-        "the undo window must not stand mailbox navigation down")
+      keyClick(Qt.Key_J, Qt.ShiftModifier)
+      compare(host.lastId, "scrollDown",
+        "the undo window must not stand Shift+J reader scrolling")
     }
 
     function test_escape_is_the_way_out_of_every_context() {

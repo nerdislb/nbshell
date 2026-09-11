@@ -20,15 +20,33 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 UNTRUSTED = re.compile(
     r"\b(summary\s*\.|\.subject\b|\.snippet\b|\.from\b|\.display\b|\.email\b"
     r"|modelData\s*\.\s*filename\b|formatAddressList\b|lastError\b"
-    r"|root\s*\.\s*requested\b|subjectField\s*\.\s*text\b)")
+    r"|root\s*\.\s*requested\b|subjectField\s*\.\s*text\b"
+    # A server's host name, which whoever answered discovery chose.
+    r"|\.host\b"
+    # The conversation rail's stops and the row's badge: a sender, a mailbox
+    # name, a caption and a count all written by the server or the message,
+    # and the mailbox row's detail line, which names the server.
+    r"|\.sender\b|\.mailbox\b|\.caption\b|\.detail\b|threadCount\b"
+    # Sidebar Entry forwards the server's label name through a local alias.
+    r"|entry\s*\.\s*label\b"
+    # A row that works out its own two lines and hands them over as strings.
+    # The address goes in there, so the guard has to follow the value: read
+    # from the element, the reference to `.email` is no longer visible and
+    # this check would pass a Text that had stopped saying it was plain.
+    r"|primaryText\b|secondaryText\b)")
 
-STRING = re.compile(r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'')
+# Strings and comments, masked in one pass so that neither can hide inside the
+# other. Masking strings alone let an apostrophe in a `//` comment open a
+# string that ran to the next quote in the file, which swallowed every Text
+# after it: the check saw none of the nine in one setup page and passed it.
+MASKED = re.compile(
+    r'"(?:[^"\\\n]|\\.)*"|\'(?:[^\'\\\n]|\\.)*\'|//[^\n]*|/\*.*?\*/', re.S)
 ELEMENT = re.compile(r"\b(Text|Label)\s*\{")
 
 
 def blocks(source):
     """Every Text/Label element body, as (name, text) pairs."""
-    masked = STRING.sub(lambda m: " " * len(m.group(0)), source)
+    masked = MASKED.sub(lambda m: re.sub(r"[^\n]", " ", m.group(0)), source)
     for opening in ELEMENT.finditer(masked):
         start = opening.end()
         depth = 1

@@ -40,7 +40,7 @@
     {
       "id": "omamail",
       "name": "Mail",
-      "description": "Native Gmail and IMAP/SMTP mail client with keyring-backed credentials.",
+      "description": "Native Gmail, Outlook, HEY, JMAP and IMAP mail with keyring-backed credentials.",
       "author": "Jason Lee <huacnlee@gmail.com>",
       "license": "MIT",
       "category": "Communication",

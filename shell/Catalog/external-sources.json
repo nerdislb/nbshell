@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
   "sources": [
-    {"name": "Umbriel", "repository": "https://github.com/noctalia-dev/umbriel", "reviewedCommit": "7cb4ebd6302f55b507765f259e8a30eee440f2a3"},
+    {"name": "Umbriel", "repository": "https://github.com/noctalia-dev/umbriel", "reviewedCommit": "c3bb2a85d6f889d458349bbf780f8b692c611633"},
     {"name": "Umbriel portal", "repository": "https://github.com/noctalia-dev/xdg-desktop-portal-umbriel", "reviewedCommit": "d996f0c"},
     {"name": "Omazen", "repository": "https://github.com/hemagome/omazen", "reviewedCommit": "3865394", "patch": "integrations/omazen/nbshell-external-provider-arch.patch"},
-    {"name": "WhatsApp", "repository": "https://github.com/MoizIbnYousaf/Omarchy-Whatsapp", "reviewedCommit": "1f58d8d"},
-    {"name": "Mail", "repository": "https://github.com/huacnlee/omamail", "reviewedCommit": "6fdf290"},
+    {"name": "WhatsApp", "repository": "https://github.com/MoizIbnYousaf/Omarchy-Whatsapp", "reviewedCommit": "7ee1540"},
+    {"name": "Mail", "repository": "https://github.com/huacnlee/omamail", "reviewedCommit": "5953da4"},
     {"name": "Quick Translate", "repository": "https://github.com/seshna/quick-translate", "reviewedCommit": "284cac8"},
     {"name": "YouTube Music", "repository": "https://github.com/rlimberger/omarchy-ytmusic", "reviewedCommit": "de0d64a"},
     {"name": "Pit Wall", "repository": "https://github.com/jeremylongshore/omarchy-pit-wall-entry", "reviewedCommit": "2ab03db"},
     {"name": "Video Trimmer", "repository": "https://github.com/nerdislb/omacut", "reviewedCommit": "41e1ab7"},
-    {"name": "Hermes Agent", "repository": "https://github.com/NousResearch/hermes-agent", "reviewedCommit": "77adb80", "check": "github-api"},
+    {"name": "Hermes Agent", "repository": "https://github.com/NousResearch/hermes-agent", "reviewedCommit": "2237be355906fbe6065ce1815711eee52b2d646e", "check": "github-api"},
     {"name": "Hermes Harness reference", "repository": "https://github.com/archer-clawbot/omarchy-hermes-harness", "reviewedCommit": "2d72688"}
   ]
 }

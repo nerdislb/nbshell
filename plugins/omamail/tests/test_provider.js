@@ -5,15 +5,20 @@ const provider = load("providers/Registry.js")
 
 // ------------------------------------------------------------- the registry
 //
-// Three providers, and the ids are what an accounts.json holds — renaming one
+// Four providers, and the ids are what an accounts.json holds — renaming one
 // silently orphans every account already written with the old name.
 //
 // The order is the order the chooser lists them in: the two hosted mailboxes
-// with a service of their own, then the one that is every other mailbox.
-deepEqual(provider.ids(), ["gmail", "hey", "imap"])
+// with a service of their own, then the two that are every other mailbox. IMAP
+// is last because it is the catch-all, and JMAP goes in front of it because a
+// server that speaks both is better read over JMAP.
+deepEqual(provider.ids(), ["gmail", "outlook", "hey", "jmap", "imap"])
 assert.strictEqual(provider.get("gmail").name, "Gmail")
+assert.strictEqual(provider.get("outlook").name, "Outlook")
 assert.strictEqual(provider.get("imap").name, "IMAP")
 assert.strictEqual(provider.get("hey").name, "HEY")
+assert.strictEqual(provider.get("jmap").name, "JMAP")
+assert.strictEqual(provider.exists("jmap"), true)
 
 // An id from a newer build, or a hand-edited file, still has to open a window.
 assert.strictEqual(provider.get("nonesuch").id, "gmail")
@@ -31,6 +36,43 @@ assert.strictEqual(provider.exists("imap"), true)
 
 assert.strictEqual(provider.can("gmail", "labels"), true)
 assert.strictEqual(provider.can("imap", "labels"), false)
+assert.strictEqual(provider.can("outlook", "labels"), false)
+assert.strictEqual(provider.can("gmail", "manageLabels"), true)
+assert.strictEqual(provider.can("imap", "manageLabels"), true)
+assert.strictEqual(provider.can("hey", "manageLabels"), false, "HEY's labels are HEY's own")
+
+// Mail from or to an address, in each provider's own words.
+assert.strictEqual(provider.addressQuery("gmail", "from", "ada@example.com"), "from:ada@example.com")
+assert.strictEqual(provider.addressQuery("gmail", "to", " ada@example.com "), "to:ada@example.com")
+assert.strictEqual(provider.addressQuery("gmail", "from", "a b"), "", "a space would end the operator")
+assert.strictEqual(provider.addressQuery("imap", "from", "ada@example.com"), 'folder:INBOX FROM "ada@example.com"')
+assert.strictEqual(provider.addressQuery("imap", "to", 'a"b'), 'folder:INBOX TO "a\\"b"')
+assert.strictEqual(provider.addressQuery("hey", "to", "ada@example.com"), "search:ada@example.com")
+assert.strictEqual(provider.addressQuery("imap", "from", ""), "")
+
+// The operators people bring from webmail, in IMAP's words.
+assert.strictEqual(provider.query("imap", "inbox", "from: ada@example.com", ""),
+  'folder:INBOX FROM "ada@example.com"', "a webmail from: operator, space and all, becomes the IMAP criterion")
+assert.strictEqual(provider.query("imap", "inbox", "to:*@example.com invoice", ""),
+  'folder:INBOX TO "@example.com" TEXT "invoice"', "wildcards go: IMAP criteria already match substrings")
+assert.strictEqual(provider.query("imap", "inbox", "plain words", ""),
+  'folder:INBOX TEXT "plain words"', "words without an operator stay one TEXT criterion")
+assert.strictEqual(provider.query("imap", "inbox", 'from:"Jane Doe" report', ""),
+  'folder:INBOX FROM "Jane Doe" TEXT "report"', "a quoted operator value keeps its spaces")
+assert.strictEqual(provider.query("imap", "inbox", "from:", ""),
+  'folder:INBOX TEXT "from:"', "an operator with no value searches for what was typed, not for everything")
+assert.strictEqual(provider.query("imap", "inbox", "from:*", ""),
+  'folder:INBOX TEXT "from:*"', "a wildcard alone is not a criterion either")
+assert.strictEqual(provider.query("imap", "inbox", "from:*** invoice", ""),
+  'folder:INBOX TEXT "from:*** invoice"', "an operator that strips to nothing is not quietly dropped")
+// Separate questions. `labels` is whether a message can carry several at once,
+// which is what the reader's strip draws; `move` is whether the user gets to
+// say where it goes. IMAP answers no and yes -- one folder per message is the
+// very thing that makes a move the plain operation there.
+assert.strictEqual(provider.can("gmail", "move"), true)
+assert.strictEqual(provider.can("imap", "move"), true)
+assert.strictEqual(provider.can("outlook", "move"), true)
+assert.strictEqual(provider.can("hey", "move"), false, "HEY's destinations are its own")
 assert.strictEqual(provider.can("gmail", "spam"), true)
 assert.strictEqual(provider.can("imap", "spam"), false, "IMAP has no junk verb worth offering")
 assert.strictEqual(provider.can("gmail", "threads"), true)
@@ -47,6 +89,7 @@ assert.strictEqual(provider.can("gmail", "webBox"), true)
 assert.strictEqual(provider.can("hey", "web"), true)
 assert.strictEqual(provider.can("hey", "webBox"), false)
 assert.strictEqual(provider.can("imap", "webBox"), false)
+assert.strictEqual(provider.can("outlook", "webBox"), false)
 
 // And the address builders agree with the capabilities, so a caller that asked
 // anyway gets nothing rather than somewhere else's mailbox.
@@ -68,11 +111,70 @@ assert.strictEqual(provider.can("hey", "labels"), true)
 assert.strictEqual(provider.can("hey", "star"), false, "HEY has no flag")
 assert.strictEqual(provider.can("hey", "archive"), false, "HEY has no archive")
 
+// Having a thread id and listing conversations are two questions. HEY's rows
+// already are conversations, so the panel groups nothing; Gmail has the ids and
+// still lists messages, because collapsing its list would cost a `threads.get`
+// per thread; IMAP has neither.
+assert.strictEqual(provider.can("hey", "conversations"), true, "a HEY row is a topic")
+assert.strictEqual(provider.can("gmail", "conversations"), false,
+  "Gmail has thread ids and still lists messages")
+assert.strictEqual(provider.can("imap", "conversations"), false)
+assert.strictEqual(provider.can("gmail", "threads"), true,
+  "and the two answers are independent of each other")
+
+// ---------------------------------------------------------- refusals
+//
+// A provider's list is a ceiling, not a promise every account of that kind can
+// keep: one server has an Archive folder and trains on its Junk, the next has
+// neither. So an account may withdraw a capability its provider declares — and
+// may never add one, which is what keeps the button rule above from being
+// argued back open one account at a time.
+
+// No third argument, and null, answer exactly as the ceiling does. That is what
+// makes the hook provider-neutral: Gmail, HEY and IMAP expose no refusals at
+// all and nothing about them changes.
+assert.strictEqual(provider.can("gmail", "archive"), true)
+assert.strictEqual(provider.can("gmail", "archive", null), true)
+assert.strictEqual(provider.can("gmail", "archive", undefined), true)
+assert.strictEqual(provider.can("gmail", "archive", {}), true,
+  "an object with no key for it says nothing about it")
+
+// A refused capability is a no, whatever the ceiling said.
+const refusals = {
+  archive: "This account has no Archive mailbox",
+  spam: "This server is not known to learn from its Junk mailbox"
+}
+assert.strictEqual(provider.can("gmail", "archive", refusals), false)
+assert.strictEqual(provider.can("gmail", "spam", refusals), false)
+assert.strictEqual(provider.can("gmail", "star", refusals), true,
+  "a refusal takes away only the keys it names")
+
+// And a refusal cannot hand an account something its provider does not have.
+// The one direction this seam runs in is the whole of its safety argument.
+assert.strictEqual(provider.can("hey", "archive", { archive: "" }), false)
+assert.strictEqual(provider.can("imap", "spam", { spam: "" }), false)
+assert.strictEqual(provider.can("hey", "star", { star: "of course it can" }), false)
+
+// The reason, for the note shown when a key reaches an action the account
+// cannot honour. Empty where nothing was refused — including where the ceiling
+// never offered it, since there is nothing there to withdraw and the provider's
+// own wording is the honest answer.
+assert.strictEqual(provider.refusal("gmail", "archive", refusals),
+  "This account has no Archive mailbox")
+assert.strictEqual(provider.refusal("gmail", "spam", refusals),
+  "This server is not known to learn from its Junk mailbox")
+assert.strictEqual(provider.refusal("gmail", "star", refusals), "")
+assert.strictEqual(provider.refusal("gmail", "archive", null), "")
+assert.strictEqual(provider.refusal("gmail", "archive"), "")
+assert.strictEqual(provider.refusal("hey", "archive", { archive: "not this way" }), "",
+  "a ceiling that never offered it has nothing to explain")
+
 // Every provider here can be connected to. The `unavailable` seam is kept for
 // the next one that cannot be, which is what HEY was until `hey` shipped.
 assert.strictEqual(provider.isConnectable("gmail"), true)
 assert.strictEqual(provider.isConnectable("imap"), true)
 assert.strictEqual(provider.isConnectable("hey"), true)
+assert.strictEqual(provider.isConnectable("outlook"), true)
 
 assert.strictEqual(provider.unavailableReason("gmail"), "")
 assert.strictEqual(provider.unavailableReason("imap"), "")
@@ -82,7 +184,7 @@ assert.strictEqual(provider.unavailableReason("hey"), "")
 
 // The glyphs ActionIcon actually draws. A mailbox naming anything else renders
 // as nothing at all.
-const DRAWN = ["inbox", "unread", "star", "send", "archive", "trash", "reply", "pin", "label", "compose"]
+const DRAWN = ["inbox", "unread", "star", "sent", "archive", "trash", "spam", "reply", "pin", "label", "compose"]
 
 // Every provider's first mailbox is its inbox: `mailboxFor` falls back to it,
 // which is what a key belonging to another provider lands on mid-switch.
@@ -101,11 +203,49 @@ for (const id of ids) {
   }
 }
 
+// Spam is reachable on the rail rather than only by knowing to type `in:spam`.
+// HEY is left out on purpose: `hey spam` moves a thread and trains the filter,
+// but the CLI serves no spam box to list, and a mailbox that cannot be opened
+// is worse than none.
+for (const id of ["gmail", "imap"]) {
+  const spam = provider.mailboxes(id).filter(box => box.key === "spam")
+  assert.strictEqual(spam.length, 1, id + " has one spam mailbox")
+  assert.ok(spam[0].optional, id + "/spam yields the strip before the inbox does")
+}
+assert.strictEqual(provider.mailboxes("hey").filter(box => box.key === "spam").length, 0)
+
 // A mutation of the returned list must not reach the provider definition.
 const boxes = provider.mailboxes("gmail")
 boxes.push({ key: "invented" })
 assert.strictEqual(provider.mailboxes("gmail").length, boxes.length - 1,
   "the mailbox list is copied on the way out")
+
+// Which rail rows exist is a fact about the provider; which of them this
+// account actually has a mailbox for is a fact about the account. A row with
+// nothing behind it is dropped rather than drawn dead — and because the number
+// keys are positional, the rows below it move up.
+const imapKeys = provider.mailboxes("imap").map(box => box.key)
+deepEqual(provider.mailboxes("imap", null).map(box => box.key), imapKeys,
+  "no absent list is the whole list")
+deepEqual(provider.mailboxes("imap", []).map(box => box.key), imapKeys)
+deepEqual(provider.mailboxes("imap", "archive").map(box => box.key), imapKeys,
+  "and so is anything that is not a list")
+
+const withoutArchive = provider.mailboxes("imap", ["archive"])
+assert.strictEqual(withoutArchive.filter(box => box.key === "archive").length, 0)
+assert.strictEqual(withoutArchive.length, imapKeys.length - 1)
+assert.strictEqual(withoutArchive.indexOf(withoutArchive.filter(box => box.key === "spam")[0]),
+  imapKeys.indexOf("spam") - 1, "Junk moves up when Archive is not there")
+
+deepEqual(provider.mailboxes("imap", ["archive", "spam", "trash"]).map(box => box.key),
+  imapKeys.filter(key => key !== "archive" && key !== "spam" && key !== "trash"))
+deepEqual(provider.mailboxes("imap", ["nonesuch"]).map(box => box.key), imapKeys,
+  "a key this provider never had drops nothing")
+
+// The copy rule survives the argument.
+const dropped = provider.mailboxes("imap", ["archive"])
+dropped.push({ key: "invented" })
+assert.strictEqual(provider.mailboxes("imap", ["archive"]).length, dropped.length - 1)
 
 assert.strictEqual(provider.hasMailbox("gmail", "all"), true)
 assert.strictEqual(provider.hasMailbox("imap", "all"), false, "IMAP has Archive, not All mail")
@@ -131,6 +271,7 @@ assert.strictEqual(provider.query("imap", "inbox", "", ""), "folder:INBOX")
 assert.strictEqual(provider.query("imap", "unread", "", ""), "folder:INBOX UNSEEN")
 assert.strictEqual(provider.query("imap", "sent", "", ""), "folder:\\Sent")
 assert.strictEqual(provider.query("imap", "drafts", "", ""), "folder:\\Drafts")
+assert.strictEqual(provider.query("outlook", "unread", "", ""), "folder:INBOX UNSEEN")
 
 // A typed search wins over everything, and is shaped by the provider.
 assert.strictEqual(provider.query("gmail", "trash", "from:jane", ""), "from:jane",
@@ -155,6 +296,7 @@ assert.strictEqual(provider.query("gmail", "inbox", "   ", ""), "in:inbox",
 // request is rejected and the mailbox stays empty.
 assert.strictEqual(provider.query("imap", "inbox", "", "in:inbox"), "folder:INBOX")
 assert.strictEqual(provider.query("hey", "inbox", "", "in:inbox"), "box:imbox")
+assert.strictEqual(provider.query("outlook", "inbox", "", "in:inbox"), "folder:INBOX")
 
 // HEY's own queries, which the client reads back as commands.
 assert.strictEqual(provider.query("hey", "inbox", "", ""), "box:imbox")
@@ -183,6 +325,7 @@ assert.strictEqual(provider.cachedSummaryInSearch("hey", "label:4711", {}), true
 assert.strictEqual(provider.unreadQuery("gmail"),
   "in:inbox is:unread -category:promotions -category:social -category:forums")
 assert.strictEqual(provider.unreadQuery("imap"), "folder:INBOX UNSEEN")
+assert.strictEqual(provider.unreadQuery("outlook"), "folder:INBOX UNSEEN")
 assert.strictEqual(provider.unreadQuery("hey"), "box:imbox unseen")
 
 // Named by exclusion on purpose, and the reason is which way it fails. Asking
@@ -223,6 +366,7 @@ assert.ok(provider.labelQuery("imap", "Old Mail").indexOf("TEXT") < 0)
 assert.strictEqual(provider.webHomeUrl("gmail"), "https://mail.google.com/mail/u/0/")
 assert.strictEqual(provider.webHomeUrl("hey"), "https://app.hey.com")
 assert.strictEqual(provider.webHomeUrl("imap"), "", "an IMAP server is not a website")
+assert.strictEqual(provider.webHomeUrl("outlook"), "https://outlook.live.com/mail/")
 
 // ------------------------------------------------------------------ logos
 
@@ -238,10 +382,12 @@ assert.strictEqual(provider.mark("hey"), "hey-mark.png")
 assert.strictEqual(provider.logo("hey"), "hey.png")
 assert.strictEqual(provider.mark("imap"), "")
 assert.strictEqual(provider.logo("imap"), "")
+assert.strictEqual(provider.logo("outlook"), "")
 
 // ------------------------------------------------------------------- auth
 
 assert.strictEqual(provider.authKind("gmail"), "oauth")
+assert.strictEqual(provider.authKind("outlook"), "oauth")
 assert.strictEqual(provider.authKind("imap"), "password")
 // A sign-in this plugin does not perform itself: `hey` owns the browser, the
 // token and the keyring entry it lives in.
@@ -251,12 +397,27 @@ assert.strictEqual(provider.usesCli("gmail"), false)
 assert.strictEqual(provider.usesOAuth("hey"), false)
 assert.strictEqual(provider.usesPassword("hey"), false)
 assert.strictEqual(provider.usesOAuth("gmail"), true)
+assert.strictEqual(provider.usesOAuth("outlook"), true)
 assert.strictEqual(provider.usesOAuth("imap"), false)
 assert.strictEqual(provider.usesPassword("imap"), true)
 assert.strictEqual(provider.usesPassword("gmail"), false)
 
 assert.strictEqual(provider.badge("imap"), "IMAP")
+assert.strictEqual(provider.badge("jmap"), "JMAP", "the switcher badge is the protocol, no host")
 assert.ok(provider.summary("imap").length > 0)
+
+// One more line about a particular mailbox, for the row that lists them. Only
+// the provider with something to add answers, and it answers from the account
+// entry rather than from anything the panel holds.
+assert.strictEqual(provider.detail("gmail", { email: "ada@gmail.com" }), "")
+assert.strictEqual(provider.detail("hey", {}), "")
+assert.strictEqual(provider.detail("imap", { imap: { imapHost: "imap.example.org" } }), "")
+assert.strictEqual(
+  provider.detail("jmap", { jmap: { sessionUrl: "https://mail.example.org/jmap/session" } }),
+  "JMAP · mail.example.org")
+assert.strictEqual(provider.detail("jmap", {}), "JMAP",
+  "a mailbox that has not signed in yet still says what kind it is")
+assert.strictEqual(provider.detail("jmap", null), "JMAP")
 assert.strictEqual(provider.DEFAULT_ID, "gmail",
   "an account written before providers existed is a Gmail account")
 

@@ -1,8 +1,10 @@
 import QtQuick
 import QtQuick.Controls
+import Quickshell
 import qs.Commons
 import qs.Ui
 import "../calendar/Calendar.js" as Calendar
+import "../message/Html.js" as Html
 
 Rectangle {
   id: root
@@ -38,8 +40,8 @@ Rectangle {
   // the same rule the controller applies before any credential is read.
   readonly property bool canWrite: !!root.source && !!event
     && root.source.readOnly !== true
-    && (root.source.kind === "google"
-      ? String(event.googleId || "") !== ""
+    && (root.source.kind === "google" ? String(event.googleId || "") !== ""
+      : root.source.kind === "microsoft" ? String(event.graphId || "") !== ""
       : String(event.href || "") !== "" && String(event.recurrenceRule || "") === ""
         && Number(event.recurrenceIdMs || 0) <= 0
         && String(event.source && event.source.recurrenceId || "") === ""
@@ -48,13 +50,18 @@ Rectangle {
     source ? source.colorKey : "accent")
   readonly property string meetingLink: httpLink(event ? event.meetLink : "")
   readonly property string locationLink: httpLink(event ? event.location : "")
+  // The location as written. One that is not a link is a place, and a place
+  // is something to copy into a message or to look up on a map.
+  readonly property string locationText: String(event && event.location || "").trim()
+  readonly property bool locationIsPlace: locationText !== "" && locationLink === ""
+  readonly property string mapLink: locationIsPlace
+    ? "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(locationText) : ""
   readonly property string providerLink: httpLink(event ? event.href : "")
 
   color: root.backgroundColor
 
   function httpLink(value) {
-    var candidate = String(value || "").trim()
-    return /^https?:\/\//i.test(candidate) ? candidate : ""
+    return Html.externallyOpenableHttpUrl(value)
   }
 
   function dateSummary() {
@@ -85,6 +92,10 @@ Rectangle {
   }
 
   Flickable {
+    id: detailFlick
+
+    WheelScroller { view: detailFlick }
+
     anchors.fill: parent
     anchors.margins: Style.space(18)
     contentWidth: width
@@ -183,14 +194,14 @@ Rectangle {
 
       Flow {
         visible: root.meetingLink !== "" || root.locationLink !== ""
-          || root.providerLink !== "" || root.canWrite
+          || root.providerLink !== "" || root.canWrite || root.locationText !== ""
         width: parent.width
         spacing: Style.space(7)
 
         IconTextButton {
           visible: root.canWrite
           text: "Edit..."
-          iconName: "compose"
+          iconName: "edit"
           foreground: root.textColor
           accent: root.eventColor
           fontFamily: root.panelFontFamily
@@ -225,6 +236,29 @@ Rectangle {
           accent: root.eventColor
           fontFamily: root.panelFontFamily
           onClicked: Qt.openUrlExternally(root.locationLink)
+        }
+
+        IconTextButton {
+          objectName: "event-open-map"
+          visible: root.locationIsPlace
+          text: "Open in Google Maps"
+          iconName: "pin"
+          foreground: root.textColor
+          accent: root.eventColor
+          fontFamily: root.panelFontFamily
+          onClicked: Qt.openUrlExternally(root.mapLink)
+        }
+
+        IconTextButton {
+          objectName: "event-copy-location"
+          visible: root.locationText !== ""
+          text: "Copy location"
+          iconName: "pin"
+          foreground: root.textColor
+          accent: root.eventColor
+          fontFamily: root.panelFontFamily
+          // Straight to wl-copy as one argument: no shell in between.
+          onClicked: Quickshell.execDetached(["wl-copy", root.locationText])
         }
 
         IconTextButton {

@@ -3,6 +3,7 @@ import QtQuick.Controls as QQC
 import qs.Commons
 import qs.Ui
 import "Menu.js" as Menu
+import "../account/Model.js" as Model
 
 // The list's right-click menu. It is a Popup rather than a child of the row
 // because the list scrolls inside a clipping Flickable, which would cut the
@@ -19,11 +20,38 @@ Item {
   required property string panelFontFamily
 
   property string messageId: ""
+  // Opened from a stop on the conversation rail rather than from a row. A stop
+  // is one message: its summary is among the account's member summaries, and
+  // what it asks for reaches that message alone, where a row's menu reaches
+  // every counted member of the conversation the row stands for.
+  property bool memberOnly: false
   property real anchorX: 0
   property real anchorY: 0
   property int cursorIndex: -1
   readonly property var menuRows: [replyRow, replyAllRow, forwardRow, archiveRow,
-    trashRow, spamRow, readRow, starRow, browserRow]
+    unarchiveRow, moveRow,
+    trashRow, spamRow, readRow, starRow, browserRow, aiRow]
+  // Whether this message is archived — out of the inbox and not somewhere
+  // that has its own verb. Read off the summary the menu was opened on rather
+  // than asked of the service, because the menu is about one message. IMAP
+  // synthesises all four of these from the folder, so one rule serves both
+  // kinds of provider.
+  readonly property bool archived: !!root.summary
+    && root.summary.inInbox === false
+    && root.summary.inTrash !== true
+    && root.summary.inSpam !== true
+    && root.summary.isSent !== true
+    && root.summary.isDraft !== true
+
+  // Whether the list it was opened from is a label's, and whether that label
+  // is one a message can be taken out of — which is the same question
+  // `labelChangesFor` asks, so the wording cannot promise a removal that does
+  // not happen.
+  readonly property bool inLabelView: !!root.service
+    && !!root.service.hasLabels
+    && String(root.service.rawLabelId || "") !== ""
+    && !Model.isSystemLabelId(String(root.service.rawLabelId || ""))
+
   readonly property bool opened: menu.opened
   readonly property var summary: {
     if (!service || messageId === "") return null
@@ -31,16 +59,34 @@ Item {
     for (var i = 0; i < list.length; i++) {
       if (list[i].id === messageId) return list[i]
     }
+    // A member the list drew no row for: the rail's own summaries.
+    var members = service.memberSummaries
+    if (members && typeof members === "object" && members[messageId]) return members[messageId]
     return null
   }
 
+  signal agentRequested(string id, real sceneX, real sceneY)
   signal composeRequested(string mode, string id)
   signal actionRequested(string action, string id)
+  // The same two, from a menu opened on a rail stop, so the owner can keep the
+  // list cursor where it is and scope the action to the one message.
+  signal memberComposeRequested(string mode, string id)
+  signal memberActionRequested(string action, string id)
 
   anchors.fill: parent
   z: 50
 
   function openAt(id, sceneX, sceneY) {
+    root.memberOnly = false
+    openMenu(id, sceneX, sceneY)
+  }
+
+  function openForMember(id, sceneX, sceneY) {
+    root.memberOnly = true
+    openMenu(id, sceneX, sceneY)
+  }
+
+  function openMenu(id, sceneX, sceneY) {
     root.messageId = String(id || "")
     if (!root.summary) return
     var local = root.mapFromGlobal(sceneX, sceneY)
@@ -71,14 +117,18 @@ Item {
 
   function run(action) {
     var id = root.messageId
+    var member = root.memberOnly
     menu.close()
-    root.actionRequested(action, id)
+    if (member) root.memberActionRequested(action, id)
+    else root.actionRequested(action, id)
   }
 
   function compose(mode) {
     var id = root.messageId
+    var member = root.memberOnly
     menu.close()
-    root.composeRequested(mode, id)
+    if (member) root.memberComposeRequested(mode, id)
+    else root.composeRequested(mode, id)
   }
 
   QQC.Popup {
@@ -132,9 +182,32 @@ Item {
       // meant "move to a folder" would be a promise this cannot keep.
       MenuRow {
         id: archiveRow
-        visible: !root.service || root.service.canArchive
+        visible: (!root.service || root.service.canArchive) && !root.archived
         text: "Archive"
         onActivated: root.run("archive")
+      }
+      // The other direction, and only where it would be the truth.
+      //
+      // `inInbox === false` alone put this row in Spam, Trash, Drafts and
+      // Sent, where adding INBOX is not what "move to the inbox" means:
+      // `labelChangesFor` removes neither SPAM nor TRASH, so a spam message
+      // would carry INBOX *and* SPAM and stay in Spam while the row claimed
+      // otherwise, and on IMAP the same press physically relocates a draft
+      // out of the Drafts folder. Spam has its own verb and trash has its own
+      // endpoint, for exactly this reason; archived mail is what is left.
+      MenuRow {
+        id: unarchiveRow
+        visible: (!root.service || root.service.canArchive) && root.archived
+        text: root.inLabelView ? "Move to Inbox and remove label" : "Move to Inbox"
+        onActivated: root.run("unarchive")
+      }
+      MenuRow {
+        id: moveRow
+        // A member of a conversation is not a row the picker can move on
+        // its own; the row above it is.
+        visible: !!root.service && root.service.canMoveToLabel && !root.memberOnly
+        text: "Move to..."
+        onActivated: root.run("moveToLabel")
       }
       MenuRow { id: trashRow; text: "Move to trash"; tone: root.urgentColor; onActivated: root.run("trash") }
       MenuRow {
@@ -165,6 +238,18 @@ Item {
       MenuSeparatorLine {
         width: menu.width - menu.leftPadding - menu.rightPadding
         lineColor: root.textColor
+      }
+
+      MenuRow {
+        id: aiRow
+        objectName: "message-menu-ai"
+        text: "Ask AI..."
+        onActivated: {
+          var id = root.messageId
+          var scene = root.mapToGlobal(root.anchorX, root.anchorY)
+          menu.close()
+          root.agentRequested(id, scene.x, scene.y)
+        }
       }
 
       // Only where there is a web mailbox to open. An IMAP account has no

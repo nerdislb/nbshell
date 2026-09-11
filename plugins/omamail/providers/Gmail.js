@@ -29,6 +29,9 @@ var MARK = "gmail.png"
 
 var CAPABILITIES = {
   labels: true,
+  manageLabels: true,
+  // Adding a label and taking INBOX away, which is archive with a destination.
+  move: true,
   threads: true,
   archive: true,
   spam: true,
@@ -72,12 +75,16 @@ var MAILBOXES = [
   { key: "unread", label: "Unread", icon: "unread",
     query: "in:inbox is:unread -category:promotions -category:social -category:forums" },
   { key: "starred", label: "Starred", icon: "star", query: "is:starred" },
-  { key: "sent", label: "Sent", icon: "send", query: "in:sent" },
+  { key: "sent", label: "Sent", icon: "sent", query: "in:sent" },
   { key: "drafts", label: "Drafts", icon: "compose", query: "in:drafts" },
   // Optional: the first to go when the row cannot hold every mailbox. Neither
   // is somewhere anyone works from — they are places you go looking for
   // something specific, and search reaches both.
   { key: "all", label: "All mail", icon: "archive", query: "in:anywhere -in:spam -in:trash", optional: true },
+  // Where a message nobody can find has usually gone. Gmail keeps it out of an
+  // ordinary search on purpose, so without a mailbox the only way in is knowing
+  // to type `in:spam` — which is knowing the answer already.
+  { key: "spam", label: "Spam", icon: "spam", query: "in:spam", optional: true },
   { key: "trash", label: "Trash", icon: "trash", query: "in:trash", optional: true }
 ]
 
@@ -102,6 +109,14 @@ function cachedSummaryInSearch(sourceQuery, summary) {
 
 // Selecting a label in the sidebar. A Gmail label is a search operator, which
 // is why this is a different string from the one a typed search produces.
+// Mail from, or to, one address: Gmail's own operators, which the search
+// box already accepts verbatim.
+function addressQuery(field, address) {
+  var value = String(address === undefined || address === null ? "" : address).trim()
+  if (value === "" || /[\s"]/.test(value)) return ""
+  return (field === "to" ? "to:" : "from:") + value
+}
+
 function labelQuery(name) {
   var value = String(name === undefined || name === null ? "" : name).trim()
   return value === "" ? "" : "label:" + value

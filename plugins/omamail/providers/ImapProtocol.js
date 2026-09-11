@@ -1,5 +1,7 @@
 .pragma library
 
+.import "../account/Aliases.js" as Aliases
+
 // The IMAP protocol, and nothing else. No transport lives here — `ImapClient.qml`
 // owns the process that speaks to the server — and no message format lives here
 // either: an RFC 822 message is `Message.js`'s subject, and this file hands one
@@ -45,9 +47,16 @@ var PRESETS = [
     smtpHost: "smtp.gmail.com", smtpPort: 465,
     // Google turned off password sign-in for IMAP. An app password works only
     // with 2-Step Verification on, and that is the sentence users need to see
-    // before they go looking for a setting that is not there.
-    note: "Needs an app password, which Google only offers with 2-Step Verification on. "
-      + "The Gmail provider signs in with Google directly and does not need one."
+    // before they go looking for a setting that is not there — with the page
+    // that walks them through it, because "app password" is not a term anyone
+    // can act on from memory.
+    note: "Google no longer accepts your account password here. Create an app password "
+      + "(Google offers one only with 2-Step Verification on) and paste it below — "
+      + "or go back and pick Gmail to sign in with Google and skip all of this.",
+    guide: {
+      url: "https://support.google.com/accounts/answer/185833",
+      label: "How to create a Google app password"
+    }
   },
   {
     id: "icloud",
@@ -55,7 +64,11 @@ var PRESETS = [
     domains: ["icloud.com", "me.com", "mac.com"],
     imapHost: "imap.mail.me.com", imapPort: 993,
     smtpHost: "smtp.mail.me.com", smtpPort: 587,
-    note: "Needs an app-specific password from appleid.apple.com."
+    note: "Needs an app-specific password from appleid.apple.com.",
+    guide: {
+      url: "https://support.apple.com/102654",
+      label: "How to create an Apple app-specific password"
+    }
   },
   {
     id: "fastmail",
@@ -72,7 +85,7 @@ var PRESETS = [
     imapHost: "outlook.office365.com", imapPort: 993,
     smtpHost: "smtp-mail.outlook.com", smtpPort: 587,
     note: "Microsoft has withdrawn password sign-in for personal accounts; "
-      + "a work or school account may still allow it."
+      + "go back and pick Outlook to sign in with Microsoft instead."
   },
   {
     id: "yahoo",
@@ -95,6 +108,31 @@ var PRESETS = [
     domains: ["gmx.com", "gmx.net", "gmx.de"],
     imapHost: "imap.gmx.com", imapPort: 993,
     smtpHost: "mail.gmx.com", smtpPort: 465
+  },
+  // Here for the note rather than the servers: imap.163.com and smtp.163.com
+  // on the standard ports are exactly what `imap.<domain>` would have guessed.
+  // What no address can imply is that the mailbox refuses the account
+  // password, and a user who does not know that is told only that they were
+  // rejected — which is the one sentence that stops the next hour.
+  //
+  // 163.com alone, deliberately. NetEase's other consumer domains are the same
+  // service on their own hostnames, so 126.com and yeah.net cannot be added to
+  // this row's `domains` — they would be handed the 163 servers. They need a
+  // row each, and until someone wants one the guess already reaches them.
+  {
+    id: "netease-163",
+    name: "163 Mail",
+    domains: ["163.com"],
+    imapHost: "imap.163.com", imapPort: 993,
+    smtpHost: "smtp.163.com", smtpPort: 465,
+    note: "163 does not accept your account password here. Switch IMAP on in the "
+      + "mailbox's own settings, then paste the authorisation code it hands you — it "
+      + "is a separate string from the password you sign in to the website with.",
+    guide: {
+      url: "https://help.mail.163.com/faqDetail.do?code="
+        + "d7a5dc8471cd0c0e8b4b8f4f8e49998b374173cfe9171305fa1ce630d7f67ac2a5feb28b66796d3b",
+      label: "How to get a 163 authorisation code"
+    }
   },
   {
     id: "proton",
@@ -145,7 +183,11 @@ function suggestedSettings(address) {
       username: trimmed(address),
       insecure: preset.insecure === true,
       preset: preset.id,
-      note: String(preset.note || "")
+      note: String(preset.note || ""),
+      // Where the note's instruction is spelled out, for the providers whose
+      // password is not the one the user knows. Empty for the rest.
+      guideUrl: preset.guide ? String(preset.guide.url || "") : "",
+      guideLabel: preset.guide ? String(preset.guide.label || "") : ""
     }
   }
   return {
@@ -156,7 +198,9 @@ function suggestedSettings(address) {
     username: trimmed(address),
     insecure: false,
     preset: "",
-    note: ""
+    note: "",
+    guideUrl: "",
+    guideLabel: ""
   }
 }
 
@@ -179,19 +223,41 @@ function normalizedPort(value, fallback) {
   return port
 }
 
+// A host name is case-insensitive, and lowercasing it here is what keeps every
+// later reading of it the same one. `isLoopback` already compares lowercased,
+// so a user who typed "LocalHost" was judged local up here and then failed to
+// match the transport's own loopback patterns further down — which meant the
+// local bridge, the one server that legitimately speaks plaintext, was the one
+// refused for not offering TLS.
 function normalizeSettings(raw) {
   var values = raw || {}
   return {
-    imapHost: trimmed(values.imapHost),
+    imapHost: trimmed(values.imapHost).toLowerCase(),
     imapPort: normalizedPort(values.imapPort, DEFAULT_IMAP_PORT),
-    smtpHost: trimmed(values.smtpHost),
+    smtpHost: trimmed(values.smtpHost).toLowerCase(),
     smtpPort: normalizedPort(values.smtpPort, DEFAULT_SMTP_PORT),
     username: trimmed(values.username),
+    aliases: Aliases.parse(values.aliases),
     // Loopback only. A plaintext session to anywhere else is a password on the
     // wire, and the one legitimate case — a local bridge — never leaves the
     // machine.
-    insecure: values.insecure === true && isLoopback(values.imapHost)
+    insecure: values.insecure === true && isLoopback(values.imapHost),
+    send: normalizeSend(values.send)
   }
+}
+
+// How a message leaves: SMTP, or Microsoft Graph's sendMail for a Microsoft
+// 365 tenant that has switched authenticated SMTP off. Graph takes the same
+// MIME the SMTP path builds and files the sent copy itself. Empty or missing
+// is SMTP, which is what every mailbox already on disk means.
+var GRAPH_SEND_URL = "https://graph.microsoft.com/v1.0/me/sendMail"
+
+function normalizeSend(value) {
+  return trimmed(value).toLowerCase() === "graph" ? "graph" : ""
+}
+
+function sendsViaGraph(raw) {
+  return normalizeSend((raw || {}).send) === "graph"
 }
 
 function isLoopback(host) {
@@ -211,7 +277,9 @@ function setupSettings(raw) {
     smtpHost: values.smtpHost,
     smtpPort: values.smtpPort,
     username: trimmed(values.username) || trimmed(values.address),
-    insecure: isLoopback(values.imapHost)
+    aliases: values.aliases,
+    insecure: isLoopback(values.imapHost),
+    send: values.send
   })
 }
 
@@ -230,10 +298,34 @@ function validateSettings(raw) {
 // The URL the transport connects with. Built here rather than in the shell
 // script so the host has been through `isValidHost` on the way, and so the
 // tests can see what a given account would dial.
+// Which ports mean "connect in the clear, then upgrade". Naming the STARTTLS
+// ports rather than the TLS ones is the whole of the difference between this
+// and asking whether the port is 993: a server on 9993, or on whatever a
+// hosting panel picked, speaks TLS from the first byte and has no STARTTLS to
+// offer, so a client that inferred STARTTLS from "not 993" would simply stop
+// connecting to it. These three are the ports the RFCs assign to the upgrade,
+// and a server on any other one is dialled the way it was before this list
+// existed.
+//
+// The upgrade is not optional once it is chosen: `mail-transport.sh` adds
+// `ssl-reqd` to every non-loopback plaintext scheme, so a server that turns
+// out not to offer STARTTLS is refused rather than spoken to in the clear.
+var STARTTLS_IMAP_PORTS = [143]
+var STARTTLS_SMTP_PORTS = [25, 587]
+
+function usesStartTls(port, ports) {
+  var value = Number(port)
+  for (var i = 0; i < ports.length; i++) {
+    if (ports[i] === value) return true
+  }
+  return false
+}
+
 function imapUrl(settings, folder) {
   var values = normalizeSettings(settings)
   if (!isValidHost(values.imapHost)) return ""
-  var scheme = values.insecure ? "imap" : "imaps"
+  var plain = values.insecure || usesStartTls(values.imapPort, STARTTLS_IMAP_PORTS)
+  var scheme = plain ? "imap" : "imaps"
   var url = scheme + "://" + values.imapHost + ":" + values.imapPort
   var box = trimmed(folder)
   // The mailbox is a path segment, so anything that could end the segment or
@@ -248,7 +340,9 @@ function smtpUrl(settings) {
   if (!isValidHost(values.smtpHost)) return ""
   // IMAP and SMTP may name different hosts. The shared local-transport flag
   // cannot let a loopback IMAP server downgrade a remote SMTP connection.
-  var scheme = values.insecure && isLoopback(values.smtpHost) ? "smtp" : "smtps"
+  var local = values.insecure && isLoopback(values.smtpHost)
+  var plain = local || usesStartTls(values.smtpPort, STARTTLS_SMTP_PORTS)
+  var scheme = plain ? "smtp" : "smtps"
   return scheme + "://" + values.smtpHost + ":" + values.smtpPort
 }
 
@@ -401,11 +495,17 @@ function uidListCommand() {
   return "UID FETCH 1:* (UID)"
 }
 
-// An interactive search does not need every UID before it can begin. This one
-// short FETCH learns the immutable upper boundary of the mailbox; an empty
-// mailbox answers with no FETCH row at all.
-function uidCeilingCommand() {
-  return "UID FETCH *:* (UID)"
+// An interactive search does not need every UID before it can begin: the UID
+// of the last message by sequence number is the mailbox's upper boundary. The
+// obvious `UID FETCH *:*` cannot be used through curl, which takes a FETCH of
+// one message for a body fetch and routes its untagged answer where the
+// transport never sees it. A range that starts with a number passes through
+// intact; the count it starts from comes from STATUS on an earlier connection,
+// and running the range up to `*` rather than back to the count keeps a
+// message delivered between the two from sitting above the ceiling unseen.
+function topUidCommand(count) {
+  var n = Math.floor(Number(count))
+  return isFinite(n) && n >= 1 ? "FETCH " + n + ":* (UID)" : ""
 }
 
 // A SEARCH over a known UID snapshot can be split without using message
@@ -548,6 +648,64 @@ function expungeCommand(uids) {
   return set === "" ? "" : "UID EXPUNGE " + set
 }
 
+function draftReplacementCommands(id, draftsFolder) {
+  var parsed = parseMessageId(id)
+  if (parsed.uid < 1 || parsed.folder !== String(draftsFolder || "")) return []
+  return [
+    "UID STORE " + parsed.uid + " +FLAGS.SILENT (\\Deleted)",
+    expungeCommand([parsed.uid])
+  ]
+}
+
+function draftReplacementPlan(id, draftsFolder) {
+  var commands = draftReplacementCommands(id, draftsFolder)
+  return {
+    commands: commands,
+    warning: commands.length > 0 ? ""
+      : "The updated draft was saved, but the old copy could not be identified"
+  }
+}
+
+function draftSaveResult(replaceError) {
+  var detail = trimmed(replaceError)
+  return {
+    saved: true,
+    warning: detail === "" ? ""
+      : "The updated draft was saved, but the old copy could not be removed: " + detail
+  }
+}
+
+// The folder a sent copy is filed in: the server's own Sent, learned from
+// LIST like every folder name is. An empty answer means the server named
+// none, and names are never guessed — a client that made one up would create
+// folders rather than find them.
+function sentFolder(special) {
+  return (special || {})["\\sent"] || ""
+}
+
+// curl's upload-flags names flags as bare words rather than as the
+// parenthesised list IMAP puts on the APPEND line. A draft keeps its \Draft
+// marker; a sent copy arrives seen, because its author has read it.
+function appendFlagWords(sent) {
+  return sent === true ? "seen" : "draft"
+}
+
+// What a finished send reports about the copy the mailbox keeps. The message
+// itself is out either way, so a copy that did not land is a warning carried
+// on a success, never a failure of the send. An empty folder name stands for
+// every reason no folder was known — the server listed none, or the listing
+// could not be asked — because what the user does about them is the same:
+// nothing.
+function sentCopyResult(folder, filed) {
+  if (String(folder || "") === "")
+    return { sent: true, warning: "Sent, but no Sent folder was found to file a copy in" }
+  return {
+    sent: true,
+    warning: filed === true ? ""
+      : "Sent, but the copy for the Sent folder could not be saved"
+  }
+}
+
 function statusCommand(folder) {
   return "STATUS " + quote(folder) + " (MESSAGES UNSEEN)"
 }
@@ -562,6 +720,26 @@ function listCommand() {
 function capabilityCommand() {
   return "CAPABILITY"
 }
+
+// RFC 2971's client identification, sent to any server that advertises ID.
+// Most servers tolerate its absence, which is why it went missing for so long.
+// Coremail does not: it answers every SELECT with "Unsafe Login" until this has
+// arrived, and that is how the omission was found rather than what it is for.
+//
+// Delivered by the transport's `imap-id` mode, which is the only way to get a
+// command in front of the SELECT curl derives from a URL's path.
+//
+// Sent only to a server that advertised ID: one that has never heard of it
+// answers BAD, and the transport runs curl with --fail-early, so that single
+// BAD would take every command after it.
+//
+// A name and nothing else. This string goes into someone else's server log,
+// and the operating system, the hostname and the user are none of its
+// business — RFC 2971 section 3.3 says as much.
+function idCommand() {
+  return "ID (\"name\" \"omamail\")"
+}
+
 
 // ------------------------------------------------------- search translation
 
@@ -796,6 +974,165 @@ function parseList(text) {
   return out
 }
 
+// ------------------------------------------------- mailbox names on the wire
+//
+// A mailbox name is not text. RFC 3501 section 5.1.3 carries it in "modified
+// UTF-7": everything outside printable US-ASCII is shifted into a base64 run
+// introduced by "&" and closed by "-", with "," standing in for base64's "/"
+// because "/" is a hierarchy delimiter, and "&-" spelling a literal "&".
+//
+// So a Chinese mailbox arrives as "&g0l6P3ux-" and a sidebar that prints what
+// the server said prints that. This is the only place it is turned back into
+// the name its owner gave it — and the decoded form is for display and nothing
+// else. Every name that goes back to the server travels as `rawName`, exactly
+// as it arrived, so nothing here has to be re-encoded and no round trip can
+// lose a byte in the process.
+//
+// Anything that does not decode is passed through unchanged rather than
+// rejected: a server that sends a bare "&" is not a reason to hide a folder.
+
+var MODIFIED_BASE64 =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+,"
+
+// The base64 run holds UTF-16BE, so it decodes to whole code units — which is
+// what a JavaScript string is made of, surrogate pairs included.
+function decodeShift(chunk) {
+  var bits = 0
+  var width = 0
+  var units = []
+  var pending = -1
+  for (var i = 0; i < chunk.length; i++) {
+    var value = MODIFIED_BASE64.indexOf(chunk.charAt(i))
+    if (value < 0) return null
+    bits = (bits << 6) | value
+    width += 6
+    if (width < 8) continue
+    width -= 8
+    var byte = (bits >> width) & 0xff
+    if (pending < 0) pending = byte
+    else {
+      units.push((pending << 8) | byte)
+      pending = -1
+    }
+  }
+  // A trailing half of a code unit means the run was truncated, and the bits
+  // left over past the last whole byte are the run's padding, which must be
+  // zero. A run that yields no code unit at all is malformed too: the one
+  // legitimately empty run is "&-", and that is an ampersand, handled above.
+  if (pending >= 0) return null
+  if (width > 0 && (bits & ((1 << width) - 1)) !== 0) return null
+  if (units.length === 0) return null
+  var out = ""
+  for (var j = 0; j < units.length; j++) out += String.fromCharCode(units[j])
+  return out
+}
+
+function decodeMailbox(name) {
+  var text = String(name === undefined || name === null ? "" : name)
+  if (text.indexOf("&") < 0) return text
+  var out = ""
+  var at = 0
+  while (at < text.length) {
+    if (text.charAt(at) !== "&") {
+      out += text.charAt(at)
+      at++
+      continue
+    }
+    var close = text.indexOf("-", at + 1)
+    if (close < 0) {
+      // An unterminated run is not a name this can improve on.
+      out += text.substring(at)
+      break
+    }
+    var chunk = text.substring(at + 1, close)
+    if (chunk === "") {
+      // "&-" is how the protocol spells an ampersand.
+      out += "&"
+    } else {
+      var decoded = decodeShift(chunk)
+      out += decoded === null ? text.substring(at, close + 1) : decoded
+    }
+    at = close + 1
+  }
+  return out
+}
+
+// The other direction, for a name the user typed that is about to be sent in
+// CREATE or RENAME: printable US-ASCII passes through, "&" is spelled "&-",
+// and everything else goes into a base64 run of its UTF-16 code units with
+// "," standing in for "/" and no padding — RFC 3501 section 5.1.3. What comes
+// back from LIST decodes to the same text, and `tests/test_imap.js` holds the
+// round trip.
+function encodeMailbox(name) {
+  var text = String(name === undefined || name === null ? "" : name)
+  var out = ""
+  var run = ""
+  function flush() {
+    if (run === "") return
+    var bytes = []
+    for (var i = 0; i < run.length; i++) {
+      var code = run.charCodeAt(i)
+      bytes.push((code >> 8) & 0xff, code & 0xff)
+    }
+    var alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+,"
+    var encoded = ""
+    for (var b = 0; b < bytes.length; b += 3) {
+      var n = (bytes[b] << 16) | ((b + 1 < bytes.length ? bytes[b + 1] : 0) << 8)
+        | (b + 2 < bytes.length ? bytes[b + 2] : 0)
+      encoded += alphabet.charAt((n >> 18) & 63) + alphabet.charAt((n >> 12) & 63)
+      if (b + 1 < bytes.length) encoded += alphabet.charAt((n >> 6) & 63)
+      if (b + 2 < bytes.length) encoded += alphabet.charAt(n & 63)
+    }
+    out += "&" + encoded + "-"
+    run = ""
+  }
+  for (var at = 0; at < text.length; at++) {
+    var ch = text.charAt(at)
+    var code = text.charCodeAt(at)
+    if (code >= 0x20 && code <= 0x7e) {
+      flush()
+      out += ch === "&" ? "&-" : ch
+    } else {
+      run += ch
+    }
+  }
+  flush()
+  return out
+}
+
+// The three commands that change the folder list. A name the server already
+// has travels exactly as LIST spelled it — the wire name, encoded once by
+// the server — and a name the user typed is encoded here. Encoding a wire
+// name again turns its "&" into "&-" and names a folder that does not exist.
+// A RENAME carries every folder beneath the old name with it, which is what
+// moving a folder under another parent is.
+// Refuse an unrepresentable identity before quoting or encoding can change it.
+function validFolderName(value) {
+  var text = String(value === undefined || value === null ? "" : value)
+  if (text === "" || /[\x00-\x1f\x7f]/.test(text)) return false
+  for (var i = 0; i < text.length; i++) {
+    var code = text.charCodeAt(i)
+    if (code >= 0xd800 && code <= 0xdbff) {
+      var next = text.charCodeAt(++i)
+      if (!(next >= 0xdc00 && next <= 0xdfff)) return false
+    } else if (code >= 0xdc00 && code <= 0xdfff) return false
+  }
+  return true
+}
+
+function createCommand(name) {
+  return validFolderName(name) ? "CREATE " + quote(encodeMailbox(name)) : ""
+}
+
+function renameCommand(fromWire, toName) {
+  if (!validFolderName(fromWire) || !validFolderName(toName)) return ""
+  return "RENAME " + quote(fromWire) + " " + quote(encodeMailbox(toName))
+}
+
+function deleteCommand(wireName) {
+  return validFolderName(wireName) ? "DELETE " + quote(wireName) : ""
+}
+
 // The SPECIAL-USE attributes this plugin cares about, mapped to the folder the
 // server named. A server that advertises none leaves the map empty and
 // `resolveFolder` falls back to the plain word.
@@ -847,7 +1184,10 @@ function specialFolders(folders) {
     if (!map["\\sent"] && /^sent( mail| items| messages)?$/.test(leaf)) map["\\sent"] = name
     if (!map["\\trash"] && /^(trash|deleted( items| messages)?)$/.test(leaf)) map["\\trash"] = name
     if (!map["\\drafts"] && /^drafts?$/.test(leaf)) map["\\drafts"] = name
-    if (!map["\\junk"] && /^(junk|spam|bulk mail)$/.test(leaf)) map["\\junk"] = name
+    // Exchange calls it "Junk Email", which is the one name in this list that
+    // the bare word cannot stand in for: every other fallback below happens to
+    // be what Exchange calls the folder anyway.
+    if (!map["\\junk"] && /^(junk([ -]?e-?mail)?|spam|bulk mail)$/.test(leaf)) map["\\junk"] = name
     if (!map["\\archive"] && /^(archive|all mail)$/.test(leaf)) map["\\archive"] = name
   }
   return map
@@ -925,19 +1265,44 @@ function flagPlanForLabels(addLabelIds, removeLabelIds, special) {
     return false
   }
 
+  // A move always adds its named destination while taking INBOX away. Read it
+  // before interpreting Gmail's system ids: an ordinary IMAP folder may itself
+  // be named "Starred", "Unread", "Trash", or "Spam".
+  var destination = folderTarget(added, removed)
+
   // The inversion again: Gmail's UNREAD is a label you add, IMAP's \Seen is a
   // flag you remove. Getting this backwards marks read what the user just
   // marked unread.
-  if (has(added, "UNREAD")) plan.remove.push("\\Seen")
+  if (destination === "" && has(added, "UNREAD")) plan.remove.push("\\Seen")
   if (has(removed, "UNREAD")) plan.add.push("\\Seen")
-  if (has(added, "STARRED")) plan.add.push("\\Flagged")
+  if (destination === "" && has(added, "STARRED")) plan.add.push("\\Flagged")
   if (has(removed, "STARRED")) plan.remove.push("\\Flagged")
 
   if (has(removed, "INBOX")) plan.move = map["\\archive"] || ""
-  if (has(added, "INBOX")) plan.move = "INBOX"
-  if (has(added, "TRASH")) plan.move = map["\\trash"] || ""
-  if (has(added, "SPAM")) plan.move = map["\\junk"] || ""
+  if (destination === "" && has(added, "INBOX")) plan.move = "INBOX"
+  if (destination === "" && has(added, "TRASH")) plan.move = map["\\trash"] || ""
+  if (destination === "" && has(added, "SPAM")) plan.move = map["\\junk"] || ""
+
+  // A named destination, which is the one case where the request is already
+  // IMAP: `getLabels` reports folder names as label ids, so a move asks for
+  // the folder by the name the server gave it. It is read last because such a
+  // request also removes INBOX -- the archive above is the default for "out of
+  // the inbox", and this is the same message with somewhere better to be.
+  if (destination !== "") plan.move = destination
   return plan
+}
+
+// The destination carried by a move. `labelChangesFor` shapes one as a label
+// added while INBOX is removed; preserving that shape is what keeps a folder
+// named like a Gmail system id from being mistaken for the system operation.
+function folderTarget(addLabelIds, removeLabelIds) {
+  var added = Array.isArray(addLabelIds) ? addLabelIds : []
+  var removed = Array.isArray(removeLabelIds) ? removeLabelIds : []
+  if (added.length === 0) return ""
+  for (var i = 0; i < removed.length; i++) {
+    if (String(removed[i]).toUpperCase() === "INBOX") return String(added[0])
+  }
+  return ""
 }
 
 // -------------------------------------------------------------- the errors
@@ -956,6 +1321,14 @@ function responseError(status, detail, fallback) {
   if (code === 35) return "A secure connection to the mail server could not be established"
   if (code === 60 || code === 51)
     return "The mail server's security certificate could not be verified"
+  // curl gives a refused SELECT the same exit code as a denied login — 67, with
+  // only "Select failed" against "Access denied" to tell them apart — and 21 to
+  // a command the server answered BAD. Reading either as an authentication
+  // failure sends someone off to change a password that was never the problem:
+  // a server that will not open a folder still took the password, and saying
+  // otherwise is the one error message a user cannot act on.
+  if (code === 21 || (code === 67 && /select failed/i.test(text)))
+    return "The mail server refused that command"
   if (code === 67 || /AUTHENTICATIONFAILED|invalid credentials|login failed/i.test(text))
     return "The server rejected that username or password"
   if (/\[ALERT\]/i.test(text)) {
@@ -969,6 +1342,21 @@ function responseError(status, detail, fallback) {
     return "That folder is no longer on the server"
   if (text !== "") return redact(text)
   return fallback || "The mail server could not complete this request"
+}
+
+// The error for a finished transport call, whichever half of it failed.
+//
+// curl's exit code says that something went wrong; the server's own tagged NO
+// or BAD says what, and it is in the response even when curl exits non-zero.
+// Preferring it is what keeps a refused command reported in the words the
+// server chose rather than as whichever of curl's exit codes it happened to
+// share with an unrelated failure.
+function transportError(status, response, detail, fallback) {
+  if (isFailure(response)) {
+    var served = failureDetail(response)
+    if (trimmed(served) !== "") return responseError(0, served, fallback)
+  }
+  return responseError(status, detail, fallback)
 }
 
 // A password can end up in a curl error line, in a server's echo of a failed

@@ -136,6 +136,17 @@ deepEqual(hey.actionCommand("trash", ["1:2"]), ["trash", "1"])
 deepEqual(hey.actionCommand("spam", ["1:2"]), ["spam", "1"])
 deepEqual(hey.actionCommand("untrash", ["1:2"]), ["move", "1", "--to", "imbox"])
 
+// `HeyClient.trashMessage` takes one id or a list of them, because a row that
+// stands for a conversation is trashed as its members — and it hands that list
+// straight here rather than wrapping it again. Every member of a HEY
+// conversation shares its topic and several can share a posting, so the list is
+// expected to repeat one and the command has to name it once: `hey trash 1 1`
+// is a second trash of a thread the first one already moved.
+deepEqual(hey.actionCommand("trash", ["1:2", "1:2", "3:2"]), ["trash", "1", "3"])
+deepEqual(hey.actionCommand("untrash", ["1:2", "1:2"]), ["move", "1", "--to", "imbox"])
+deepEqual(hey.actionCommand("trash", ["1:2", "", "3:4"]), ["trash", "1", "3"],
+  "and an id with no posting half becomes nothing rather than a bare argument")
+
 // A verb HEY does not have is nothing to do rather than something close to it.
 // The panel already hides these buttons; this is the second line of defence.
 deepEqual(hey.actionCommand("star", ["1:2"]), [])
@@ -173,6 +184,22 @@ deepEqual(hey.draftCommand({
   threadId: "2106437143",
   attachments: [{ path: "/tmp/menu.pdf" }]
 }), ["reply", "2106437143", "--draft", "--attach", "/tmp/menu.pdf"])
+deepEqual(hey.draftEditCommand("draft:42", {
+  to: "jane@example.com",
+  cc: "",
+  bcc: "hidden@example.com",
+  subject: "Revised",
+  body: "New body",
+  attachments: [{ path: "/tmp/revised.pdf" }]
+}), [
+  "draft", "edit", "42",
+  "--to", "jane@example.com",
+  "--cc", "",
+  "--bcc", "hidden@example.com",
+  "--subject", "Revised",
+  "--message", "New body",
+  "--attach", "/tmp/revised.pdf"
+])
 assert.strictEqual(hey.isDroppableFlag("--attach"), false)
 assert.strictEqual(hey.isDroppableFlag("--html"), true)
 

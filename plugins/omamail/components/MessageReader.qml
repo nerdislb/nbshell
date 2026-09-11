@@ -2,9 +2,11 @@ import QtQuick
 import QtQuick.Controls
 import qs.Commons
 import qs.Ui
+import "../message/Direction.js" as Direction
 import "../message/Html.js" as Html
 import "../message/Message.js" as Mail
 import "../message/Mailto.js" as Mailto
+import "../account/Conversation.js" as Conversation
 
 // The right column. The body goes through Qt's own rich text engine — a real
 // HTML renderer, not a browser — after Html.sanitize has removed what Qt would
@@ -30,6 +32,9 @@ Item {
   property string bodyMode: "reader"
   property real zoom: 1.0
   property bool alwaysRenderHeavyMessages: false
+  // How the direction of a message's own text is arrived at: read off the text,
+  // or fixed by the reader. Not the direction itself — that is per message.
+  property string contentDirection: Direction.MODE_DEFAULT
   // A way back only means something when something is behind it. At desktop
   // width the list is on screen and clicking another row is the navigation;
   // in a single column the reader has replaced the list, so it needs one.
@@ -39,22 +44,132 @@ Item {
   property bool forceRichAnyway: false
 
   signal backRequested()
+  signal memberRequested(string id)
+  signal memberMenuRequested(string id, real sceneX, real sceneY)
   signal bodyModeRequested(string mode)
   signal zoomRequested(real step)
   signal zoomResetRequested()
   signal composeRequested(string mode)
   signal mailtoRequested(string url)
   signal actionRequested(string action)
+  signal agentRequested(real sceneX, real sceneY)
+  // A right-click on the From line or the To line: the addresses on it, and
+  // where the menu goes. What is done with them is the window's decision.
+  signal addressMenuRequested(var addresses, real sceneX, real sceneY)
+  // Whether the agent popup is up for this message, and whether a job is
+  // running on it — passed down like every other fact the reader draws.
+  property bool agentOpen: false
+  property bool agentWorking: false
+  property bool agentAttention: false
+
+  // ------------------------------------------------------- the conversation
+
+  // The rail down the right edge: every counted member of the open message's
+  // conversation, oldest first, as a stop that opens in this same reader.
+  //
+  // Drawn above the seam for any provider that collapses its listing, off the
+  // block the row was opened with — so a count of 0, which is what a provider
+  // that does not collapse reports and what HEY reports for rows that already
+  // are conversations, draws nothing at all. The account owns both decisions;
+  // this asks.
+  readonly property bool showsRail: !!service && service.showsRail === true
+  readonly property var conversationStops: !root.showsRail ? []
+    : Conversation.stops(service.selectedThread, service.memberSummaries,
+        service.selectedId, service.viewedMailboxKey, service.mailboxes)
+  readonly property string conversationCaption: !root.showsRail ? ""
+    : Conversation.caption(service.selectedThread, service.memberSummaries)
+
+  // The member the rail should have on screen, revealed with the smallest
+  // scroll — the list cursor's rule. Watched rather than called from the click,
+  // because `n` and `p` move the reader from the keyboard and a stop opened
+  // from off the bottom of the rail has to come into view either way.
+  //
+  // Deferred a turn: a conversation opened for the first time changes the stops
+  // and lays them out in the same frame, and a scroll computed before the
+  // Column has heights is a scroll to the wrong place.
+  onConversationStopsChanged: if (root.showsRail) Qt.callLater(root.revealOpenStop)
+  function revealOpenStop() {
+    if (root.showsRail && root.service) rail.reveal(root.service.selectedId)
+  }
 
   function openLink(url) {
     if (Mailto.parse(url)) {
       root.mailtoRequested(url)
       return
     }
-    Qt.openUrlExternally(url)
+    var opened = Html.externallyOpenableHttpUrl(url)
+    if (opened === "") return
+    Qt.openUrlExternally(opened)
+  }
+
+  function openImageMarker(source) {
+    var wanted = String(source || "")
+    if (Html.isRasterDataImage(wanted)) {
+      imagePopover.show(wanted)
+      return
+    }
+    if (!root.service || typeof root.service.fetchDisplayImage !== "function") {
+      imagePopover.showPrepared(wanted, "")
+      return
+    }
+    root.service.fetchDisplayImage(wanted, function(data) {
+      if (!root) return
+      imagePopover.showPrepared(wanted, data)
+    })
+  }
+
+  function scrollBy(steps) {
+    var maximum = Math.max(0, bodyFlick.contentHeight - bodyFlick.height)
+    bodyFlick.contentY = Math.max(0, Math.min(maximum,
+      bodyFlick.contentY + steps * Style.space(20)))
   }
 
   readonly property var summary: service ? service.selectedMessage : null
+
+  // The id the service answers to, which is not always the one on the summary.
+  // A list made of several mailboxes addresses a row by mailbox and id, and the
+  // account that owns the message only ever knows its own half of that — so a
+  // call made with the summary's own id reaches no mailbox at all. This is the
+  // composed id where there is one and the same string everywhere else, which
+  // is what the list and the compose view already hand back.
+  readonly property string selectedId: service ? String(service.selectedId || "") : ""
+
+  // Which way this message runs.
+  //
+  // The subject is asked separately from the body, and not as an optimisation:
+  // they can disagree honestly. A reply prefix is Latin whatever the thread is
+  // written in, so `Re: مرحبا` needs the prefix set aside before the question
+  // is asked, while the body has no such wrapper around it.
+  //
+  // The body is read from the message's plain text rather than from its markup.
+  // That is the same text in all three view modes, so switching between them
+  // never changes which way the message reads — and it is the message's own
+  // words rather than a template's, which is what the direction is a fact
+  // about.
+  //
+  // What comes back is the document's base direction, which a sender's own
+  // `dir` still overrides element by element. It is a default for the parts of
+  // the message that state nothing, not a ruling over the parts that do.
+  readonly property string subjectDirection: Direction.resolveSubject(
+    root.summary ? root.summary.subject : "", root.contentDirection)
+  readonly property string bodyDirection: Direction.resolveBody(
+    root.service && root.service.selectedBody ? root.service.selectedBody.text : "",
+    root.contentDirection)
+  // The header lines below the subject carry a name, an address and a date, all
+  // of which Qt lays out correctly from their own first strong character. There
+  // is nothing to add on Auto, and a chosen direction still has to reach them.
+  readonly property string headerDirection: Direction.forced(root.contentDirection)
+
+  // `undefined` rather than a default: a `Text` whose alignment is never set
+  // follows the direction of its own text, and that is the behaviour to leave
+  // in place wherever there is no answer to give it. Assigning Qt's own default
+  // back would render the same and would be one more thing to keep true.
+  readonly property var subjectAlignment: Direction.hasAnswer(root.subjectDirection)
+    ? (Direction.isRightToLeft(root.subjectDirection) ? Text.AlignRight : Text.AlignLeft)
+    : undefined
+  readonly property var headerAlignment: Direction.hasAnswer(root.headerDirection)
+    ? (Direction.isRightToLeft(root.headerDirection) ? Text.AlignRight : Text.AlignLeft)
+    : undefined
   // Already sanitised by the service, remote images and all removed. Qt's rich
   // text engine fetches an <img src="https://..."> for real, so leaving them in
   // would fire every tracking pixel in the message the instant it opened, and
@@ -228,7 +343,7 @@ Item {
       foreground: root.summary && root.summary.starred ? root.accentColor : root.dimColor
       hoverColor: root.accentColor
       fontFamily: root.panelFontFamily
-      onClicked: if (root.service && root.summary) root.service.toggleStar(root.summary.id)
+      onClicked: if (root.service && root.summary) root.actionRequested("star")
     }
 
     Column {
@@ -252,9 +367,11 @@ Item {
         font.pixelSize: Style.font.subtitle
         font.bold: true
         wrapMode: Text.WordWrap
+        horizontalAlignment: root.subjectAlignment
       }
 
       Text {
+        id: fromLine
         width: parent.width
         textFormat: Text.PlainText
         text: root.summary
@@ -264,9 +381,21 @@ Item {
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.bodySmall
         elide: Text.ElideRight
+        horizontalAlignment: root.headerAlignment
+
+        TapHandler {
+          acceptedButtons: Qt.RightButton
+          onTapped: function(eventPoint) {
+            var scene = fromLine.mapToGlobal(eventPoint.position.x, eventPoint.position.y)
+            root.addressMenuRequested(root.summary ? [root.summary.from] : [], scene.x, scene.y)
+          }
+        }
       }
 
+      // Everyone the message went to — To, Cc and Bcc, which a sent message
+      // carries — so a right-click on the line can name any of them.
       Text {
+        id: toLine
         width: parent.width
         textFormat: Text.PlainText
         text: root.summary
@@ -276,7 +405,55 @@ Item {
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.caption
         elide: Text.ElideRight
+        horizontalAlignment: root.headerAlignment
+
+        TapHandler {
+          acceptedButtons: Qt.RightButton
+          onTapped: function(eventPoint) {
+            if (!root.summary) return
+            var all = (root.summary.to || []).concat(root.summary.cc || [], root.summary.bcc || [])
+            var scene = toLine.mapToGlobal(eventPoint.position.x, eventPoint.position.y)
+            root.addressMenuRequested(all, scene.x, scene.y)
+          }
+        }
       }
+    }
+  }
+
+  // ------------------------------------------------------------------ rail
+
+  // The rail keeps its width against the body rather than shrinking with it, so
+  // there is a pane width at which the two of them together leave the message
+  // nothing. That width is not a designed layout: it is where the reader has
+  // already replaced the list, and the fallback if this proves too tight is the
+  // prototype's variant A — lines under the header — rather than a rail three
+  // words wide. Until then the rail simply goes, and nothing else moves.
+  readonly property bool fitsRail: width >= rail.implicitWidth + Style.space(260)
+
+  // From the header's bottom edge to the footer, its own scroll owner beside
+  // the body — the way the list is beside the reader. It takes width and never
+  // height: the message keeps its reading measure and a long conversation
+  // scrolls inside the rail rather than lengthening the page.
+  ConversationRail {
+    id: rail
+    objectName: "conversationRail"
+    visible: !!root.summary && root.showsRail && root.fitsRail
+    anchors.top: headerBlock.bottom
+    anchors.topMargin: Style.space(10)
+    anchors.right: parent.right
+    anchors.bottom: footerBackdrop.visible ? footerBackdrop.top : parent.bottom
+    width: visible ? implicitWidth : 0
+    stops: root.conversationStops
+    caption: root.conversationCaption
+    textColor: root.textColor
+    backgroundColor: root.backgroundColor
+    accentColor: root.accentColor
+    dimColor: root.dimColor
+    dimmerColor: root.dimmerColor
+    panelFontFamily: root.panelFontFamily
+    onMemberActivated: function(id) { root.memberRequested(id) }
+    onMemberMenuRequested: function(id, sceneX, sceneY) {
+      root.memberMenuRequested(id, sceneX, sceneY)
     }
   }
 
@@ -291,7 +468,7 @@ Item {
     id: notices
     anchors.top: headerBlock.bottom
     anchors.left: parent.left
-    anchors.right: parent.right
+    anchors.right: rail.visible ? rail.left : parent.right
     anchors.leftMargin: root.pageInset
     anchors.rightMargin: root.pageInset
     // No gap where there is nothing to separate. An empty Column is zero high,
@@ -342,7 +519,7 @@ Item {
       dimColor: root.dimColor
       accentColor: root.accentColor
       panelFontFamily: root.panelFontFamily
-      onActivated: if (root.service && root.summary) root.service.openInBrowser(root.summary.id)
+      onActivated: if (root.service && root.summary) root.service.openInBrowser(root.selectedId)
     }
 
     // Under the heavy-document notice when both are up: one says why the
@@ -391,9 +568,16 @@ Item {
 
   Flickable {
     id: bodyFlick
+    objectName: "messageBodyScroller"
+
+    WheelScroller { view: bodyFlick }
     anchors.top: notices.bottom
     anchors.left: parent.left
-    anchors.right: parent.right
+    // The rail takes its width out of the body's, which is what keeps the
+    // message's own measure honest: `readingMeasure` is derived from this
+    // flickable's width, so a body that ran under the rail would be centred on
+    // a column that is not there.
+    anchors.right: rail.visible ? rail.left : parent.right
     anchors.bottom: footerBackdrop.visible ? footerBackdrop.top : parent.bottom
     contentWidth: width
     contentHeight: bodyText.y + bodyText.implicitHeight + Style.space(28)
@@ -429,7 +613,7 @@ Item {
       }
       // The same rule the body's own links obey: this leaves the app, and it
       // leaves it through the desktop's browser rather than anything here.
-      onOpenRequested: function(url) { Qt.openUrlExternally(url) }
+      onOpenRequested: function(url) { root.openLink(url) }
     }
 
     TextEdit {
@@ -458,7 +642,8 @@ Item {
             link: root.linkColor,
             quote: root.dimColor,
             fontSize: root.bodyFontSize,
-            maxImageWidth: root.imageWidth
+            maxImageWidth: root.imageWidth,
+            direction: root.bodyDirection
           }))
         : (root.shownMode === "original"
           ? Html.documentFor(root.bodyDocument ? root.bodyDocument : root.rawHtml, ({
@@ -468,13 +653,15 @@ Item {
               quote: root.dimColor,
               padding: 0,
               maxImageWidth: root.imageWidth,
-              compact: root.narrowBody
+              compact: root.narrowBody,
+              direction: root.bodyDirection
             }))
           : Html.plainTextDocument(root.service ? root.service.selectedBody.text : "",
               ({
                 foreground: root.textColor,
                 background: root.backgroundColor,
-                link: root.linkColor
+                link: root.linkColor,
+                direction: root.bodyDirection
               }), root.bodySource === "html"))
       color: root.textColor
       selectionColor: Style.selectionFillFor(root.textColor, root.accentColor)
@@ -490,10 +677,9 @@ Item {
         var image = Html.imageLinkIndex(link)
         if (image > 0) {
           var sources = root.imageSources
-          // A marker in a plain-text body opens the picture it stands for, and
-          // "the picture" is whatever the sender wrote in the src. Opening one
-          // is a fetch, so it obeys the same rule the document does.
-          if (image <= sources.length) imagePopover.show(sources[image - 1])
+          // The marker names the sender's src. Qt must not fetch that URL
+          // itself: the account prepares raster bytes, or the popover refuses.
+          if (image <= sources.length) root.openImageMarker(sources[image - 1])
           return
         }
         root.openLink(link)
@@ -567,13 +753,25 @@ Item {
         required property var modelData
         width: parent.width
         attachment: modelData
+        // Asked of the service by message and attachment rather than looked up
+        // by attachment alone: in a merged list the key is the mailbox's as
+        // well, and a bare id found nothing, so the row never went busy.
+        saving: !!root.service && root.service.attachmentIsSaving(root.selectedId,
+          modelData && modelData.attachmentId ? modelData.attachmentId : "")
         textColor: root.textColor
         dimColor: root.dimColor
         dimmerColor: root.dimmerColor
         panelFontFamily: root.panelFontFamily
         onOpenRequested: function(attachment) {
           if (root.service && root.summary)
-            root.service.openAttachment(root.summary.id, attachment)
+            root.service.openAttachment(root.selectedId, attachment)
+        }
+        onSaveRequested: function(attachment) {
+          // `selectedId`, like every other action on this message: `summary.id`
+          // is the id the owning account issued, which reaches no mailbox in a
+          // merged list and so saved from whichever one was active.
+          if (root.service && root.summary)
+            root.service.saveAttachment(root.selectedId, attachment)
         }
       }
     }
@@ -669,11 +867,27 @@ Item {
           foreground: root.dimColor; hoverColor: root.textColor; fontFamily: root.panelFontFamily
           onClicked: root.actionRequested("archive")
         }
+        // Archive under a label, or move to a folder: the same picker `v`
+        // opens, one press away in the reader too.
         IconButton {
-          id: trashButton
+          id: moveButton
+          objectName: "reader-move-button"
           x: (archiveButton.visible
             ? archiveButton.x + archiveButton.width
             : actionGap.x + actionGap.width) + messageActions.gap
+          y: Math.round((parent.height - height) / 2)
+          visible: !!root.service && root.service.canMoveToLabel
+          iconName: "label"; tooltipText: "Move to... · v"
+          foreground: root.dimColor; hoverColor: root.textColor; fontFamily: root.panelFontFamily
+          onClicked: root.actionRequested("moveToLabel")
+        }
+        IconButton {
+          id: trashButton
+          x: (moveButton.visible
+            ? moveButton.x + moveButton.width
+            : (archiveButton.visible
+              ? archiveButton.x + archiveButton.width
+              : actionGap.x + actionGap.width)) + messageActions.gap
           y: Math.round((parent.height - height) / 2)
           iconName: "trash"; tooltipText: "Move to trash · d"
           foreground: root.dimColor; hoverColor: root.textColor; fontFamily: root.panelFontFamily
@@ -760,7 +974,7 @@ Item {
           iconName: "browser"; tooltipText: "Open in browser"
           foreground: root.dimColor; hoverColor: root.textColor
           fontFamily: root.panelFontFamily
-          onClicked: if (root.service && root.summary) root.service.openInBrowser(root.summary.id)
+          onClicked: if (root.service && root.summary) root.service.openInBrowser(root.selectedId)
         }
       }
     }

@@ -1,14 +1,16 @@
 .pragma library
 
 .import "Gmail.js" as Gmail
+.import "Outlook.js" as Outlook
 .import "Imap.js" as Imap
 .import "Hey.js" as Hey
+.import "Jmap.js" as Jmap
 
 // What kind of mail service an account is, and what the rest of the plugin may
 // therefore ask of it.
 //
 // Each provider describes itself in a file of its own next door; this one is
-// the abstraction over the three. Everything above it asks questions here and
+// the abstraction over the four. Everything above it asks questions here and
 // never branches on a provider id — that is the whole point of the seam.
 //
 // A provider answers four questions:
@@ -34,8 +36,19 @@ function capabilities(values) {
   return {
     // Several labels on one message, rather than one folder holding it.
     labels: raw.labels === true,
+    // A destination the user names. A different question from `labels`: a
+    // mailbox with one folder per message cannot label anything and can still
+    // be told where to put it, which is IMAP exactly.
+    move: raw.move === true,
     // A server-side conversation id.
     threads: raw.threads === true,
+    // A different question: whether the *listing* collapses to one row per
+    // conversation. Having thread ids does not settle it — Gmail has them and
+    // still lists messages, because collapsing its list would cost a
+    // `threads.get` per thread — while HEY's rows already are conversations
+    // with nothing here to do. Grouping is a rule above this seam, and this is
+    // what gates it.
+    conversations: raw.conversations === true,
     // "Archive" means something.
     archive: raw.archive === true,
     // A junk verb the server acts on.
@@ -55,6 +68,9 @@ function capabilities(values) {
     webBox: raw.webBox === true,
     // Free-text search the server runs.
     search: raw.search === true,
+    // The label or folder list can be changed from here: created, renamed,
+    // moved under another, deleted. HEY's labels are HEY's own.
+    manageLabels: raw.manageLabels === true,
     // Sends mail. A read-only provider still shows a reader; it just cannot
     // answer from it.
     send: raw.send === true
@@ -77,7 +93,7 @@ function mailbox(raw) {
 
 // One provider, normalised. A definition file states only what is true of it;
 // the defaults, and the rule that an undeclared capability is a "no", live here
-// so they cannot drift between three files.
+// so they cannot drift between four files.
 function define(source) {
   var raw = source || {}
   var boxes = []
@@ -101,6 +117,7 @@ function define(source) {
     cachedSummaryInSearch: typeof raw.cachedSummaryInSearch === "function"
       ? raw.cachedSummaryInSearch : function() { return false },
     labelQuery: typeof raw.labelQuery === "function" ? raw.labelQuery : function() { return "" },
+    addressQuery: typeof raw.addressQuery === "function" ? raw.addressQuery : function() { return "" },
     // Where a message and a mailbox live on the web, for the provider that has
     // a web UI worth opening. A provider that declares no `web` capability
     // never reaches these, and answers "" if something asks anyway.
@@ -110,18 +127,28 @@ function define(source) {
     // that empty string is what removes the link from a mailbox's settings row.
     webHomeUrl: typeof raw.webHomeUrl === "function" ? raw.webHomeUrl : function() { return "" },
     // Where the program a provider runs on lives, for the providers that run on
-    // one. Only HEY does: the other two are spoken to directly.
-    clientUrl: String(raw.CLIENT_URL || "")
+    // one. Only HEY does: the other three are spoken to directly.
+    clientUrl: String(raw.CLIENT_URL || ""),
+    // One more line about a particular mailbox, for the row that lists them.
+    // Most providers have nothing to add — the address already says which
+    // service it is — so the default is silence, and a row draws this only
+    // when it is not.
+    detail: typeof raw.detail === "function" ? raw.detail : function() { return "" }
   }
 }
 
 // ---------------------------------------------------------------- registry
 
 // The order the provider chooser lists them in: the two hosted mailboxes with a
-// service of their own first, then the one that is every other mailbox. IMAP is
+// service of their own first, then the two that are every other mailbox. IMAP is
 // last because it is the answer for a server this list does not name, and a
 // chooser that opened with it would ask the question backwards.
-var ALL = [define(Gmail), define(Hey), define(Imap)]
+//
+// JMAP goes in front of it for the same reason and one more: a server that
+// speaks both is better read over JMAP — threads, a junk verb, and one round
+// trip for a batch — so somebody who has one should meet it before they settle
+// for the catch-all.
+var ALL = [define(Gmail), define(Outlook), define(Hey), define(Jmap), define(Imap)]
 
 var DEFAULT_ID = "gmail"
 
@@ -159,14 +186,57 @@ function unavailableReason(id) {
   return String(get(id).unavailable || "")
 }
 
-function can(id, capability) {
-  return get(id).capabilities[String(capability)] === true
+// A provider's capability list is a *ceiling*: the most any account of that
+// kind may offer. One account can honestly do less than another of the same
+// kind — a JMAP server with no Archive mailbox, one whose Junk folder trains
+// nothing — so an account may *refuse* a ceiling capability. It may never add
+// one, which is why every answer below starts from the ceiling.
+//
+// A refusal is the client's own `refusals` object: capability name to the
+// reason a user is shown. An absent key means "as the ceiling says", so a
+// client that exposes none — Gmail, HEY and IMAP — is answered exactly as it
+// was before the argument existed.
+function refuses(refusals, capability) {
+  if (!refusals) return false
+  // Presence is the refusal; the value is only the sentence shown for it. Read
+  // rather than tested for with `hasOwnProperty`, because these objects cross
+  // the QML boundary and a plain read is the one thing that means the same on
+  // both sides of it.
+  var reason = refusals[String(capability)]
+  return reason !== undefined && reason !== null
+}
+
+function can(id, capability, refusals) {
+  if (get(id).capabilities[String(capability)] !== true) return false
+  return !refuses(refusals, capability)
+}
+
+// Why this account said no, for the note shown when a key reaches an action the
+// account cannot honour. "" when the account refused nothing — including when
+// the ceiling never offered the capability, since there is nothing there to
+// withdraw and the provider's own wording is the honest answer.
+function refusal(id, capability, refusals) {
+  if (get(id).capabilities[String(capability)] !== true) return ""
+  if (!refuses(refusals, capability)) return ""
+  return String(refusals[String(capability)])
 }
 
 // ---------------------------------------------------------------- queries
 
-function mailboxes(id) {
-  return get(id).mailboxes.slice()
+// `absent` is the rail keys this account has no mailbox for, which is a fact
+// about the account rather than about the provider: a JMAP server need not have
+// an Archive or a Junk folder. Their rows are dropped rather than drawn dead,
+// and because the number keys are positional the rows below move up.
+function mailboxes(id, absent) {
+  var list = get(id).mailboxes
+  var missing = Array.isArray(absent) ? absent : []
+  var drop = []
+  for (var i = 0; i < missing.length; i++) drop.push(String(missing[i]))
+  var out = []
+  for (var j = 0; j < list.length; j++) {
+    if (drop.indexOf(list[j].key) < 0) out.push(list[j])
+  }
+  return out
 }
 
 function mailboxIndex(id, key) {
@@ -230,6 +300,12 @@ function labelQuery(id, name) {
   return get(id).labelQuery(name)
 }
 
+// The query that finds mail from, or to, one address on this provider, or ""
+// where the provider cannot ask that.
+function addressQuery(id, field, address) {
+  return get(id).addressQuery(field, address)
+}
+
 // What the unread badge counts. A lookup rather than a second definition that
 // could drift from the first.
 function unreadQuery(id) {
@@ -246,6 +322,14 @@ function badge(id) {
 
 function summary(id) {
   return String(get(id).summary || "")
+}
+
+// What else there is to say about one mailbox of this kind, from its own
+// account entry. The settings row draws it under the address; "" is the answer
+// for every provider that has nothing to add, and the row then draws nothing
+// rather than an empty line.
+function detail(id, account) {
+  return String(get(id).detail(account) || "")
 }
 
 // The file in `assets/` that shows what this service is, or "" for one with no
