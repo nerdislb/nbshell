@@ -50,11 +50,11 @@ ShellRoot {
  }
  IpcHandler {
   target: "test"
-  function status(): string { return JSON.stringify({items:SystemTray.items.values.length, icons:SystemTray.items.values.map(x=>x.icon), depth:menu.stack.length, popupHeight:popup.lockedContentHeight,
-   children:menu.currentChildren.map(x=>({text:x.text,enabled:x.enabled,hasChildren:x.hasChildren})),
+  function status(): string { return JSON.stringify({items:SystemTray.items.values.length, icons:SystemTray.items.values.map(x=>x.icon), depth:menu.stack.length, popupHeight:popup.lockedContentHeight, popupVisible:popup.visible, popupRequested:popup.requestedVisible,
+   children:menu.currentChildren.map(x=>({text:x.text,enabled:x.enabled,hasChildren:x.hasChildren,checkState:x.checkState,buttonType:x.buttonType})),
    icon:Quickshell.iconPath("folder",true)}); }
   function openPopup(): void { popup.open(); }
-  function closePopup(): void { popup.closeImmediately(); }
+  function closePopup(): void { Runtime.closeAll(); }
   function enter(index: int): void { menu.enter(menu.currentChildren[index]); }
   function back(): void { menu.leave(); }
   function appearance(light: bool): void { Config.theme = light ? "nblight" : "tokyo-night"; menu.rowWidth = light ? 240 : 320; }
@@ -83,11 +83,15 @@ ShellRoot {
 <signal name="LayoutUpdated"><arg type="u"/><arg type="i"/></signal>
 <property name="Version" type="u" access="read"/>
 </interface></node>'''
-    labels={0:'root',1:'First submenu',2:'Disabled',3:'Root action',11:'Deep submenu',12:'Child action',21:'Deep action'}
-    children={0:[1,2,3],1:[11,12],11:[21]}
+    labels={0:'root',1:'First submenu',2:'Disabled',3:'Root action',11:'Deep submenu',12:'Child action',21:'Deep action',4:'Check option',5:'Radio A',6:'Radio B'}
+    children={0:[1,2,3,4,5,6],1:[11,12],11:[21]}
+    checked={4:0,5:1,6:0}
     events=[]
     def properties(index):
         result={'label':GLib.Variant('s',labels[index]),'enabled':GLib.Variant('b',index!=2),'visible':GLib.Variant('b',True)}
+        if index in checked:
+            result['toggle-type']=GLib.Variant('s','checkmark' if index==4 else 'radio')
+            result['toggle-state']=GLib.Variant('i',checked[index])
         if index in children: result['children-display']=GLib.Variant('s','submenu')
         return result
     def layout(index):
@@ -97,7 +101,12 @@ ShellRoot {
         if name=='GetLayout': inv.return_value(GLib.Variant('(u(ia{sv}av))',(1,layout(args[0]))))
         elif name=='GetGroupProperties': inv.return_value(GLib.Variant('(a(ia{sv}))',([(x,properties(x)) for x in args[0]],)))
         elif name=='AboutToShow': inv.return_value(GLib.Variant('(b)',(False,)))
-        elif name=='Event': events.append(args[:2]);inv.return_value(None)
+        elif name=='Event':
+            events.append(args[:2]);inv.return_value(None)
+            if args[1]=='clicked' and args[0] in checked:
+                if args[0]==4: checked[4]=1-checked[4]
+                else: checked[5]=int(args[0]==5);checked[6]=int(args[0]==6)
+                bus.emit_signal(None,'/Menu','com.canonical.dbusmenu','LayoutUpdated',GLib.Variant('(ui)',(2,0)))
     bus.register_object('/Menu',Gio.DBusNodeInfo.new_for_xml(menu_xml).interfaces[0],method,
                         lambda c,s,p,i,n:GLib.Variant('u',3) if n=='Version' else None,None)
     context=GLib.MainContext.default()
@@ -140,12 +149,18 @@ ShellRoot {
             empty_height = wait(lambda s:s['popupHeight'] > 0)['popupHeight']
             bus.call_sync('org.kde.StatusNotifierWatcher','/StatusNotifierWatcher','org.kde.StatusNotifierWatcher',
                           'RegisterStatusNotifierItem',GLib.Variant('(s)',('/Item',)),None,Gio.DBusCallFlags.NONE,5000,None)
-            initial=wait(lambda s:len(s['children'])==3)
+            initial=wait(lambda s:len(s['children'])==6)
             wait(lambda s: s['popupHeight'] == empty_height == 100)
             command('closePopup')
+            wait(lambda s:not s['popupVisible'] and not s['popupRequested'])
             print('SNI icon sources:',initial['icons'])
             capture('root-dark')
-            command('activate',1); assert not any(e[1]=='clicked' for e in events),'Disabled entry activated'
+            command('activate',3)
+            wait(lambda s:s['children'][3]['checkState']==2)
+            command('activate',5)
+            wait(lambda s:s['children'][4]['checkState']==0 and s['children'][5]['checkState']==2)
+            capture('checked-radio-dark')
+            command('activate',1); assert (2,'clicked') not in events,'Disabled entry activated'
             command('enter',0);wait(lambda s:s['depth']==1 and len(s['children'])==2)
             command('enter',0);wait(lambda s:s['depth']==2 and len(s['children'])==1)
             capture('deep-dark')
@@ -156,12 +171,12 @@ ShellRoot {
             end=time.monotonic()+2
             while time.monotonic()<end and (21,'clicked') not in events: pump();time.sleep(.01)
             assert (21,'clicked') in events, events
-            command('back');command('back');wait(lambda s:s['depth']==0 and len(s['children'])==3)
+            command('back');command('back');wait(lambda s:s['depth']==0 and len(s['children'])==6)
             command('enter',0);wait(lambda s:s['depth']==1)
             children[0]=[2,3]
             bus.emit_signal(None,'/Menu','com.canonical.dbusmenu','LayoutUpdated',GLib.Variant('(ui)',(2,0)))
             wait(lambda s:s['depth']==0 and len(s['children'])==2)
-            print('PASS: real DBusMenu nested navigation, disabled guard, correct action, parent removal, stable asynchronous popup viewport')
+            print('PASS: real DBusMenu checkbox/radio, nested navigation, disabled guard, correct action, parent removal, central close, stable asynchronous popup viewport')
         finally:
             proc.terminate();proc.wait(timeout=5)
             output=(base/'log').read_text()

@@ -198,6 +198,8 @@ Singleton {
     property int closeToken: 0
 
     function closeAll() {
+        // Custom tray menus also use Popout, without a Cell popout binding.
+        if (activePopout) activePopout.closeImmediately();
         closeToken += 1;
     }
 }

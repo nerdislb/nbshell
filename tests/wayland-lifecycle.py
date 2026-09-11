@@ -35,7 +35,7 @@ def inside(args):
         'schemaVersion': 1, 'theme': args.theme, 'motionProfile': args.motion,
         'idle': False, 'bongoActive': False,
         'mode': 'bar', 'leftWidgets': ['clock'], 'centerWidgets': [],
-        'rightWidgets': ['control'] if args.control_contract else (['ai'] if args.startup_ai_widget else []), 'collapsedWidgets': ['clock'],
+        'rightWidgets': ['volume', 'control'] if args.control_contract else (['ai'] if args.startup_ai_widget else []), 'collapsedWidgets': ['clock'],
     }))
     Path('/run/test').mkdir(mode=0o700)
     os.environ.update(HOME='/home/user', XDG_CONFIG_HOME='/home/user/.config',

@@ -8,6 +8,9 @@ import time
 
 
 def instrument(shell):
+    # No host audio bus is exposed. Exercise the real panel in its empty state.
+    volume = shell / 'Bar/Widgets/Volume.qml'
+    volume.write_text(volume.read_text().replace('shown: Audio.ready', 'shown: true', 1))
     path = shell / 'shell.qml'
     source = path.read_text(); end = source.rfind('}')
     source = source[:end] + '''
@@ -78,3 +81,35 @@ ShellRoot {
         Path('/work/control-focus-result.json').write_text(json.dumps(results,indent=2))
     finally:
         keyboard.wait(timeout=15)
+
+    commands = []
+    for _ in range(2):
+        commands += ['move',str(round(args.width-70*args.scale)),str(round(13*args.scale)),
+            'pause','1200','click','272','pause','900',
+            'move',str(round(args.width-15*args.scale)),str(round(13*args.scale)),
+            'click','272','pause','180',
+            'move',str(round(args.width-70*args.scale)),str(round(13*args.scale)),
+            'click','272','pause','900',
+            'move',str(round(args.width-100*args.scale)),str(round(180*args.scale)),
+            'tap','15','pause','800','tap','1','pause','400','tap','30','pause','1800']
+    keyboard = launch(['/test-bin/pointer-client',str(args.width),str(args.height),*commands,'pause','2000'], 'panel-switch-keyboard.log')
+    processes.remove(keyboard)
+    results = []
+    try:
+        for cycle in range(2):
+            wait(lambda:state()['keyboard'] and state()['focusName'] == 'Output volume', 'volume initial focus')
+            initial = state(); assert initial['count'] == 1 and not initial['open'], initial
+            wait(lambda:state()['open'], 'switch to control')
+            wait(lambda:state()['keyboard'] and not state()['open'], 'switch back to volume')
+            switched = state(); assert switched['count'] == 1, switched
+            # With no audio devices the volume slider is the only Tab target.
+            time.sleep(1.2)
+            tab = state(); assert tab['keyboard'] and tab['focusName'], tab
+            run(['grim',f'/work/panel-switch-tab-{cycle}.png'])
+            wait(lambda:state()['count'] == 0, 'Escape dismisses switched panel')
+            wait(lambda:focus()['keys'] == [65]*(cycle+3), 'Only A returns after switching')
+            final = focus(); assert final['focused'], final
+            results.append({'initial':initial,'switched':switched,'tab':tab,'returned':final})
+        Path('/work/panel-switch-result.json').write_text(json.dumps(results,indent=2))
+    finally:
+        keyboard.wait(timeout=20)
