@@ -58,6 +58,7 @@ run python3 tests/hermes-sandbox.py
 run python3 tests/hermes-team.py
 run python3 tests/hermes-brain.py
 run bash tests/performance-smoke.sh
+run python3 tests/whatsapp-sync-units.py
 run bash tests/process-selection.sh
 run bash tests/qml.sh
 run python3 tests/runtime-loader-contracts.py

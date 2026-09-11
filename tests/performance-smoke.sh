@@ -104,7 +104,7 @@ for unit_name in ("wacli-sync.service", "wacli-sync@.service"):
     unit = (root / "integrations/omawhatsapp" / unit_name).read_text(encoding="utf-8")
     assert "--lock-wait 30s sync --follow" in unit
 assert 'install -Dm644 "$runtime_shell/integrations/omawhatsapp/wacli-sync@.service"' in setup
-assert 'status_json=$("$bin_dir/omawhatsapp" status)' in setup
+assert 'sync_accounts "$("$bin_dir/omawhatsapp" status)"' in setup
 assert 'wacli-sync@${account_name}.service' in setup
 PY
 

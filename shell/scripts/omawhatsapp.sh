@@ -58,6 +58,44 @@ PYCODE
     printf '%s\n' "$selected" >"$provider_file"
 }
 
+sync_accounts() {
+    local status_json=$1 account_name unit online
+    # Account names are UI identities: a legacy store is displayed as primary,
+    # but has no wacli --account configuration. The helper owns that distinction.
+    # Validate the complete plan before changing any services.
+    jq -e '
+        .ok == true and (.accounts | type == "array" and length > 0) and
+        all(.accounts[];
+            (.account | type == "string") and
+            (.account | test("^[A-Za-z0-9_-]*$")) and
+            (.unit == "wacli-sync.service" or
+                (.account != "" and .unit == ("wacli-sync@" + .account + ".service"))) and
+            (.online | type == "boolean")) and
+        ([.accounts[].unit] | length == (unique | length))
+    ' <<<"$status_json" >/dev/null || {
+        echo "Invalid WhatsApp sync service plan." >&2
+        return 1
+    }
+    if ! jq -e 'any(.accounts[]; .unit == "wacli-sync.service")' \
+            <<<"$status_json" >/dev/null; then
+        systemctl --user disable --now wacli-sync.service >/dev/null 2>&1 || true
+    fi
+    while IFS=$'\t' read -r unit online account_name; do
+        # Repair older nbshell setups that derived @primary from the display
+        # name even though this account uses the unconfigured root store.
+        if [ "$unit" = wacli-sync.service ] && [ -n "$account_name" ]; then
+            systemctl --user disable --now "wacli-sync@${account_name}.service" \
+                >/dev/null 2>&1 || true
+        fi
+        if [ "$online" = false ]; then
+            systemctl --user disable --now "$unit" >/dev/null
+        else
+            systemctl --user enable "$unit" >/dev/null
+            systemctl --user restart "$unit"
+        fi
+    done < <(jq -r '.accounts[] | [.unit, .online, .account] | @tsv' <<<"$status_json")
+}
+
 setup() (
     install_wacli
     local stage archive source staged_plugin old_plugin
@@ -101,32 +139,7 @@ setup() (
     mv "$staged_plugin" "$plugin_dir"
     switch_config omawhatsapp
     systemctl --user daemon-reload
-    local status_json account_name unit
-    local -a account_names account_units
-    status_json=$("$bin_dir/omawhatsapp" status)
-    if jq -e '.accounts | length == 1 and .[0].account == ""' <<<"$status_json" >/dev/null; then
-        account_names=("")
-        account_units=(wacli-sync.service)
-    else
-        mapfile -t account_names < <(jq -r '.accounts[].account' <<<"$status_json")
-        account_units=()
-        for account_name in "${account_names[@]}"; do
-            account_units+=("wacli-sync@${account_name}.service")
-        done
-        systemctl --user disable --now wacli-sync.service >/dev/null 2>&1 || true
-    fi
-    for index in "${!account_units[@]}"; do
-        unit=${account_units[$index]}
-        account_name=${account_names[$index]}
-        if jq -e --arg account "$account_name" \
-            '.accounts[] | select(.account == $account) | .online == false' \
-            <<<"$status_json" >/dev/null; then
-            systemctl --user disable --now "$unit" >/dev/null
-        else
-            systemctl --user enable "$unit" >/dev/null
-            systemctl --user restart "$unit"
-        fi
-    done
+    sync_accounts "$("$bin_dir/omawhatsapp" status)"
     if [ "$defer_shell_restart" -eq 1 ]; then
         echo "WhatsApp installed. Shell restart deferred until the next external restart or login."
     else
