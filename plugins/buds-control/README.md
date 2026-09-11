@@ -3,7 +3,9 @@
 Native nbshell controls for advanced Bluetooth earbuds. Pixel Buds are controlled
 directly through [pbpctrl](https://github.com/qzed/pbpctrl); other compatible
 headsets can use [BudsLink](https://flathub.org/apps/io.github.maniacx.BudsLink).
-The bar shows the current noise-control mode and combined battery level. Its popout provides:
+The bar shows a headphones icon: dimmed when disconnected and fully visible when
+connected. Hovering the icon briefly shows a compact status preview; click or
+keyboard activation opens the controls. Its popout provides:
 
 - individual left, right, and case battery levels;
 - every noise-control mode exposed by the connected device;

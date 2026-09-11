@@ -40,14 +40,16 @@ Cell {
     }
 
     shown: true
-    quiet: !buds || !buds.connected
+    quiet: false
+    contentOpacity: buds && buds.connected ? 1 : 0.55
     interactive: true
     popoutTakesKeyboard: true
-    slotChars: buds && buds.connected ? 14 : 9
+    slotChars: 0
     label: "BUDS"
     icon: String.fromCodePoint(0xF02CB)
-    text: buds && buds.connected ? (compactMode + " · " + buds.batteryLevel + "%") : compactMode
-    color: modeColor
+    text: ""
+    color: Theme.barFg
+    accessibilityName: "Buds Control: " + (buds && buds.connected ? "Connected, " + fullMode : "Disconnected")
 
     onClicked: if (buds) buds.refresh()
     onRightClicked: if (buds && buds.backend === "budslink") buds.openBudsLink()
@@ -55,23 +57,10 @@ Cell {
     preview: Component {
         BarPreview {
             icon: root.icon
-            title: root.device ? String(root.device.alias) : "Buds Control"
-            subtitle: root.buds && root.buds.backendAvailable
-                ? (root.buds.connected ? "Enhanced Bluetooth controls" : "No supported earbuds connected")
-                : "A headset backend is required"
-            badge: root.compactMode
-            badgeColor: root.modeColor
-            content: [
-                Facts {
-                    rowWidth: parent.width
-                    pairs: root.device ? [
-                        { "label": "Left", "value": root.batteryText(root.device.state.battery1Level, root.device.state.battery1Status) },
-                        { "label": "Right", "value": root.batteryText(root.device.state.battery2Level, root.device.state.battery2Status) },
-                        { "label": "Case", "value": root.batteryText(root.device.state.battery3Level, root.device.state.battery3Status) },
-                        { "label": "Mode", "value": root.fullMode, "color": root.modeColor }
-                    ] : []
-                }
-            ]
+            title: "Buds Control"
+            subtitle: root.buds && root.buds.connected
+                ? root.fullMode + " · " + root.buds.batteryLevel + "%"
+                : "Disconnected"
         }
     }
 

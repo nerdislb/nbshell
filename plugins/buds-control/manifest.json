@@ -16,7 +16,7 @@
   },
   "barWidget": {
     "displayName": "Buds Control",
-    "description": "ANC mode and earbud batteries in the bar",
+    "description": "Quiet connection icon with click-to-open earbud controls",
     "category": "Hardware",
     "aliases": ["buds", "earbuds", "headphones", "anc", "pixel-buds"],
     "defaultSection": "right",
