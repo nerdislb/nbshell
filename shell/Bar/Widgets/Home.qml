@@ -9,7 +9,7 @@ Cell {
     interactive: true
     custom: true
     active: Runtime.menuOpen || Runtime.dashboardOpen
-    color: Theme.barFg
+    color: Theme.readable(Theme.barAccent, Theme.barSurface, 4.5)
     accessibilityName: "Home"
     Accessible.description: "Open menu. Right-click or press Shift+F10 to open dashboard."
 
@@ -33,12 +33,8 @@ Cell {
         }
     }
 
-    Image {
-        source: Qt.resolvedUrl("../../Assets/nbshell-floppy.png")
-        height: Math.round(Theme.cellH)
-        width: height
-        fillMode: Image.PreserveAspectFit
-        smooth: false
-        mipmap: false
+    FloppyMark {
+        size: Math.round(Theme.cellH * 0.8)
+        color: root.shownColor
     }
 }
