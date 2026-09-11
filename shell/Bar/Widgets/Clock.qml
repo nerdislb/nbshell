@@ -7,7 +7,7 @@ import qs.Widgets
 // Uhr. Das Format steht in der Config (`clockFormat`), damit man es ohne
 // Codeaenderung kuerzen kann.
 //
-// The dashboard is opened from Home or Mod+P.
+// Left click opens Calendar; the dashboard stays on Home or Mod+P.
 // Ein Rechtsklick geht reihum durch `clockFormats`: die lange Form, die kurze,
 // die Kalenderwoche, das amerikanische 12-Stunden-Format. Wer ein eigenes
 // Format setzt, das nicht in der Liste steht, faengt beim naechsten
@@ -40,6 +40,9 @@ Cell {
     // `clickable` haengt an `interactive` -- stuende hier die Kalenderoption,
     // waere die Uhr ohne khal ein totes Feld.
     interactive: true
+    accessibilityName: "Open calendar, " + root.text
+
+    onClicked: Plugins.summon("io.github.nbshell.calendar", "{}")
 
     onRightClicked: {
         const list = root.formats;

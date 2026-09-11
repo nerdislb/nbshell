@@ -210,6 +210,17 @@ for removed in ("// ── MEDIA", "MediaService.player?.trackArtUrl"):
         raise SystemExit(f"Dashboard dedicated media page returned: {removed}")
 
 desktop_ipc = (ROOT / "shell/Ipc/DesktopIpc.qml").read_text(encoding="utf-8")
+clock_widget = (ROOT / "shell/Bar/Widgets/Clock.qml").read_text(encoding="utf-8")
+for snippet in (
+    'onClicked: Plugins.summon("io.github.nbshell.calendar", "{}")',
+    'accessibilityName: "Open calendar, " + root.text',
+    'onRightClicked:',
+    'Config.set("clockFormat", list[(at + 1) % list.length]);',
+):
+    if snippet not in clock_widget:
+        raise SystemExit(f"Clock calendar/format activation contract is incomplete: {snippet}")
+if "Runtime.dashboard" in clock_widget:
+    raise SystemExit("Clock activation must not reopen the dashboard")
 data_ipc = (ROOT / "shell/Ipc/DataIpc.qml").read_text(encoding="utf-8")
 if 'const names = ["overview", "calendar", "tools"]' not in desktop_ipc:
     raise SystemExit("Dashboard IPC no longer exposes the three-page navigation")
