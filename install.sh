@@ -628,6 +628,8 @@ transaction_backup_path "$HOME/.gemini/skills/nbshell" skill-gemini
 for unit in \
     nbshell.service \
     nbshell-lock.service \
+    nbshell-polkit.service \
+    nbshell-polkit-fallback.service \
     nbshell-sleep-lock.service \
     nbshell-umbriel-resume-guard.service \
     nbshell-upstream-audit.service \
@@ -652,6 +654,8 @@ touch "$TRANSACTION_BACKUP/mutation-started"
 mkdir -p "$UNIT_DIR"
 install -m 644 "$SRC/systemd/nbshell.service" "$UNIT_DIR/nbshell.service"
 install -m 644 "$SRC/systemd/nbshell-lock.service" "$UNIT_DIR/nbshell-lock.service"
+install -m 644 "$SRC/systemd/nbshell-polkit.service" "$UNIT_DIR/nbshell-polkit.service"
+install -m 644 "$SRC/systemd/nbshell-polkit-fallback.service" "$UNIT_DIR/nbshell-polkit-fallback.service"
 install -m 644 "$SRC/systemd/nbshell-sleep-lock.service" "$UNIT_DIR/nbshell-sleep-lock.service"
 install -m 644 "$SRC/systemd/nbshell-umbriel-resume-guard.service" \
     "$UNIT_DIR/nbshell-umbriel-resume-guard.service"

@@ -244,8 +244,7 @@ autostart_off() {
 # "nicht berechtigt". Unter einem Desktop bringt die Umgebung ihn mit; unter
 # a minimal Umbriel session brings none, and failures otherwise look silent.
 #
-# nbshell hat keinen eigenen -- Quickshell hat keine Anbindung an polkit --,
-# also wird ein vorhandener eingeschaltet. `hyprpolkitagent` ist die naechste
+# Native authentication is opt-in; keep the established agent as fallback. `hyprpolkitagent` ist die naechste
 # Wahl: Qt/QML wie die Shell selbst, in `extra`, laeuft unter jedem
 # wlroots-Kompositor und bringt seine eigene User-Unit mit.
 POLKIT_UNITS="hyprpolkitagent.service polkit-gnome-authentication-agent-1.service lxqt-policykit-agent.service mate-polkit.service"
@@ -265,6 +264,14 @@ polkit_running() {
 }
 
 polkit_on() {
+    if systemctl --user is-enabled --quiet nbshell-polkit.service; then
+        python3 "${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/polkit-trial.py" keep
+        return
+    fi
+    if systemctl --user is-active --quiet nbshell-polkit-trial.service; then
+        echo "  polkit: native trial is active (nbshell polkit restore ends it)"
+        return
+    fi
     local unit
     if unit="$(polkit_unit)"; then
         systemctl --user enable --now "$unit" >/dev/null 2>&1 \
@@ -277,6 +284,10 @@ polkit_on() {
 }
 
 polkit_status() {
+    if systemctl --user is-active --quiet nbshell-polkit-trial.service || systemctl --user is-enabled --quiet nbshell-polkit.service; then
+        python3 "${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/polkit-trial.py" status
+        return
+    fi
     local unit
     if unit="$(polkit_unit)"; then
         printf 'Agent            %s (%s)\n' "$unit" "$(systemctl --user is-active "$unit" 2>/dev/null)"
@@ -600,6 +611,9 @@ nbshell -- an independent Quickshell desktop shell for Umbriel
                             show or set cursor theme and size
   nbshell text [8..28]      show or change UI text size
   nbshell polkit [on]       check or start a Polkit agent
+  nbshell polkit trial      try native themed authentication for 15 minutes
+  nbshell polkit keep       use native themed authentication at login
+  nbshell polkit restore    restore the previous authentication agent
   nbshell auth approve-next [system|sudo|polkit-1]
                             approve one privileged action with a paired phone
 
@@ -920,6 +934,7 @@ for b in d["binds"]:
         ;;
     polkit)
         case "${1:-status}" in
+            trial|keep|restore) python3 "${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/polkit-trial.py" "$1" ;;
             on) polkit_on ;;
             *) polkit_status ;;
         esac

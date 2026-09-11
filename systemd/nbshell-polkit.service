@@ -1,0 +1,20 @@
+[Unit]
+Description=nbshell native Polkit authentication agent
+Documentation=https://github.com/nerdislb/nbshell
+PartOf=graphical-session.target
+After=graphical-session.target hyprpolkitagent.service
+Requisite=graphical-session.target
+Conflicts=hyprpolkitagent.service
+OnFailure=nbshell-polkit-fallback.service
+
+[Service]
+Type=exec
+Slice=session.slice
+ExecStart=/usr/bin/python3 %h/.config/quickshell/nbshell/scripts/polkit-trial.py serve
+Environment="QT_LOGGING_RULES=quickshell.service.polkit*.debug=false;quickshell.polkit*.debug=false"
+LimitCORE=0
+UMask=0077
+TimeoutStopSec=5
+
+[Install]
+WantedBy=graphical-session.target

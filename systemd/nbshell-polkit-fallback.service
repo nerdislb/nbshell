@@ -1,0 +1,9 @@
+[Unit]
+Description=Restore the established Polkit agent after native failure
+After=nbshell-polkit.service
+
+[Service]
+Type=oneshot
+Slice=session.slice
+ExecStart=/usr/bin/python3 %h/.config/quickshell/nbshell/scripts/polkit-trial.py fallback
+TimeoutStartSec=15
