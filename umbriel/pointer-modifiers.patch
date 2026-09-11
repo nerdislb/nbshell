@@ -1,8 +1,73 @@
+diff --git a/docs/user/actions.md b/docs/user/actions.md
+index 02b9942..cebbaf1 100644
+--- a/docs/user/actions.md
++++ b/docs/user/actions.md
+@@ -42,7 +42,7 @@ are required, `[bracket]` forms are optional.
+ | `output-focus-left` | Focus the output to the left |
+ | `output-focus-right` | Focus the output to the right |
+ | `output-focus-up` | Focus the output above |
+-| `window-focus:<window-id>` | Focus the given window, summoning it if hidden in a scratchpad |
++| `window-focus:<window-id>` | Focus a window, revealing it from a hidden scratchpad |
+ | `window-focus-down` | Focus the next window down in the column |
+ | `window-focus-last` | Focus the previously focused window |
+ | `window-focus-left` | Focus the window to the left |
+@@ -57,7 +57,7 @@ are required, `[bracket]` forms are optional.
+ | `window-focus-right` | Focus the window to the right |
+ | `window-focus-switch-floating` | Focus the last window of the opposite floating state |
+ | `window-focus-up` | Focus the next window up in the column |
+-| `window-focus-warp:<window-id>` | Focus the given window, summon it if hidden in a scratchpad, and warp the cursor to it |
++| `window-focus-warp:<window-id>` | Focus or reveal a window and warp the cursor to it |
+ | `workspace-focus-last` | Focus the previously active workspace |
+ 
+ ## Move & size
+@@ -119,7 +119,7 @@ Sizing rules per layout live in [Sizing behavior](layout.md#sizing-behavior).
+ | `window-toggle-fullscreen` | Toggle fullscreen or exit a window covering the focus |
+ | `window-toggle-maximize` | Toggle full width for the focused column |
+ | `window-toggle-maximize-to-edges` | Toggle maximize without gaps, struts, or borders |
+-| `window-toggle-pinned` | Pin the focused window above other windows, or restore its pre-pin tiled or floating state |
++| `window-toggle-pinned` | Pin a window above others, or restore its previous state |
+ 
+ ## Scratchpad
+ 
+diff --git a/src/config/keybind_parse.cpp b/src/config/keybind_parse.cpp
+index 01f6428..3620490 100644
+--- a/src/config/keybind_parse.cpp
++++ b/src/config/keybind_parse.cpp
+@@ -244,8 +244,8 @@ namespace umbriel {
+         {"window-cycle-width", "", "Cycle the focused column through the width presets",
+          KeybindAction::WindowCycleWidth},
+         {"window-cycle-width-back", "", "Cycle the width presets in reverse", KeybindAction::WindowCycleWidthBack},
+-        {"window-focus", "<window-id>", "Focus the given window", KeybindAction::WindowFocusId,
+-         ActionArgKind::WindowId},
++        {"window-focus", "<window-id>", "Focus a window, revealing it from a hidden scratchpad",
++         KeybindAction::WindowFocusId, ActionArgKind::WindowId},
+         {"window-focus-down", "", "Focus the next window down in the column", KeybindAction::WindowFocusDown},
+         {"window-focus-last", "", "Focus the previously focused window", KeybindAction::WindowFocusLast},
+         {"window-focus-left", "", "Focus the window to the left", KeybindAction::WindowFocusLeft},
+@@ -267,7 +267,7 @@ namespace umbriel {
+         {"window-focus-switch-floating", "", "Focus the last window of the opposite floating state",
+          KeybindAction::WindowFocusSwitchFloating},
+         {"window-focus-up", "", "Focus the next window up in the column", KeybindAction::WindowFocusUp},
+-        {"window-focus-warp", "<window-id>", "Focus the given window and warp the cursor to it",
++        {"window-focus-warp", "<window-id>", "Focus or reveal a window and warp the cursor to it",
+          KeybindAction::WindowFocusWarpId, ActionArgKind::WindowId},
+         {"window-modify-height", "<delta>", "Change the focused window's height by a fraction",
+          KeybindAction::WindowModifyHeight, ActionArgKind::WidthDelta},
+@@ -318,7 +318,8 @@ namespace umbriel {
+         {"window-toggle-maximize", "", "Toggle full width for the focused column", KeybindAction::ToggleMaximize},
+         {"window-toggle-maximize-to-edges", "", "Toggle maximize without gaps, struts, or borders",
+          KeybindAction::ToggleMaximizeToEdges},
+-        {"window-toggle-pinned", "", "Pin the focused window above other windows", KeybindAction::TogglePinned},
++        {"window-toggle-pinned", "", "Pin a window above others, or restore its previous state",
++         KeybindAction::TogglePinned},
+         {"window-toggle-scratchpad", "[<scratchpad>]", "Move the focused window to or from a scratchpad",
+          KeybindAction::WindowToggleScratchpad, ActionArgKind::OptionalScratchpad},
+         {"workspace-focus-last", "", "Focus the previously active workspace", KeybindAction::WorkspaceFocusLast},
 diff --git a/src/input/cursor.cpp b/src/input/cursor.cpp
-index 03b60ba..5bcf4b3 100644
+index c97337c..c47b878 100644
 --- a/src/input/cursor.cpp
 +++ b/src/input/cursor.cpp
-@@ -894,6 +894,7 @@ namespace umbriel {
+@@ -947,6 +947,7 @@ namespace umbriel {
      // A client data-device drag owns the seat grab. Its initiating release must reach wlroots even when the drag began
      // from a panel over the overview. Otherwise the drag icon and both input grabs remain active indefinitely.
      if (wlr_seat* seat = m_server->seat()->wlr(); seat->drag != nullptr) {
@@ -10,7 +75,7 @@ index 03b60ba..5bcf4b3 100644
        wlr_seat_pointer_notify_button(seat, timeMsec, button, state);
        if (seat->drag == nullptr) {
          // The drag grab suppressed normal pointer motion. Re-run hit testing at
-@@ -946,6 +947,7 @@ namespace umbriel {
+@@ -999,6 +1000,7 @@ namespace umbriel {
          if (surface != nullptr) {
            setPointerFocus(surface, sx, sy);
          }
@@ -18,7 +83,7 @@ index 03b60ba..5bcf4b3 100644
          wlr_seat_pointer_notify_button(seat, timeMsec, button, state);
          // The popup's xdg-shell grab already owns focus. Refocusing its parent layer would end the keyboard grab, whose
          // wlroots cancel handler also ends the pointer grab before the menu receives the matching release.
-@@ -977,6 +979,7 @@ namespace umbriel {
+@@ -1034,6 +1036,7 @@ namespace umbriel {
          resetMode();
          return;
        }
@@ -26,7 +91,7 @@ index 03b60ba..5bcf4b3 100644
        wlr_seat_pointer_notify_button(m_server->seat()->wlr(), timeMsec, button, state);
  
        // After the final release, refresh pointer focus so it matches the surface actually under the cursor. The
-@@ -1001,6 +1004,7 @@ namespace umbriel {
+@@ -1058,6 +1061,7 @@ namespace umbriel {
      if (wlr_seat* seat = m_server->seat()->wlr(); seat->drag == nullptr
          && seat->pointer_state.button_count > 0
          && seat->pointer_state.focused_surface != nullptr) {
@@ -34,7 +99,7 @@ index 03b60ba..5bcf4b3 100644
        wlr_seat_pointer_notify_button(seat, timeMsec, button, state);
        return;
      }
-@@ -1012,6 +1016,7 @@ namespace umbriel {
+@@ -1069,6 +1073,7 @@ namespace umbriel {
      View* view = m_server->viewAt(m_cursor->x, m_cursor->y, &surface, &sx, &sy, &layer);
  
      if (m_server->sessionLocked()) {
@@ -42,7 +107,7 @@ index 03b60ba..5bcf4b3 100644
        wlr_seat_pointer_notify_button(m_server->seat()->wlr(), timeMsec, button, state);
        if (surface != nullptr) {
          if (wlr_session_lock_surface_v1* lockSurface = wlr_session_lock_surface_v1_try_from_wlr_surface(surface)) {
-@@ -1044,6 +1049,7 @@ namespace umbriel {
+@@ -1101,6 +1106,7 @@ namespace umbriel {
        clearPointerFocus();
      }
  
@@ -51,7 +116,7 @@ index 03b60ba..5bcf4b3 100644
      if (layer != nullptr) {
        if (!isXdgPopupSurface(surface)) {
 diff --git a/src/input/keyboard.cpp b/src/input/keyboard.cpp
-index f0b2d82..53b4316 100644
+index fd8f581..cc0a5cb 100644
 --- a/src/input/keyboard.cpp
 +++ b/src/input/keyboard.cpp
 @@ -218,6 +218,7 @@ namespace umbriel {
@@ -74,20 +139,6 @@ index f0b2d82..53b4316 100644
      m_server->cursor()->refreshInteractiveCursor();
      notifyLayoutIfChanged();
    }
-@@ -379,6 +385,13 @@ namespace umbriel {
-   }
- 
-   void Keyboard::handleDestroy() {
-+    wlr_seat* seat = m_server->seat()->wlr();
-+    if (wlr_seat_get_keyboard(seat) == m_keyboard) {
-+      // wlroots detaches a destroyed keyboard without resetting pointer-only
-+      // clients. Reset before capability removal makes their resources inert.
-+      wlr_seat_set_keyboard(seat, nullptr);
-+      m_server->seat()->notifyPointerModifiers(true);
-+    }
-     if (m_repeatTimer != nullptr) {
-       wl_event_source_remove(m_repeatTimer);
-       m_repeatTimer = nullptr;
 diff --git a/src/input/seat.cpp b/src/input/seat.cpp
 index 4479b81..fdfb932 100644
 --- a/src/input/seat.cpp
@@ -179,6 +230,20 @@ index 62c0779..f538b81 100644
  
      Server* m_server = nullptr;
      wlr_seat* m_seat = nullptr;
+diff --git a/src/server/server_events.cpp b/src/server/server_events.cpp
+index ae6c9ce..294e6df 100644
+--- a/src/server/server_events.cpp
++++ b/src/server/server_events.cpp
+@@ -2475,6 +2475,9 @@ namespace umbriel {
+       }
+       // Detach wlroots' later destroy listener so it cannot clear the replacement.
+       wlr_seat_set_keyboard(seat, replacement);
++      // Publish the replacement keymap before its masks, or neutralize the
++      // pointer-only client before removing the final keyboard capability.
++      m_seat->notifyPointerModifiers(replacement == nullptr);
+     }
+     if (sourceRemoved) {
+       m_keyboardLayoutSource = nullptr;
 diff --git a/tests/harness/check.sh b/tests/harness/check.sh
 index b7ba17d..a45ba11 100755
 --- a/tests/harness/check.sh
@@ -204,10 +269,10 @@ index 0000000..9706959
 \ No newline at end of file
 diff --git a/tests/harness/clients/pointer_modifiers_client.cpp b/tests/harness/clients/pointer_modifiers_client.cpp
 new file mode 100644
-index 0000000..dcbee9c
+index 0000000..5f63e51
 --- /dev/null
 +++ b/tests/harness/clients/pointer_modifiers_client.cpp
-@@ -0,0 +1,372 @@
+@@ -0,0 +1,387 @@
 +// Exercises core wl_keyboard modifiers on a keyboard-interactivity-none panel.
 +#include "ext-session-lock-v1-client-protocol.h"
 +#include "input-method-unstable-v2-client-protocol.h"
@@ -562,9 +627,24 @@ index 0000000..dcbee9c
 +  wl_surface_commit(s.surface);
 +  sync(s);
 +  move(100, 50);
++  // Removing the active keyboard must immediately restore the remaining
++  // keyboard's masks, without requiring another key or pointer event.
++  auto* replacement = zwp_virtual_keyboard_manager_v1_create_virtual_keyboard(s.keyboardManager, s.seat);
++  text = xkb_keymap_get_as_string(inputKeymap, XKB_KEYMAP_FORMAT_TEXT_V1);
++  file = std::tmpfile();
++  require(file != nullptr && text != nullptr, "replacement keymap file");
++  require(std::fwrite(text, 1, size, file) == size && std::fflush(file) == 0, "write replacement keymap");
++  zwp_virtual_keyboard_v1_keymap(replacement, WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1, fileno(file), size);
++  zwp_virtual_keyboard_v1_modifiers(replacement, shift, 0, 0, 0);
++  sync(s);
++  std::fclose(file);
++  std::free(text);
 +  mods(logo, shift, caps, 1);
 +  require(s.modifiers == held, "held modifiers before device removal");
 +  zwp_virtual_keyboard_v1_destroy(keyboard);
++  sync(s);
++  require(s.modifiers == std::array<uint32_t, 4>{shift, 0, 0, 0}, "replacement keyboard masks not restored");
++  zwp_virtual_keyboard_v1_destroy(replacement);
 +  sync(s);
 +  require(s.modifiers == std::array<uint32_t, 4>{}, "keyboard removal must neutralize pointer masks");
 +  zwlr_layer_surface_v1_destroy(layer);
@@ -582,10 +662,10 @@ index 0000000..dcbee9c
 +}
 \ No newline at end of file
 diff --git a/tests/meson.build b/tests/meson.build
-index 7624b35..fea1682 100644
+index 437f7ba..c419774 100644
 --- a/tests/meson.build
 +++ b/tests/meson.build
-@@ -99,6 +99,19 @@ pointer_client = executable(
+@@ -100,6 +100,19 @@ pointer_client = executable(
    dependencies: [wayland_client_dep, xkbcommon_dep],
  )
  
@@ -605,7 +685,7 @@ index 7624b35..fea1682 100644
  # Harness helper that checks deferred virtual-keyboard keymaps as seen by regular wl_keyboard clients.
  keyboard_keymap_client = executable(
    'keyboard-keymap-client',
-@@ -289,6 +302,7 @@ seat_log_client = executable(
+@@ -298,6 +311,7 @@ seat_log_client = executable(
  
  harness_client_targets = [
    pointer_client,
