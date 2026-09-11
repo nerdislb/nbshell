@@ -206,12 +206,14 @@ installation continues. Repository tests use captured help output and failure
 fixtures so discovery, validation, mapping, and error behavior are repeatable
 without a running compositor.
 
-## Reference acceptance on 2026-09-08
+## Reference acceptance on 2026-09-09
 
 The contract and setup baseline now use Umbriel
-`a850083bb3279ffb0516b729de3fca01e462b809`. Captured help fixtures come from a
-clean source build of that revision. The build passed 56 Meson tests; the GBM
-device renderer test was skipped. This updates the compositor reference only,
+`7cb4ebd6302f55b507765f259e8a30eee440f2a3`. Captured help fixtures come from a
+clean source build of that revision. The build passed all 58 Meson tests. The isolated harness passed 156 of 157
+checks; the drag-opacity check measured 146 against an upper limit of 145 on
+the candidate, unmodified upstream, and the previously installed binary alike.
+This existing visual-test discrepancy remains documented. This updates the compositor reference only,
 not the portal pin or a complete-stack release certification.
 
 The private real-session acceptance test is reproducible with:
@@ -224,7 +226,9 @@ python3 tests/wayland-lifecycle.py --compositor /usr/local/bin/umbriel \
 
 It creates two fixture windows, checks focus, floating/tiling, three layouts,
 workspace movement/switching, focus-warp, width changes, close events, and clean
-compositor exit. It also checks reload and DPMS command acknowledgements.
+compositor exit. Scratchpad activation, temporary keyboard-layer focus, and
+restoration also retain the correct shell window identity. It checks reload
+and DPMS command acknowledgements.
 A private forwarding socket is disconnected three times while an unmodified
 copy of the production Compositor QML service in a separate observer process is observed: cached state must
 clear and fresh snapshots must return. This tests IPC transport recovery with

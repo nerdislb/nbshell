@@ -1,8 +1,8 @@
 diff --git a/src/input/cursor.cpp b/src/input/cursor.cpp
-index 12e5ca9..d09f36b 100644
+index 03b60ba..5bcf4b3 100644
 --- a/src/input/cursor.cpp
 +++ b/src/input/cursor.cpp
-@@ -812,6 +812,7 @@ namespace umbriel {
+@@ -894,6 +894,7 @@ namespace umbriel {
      // A client data-device drag owns the seat grab. Its initiating release must reach wlroots even when the drag began
      // from a panel over the overview. Otherwise the drag icon and both input grabs remain active indefinitely.
      if (wlr_seat* seat = m_server->seat()->wlr(); seat->drag != nullptr) {
@@ -10,15 +10,15 @@ index 12e5ca9..d09f36b 100644
        wlr_seat_pointer_notify_button(seat, timeMsec, button, state);
        if (seat->drag == nullptr) {
          // The drag grab suppressed normal pointer motion. Re-run hit testing at
-@@ -859,6 +860,7 @@ namespace umbriel {
+@@ -946,6 +947,7 @@ namespace umbriel {
          if (surface != nullptr) {
-           wlr_seat_pointer_notify_enter(seat, surface, sx, sy);
+           setPointerFocus(surface, sx, sy);
          }
 +        m_server->seat()->notifyPointerModifiers();
          wlr_seat_pointer_notify_button(seat, timeMsec, button, state);
          // The popup's xdg-shell grab already owns focus. Refocusing its parent layer would end the keyboard grab, whose
          // wlroots cancel handler also ends the pointer grab before the menu receives the matching release.
-@@ -890,6 +892,7 @@ namespace umbriel {
+@@ -977,6 +979,7 @@ namespace umbriel {
          resetMode();
          return;
        }
@@ -26,7 +26,7 @@ index 12e5ca9..d09f36b 100644
        wlr_seat_pointer_notify_button(m_server->seat()->wlr(), timeMsec, button, state);
  
        // After the final release, refresh pointer focus so it matches the surface actually under the cursor. The
-@@ -916,6 +919,7 @@ namespace umbriel {
+@@ -1001,6 +1004,7 @@ namespace umbriel {
      if (wlr_seat* seat = m_server->seat()->wlr(); seat->drag == nullptr
          && seat->pointer_state.button_count > 0
          && seat->pointer_state.focused_surface != nullptr) {
@@ -34,7 +34,7 @@ index 12e5ca9..d09f36b 100644
        wlr_seat_pointer_notify_button(seat, timeMsec, button, state);
        return;
      }
-@@ -927,6 +931,7 @@ namespace umbriel {
+@@ -1012,6 +1016,7 @@ namespace umbriel {
      View* view = m_server->viewAt(m_cursor->x, m_cursor->y, &surface, &sx, &sy, &layer);
  
      if (m_server->sessionLocked()) {
@@ -42,8 +42,8 @@ index 12e5ca9..d09f36b 100644
        wlr_seat_pointer_notify_button(m_server->seat()->wlr(), timeMsec, button, state);
        if (surface != nullptr) {
          if (wlr_session_lock_surface_v1* lockSurface = wlr_session_lock_surface_v1_try_from_wlr_surface(surface)) {
-@@ -959,6 +964,7 @@ namespace umbriel {
-       wlr_seat_pointer_clear_focus(seat);
+@@ -1044,6 +1049,7 @@ namespace umbriel {
+       clearPointerFocus();
      }
  
 +    m_server->seat()->notifyPointerModifiers();
@@ -51,7 +51,7 @@ index 12e5ca9..d09f36b 100644
      if (layer != nullptr) {
        if (!isXdgPopupSurface(surface)) {
 diff --git a/src/input/keyboard.cpp b/src/input/keyboard.cpp
-index 1abd0ee..1942231 100644
+index f0b2d82..53b4316 100644
 --- a/src/input/keyboard.cpp
 +++ b/src/input/keyboard.cpp
 @@ -218,6 +218,7 @@ namespace umbriel {
@@ -74,7 +74,7 @@ index 1abd0ee..1942231 100644
      m_server->cursor()->refreshInteractiveCursor();
      notifyLayoutIfChanged();
    }
-@@ -365,6 +371,13 @@ namespace umbriel {
+@@ -379,6 +385,13 @@ namespace umbriel {
    }
  
    void Keyboard::handleDestroy() {
@@ -89,10 +89,10 @@ index 1abd0ee..1942231 100644
        wl_event_source_remove(m_repeatTimer);
        m_repeatTimer = nullptr;
 diff --git a/src/input/seat.cpp b/src/input/seat.cpp
-index 024ff34..890f05b 100644
+index 4479b81..fdfb932 100644
 --- a/src/input/seat.cpp
 +++ b/src/input/seat.cpp
-@@ -150,11 +150,60 @@ namespace umbriel {
+@@ -152,9 +152,58 @@ namespace umbriel {
  
    void Seat::handlePointerFocusChange(void* data) {
      auto* event = static_cast<wlr_seat_pointer_focus_change_event*>(data);
@@ -104,9 +104,7 @@ index 024ff34..890f05b 100644
 +      }
 +    }
 +    notifyPointerModifiers();
-     if (event->new_surface == nullptr && !m_server->cursor()->compositorOwnsCursor()) {
-       m_server->cursor()->setXcursor("default");
-     }
+     m_server->cursor()->notePointerFocusChange(event->new_surface);
    }
  
 +  void Seat::notifyPointerModifiers(bool clear) {
@@ -182,7 +180,7 @@ index 62c0779..f538b81 100644
      Server* m_server = nullptr;
      wlr_seat* m_seat = nullptr;
 diff --git a/tests/harness/check.sh b/tests/harness/check.sh
-index 6313000..22a6e19 100755
+index b7ba17d..a45ba11 100755
 --- a/tests/harness/check.sh
 +++ b/tests/harness/check.sh
 @@ -129,6 +129,7 @@ BINARY_DIR=$(dirname "$BINARY")
@@ -584,10 +582,10 @@ index 0000000..dcbee9c
 +}
 \ No newline at end of file
 diff --git a/tests/meson.build b/tests/meson.build
-index a3242ef..1474525 100644
+index 7624b35..fea1682 100644
 --- a/tests/meson.build
 +++ b/tests/meson.build
-@@ -98,6 +98,19 @@ pointer_client = executable(
+@@ -99,6 +99,19 @@ pointer_client = executable(
    dependencies: [wayland_client_dep, xkbcommon_dep],
  )
  
@@ -607,7 +605,7 @@ index a3242ef..1474525 100644
  # Harness helper that checks deferred virtual-keyboard keymaps as seen by regular wl_keyboard clients.
  keyboard_keymap_client = executable(
    'keyboard-keymap-client',
-@@ -281,6 +294,7 @@ security_context_client = executable(
+@@ -289,6 +302,7 @@ seat_log_client = executable(
  
  harness_client_targets = [
    pointer_client,

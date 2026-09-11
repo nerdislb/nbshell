@@ -69,7 +69,7 @@ Current evidence is deliberately narrow:
 | nbshell | Exact payload version from `VERSION`; not proof of a clean checkout or release provenance |
 | Quickshell | `0.3.1` supported by `docs/releasing.md`; no established minimum |
 | Qt | No established minimum or supported range. `tests/accessibility/README.md` records `6.11.2` with Quickshell `0.3.1` for a scoped accessibility test, not release-stack certification |
-| Umbriel | Contract-tested full revision `a850083bb3279ffb0516b729de3fca01e462b809` from `setup-umbriel.sh` and the capability contract |
+| Umbriel | Contract-tested full revision `7cb4ebd6302f55b507765f259e8a30eee440f2a3` from `setup-umbriel.sh` and the capability contract |
 | Umbriel portal backend | Reviewed full revision `d996f0c2bd4e8c868c0a143f0c9ce060f3c47ed5` from `setup-umbriel.sh` |
 | Platform | `linux:arch` support target from `docs/compatibility.md`; no hardware or rolling-distribution snapshot certification |
 

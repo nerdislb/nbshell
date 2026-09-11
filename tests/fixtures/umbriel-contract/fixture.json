@@ -1,6 +1,6 @@
 {
   "sourceRepository": "https://github.com/noctalia-dev/umbriel.git",
-  "sourceRevision": "a850083bb3279ffb0516b729de3fca01e462b809",
+  "sourceRevision": "7cb4ebd6302f55b507765f259e8a30eee440f2a3",
   "binary": "build-review/umbriel",
   "capturedCommands": [
     "umbriel --help",

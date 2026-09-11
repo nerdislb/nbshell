@@ -86,11 +86,11 @@ Windows
   window-toggle-pinned             Pin the focused window above other windows
 
 Scratchpad
-  scratchpad-focus-next:[<output>]           Focus the next visible scratchpad window
-  scratchpad-toggle:[<output>]               Show or hide the output's scratchpad windows
-  window-move-to-scratchpad:[<output>]       Move the focused window into the scratchpad
-  window-restore-from-scratchpad:[<output>]  Return the scratchpad window to its saved workspace
-  window-toggle-scratchpad:[<output>]        Move the focused window to or from the scratchpad
+  scratchpad-focus-next:[<scratchpad>]           Focus the next visible scratchpad window
+  scratchpad-toggle:[<scratchpad>]               Show or hide the selected scratchpad windows
+  window-move-to-scratchpad:[<scratchpad>]       Move the focused window into a scratchpad
+  window-restore-from-scratchpad:[<scratchpad>]  Return a scratchpad window to its saved workspace
+  window-toggle-scratchpad:[<scratchpad>]        Move the focused window to or from a scratchpad
 
 Workspaces
   column-move-to-workspace:<workspace>[/<output>]         Move the focused column to the selected workspace

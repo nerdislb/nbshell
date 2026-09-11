@@ -7,7 +7,7 @@ SOURCE_ROOT="${NBSHELL_UMBRIEL_SOURCE_DIR:-$HOME/.cache/nbshell/umbriel-sources}
 PREFIX="${NBSHELL_UMBRIEL_PREFIX:-/usr/local}"
 UMBRIEL_REPO="https://github.com/noctalia-dev/umbriel.git"
 PORTAL_REPO="https://github.com/noctalia-dev/xdg-desktop-portal-umbriel.git"
-UMBRIEL_REVISION="a850083bb3279ffb0516b729de3fca01e462b809"
+UMBRIEL_REVISION="7cb4ebd6302f55b507765f259e8a30eee440f2a3"
 PORTAL_REVISION="d996f0c2bd4e8c868c0a143f0c9ce060f3c47ed5"
 PACKAGES=(gcc git meson ninja pkgconf just wlroots0.20 wayland wayland-protocols
     libxkbcommon libinput pixman libdrm cairo pango tomlplusplus nlohmann-json jemalloc

@@ -111,9 +111,21 @@ def exercise(run, launch, wait, compositor):
     (observer / 'Common/Runtime.qml').write_text('pragma Singleton\nimport Quickshell\nSingleton { property int popoutCount: 0; property bool barHover: false; property bool popoutHover: false; function closeAll() {} }\n')
     (observer / 'shell.qml').write_text('''import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
 import qs.Services
 ShellRoot {
+    PanelWindow {
+        id: focusPanel
+        visible: false
+        anchors.top: true
+        implicitWidth: 100
+        implicitHeight: 40
+        exclusiveZone: 0
+        WlrLayershell.namespace: "contract-focus-layer"
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    }
     IpcHandler { target: "observer"
+        function panel(show: bool): void { focusPanel.visible = show; }
         function state(): string { return JSON.stringify({available: Compositor.available, windows: Compositor.windows.length, workspaces: Compositor.workspaces.length, focus: Compositor.focusedWindowId, output: Compositor.focusedOutput, keyboard: Compositor.keyboardLayout}); }
     }
 }
@@ -132,6 +144,24 @@ ShellRoot {
             thread = start_relay()
             wait(lambda: state().get('available') and state().get('windows', 0) == 2 and state().get('workspaces', 0) > 0 and state().get('output') and state().get('focus') == wid, 'restore QML snapshots')
         checked.append('QML disconnect clears state and reconnect restores snapshots (3 cycles)')
+        run(['/test-bin/umbriel', 'msg', 'window-move-to-scratchpad'])
+        run(['/test-bin/umbriel', 'msg', 'scratchpad-toggle'])
+        wait(lambda: window()['active'] and not window()['focused'], 'scratchpad seat activation')
+        wait(lambda: state().get('focus') == wid, 'QML scratchpad focus follows activation')
+        run(['/test-bin/qs', '-p', str(observer), 'ipc', 'call', 'observer', 'panel', 'true'])
+        wait(lambda: not any(w['active'] for w in query('windows')), 'layer takes keyboard focus')
+        import time
+        time.sleep(0.8)
+        assert state().get('focus') == wid, 'layer focus must retain scratchpad title'
+        run(['/test-bin/qs', '-p', str(observer), 'ipc', 'call', 'observer', 'panel', 'false'])
+        # Closing an exclusive layer may focus the workspace beneath it.
+        # Explicitly select the scratchpad again before testing restoration.
+        run(['/test-bin/umbriel', 'msg', 'window-focus:' + wid])
+        wait(lambda: window()['active'] and state().get('focus') == wid, 'scratchpad explicitly refocused')
+        checked.append('keyboard layer retains scratchpad focus identity')
+        run(['/test-bin/umbriel', 'msg', 'window-restore-from-scratchpad'])
+        wait(lambda: window()['focused'] and state().get('focus') == wid, 'restore scratchpad focus')
+        checked.append('scratchpad activation and restored QML focus')
         action('window.close', wid)
         wait(lambda: not any(w['id'] == wid for w in query('windows')), 'close window')
         wait(lambda: state().get('windows') == 1 and state().get('focus') != wid, 'live close event')

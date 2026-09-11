@@ -90,8 +90,14 @@ Singleton {
             "is_floating": Boolean(w.floating)
         }));
         windows = normalized;
-        focusedWindowId = String(normalized.find(w => w.is_focused)?.id ?? "");
-        const focusedWorkspace = normalized.find(w => w.is_focused)?.workspace ?? "";
+        // Scratchpads have seat activation but no workspace-local focus.
+        // A keyboard-interactive panel temporarily deactivates every toplevel.
+        // Retain the last window while it exists, including a scratchpad.
+        const focused = normalized.find(w => w.is_active)
+            ?? normalized.find(w => String(w.id) === focusedWindowId)
+            ?? normalized.find(w => w.is_focused);
+        focusedWindowId = String(focused?.id ?? "");
+        const focusedWorkspace = focused?.workspace ?? "";
         const focusedWorkspaceOutput = workspaceOutput(workspaces, focusedWorkspace);
         if (focusedWorkspaceOutput !== "")
             focusedOutput = focusedWorkspaceOutput;

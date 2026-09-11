@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "sources": [
-    {"name": "Umbriel", "repository": "https://github.com/noctalia-dev/umbriel", "reviewedCommit": "a850083bb3279ffb0516b729de3fca01e462b809"},
+    {"name": "Umbriel", "repository": "https://github.com/noctalia-dev/umbriel", "reviewedCommit": "7cb4ebd6302f55b507765f259e8a30eee440f2a3"},
     {"name": "Umbriel portal", "repository": "https://github.com/noctalia-dev/xdg-desktop-portal-umbriel", "reviewedCommit": "d996f0c"},
     {"name": "Omazen", "repository": "https://github.com/hemagome/omazen", "reviewedCommit": "1c11bc6", "patch": "integrations/omazen/nbshell-external-provider-arch.patch"},
     {"name": "WhatsApp", "repository": "https://github.com/MoizIbnYousaf/Omarchy-Whatsapp", "reviewedCommit": "1f58d8d"},
