@@ -8,11 +8,33 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
+
+
+def graphics_devices(render_node, sys_class=Path('/sys/class/drm'),
+                     nvidia_gpus=Path('/proc/driver/nvidia/gpus'), dev=Path('/dev')):
+    """Expose the selected render device and its NVIDIA EGL dependencies only."""
+    devices = [render_node]
+    pci_device = (sys_class / render_node.name / 'device').resolve(strict=True)
+    vendor = pci_device / 'vendor'
+    if not vendor.exists() or vendor.read_text().strip().lower() != '0x10de':
+        return devices
+    if (pci_device / 'driver').resolve().name != 'nvidia':
+        return devices
+    information = (nvidia_gpus / pci_device.name / 'information').read_text()
+    minor = re.search(r'^Device Minor:\s*([0-9]+)\s*$', information, re.MULTILINE)
+    if not minor:
+        raise RuntimeError('Cannot identify the selected NVIDIA graphics device')
+    for device in (dev / 'nvidiactl', dev / ('nvidia' + minor.group(1))):
+        if not device.is_char_device():
+            raise RuntimeError('Missing NVIDIA graphics device: ' + str(device))
+        devices.append(device)
+    return devices
 
 
 def inside():
@@ -97,6 +119,9 @@ def main():
     render_nodes = sorted(Path('/dev/dri').glob('renderD*'))
     if not render_nodes:
         raise RuntimeError('No DRM render node available for isolated greeter validation')
+    device_bindings = []
+    for device in graphics_devices(render_nodes[0]):
+        device_bindings.extend(['--dev-bind', str(device), str(device)])
     with tempfile.TemporaryDirectory(prefix='nbshell-greeter-check-') as directory:
         command = [
             'bwrap', '--unshare-all', '--die-with-parent', '--new-session', '--cap-drop', 'ALL',
@@ -104,7 +129,7 @@ def main():
             '--symlink', 'usr/lib', '/lib', '--symlink', 'usr/lib', '/lib64',
             '--ro-bind', '/etc', '/etc', '--ro-bind', '/sys', '/sys',
             '--proc', '/proc', '--dev', '/dev',
-            '--dev-bind', str(render_nodes[0]), str(render_nodes[0]),
+            *device_bindings,
             '--tmpfs', '/tmp', '--tmpfs', '/run', '--tmpfs', '/home',
             '--ro-bind', str(bundle), '/payload', '--bind', directory, '/work',
             '--ro-bind', str(Path(__file__).resolve()), '/check.py',
