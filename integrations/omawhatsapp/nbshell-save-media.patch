@@ -1,0 +1,187 @@
+--- a/App.qml
++++ b/App.qml
+@@ -2599,6 +2599,7 @@
+             height: renderedMessage.height
+ 
+             MessageBubble {
++              mediaSaver: root.service
+               id: renderedMessage
+               timeFormat: root.timeFormat
+               width: parent.width
+@@ -3723,6 +3724,7 @@
+       }
+ 
+       MediaViewer {
++        mediaSaver: root.service
+         id: mediaViewer
+         objectName: "mediaViewer"
+         timeFormat: root.timeFormat
+--- a/Dropdown.qml
++++ b/Dropdown.qml
+@@ -1157,6 +1157,7 @@
+               width: messageList.width
+               height: compactMessage.height
+               MessageBubble {
++              mediaSaver: root.service
+                 id: compactMessage
+                 timeFormat: root.timeFormat
+                 width: parent.width
+--- a/MediaBubble.qml
++++ b/MediaBubble.qml
+@@ -8,6 +8,7 @@
+ // enough to choose the correct QML primitive.
+ Item {
+   id: root
++  property var mediaSaver: null
+ 
+   required property var message
+   required property color foreground
+@@ -51,7 +52,8 @@
+ 
+   width: parent ? parent.width : implicitWidth
+   implicitWidth: 560
+-  implicitHeight: renderer.item ? renderer.item.implicitHeight : 0
++  implicitHeight: (renderer.item ? renderer.item.implicitHeight : 0)
++    + (saveButton.visible ? saveButton.implicitHeight + Style.space(6) : 0)
+   height: implicitHeight
+ 
+   onMessageChanged: {
+@@ -121,6 +123,17 @@
+       if (root.audio) return audioComponent
+       return documentComponent
+     }
++  }
++
++  MediaSaveButton {
++    id: saveButton
++    anchors.top: renderer.bottom
++    anchors.topMargin: Style.space(6)
++    width: Math.min(parent.width, Style.space(150))
++    visible: root.hasLocal && !root.album && !root.location && root.mediaType !== ""
++    service: root.mediaSaver
++    sourcePath: root.localPath
++    filename: root.filename
+   }
+ 
+   Component {
+--- a/MediaViewer.qml
++++ b/MediaViewer.qml
+@@ -9,6 +9,7 @@
+ // client. The chat timeline stays mounted underneath, so closing is instant.
+ FocusScope {
+   id: root
++  property var mediaSaver: null
+ 
+   required property color foreground
+   required property color background
+@@ -435,7 +436,7 @@
+     anchors.left: parent.left
+     anchors.right: parent.right
+     anchors.bottom: parent.bottom
+-    height: Style.space(root.width < Style.space(520) ? 48 : 58)
++    height: Math.max(Style.space(root.width < Style.space(520) ? 48 : 58), saveButton.implicitHeight + Style.space(16))
+     z: 3
+     Rectangle {
+       anchors.fill: parent
+@@ -445,7 +446,7 @@
+       textFormat: Text.PlainText
+       anchors.left: parent.left
+       anchors.leftMargin: Style.space(14)
+-      anchors.right: itemCounter.left
++      anchors.right: itemCounter.visible ? itemCounter.left : saveButton.left
+       anchors.rightMargin: Style.space(12)
+       anchors.verticalCenter: parent.verticalCenter
+       text: root.currentItem
+@@ -455,10 +456,20 @@
+       font.family: root.fontFamily
+       font.pixelSize: Style.font.bodySmall
+     }
++    MediaSaveButton {
++      id: saveButton
++      anchors.right: parent.right
++      anchors.rightMargin: Style.space(14)
++      anchors.verticalCenter: parent.verticalCenter
++      service: root.mediaSaver
++      sourcePath: root.localPath
++      filename: String(root.currentItem && root.currentItem.filename || "")
++    }
+     Text {
+       textFormat: Text.PlainText
+       id: itemCounter
+-      anchors.right: parent.right
++      visible: root.width >= Style.space(720)
++      anchors.right: saveButton.left
+       anchors.rightMargin: Style.space(14)
+       anchors.verticalCenter: parent.verticalCenter
+       text: root.items.length > 1 ? (root.currentIndex + 1) + " / " + root.items.length
+--- a/MessageBubble.qml
++++ b/MessageBubble.qml
+@@ -9,6 +9,7 @@
+ // the virtualized conversation remains cheap at any window width.
+ Item {
+   id: root
++  property var mediaSaver: null
+ 
+   required property var message
+   required property color foreground
+@@ -199,6 +200,7 @@
+       }
+ 
+       MediaBubble {
++        mediaSaver: root.mediaSaver
+         visible: !!root.message.media_type
+         width: parent.width
+         message: root.message
+--- a/Service.qml
++++ b/Service.qml
+@@ -417,6 +417,50 @@
+       multi: Number(multi || 1)
+     }, chatRef, owner)
+   }
++  property string mediaSavePath: ""
++  property string mediaSaveError: ""
++  property bool mediaSaveDone: false
++  readonly property bool mediaSaveBusy: mediaSaveProcess.running
++
++  function saveMedia(path, filename) {
++    if (mediaSaveProcess.running || !String(path).startsWith("/")) return
++    mediaSavePath = String(path)
++    mediaSaveError = ""
++    mediaSaveDone = false
++    mediaSaveProcess.payload = JSON.stringify({path: String(path), filename: String(filename || "")})
++    mediaSaveProcess.resultHandled = false
++    mediaSaveProcess.stdinEnabled = true
++    mediaSaveProcess.running = true
++  }
++
++  Process {
++    id: mediaSaveProcess
++    property string payload: ""
++    property bool resultHandled: true
++    command: ["python3", decodeURIComponent(Qt.resolvedUrl("save-media.py").toString().replace("file://", ""))]
++    onRunningChanged: if (!running) Qt.callLater(function() {
++      if (!mediaSaveProcess.running && !mediaSaveProcess.resultHandled) {
++        root.mediaSaveError = "The Save As helper could not be started."
++        mediaSaveProcess.resultHandled = true
++      }
++    })
++    stdinEnabled: true
++    onStarted: {
++      write(payload + "\n")
++      payload = ""
++      stdinEnabled = false
++    }
++    stdout: StdioCollector { id: mediaSaveOutput }
++    onExited: function(exitCode) {
++      resultHandled = true
++      var result = null
++      try { result = JSON.parse(String(mediaSaveOutput.text || "{}")) } catch (error) {}
++      root.mediaSaveDone = result && result.saved === true
++      root.mediaSaveError = exitCode !== 0 || !result || !result.ok
++        ? String(result && result.error || "The attachment could not be saved.") : ""
++    }
++  }
++
+   function downloadMedia(chatRef, item, owner) {
+     if (!item || !item.id) return false
+     var id = String(item.id)

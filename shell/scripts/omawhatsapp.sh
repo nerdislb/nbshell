@@ -113,6 +113,9 @@ setup() (
     patch -d "$staged_plugin" -p1 < "$runtime_shell/integrations/omawhatsapp/nbshell-responsive.patch"
     patch -d "$staged_plugin" -p1 < "$runtime_shell/integrations/omawhatsapp/nbshell-refresh.patch"
     patch -d "$staged_plugin" -p1 < "$runtime_shell/integrations/omawhatsapp/nbshell-wheel-scroll.patch"
+    patch -d "$staged_plugin" -p1 < "$runtime_shell/integrations/omawhatsapp/nbshell-save-media.patch"
+    install -Dm644 "$runtime_shell/integrations/omawhatsapp/MediaSaveButton.qml" "$staged_plugin/MediaSaveButton.qml"
+    install -Dm644 "$runtime_shell/integrations/omawhatsapp/save-media.py" "$staged_plugin/save-media.py"
     # Keep the upstream/internal identity stable while presenting this as a
     # normal nbshell WhatsApp client in every user-facing QML string.
     find "$staged_plugin" -type f -name '*.qml' -exec sed -i 's/OmaWhatsApp/WhatsApp/g' {} +
