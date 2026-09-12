@@ -130,7 +130,6 @@ Cell {
             readonly property var provider: AiUsage.list.length > 0 ? AiUsage.list[selectedIndex] : null
             readonly property var stats: provider?.stats ?? ({ "recentDays": [], "models": [], "todayTokens": 0, "totalTokens": 0, "sessions": 0 })
             readonly property var limits: provider?.limits ?? []
-            readonly property real dayPeak: Math.max(1, ...(stats.recentDays ?? []).map(day => Number(day.tokens ?? 0)))
             readonly property real modelPeak: Math.max(1, ...(stats.models ?? []).map(model => Number(model.tokens ?? 0)))
 
             spacing: Theme.cellH * 0.55
@@ -172,14 +171,6 @@ Cell {
                 if (AiUsage.list.length === 0)
                     return;
                 selectedIndex = (selectedIndex + delta + AiUsage.list.length) % AiUsage.list.length;
-            }
-
-            function dayLabel(value) {
-                const date = new Date(String(value) + "T12:00:00");
-                const today = new Date();
-                if (date.toDateString() === today.toDateString())
-                    return "Today";
-                return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][date.getDay()];
             }
 
             component Meter: Item {
@@ -329,24 +320,6 @@ Cell {
             Repeater {
                 model: panel.limits
                 LimitRow {}
-            }
-
-            Rule {
-                visible: (panel.stats.recentDays ?? []).some(day => Number(day.tokens ?? 0) > 0)
-                rowWidth: panel.rowWidth
-                label: "TOKENS BY DAY"
-            }
-
-            Repeater {
-                model: panel.stats.recentDays ?? []
-
-                UsageRow {
-                    required property var modelData
-                    label: panel.dayLabel(modelData.date)
-                    tokens: Number(modelData.tokens ?? 0)
-                    peak: panel.dayPeak
-                    emphasized: label === "Today"
-                }
             }
 
             Rule {
