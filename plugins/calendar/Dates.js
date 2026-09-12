@@ -16,9 +16,12 @@ function touches(event, day) {
     return date(event.start) < add(day, 1) && date(event.end) > day;
 }
 function days(anchor, mode, firstDay) {
+    if (firstDay === undefined) firstDay = 1;
     var first = new Date(anchor.getFullYear(), anchor.getMonth(), mode === 'Month' ? 1 : anchor.getDate());
     if (mode !== 'Agenda') first = add(first, -((first.getDay() - firstDay + 7) % 7));
-    var count = mode === 'Month' ? 42 : mode === 'Week' ? 7 : 14;
+    var offset = (new Date(anchor.getFullYear(), anchor.getMonth(), 1).getDay() - firstDay + 7) % 7;
+    var monthLength = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate();
+    var count = mode === 'Month' ? Math.ceil((offset + monthLength) / 7) * 7 : mode === 'Week' ? 7 : 14;
     var result = [];
     for (var i = 0; i < count; i++) result.push(add(first, i));
     return result;

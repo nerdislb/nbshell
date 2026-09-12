@@ -22,7 +22,7 @@ FocusScope {
     property string provider: "icloud"
     property string confirmation: ""
     property var pending: ({})
-    readonly property var days: Dates.days(anchor, mode, Qt.locale().firstDayOfWeek % 7)
+    readonly property var days: Dates.days(anchor, mode)
     readonly property var visibleEvents: backend.events.filter(e => backend.calendars.some(c => c.key === e.calendarKey && c.visible))
     readonly property var focusedItem: root.Window.window ? root.Window.window.activeFocusItem : null
     onFocusedItemChanged: Qt.callLater(revealFocus)
@@ -167,7 +167,11 @@ FocusScope {
                     Layout.fillWidth: true
                     spacing: Theme.spaceXs
                     Line { Layout.fillWidth: true; elide: Text.ElideRight; text: root.page === "calendar" ? root.anchor.toLocaleDateString(Qt.locale(), "MMMM yyyy") : root.page === "editor" ? (root.selectedEvent ? "Event details" : "New event") : "Accounts"; font.pixelSize: Theme.fontHeading }
-                    Line { Layout.fillWidth: true; text: "CALENDAR"; color: Theme.fgDim; font.pixelSize: Theme.fontCaption }
+                    Line {
+                        Layout.fillWidth: true; elide: Text.ElideRight; font.pixelSize: Theme.fontCaption
+                        color: root.backend.stale ? Theme.red : Theme.fgDim
+                        text: root.backend.busy ? "Syncing calendars…" : root.backend.stale ? "Offline · refresh to make changes" : root.backend.loadedAt ? "Synced " + new Date(root.backend.loadedAt).toLocaleTimeString(Qt.locale(), "HH:mm") : "Ready to sync"
+                    }
                 }
                 Flow {
                     Layout.fillWidth: true
@@ -176,19 +180,11 @@ FocusScope {
                     Layout.alignment: Qt.AlignRight
                     spacing: Theme.spaceSm
                     ControlButton { text: root.page === "calendar" ? "Close" : "Back"; onTriggered: root.back() }
+                    ControlButton { visible: root.backend.busy; text: "Cancel"; onTriggered: root.backend.cancel() }
                     ControlButton { id: refreshButton; text: "Refresh"; enabled: !root.backend.busy; onTriggered: root.refresh() }
                     ControlButton { text: "Accounts"; onTriggered: { root.page = "accounts"; Qt.callLater(() => accountName.forceActiveFocus()); } }
                     ControlButton { text: "+ Event"; selected: true; enabled: !root.backend.busy && !root.backend.stale && root.backend.calendars.some(c => c.writable); onTriggered: root.edit(null) }
                 }
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                Line {
-                    Layout.fillWidth: true; elide: Text.ElideRight; font.pixelSize: Theme.fontCaption
-                    color: root.backend.stale ? Theme.red : Theme.fgDim
-                    text: root.backend.busy ? "Syncing calendars…" : root.backend.stale ? "Offline · refresh to make changes" : root.backend.loadedAt ? "Synced " + new Date(root.backend.loadedAt).toLocaleTimeString(Qt.locale(), "HH:mm") : "Ready to sync"
-                }
-                ControlButton { visible: root.backend.busy; text: "Cancel"; onTriggered: root.backend.cancel() }
             }
             Line { Layout.fillWidth: true; wrapMode: Text.Wrap; visible: text.length > 0; objectName: "errorBanner"; text: [root.backend.error, root.editorError].filter(e => e.length > 0).join("\n"); color: Theme.red }
             Line { Layout.fillWidth: true; wrapMode: Text.Wrap; visible: root.backend.authorizationUrl.length > 0 && root.backend.busy; text: "Finish Google consent in your browser. Waiting up to three minutes." }
@@ -203,7 +199,7 @@ FocusScope {
             }
             ColumnLayout {
                 Layout.fillWidth: true; visible: root.page === "calendar"
-                spacing: Theme.spaceMd
+                spacing: Theme.spaceSm
                 GridLayout {
                     Layout.fillWidth: true
                     columns: root.width >= Theme.cellW * 70 ? 2 : 1
@@ -269,9 +265,9 @@ FocusScope {
                             Layout.fillWidth: true
                             Layout.preferredWidth: 0
                             Layout.alignment: Qt.AlignTop
-                            implicitHeight: root.monthGrid ? Math.max(Theme.cellH * 4.5, (root.height - Theme.cellH * 10 - (root.showCalendars ? Theme.controlHeight * 2 : 0)) / 6) : dayContent.implicitHeight + Theme.spaceSm * 2
+                            implicitHeight: root.monthGrid ? Math.max(Theme.cellH * 3 + Theme.controlHeight + Theme.spaceXs * 4, Math.min(Theme.cellH * 6, (root.height - Theme.cellH * 8 - (root.showCalendars ? Theme.controlHeight * 2 : 0)) / (root.days.length / 7))) : dayContent.implicitHeight + Theme.spaceSm * 2
                             accentBorder: today
-                            color: today ? Theme.selectedSurface(Theme.accent) : Theme.panelSurface
+                            color: today ? Theme.selectedSurface(Theme.accent) : outside && root.monthGrid ? Theme.panelSurface : Theme.panelSurfaceRaised
                             ColumnLayout {
                                 id: dayContent
                                 anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.spaceXs }

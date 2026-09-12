@@ -19,6 +19,8 @@ with sandbox() as (work, env):
     try:
         for mode,page,width,height,name,source in [
             ('Month','calendar',1100,760,'month-dark',dark),
+            ('Month','calendar',940,1000,'month-tall-light',light),
+            ('Month','calendar',700,480,'month-small-light',light),
             ('Week','calendar',620,720,'week-light',light),
             ('Agenda','accounts',360,760,'accounts-narrow-light',light),
             ('Agenda','editor',620,760,'editor-dark',dark),

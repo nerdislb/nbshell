@@ -83,8 +83,8 @@ TestCase {
     }
     function test_views_and_narrow_layout() {
         view.anchor = new Date(2026,8,11);
-        view.mode = "Week"; compare(view.days.length,7);
-        view.mode = "Month"; compare(view.days.length,42);
+        view.mode = "Week"; compare(view.days.length,7); compare(view.days[0].getDay(),1);
+        view.mode = "Month"; compare(view.days.length,35); compare(view.days[0].getDay(),1);
         test.width = 320; wait(50);
         compare(view.width,320);
         view.mode = "Agenda"; compare(view.days.length,14);

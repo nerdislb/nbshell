@@ -16,3 +16,14 @@ assert.throws(() => context.fromEditor('2026-09-11', '24:00', false));
 assert.throws(() => context.fromEditor('2026-09-11', '12:60', false));
 assert.throws(() => context.fromEditor('2026-03-29', '02:30', false), /clocks change/);
 console.log('Date editor: 10 checks passed');
+
+// Monday-first month coverage, including four-, five- and six-week months.
+for (const [year, month, count] of [[2021, 1, 28], [2026, 8, 35], [2026, 2, 42], [2026, 11, 35]]) {
+    const days = context.days(new Date(year, month, 12), 'Month');
+    assert.equal(days.length, count);
+    assert.equal(days[0].getDay(), 1);
+    assert.equal(days.at(-1).getDay(), 0);
+    assert.equal(days.filter(d => d.getMonth() === month).length, new Date(year, month + 1, 0).getDate());
+}
+assert.equal(context.days(new Date(2026, 8, 13), 'Week')[0].getDate(), 7);
+console.log('Monday-first calendar coverage passed');
