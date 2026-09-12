@@ -51,6 +51,7 @@ run python3 tests/install-tree-transaction.py
 run python3 tests/recovery-contracts.py
 run python3 tests/phone_auth.py
 run python3 tests/ai-local-stats.py
+run python3 tests/test_openclaw_monitor.py
 run python3 tests/hermes-hub.py
 run python3 tests/hermes-broker.py
 run python3 tests/hermes-jobs.py

@@ -123,7 +123,7 @@ Singleton {
             onStreamFinished: {
                 try {
                     const raw = JSON.parse(text);
-                    function topf(t, isAgy) {
+                    function topf(t, isAgy, slot) {
                         if (!t || t.usedPercent === undefined || t.usedPercent === null)
                             return null;
                         var label = t.name || t.resetDescription || "";
@@ -139,6 +139,7 @@ Singleton {
                             }
                         }
                         return {
+                            "id": slot,
                             "percent": Math.round(t.usedPercent),
                             "label": label,
                             "resetsAt": t.resetsAt ?? ""
@@ -149,9 +150,10 @@ Singleton {
                         const isAgy = item.provider === "antigravity" || item.provider === "agy";
                         const dispId = isAgy ? "agy" : item.provider;
                         const u = item.usage ?? ({});
-                        const weitere = [topf(u.secondary, isAgy), topf(u.tertiary, isAgy)].filter(t => t !== null);
-                        const erst = topf(u.primary, isAgy) ?? ({
-                                "percent": 0,
+                        const weitere = [topf(u.secondary, isAgy, "secondary"), topf(u.tertiary, isAgy, "tertiary")].filter(t => t !== null);
+                        const erst = topf(u.primary, isAgy, "primary") ?? ({
+                                "id": "primary",
+                                "percent": null,
                                 "label": "",
                                 "resetsAt": ""
                             });
@@ -164,7 +166,7 @@ Singleton {
                             "window": erst.label,
                             "resetsAt": erst.resetsAt,
                             "more": weitere,
-                            "limits": [erst].concat(weitere),
+                            "limits": (erst.percent === null ? [] : [erst]).concat(weitere),
                             "stats": stats,
                             "updatedAt": u.updatedAt ?? ""
                         };

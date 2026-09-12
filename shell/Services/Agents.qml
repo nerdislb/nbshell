@@ -31,10 +31,34 @@ Singleton {
     property bool overviewVisible: false
     property int monitorUsers: 0
     property string monitorError: ""
+    property var openclaw: ({installed: false, online: false, working: 0, sessions: 0, agents: [], error: ""})
 
     function refreshSessions() {
         if (!sessionStatus.running)
             sessionStatus.running = true;
+        if (!openclawStatus.running)
+            openclawStatus.running = true;
+    }
+
+    Process {
+        id: openclawStatus
+        command: ["python3", Qt.resolvedUrl("../scripts/openclaw-status.py").toString().replace("file://", "")]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const next = JSON.parse(text);
+                    if (typeof next.online !== "boolean" || typeof next.working !== "number")
+                        throw new Error("Invalid OpenClaw status");
+                    if (JSON.stringify(root.openclaw) !== JSON.stringify(next)) root.openclaw = next;
+                } catch (e) {
+                    root.openclaw = {installed: root.openclaw.installed, online: false, working: 0, sessions: 0, agents: [], error: "OpenClaw status unavailable"};
+                }
+            }
+        }
+        onExited: (exitCode, exitStatus) => {
+            if (exitCode !== 0)
+                root.openclaw = {installed: root.openclaw.installed, online: false, working: 0, sessions: 0, agents: [], error: "OpenClaw status unavailable"};
+        }
     }
 
     Timer {
@@ -81,6 +105,7 @@ Singleton {
     readonly property string hermesProvider: String(config.hermesProvider ?? "codex")
     readonly property string hermesMode: String(config.hermesMode ?? "restricted")
     readonly property int workingCount: sessions.filter(row => String(row.status) === "working").length
+        + (openclaw.online ? Number(openclaw.working || 0) : 0)
     readonly property int waitingCount: sessions.filter(row => ["waiting", "permission", "blocked"].indexOf(String(row.status)) >= 0).length
 
     function refresh() {

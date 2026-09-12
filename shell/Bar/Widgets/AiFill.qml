@@ -4,115 +4,121 @@ import qs.Common
 import qs.Services
 import qs.Widgets
 
-// AI subscription dashboard inspired by Omarchy's information hierarchy,
-// implemented with nbshell's own primitives and local-only usage aggregation.
+// Quiet bar indicator; quota details belong in the hover and dashboard.
 Cell {
     id: root
 
-    property int selectedProviderIndex: 0
+    readonly property bool agentActive: Agents.workingCount > 0
+    readonly property bool limitWarning: AiUsage.list.some(provider =>
+        (provider.limits ?? []).some(limit => Number(limit.percent ?? 0) >= 90))
+    readonly property real panelWidth: Math.max(20 * Theme.cellW, Math.min(58 * Theme.cellW,
+        (Quickshell.screens.find(screen => screen.name === root.popupOutput)?.width ?? 800) - Theme.panelPadding * 4))
+    property double resetTick: Date.now()
 
-    readonly property var monitorSessions: Agents.sessions.filter(row => row.backend === "herdr")
-        .sort((a, b) => sessionRank(a) - sessionRank(b))
-    readonly property var visibleSessions: monitorSessions.slice(0, 4)
-
-    function sessionRank(row) {
-        if (row.status === "working") return 0;
-        if (["waiting", "permission", "blocked"].includes(row.status)) return 1;
-        return 2;
+    function percent(value) {
+        return value === null || value === undefined || !isFinite(Number(value)) ? "—" : Math.round(Number(value)) + "%";
     }
 
-    function sessionState(row) {
-        if (row.status === "working") return "Working";
-        if (["waiting", "permission", "blocked"].includes(row.status)) return "Input";
-        if (row.status === "done") return "Done";
-        if (row.status === "idle") return "Idle";
-        return "Unknown";
+    function asciiMeter(value, length) {
+        if (value === null || value === undefined || !isFinite(Number(value)))
+            return "[" + "·".repeat(length) + "]";
+        const filled = Math.round(Math.max(0, Math.min(100, Number(value))) * length / 100);
+        return "[" + "█".repeat(filled) + "░".repeat(length - filled) + "]";
+    }
+
+    function resetText(limit) {
+        const tick = root.resetTick; // Minute cadence without refetching provider data.
+        const text = AiUsage.untilReset(limit);
+        return text ? (/^Resets /i.test(text) ? text : "Resets " + text) : "Reset unavailable";
+    }
+
+    function headline(provider) {
+        const limits = provider.limits ?? [];
+        return limits.length ? limits.reduce((a, b) => Number(a.percent ?? 0) >= Number(b.percent ?? 0) ? a : b) : null;
     }
 
     Component.onCompleted: Agents.monitorUsers++
     Component.onDestruction: Agents.monitorUsers = Math.max(0, Agents.monitorUsers - 1)
-    onPreviewVisibleChanged: if (previewVisible) Agents.refreshSessions()
+    onPreviewVisibleChanged: if (previewVisible) root.resetTick = Date.now()
+    onPopoutVisibleChanged: if (popoutVisible) root.resetTick = Date.now()
+    Timer {
+        interval: 60000
+        running: root.previewVisible || root.popoutVisible
+        repeat: true
+        onTriggered: root.resetTick = Date.now()
+    }
 
-    readonly property bool agentActive: Agents.workingCount > 0 || Agents.waitingCount > 0
-    readonly property bool limitWarning: AiUsage.list.some(entry =>
-        (entry.limits ?? []).some(window => (window.percent ?? 0) >= 90))
-
-    shown: monitorSessions.length > 0 || Agents.completionAttention || root.agentActive || (AiUsage.available && AiUsage.list.length > 0)
+    shown: Agents.sessions.length > 0 || Agents.openclaw.installed || root.agentActive || AiUsage.available
     interactive: true
     popoutTakesKeyboard: true
-    slotChars: 5
+    slotChars: 0
     label: "AI"
     icon: Icons.agent
-    text: Agents.workingCount > 0 ? "● " + Agents.workingCount
-        : (Agents.waitingCount > 0 ? "! " + Agents.waitingCount : "")
-    accessibilityName: "AI · " + Agents.workingCount + " working · " + Agents.waitingCount + " waiting"
-    color: root.limitWarning ? Theme.red : (Agents.completionAttention ? (Agents.attentionKind === "decision" ? Theme.yellow : Theme.cyan) : (root.agentActive ? Theme.green : Theme.textDim))
-
-    onPopoutVisibleChanged: Agents.setOverviewVisible(root.popoutVisible)
-
-    SequentialAnimation on contentOpacity {
-        running: Agents.completionAttention && !Theme.reducedMotion
-        loops: Animation.Infinite
-        onRunningChanged: if (!running) root.contentOpacity = 1
-
-        NumberAnimation { to: 0.28; duration: Theme.motionAttention; easing.type: Easing.InOutSine }
-        NumberAnimation { to: 1; duration: Theme.motionAttention; easing.type: Easing.InOutSine }
-    }
-
-    onClicked: {
-        if (Agents.completionAttention) {
-            root.setPopout(false);
-            const target = Agents.attentionSessions[0] ?? "";
-            if (target !== "")
-                Agents.focusSession(target);
-            else
-                Agents.refresh();
-        }
-    }
+    text: ""
+    color: root.limitWarning ? Theme.red : (root.agentActive ? Theme.green : Theme.textDim)
+    accessibilityName: "AI limits · " + (root.limitWarning ? "Limit warning" : root.agentActive ? "Agent active" : "Idle")
+    // Click always opens quotas, even when an agent has finished.
     onRightClicked: Agents.launch(Agents.defaultAgent, "")
-    onMiddleClicked: {
-        if (AiUsage.list.length > 0)
-            root.selectedProviderIndex = (root.selectedProviderIndex + 1) % AiUsage.list.length;
-    }
-    onWheel: delta => {
-        if (AiUsage.list.length > 0)
-            root.selectedProviderIndex = (root.selectedProviderIndex + (delta < 0 ? 1 : -1) + AiUsage.list.length) % AiUsage.list.length;
-    }
+    onMiddleClicked: AiUsage.refresh()
 
     preview: Component {
         BarPreview {
             id: card
             icon: Icons.agent
-            title: "Herdr agents"
-            subtitle: Agents.monitorError || (root.monitorSessions.length === 0
-                ? "No active Herdr sessions"
-                : Agents.workingCount + " working · " + Agents.waitingCount + " waiting")
-            badge: Agents.monitorError ? "OFFLINE" : (Agents.workingCount > 0 ? "LIVE" : (Agents.waitingCount > 0 ? "INPUT" : "IDLE"))
-            badgeColor: Agents.monitorError ? Theme.yellow : (Agents.workingCount > 0 ? Theme.green : (Agents.waitingCount > 0 ? Theme.yellow : Theme.fgDim))
+            title: "AI limits"
+            subtitle: "Subscriptions & quotas"
+            badge: root.limitWarning ? "LIMIT" : ""
+            badgeColor: Theme.red
             content: [
                 Repeater {
-                    model: root.visibleSessions
-                    PanelRow {
+                    model: AiUsage.list
+                    Column {
                         required property var modelData
                         width: card.rowWidth
-                        title: String(modelData.name || "Agent") + " · Tab " + String(modelData.tab || "—")
-                        detail: String(modelData.title || modelData.project || "Herdr session")
-                        value: root.sessionState(modelData)
-                        glyph: modelData.status === "working" ? "●" : "·"
+                        spacing: Theme.spaceXs
+                        Line {
+                            width: parent.width
+                            text: modelData.name
+                            color: Theme.fgBright
+                            font.bold: true
+                            elide: Text.ElideRight
+                        }
+                        Repeater {
+                            model: modelData.limits ?? []
+                            Column {
+                                required property var modelData
+                                width: card.rowWidth
+                                spacing: 0
+                                Line {
+                                    width: parent.width
+                                    text: (modelData.label || "Session") + " · " + root.percent(modelData.percent)
+                                    color: modelData.percent >= 90 ? Theme.readable(Theme.red, Theme.bg, 4.5) : Theme.fg
+                                    elide: Text.ElideRight
+                                }
+                                Line {
+                                    width: parent.width
+                                    text: root.asciiMeter(modelData.percent, 10) + " " + root.resetText(modelData)
+                                    color: Theme.fgDim
+                                    font.pixelSize: Theme.fontCaption
+                                    elide: Text.ElideRight
+                                }
+                            }
+                        }
+                        Line {
+                            visible: !(modelData.limits ?? []).length
+                            text: "Limits unavailable"
+                            color: Theme.fgDim
+                            font.pixelSize: Theme.fontCaption
+                        }
                     }
                 },
                 Line {
-                    width: card.rowWidth
-                    visible: root.monitorSessions.length > 4
-                    text: "+" + (root.monitorSessions.length - 4) + " more sessions"
+                    visible: !AiUsage.list.length
+                    text: AiUsage.discovering ? "Loading limits…" : "No usage data available"
                     color: Theme.fgDim
-                    font.pixelSize: Theme.fontCaption
                 },
                 Line {
-                    width: card.rowWidth
-                    text: Agents.completionAttention ? "Click to return to your agent"
-                        : "Click for AI usage · Right-click to start an agent"
-                    wrapMode: Text.WordWrap
+                    text: "Click for all providers"
                     color: Theme.fgDim
                     font.pixelSize: Theme.fontCaption
                 }
@@ -123,274 +129,176 @@ Cell {
     popout: Component {
         Column {
             id: panel
-
             property var closePopout: null
-            property int selectedIndex: 0
-            readonly property real rowWidth: 58 * Theme.cellW
-            readonly property var provider: AiUsage.list.length > 0 ? AiUsage.list[selectedIndex] : null
-            readonly property var stats: provider?.stats ?? ({ "recentDays": [], "models": [], "todayTokens": 0, "totalTokens": 0, "sessions": 0 })
-            readonly property var limits: provider?.limits ?? []
-            readonly property real modelPeak: Math.max(1, ...(stats.models ?? []).map(model => Number(model.tokens ?? 0)))
+            property alias initialFocusItem: limitsTab
+            property string tab: "limits"
+            property var expanded: ({})
+            readonly property real rowWidth: root.panelWidth
+            width: rowWidth
+            spacing: Theme.spaceMd
 
-            spacing: Theme.cellH * 0.55
-            focus: true
-
-            onSelectedIndexChanged: root.selectedProviderIndex = selectedIndex
-            Component.onCompleted: {
-                selectedIndex = Math.min(root.selectedProviderIndex, Math.max(0, AiUsage.list.length - 1));
-                forceActiveFocus();
+            function toggleProvider(id) {
+                const next = Object.assign({}, expanded);
+                next[id] = !(expanded[id] ?? true);
+                expanded = next;
             }
-
-            Connections {
-                target: root
-                function onSelectedProviderIndexChanged() {
-                    const next = Math.min(root.selectedProviderIndex, Math.max(0, AiUsage.list.length - 1));
-                    if (panel.selectedIndex !== next)
-                        panel.selectedIndex = next;
-                }
+            function expandAll() {
+                const allOpen = AiUsage.list.every(provider => expanded[provider.id] ?? true);
+                const next = {};
+                for (const provider of AiUsage.list) next[provider.id] = !allOpen;
+                expanded = next;
             }
-
-            Connections {
-                target: AiUsage
-                function onListChanged() {
-                    const next = Math.min(panel.selectedIndex, Math.max(0, AiUsage.list.length - 1));
-                    if (panel.selectedIndex !== next)
-                        panel.selectedIndex = next;
-                }
-            }
-            Keys.onLeftPressed: selectProvider(-1)
-            Keys.onRightPressed: selectProvider(1)
             Keys.onPressed: event => {
-                if (event.key === Qt.Key_R || event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                    AiUsage.refresh();
-                    event.accepted = true;
-                }
-            }
-
-            function selectProvider(delta) {
-                if (AiUsage.list.length === 0)
-                    return;
-                selectedIndex = (selectedIndex + delta + AiUsage.list.length) % AiUsage.list.length;
-            }
-
-            component Meter: Item {
-                id: meter
-                property real value: 0
-                property color fill: Theme.accent
-
-                implicitHeight: Math.max(3, Theme.borderWidth * 2)
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: height / 2
-                    color: Theme.alpha(Theme.muted, 0.45)
-                }
-
-                Rectangle {
-                    height: parent.height
-                    width: Math.round(parent.width * Math.max(0, Math.min(1, meter.value)))
-                    radius: height / 2
-                    color: meter.fill
-                }
-            }
-
-            component LimitRow: Column {
-                id: limitRow
-                required property var modelData
-
-                width: panel.rowWidth
-                spacing: Theme.cellH * 0.2
-
-                Item {
-                    width: parent.width
-                    height: Theme.cellH
-
-                    Line {
-                        anchors.left: parent.left
-                        anchors.right: limitValue.left
-                        anchors.rightMargin: Theme.cellW
-                        text: limitRow.modelData.label !== "" ? limitRow.modelData.label : "Session"
-                        color: Theme.fg
-                        elide: Text.ElideRight
-                    }
-
-                    Line {
-                        id: limitValue
-                        anchors.right: parent.right
-                        text: limitRow.modelData.percent + " %"
-                        color: limitRow.modelData.percent >= 90 ? Theme.red : Theme.fgBright
-                        font.bold: true
-                    }
-                }
-
-                Meter {
-                    width: parent.width
-                    value: Number(limitRow.modelData.percent ?? 0) / 100
-                    fill: limitRow.modelData.percent >= 90 ? Theme.red : Theme.accent
-                }
-
-                Line {
-                    text: {
-                        const reset = AiUsage.untilReset(limitRow.modelData);
-                        return reset !== "" ? "Resets " + reset : "Reset time unavailable";
-                    }
-                    color: Theme.fgDim
-                    font.pixelSize: Theme.fontCaption
-                }
-            }
-
-            component UsageRow: Item {
-                id: usageRow
-                property string label: ""
-                property real tokens: 0
-                property real peak: 1
-                property bool emphasized: false
-                property real labelWidth: Theme.cellW * 8
-
-                width: panel.rowWidth
-                height: Theme.cellH * 1.35
-
-                Line {
-                    id: usageLabel
-                    anchors.left: parent.left
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: usageRow.labelWidth
-                    text: usageRow.label
-                    color: usageRow.emphasized ? Theme.fgBright : Theme.fgDim
-                    font.bold: usageRow.emphasized
-                    elide: Text.ElideRight
-                }
-
-                Meter {
-                    anchors.left: usageLabel.right
-                    anchors.right: usageValue.left
-                    anchors.rightMargin: Theme.cellW
-                    anchors.verticalCenter: parent.verticalCenter
-                    value: usageRow.tokens / Math.max(1, usageRow.peak)
-                    fill: usageRow.emphasized ? Theme.accent : Theme.alpha(Theme.accent, 0.7)
-                }
-
-                Line {
-                    id: usageValue
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: Theme.cellW * 8
-                    horizontalAlignment: Text.AlignRight
-                    text: AiUsage.formatTokens(usageRow.tokens)
-                    color: usageRow.emphasized ? Theme.fgBright : Theme.fg
-                    font.bold: usageRow.emphasized
-                }
+                if (event.key === Qt.Key_R) { AiUsage.refresh(); event.accepted = true; }
+                if (event.key === Qt.Key_E) { panel.expandAll(); event.accepted = true; }
+                if (event.key === Qt.Key_Escape) { panel.closePopout?.(); event.accepted = true; }
             }
 
             PanelHead {
                 rowWidth: panel.rowWidth
                 icon: Icons.agent
-                title: panel.provider?.name ?? "AI subscriptions"
-                subtitle: panel.provider?.plan ?? "No usage data"
-                badge: panel.provider ? (panel.provider.percent + " %") : "—"
-                badgeColor: panel.provider?.percent >= 90 ? Theme.red : Theme.accent
+                title: "AI Limits & Quotas"
+                subtitle: "All subscriptions in one place"
+                badge: root.limitWarning ? "LIMIT" : ""
+                badgeColor: Theme.red
             }
-
             Row {
-                visible: AiUsage.list.length > 1
+                spacing: Theme.spaceSm
+                ActionButton {
+                    id: limitsTab
+                    width: (panel.rowWidth - parent.spacing) / 2
+                    text: "Limits"
+                    tone: panel.tab === "limits" ? "primary" : "secondary"
+                    onTriggered: panel.tab = "limits"
+                }
+                ActionButton {
+                    width: (panel.rowWidth - parent.spacing) / 2
+                    text: "Token usage"
+                    tone: panel.tab === "tokens" ? "primary" : "secondary"
+                    onTriggered: panel.tab = "tokens"
+                }
+            }
+            Flow {
                 width: panel.rowWidth
-                spacing: Theme.cellW
-
-                Repeater {
-                    model: AiUsage.list
-
-                    ActionButton {
-                        required property var modelData
-                        required property int index
-                        width: (panel.rowWidth - parent.spacing * (AiUsage.list.length - 1)) / AiUsage.list.length
-                        text: modelData.id
-                        tone: index === panel.selectedIndex ? "primary" : "secondary"
-                        compact: true
-                        onTriggered: panel.selectedIndex = index
-                    }
+                spacing: Theme.spaceSm
+                ActionButton { text: "Refresh"; compact: true; onTriggered: AiUsage.refresh() }
+                ActionButton {
+                    text: AiUsage.list.every(provider => panel.expanded[provider.id] ?? true) ? "Collapse all" : "Expand all"
+                    compact: true
+                    enabled: AiUsage.list.length > 0
+                    onTriggered: panel.expandAll()
                 }
             }
 
-            Rule {
-                visible: panel.limits.length > 0
-                rowWidth: panel.rowWidth
-                label: "LIMITS"
-            }
-
             Repeater {
-                model: panel.limits
-                LimitRow {}
-            }
-
-            Rule {
-                visible: (panel.stats.models ?? []).length > 0
-                rowWidth: panel.rowWidth
-                label: "TOKENS BY MODEL"
-            }
-
-            Repeater {
-                model: panel.stats.models ?? []
-
-                UsageRow {
+                model: AiUsage.list
+                PanelSurface {
+                    id: providerCard
                     required property var modelData
-                    label: String(modelData.name ?? "model")
-                    labelWidth: Theme.cellW * 20
-                    tokens: Number(modelData.tokens ?? 0)
-                    peak: panel.modelPeak
+                    readonly property bool expanded: panel.expanded[modelData.id] ?? true
+                    readonly property var headline: root.headline(modelData)
+                    width: panel.rowWidth
+                    height: providerBody.implicitHeight + Theme.spaceSm * 2
+                    Column {
+                        id: providerBody
+                        x: Theme.spaceSm
+                        y: Theme.spaceSm
+                        width: parent.width - Theme.spaceSm * 2
+                        spacing: Theme.spaceSm
+                        PanelRow {
+                            width: parent.width
+                            title: providerCard.modelData.name
+                            detail: providerCard.modelData.plan || "Subscription"
+                            value: root.percent(providerCard.headline?.percent)
+                            glyph: providerCard.expanded ? "▾" : "▸"
+                            interactive: true
+                            accessibleDescription: (providerCard.expanded ? "Collapse" : "Expand") + " provider limits"
+                            onTriggered: panel.toggleProvider(providerCard.modelData.id)
+                        }
+                        Column {
+                            width: parent.width
+                            spacing: Theme.spaceSm
+                            visible: providerCard.expanded
+                            Repeater {
+                                model: panel.tab === "limits" ? (providerCard.modelData.limits ?? []) : []
+                                PanelSurface {
+                                    id: quotaCard
+                                    required property var modelData
+                                    width: parent.width
+                                    height: quotaBody.implicitHeight + Theme.spaceMd * 2
+                                    raised: true
+                                    Column {
+                                        id: quotaBody
+                                        x: Theme.spaceMd
+                                        y: Theme.spaceMd
+                                        width: parent.width - Theme.spaceMd * 2
+                                        spacing: Theme.spaceXs
+                                        Item {
+                                            width: parent.width
+                                            height: Theme.cellH
+                                            Line {
+                                                width: parent.width - quotaPercent.implicitWidth - Theme.spaceSm
+                                                text: quotaCard.modelData.label || "Session"
+                                                color: Theme.fgBright
+                                                font.bold: true
+                                                elide: Text.ElideRight
+                                            }
+                                            Line {
+                                                id: quotaPercent
+                                                anchors.right: parent.right
+                                                text: root.percent(quotaCard.modelData.percent)
+                                                color: quotaCard.modelData.percent >= 90 ? Theme.readable(Theme.red, Theme.panelSurfaceRaised, 4.5) : Theme.fgBright
+                                                font.bold: true
+                                            }
+                                        }
+                                        Line {
+                                            width: parent.width
+                                            text: root.asciiMeter(quotaCard.modelData.percent, Math.max(8, Math.min(24, Math.floor(width / Theme.cellW) - 2)))
+                                            color: Theme.readable(quotaCard.modelData.percent >= 90 ? Theme.red : Theme.accent, Theme.panelSurfaceRaised, 4.5)
+                                        }
+                                        Line {
+                                            width: parent.width
+                                            text: root.resetText(quotaCard.modelData)
+                                            color: Theme.fgDim
+                                            font.pixelSize: Theme.fontCaption
+                                            wrapMode: Text.WordWrap
+                                        }
+                                    }
+                                }
+                            }
+                            Repeater {
+                                model: panel.tab === "tokens" ? (providerCard.modelData.stats?.models ?? []) : []
+                                PanelRow {
+                                    required property var modelData
+                                    width: parent.width
+                                    title: String(modelData.name || "Model")
+                                    value: AiUsage.formatTokens(modelData.tokens)
+                                }
+                            }
+                            Line {
+                                width: parent.width
+                                visible: panel.tab === "limits" ? !(providerCard.modelData.limits ?? []).length : !(providerCard.modelData.stats?.models ?? []).length
+                                text: panel.tab === "limits" ? "Limits unavailable" : "No local token history"
+                                color: Theme.fgDim
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+                    }
                 }
             }
-
             Line {
-                visible: panel.provider && (panel.stats.models ?? []).length === 0
                 width: panel.rowWidth
-                text: "No local token history for this provider"
+                visible: !AiUsage.list.length
+                text: AiUsage.discovering ? "Loading limits…" : "No usage data available. Try Refresh."
                 color: Theme.fgDim
-                horizontalAlignment: Text.AlignHCenter
-                font.pixelSize: Theme.fontCaption
+                wrapMode: Text.WordWrap
             }
-
-            Rule {
-                rowWidth: panel.rowWidth
-                label: "AGENTS"
-            }
-
-            Facts {
-                rowWidth: panel.rowWidth
-                pairs: [
-                    { "label": "Running", "value": String(Agents.workingCount), "color": Agents.workingCount > 0 ? Theme.green : Theme.fgDim },
-                    { "label": "Waiting", "value": String(Agents.waitingCount), "color": Agents.waitingCount > 0 ? Theme.yellow : Theme.fgDim },
-                    { "label": "Local sessions", "value": String(panel.stats.sessions ?? 0), "color": Theme.fg }
-                ]
-            }
-
-            Row {
-                spacing: Theme.cellW
-
-                ActionButton {
-                    text: "Agent Center"
-                    compact: true
-                    onTriggered: {
-                        panel.closePopout?.();
-                        Runtime.agentCenterOpen = true;
-                    }
-                }
-
-                ActionButton {
-                    text: "Refresh"
-                    compact: true
-                    onTriggered: {
-                        AiUsage.refresh();
-                        Agents.refresh();
-                    }
-                }
-            }
-
             Line {
                 width: panel.rowWidth
-                text: "←/→ provider · R refresh · right click launches default agent"
-                color: Theme.muted
-                horizontalAlignment: Text.AlignHCenter
+                text: "R refresh · E expand/collapse · Esc close"
+                color: Theme.fgDim
                 font.pixelSize: Theme.fontCaption
+                wrapMode: Text.WordWrap
             }
         }
     }
