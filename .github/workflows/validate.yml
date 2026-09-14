@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Install test dependencies
         run: >-
-          pacman -Syu --noconfirm git bash make python python-requests python-icalendar python-pytz python-atspi jq nodejs shadow gcc rust ffmpeg pkgconf wayland qt6-declarative
+          pacman -Syu --noconfirm git bash make python python-requests python-icalendar python-pytz khal libsecret python-atspi jq nodejs shadow gcc rust ffmpeg pkgconf wayland qt6-declarative
           debugedit fakeroot meson ninja quickshell dbus libnotify python-gobject
           wayland-protocols bubblewrap diffutils ttf-dejavu
 
