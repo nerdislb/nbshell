@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
-"""Native Prism setup with the shared gaming progress protocol; no auto-launch."""
+"""Native Prism setup with the shared gaming progress protocol and native Prism account handoff."""
 import argparse
+import configparser
+import io
+import re
+import tempfile
+import urllib.request
 from contextlib import ExitStack
 import fcntl
 import json
@@ -15,7 +20,7 @@ import sys
 from battlenet import write_atomic
 
 ICON = Path('/usr/share/icons/Papirus/64x64/apps/minecraft.svg')
-PACKAGES = ('prismlauncher', 'jre21-openjdk', 'papirus-icon-theme')
+PACKAGES = ('prismlauncher', 'papirus-icon-theme')
 
 
 def emit(phase, message, **extra):
@@ -60,6 +65,88 @@ def check_cancel(state):
         raise RuntimeError('Cancelled. Installed packages and existing Minecraft data were kept.')
 
 
+MANIFEST_URL = 'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json'
+
+
+def latest_release():
+    with urllib.request.urlopen(MANIFEST_URL, timeout=30) as response:
+        raw = response.read(4 * 1024 * 1024 + 1)
+    if len(raw) > 4 * 1024 * 1024:
+        raise RuntimeError('Minecraft version manifest is too large.')
+    manifest = json.loads(raw)
+    if not isinstance(manifest, dict) or not isinstance(manifest.get('latest'), dict) or not isinstance(manifest.get('versions'), list):
+        raise RuntimeError('Invalid Minecraft version manifest.')
+    version = manifest['latest']['release']
+    if not isinstance(version, str) or not re.fullmatch(r'[0-9][0-9A-Za-z._-]{0,79}', version):
+        raise RuntimeError('Invalid Minecraft release identifier.')
+    if not any(isinstance(v, dict) and v.get('id') == version and v.get('type') == 'release' for v in manifest['versions']):
+        raise RuntimeError('No stable Minecraft release was found.')
+    return version
+
+
+def prepare_prism(data, state):
+    # Never edit settings while Prism may write them or inspect account tokens.
+    if subprocess.run(['pgrep', '-u', str(os.getuid()), '-x', 'prismlauncher'],
+                      capture_output=True, timeout=5).returncode == 0:
+        raise RuntimeError('Close Prism Launcher before preparing Minecraft, then retry.')
+    root = data / 'PrismLauncher'
+    cfg_path = root / 'prismlauncher.cfg'
+    config = configparser.ConfigParser(interpolation=None, strict=False)
+    config.optionxform = str
+    previous = cfg_path.read_bytes() if cfg_path.exists() else None
+    if previous:
+        config.read_string(previous.decode('utf-8'))
+    if not config.has_section('General'):
+        config.add_section('General')
+    settings = config['General']
+    instance_dir = Path(settings.get('InstanceDir', 'instances'))
+    if not instance_dir.is_absolute():
+        instance_dir = root / instance_dir
+    existing = sorted(instance_dir.glob('*/instance.cfg'))
+    if existing:
+        # Existing worlds/modpacks and user choices are never silently upgraded.
+        emit('prepared', 'Existing Minecraft instances kept.',
+             detail='Your selected Prism instance will open; no worlds or versions were changed.')
+        return
+    emit('version', 'Finding the latest stable Minecraft Java release…')
+    version = latest_release()
+    check_cancel(state)
+    instance_id = 'nbshell-minecraft'
+    target = instance_dir / instance_id
+    if target.exists():
+        raise RuntimeError('An incomplete Minecraft folder already exists. Move it aside before retrying.')
+    instance_dir.mkdir(parents=True, exist_ok=True)
+    # Set the documented first-run choices, leaving only Prism's native login page.
+    defaults = {'Language': 'en_US', 'ApplicationTheme': 'system', 'IconTheme': 'pe_colored',
+                'PastebinURL': '', 'ShowConsole': 'false', 'AutoCloseConsole': 'true'}
+    for key, value in defaults.items():
+        if not settings.get(key):
+            settings[key] = value
+    settings['AutomaticJavaSwitch'] = 'true'
+    settings['AutomaticJavaDownload'] = 'true'
+    settings['UserAskedAboutAutomaticJavaDownload'] = 'true'
+    settings['SelectedInstance'] = instance_id
+    output = io.StringIO()
+    config.write(output, space_around_delimiters=False)
+    backup = state / 'prismlauncher.cfg.before-setup'
+    if previous is not None and not backup.exists():
+        write_atomic(backup, previous)
+    # Publish settings before the complete instance. Interrupted setup can retry
+    # without mistaking a partially configured instance for existing user data.
+    if cfg_path.exists() and cfg_path.read_bytes() != previous:
+        raise RuntimeError('Prism settings changed during setup. Close Prism and retry.')
+    write_atomic(cfg_path, output.getvalue().encode())
+    with tempfile.TemporaryDirectory(prefix='.nbshell-stage-', dir=instance_dir) as staging:
+        staged = Path(staging) / instance_id
+        staged.mkdir()
+        (staged / 'instance.cfg').write_text('[General]\nInstanceType=OneSix\nname=Minecraft\niconKey=default\n', encoding='utf-8')
+        (staged / 'mmc-pack.json').write_text(json.dumps({'formatVersion': 1, 'components': [
+            {'uid': 'net.minecraft', 'version': version, 'important': True}]}), encoding='utf-8')
+        staged.rename(target)
+    emit('prepared', f'Minecraft {version} prepared.',
+         detail='Sign in with Microsoft next. Prism downloads the matching Java runtime and game files automatically.')
+
+
 def install(data, state):
     emit('checking', 'Checking Minecraft prerequisites…')
     if not shutil.which('pacman'):
@@ -89,10 +176,12 @@ def install(data, state):
     check_cancel(state)
     if not all(installed(p) for p in PACKAGES):
         raise RuntimeError('Package verification failed. Retry Minecraft setup.')
+    prepare_prism(data, state)
+    check_cancel(state)
     emit('registering', 'Adding Minecraft to Apps…')
     register(data)
-    emit('done', 'Minecraft is ready in Apps.',
-         detail='Open Minecraft when ready. First-time sign-in and game-version setup happen in Prism Launcher.')
+    emit('done', 'Minecraft is prepared. Opening sign-in…',
+         detail='After Microsoft sign-in, Prism downloads the game and starts Minecraft automatically.')
 
 
 def main():
@@ -140,6 +229,6 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-    except (RuntimeError, OSError, ValueError, subprocess.SubprocessError) as error:
+    except (RuntimeError, OSError, ValueError, KeyError, TypeError, configparser.Error, subprocess.SubprocessError) as error:
         emit('error', str(error))
         sys.exit(1)

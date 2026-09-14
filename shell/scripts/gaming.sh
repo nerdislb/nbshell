@@ -215,7 +215,7 @@ remove_item() {
         steam) remove_packages steam ;;
         retroarch) remove_packages retroarch retroarch-assets-xmb libretro-core-info libretro-database libretro-overlays libretro-shaders-slang ;;
         minecraft)
-            remove_packages minecraft-launcher prismlauncher jre21-openjdk
+            remove_packages minecraft-launcher prismlauncher
             rm -f -- "$APP_DIR/nbshell-minecraft.desktop"
             command -v update-desktop-database >/dev/null && update-desktop-database "$APP_DIR" || true
             ;;

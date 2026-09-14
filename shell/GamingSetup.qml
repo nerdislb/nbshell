@@ -60,7 +60,7 @@ ShellRoot {
                 root.message = "Setup stopped unexpectedly. See the gaming install log.";
             }
             if (root.phase !== "done") root.detail = "";
-            if (exitCode === 0 && root.action === "install" && root.phase === "done" && root.store !== "minecraft") {
+            if (exitCode === 0 && root.action === "install" && root.phase === "done") {
                 Qt.callLater(() => {
                     root.action = "launch";
                     root.jobToken = "";
