@@ -1,3 +1,4 @@
 # Preserve the reviewed patch bytes, including unified-diff context lines.
 umbriel/pointer-modifiers.patch -whitespace
 resources/polkit/polkit-queue.patch -whitespace
+integrations/omawhatsapp/*.patch -whitespace
