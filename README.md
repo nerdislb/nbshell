@@ -15,7 +15,7 @@ testing, and the direction of the project remain human-led.
 > nbshell is an active beta; commands, configuration, and features may still
 > change before the stable release.
 
-Current prerelease: **0.1.0-beta.11**. See the
+Current prerelease: **0.1.0-beta.12**. See the
 [changelog](CHANGELOG.md) for user-facing changes.
 
 ![nbshell menu in an Umbriel session](docs/assets/nbshell-umbriel-menu.webp)
@@ -226,6 +226,7 @@ nbshell display          # Configure connected displays
 nbshell whatsapp status  # Show the selected WhatsApp provider
 nbshell aether status    # Check the native Aether Apply bridge
 nbshell ui-gallery       # Preview shared interface components
+nbshell theme-maker      # Create themes with a live UI preview
 nbshell pip status       # Check Zen Picture-in-Picture
 nbshell --help           # Show every command
 ```

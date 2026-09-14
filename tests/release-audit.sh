@@ -135,7 +135,7 @@ for name in tracked:
     for label, pattern in checks.items():
         # Security parser tests intentionally contain fake home paths and
         # private-network URLs to prove that they are rejected.
-        if "/tests/" in name and label in ("absolute home path", "private IPv4 address"):
+        if ("/tests/" in name or name == "plugins/omamail/src/public_http/tests.rs") and label in ("absolute home path", "private IPv4 address"):
             continue
         for match in pattern.finditer(text):
             line = text.count("\n", 0, match.start()) + 1

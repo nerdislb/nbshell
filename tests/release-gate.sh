@@ -14,7 +14,7 @@ if (( $# > 1 )); then
     exit 2
 fi
 missing=0
-for tool in python3 git jq qs umbriel make node cc c++ pkg-config; do
+for tool in python3 git jq qs umbriel make node cargo cc c++ pkg-config; do
     if ! command -v "$tool" >/dev/null 2>&1; then
         printf 'Required gate tool missing: %s\n' "$tool" >&2
         missing=1

@@ -6,6 +6,33 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+## [0.1.0-beta.12] - 2026-09-14
+
+### Added
+
+- Background Faugus setup for Battle.net, GOG Galaxy and Epic Games, with themed progress, app shortcuts and original launcher icons.
+- Opt-in one-click OpenClaw setup using subscription authentication and a private local installation.
+- Theme Maker with isolated live previews, draft storage, theme export and shared widget previews.
+- A Fork Updates dashboard for reviewing upstream changes and queuing explicit port decisions.
+- A themed Calendar app, Monday-first month view and cached three-day clock preview.
+- Native themed authentication prompts and Umbriel touchpad tuning.
+
+### Changed
+
+- Mail now uses the pinned Rust backend and reorganized UI, with preserved legacy storage and nbshell-specific installation paths.
+- Simplified AI quota display, OpenClaw activity integration and updated upstream source pins.
+- Added WhatsApp attachment Save As and refreshed the Home button artwork.
+
+### Fixed
+
+- Restored Mail storage migration and corrected plugin entry-point checks after the UI relocation.
+- Included Gaming, OpenClaw, Theme Maker and Fork Updates tests in the complete release gate, with Rust dependencies in CI.
+- Preserved interrupted setup recovery and legacy WhatsApp helper synchronization.
+
+### Beta testing
+
+- Store sign-in, game downloads and OpenClaw onboarding on a second machine still need user acceptance. Background installer checks do not certify every GPU or game.
+
 ## [0.1.0-beta.11] - 2026-09-11
 
 ### Added
@@ -627,7 +654,8 @@ First public beta candidate.
   declared dependencies before activation.
 - Credentials remain outside the repository and plugin configuration.
 
-[Unreleased]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.11...HEAD
+[Unreleased]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.12...HEAD
+[0.1.0-beta.12]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.11...v0.1.0-beta.12
 [0.1.0-beta.11]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.10...v0.1.0-beta.11
 [0.1.0-beta.10]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.9...v0.1.0-beta.10
 [0.1.0-beta.9]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.8...v0.1.0-beta.9

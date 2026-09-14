@@ -52,6 +52,13 @@ run python3 tests/recovery-contracts.py
 run python3 tests/phone_auth.py
 run python3 tests/ai-local-stats.py
 run python3 tests/test_openclaw_monitor.py
+run python3 tests/test_openclaw_setup.py
+run python3 tests/test_mail_upgrade.py
+run python3 tests/test_battlenet.py
+run python3 tests/test_gaming_faugus.py
+run python3 tests/test_fork_updates.py
+run python3 tests/test_theme_maker.py
+run node tests/theme-maker-palette.cjs
 run python3 tests/hermes-hub.py
 run python3 tests/hermes-broker.py
 run python3 tests/hermes-jobs.py
