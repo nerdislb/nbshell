@@ -128,10 +128,9 @@ Singleton {
                             return null;
                         var label = t.name || t.resetDescription || "";
                         if (isAgy) {
-                            // "Gemini Models" muss nicht da stehen, damit die Reset-Zeit
-                            // sofort und ohne Zeilenumbruch lesbar ist.
+                            // Keep the model family visible in the quota dashboard.
                             if (label.toLowerCase().indexOf("gemini") !== -1) {
-                                label = "";
+                                label = "Gemini";
                             } else if (label.toLowerCase().indexOf("claude & openai") !== -1) {
                                 label = "Claude/OpenAI";
                             } else if (label.toLowerCase().indexOf("other") !== -1) {

@@ -27,6 +27,7 @@ with tempfile.TemporaryDirectory() as name:
     }) + "\n")
     env = os.environ.copy()
     env["HOME"] = str(home)
+    env["CODEX_HOME"] = str(home / ".codex")
     data = json.loads(subprocess.check_output(["python3", str(TOOL)], text=True, env=env))
     assert data["codex"]["totalTokens"] == 120
     assert data["codex"]["models"] == [{"name": "gpt-test", "tokens": 120}]
