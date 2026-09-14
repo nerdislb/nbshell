@@ -6,6 +6,24 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+### Added
+
+- Optional Work Desk above the wallpaper and below normal windows, with
+  OpenClaw/Herdr sessions, progress, local Git summaries, subscription quotas,
+  compact daily CLI activity and machine status.
+- Persistent per-module switches, Mod+Alt+I visibility toggle and explicitly
+  pinned project directories through `nbshell work`.
+- Dashboard WORK page and a shared demand-driven session/Git cache; no second
+  collector daemon, prompt-history display or implicit service startup.
+- Isolated Wayland regression coverage for responsive Work Desk layouts,
+  keyboard/pointer controls, scroll focus and shared polling demand.
+
+### Changed
+
+- Minecraft setup installs quietly through the themed panel, verifies native
+  dependencies and registers its branded Apps shortcut without auto-opening Prism.
+- Refreshed project overview, current-source gallery and user-guide navigation.
+
 ## [0.1.0-beta.12] - 2026-09-14
 
 ### Added

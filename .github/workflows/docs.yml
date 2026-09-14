@@ -25,9 +25,8 @@ jobs:
           cache-dependency-path: requirements-docs.txt
       - run: pip install --requirement requirements-docs.txt
       - run: mkdocs build --strict
-      # The private repository's current GitHub plan does not provide Pages.
-      # Keep a complete static build as an artifact; this can switch to the
-      # official Pages actions as soon as the repository becomes public.
+      # This workflow builds a downloadable manual artifact.
+      # The repository is public; Pages deployment is not configured here.
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: nbshell-manual

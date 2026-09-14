@@ -37,6 +37,14 @@ nav:
   - Installation strategy: distribution.md
   - Private ISO testing: iso-testing.md
   - Features: features.md
+  - Work Desk: work-dashboard.md
+  - AI agents and local models: ai-agents.md
+  - Optional integrations: integrations.md
+  - OpenClaw setup: openclaw-setup.md
+  - Theme Maker: theme-maker.md
+  - Fork Updates: fork-updates.md
+  - Windows game stores: gaming-faugus.md
+  - Minecraft: gaming-minecraft.md
   - Compatibility: compatibility.md
   - Join the beta: beta-invitation.md
   - Beta testing: beta-testing.md

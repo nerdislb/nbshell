@@ -1,4 +1,6 @@
-# Work dashboard (first version)
+# Work Desk and dashboard
+
+Available on current `main`, after beta 12.
 
 Open the dashboard's **WORK** tab, press **4** in the dashboard, or run:
 
@@ -24,8 +26,9 @@ committed, fetched, staged, or uploaded.
 
 ## Limits and lifecycle
 
-- Session detail requests run only while WORK is open, using the existing
-  three-second monitor. No new daemon, quota source, Ollama task, or history scan.
+- Session detail requests use the existing three-second monitor while dashboard
+  WORK or a desktop consumer needs them (see shared lifecycle below). No new
+  daemon, quota source, Ollama task, or history scan.
 - At most 40 OpenClaw rows and 12 progress cards are requested per detail refresh.
   Archived, hidden, and incognito sessions are excluded from the displayed list.
 - At most 12 distinct project directories are checked every 15 seconds while

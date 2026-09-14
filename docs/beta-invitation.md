@@ -55,15 +55,22 @@ General support is documented in
 Vulnerabilities belong in the private path described by
 [SECURITY.md](https://github.com/nerdislb/nbshell/blob/main/SECURITY.md).
 
+## Current source preview
+
+The new [Work Desk](work-dashboard.md) is available on `main`, after beta 12:
+optional transparent desktop cards for OpenClaw/Herdr sessions, Git projects,
+quotas and machine status, plus a compact daily CLI activity view. No AI account
+is required for the rest of the desktop. The [README gallery](https://github.com/nerdislb/nbshell)
+shows this current source UI with synthetic data, not real account screenshots.
+
 ## Suggested announcement
 
-> I built nbshell, an independent Quickshell desktop shell for Umbriel. Its beta
-> brings a searchable keyboard-first UI, native scrolling/dwindle/master
-> layouts, coherent desktop theming, capture and system tools, reviewed plugin
-> integrations, a local-draft WhatsApp shopping-list flow, a read-only Plugin
-> Porting Lab, and a checksum-verified updater. It keeps normal Linux tools
-> underneath instead of becoming another full desktop environment. Arch users
-> comfortable with beta software and TTY recovery are welcome to test it.
+> I'm building nbshell, an independent Quickshell desktop shell for Umbriel on
+> Arch Linux. It combines a bar/island/pill layout, coherent themes, everyday
+> system controls and an optional Work Desk for sessions, Git and machine
+> status. It's MIT-licensed and still beta. The Work Desk is on current main,
+> newer than the beta 12 archive. I use AI-assisted development and would love
+> feedback on the workflow, small-screen layouts and clean installs.
 
 ## Media
 

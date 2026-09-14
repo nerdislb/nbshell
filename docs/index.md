@@ -7,6 +7,13 @@ things needed for a first installation and will grow alongside the project.
 > nbshell is still in active development. Test it before relying on it on a
 > production machine, and keep a copy of your existing configuration.
 
+![Work Desk with synthetic demo data](assets/nbshell-work-desk.webp)
+
+Current published prerelease: **0.1.0-beta.12**. This manual also covers newer
+`main` features, including [Work Desk](work-dashboard.md); those are not yet in
+the beta 12 release archive. Screenshots are real isolated UI captures with
+synthetic session and machine data, not production-account screenshots.
+
 ## Start here
 
 1. [Getting started](getting-started.md)
@@ -26,8 +33,9 @@ things needed for a first installation and will grow alongside the project.
 - Dashboard and system controls
 - Themes and wallpapers
 - Umbriel window management, overview, and scrolling/dwindle/master layouts
-- AI agents and local models
-- Gaming and optional applications
+- [AI agents and local models](ai-agents.md)
+- [Work Desk and dashboard WORK](work-dashboard.md)
+- [Gaming and optional applications](integrations.md)
 - [Plugins and customization](plugin-development.md)
 - [Plugin store](plugin-store.md)
 - [Updating, backup, and recovery](troubleshooting.md)

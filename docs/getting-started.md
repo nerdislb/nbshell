@@ -3,6 +3,10 @@
 This guide installs nbshell with Umbriel on Arch Linux or an Arch-based system.
 nbshell is a desktop shell, not a complete Linux distribution or ISO.
 
+The published release is **0.1.0-beta.12**. A source checkout follows `main` and
+also includes newer features such as [Work Desk](work-dashboard.md); the release
+bootstrap does not install those unreleased changes.
+
 ## Before you begin
 
 You need:

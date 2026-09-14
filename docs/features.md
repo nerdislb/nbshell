@@ -50,6 +50,19 @@ theme as a responsive animated preview with previous/next theme cues. Motion
 uses short opacity, scale, position, and list-scroll transitions only; the
 reduced profile disables them without changing layout or functionality.
 
+## Work Desk (current main)
+
+Optional transparent desktop modules show active OpenClaw/Herdr session cards,
+compact recent sessions, local Git project summaries, provider quotas and machine
+status. A compact seven-day grid reuses daily local CLI token data, not prompt
+history or claimed OpenClaw activity. It is separate from the dashboard, sits
+below normal windows, and shares its session/Git cache with dashboard WORK.
+Use **Mod+Alt+I** or `nbshell work on|off`; individual module switches persist.
+Missing services and project metadata remain explicit. Nothing is fetched or
+committed by the Git display. See [Work Desk](work-dashboard.md).
+
+This feature is newer than the published beta 12 archive.
+
 ## System controls
 
 - Wi-Fi, saved NetworkManager VPN and WireGuard profiles, Bluetooth pairing
@@ -84,7 +97,7 @@ precedence over both the native locker and Hyprlock fallback.
 
 ## Window workflow
 
-- Native Umbriel scrolling and dwindle layouts
+- Native Umbriel scrolling, dwindle and master layouts
 - Umbriel overview, workspace navigation, and floating-window rules
 - Floating Picture-in-Picture management for Zen Browser
 - Floating windows for tools such as quick translation and phone preview
@@ -109,6 +122,7 @@ See the [phone webcam guide](phone-webcam.md) for setup and daily use.
 
 ## AI and development
 
+- Opt-in OpenClaw setup using existing provider authentication
 - Agent Center for Codex, Claude Code, OpenCode, Gemini, Copilot, and Pi
 - Explicit safe, balanced, and autonomous approval profiles
 - Local-model routing through OpenCode and Ollama
@@ -122,6 +136,15 @@ See the [phone webcam guide](phone-webcam.md) for setup and daily use.
 - Provider-focused AI dashboard with subscription limits, reset times, local
   seven-day/model token summaries, agent state, and launch controls
 - Privacy-conscious Markdown or JSON system report for agents and support
+
+## Theme creation and calendar
+
+- Theme Maker with isolated live previews, saved drafts and export
+- A themed Calendar app with Monday-first month layout and a cached clock agenda
+- Fork Updates for reviewing upstream changes and queuing explicit port decisions
+
+These are included in beta 12. See [optional integrations](integrations.md) for
+service requirements and [AI/agent modes](ai-agents.md) for detailed permissions.
 
 ## Optional tools
 
