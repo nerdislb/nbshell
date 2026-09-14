@@ -8,10 +8,19 @@
       "author": "nbshell",
       "license": "MIT",
       "category": "Information",
-      "kinds": ["bar-widget"],
+      "kinds": [
+        "bar-widget"
+      ],
       "source": "bundled",
       "repository": "https://github.com/nerdislb/nbshell",
-      "dependencies": {"commands": ["curl"], "packages": ["curl"]}
+      "dependencies": {
+        "commands": [
+          "curl"
+        ],
+        "packages": [
+          "curl"
+        ]
+      }
     },
     {
       "id": "headset",
@@ -20,10 +29,19 @@
       "author": "nerdi",
       "license": "MIT",
       "category": "Hardware",
-      "kinds": ["bar-widget"],
+      "kinds": [
+        "bar-widget"
+      ],
       "source": "bundled",
       "repository": "https://github.com/nerdislb/nbshell",
-      "dependencies": {"commands": ["headsetcontrol"], "packages": ["headsetcontrol"]}
+      "dependencies": {
+        "commands": [
+          "headsetcontrol"
+        ],
+        "packages": [
+          "headsetcontrol"
+        ]
+      }
     },
     {
       "id": "io.github.nerdislb.buds-control",
@@ -32,10 +50,24 @@
       "author": "nerdi",
       "license": "MIT",
       "category": "Hardware",
-      "kinds": ["service", "bar-widget"],
+      "kinds": [
+        "service",
+        "bar-widget"
+      ],
       "source": "bundled",
       "repository": "https://github.com/nerdislb/nbshell",
-      "dependencies": {"commands": ["python3", "busctl", "dbus-monitor"], "packages": ["python", "systemd", "dbus"]}
+      "dependencies": {
+        "commands": [
+          "python3",
+          "busctl",
+          "dbus-monitor"
+        ],
+        "packages": [
+          "python",
+          "systemd",
+          "dbus"
+        ]
+      }
     },
     {
       "id": "omamail",
@@ -44,10 +76,41 @@
       "author": "Jason Lee <huacnlee@gmail.com>",
       "license": "MIT",
       "category": "Communication",
-      "kinds": ["service", "bar-widget", "panel"],
+      "kinds": [
+        "service",
+        "bar-widget",
+        "panel"
+      ],
       "source": "bundled",
       "repository": "https://github.com/huacnlee/omamail",
-      "dependencies": {"commands": ["curl", "secret-tool", "socat", "openssl", "xdg-open", "python3", "file", "wl-paste", "zenity", "xclip", "notify-send"], "packages": ["curl", "libsecret", "socat", "openssl", "xdg-utils", "python", "file", "wl-clipboard", "zenity", "xclip", "libnotify"]}
+      "dependencies": {
+        "commands": [
+          "curl",
+          "secret-tool",
+          "socat",
+          "openssl",
+          "xdg-open",
+          "python3",
+          "file",
+          "wl-paste",
+          "zenity",
+          "xclip",
+          "notify-send"
+        ],
+        "packages": [
+          "curl",
+          "libsecret",
+          "socat",
+          "openssl",
+          "xdg-utils",
+          "python",
+          "file",
+          "wl-clipboard",
+          "zenity",
+          "xclip",
+          "libnotify"
+        ]
+      }
     },
     {
       "id": "ytmusic",
@@ -56,10 +119,25 @@
       "author": "rlimberger, Wizwam, nbshell contributors",
       "license": "MIT",
       "category": "Media",
-      "kinds": ["service", "bar-widget", "panel"],
+      "kinds": [
+        "service",
+        "bar-widget",
+        "panel"
+      ],
       "source": "bundled",
       "repository": "https://github.com/nerdislb/nbshell",
-      "dependencies": {"commands": ["mpv", "yt-dlp", "python3"], "packages": ["mpv", "yt-dlp", "python"]}
+      "dependencies": {
+        "commands": [
+          "mpv",
+          "yt-dlp",
+          "python3"
+        ],
+        "packages": [
+          "mpv",
+          "yt-dlp",
+          "python"
+        ]
+      }
     },
     {
       "id": "pit-wall",
@@ -68,10 +146,21 @@
       "author": "Jeremy Longshore; nbshell port by nerdi",
       "license": "MIT",
       "category": "Sports",
-      "kinds": ["service", "bar-widget", "panel"],
+      "kinds": [
+        "service",
+        "bar-widget",
+        "panel"
+      ],
       "source": "bundled",
       "repository": "https://github.com/jeremylongshore/omarchy-pit-wall-entry",
-      "dependencies": {"commands": ["python3"], "packages": ["python"]}
+      "dependencies": {
+        "commands": [
+          "python3"
+        ],
+        "packages": [
+          "python"
+        ]
+      }
     },
     {
       "id": "hermarchy-agent",
@@ -80,10 +169,15 @@
       "author": "Archer Clawbot; nbshell adapter by nerdi",
       "license": "MIT",
       "category": "AI",
-      "kinds": ["bar-widget"],
+      "kinds": [
+        "bar-widget"
+      ],
       "source": "bundled",
       "repository": "https://github.com/archer-clawbot/omarchy-hermarchy-theme",
-      "dependencies": {"commands": [], "packages": []}
+      "dependencies": {
+        "commands": [],
+        "packages": []
+      }
     },
     {
       "id": "beispiel",
@@ -92,10 +186,41 @@
       "author": "nbshell",
       "license": "MIT",
       "category": "Development",
-      "kinds": ["bar-widget"],
+      "kinds": [
+        "bar-widget"
+      ],
       "source": "bundled",
       "repository": "https://github.com/nerdislb/nbshell",
-      "dependencies": {"commands": [], "packages": []}
+      "dependencies": {
+        "commands": [],
+        "packages": []
+      }
+    },
+    {
+      "id": "io.github.nbshell.calendar",
+      "name": "Calendar",
+      "description": "Standalone iCloud and Google calendar with independent accounts.",
+      "author": "nbshell",
+      "license": "MIT",
+      "kinds": [
+        "panel"
+      ],
+      "repository": "https://github.com/nerdislb/nbshell",
+      "dependencies": {
+        "commands": [
+          "python3",
+          "secret-tool"
+        ],
+        "packages": [
+          "python-requests",
+          "python-icalendar",
+          "khal",
+          "python-pytz",
+          "libsecret"
+        ]
+      },
+      "category": "Productivity",
+      "source": "bundled"
     }
   ]
 }

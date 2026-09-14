@@ -29,6 +29,41 @@ class Response:
     def json(self): return self.data
 
 class Tests(unittest.TestCase):
+    def test_preview_cache_streams_before_network_and_replaces_deletions(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store = b.Store(folder)
+            store.data['accounts'] = [{'id': 'a', 'name': 'Test', 'provider': 'icloud'}]
+            req = dict(op='refresh', start='2026-09-12T00:00:00+00:00', end='2026-09-15T00:00:00+00:00', previewCache=True)
+            backend = b.Backend(store)
+            provider = Mock()
+            provider.discover.return_value = [dict(id='c', name='Test', writable=True)]
+            provider.events.return_value = [dict(title='Example', start=req['start'], end=req['end'], allDay=True, raw='PRIVATE BODY')]
+            with patch.object(backend, 'provider', return_value=provider):
+                backend.run(req)
+            cache_file = Path(folder) / 'preview.json'
+            self.assertEqual(cache_file.stat().st_mode & 0o777, 0o600)
+            self.assertNotIn('PRIVATE BODY', cache_file.read_text())
+            emitted = []
+            def offline(account):
+                self.assertEqual(emitted[0]['events'][0]['title'], 'Example')
+                self.assertTrue(emitted[0]['stale'])
+                raise b.Failure('Offline')
+            with patch.object(backend, 'provider', side_effect=offline):
+                self.assertTrue(backend.run(req, emitted.append)['stale'])
+            provider.events.return_value = []
+            with patch.object(backend, 'provider', return_value=provider):
+                self.assertEqual(backend.run(req)['events'], [])
+            self.assertEqual(json.loads(cache_file.read_text())['result']['events'], [])
+            tomorrow = b.PreviewCache(store, '2026-09-13T00:00:00+00:00', '2026-09-16T00:00:00+00:00')
+            self.assertIsNotNone(tomorrow.load())
+            outside = b.PreviewCache(store, '2026-09-15T00:00:00+00:00', '2026-09-18T00:00:00+00:00')
+            self.assertIsNone(outside.load())
+            store.data['hidden'] = ['a:c']
+            cache = b.PreviewCache(store, req['start'], req['end'])
+            self.assertIsNone(cache.load())
+            cache_file.write_text('broken')
+            self.assertIsNone(cache.load())
+
     def test_origins_and_collection_boundaries(self):
         for url in ['http://caldav.icloud.com/', 'https://caldav.icloud.com.evil.test/', 'https://evil.icloud.com/',
                     'https://user:password@caldav.icloud.com/', 'https://p01-caldav.icloud.com:444/',

@@ -114,6 +114,44 @@ class Store:
         os.replace(temp, self.file)
 
 
+class PreviewCache:
+    """One private, atomic, read-only hover snapshot; never stores credentials."""
+    def __init__(self, store, start, end):
+        self.file = store.path / 'preview.json'
+        self.identity = {'accounts': store.data['accounts'], 'hidden': store.data['hidden']}
+        self.start, self.end = start, end
+
+    def load(self):
+        try:
+            value = json.loads(self.file.read_text())
+            if value['identity'] != self.identity:
+                self.file.unlink(missing_ok=True)
+                return None
+            if value['start'] >= self.end or value['end'] <= self.start:
+                return None
+            result = value['result']
+            result['stale'] = True
+            return result
+        except (OSError, ValueError, KeyError, TypeError):
+            return None
+
+    def save(self, result):
+        # Keep only fields used by the hover, not raw provider bodies or edit metadata.
+        snapshot = dict(result)
+        snapshot['events'] = [{k: e[k] for k in ('account', 'calendarKey', 'title', 'start', 'end', 'allDay') if k in e}
+                              for e in result['events']]
+        snapshot['calendars'] = [{k: c[k] for k in ('account', 'key', 'name', 'visible') if k in c}
+                                 for c in result['calendars']]
+        temp = self.file.with_name('preview-' + uuid.uuid4().hex + '.tmp')
+        try:
+            fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, 'w') as stream:
+                json.dump({'identity': self.identity, 'start': self.start, 'end': self.end, 'result': snapshot}, stream)
+            os.replace(temp, self.file)
+        finally:
+            temp.unlink(missing_ok=True)
+
+
 def xml(body):
     require(b'<!DOCTYPE' not in body.upper() and b'<!ENTITY' not in body.upper(), 'Unsafe XML refused.')
     return ET.fromstring(body)
@@ -440,10 +478,18 @@ class Backend:
         elif op not in ('load', 'refresh'):
             raise Failure('Unknown Calendar operation.')
         if op not in ('load', 'refresh'):
+            try:
+                (self.store.path / 'preview.json').unlink(missing_ok=True)
+            except OSError:
+                pass
             return {'ok': True, 'changed': True}
         start = dt.datetime.fromisoformat(req['start']).astimezone(UTC)
         end = dt.datetime.fromisoformat(req['end']).astimezone(UTC)
         require(dt.timedelta(0) < end - start <= dt.timedelta(days=100), 'Choose a window of at most 100 days.')
+        cache = PreviewCache(self.store, start.isoformat(), end.isoformat()) if req.get('previewCache') else None
+        cached = cache.load() if cache else None
+        if cached:
+            emit(cached)  # flushed to QML before any keyring or network operation
         result = {'ok': True, 'accounts': data['accounts'], 'calendars': [], 'events': [], 'errors': [], 'stale': False}
         for account in data['accounts']:
             try:
@@ -464,6 +510,11 @@ class Backend:
                 result['errors'].append(account['name'] + ': ' + safe_error(exc))
                 result['stale'] = True
         result['loadedAt'] = dt.datetime.now(UTC).isoformat()
+        if cache and not result['stale']:
+            try:
+                cache.save(result)
+            except OSError:
+                pass  # a cache failure must not discard a successful provider response
         return result
 
 

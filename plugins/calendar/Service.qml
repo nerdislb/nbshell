@@ -29,10 +29,10 @@ Item {
         authorizationUrl = "";
         process.running = true;
     }
-    function refresh(start, end) {
+    function refresh(start, end, previewCache = false) {
         rangeStart = start;
         rangeEnd = end;
-        run({op: "refresh", start: start, end: end});
+        run({op: "refresh", start: start, end: end, previewCache: previewCache});
     }
     function accept(data) {
         if (data.authorizationUrl) {

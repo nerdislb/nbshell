@@ -2,7 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 
-// Read-only, in-memory hover snapshot from the standalone Calendar's accounts.
+// Read-only, disk-backed hover snapshot from the standalone Calendar's accounts.
 Singleton {
     id: root
     readonly property string pluginId: "io.github.nbshell.calendar"
@@ -42,7 +42,7 @@ Singleton {
         if (!changedDay && Date.now() - requestedAt < 300000) return;
         requestedAt = Date.now();
         requestedDay = now.toDateString();
-        backend.refresh(day(0).toISOString(), day(3).toISOString());
+        backend.refresh(day(0).toISOString(), day(3).toISOString(), true);
     }
     onAvailableChanged: if (!available) { requested = false; requestedAt = 0; }
     Loader {
