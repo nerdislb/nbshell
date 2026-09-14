@@ -278,12 +278,18 @@ case "$ACTION" in
     remove) [[ -n "$ITEM" ]] || die "Missing item."; remove_item ;;
     retro-launcher) retro_launcher ;;
     desktop)
+        if [[ "$ITEM" == "battlenet" ]]; then
+            exec python3 "$(dirname "${BASH_SOURCE[0]}")/battlenet.py" register
+        fi
         [[ "$ITEM" == "minecraft" ]] || die "Desktop launcher is only available for Minecraft."
         installed minecraft || die "Install Minecraft first."
         write_minecraft_desktop
         note "Minecraft app launcher created."
         ;;
     launch)
+        if [[ "$ITEM" == "battlenet" ]]; then
+            exec python3 "$(dirname "${BASH_SOURCE[0]}")/battlenet.py" launch
+        fi
         [[ "$ITEM" == "minecraft" ]] || die "Direct launch is only available for Minecraft."
         launch_minecraft
         ;;
