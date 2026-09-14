@@ -1,16 +1,70 @@
 {
   "schemaVersion": 1,
   "sources": [
-    {"name": "Umbriel", "repository": "https://github.com/noctalia-dev/umbriel", "reviewedCommit": "c3bb2a85d6f889d458349bbf780f8b692c611633"},
-    {"name": "Umbriel portal", "repository": "https://github.com/noctalia-dev/xdg-desktop-portal-umbriel", "reviewedCommit": "d996f0c"},
-    {"name": "Omazen", "repository": "https://github.com/hemagome/omazen", "reviewedCommit": "3865394", "patch": "integrations/omazen/nbshell-external-provider-arch.patch"},
-    {"name": "WhatsApp", "repository": "https://github.com/MoizIbnYousaf/Omarchy-Whatsapp", "reviewedCommit": "7ee1540"},
-    {"name": "Mail", "repository": "https://github.com/huacnlee/omamail", "reviewedCommit": "5953da4"},
-    {"name": "Quick Translate", "repository": "https://github.com/seshna/quick-translate", "reviewedCommit": "284cac8"},
-    {"name": "YouTube Music", "repository": "https://github.com/rlimberger/omarchy-ytmusic", "reviewedCommit": "de0d64a"},
-    {"name": "Pit Wall", "repository": "https://github.com/jeremylongshore/omarchy-pit-wall-entry", "reviewedCommit": "2ab03db"},
-    {"name": "Video Trimmer", "repository": "https://github.com/nerdislb/omacut", "reviewedCommit": "41e1ab7"},
-    {"name": "Hermes Agent", "repository": "https://github.com/NousResearch/hermes-agent", "reviewedCommit": "2237be355906fbe6065ce1815711eee52b2d646e", "check": "github-api"},
-    {"name": "Hermes Harness reference", "repository": "https://github.com/archer-clawbot/omarchy-hermes-harness", "reviewedCommit": "2d72688"}
+    {
+      "name": "Umbriel",
+      "repository": "https://github.com/noctalia-dev/umbriel",
+      "reviewedCommit": "5678f161f3e5e42c72ce818402b4c2960db31bc2"
+    },
+    {
+      "name": "Umbriel portal",
+      "repository": "https://github.com/noctalia-dev/xdg-desktop-portal-umbriel",
+      "reviewedCommit": "d7a1bc386c2a6dfaecaa953165f9f373735c9ee0"
+    },
+    {
+      "name": "Omazen",
+      "repository": "https://github.com/hemagome/omazen",
+      "reviewedCommit": "3865394",
+      "patch": "integrations/omazen/nbshell-external-provider-arch.patch"
+    },
+    {
+      "name": "WhatsApp",
+      "repository": "https://github.com/MoizIbnYousaf/Omarchy-Whatsapp",
+      "reviewedCommit": "7ee1540"
+    },
+    {
+      "name": "Mail",
+      "repository": "https://github.com/huacnlee/omamail",
+      "reviewedCommit": "6f91932de257369ec884db9bf7ef5b655220a79f"
+    },
+    {
+      "name": "Quick Translate",
+      "repository": "https://github.com/seshna/quick-translate",
+      "reviewedCommit": "284cac8"
+    },
+    {
+      "name": "YouTube Music",
+      "repository": "https://github.com/rlimberger/omarchy-ytmusic",
+      "reviewedCommit": "de0d64a"
+    },
+    {
+      "name": "Pit Wall",
+      "repository": "https://github.com/jeremylongshore/omarchy-pit-wall-entry",
+      "reviewedCommit": "66f3b93ceddfcfbdfb7885e3a61f235db9957d0d"
+    },
+    {
+      "name": "Video Trimmer",
+      "repository": "https://github.com/nerdislb/omacut",
+      "reviewedCommit": "41e1ab7",
+      "upstreamRepository": "https://github.com/omacom-io/omacut",
+      "upstreamBase": "0948c4615d45ac62727b8c69112178e09781b7a4"
+    },
+    {
+      "name": "Hermes Agent",
+      "repository": "https://github.com/NousResearch/hermes-agent",
+      "reviewedCommit": "b9271bcb34e1a8b8fe0eeaef0ef4a6e1f93ba543",
+      "check": "github-api"
+    },
+    {
+      "name": "Hermes Harness reference",
+      "repository": "https://github.com/archer-clawbot/omarchy-hermes-harness",
+      "reviewedCommit": "2d72688",
+      "scope": "reference"
+    },
+    {
+      "name": "Flea",
+      "repository": "https://github.com/thisisgm/flea",
+      "reviewedCommit": "c6a014999696fe67a899013d97ebccf889e98f47"
+    }
   ]
 }

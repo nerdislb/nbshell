@@ -188,7 +188,7 @@ Scope {
         // Plugins, das kein eigenes IPC-Ziel hat. Damit laesst sich jeder
         // Baustein auf eine Taste legen.
         function toggle(name: string): string {
-            if (!Plugins.entry(name))
+            if (name !== "updates" && !Plugins.entry(name))
                 return "unknown module: " + name;
             Runtime.revealIslandTemporarily();
             Runtime.requestPopout(name, Compositor.focusedOutput);

@@ -3,25 +3,32 @@ import QtQuick.Controls
 import qs.Common
 import qs.Services
 import qs.Ui
+import qs.Widgets as W
 
-Column {
+Item {
     id: root
 
     property real rowWidth: 64 * Theme.cellW
+    property string tab: "updates"
     property bool showClose: false
     property var closePanel: null
     property var closePopout: null
     property Item initialFocusItem: refreshButton
 
     readonly property bool checking: Updates.checking
-        || ShellUpdates.checking || ShellUpdates.compositorChecking
+        || ShellUpdates.checking || ShellUpdates.compositorChecking || ForkUpdates.checking
     readonly property int availableKinds: (Updates.count > 0 ? 1 : 0)
         + (ShellUpdates.updateAvailable ? 1 : 0)
         + (ShellUpdates.compositorUpdateAvailable ? 1 : 0)
+        + (ForkUpdates.attentionCount > 0 ? 1 : 0)
     readonly property var packageRows: root.updatePackages()
 
     width: rowWidth
-    spacing: Theme.spaceMd
+    implicitWidth: rowWidth
+    // Popouts lock their Wayland geometry on open. Reserve review space so
+    // switching tabs does not leave Fork in the smaller package viewport.
+    implicitHeight: Math.max(Theme.rowHeight * 18, panelContent.implicitHeight)
+
 
     function closeAfter(action) {
         action();
@@ -132,7 +139,13 @@ Column {
         return ShellUpdates.compositorUpdateAvailable ? "" : qsTr("CURRENT");
     }
 
+    Column {
+        id: panelContent
+        width: root.rowWidth
+        spacing: Theme.spaceMd
+
     Item {
+        id: updateHeader
         width: root.rowWidth
         height: Theme.cellH * 2.7
 
@@ -141,9 +154,9 @@ Column {
             rowWidth: root.rowWidth - headerActions.width - Theme.spaceLg
             icon: root.checking ? Icons.refresh : Icons.download
             title: qsTr("Updates")
-            subtitle: ShellUpdates.summary
+            subtitle: root.tab === "fork" ? qsTr("%1 need review · %2 approved").arg(ForkUpdates.attentionCount).arg(ForkUpdates.approvedCount) : ShellUpdates.summary
             badge: root.checking ? "…" : String(root.availableKinds)
-            badgeColor: ShellUpdates.allCurrent ? Theme.green : Theme.yellow
+            badgeColor: ForkUpdates.errorCount > 0 || ForkUpdates.error !== "" ? Theme.red : (ForkUpdates.attentionCount > 0 || !ShellUpdates.allCurrent) ? Theme.yellow : Theme.green
         }
 
         Row {
@@ -154,10 +167,10 @@ Column {
 
             ActionButton {
                 id: refreshButton
-                text: qsTr("Check again")
-                busy: root.checking
+                text: root.tab === "fork" ? qsTr("Refresh") : qsTr("Check again")
+                busy: root.tab === "fork" ? ForkUpdates.busy : root.checking
                 compact: true
-                onTriggered: root.refreshAll()
+                onTriggered: root.tab === "fork" ? ForkUpdates.refresh() : root.refreshAll()
             }
 
             ActionButton {
@@ -169,7 +182,27 @@ Column {
         }
     }
 
-    PanelSeparator { width: root.rowWidth }
+    PanelSeparator { id: updateSeparator; width: root.rowWidth }
+
+    W.Segments {
+        id: updateTabs
+        rowWidth: root.rowWidth
+        options: [{label: qsTr("Updates"), value: "updates"}, {label: qsTr("Fork"), value: "fork"}]
+        current: root.tab
+        onChosen: value => { root.tab = value; if (value === "fork") ForkUpdates.load(); }
+    }
+
+    W.ForkUpdatePanel {
+        id: forkContent
+        rowWidth: root.rowWidth
+        visible: root.tab === "fork"
+    }
+
+    Column {
+        id: systemContent
+        width: root.rowWidth
+        spacing: Theme.spaceMd
+        visible: root.tab === "updates"
 
     PanelRow {
         id: systemRow
@@ -273,7 +306,7 @@ Column {
             : (ShellUpdates.updateAvailable
                 ? qsTr("%1 → %2 · checksum verified").arg(ShellUpdates.current || "unknown").arg(ShellUpdates.latest)
                 : qsTr("Version %1 is current").arg(ShellUpdates.current || "unknown"))))
-        value: root.shellState()
+        value: shellAction.visible ? "" : root.shellState()
         tone: ShellUpdates.updateAvailable || ShellUpdates.error !== "" ? Theme.yellow : Theme.green
         selected: ShellUpdates.updateAvailable
         trailingInset: shellAction.visible ? shellAction.width + Theme.spaceLg : 0
@@ -300,7 +333,7 @@ Column {
         glyph: Icons.refresh
         title: qsTr("Umbriel stack")
         detail: root.compositorDetail()
-        value: root.compositorState()
+        value: umbrielAction.visible ? "" : root.compositorState()
         tone: ShellUpdates.compositorUpdateAvailable || ShellUpdates.compositorError !== ""
             || ShellUpdates.compositorBlockedReason !== "" ? Theme.yellow : Theme.green
         selected: ShellUpdates.compositorUpdateAvailable
@@ -349,5 +382,7 @@ Column {
             color: Theme.muted
             elide: Text.ElideRight
         }
+    }
+    }
     }
 }

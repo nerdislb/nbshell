@@ -1,80 +1,40 @@
 #!/usr/bin/env python3
-"""Read-only revision check for external nbshell sources."""
-
+"""Check upstream sources, display cached results, or record a review decision."""
 import argparse
 import json
-import os
-import subprocess
-import urllib.error
-import urllib.request
-from pathlib import Path
-from urllib.parse import urlparse
+import sys
+import fork_updates as forks
 
 
-def github_head(repository: str) -> str:
-    """Return GitHub's default-branch head without cloning a large repository."""
-    parsed = urlparse(repository)
-    if parsed.hostname != "github.com":
-        return ""
-    parts = parsed.path.strip("/").removesuffix(".git").split("/")
-    if len(parts) != 2:
-        return ""
-    request = urllib.request.Request(
-        f"https://api.github.com/repos/{parts[0]}/{parts[1]}/commits/HEAD",
-        headers={"Accept": "application/vnd.github+json", "User-Agent": "nbshell-upstream-audit"},
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=10) as response:
-            data = json.load(response)
-        return str(data.get("sha", ""))
-    except (OSError, ValueError, urllib.error.HTTPError):
-        return ""
-
-
-def remote_head(repository: str, api_first: bool = False) -> str:
-    if api_first:
-        remote = github_head(repository)
-        if remote:
-            return remote
-    try:
-        result = subprocess.run(
-            ["git", "ls-remote", repository, "HEAD"],
-            capture_output=True, text=True, timeout=20, check=False,
-        )
-    except subprocess.TimeoutExpired:
-        result = None
-    if result and not result.returncode and result.stdout.strip():
-        return result.stdout.split()[0]
-    return github_head(repository)
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--notify", action="store_true")
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--notify', action='store_true')
+    parser.add_argument('--json', action='store_true', help='Output the shared JSON snapshot')
+    parser.add_argument('--cached', action='store_true', help='Read saved results without networking')
+    parser.add_argument('--decision', choices=['approved', 'deferred', 'pending'], help='Record a decision; never installs')
+    parser.add_argument('--source', help='Catalog source ID')
+    parser.add_argument('--token', help='Exact revision token shown in the snapshot')
     args = parser.parse_args()
-    root = Path(__file__).resolve().parents[1]
-    catalog = json.loads((root / "Catalog" / "external-sources.json").read_text())
-    pending = []
-    failed = []
-    for source in catalog["sources"]:
-        remote = remote_head(source["repository"], source.get("check") == "github-api")
-        if not remote:
-            failed.append(source["name"])
-            continue
-        reviewed = source["reviewedCommit"]
-        marker = "current" if remote.startswith(reviewed) else "review available"
-        print(f"{source['name']}: {marker} ({reviewed} -> {remote[:7]})")
-        if marker != "current":
-            pending.append(source["name"])
-    if args.notify and pending and os.environ.get("DBUS_SESSION_BUS_ADDRESS"):
-        subprocess.run([
-            "notify-send", "nbshell source review",
-            f"{len(pending)} external source(s) changed: " + ", ".join(pending),
-        ], check=False)
-    if failed:
-        print("Unavailable: " + ", ".join(failed))
-    return 1 if failed else 0
+    try:
+        if args.decision:
+            if not args.source or not args.token or args.cached or args.notify:
+                parser.error('--decision requires --source and --token, without --cached/--notify')
+            data = forks.decide(args.source, args.token, args.decision)
+        elif args.cached:
+            data = forks.snapshot()
+        else:
+            data = forks.refresh(args.notify)
+        if args.json:
+            print(json.dumps(data, ensure_ascii=False))
+        else:
+            for row in data['sources']:
+                print(f"{row['name']}: {row['status']} ({row['base'][:7]} → {row.get('head', '')[:7] or '?'}) · {row['decision']}" + (f" · {row['error']}" if row.get('error') else ''))
+        return 0 if args.decision else int(any(r['status'] == 'error' for r in data['sources']))
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        error = 'A refresh is already running' if isinstance(exc, BlockingIOError) else str(exc)
+        print(json.dumps({'error': error}) if args.json else error)
+        return 1
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+if __name__ == '__main__':
+    sys.exit(main())
