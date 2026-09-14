@@ -483,7 +483,7 @@ nbshell -- an independent Quickshell desktop shell for Umbriel
   nbshell aether setup      connect Aether's Apply button to nbshell
   nbshell procs             process list (also: top)
   nbshell menu              searchable main menu
-  nbshell dashboard         Overview, Calendar, and Tools
+  nbshell dashboard         Overview, Calendar, Tools, and Work
   nbshell bongo             Bongo Cat: status, test, on, off, allow, revoke
   nbshell clip              clipboard history (toggle, list, clear)
   nbshell cal               calendar (also: next, sync, status)

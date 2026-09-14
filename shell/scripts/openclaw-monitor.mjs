@@ -17,7 +17,48 @@ export function summarize(sessions) {
         sessions: sessions.length, agents: [...agents].sort().slice(0, 8), error: ''};
 }
 
-export async function readConnection(stateDir) {
+// Detail projection is opt-in and never exposes message bodies, origins or credentials.
+const clean = (value, limit = 160) => typeof value === 'string'
+    ? value.replace(/[\x00-\x1f\x7f]/g, ' ').trim().slice(0, limit) : '';
+
+export function sessionUrl(key, connection) {
+    // Exact canonical routes, not title slugs; never trust a URL from session data.
+    if (!/^agent:[a-zA-Z0-9_-]{1,64}:[a-zA-Z0-9_:-]{1,400}$/.test(key)) return '';
+    const [, agent, ...parts] = key.split(':');
+    if (parts.some(part => !part)) return '';
+    const rest = parts.join(':');
+    const route = rest === 'main' ? '' : '/' + (parts.length === 1 ? '~key/' : '') + parts.map(encodeURIComponent).join('/');
+    const base = connection.uiBasePath || '';
+    if (!/^(\/[a-zA-Z0-9_-]+)*$/.test(base)) return '';
+    return connection.url.replace('ws:', 'http:') + base + '/chat/' + agent + route;
+}
+
+export function sessionDetails(rows, connection) {
+    return rows.filter(row => !row.archived && !row.incognito && row.visibility !== 'hidden')
+        .map(row => {
+            const key = clean(row.key, 480);
+            const url = sessionUrl(key, connection);
+            const agent = key.split(':')[1] || clean(row.agentId, 64);
+            // Only an explicit local execution directory is a project. Never guess
+            // a repo from the gateway/agent's default workspace or a remote path.
+            const project = row.execNode ? '' : clean(row.execCwd || row.spawnedCwd || row.spawnedWorkspaceDir, 1024);
+            return {id: key, name: agent, title: clean(row.label || row.autoLabel || row.displayName) || 'OpenClaw · ' + agent,
+                status: row.hasActiveRun ? 'working' : 'idle', project: project.startsWith('/') ? project : '',
+                updatedAt: Number.isFinite(row.updatedAt) ? row.updatedAt : 0, backend: 'openclaw', url};
+        }).filter(row => row.id && row.url)
+        .sort((a, b) => Number(b.status === 'working') - Number(a.status === 'working') || b.updatedAt - a.updatedAt)
+        .slice(0, 40);
+}
+
+export function progressSummary(card) {
+    if (!Array.isArray(card?.steps) || card.steps.length > 50) return '';
+    const steps = card.steps;
+    const done = steps.filter(step => step.status === 'completed').length;
+    const current = steps.find(step => step.status === 'in_progress');
+    return steps.length ? `${done}/${steps.length} steps` + (current ? ' · ' + clean(current.step || current.text, 120) : '') : '';
+}
+
+export async function readConnection(stateDir, details = false) {
     const file = path.join(stateDir, 'openclaw.json');
     if (!fs.existsSync(file)) return null;
     if (fs.statSync(file).size > 1024 * 1024) throw new Error('OpenClaw config too large');
@@ -44,13 +85,16 @@ export async function readConnection(stateDir) {
         throw new Error('OpenClaw authentication unavailable');
     if (secret.includes('${')) throw new Error('Unsupported OpenClaw secret placeholder');
     // Never use remote URLs or configurable hosts for a local credential.
-    return {url: `ws://127.0.0.1:${port}`, auth: {[mode]: secret}};
+    return {url: `ws://127.0.0.1:${port}`, auth: {[mode]: secret},
+        ...(details ? {uiBasePath: clean(gateway.controlUi?.basePath, 200).replace(/\/$/, '')} : {})};
 }
 
-export function query(connection, {WebSocketClass = WebSocket, timeoutMs = 1800} = {}) {
+export function query(connection, {WebSocketClass = WebSocket, timeoutMs = 1800, details = false} = {}) {
     return new Promise(resolve => {
         let ws, finished = false, connecting = false, offset = 0;
         const rows = [];
+        let result = null;
+        const progressPending = new Map();
         const done = result => {
             if (finished) return;
             finished = true;
@@ -58,7 +102,7 @@ export function query(connection, {WebSocketClass = WebSocket, timeoutMs = 1800}
             try { ws?.close(); } catch {}
             resolve(result);
         };
-        const timer = setTimeout(() => done(unavailable('OpenClaw status timed out')), timeoutMs);
+        const timer = setTimeout(() => done(result || unavailable('OpenClaw status timed out')), timeoutMs);
         const request = (id, method, params) => ws.send(JSON.stringify({type: 'req', id, method, params}));
         const list = () => request('sessions', 'sessions.list', {includeDerivedTitles: false,
             includeLastMessage: false, limit: 100, offset});
@@ -90,18 +134,35 @@ export function query(connection, {WebSocketClass = WebSocket, timeoutMs = 1800}
                         if (!Number.isInteger(next) || next <= offset || next > 1000) throw new Error();
                         offset = next;
                         list();
-                    } else done(summarize(rows));
+                    } else {
+                        result = summarize(rows);
+                        if (!details) { done(result); return; }
+                        result.items = sessionDetails(rows, connection);
+                        result.detailTotal = rows.filter(row => !row.archived && !row.incognito && row.visibility !== 'hidden').length;
+                        // At most twelve progress reads, only on the visible Work page.
+                        for (const [i, row] of result.items.slice(0, 12).entries()) {
+                            const id = 'progress-' + i;
+                            progressPending.set(id, row);
+                            request(id, 'progressCard.get', {sessionKey: row.id});
+                        }
+                        if (!progressPending.size) done(result);
+                    }
+                } else if (msg.type === 'res' && progressPending.has(msg.id)) {
+                    const row = progressPending.get(msg.id);
+                    row.progress = msg.ok ? progressSummary(msg.payload?.card) : '';
+                    progressPending.delete(msg.id);
+                    if (!progressPending.size) done(result);
                 }
             } catch { done(unavailable('Unsupported OpenClaw status')); }
         };
     });
 }
 
-export async function main() {
+export async function main(details = false) {
     try {
         const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), '.openclaw');
-        const connection = await readConnection(stateDir);
-        return connection ? await query(connection) : {installed: false, online: false, working: 0, sessions: 0, agents: [], error: ''};
+        const connection = await readConnection(stateDir, details);
+        return connection ? await query(connection, {details}) : {installed: false, online: false, working: 0, sessions: 0, agents: [], error: ''};
     } catch { return unavailable('OpenClaw configuration unavailable'); }
 }
 
@@ -110,7 +171,7 @@ const isMain = (() => {
     catch { return false; }
 })();
 if (isMain) {
-    console.log(JSON.stringify(await main()));
+    console.log(JSON.stringify(await main(process.argv.includes('--details'))));
     // Bound shutdown as well as the request when a peer does not finish closing.
     process.exit(0);
 }

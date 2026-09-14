@@ -192,7 +192,7 @@ PanelWindow {
                 root.close();
         }
         Keys.onPressed: event => {
-            if (!root.updatesOpen && event.key >= Qt.Key_1 && event.key <= Qt.Key_3) {
+            if (!root.updatesOpen && event.key >= Qt.Key_1 && event.key <= Qt.Key_4) {
                 root.page = event.key - Qt.Key_1;
                 event.accepted = true;
             }
@@ -228,11 +228,11 @@ PanelWindow {
                     width: parent.width
                     spacing: Theme.cellW
                     Repeater {
-                        model: ["OVERVIEW", "CALENDAR", "TOOLS"]
+                        model: ["OVERVIEW", "CALENDAR", "TOOLS", "WORK"]
                         ControlButton {
                             required property var modelData
                             required property int index
-                            width: (parent.width - Theme.cellW * 2) / 3
+                            width: (parent.width - Theme.cellW * 3) / 4
                             height: Theme.cellH * 1.7
                             text: modelData
                             selected: root.page === index
@@ -350,6 +350,17 @@ PanelWindow {
                     }
                 }
 
+                WorkPanel {
+                    visible: root.page === 3
+                    active: Runtime.dashboardOpen && root.page === 3
+                    width: parent.width
+                    height: parent.height - Theme.cellH * 8.2
+                    onOpenSession: row => root.openSurface(() => {
+                        if (row.backend === "openclaw") Qt.openUrlExternally(row.url);
+                        else Agents.focusSession(row.id);
+                    })
+                }
+
                 // ── TOOLS ───────────────────────────────────────────
                 Item {
                     visible: root.page === 2
@@ -440,7 +451,7 @@ PanelWindow {
                         anchors.centerIn: parent
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
-                        text: "Esc close  ·  1–3 pages  ·  ↑↓←→ tools  ·  Tab actions"
+                        text: "Esc close  ·  1–4 pages  ·  ↑↓←→ tools  ·  Tab actions"
                         color: Theme.muted
                     }
                 }

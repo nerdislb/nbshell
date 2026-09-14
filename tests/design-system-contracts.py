@@ -62,7 +62,7 @@ if exported_ui_types != expected_ui_types:
     )
 
 dashboard = (ROOT / "shell/Menu/Dashboard.qml").read_text(encoding="utf-8")
-tab_start = dashboard.index('model: ["OVERVIEW", "CALENDAR", "TOOLS"]')
+tab_start = dashboard.index('model: ["OVERVIEW", "CALENDAR", "TOOLS", "WORK"]')
 tab_end = dashboard.index("// ── TODAY", tab_start)
 tab_contract = dashboard[tab_start:tab_end]
 if "ControlButton {" not in tab_contract:
@@ -200,7 +200,7 @@ if "component Action: Rectangle" in dashboard:
     raise SystemExit("Dashboard actions regressed to manual Rectangle controls")
 for snippet in (
     "dockedTop: true",
-    'model: ["OVERVIEW", "CALENDAR", "TOOLS"]',
+    'model: ["OVERVIEW", "CALENDAR", "TOOLS", "WORK"]',
     "opacity: box.opacity * 0.45",
 ):
     if snippet not in dashboard:
@@ -222,8 +222,8 @@ for snippet in (
 if "Runtime.dashboard" in clock_widget:
     raise SystemExit("Clock activation must not reopen the dashboard")
 data_ipc = (ROOT / "shell/Ipc/DataIpc.qml").read_text(encoding="utf-8")
-if 'const names = ["overview", "calendar", "tools"]' not in desktop_ipc:
-    raise SystemExit("Dashboard IPC no longer exposes the three-page navigation")
+if 'const names = ["overview", "calendar", "tools", "work"]' not in desktop_ipc:
+    raise SystemExit("Dashboard IPC no longer exposes the four-page navigation")
 if '"media": 0' not in desktop_ipc or 'target: "music"' not in data_ipc:
     raise SystemExit("Legacy media entry points no longer route to the overview")
 

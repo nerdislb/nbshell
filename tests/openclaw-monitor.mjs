@@ -106,3 +106,33 @@ test('auth failure, malformed data, stalled peer and invalid pagination never re
         assert.ok(!JSON.stringify(result).includes('PRIVATE'));
     }
 });
+
+test('detail projection excludes private sessions, remote projects and unsafe routes', async () => {
+    const {sessionDetails, sessionUrl, progressSummary} = await import('../shell/scripts/openclaw-monitor.mjs');
+    const base = {key: 'agent:main:dashboard:abc', hasActiveRun: false};
+    const rows = sessionDetails([
+        {...base, label: 'Visible', execCwd: '/tmp/repo', lastMessage: 'PRIVATE'},
+        {...base, archived: true}, {...base, incognito: true}, {...base, visibility: 'hidden'},
+        {...base, key: 'agent:main:dashboard:remote', execNode: 'remote', execCwd: '/remote'},
+        {...base, key: 'agent:main:../../evil'},
+    ], connection);
+    assert.equal(rows.length, 2);
+    assert.equal(rows[0].project, '/tmp/repo');
+    assert.equal(rows[1].project, '');
+    assert.ok(!JSON.stringify(rows).includes('PRIVATE'));
+    assert.equal(sessionUrl('agent:main:main', connection), 'http://127.0.0.1:18789/chat/main');
+    assert.equal(sessionUrl('agent:main:hello', connection), 'http://127.0.0.1:18789/chat/main/~key/hello');
+    assert.equal(progressSummary({steps: [{status: 'completed'}, {status: 'in_progress', step: 'Check'}]}), '1/2 steps · Check');
+});
+
+test('optional progress denial still delivers live details without message reads', async () => {
+    const requests = [];
+    const result = await query(connection, {details: true, WebSocketClass: peer([
+        {ok: true}, {ok: true, payload: {sessions: [{key: 'agent:main:main', hasActiveRun: true}], hasMore: false}},
+        {ok: false},
+    ], r => requests.push(r))});
+    assert.equal(result.online, true);
+    assert.equal(result.items[0].status, 'working');
+    assert.equal(result.items[0].progress, '');
+    assert.deepEqual(requests.map(r => r.method), ['connect', 'sessions.list', 'progressCard.get']);
+});

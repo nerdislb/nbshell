@@ -30,14 +30,17 @@ Singleton {
     property string attentionKind: ""
     property bool overviewVisible: false
     property int monitorUsers: 0
+    property bool workVisible: false
     property string monitorError: ""
     property var openclaw: ({installed: false, online: false, working: 0, sessions: 0, agents: [], error: ""})
 
     function refreshSessions() {
         if (!sessionStatus.running)
             sessionStatus.running = true;
-        if (!openclawStatus.running)
+        if (!openclawStatus.running) {
+            openclawStatus.command = ["python3", Qt.resolvedUrl("../scripts/openclaw-status.py").toString().replace("file://", "")].concat(workVisible ? ["--details"] : []);
             openclawStatus.running = true;
+        }
     }
 
     Process {
@@ -63,7 +66,7 @@ Singleton {
 
     Timer {
         interval: 3000
-        running: root.monitorUsers > 0
+        running: root.monitorUsers > 0 || root.workVisible
         repeat: true
         triggeredOnStart: true
         onTriggered: root.refreshSessions()
@@ -297,7 +300,7 @@ Singleton {
                     root.agents = data.agents ?? [];
                     root.projects = data.projects ?? [];
                     const nextSessions = data.sessions ?? [];
-                    if (root.monitorUsers === 0) {
+                    if (root.monitorUsers === 0 && !root.workVisible) {
                         root.sessionNotifications(nextSessions);
                         root.sessions = nextSessions;
                     }

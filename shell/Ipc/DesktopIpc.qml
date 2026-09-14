@@ -36,7 +36,7 @@ Scope {
         function open(): string { Runtime.dashboardOpen = true; return "open"; }
         function close(): string { Runtime.dashboardOpen = false; return "closed"; }
         function view(page: string): string {
-            const names = ["overview", "calendar", "tools"];
+            const names = ["overview", "calendar", "tools", "work"];
             const aliases = ({
                 "today": 0, "heute": 0, "media": 0, "medien": 0,
                 "kalender": 1, "werkzeuge": 2
@@ -46,7 +46,7 @@ Scope {
             if (index < 0 && aliases[requested] !== undefined)
                 index = aliases[requested];
             if (index < 0)
-                return "overview | calendar | tools";
+                return "overview | calendar | tools | work";
             Runtime.dashboardPage = index;
             Runtime.dashboardOpen = true;
             return names[index];
