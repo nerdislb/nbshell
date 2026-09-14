@@ -41,7 +41,10 @@ Column {
       wrapMode: Text.WordWrap
       text: !root.runtime ? "Checking the mail backend"
         : root.runtime.busy ? "Working"
-        : root.runtime.state === "ready" ? "Backend " + root.runtime.installedVersion + " is installed."
+        : root.runtime.state === "ready" ? (root.runtime.bundled
+          ? "Bundled backend " + root.runtime.installedVersion + " is ready."
+          : "Backend " + root.runtime.installedVersion + " is installed.")
+        : root.runtime.bundled ? "The bundled mail backend could not start."
         : "Omamail needs backend " + (root.runtime.requiredVersion || "matching this plugin")
           + (root.runtime.installedVersion ? ". Installed: " + root.runtime.installedVersion : ". It is not installed yet.")
       color: root.dimColor
@@ -55,7 +58,7 @@ Column {
       bordered: false
       accent: root.accentColor
       fontFamily: root.panelFontFamily
-      text: "Check"
+      text: root.runtime && root.runtime.bundled ? "Retry" : "Check"
       enabled: !!root.runtime && !root.runtime.busy
       foreground: root.textColor
       onClicked: root.runtime.refresh()
@@ -65,7 +68,9 @@ Column {
     textFormat: Text.PlainText
     width: parent.width
     wrapMode: Text.WordWrap
-    text: root.runtime && root.runtime.development
+    text: root.runtime && root.runtime.bundled
+      ? "Included with this app. Reinstall this version if the bundled backend is missing or damaged."
+      : root.runtime && root.runtime.development
       ? "Development executable: " + root.runtime.developmentExecutable + ". Build the required version, then check again."
       : "Required for the app’s mail features. The backend is installed and managed inside this plugin."
     color: root.dimColor
@@ -90,7 +95,8 @@ Column {
       accent: root.accentColor
       fontFamily: root.panelFontFamily
       objectName: "backend-install"
-      visible: !!root.runtime && !root.runtime.development && root.runtime.state !== "ready"
+      visible: !!root.runtime && !root.runtime.bundled && !root.runtime.development
+        && root.runtime.state !== "ready"
       enabled: !!root.runtime && root.runtime.canInstall
       text: root.runtime && root.runtime.installedVersion ? "Update backend" : "Install backend"
       foreground: root.accentColor
@@ -115,7 +121,8 @@ Column {
   Column {
     width: parent.width
     spacing: Style.space(8)
-    visible: !!root.runtime && !root.runtime.development && root.runtime.state === "ready"
+    visible: !!root.runtime && !root.runtime.bundled && !root.runtime.development
+      && root.runtime.state === "ready"
     Text {
       textFormat: Text.PlainText
       text: "CLI command"
@@ -127,7 +134,8 @@ Column {
     Button {
       id: installCli
       objectName: "backend-install-cli"
-      visible: !!root.runtime && !root.runtime.development && root.runtime.state === "ready"
+      visible: !!root.runtime && !root.runtime.bundled && !root.runtime.development
+        && root.runtime.state === "ready"
       bordered: true
       accent: root.accentColor
       fontFamily: root.panelFontFamily

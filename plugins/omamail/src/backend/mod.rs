@@ -1,7 +1,8 @@
 mod content;
-mod reader;
+pub(crate) mod mail;
 mod methods;
 pub mod protocol;
+mod reader;
 mod rpc;
 pub mod stdio;
 pub mod upload;
@@ -10,6 +11,7 @@ use crate::{account, message};
 pub struct Session {
     uploads: std::sync::Mutex<upload::Uploads>,
     reader: std::sync::Arc<std::sync::Mutex<reader::ReaderStore>>,
+    #[cfg(all(feature = "agent", target_os = "linux"))]
     agent_context: crate::agent::context::Contexts,
     upload_jobs: tokio::sync::Semaphore,
     gmail: std::sync::Arc<crate::providers::gmail::Session>,
@@ -37,6 +39,7 @@ impl Default for Session {
         Self {
             uploads: Default::default(),
             reader: Default::default(),
+            #[cfg(all(feature = "agent", target_os = "linux"))]
             agent_context: Default::default(),
             upload_jobs: tokio::sync::Semaphore::new(2),
             mail: crate::sync::Sync::new(gmail.clone(), jmap.clone(), queries.clone()),
@@ -56,12 +59,23 @@ impl Session {
     // re-enter this dispatcher; embedding every provider future here overflowed
     // the worker stack in the real Quickshell large-request integration test.
     pub async fn dispatch(&self, method: &str, params: &Value) -> Result<Value, &'static str> {
+        #[cfg(not(all(feature = "agent", target_os = "linux")))]
+        if method.starts_with("agent.") {
+            return Err("unknown_method");
+        }
+        if matches!(method, "mail.list" | "mail.read" | "mail.act" | "mail.send") {
+            return Box::pin(self.mail_call(method, params)).await;
+        }
         if matches!(method, "system.info" | "system.quit" | "providers.list") {
             return dispatch(method, params);
+        }
+        if method.starts_with("credentials.") {
+            return crate::credentials::rpc::call(method, params).await;
         }
         if matches!(method, "reader.open" | "reader.render" | "reader.cancel") {
             return Box::pin(self.reader_call(method, params)).await;
         }
+        #[cfg(all(feature = "agent", target_os = "linux"))]
         if matches!(method, "agent.context" | "agent.contextCancel") {
             return Box::pin(self.agent_context.call(method, params, self)).await;
         }
@@ -74,16 +88,29 @@ impl Session {
                 } else {
                     crate::account::conversation::request(&params)
                 }
-            }).await.map_err(|_| "worker_failed")?;
+            })
+            .await
+            .map_err(|_| "worker_failed")?;
         }
         if matches!(method, "providers.resolve" | "providers.snapshot") {
             if method == "providers.resolve" {
                 return crate::providers::domain::resolve(params);
             }
-            if params != &json!({}) { return Err("invalid_params"); }
+            if params != &json!({}) {
+                return Err("invalid_params");
+            }
             return Ok(crate::providers::domain::snapshot());
         }
-        if matches!(method, "agent.jobsList" | "agent.jobsProjection" | "agent.jobStart" | "agent.jobShow" | "agent.jobCancel" | "agent.jobForget") {
+        #[cfg(all(feature = "agent", target_os = "linux"))]
+        if matches!(
+            method,
+            "agent.jobsList"
+                | "agent.jobsProjection"
+                | "agent.jobStart"
+                | "agent.jobShow"
+                | "agent.jobCancel"
+                | "agent.jobForget"
+        ) {
             return Box::pin(crate::agent::jobs::call(method, params)).await;
         }
         if method.starts_with("outbox.") {
@@ -400,7 +427,8 @@ pub fn dispatch(method: &str, params: &Value) -> Result<Value, &'static str> {
     match method {
         "system.info" => Ok(json!({
             "name": "omamail", "version": env!("CARGO_PKG_VERSION"),
-            "protocol": 1, "apiVersion": 2, "methods": methods::ALL
+            "protocol": 1, "apiVersion": 4, "methods": methods::available(),
+            "capabilities": {"agent": cfg!(all(feature = "agent", target_os = "linux"))}
         })),
         "system.quit" => Ok(json!({"quitReady": true})),
         "accounts.list" => account::list(),
@@ -419,7 +447,16 @@ mod api_contract_tests {
         let info = dispatch("system.info", &json!({})).unwrap();
         assert_eq!(info["apiVersion"], contract["apiVersion"]);
         assert_eq!(info["protocol"], contract["protocolVersion"]);
-        assert_eq!(info["methods"], contract["methods"]);
+        let expected: Vec<_> = contract["methods"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|method| {
+                cfg!(all(feature = "agent", target_os = "linux"))
+                    || !method.as_str().unwrap().starts_with("agent.")
+            })
+            .collect();
+        assert_eq!(info["methods"], json!(expected));
     }
 }
 
@@ -428,7 +465,7 @@ mod cache_lifecycle_tests {
     use super::*;
     #[tokio::test]
     async fn successful_clear_invalidates_only_its_account_and_refused_clear_preserves_cache() {
-        let root = std::env::temp_dir().join(format!(
+        let root = std::env::temp_dir().canonicalize().unwrap().join(format!(
             "omamail-backend-cache-clear-{}",
             std::process::id()
         ));

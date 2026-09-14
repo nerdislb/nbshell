@@ -1,8 +1,9 @@
 use super::*;
+use std::io::Write;
 struct Temp(PathBuf);
 impl Temp {
     fn new() -> Self {
-        let p = std::env::temp_dir().join(format!(
+        let p = std::env::temp_dir().canonicalize().unwrap().join(format!(
             "omamail-compose-test-{}-{}",
             std::process::id(),
             SERIAL.fetch_add(1, Ordering::Relaxed)
@@ -19,6 +20,55 @@ impl Drop for Temp {
 fn saved(body: &str) -> Value {
     json!({"version":1,"active":true,"returnView":"reader","draft":{"body":body,"accountId":"one@example.org"}})
 }
+#[test]
+fn user_edit_history_survives_durable_recovery_including_an_emptied_draft() {
+    let temp = Temp::new();
+    let mut value = saved("");
+    value["draft"]["userModified"] = json!(true);
+    value["draft"]["sourceDraftId"] = json!("draft-emptied");
+    value["parked"] = json!([
+        {"body":"Untouched prefill", "userModified":false},
+        {"userModified":true, "replyToVisible":true},
+        {"subject":"Legacy recovery"}
+    ]);
+    let answer = call_at(
+        &temp.0,
+        "compose.recoverySave",
+        &json!({"record":value,"expectedRevision":revision(&[])}),
+    )
+    .unwrap();
+    assert_eq!(answer["record"]["active"], true);
+    assert_eq!(answer["record"]["draft"]["userModified"], true);
+    assert_eq!(answer["record"]["draft"]["sourceDraftId"], "draft-emptied");
+    assert_eq!(answer["record"]["parked"][0]["userModified"], false);
+    assert_eq!(answer["record"]["parked"][1]["userModified"], true);
+    assert!(answer["record"]["parked"][2].get("userModified").is_none());
+    assert_eq!(
+        call_at(&temp.0, "compose.recoveryRead", &json!({})).unwrap(),
+        answer
+    );
+}
+
+#[test]
+fn malformed_edit_history_never_writes_recovery() {
+    for invalid in [json!(null), json!("true"), json!(1), json!([]), json!({})] {
+        let temp = Temp::new();
+        let mut value = saved("Keep me");
+        value["draft"]["userModified"] = invalid;
+        assert_eq!(
+            call_at(
+                &temp.0,
+                "compose.recoverySave",
+                &json!({
+                    "record":value,"expectedRevision":revision(&[])
+                })
+            ),
+            Err("recovery_invalid_user_modified")
+        );
+        assert!(!temp.0.join("omamail").exists());
+    }
+}
+
 #[test]
 fn meaningful_body_history_and_parked_identity_survive() {
     assert!(
@@ -37,6 +87,7 @@ fn meaningful_body_history_and_parked_identity_survive() {
     assert_eq!(record["parked"].as_array().unwrap().len(), 1);
     assert_eq!(record["parked"][0]["accountId"], "imap:two@example.org");
 }
+#[cfg(unix)]
 #[test]
 fn snapshots_are_private_atomic_and_stale_clear_cannot_erase_newer_draft() {
     use std::os::unix::fs::PermissionsExt;
@@ -82,6 +133,7 @@ fn snapshots_are_private_atomic_and_stale_clear_cannot_erase_newer_draft() {
     .unwrap();
     assert_eq!(cleared["record"], empty());
 }
+#[cfg(unix)]
 #[test]
 fn links_never_read_write_or_modify_outside_target() {
     use std::os::unix::fs::{PermissionsExt, symlink};
@@ -222,6 +274,7 @@ fn delivery_receipts_survive_recovery_without_changing_legacy_empty_fields() {
     assert!(normalize(&value).is_err());
 }
 
+#[cfg(unix)]
 #[test]
 fn recovery_lock_releases_even_with_an_inherited_file_description() {
     let temp = Temp::new();
@@ -238,7 +291,9 @@ fn recovery_lock_releases_even_with_an_inherited_file_description() {
         0
     );
     let inherited = file.try_clone().unwrap();
-    drop(RecoveryLock(file));
+    drop(crate::platform::private_fs::ExclusiveLock::from_locked(
+        file,
+    ));
     let contender = File::open(&path).unwrap();
     assert_eq!(
         unsafe { libc::flock(contender.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },

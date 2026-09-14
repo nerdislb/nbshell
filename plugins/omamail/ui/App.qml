@@ -25,9 +25,19 @@ Item {
   property var shell: null
   property var manifest: null
   property var service: null
+  // The standalone host supplies its own client-side title bar. The Omarchy
+  // shell keeps ownership of plugin window chrome and leaves this disabled.
+  property bool standaloneWindowChrome: false
   property bool opened: false
   property bool closingFromHost: false
-  property string draftSavedNotice: ""
+  function syncWindowVisibility() {
+    window.visible = root.opened
+  }
+  onOpenedChanged: Qt.callLater(syncWindowVisibility)
+  property string draftSavedToast: ""
+  property string composeRecoveryNotice: ""
+  property bool composeRecoveryUpdateNoticePending: false
+  readonly property string draftSavedNotice: composeRecoveryNotice || draftSavedToast
   readonly property bool backendUnavailable: !!service && !!service.backendRuntime
     && (service.backendRuntime.state !== "ready" || !service.backend.ready)
 
@@ -105,6 +115,8 @@ Item {
   readonly property color popupBorder: Color.popups.border
   readonly property color calendarBorder: Style.normalBorderFor(root.foreground, root.accent)
   readonly property color calendarTodayBackground: Style.selectedFillFor(root.foreground, root.accent)
+  readonly property color borderColor: Style.normalBorderFor(root.foreground, root.accent)
+  readonly property int borderWidth: Style.normalBorderWidth
   readonly property int calendarBorderWidth: Style.normalBorderWidth
   readonly property color dim: Qt.rgba(
     foreground.r * 0.68 + background.r * 0.32,
@@ -121,16 +133,33 @@ Item {
   readonly property string fontFamily: Style.font.family
 
   function copyText(text) {
-    clipboardProxy.text = String(text || "")
-    clipboardProxy.selectAll()
-    clipboardProxy.copy()
-    clipboardProxy.deselect()
+    return service && typeof service.copyText === "function"
+      ? service.copyText(String(text || "")) : false
   }
 
-  TextEdit {
-    id: clipboardProxy
-    visible: false
-    readOnly: true
+  readonly property var agentPrompt: agentPromptLoader.item || inactiveAgentPrompt
+  readonly property var composeAgent: composeAgentLoader.item || inactiveComposeAgent
+  QtObject {
+    id: inactiveAgentPrompt
+    property bool opened: false
+    property bool activeFocus: false
+    property string messageId: ""
+    function close() {}
+    function openCenteredFor() {}
+    function openFor() {}
+    function openForSelection() {}
+    function takeFocus() {}
+  }
+  QtObject {
+    id: inactiveComposeAgent
+    property bool opened: false
+    property bool activeFocus: false
+    property bool working: false
+    property var job: null
+    function close() {}
+    function open() {}
+    function openAt() {}
+    function takeFocus() {}
   }
 
   readonly property bool assistantOpen: agentPrompt.opened || composeAgent.opened
@@ -353,7 +382,7 @@ Item {
   function back() {
     var leaving = Nav.top(nav)
     pendingComposeReturnTo = -1
-    if (leaving.kind === "compose") return saveAndLeaveCompose()
+    if (leaving.kind === "compose") return requestLeaveCompose()
     if (leaving.kind === "eventComposer") return eventComposer.close()
     if (leaving.kind === "calendarDetail") return calendarView.closeDetail()
     if (leaving.kind === "reader") {
@@ -482,6 +511,7 @@ Item {
     markReadDwell.dwelledOn = ""
     previewSettle.stop()
     closingFromHost = true
+    composeExitDialog.close()
     // Escape at the list root closes the window without clearing what the
     // cursor had previewed, so it reopened showing a stale message beside the
     // list. A preview is not a place the window was left in.
@@ -563,9 +593,7 @@ Item {
     return true
   }
 
-  // The list, fresh: what a mailbox switch, a search, a queued send and the
-  // reader's own "back to list" keys all mean. Not a Back — the history is
-  // dropped because the list under it has changed.
+  // A changed mailbox/query resets the list history.
   function backToList() {
     pendingComposeMode = ""
     pendingDraftId = ""
@@ -581,12 +609,7 @@ Item {
     nav = Nav.replaceRoot(nav, "calendar")
   }
 
-  // Moving the cursor has to bring the row with it. The list is a Column in a
-  // Flickable rather than a ListView — the panel already owns a scroller — so
-  // there is no positionViewAtIndex and this has to be said out loud.
-  //
-  // Called only for keyboard movement. Pointer hover stays local to the row,
-  // and a programmatic selection does not scroll the list under the pointer.
+  // Keyboard-only reveal: pointer hover must not move the list.
   function revealCursorRow() {
     if (!listFlick.visible) return
     var bounds = list.boundsFor(cursorId)
@@ -605,42 +628,21 @@ Item {
     previewCursor()
   }
 
-  // Rechecked after the dwell because the visible surface may have changed.
+  // Native cursor preview is opt-in, debounced and never a navigation entry.
+  // Only a painted, still-visible message may start the read dwell; close and
+  // selection changes cancel it. Tests: tst_preview_on_cursor.qml.
   readonly property bool canPreview: !!service && service.previewOnCursor
     && !compact && !showPage && !composing && !calendarVisible
     && !labelPicker.opened
 
-  // Moving is not opening, and this is the difference.
-  //
-  // It used to open whatever it landed on, which made stepping through a list
-  // a way to mark half of it read without having looked at any of it. So the
-  // preview is off unless it was asked for, it pushes no history — Escape and
-  // Back mean what they meant — and it does not mark anything read. A dwell
-  // does that, which is what stops a held arrow key from reading a mailbox.
   function previewCursor() {
     markReadDwell.stop()
     markReadDwell.dwelledOn = ""
     previewSettle.stop()
     if (!canPreview || cursorId === "") return
-    // A message already open stays open on its own terms: it was opened, and
-    // re-selecting it as a preview would take back the read mark it earned.
-    //
-    // A *preview* of the same message is not that. Moving away and back
-    // inside the settle stops the dwell above and used to return here, so the
-    // message the cursor was sitting on never became read at all — the id
-    // matched, which is exactly what a preview does while not being open.
     if (currentView === "reader" && service.selectedId === cursorId
       && !service.selectionIsPreview) return
-    // Per message, the same as opening one. Insisting on a document the bounds
-    // refused is an answer about the message it was given for, and the row the
-    // cursor moved to is a different message.
     reader.forceRichAnyway = false
-    // Settled rather than fetched per keystroke. A held `j` starts a request
-    // for every row it crosses, and on IMAP each one is a curl process, a TLS
-    // handshake and a LOGIN — thirty rows was thirty connections, spawned and
-    // killed as the key repeated. Cancellation was already correct; this is
-    // about not asking. Short enough that a deliberate move still feels
-    // immediate, long enough that a repeat rate never gets through.
     previewSettle.wanted = cursorId
     previewSettle.restart()
   }
@@ -656,27 +658,15 @@ Item {
   function previewSettled() {
     var id = previewSettle.wanted
     previewSettle.wanted = ""
-    // The cursor may have moved on, or left the state that allows a preview
-    // at all, in the time this waited.
     if (id === "" || id !== cursorId || !canPreview) return
     if (currentView === "reader" && service.selectedId === id
       && !service.selectionIsPreview) return
-    // Coming back to the message that is still the preview restarts its
-    // dwell rather than asking for it again.
     if (service.selectedId !== id || !service.selectionIsPreview)
       service.select(id, true)
     markReadDwell.dwelledOn = id
     armReadDwell()
   }
 
-  // Whether the previewed message is actually on screen.
-  //
-  // The dwell measures time spent looking at something, so it cannot start
-  // before there is anything to look at. It began when the request went out,
-  // so a slow fetch spent the whole dwell loading and marked read a message
-  // whose body never appeared — worst at a zero dwell, which marked it read
-  // before the request had even been made. A fetch that fails never paints,
-  // so it never arms this at all.
   readonly property bool previewShowing: !!service
     && service.detailPainted && !service.detailLoading
 
@@ -685,8 +675,6 @@ Item {
   function armReadDwell() {
     if (!service || markReadDwell.dwelledOn === "") return
     if (!canPreview || !previewShowing) return
-    // Still the message on screen: a search and a mailbox switch both drop the
-    // selection without moving the cursor off the row.
     if (service.selectedId !== markReadDwell.dwelledOn) return
     if (service.markReadDelaySec <= 0) {
       var now = markReadDwell.dwelledOn
@@ -698,10 +686,6 @@ Item {
     markReadDwell.restart()
   }
 
-  // A previewed message counts as read once the cursor has stayed on it. The
-  // id is held rather than read back off the cursor when this fires: by then
-  // the cursor may have moved on, and the message that was read is the one to
-  // mark.
   Timer {
     id: markReadDwell
     property string dwelledOn: ""
@@ -710,30 +694,16 @@ Item {
       if (!root.service || dwelledOn === "") return
       if (!root.canPreview) return
       if (root.cursorId !== dwelledOn) return
-      // And it has to still be the message on screen: a search and a mailbox
-      // switch both drop the selection without moving the cursor off the row.
       if (root.service.selectedId !== dwelledOn) return
       root.service.markPreviewRead(dwelledOn)
     }
   }
 
-  // An answer needs the message it is answering, and opening one only starts
-  // the fetch — select() clears the summary and the body first. Beginning the
-  // draft in the same breath addressed nobody and quoted nothing, which is what
-  // the list row's own Reply menu did. Held until the fetch lands instead.
+  // Preserve return navigation while a reply waits for its source message.
   property string pendingComposeMode: ""
   property string pendingDraftId: ""
-  // Where the draft will return to, recorded before anything is pushed on its
-  // behalf. Answering from the list opens the message being answered — that
-  // is the reply's doing, not somewhere the reader asked to be — so the depth
-  // to come back to is taken before the reader goes on. -1 means "wherever
-  // the draft opens", which `push` fills in.
   property int pendingComposeReturnTo: -1
 
-  // The draft's entry, once the view has opened. The reply raised from the
-  // list has been holding its depth in pendingComposeReturnTo since before
-  // the message it answers was fetched; everything else returns to the place
-  // it was raised over.
   function trackComposeOpened() {
     var fields = {}
     if (pendingComposeReturnTo >= 0) fields.returnTo = pendingComposeReturnTo
@@ -741,9 +711,6 @@ Item {
     pushEntry("compose", fields)
   }
 
-  // What compose recovery writes: the reader, if leaving the draft would keep
-  // one open underneath, else the list. The file format predates the stack
-  // and says only that much.
   function composeReturnView() {
     for (var i = nav.length - 1; i >= 0; i--) {
       if (nav[i].kind !== "compose") continue
@@ -814,8 +781,19 @@ Item {
     dropOverlay("compose")
   }
 
-  function saveAndLeaveCompose() {
-    if (!service || !compose.hasMeaningfulDraft()) {
+  function requestLeaveCompose() {
+    if (!compose.opened) return
+    if (!compose.hasUserChanges()) {
+      compose.finish()
+      return
+    }
+    composeExitDialog.open()
+  }
+
+  function saveAndLeaveCompose(force) {
+    if (!compose.opened) return
+    if (!service) return
+    if (force !== true && !compose.hasMeaningfulDraft()) {
       compose.finish()
       return
     }
@@ -838,7 +816,7 @@ Item {
       if (compose.opened) root.scheduleComposeRecovery()
       else root.clearComposeRecovery(recoveryRevision)
       var warning = String(result && result.warning || "")
-      root.draftSavedNotice = warning === "" ? "Draft saved" : warning
+      root.draftSavedToast = warning === "" ? "Draft saved" : warning
       if (warning !== "" && service && typeof service.note === "function")
         service.note(warning)
       draftSavedTimer.restart()
@@ -862,7 +840,7 @@ Item {
         return
       }
       if (!compose.completeInterruptedSave(interrupted)) return
-      root.draftSavedNotice = "Draft saved"
+      root.draftSavedToast = "Draft saved"
       draftSavedTimer.restart()
     })
     return true
@@ -879,7 +857,7 @@ Item {
     id: draftSavedTimer
     interval: 4000
     repeat: false
-    onTriggered: root.draftSavedNotice = ""
+    onTriggered: root.draftSavedToast = ""
   }
 
   // Opened on the cursor rather than on the selection, the way every other
@@ -1234,6 +1212,7 @@ Item {
       // The agent popup is about one account's message too.
       agentPrompt.close()
       composeAgent.close()
+      composeExitDialog.close()
     }
     function onSidebarWidthChanged() { root.sidebarWidth = root.service.sidebarWidth }
     function onListWidthChanged() { root.listWidth = root.service.listWidth }
@@ -1500,10 +1479,10 @@ Item {
 
   function copyAddress(address) {
     var text = String(address || "").trim()
-    // Straight to wl-copy as one argument: no shell, and an address that
-    // starts with a dash is not an address.
+    // The host owns the platform clipboard. An address that starts with a
+    // dash is still refused before it crosses that boundary.
     if (text === "" || text.charAt(0) === "-") return
-    Quickshell.execDetached(["wl-copy", text])
+    if (service && typeof service.copyText === "function") service.copyText(text)
     notice = "Copied " + text
     noticeTimer.restart()
   }
@@ -1528,12 +1507,13 @@ Item {
 
   FloatingWindow {
     id: window
-    visible: root.opened
     title: "Mail"
     color: root.background
     implicitWidth: Style.space(980)
     implicitHeight: Style.space(720)
     minimumSize: Qt.size(Style.space(520), Style.space(480))
+
+    Component.onCompleted: root.syncWindowVisibility()
 
     onVisibleChanged: {
       if (!visible && root.opened && !root.closingFromHost) root.requestClose()
@@ -1549,7 +1529,8 @@ Item {
         width: Math.min(parent.width - Style.space(48), Style.space(480))
         runtime: root.service ? root.service.backendRuntime || null : null
         backendError: root.service && root.service.backend ? root.service.backend.failure : ""
-        diagnosisAvailable: !!root.service && typeof root.service.diagnoseError === "function"
+        diagnosisAvailable: !!root.service && root.service.hasAgent === true
+          && typeof root.service.diagnoseError === "function"
         diagnosing: !!root.service && !!root.service.diagnosing
         onDiagnosisRequested: root.service.diagnoseError()
         textColor: root.foreground
@@ -1615,6 +1596,7 @@ Item {
         return false
       }
       function applyContextFocus() {
+        if (composeExitDialog.opened) return
         if (keyContext === "assistant" || keyContext === "assistantCommands") {
           if (composeAgent.opened && !composeAgent.activeFocus) composeAgent.takeFocus()
           else if (agentPrompt.opened && !agentPrompt.activeFocus) agentPrompt.takeFocus()
@@ -1646,11 +1628,27 @@ Item {
 
       Item {
         id: header
+        objectName: "app-title-bar"
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
         height: Style.space(48)
         visible: !root.composing
+
+        // Kept below the header controls so their own pointer handlers win.
+        // Empty title-bar space starts the platform's native move operation,
+        // preserving compositor snapping instead of updating x/y ourselves.
+        MouseArea {
+          id: windowMoveArea
+          objectName: "app-title-bar-drag-area"
+          anchors.fill: parent
+          enabled: root.standaloneWindowChrome
+          acceptedButtons: Qt.LeftButton
+          onPressed: function(mouse) {
+            var nativeWindow = header.Window.window
+            if (!nativeWindow || !nativeWindow.startSystemMove()) mouse.accepted = false
+          }
+        }
 
         // Identity first, controls after, with a rule between them: the mark
         // and the name say what this window is, and everything to their right
@@ -1820,7 +1818,8 @@ Item {
             anchors.right: root.composing ? parent.right : undefined
             objectName: "header-ai-button"
             anchors.verticalCenter: parent.verticalCenter
-            visible: !root.showPage && !root.calendarVisible && root.overlay !== "eventComposer"
+            visible: !!root.service && root.service.hasAgent !== false
+              && !root.showPage && !root.calendarVisible && root.overlay !== "eventComposer"
             width: headerComposeButton.implicitHeight
             height: headerComposeButton.implicitHeight
             Accessible.name: "AI"
@@ -2199,7 +2198,7 @@ Item {
           onClosed: {
             if (!root.composeDetachingForSave) root.clearComposeRecovery()
           }
-          onCloseRequested: root.saveAndLeaveCompose()
+          onCloseRequested: root.requestLeaveCompose()
           onSendQueued: {
             root.saveComposeRecovery(compose.pendingDraft)
             root.backToList()
@@ -2258,7 +2257,9 @@ Item {
             }
             onCreateAt: function(startMs) { eventComposer.beginAt(startMs) }
             onCopyRequested: function(text) { root.copyText(text) }
-            onOpenRequested: function(url) { Qt.openUrlExternally(url) }
+            onOpenRequested: function(url) {
+              if (root.service) root.service.openExternal(url)
+            }
             onEditRequested: function(sourceId, event) { eventComposer.beginEdit(sourceId, event) }
             onDeleteRequested: function(sourceId, event) { root.requestEventDelete(sourceId, event) }
           }
@@ -2662,7 +2663,7 @@ Item {
           anchors.right: parent.right
           anchors.rightMargin: Style.space(14)
           anchors.verticalCenter: parent.verticalCenter
-          visible: !!root.service && root.service.lastError !== ""
+          visible: !!root.service && root.service.hasAgent !== false && root.service.lastError !== ""
             && typeof root.service.diagnoseError === "function"
           enabled: visible && !root.service.diagnosing
           iconName: "agent"
@@ -2738,6 +2739,7 @@ Item {
         signedIn: root.ready
         canOpenWebInbox: !!root.service && root.service.canOpenWebInbox
         accountCount: root.service ? root.service.accountCount : 1
+        canQuit: root.standaloneWindowChrome
         onMarkAllReadRequested: if (root.service) root.service.markAllRead()
         onOpenWebRequested: if (root.service) root.service.openWebInbox()
         onShortcutsRequested: root.openHelp()
@@ -2753,6 +2755,10 @@ Item {
         onSwitchAccountRequested: accountSwitcher.openCentered()
         onProjectRequested: if (root.service) root.service.openProjectPage()
         onAuthorRequested: if (root.service) root.service.openAuthorPage()
+        onQuitRequested: {
+          if (root.standaloneWindowChrome && root.shell
+              && typeof root.shell.quit === "function") root.shell.quit()
+        }
       }
 
       // Every mailbox, opened from the address in the status bar.
@@ -2814,43 +2820,53 @@ Item {
           }
           onDoubleClicked: root.preferredAssistantWidth = 0
         }
-        AgentPrompt {
-          id: agentPrompt
-          onOpenedChanged: if (opened) composeAgent.close()
-          objectName: "agent-prompt"
-          service: root.service
+        Loader {
+          id: agentPromptLoader
+          active: !!root.service && root.service.hasAgent !== false
           anchors.fill: parent
-          textColor: root.foreground
-          accentColor: root.accent
-          urgentColor: root.urgent
-          dimColor: root.dim
-          popupBackgroundColor: root.popupBackground
-          popupBorderColor: root.popupBorder
-          panelFontFamily: root.fontFamily
-          onFocusRequested: { root.assistantEditing = true; Qt.callLater(focusScope.applyContextFocus) }
-          onKeyPressed: function(event) { keyRouter.routeKeyEvent(event) }
-          onEditingChanged: function(editing) { root.assistantEditing = editing }
-          onDismissed: { root.assistantEditing = false; Qt.callLater(focusScope.applyContextFocus) }
+          sourceComponent: Component {
+            AgentPrompt {
+              onOpenedChanged: if (opened) root.composeAgent.close()
+              objectName: "agent-prompt"
+              service: root.service
+              textColor: root.foreground
+              accentColor: root.accent
+              urgentColor: root.urgent
+              dimColor: root.dim
+              popupBackgroundColor: root.popupBackground
+              popupBorderColor: root.popupBorder
+              panelFontFamily: root.fontFamily
+              onFocusRequested: { root.assistantEditing = true; Qt.callLater(focusScope.applyContextFocus) }
+              onKeyPressed: function(event) { keyRouter.routeKeyEvent(event) }
+              onEditingChanged: function(editing) { root.assistantEditing = editing }
+              onDismissed: { root.assistantEditing = false; Qt.callLater(focusScope.applyContextFocus) }
+            }
+          }
         }
 
-        ComposeAgent {
-          id: composeAgent
-          onOpenedChanged: if (opened) agentPrompt.close()
-          objectName: "compose-agent"
+        Loader {
+          id: composeAgentLoader
+          active: !!root.service && root.service.hasAgent !== false
           anchors.fill: parent
-          service: root.service
-          composer: compose
-          textColor: root.foreground
-          accentColor: root.accent
-          urgentColor: root.urgent
-          dimColor: root.dim
-          popupBackgroundColor: root.popupBackground
-          popupBorderColor: root.popupBorder
-          panelFontFamily: root.fontFamily
-          onFocusRequested: { root.assistantEditing = true; Qt.callLater(focusScope.applyContextFocus) }
-          onKeyPressed: function(event) { keyRouter.routeKeyEvent(event) }
-          onEditingChanged: function(editing) { root.assistantEditing = editing }
-          onDismissed: { root.assistantEditing = false; Qt.callLater(focusScope.applyContextFocus) }
+          sourceComponent: Component {
+            ComposeAgent {
+              onOpenedChanged: if (opened) root.agentPrompt.close()
+              objectName: "compose-agent"
+              service: root.service
+              composer: compose
+              textColor: root.foreground
+              accentColor: root.accent
+              urgentColor: root.urgent
+              dimColor: root.dim
+              popupBackgroundColor: root.popupBackground
+              popupBorderColor: root.popupBorder
+              panelFontFamily: root.fontFamily
+              onFocusRequested: { root.assistantEditing = true; Qt.callLater(focusScope.applyContextFocus) }
+              onKeyPressed: function(event) { keyRouter.routeKeyEvent(event) }
+              onEditingChanged: function(editing) { root.assistantEditing = editing }
+              onDismissed: { root.assistantEditing = false; Qt.callLater(focusScope.applyContextFocus) }
+            }
+          }
         }
       }
 
@@ -2958,6 +2974,24 @@ Item {
         }
       }
 
+      ComposeExitDialog {
+        id: composeExitDialog
+        objectName: "compose-exit-dialog"
+        currentDraftKey: compose.opened ? compose.draftKey : ""
+        textColor: root.foreground
+        dimColor: root.dim
+        dangerColor: root.urgent
+        popupBackgroundColor: root.popupBackground
+        popupBorderColor: root.popupBorder
+        panelFontFamily: root.fontFamily
+        onSaveRequested: function(draftKey) {
+          if (compose.opened && compose.draftKey === draftKey) root.saveAndLeaveCompose(true)
+        }
+        onDiscardRequested: function(draftKey) {
+          if (compose.opened && compose.draftKey === draftKey) compose.finish()
+        }
+      }
+
       AccountRemovalDialog {
         id: accountRemovalDialog
         anchors.fill: parent
@@ -3026,6 +3060,10 @@ Item {
         backgroundColor: root.background
         dimColor: root.dim
         panelFontFamily: root.fontFamily
+        hiddenBindings: root.service && root.service.hasAgent === false
+          ? ["askAgent", "assistantSend", "assistantCommandUp",
+             "assistantCommandDown", "assistantChooseCommand"]
+          : []
         onDismissed: root.dismissHelp()
       }
 

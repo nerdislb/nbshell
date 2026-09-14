@@ -2,6 +2,23 @@ use super::mailbox::{Context, SUBMISSION, Snapshot, argument, fill, ids};
 use super::query::string;
 use super::*;
 use serde_json::Map;
+fn sender_identity(bytes: &[u8], identities: &Value) -> Result<String, &'static str> {
+    let (headers, _) = mailparse::parse_headers(bytes).map_err(|_| "jmap_invalid_message")?;
+    let wanted = crate::message::envelope::sender(&headers).map_err(|_| "jmap_invalid_message")?;
+    let rows = identities.as_array().ok_or("jmap_invalid_response")?;
+    let chosen = if let Some(wanted) = wanted {
+        rows.iter()
+            .find(|value| string(&value["email"]).eq_ignore_ascii_case(&wanted))
+    } else {
+        rows.iter()
+            .find(|value| value["isDefault"] == true)
+            .or_else(|| rows.first())
+    };
+    chosen
+        .map(|value| string(&value["id"]).to_owned())
+        .filter(|id| !id.is_empty())
+        .ok_or("jmap_sender_unavailable")
+}
 fn has(values: &Value, wanted: &str) -> bool {
     values
         .as_array()
@@ -48,11 +65,8 @@ fn patch(
         if destination.is_empty() {
             return Err("jmap_missing_mailbox");
         }
-        let member_has = |role: &str| membership.is_some_and(|v| v[string(&roles[role])] == true);
-        if membership.is_some()
-            && ((to == "archive" && !string(&roles["inbox"]).is_empty() && !member_has("inbox"))
-                || (to == "junk" && member_has("sent")))
-        {
+        let action = if to == "junk" { "spam" } else { to };
+        if !applies_to_action(action, roles, membership) {
             return Ok(Value::Object(result));
         }
         if replace {
@@ -79,11 +93,127 @@ fn can_send(snapshot: &Snapshot) -> bool {
         && snapshot.document["accounts"][&snapshot.account]["accountCapabilities"][SUBMISSION]
             .is_object()
 }
-fn learns_junk(snapshot: &Snapshot) -> bool {
+pub(super) fn learns_junk(snapshot: &Snapshot) -> bool {
     snapshot.document["capabilities"]["urn:stalwart:jmap"].is_object()||snapshot.document["accounts"][&snapshot.account]["accountCapabilities"]["urn:stalwart:jmap"].is_object()
         ||url(string(&snapshot.document["apiUrl"])).ok().and_then(|u|u.host_str().map(str::to_owned)).is_some_and(|h|h.ends_with(".fastmail.com"))
 }
+/// Whether a conversation member has a real provider mutation for this action.
+/// Shared by preview expansion and Task 5's patch path.
+/// Unknown membership (the desktop's direct-action path) does not exclude a
+/// target. Without an Inbox role we likewise cannot classify non-Inbox mail.
+/// A known empty membership is different: it excludes archive when Inbox exists.
+pub(super) fn applies_to_action(action: &str, roles: &Value, membership: Option<&Value>) -> bool {
+    let Some(membership) = membership else {
+        return true;
+    };
+    let has = |role: &str| membership[string(&roles[role])] == true;
+    match action {
+        "archive" => string(&roles["inbox"]).is_empty() || has("inbox"),
+        "spam" => !has("sent"),
+        _ => true,
+    }
+}
 impl Session {
+    /// Internal mail executor: targets were already expanded and filtered by
+    /// the reviewed action plan. Never consult mutable membership caches here.
+    /// The desktop mutation entry point retains its established semantics.
+    pub(crate) async fn execute_planned_action(
+        &self,
+        method: &str,
+        params: &Value,
+        roles: &Value,
+    ) -> Result<Value, &'static str> {
+        if !matches!(method, "jmap.batchModify" | "jmap.trash") {
+            return Err("invalid_params");
+        }
+        let targets = super::mailbox::action_ids(&params["ids"])?;
+        let context = self.context(text(params, "accountId")?)?;
+        if context.rejected.load(std::sync::atomic::Ordering::Acquire) {
+            return Err("jmap_unauthorized");
+        }
+        let snapshot = self.snapshot(text(params, "accountId")?, &context).await?;
+        let (added, removed) = if method == "jmap.trash" {
+            (json!(["TRASH"]), json!([]))
+        } else {
+            (
+                params["addLabelIds"].clone(),
+                params["removeLabelIds"].clone(),
+            )
+        };
+        if has(&added, "SPAM") && !learns_junk(&snapshot) {
+            return Err("jmap_spam_unavailable");
+        }
+        // All patches are validated before the first network mutation.
+        let change = patch(&added, &removed, roles, None)?;
+        if change.as_object().is_none_or(|change| change.is_empty()) {
+            return Err("invalid_params");
+        }
+        let mut succeeded = Vec::new();
+        for chunk in targets.chunks(snapshot.limit("maxObjectsInSet", 128)) {
+            let update: Map<String, Value> = chunk
+                .iter()
+                .map(|id| (id.clone(), change.clone()))
+                .collect();
+            let result = async {
+                let reply = self
+                    .api(
+                        &context,
+                        &snapshot,
+                        json!([["Email/set",{"accountId":snapshot.account,"update":update},"0"]]),
+                        false,
+                    )
+                    .await?;
+                let result = argument(&reply, "0", "Email/set")?;
+                let updated = match &result["updated"] {
+                    Value::Null => None,
+                    Value::Object(map) => Some(map),
+                    _ => return Err("jmap_invalid_response"),
+                };
+                let failed = match &result["notUpdated"] {
+                    Value::Null => None,
+                    Value::Object(map) => Some(map),
+                    _ => return Err("jmap_invalid_response"),
+                };
+                let mut seen = std::collections::HashSet::new();
+                for id in updated.into_iter().chain(failed).flat_map(|m| m.keys()) {
+                    if !chunk.contains(id) || !seen.insert(id) {
+                        return Err("jmap_invalid_response");
+                    }
+                }
+                if seen.len() != chunk.len() {
+                    return Err("jmap_invalid_response");
+                }
+                Ok::<_, &'static str>(
+                    chunk
+                        .iter()
+                        .filter(|id| updated.is_some_and(|m| m.contains_key(*id)))
+                        .cloned()
+                        .collect::<Vec<_>>(),
+                )
+            }
+            .await;
+            match result {
+                Ok(ids) => succeeded.extend(ids),
+                // Unknown delivery: retain earlier acknowledgements, stop, and
+                // report this chunk and every unsent target as failed.
+                Err(_) => break,
+            }
+        }
+        if !succeeded.is_empty() {
+            if let Ok(mut summaries) = context.summaries.lock() {
+                summaries.clear();
+            }
+            if let Ok(mut blocks) = context.blocks.lock() {
+                blocks.clear();
+            }
+        }
+        let failed: Vec<_> = targets
+            .iter()
+            .filter(|id| !succeeded.contains(id))
+            .collect();
+        Ok(json!({"succeededIds":succeeded,"failedIds":failed}))
+    }
+
     pub(super) async fn mutation(
         &self,
         context: &Context,
@@ -210,22 +340,7 @@ impl Session {
         }
         let identity = if send {
             let identities = self.identities(context, snapshot).await?;
-            let (headers, _) =
-                mailparse::parse_headers(&bytes).map_err(|_| "jmap_invalid_message")?;
-            use mailparse::MailHeaderMap;
-            let from = headers.get_first_value("From").unwrap_or_default();
-            let wanted = mailparse::addrparse(&from)
-                .ok()
-                .and_then(|addresses| addresses.extract_single_info())
-                .map(|a| a.addr)
-                .unwrap_or_default();
-            let rows = identities.as_array().ok_or("jmap_invalid_response")?;
-            let chosen = rows
-                .iter()
-                .find(|v| string(&v["email"]).eq_ignore_ascii_case(&wanted))
-                .or_else(|| rows.iter().find(|v| v["isDefault"] == true))
-                .or_else(|| rows.first());
-            chosen.map(|v| string(&v["id"])).unwrap_or("").to_owned()
+            sender_identity(&bytes, &identities)?
         } else {
             String::new()
         };
@@ -354,6 +469,58 @@ impl Session {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn encoded_from_names_select_only_the_actual_jmap_identity() {
+        let identities = json!([{"id":"victim","email":"victim@example.org","isDefault":true},{"id":"alias","email":"alias@example.org"}]);
+        for name in ["工 <victim@example.org>, Alias", "工, Lee"] {
+            let payload = crate::message::compose::build(&json!({"from":"alias@example.org","fromName":name,"to":"to@example.org","body":"body"})).unwrap();
+            let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .decode(payload["raw"].as_str().unwrap())
+                .unwrap();
+            assert_eq!(sender_identity(&bytes, &identities).unwrap(), "alias");
+        }
+        assert!(sender_identity(b"From: unapproved@example.org\r\n\r\nbody", &identities).is_err());
+    }
+    #[test]
+    fn preview_applicability_and_patch_agree_for_missing_roles_and_membership() {
+        for roles in [
+            json!({"inbox":"I","archive":"A","sent":"S","junk":"J","trash":"T"}),
+            json!({"archive":"A","sent":"S","junk":"J","trash":"T"}),
+        ] {
+            for membership in [
+                None,
+                Some(json!({})),
+                Some(json!({"I":true})),
+                Some(json!({"S":true})),
+            ] {
+                for (action, added, removed) in [
+                    ("archive", json!([]), json!(["INBOX"])),
+                    ("spam", json!(["SPAM"]), json!([])),
+                ] {
+                    let expected = match action {
+                        "archive" => {
+                            membership.is_none()
+                                || roles["inbox"].is_null()
+                                || membership.as_ref().is_some_and(|m| m["I"] == true)
+                        }
+                        _ => !membership.as_ref().is_some_and(|m| m["S"] == true),
+                    };
+                    assert_eq!(
+                        applies_to_action(action, &roles, membership.as_ref()),
+                        expected
+                    );
+                    assert_eq!(
+                        !patch(&added, &removed, &roles, membership.as_ref())
+                            .unwrap()
+                            .as_object()
+                            .unwrap()
+                            .is_empty(),
+                        expected
+                    );
+                }
+            }
+        }
+    }
     #[test]
     fn conversation_move_does_not_archive_sent_or_train_on_own_reply() {
         let roles = json!({"inbox":"I","archive":"A","sent":"S","junk":"J","trash":"T"});

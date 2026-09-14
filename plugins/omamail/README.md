@@ -1,5 +1,7 @@
 # Omamail
 
+> nbshell bundles the native plugin and its backend, not the upstream standalone desktop host. The `app/` sources and standalone build targets require a full upstream checkout. No standalone launcher or mailto registration is installed.
+
 A native email and calendar app, bundled with nbshell from [Omamail](https://github.com/huacnlee/omamail).
 
 ## Install
@@ -13,8 +15,8 @@ For development, run `./install.sh --no-open` from this directory. This snapshot
 - **Multiple mailboxes:** Gmail, Outlook, HEY, JMAP and IMAP/SMTP, including Fastmail, iCloud and self-hosted servers.
 - **Mail and calendar:** read, search, compose, manage attachments and respond to meeting invitations. Available actions depend on your provider.
 - **Keyboard navigation:** `j`/`k` to move, `r` to reply, `c` to compose, `/` to search and `?` for all shortcuts.
-- **AI assistance:** ask about selected messages and review suggested drafts using your Omarchy AI setup. See [AI assistance](docs/AGENT.md).
-- **Desktop integration:** theme matching, unread counts, notifications, `mailto:` links and a compact layout for smaller windows.
+- **AI assistance in Omarchy:** ask about selected messages and review suggested drafts using your Omarchy AI setup. See [AI assistance](docs/AGENT.md).
+- **Desktop integration:** native notifications and a compact layout for smaller windows; the Omarchy plugin also provides the bar widget and `mailto:` integration.
 - **Privacy controls:** credentials stored in the system keyring and remote images blocked until you choose to load them.
 
 
@@ -24,7 +26,7 @@ Choose a provider in Settings. Gmail needs a Google OAuth client; Outlook needs 
 
 See [mailbox setup](docs/MAILBOXES.md) for provider instructions and limitations, including Microsoft 365 and Proton Mail Bridge.
 
-## Open from the keyboard
+## Open the Omarchy plugin from the keyboard
 
 Use `nbshell extension open omamail` in your Umbriel keyboard bindings.
 
@@ -32,7 +34,7 @@ Press `?` in Omamail for the shortcut sheet, or see the [keyboard guide](docs/KE
 
 ## Help and contributing
 
-- [Backend installation, updates and recovery](docs/BACKEND-RUNTIME.md)
+- [Backend installation, updates, release flow, and recovery](docs/BACKEND-RUNTIME.md)
 - [Contributing](CONTRIBUTING.md)
 
 Omamail is an independent project and is not affiliated with Google, Microsoft or 37signals. Gmail, Outlook and HEY belong to their respective trademark owners.

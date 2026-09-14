@@ -14,6 +14,7 @@ use std::{
 };
 use tokio::sync::{Notify, broadcast};
 pub mod delivery;
+mod ipc;
 mod storage;
 #[cfg(test)]
 mod tests;
@@ -35,12 +36,13 @@ struct Inner {
     wake: Notify,
     stopping: AtomicBool,
     root: Option<PathBuf>,
-    lease: Mutex<Option<Arc<std::fs::File>>>,
+    lease: Mutex<Option<Arc<storage::Lease>>>,
     writer: Arc<storage::Writer>,
+    jobs: Mutex<Vec<tokio::task::JoinHandle<()>>>,
 }
 pub struct Outbox {
     inner: Arc<Inner>,
-    jobs: Mutex<Vec<tokio::task::JoinHandle<()>>>,
+    compose_gate: tokio::sync::Mutex<()>,
 }
 fn now() -> u64 {
     SystemTime::now()
@@ -93,7 +95,7 @@ async fn save(inner: &Inner, entries: &[Value]) -> Result<(), &'static str> {
     .await
     .map_err(|_| "outbox_storage_unavailable")?
 }
-async fn load(inner: &Inner, state: &mut State) -> Result<(), &'static str> {
+async fn load(inner: &Arc<Inner>, state: &mut State) -> Result<(), &'static str> {
     if state.loaded {
         return Ok(());
     }
@@ -152,6 +154,7 @@ async fn load(inner: &Inner, state: &mut State) -> Result<(), &'static str> {
     *inner.lease.lock().unwrap_or_else(|e| e.into_inner()) = Some(lease);
     save(inner, &recovered).await?;
     state.entries = recovered;
+    ipc::listen(inner)?;
     state.loaded = true;
     Ok(())
 }
@@ -176,14 +179,137 @@ impl Outbox {
                 root,
                 lease: Mutex::new(None),
                 writer: Arc::new(storage::Writer::default()),
+                jobs: Mutex::new(vec![]),
             }),
-            jobs: Mutex::new(vec![]),
+            compose_gate: tokio::sync::Mutex::new(()),
         }
     }
     pub fn subscribe(&self) -> broadcast::Receiver<Value> {
         self.inner.events.subscribe()
     }
+    /// Keep the owning runtime alive through the worker's durable terminal
+    /// transition. Subscribe before inspecting state to avoid a lost wakeup.
+    pub(crate) async fn wait_for_send(
+        &self,
+        account: &str,
+        id: &str,
+    ) -> Result<Value, &'static str> {
+        let mut events = self.subscribe();
+        loop {
+            let value = self
+                .shared_call("outbox.snapshot", &json!({"accountId":account,"sendId":id}))
+                .await?;
+            let entry = value["entries"]
+                .as_array()
+                .and_then(|entries| entries.first())
+                .ok_or("outbox_not_found")?;
+            if terminal(entry["state"].as_str().unwrap_or("")) {
+                return Ok(value);
+            }
+            let received = tokio::select! {
+                received = events.recv() => received,
+                _ = tokio::time::sleep(Duration::from_millis(100)) => continue,
+            };
+            match received {
+                Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => (),
+                Err(broadcast::error::RecvError::Closed) => return Err("outbox_stopping"),
+            }
+        }
+    }
+    /// Serialize explicit-ID composition with its enqueue. Replays retain the
+    /// original timestamp, MIME boundary and message ID; `call` remains the sole
+    /// owner of digest conflict checks and exactly-once queue insertion.
+    pub(crate) async fn enqueue_mail(
+        &self,
+        prepared: crate::mail::send::Prepared,
+        send_id: Option<&str>,
+    ) -> Result<Value, &'static str> {
+        let _gate = self.compose_gate.lock().await;
+        let account = prepared.account.id.clone();
+        let provider = prepared.account.provider.id();
+        let mut stamp = now();
+        let id = match send_id {
+            Some(id) => {
+                text(&json!({"sendId":id}), "sendId")?;
+                let snapshot = self
+                    .shared_call("outbox.snapshot", &json!({"accountId":account,"sendId":id}))
+                    .await?;
+                if let Some(entry) = snapshot["entries"]
+                    .as_array()
+                    .and_then(|entries| entries.first())
+                {
+                    stamp = entry["order"].as_u64().ok_or("outbox_storage_invalid")?;
+                }
+                id.to_owned()
+            }
+            None => format!(
+                "send-{stamp}-{}-{}",
+                std::process::id(),
+                SERIAL.fetch_add(1, Ordering::Relaxed)
+            ),
+        };
+        let seed = id.clone();
+        let payload = tokio::task::spawn_blocking(move || prepared.payload(stamp, &seed))
+            .await
+            .map_err(|_| "worker_failed")??;
+        let answer = self.shared_call("outbox.enqueue", &json!({"accountId":account,"provider":provider,"sendId":id,"order":stamp,"payload":payload})).await?;
+        Ok(
+            json!({"dryRun":false,"executed":true,"accountId":account,"sendId":answer["id"],"outbox":answer["snapshot"]}),
+        )
+    }
     pub async fn call(&self, method: &str, params: &Value) -> Result<Value, &'static str> {
+        self.inner.call(method, params).await
+    }
+
+    /// Only these idempotent, ID-bound operations may cross to the lease
+    /// owner. Retrying submission reuses the exact persisted ID and digest.
+    async fn shared_call(&self, method: &str, params: &Value) -> Result<Value, &'static str> {
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(25);
+        loop {
+            match self.call(method, params).await {
+                Err("outbox_in_use") => (),
+                result => return result,
+            }
+            let root = self
+                .inner
+                .root
+                .clone()
+                .map(Ok)
+                .unwrap_or_else(storage::home)?;
+            match ipc::request(&root, method, params).await {
+                Err("outbox_owner_unavailable") if tokio::time::Instant::now() < deadline => {
+                    tokio::time::sleep(Duration::from_millis(50)).await;
+                }
+                result => return result,
+            }
+        }
+    }
+    pub async fn shutdown(&self) -> Result<(), &'static str> {
+        self.inner.stopping.store(true, Ordering::Release);
+        self.inner.wake.notify_waiters();
+        let jobs = std::mem::take(&mut *self.inner.jobs.lock().unwrap_or_else(|e| e.into_inner()));
+        for job in jobs {
+            job.abort();
+            let _ = job.await;
+        }
+        let mut state = self.inner.state.lock().await;
+        if !state.loaded {
+            return Ok(());
+        }
+        for entry in &mut state.entries {
+            if entry["state"] == "queued" {
+                entry["state"] = json!("cancelled");
+                entry["error"] = json!("outbox_stopped_unsent");
+            } else if entry["state"] == "sending" {
+                entry["state"] = json!("unknown");
+                entry["error"] = json!("outbox_delivery_unknown");
+            }
+        }
+        save(&self.inner, &state.entries).await
+    }
+}
+impl Inner {
+    async fn call(self: &Arc<Self>, method: &str, params: &Value) -> Result<Value, &'static str> {
         let account = text(params, "accountId")?.to_owned();
         let fields = params.as_object().ok_or("outbox_invalid_params")?;
         let allowed: &[&str] = match method {
@@ -203,8 +329,8 @@ impl Outbox {
         if fields.keys().any(|key| !allowed.contains(&key.as_str())) {
             return Err("outbox_invalid_params");
         }
-        let mut state = self.inner.state.lock().await;
-        load(&self.inner, &mut state).await?;
+        let mut state = self.state.lock().await;
+        load(self, &mut state).await?;
         if method == "outbox.snapshot" {
             if params
                 .get("includePayloads")
@@ -219,13 +345,24 @@ impl Outbox {
             if params["includePayloads"] == true && wanted.is_none() {
                 return Err("outbox_payload_id_required");
             }
+            if let Some(id) = wanted
+                && state.entries.iter().any(|entry| {
+                    entry["accountId"] == account
+                        && entry["id"] == id
+                        && terminal(entry["state"].as_str().unwrap_or(""))
+                })
+            {
+                // A delivery acknowledgement is authoritative only after this
+                // transition is durable, including replies to another process.
+                save(self, &state.entries).await?;
+            }
             return Ok(if let Some(id) = wanted {
                 json!({"accountId":account,"revision":state.revision,"entries":state.entries.iter().filter(|entry|entry["accountId"]==account&&entry["id"]==id).map(|entry|summary(entry,params["includePayloads"]==true)).collect::<Vec<_>>()})
             } else {
                 snapshot(&state, &account, false)
             });
         }
-        if self.inner.stopping.load(Ordering::Acquire) {
+        if self.stopping.load(Ordering::Acquire) {
             return Err("outbox_stopping");
         }
         let mut next = state.entries.clone();
@@ -344,17 +481,17 @@ impl Outbox {
             }
             _ => unreachable!(),
         }
-        save(&self.inner, &next).await?;
+        save(self, &next).await?;
         state.entries = next;
         state.revision += 1;
-        emit(&self.inner, &state, &account);
+        emit(self, &state, &account);
         if state
             .entries
             .iter()
             .any(|entry| entry["accountId"] == account && entry["state"] == "queued")
             && state.workers.insert(account.clone())
         {
-            let inner = self.inner.clone();
+            let inner = self.clone();
             let worker_account = account.clone();
             let job = tokio::spawn(async move {
                 worker(inner, worker_account).await;
@@ -363,31 +500,8 @@ impl Outbox {
             jobs.retain(|job| !job.is_finished());
             jobs.push(job);
         }
-        self.inner.wake.notify_waiters();
+        self.wake.notify_waiters();
         Ok(json!({"id":selected,"snapshot":snapshot(&state,&account,false)}))
-    }
-    pub async fn shutdown(&self) -> Result<(), &'static str> {
-        self.inner.stopping.store(true, Ordering::Release);
-        self.inner.wake.notify_waiters();
-        let jobs = std::mem::take(&mut *self.jobs.lock().unwrap_or_else(|e| e.into_inner()));
-        for job in jobs {
-            job.abort();
-            let _ = job.await;
-        }
-        let mut state = self.inner.state.lock().await;
-        if !state.loaded {
-            return Ok(());
-        }
-        for entry in &mut state.entries {
-            if entry["state"] == "queued" {
-                entry["state"] = json!("cancelled");
-                entry["error"] = json!("outbox_stopped_unsent");
-            } else if entry["state"] == "sending" {
-                entry["state"] = json!("unknown");
-                entry["error"] = json!("outbox_delivery_unknown");
-            }
-        }
-        save(&self.inner, &state.entries).await
     }
 }
 impl Drop for Outbox {
@@ -395,8 +509,9 @@ impl Drop for Outbox {
         self.inner.stopping.store(true, Ordering::Release);
         self.inner.wake.notify_waiters();
         for job in self
+            .inner
             .jobs
-            .get_mut()
+            .lock()
             .unwrap_or_else(|e| e.into_inner())
             .drain(..)
         {

@@ -3,6 +3,7 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 import "../message/Direction.js" as Direction
+import "../settings/Appearance.js" as Appearance
 import "../message/Html.js" as Html
 
 // Where mailboxes are managed.
@@ -39,16 +40,20 @@ Column {
   // off the headings themselves, so a section that grows moves the ones
   // below it in the rail's map as well as on screen. The calendars section
   // is a component with its own heading, so its top stands in.
-  readonly property var sections: [
-    { key: "backend", title: "Mail backend", y: backendSetup.y },
-    { key: "bar", title: "Bar", y: barHeading.y },
-    { key: "reading", title: "Reading", y: readingHeading.y },
-    { key: "notifications", title: "Notifications", y: notificationsHeading.y },
-    { key: "writing", title: "Writing", y: writingHeading.y },
-    { key: "mailboxes", title: "Mailboxes", y: mailboxesHeading.y },
-    { key: "calendars", title: "Calendars", y: calendarsSection.y },
-    { key: "oauth", title: "Google OAuth client", y: oauthHeading.y }
-  ]
+  readonly property var sections: {
+    var values = [{ key: "backend", title: "Mail backend", y: backendSetup.y }]
+    if (!root.service || root.service.hasTray !== false)
+      values.push({ key: "bar", title: "Bar", y: barHeading.y })
+    values.push({ key: "reading", title: "Reading", y: readingHeading.y })
+    if (!root.service || root.service.hasNotifications !== false
+        || String(root.service.notificationError || "") !== "")
+      values.push({ key: "notifications", title: "Notifications", y: notificationsHeading.y })
+    values.push({ key: "writing", title: "Writing", y: writingHeading.y })
+    values.push({ key: "mailboxes", title: "Mailboxes", y: mailboxesHeading.y })
+    values.push({ key: "calendars", title: "Calendars", y: calendarsSection.y })
+    values.push({ key: "oauth", title: "Google OAuth client", y: oauthHeading.y })
+    return values
+  }
   readonly property var auth: service ? service.auth : null
 
   function signatureAccount(id) {
@@ -138,8 +143,11 @@ Column {
     importNote = ""
     importFailed = false
     importStage = "pick"
-    signatureImporter.command = [root.attachScript, "pick"]
-    signatureImporter.running = true
+    if (typeof service.chooseFiles !== "function") {
+      finishImport(JSON.stringify({ok:false,error:"No file picker is available"}))
+      return
+    }
+    service.chooseFiles(function(result) { root.finishImport(JSON.stringify(result || {})) })
   }
 
   function finishImport(text) {
@@ -155,8 +163,13 @@ Column {
       var paths = Array.isArray(result.paths) ? result.paths : []
       if (paths.length === 0) { importing = false; return }
       importStage = "read"
-      signatureImporter.command = [root.attachScript, "read", String(paths[0])]
-      signatureImporter.running = true
+      if (!service.backend || !service.backend.ready) {
+        finishImport(JSON.stringify({ok:false,error:"Mail backend unavailable"}))
+        return
+      }
+      service.backend.call("attachment.read", {path:String(paths[0])}, function(read, error) {
+        root.finishImport(JSON.stringify(error ? {ok:false,error:"That file could not be read"} : read))
+      })
       return
     }
     var mime = String(result.mimeType || "").toLowerCase()
@@ -195,17 +208,6 @@ Column {
         root.saveSignature()
       }
     })
-  }
-
-  readonly property string attachScript: {
-    return service && service.pluginDir ? String(service.pluginDir) + "/scripts/attachment.sh" : ""
-  }
-
-  Process {
-    id: signatureImporter
-    stdout: StdioCollector { waitForEnd: true }
-    stderr: StdioCollector { waitForEnd: true }
-    onExited: root.finishImport(String(stdout.text || ""))
   }
 
   function saveSignature() {
@@ -251,7 +253,8 @@ Column {
     width: parent.width
     runtime: root.service ? root.service.backendRuntime || null : null
     backendError: root.service && root.service.backend ? root.service.backend.failure : ""
-    diagnosisAvailable: !!root.service && typeof root.service.diagnoseError === "function"
+    diagnosisAvailable: !!root.service && root.service.hasAgent === true
+      && typeof root.service.diagnoseError === "function"
     diagnosing: !!root.service && !!root.service.diagnosing
     onDiagnosisRequested: root.service.diagnoseError()
     textColor: root.textColor
@@ -269,11 +272,87 @@ Column {
     font.bold: true
   }
 
+  // ------------------------------------------------------------ appearance
+  //
+  // Standalone only. The plugin's palette is the shell's, and the row would
+  // have nothing to change.
+
+  Text {
+    id: appearanceHeading
+    visible: !!root.service && root.service.hasAppearance === true
+    text: "APPEARANCE"
+    color: root.dimColor
+    font.family: root.panelFontFamily
+    font.pixelSize: Style.font.caption
+    font.letterSpacing: 1
+  }
+
+  Rectangle {
+    objectName: "appearance-settings"
+    visible: !!root.service && root.service.hasAppearance === true
+    width: parent.width
+    implicitHeight: Math.max(appearanceText.implicitHeight, appearanceTrack.implicitHeight)
+      + Style.space(16)
+    radius: Style.cornerRadius
+    color: Style.normalFillFor(root.textColor, root.accentColor)
+
+    Column {
+      id: appearanceText
+      anchors.left: parent.left
+      anchors.leftMargin: Style.space(12)
+      anchors.right: appearanceTrack.left
+      anchors.rightMargin: Style.space(10)
+      anchors.verticalCenter: parent.verticalCenter
+      spacing: Style.space(2)
+
+      Text {
+        width: parent.width
+        text: "Theme"
+        color: root.textColor
+        font.family: root.panelFontFamily
+        font.pixelSize: Style.font.bodySmall
+      }
+
+      Text {
+        width: parent.width
+        text: "System follows the desktop's light or dark setting."
+        color: root.dimColor
+        font.family: root.panelFontFamily
+        font.pixelSize: Style.font.caption
+        wrapMode: Text.WordWrap
+      }
+    }
+
+    Rectangle {
+      id: appearanceTrack
+      objectName: "appearanceTrack"
+      anchors.right: parent.right
+      anchors.rightMargin: Style.space(10)
+      anchors.verticalCenter: parent.verticalCenter
+      width: appearanceSegments.implicitWidth
+      height: appearanceSegments.implicitHeight
+      radius: Style.cornerRadius
+      color: "transparent"
+      border.width: 1
+      border.color: Style.normalBorderFor(root.textColor, root.accentColor)
+
+      Row {
+        id: appearanceSegments
+        spacing: 0
+
+        AppearanceButton { text: Appearance.SYSTEM; mode: Appearance.SYSTEM; firstSegment: true }
+        AppearanceButton { text: Appearance.LIGHT; mode: Appearance.LIGHT }
+        AppearanceButton { text: Appearance.DARK; mode: Appearance.DARK }
+      }
+    }
+  }
+
   // ------------------------------------------------------------------- bar
 
   Text {
     textFormat: Text.PlainText
     id: barHeading
+    visible: !root.service || root.service.hasTray !== false
     text: "BAR"
     color: root.dimColor
     font.family: root.panelFontFamily
@@ -282,6 +361,8 @@ Column {
   }
 
   Rectangle {
+    objectName: "bar-settings"
+    visible: !root.service || root.service.hasTray !== false
     width: parent.width
     implicitHeight: Math.max(barIconText.implicitHeight, barIconSwitch.implicitHeight)
       + Style.space(16)
@@ -537,6 +618,7 @@ Column {
   // AI; the switch says in a word which way it stands.
   Rectangle {
     objectName: "settings-suggest-events"
+    visible: !!root.service && root.service.hasAgent !== false
     width: parent.width
     implicitHeight: Math.max(suggestText.implicitHeight, suggestSwitch.implicitHeight)
       + Style.space(16)
@@ -620,6 +702,8 @@ Column {
   Text {
     textFormat: Text.PlainText
     id: notificationsHeading
+    visible: !root.service || root.service.hasNotifications !== false
+      || String(root.service.notificationError || "") !== ""
     text: "NOTIFICATIONS"
     color: root.dimColor
     font.family: root.panelFontFamily
@@ -628,6 +712,8 @@ Column {
   }
 
   Rectangle {
+    objectName: "notification-settings"
+    visible: !root.service || root.service.hasNotifications !== false
     width: parent.width
     implicitHeight: Math.max(notifyText.implicitHeight, notifySwitch.implicitHeight)
       + Style.space(16)
@@ -674,6 +760,18 @@ Column {
       onToggled: if (root.service)
         root.service.setNotifyNewMail(!root.service.notifyNewMail)
     }
+  }
+
+  Text {
+    objectName: "notificationIntegrationError"
+    width: parent.width
+    visible: text !== ""
+    text: root.service ? String(root.service.notificationError || "") : ""
+    color: root.urgentColor
+    font.family: root.panelFontFamily
+    font.pixelSize: Style.font.caption
+    wrapMode: Text.WordWrap
+    textFormat: Text.PlainText
   }
 
   // --------------------------------------------------------------- writing
@@ -1215,6 +1313,29 @@ Column {
       foreground: root.dimColor
       fontFamily: root.panelFontFamily
       onClicked: root.clientSetupRequested()
+    }
+  }
+
+  // One of the three palettes the standalone window can draw with.
+  component AppearanceButton: Button {
+    required property string mode
+    property bool firstSegment: false
+    objectName: "appearance-" + mode.toLowerCase()
+    selected: !!root.service && root.service.appearance === mode
+    bordered: false
+    foreground: selected ? root.textColor : root.dimColor
+    accent: root.accentColor
+    fontFamily: root.panelFontFamily
+    fontSize: Style.font.caption
+    horizontalPadding: Style.space(7)
+    verticalPadding: Style.space(3)
+    onClicked: if (root.service) root.service.setAppearance(mode)
+
+    Rectangle {
+      visible: !parent.firstSegment
+      width: 1
+      height: parent.height
+      color: appearanceTrack.border.color
     }
   }
 

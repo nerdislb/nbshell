@@ -33,6 +33,32 @@ pub fn action_scope(action: &str) -> &'static str {
         "message"
     }
 }
+
+/// Maps the closed public action vocabulary onto the desktop model vocabulary.
+/// Keeping this next to the model rules prevents the CLI/API boundary from
+/// growing a second action table.
+pub(crate) fn domain_action(operation: &str) -> Result<&'static str, &'static str> {
+    match operation {
+        "read" => Ok("markRead"),
+        "unread" => Ok("markUnread"),
+        "star" => Ok("star"),
+        "unstar" => Ok("unstar"),
+        "archive" => Ok("archive"),
+        "trash" => Ok("trash"),
+        "spam" => Ok("spam"),
+        _ => Err("invalid_params"),
+    }
+}
+
+/// The canonical mailbox whose absence prevents an honest action preview.
+pub(crate) fn action_mailbox(action: &str) -> Option<&'static str> {
+    match action {
+        "archive" => Some("archive"),
+        "trash" => Some("trash"),
+        "spam" => Some("spam"),
+        _ => None,
+    }
+}
 pub fn action_targets(row: &Value, action: &str) -> Value {
     let b = block(row);
     if action_scope(action) == "conversation" && !rows(&b["memberIds"]).is_empty() {
@@ -44,6 +70,51 @@ pub fn action_targets(row: &Value, action: &str) -> Value {
     } else {
         json!([own])
     }
+}
+
+/// Exact action targets for an untrusted provider row. Unlike the legacy view
+/// helper above this does not coerce JSON values or trim opaque IDs: a newline
+/// or a number must be refused, never silently rewritten into another ID.
+pub(crate) fn action_targets_checked(
+    row: &Value,
+    action: &str,
+) -> Result<Vec<String>, &'static str> {
+    let own = row["id"]
+        .as_str()
+        .filter(|id| !id.is_empty())
+        .map(str::to_owned)
+        .ok_or("mail_action_invalid_target")?;
+    if action_scope(action) != "conversation" {
+        return Ok(vec![own]);
+    }
+    let Some(thread) = row.get("thread") else {
+        return Ok(vec![own]);
+    };
+    if thread.is_null() {
+        return Ok(vec![own]);
+    }
+    let members = thread
+        .as_object()
+        .and_then(|thread| thread.get("memberIds"))
+        .ok_or("mail_action_invalid_target")?
+        .as_array()
+        .ok_or("mail_action_invalid_target")?;
+    // An absent thread means this is an individual row. A present, empty
+    // member list is authoritative: provider applicability removed every
+    // member, so restoring the representative would mutate the wrong mail.
+    if members.is_empty() {
+        return Ok(Vec::new());
+    }
+    members
+        .iter()
+        .map(|member| {
+            member
+                .as_str()
+                .filter(|id| !id.is_empty())
+                .map(str::to_owned)
+                .ok_or("mail_action_invalid_target")
+        })
+        .collect()
 }
 fn target(action: &str) -> &str {
     action.strip_prefix("label:").unwrap_or("")
@@ -98,6 +169,16 @@ pub fn changes(action: &str, source: &str) -> Value {
         _ => return Value::Null,
     };
     json!({"add":add,"remove":remove})
+}
+
+/// Every mail action's label projection. Trash has a dedicated transport verb
+/// on several providers, but its preview still states the mailbox label it
+/// would add.
+pub(crate) fn action_changes(action: &str) -> Value {
+    if action == "trash" {
+        return json!({"add":["TRASH"],"remove":[]});
+    }
+    changes(action, "")
 }
 fn with_thread(summary: &Value, thread: &Value) -> Value {
     if !summary.is_object() {

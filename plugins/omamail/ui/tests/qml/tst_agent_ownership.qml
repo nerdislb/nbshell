@@ -58,7 +58,10 @@ Item {
     // The runner is the service child that presents native jobs.
     function runner() {
       var kids = mailService.children
-      for (var i = 0; i < kids.length; i++) if (kids[i].jobs !== undefined && kids[i].pluginDir !== undefined) return kids[i]
+      for (var i = 0; i < kids.length; i++) {
+        var candidate = kids[i].item || kids[i]
+        if (candidate.jobs !== undefined && candidate.pluginDir !== undefined) return candidate
+      }
       return null
     }
     function startedCancels() {
@@ -70,6 +73,7 @@ Item {
       bridge.modelBridge=NativeIntentFixture.backend(mailService)
     }
     function init() {
+      if (Qt.platform.os !== "linux") { skip("The plugin agent backend is Linux-only"); return }
       var agent=runner()
       agent.backend=null
       bridge.requests=[]

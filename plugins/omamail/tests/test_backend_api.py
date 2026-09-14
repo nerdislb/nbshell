@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Exercise the plugin's API contract against an explicitly selected binary.
+"""Exercise a frontend's API contract against an explicitly selected binary.
 
 Uses the production QML JavaScript request, frame and response codecs in Node.
-Only synthetic data and cache-only operations are used; no real account, credential,
+Only synthetic data, dry runs and local storage operations are used; no real account, credential,
 mail server, or external agent is configured. This is a compatibility gate, not
 an exhaustive provider/network integration suite.
 """
@@ -12,9 +12,31 @@ import os
 from pathlib import Path
 import subprocess
 import signal
+import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
+WINDOWS_CREATE_NEW_PROCESS_GROUP = getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0x00000200)
+
+
+def process_group_options(platform=None):
+    """Start the Node harness in a group that can be torn down with its backend."""
+    if (platform or os.name) == 'nt':
+        return {'creationflags': WINDOWS_CREATE_NEW_PROCESS_GROUP}
+    return {'start_new_session': True}
+
+
+def terminate_process_group(process, platform=None):
+    """Terminate a timed-out harness and every backend process it created."""
+    if process.poll() is not None:
+        return
+    if (platform or os.name) == 'nt':
+        subprocess.run(['taskkill', '/PID', str(process.pid), '/T', '/F'],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        if process.poll() is None:
+            process.kill()
+    else:
+        os.killpg(process.pid, signal.SIGKILL)
 
 HARNESS = r"""
 const fs = require('fs');
@@ -27,12 +49,21 @@ const whole = JSON.parse(fs.readFileSync(process.env.CONTRACT_ROOT + '/backend-a
 // The pinned, published binary is asked only for the released API; a binary
 // built from this checkout for all of it.
 const released = process.env.CONTRACT_RELEASED === '1';
+const standalone = process.env.CONTRACT_STANDALONE === '1';
 const unreleased = whole.unreleased || {methods: [], cases: []};
-const contract = released ? {
+const selected = released ? {
   apiVersion: whole.releasedApiVersion, protocolVersion: whole.protocolVersion,
   methods: whole.methods.filter(m => !unreleased.methods.includes(m)),
   contractCases: whole.contractCases.filter(c => !unreleased.cases.includes(c.name))
 } : whole;
+// Agent RPC is a plugin-only capability. The standalone binary must omit its
+// inventory and reject every agent method without touching storage.
+const unavailable = standalone ? selected.methods.filter(m => m.startsWith('agent.')) : [];
+const contract = standalone ? {
+  ...selected,
+  methods: selected.methods.filter(m => !m.startsWith('agent.')),
+  contractCases: selected.contractCases.filter(c => !c.method.startsWith('agent.'))
+} : selected;
 const child = spawn(process.env.CONTRACT_BINARY, ['serve'], {stdio:['pipe','pipe','pipe']});
 let buffer = '', state = null, serial = 0, finished = false;
 const pending = new Map();
@@ -62,21 +93,32 @@ child.stdout.on('data', chunk => {
     assert.ok(buffer.length < 1048576, 'bounded unfinished frame');
   } catch (error) { fail(error); }
 });
-async function call(method, params = {}, errorCode = null) {
-  assert.ok(contract.methods.includes(method), 'tested method belongs to contract: ' + method);
-  tested.add(method);
+async function call(method, params = {}, errorCode = null, advertised = true) {
+  assert.equal(contract.methods.includes(method), advertised, 'method inventory: ' + method);
+  if (advertised) tested.add(method);
   const id = String(++serial);
   const reply = await new Promise(resolve => {
     pending.set(id, {resolve, timer:setTimeout(() => fail(new Error('RPC deadline: ' + method)), 10000)});
     child.stdin.write(Wire.request(id, method, params));
   });
-  if (errorCode !== null) { assert.equal(reply.error && reply.error.code, errorCode, method); return reply.error; }
+  if (errorCode !== null) { assert.equal(reply.error && reply.error.code, errorCode, method + ': ' + JSON.stringify(reply.error)); return reply.error; }
   assert.ok(!reply.error, method + ': ' + JSON.stringify(reply.error));
   return reply.result;
 }
 function safeDocument(value) {
   assert.ok(value && typeof value === 'object');
   assert.ok(!JSON.stringify(value).includes('forbiddenScript'));
+}
+function storageSnapshot(directory = process.env.HOME) {
+  const snapshot = {};
+  function visit(path) {
+    const stat = fs.lstatSync(path, {bigint:true});
+    snapshot[path] = [String(stat.mode), String(stat.ino), String(stat.mtimeNs),
+      stat.isFile() ? fs.readFileSync(path).toString('base64') : null];
+    if (stat.isDirectory()) for (const name of fs.readdirSync(path).sort()) visit(path + '/' + name);
+  }
+  visit(directory);
+  return snapshot;
 }
 (async () => {
   const info = await call('system.info');
@@ -87,18 +129,51 @@ function safeDocument(value) {
   assert.equal(api, contract.apiVersion, 'API version (only released 0.9.0 has a legacy fallback)');
   assert.ok(Array.isArray(info.methods));
   for (const method of contract.methods) assert.ok(info.methods.includes(method), 'advertised API method: ' + method);
+  if (standalone) assert.equal(info.capabilities && info.capabilities.agent, false, 'standalone disables agent capability');
+  for (const method of unavailable) {
+    assert.ok(!info.methods.includes(method), 'standalone does not advertise: ' + method);
+    const before = storageSnapshot();
+    const error = await call(method, {}, -32601, false);
+    assert.equal(error.message, 'Method not found');
+    assert.deepEqual(storageSnapshot(), before, method + ': disabled method has no effects');
+  }
+  if (!released) {
+    for (const method of ['jmap.actionAvailability', 'jmap.actionRows']) {
+      assert.ok(!info.methods.includes(method), 'internal planner is not advertised');
+      const before = storageSnapshot();
+      const error = await call(method, {}, -32000, false);
+      assert.equal(error.message, 'method_not_found');
+      assert.deepEqual(storageSnapshot(), before, 'unknown method has no account or provider effects');
+    }
+  }
   // Versioned request/response fixtures live with the published API inventory.
   function at(value, path) { return path ? path.split('.').reduce((v, key) => v === undefined || v === null ? undefined : v[key], value) : value; }
   assert.ok(Array.isArray(contract.contractCases) && contract.contractCases.length);
   for (const fixture of contract.contractCases) {
+    const registryPath = process.env.CONTRACT_REGISTRY_PATH;
+    const emptyRegistry = fixture.name === 'mail list requires an account';
+    const registryBefore = emptyRegistry ? fs.readFileSync(registryPath) : null;
+    if (emptyRegistry) fs.writeFileSync(registryPath, JSON.stringify({version:1,accounts:[]}));
+    // The full isolated HOME includes seeded cache/config/state sentinels,
+    // credential helper effects and any newly created outbox/draft files.
+    const noWrites = fixture.method.startsWith('mail.') || fixture.name === 'recovery rejects invalid edit history';
+    const before = noWrites ? storageSnapshot() : null;
     const value = await call(fixture.method, fixture.params, fixture.errorCode === undefined ? null : fixture.errorCode);
-    for (const [path, expected] of Object.entries(fixture.equals || {}))
-      assert.deepEqual(at(value, path), expected, fixture.name + ': ' + path);
+    if (noWrites) assert.deepEqual(storageSnapshot(), before, fixture.name + ': no storage or credential effects');
+    if (emptyRegistry) fs.writeFileSync(registryPath, registryBefore);
+    for (const [path, expected] of Object.entries(fixture.equals || {})) {
+      const actual = at(value, path);
+      // Production codecs run in a VM; compare JSON values across its realm,
+      // not the Array/Object prototypes of the Node fixture loader.
+      assert.deepEqual(actual === undefined ? undefined : JSON.parse(JSON.stringify(actual)), expected, fixture.name + ': ' + path);
+    }
     for (const [path, expected] of Object.entries(fixture.types || {})) {
       const actual = at(value, path);
       const type = Array.isArray(actual) ? 'array' : actual === null ? 'null' : typeof actual;
       assert.equal(type, expected, fixture.name + ': ' + path);
     }
+    if (fixture.name === 'recovery reads edit history')
+      assert.equal(value.record.parked[1].userModified, undefined, 'legacy edit history remains absent');
   }
 
   await call('message.parse', {raw:17}, -32602);
@@ -162,6 +237,8 @@ def main():
     parser.add_argument('--expected-version')
     parser.add_argument('--released', action='store_true',
                         help='check only the released API, as the pinned published binary speaks it')
+    parser.add_argument('--standalone', action='store_true',
+                        help='check the standalone frontend subset and require agent RPC to be disabled')
     args = parser.parse_args()
     binary = args.binary.resolve(strict=True)
     contract = json.loads((ROOT / 'backend-api.json').read_text())
@@ -172,31 +249,77 @@ def main():
             or len(contract['methods']) != len(set(contract['methods']))):
         raise SystemExit('Invalid backend-api.json')
     with tempfile.TemporaryDirectory(prefix='omamail-api-contract-') as directory:
-        home = Path(directory)
+        # macOS exposes its temporary root through /var, a symlink to
+        # /private/var. The production storage boundary refuses symlinked
+        # ancestors, so seed and advertise the canonical isolated root.
+        home = Path(directory).resolve()
         env = {key: value for key, value in os.environ.items()
                if key in ('PATH', 'LANG', 'LC_ALL', 'SYSTEMROOT')}
-        env.update(HOME=str(home), XDG_CONFIG_HOME=str(home / 'config'),
-                   XDG_CACHE_HOME=str(home / 'cache'), XDG_DATA_HOME=str(home / 'data'),
-                   XDG_STATE_HOME=str(home / 'state'), XDG_RUNTIME_DIR=str(home / 'run'),
+        if os.name == 'nt':
+            config_root = home / 'AppData/Roaming'
+            local_root = home / 'AppData/Local'
+            cache_root = local_root / 'OmamailData/Cache'
+            state_root = local_root / 'OmamailData/State'
+            data_root = local_root / 'OmamailData'
+            runtime_root = local_root / 'OmamailData/Runtime'
+            env.update(USERPROFILE=str(home), APPDATA=str(config_root),
+                       LOCALAPPDATA=str(local_root))
+        elif sys.platform == 'darwin':
+            config_root = home / 'Library/Application Support'
+            cache_root = home / 'Library/Caches'
+            state_root = config_root
+            data_root = config_root
+            runtime_root = home / 'run'
+        else:
+            config_root = home / 'config'
+            cache_root = home / 'cache'
+            state_root = home / 'state'
+            data_root = home / 'data'
+            runtime_root = home / 'run'
+            env.update(XDG_CONFIG_HOME=str(config_root), XDG_CACHE_HOME=str(cache_root),
+                       XDG_DATA_HOME=str(data_root), XDG_STATE_HOME=str(state_root),
+                       XDG_RUNTIME_DIR=str(runtime_root))
+        registry = config_root / 'omamail/accounts.json'
+        env.update(HOME=str(home), TMPDIR=str(runtime_root), TEMP=str(runtime_root),
+                   TMP=str(runtime_root), CONTRACT_REGISTRY_PATH=str(registry),
                    CONTRACT_ROOT=str(ROOT), CONTRACT_BINARY=str(binary),
                    CONTRACT_VERSION=args.expected_version or '',
-                   CONTRACT_RELEASED='1' if args.released else '')
-        (home / 'run').mkdir(mode=0o700)
-        registry = home / 'config/omamail/accounts.json'
+                   CONTRACT_RELEASED='1' if args.released else '',
+                   CONTRACT_STANDALONE='1' if args.standalone else '')
+        runtime_root.mkdir(parents=True, mode=0o700)
         registry.parent.mkdir(parents=True)
-        registry.write_text(json.dumps({'version': 1, 'accounts': [{'email': 'contract@example.org'}]}))
+        # Every provider the contract cases name is registered in both views:
+        # a released case is the same fixture it was while unreleased.
+        accounts = [
+            {'email': 'contract@example.org'},
+            {'provider': 'imap', 'email': 'sender@example.org',
+             'imap': {'username': 'sender@example.org'}},
+            {'provider': 'hey', 'email': 'sender@example.org'},
+            {'provider': 'outlook', 'email': 'sender@example.org'}]
+        registry.write_text(json.dumps({'version': 1, 'activeId': 'contract@example.org',
+                                        'accounts': accounts}))
         registry.chmod(0o600)
+        for root in (cache_root, state_root, data_root):
+            sentinel = root / 'omamail/sentinel'
+            sentinel.parent.mkdir(parents=True, exist_ok=True)
+            sentinel.write_bytes(b'preserve existing user state\n')
+        helpers = home / 'bin'
+        helpers.mkdir()
+        credential_helper = helpers / 'secret-tool'
+        credential_helper.write_text('#!/bin/sh\nprintf touched >> "$HOME/credential-touched"\nexit 1\n')
+        credential_helper.chmod(0o700)
+        env['PATH'] = str(helpers) + os.pathsep + env.get('PATH', '')
         process = subprocess.Popen(['node', '-e', HARNESS], env=env, cwd=home,
-                                   start_new_session=True)
+                                   **process_group_options())
         try:
             status = process.wait(timeout=60)
         finally:
             # A failed/expired harness must not leave its backend running.
             try:
-                os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError:
+                terminate_process_group(process)
+            except (OSError, ProcessLookupError):
                 pass
-            process.wait()
+            process.wait(timeout=10)
         if status:
             raise SystemExit(status)
 

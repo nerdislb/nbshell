@@ -1,10 +1,13 @@
 {
-  "apiVersion": 2,
-  "releasedApiVersion": 2,
+  "apiVersion": 4,
+  "releasedApiVersion": 4,
   "protocolVersion": 1,
   "methods": [
     "system.info",
     "system.quit",
+    "credentials.get",
+    "credentials.put",
+    "credentials.delete",
     "accounts.list",
     "account.identities",
     "account.conversation",
@@ -64,6 +67,10 @@
     "upload.append",
     "upload.discard",
     "request.upload",
+    "mail.list",
+    "mail.read",
+    "mail.act",
+    "mail.send",
     "mail.watch",
     "mail.unwatch",
     "mail.check",
@@ -174,6 +181,281 @@
     "jmap.stream.close"
   ],
   "contractCases": [
+    {
+      "name": "mail action rejects malformed HEY IDs before preview",
+      "method": "mail.act",
+      "params": {
+        "account": "hey:sender@example.org",
+        "operation": "read",
+        "ids": [
+          "1:INBOX"
+        ]
+      },
+      "errorCode": -32602,
+      "equals": {
+        "message": "Invalid params"
+      }
+    },
+    {
+      "name": "mail action rejects malformed IMAP IDs before execution",
+      "method": "mail.act",
+      "params": {
+        "account": "imap:sender@example.org",
+        "operation": "read",
+        "ids": [
+          "1:INBOX",
+          "bad"
+        ],
+        "execute": true
+      },
+      "errorCode": -32602,
+      "equals": {
+        "message": "Invalid params"
+      }
+    },
+    {
+      "name": "mail action rejects out-of-range Outlook UIDs before preview",
+      "method": "mail.act",
+      "params": {
+        "account": "outlook:sender@example.org",
+        "operation": "trash",
+        "ids": [
+          "4294967296:INBOX"
+        ]
+      },
+      "errorCode": -32602,
+      "equals": {
+        "message": "Invalid params"
+      }
+    },
+    {
+      "name": "mail list requires an account",
+      "method": "mail.list",
+      "params": {},
+      "errorCode": -32000,
+      "equals": {
+        "message": "mail_account_unknown"
+      }
+    },
+    {
+      "name": "mail read requires an account",
+      "method": "mail.read",
+      "params": {
+        "account": "absent@example.org",
+        "id": "opaque:id"
+      },
+      "errorCode": -32000,
+      "equals": {
+        "message": "mail_account_unknown"
+      }
+    },
+    {
+      "name": "mail action dry run",
+      "method": "mail.act",
+      "params": {
+        "account": "contract@example.org",
+        "operation": "star",
+        "ids": [
+          "opaque:id",
+          "other",
+          "opaque:id"
+        ]
+      },
+      "equals": {
+        "dryRun": true,
+        "executed": false,
+        "accountId": "contract@example.org",
+        "operation": "star",
+        "requestedIds": [
+          "opaque:id",
+          "other",
+          "opaque:id"
+        ],
+        "targetIds": [
+          "opaque:id",
+          "other"
+        ]
+      }
+    },
+    {
+      "name": "mail send dry run",
+      "method": "mail.send",
+      "params": {
+        "account": "imap:sender@example.org",
+        "to": [
+          "recipient@example.org"
+        ],
+        "subject": "Contract preview",
+        "body": "Hello \u5408\u6210\nSecond line"
+      },
+      "equals": {
+        "dryRun": true,
+        "executed": false,
+        "accountId": "imap:sender@example.org",
+        "from": "sender@example.org",
+        "to": [
+          "recipient@example.org"
+        ],
+        "subject": "Contract preview",
+        "body": "Hello \u5408\u6210\nSecond line",
+        "attachments": []
+      }
+    },
+    {
+      "name": "mail list rejects unknown fields",
+      "method": "mail.list",
+      "params": {
+        "account": "contract@example.org",
+        "unexpected": true,
+        "execute": true
+      },
+      "errorCode": -32602,
+      "equals": {
+        "message": "Invalid params"
+      }
+    },
+    {
+      "name": "mail read rejects unknown fields",
+      "method": "mail.read",
+      "params": {
+        "account": "contract@example.org",
+        "id": "opaque:id",
+        "unexpected": true,
+        "execute": true
+      },
+      "errorCode": -32602,
+      "equals": {
+        "message": "Invalid params"
+      }
+    },
+    {
+      "name": "mail act rejects unknown fields",
+      "method": "mail.act",
+      "params": {
+        "account": "contract@example.org",
+        "operation": "star",
+        "ids": [
+          "opaque:id"
+        ],
+        "unexpected": true,
+        "execute": true
+      },
+      "errorCode": -32602,
+      "equals": {
+        "message": "Invalid params"
+      }
+    },
+    {
+      "name": "mail send rejects unknown fields",
+      "method": "mail.send",
+      "params": {
+        "account": "imap:sender@example.org",
+        "to": [
+          "recipient@example.org"
+        ],
+        "body": "Preview",
+        "unexpected": true,
+        "execute": true
+      },
+      "errorCode": -32602,
+      "equals": {
+        "message": "Invalid params"
+      }
+    },
+    {
+      "name": "mail act rejects nonboolean execution",
+      "method": "mail.act",
+      "params": {
+        "account": "contract@example.org",
+        "operation": "star",
+        "ids": [
+          "opaque:id"
+        ],
+        "execute": "true"
+      },
+      "errorCode": -32602,
+      "equals": {
+        "message": "Invalid params"
+      }
+    },
+    {
+      "name": "mail send rejects nonboolean execution",
+      "method": "mail.send",
+      "params": {
+        "account": "imap:sender@example.org",
+        "to": [
+          "recipient@example.org"
+        ],
+        "body": "Preview",
+        "execute": "true"
+      },
+      "errorCode": -32602,
+      "equals": {
+        "message": "Invalid params"
+      }
+    },
+    {
+      "name": "recovery preserves empty edited draft",
+      "method": "compose.recoverySave",
+      "params": {
+        "expectedRevision": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "record": {
+          "version": 1,
+          "active": true,
+          "draft": {
+            "userModified": true
+          },
+          "parked": [
+            {
+              "subject": "Untouched prefill",
+              "userModified": false
+            },
+            {
+              "subject": "Legacy snapshot"
+            }
+          ]
+        }
+      },
+      "equals": {
+        "record.active": true,
+        "record.draft.userModified": true,
+        "record.draft.body": "",
+        "record.parked.0.userModified": false
+      },
+      "types": {
+        "revision": "string"
+      }
+    },
+    {
+      "name": "recovery reads edit history",
+      "method": "compose.recoveryRead",
+      "params": {},
+      "equals": {
+        "record.active": true,
+        "record.draft.userModified": true,
+        "record.draft.body": "",
+        "record.parked.0.userModified": false,
+        "record.parked.1.subject": "Legacy snapshot"
+      }
+    },
+    {
+      "name": "recovery rejects invalid edit history",
+      "method": "compose.recoverySave",
+      "params": {
+        "expectedRevision": "unused",
+        "record": {
+          "version": 1,
+          "active": true,
+          "draft": {
+            "userModified": "true"
+          }
+        }
+      },
+      "errorCode": -32000,
+      "equals": {
+        "message": "recovery_invalid_user_modified"
+      }
+    },
     {
       "name": "strict handshake parameters",
       "method": "system.info",
@@ -364,6 +646,47 @@
         "eventLooks.contract-account.43.id": "look-run",
         "eventLooks.contract-account.42.events.0.title": "Dinner",
         "attention": false
+      }
+    },
+    {
+      "name": "credential get rejects an unknown product kind before native access",
+      "method": "credentials.get",
+      "params": {
+        "kind": "native-command",
+        "accountId": "imap:contract@example.org"
+      },
+      "errorCode": -32602,
+      "equals": {
+        "message": "Invalid params"
+      }
+    },
+    {
+      "name": "credential put rejects controlled metadata before native access",
+      "method": "credentials.put",
+      "params": {
+        "kind": "imap-password",
+        "accountId": "imap:contract@example.org\nforged",
+        "secret": "synthetic"
+      },
+      "errorCode": -32602,
+      "equals": {
+        "message": "Invalid params"
+      }
+    },
+    {
+      "name": "credential delete rejects native attributes before native access",
+      "method": "credentials.delete",
+      "params": {
+        "kind": "calendar-password",
+        "accountId": "contract-source",
+        "nativeAttributes": [
+          "service",
+          "other-product"
+        ]
+      },
+      "errorCode": -32602,
+      "equals": {
+        "message": "Invalid params"
       }
     }
   ],

@@ -12,6 +12,7 @@ use tokio::{
 mod check;
 mod discovery;
 mod mailbox;
+pub(crate) use mailbox::validate_action_id;
 mod mutation;
 mod query;
 mod read;
@@ -66,6 +67,33 @@ impl Default for Session {
             requests: Mutex::new(HashMap::new()),
             contexts: Mutex::new(HashMap::new()),
         }
+    }
+}
+#[cfg(test)]
+impl Session {
+    pub(crate) fn with_test_certificate(certificate: &[u8]) -> Result<Self, &'static str> {
+        Ok(Self {
+            client: client_builder()
+                .add_root_certificate(
+                    reqwest::Certificate::from_pem(certificate)
+                        .map_err(|_| "jmap_transport_unavailable")?,
+                )
+                .build()
+                .map_err(|_| "jmap_transport_unavailable"),
+            ..Default::default()
+        })
+    }
+
+    pub(crate) async fn install_snapshot_for_test(
+        &self,
+        id: &str,
+        document: Value,
+        boxes: Vec<Value>,
+        credential: Value,
+        address: &str,
+    ) -> Result<(), &'static str> {
+        self.install_verified(id, document, boxes, credential, address)
+            .await
     }
 }
 fn client_builder() -> reqwest::ClientBuilder {

@@ -1,5 +1,6 @@
 //! Session-owned query cache. Only presentation snapshots cross to the UI.
 use super::*;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
@@ -576,5 +577,5 @@ async fn persist(root: Option<PathBuf>, account: &str, state: &mut State) -> Res
     state.dirty = false;
     Ok(())
 }
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests;

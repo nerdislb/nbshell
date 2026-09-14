@@ -3,6 +3,7 @@ mod cancel;
 mod mutation;
 mod read;
 use base64::{Engine, engine::general_purpose::STANDARD};
+pub(crate) use read::message_id;
 use serde_json::{Value, json};
 use std::{
     sync::{Arc, OnceLock},
@@ -168,11 +169,7 @@ async fn tls(w: Wire, host: &str) -> Result<Wire> {
     }
     tls_with_roots(w, host, crate::tls::roots()).await
 }
-async fn tls_with_roots(
-    w: Wire,
-    host: &str,
-    roots: impl Into<Arc<RootCertStore>>,
-) -> Result<Wire> {
+async fn tls_with_roots(w: Wire, host: &str, roots: impl Into<Arc<RootCertStore>>) -> Result<Wire> {
     let config = ClientConfig::builder_with_provider(Arc::new(
         tokio_rustls::rustls::crypto::ring::default_provider(),
     ))
@@ -299,6 +296,84 @@ async fn login(w: &mut Wire, p: &Value) -> Result<()> {
     }
     Ok(())
 }
+/// Read live LIST/SPECIAL-USE facts without touching the folder cache or
+/// persistent account metadata. Execution retains these exact destinations.
+pub(crate) async fn planned_action_availability(
+    account: &str,
+    refusals: Value,
+) -> Result<crate::mail::action::ActionAvailability> {
+    tokio::time::timeout(Duration::from_secs(22), async {
+        let params = resolve_account(
+            &json!({"accountId":account,"readOnly":true}),
+            "imap.folders",
+        )
+        .await?;
+        let (mut wire, key) = acquire(&params).await?;
+        let boxes = read::discover_mailboxes(&mut wire).await?;
+        release(wire, key).await;
+        Ok(crate::mail::action::ActionAvailability {
+            refusals,
+            mailboxes: json!({
+                "archive":boxes.special.contains_key("\\archive"),
+                "trash":boxes.special.contains_key("\\trash"),
+                "spam":boxes.special.contains_key("\\junk"),
+            }),
+            mailbox_required: Value::Null,
+            rows_context: serde_json::to_value(boxes).map_err(|_| "imap_invalid_response")?,
+        })
+    })
+    .await
+    .unwrap_or(Err("request_timed_out"))
+}
+
+pub(crate) async fn execute_planned_action(
+    method: &str,
+    params: &Value,
+    context: &Value,
+) -> Result<Value> {
+    if !matches!(method, "imap.modify" | "imap.trash" | "imap.untrash") {
+        return Err("method_not_found");
+    }
+    let boxes: Option<read::Mailboxes> = if context.is_null() {
+        None
+    } else {
+        Some(serde_json::from_value(context.clone()).map_err(|_| "invalid_params")?)
+    };
+    mutation::validate(method, params)?;
+    let ids: Vec<_> = params["ids"]
+        .as_array()
+        .ok_or("invalid_params")?
+        .iter()
+        .map(|id| {
+            let id = id.as_str().ok_or("invalid_params")?;
+            Ok((id, read::message_id(id)?.1))
+        })
+        .collect::<Result<_>>()?;
+    let mut completed = Vec::new();
+    let result = tokio::time::timeout(Duration::from_secs(22), async {
+        let params = resolve_account(params, method).await?;
+        credentials(&params)?;
+        mutation::call_planned(
+            method,
+            &params,
+            &std::sync::atomic::AtomicBool::new(false),
+            boxes.as_ref(),
+            Some(&mut completed),
+        )
+        .await
+    })
+    .await
+    .unwrap_or(Err("request_timed_out"));
+    let (succeeded, failed): (Vec<_>, Vec<_>) = ids
+        .into_iter()
+        .partition(|(_, folder)| completed.contains(folder));
+    Ok(json!({
+        "succeededIds":succeeded.iter().map(|(id,_)|id).collect::<Vec<_>>(),
+        "failedIds":failed.iter().map(|(id,_)|id).collect::<Vec<_>>(),
+        "error":result.err(),
+    }))
+}
+
 pub async fn call(method: &str, p: &Value) -> Result<Value> {
     read::validate(method, p)?;
     mutation::validate(method, p)?;
@@ -347,24 +422,31 @@ async fn resolve_account(p: &Value, method: &str) -> Result<Value> {
         return Err("invalid_params");
     };
     let owned = account.to_owned();
-    let entry = tokio::task::spawn_blocking(move || crate::auth::settings(provider, &owned))
-        .await
-        .map_err(|_| "worker_failed")??;
+    let read_only = p["readOnly"] == true;
+    let entry = tokio::task::spawn_blocking(move || {
+        if read_only {
+            crate::auth::settings_readonly(provider, &owned)
+        } else {
+            crate::auth::settings(provider, &owned)
+        }
+    })
+    .await
+    .map_err(|_| "worker_failed")??;
     let mut result = p.clone();
     let credential = if provider == "outlook" {
         let username = account.strip_prefix("outlook:").ok_or("invalid_params")?;
         result["settings"] = outlook_settings(&entry, username);
         result["oauth"] = json!(true);
-        crate::auth::access_token(
-            "outlook",
-            account,
-            if method == "imap.send" && result["settings"]["send"] == "graph" {
-                "graph"
-            } else {
-                "mail"
-            },
-        )
-        .await?
+        let resource = if method == "imap.send" && result["settings"]["send"] == "graph" {
+            "graph"
+        } else {
+            "mail"
+        };
+        if read_only {
+            crate::auth::access_token_readonly("outlook", account, resource).await?
+        } else {
+            crate::auth::access_token("outlook", account, resource).await?
+        }
     } else {
         result["settings"] = entry["imap"].clone();
         result["oauth"] = json!(false);

@@ -403,6 +403,21 @@ Item {
       mailService.mailboxKey = "inbox"
     }
 
+    function test_plugin_menu_does_not_offer_quit() {
+      var menu = named(app, "app-menu")
+      verify(menu)
+      menu.openAt(40, 40)
+      wait(20)
+      var row = null
+      for (var i = 0; i < menu.menuRows.length; i++)
+        if (menu.menuRows[i].objectName === "app-menu-quit") row = menu.menuRows[i]
+      verify(row, "the shared menu keeps one tested row")
+      compare(app.standaloneWindowChrome, false)
+      compare(menu.canQuit, false)
+      compare(row.visible, false, "a plugin cannot terminate its shell")
+      menu.close()
+    }
+
     function test_a_draft_over_the_reader_returns_to_the_reader() {
       app.openMessage("message-1")
       compare(kinds(), "list,reader")
@@ -431,7 +446,7 @@ Item {
       app.back()
       tryCompare(app, "composing", false)
       compare(kinds(), "list", "Back from the reply leaves the message it opened")
-      compare(mailService.count("saveDraft"), 1, "a reply has an address, so Back saves it")
+      compare(mailService.count("saveDraft"), 0, "an untouched reply leaves without saving")
     }
 
     function test_the_shortcut_sheet_closes_before_the_page_under_it() {

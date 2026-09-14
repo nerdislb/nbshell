@@ -147,37 +147,13 @@ fn raw(p: &Value) -> Result<Vec<u8>> {
     Ok(body)
 }
 fn envelope(body: &[u8], fallback: &str) -> Result<(String, Vec<String>)> {
-    use mailparse::MailHeaderMap;
-    let parsed = mailparse::parse_mail(body).map_err(|_| "invalid_message")?;
-    fn addresses(value: &str) -> Result<Vec<String>> {
-        let mut out = Vec::new();
-        for address in mailparse::addrparse(value)
-            .map_err(|_| "invalid_message")?
-            .iter()
-        {
-            match address {
-                mailparse::MailAddr::Single(addr) => out.push(addr.addr.clone()),
-                mailparse::MailAddr::Group(group) => {
-                    out.extend(group.addrs.iter().map(|a| a.addr.clone()))
-                }
-            }
-        }
-        Ok(out)
-    }
-    let from = parsed
-        .headers
-        .get_first_value("From")
-        .map(|v| addresses(&v))
-        .transpose()?
-        .and_then(|v| v.into_iter().next())
-        .unwrap_or_else(|| fallback.into());
+    let (headers, _) = mailparse::parse_headers(body).map_err(|_| "invalid_message")?;
+    let from = crate::message::envelope::sender(&headers)?.unwrap_or_else(|| fallback.into());
     let mut recipients = Vec::new();
     for key in ["To", "Cc", "Bcc"] {
-        for header in parsed.headers.get_all_values(key) {
-            for address in addresses(&header)? {
-                if !recipients.contains(&address) {
-                    recipients.push(address);
-                }
+        for address in crate::message::envelope::addresses(&headers, key)? {
+            if !recipients.contains(&address) {
+                recipients.push(address);
             }
         }
     }
@@ -268,6 +244,15 @@ pub(super) async fn call(
     p: &Value,
     sent: &std::sync::atomic::AtomicBool,
 ) -> Result<Value> {
+    call_planned(method, p, sent, None, None).await
+}
+pub(super) async fn call_planned(
+    method: &str,
+    p: &Value,
+    sent: &std::sync::atomic::AtomicBool,
+    planned: Option<&Mailboxes>,
+    mut completed_folders: Option<&mut Vec<String>>,
+) -> Result<Value> {
     if method == "imap.send" {
         let body = raw(p)?;
         if p["oauth"] == true && p["settings"]["send"] == "graph" {
@@ -346,7 +331,10 @@ pub(super) async fn call(
         read::invalidate().await;
         json!({})
     } else {
-        let boxes = mailboxes(&mut w, p).await?;
+        let boxes = match planned {
+            Some(boxes) => boxes.clone(),
+            None => mailboxes(&mut w, p).await?,
+        };
         if let Some(groups) = groups {
             let (add, remove, destination) = plan(method, p, &boxes)?;
             for (folder, uids) in groups {
@@ -383,6 +371,12 @@ pub(super) async fn call(
                         .await?;
                         command(&mut w, &format!("UID EXPUNGE {set}")).await?;
                     }
+                }
+                // Record only a fully acknowledged group. Keep the ledger
+                // outside this future so later errors and deadline cancellation
+                // cannot discard earlier successes or invite their retry.
+                if let Some(completed) = completed_folders.as_mut() {
+                    completed.push(folder);
                 }
             }
             json!({})

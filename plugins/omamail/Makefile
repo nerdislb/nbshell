@@ -1,4 +1,5 @@
 QMLLINT := /usr/lib/qt6/bin/qmllint
+.DEFAULT_GOAL := test
 QML_FILES := ui/Service.qml ui/BarWidget.qml ui/App.qml ui/compose/RecoveryController.qml \
 	ui/backend/Backend.qml ui/backend/Runtime.qml ui/diagnostics/Diagnostics.qml \
 	ui/components/BackendSetup.qml ui/components/OmamailLogo.qml \
@@ -59,6 +60,7 @@ QML_FILES := ui/Service.qml ui/BarWidget.qml ui/App.qml ui/compose/RecoveryContr
 	ui/agent/AgentRunner.qml ui/agent/AgentContext.qml \
 	ui/agent/EventSuggester.qml ui/components/EventSuggestionCard.qml \
 	ui/components/AccountRemovalDialog.qml \
+	ui/components/ComposeExitDialog.qml \
 	ui/components/BackBar.qml \
 	ui/components/SettingsPage.qml \
 	ui/components/SettingsSidebar.qml \
@@ -73,9 +75,20 @@ QML_FILES := ui/Service.qml ui/BarWidget.qml ui/App.qml ui/compose/RecoveryContr
 	ui/components/CalendarView.qml \
 	ui/components/WeekCalendarView.qml \
 	ui/bar/BarPreview.qml
+APP_QML_FILES := app/qml/Main.qml app/qml/StandaloneShell.qml app/qml/StandaloneManifest.qml
+APP_BUILD_DIR ?= app/build
+APP_EXEEXT := $(if $(filter Windows_NT,$(OS)),.exe,)
+APP_TARGET_DIR ?= $(CURDIR)/target/standalone
+APP_BACKEND := $(APP_TARGET_DIR)/debug/omamail$(APP_EXEEXT)
+APP_EXECUTABLE := $(CURDIR)/$(APP_BUILD_DIR)/omamail-app$(APP_EXEEXT)
 
 .PHONY: test test-js test-shell test-shell-portable test-shell-libcurl \
-	test-qml test-local test-backend-process qml-check validate bench install
+	test-qml test-app-qml test-local test-backend-process qml-check validate bench install \
+	app-build app-run help
+
+help:
+	@echo "make app-build  Build the standalone backend and Qt desktop host"
+	@echo "make app-run    Build and run the desktop host from source resources"
 
 test: test-rust test-js test-shell test-qml
 
@@ -90,7 +103,7 @@ test-backend-process:
 
 .PHONY: test-rust backend
 test-rust:
-	cargo test --locked
+	cargo test --locked --features integration-test-credentials
 
 backend:
 	cargo build --locked --release --target-dir "$(CURDIR)/target" --bin omamail
@@ -98,6 +111,8 @@ backend:
 # The parsing, formatting, and decision rules live in plain JS precisely so
 # they can be tested without a compositor. These run anywhere node does.
 test-js:
+	node app/tests/test_theme.js
+	node app/tests/test_shell_theme.js
 	node ui/tests/test_backend_wire.js
 	node ui/tests/test_backend_compatibility.js
 	node ui/tests/test_backend_runtime.js
@@ -128,6 +143,7 @@ test-js:
 	node ui/tests/test_mailto.js
 	node ui/tests/test_html.js
 	node ui/tests/test_direction.js
+	node ui/tests/test_appearance.js
 	node ui/tests/test_cache.js
 	node ui/tests/test_render_cache.js
 	node ui/tests/test_model.js
@@ -152,6 +168,7 @@ test-shell: test-shell-portable test-shell-libcurl
 # Everything here drives one of our own scripts against a fake server and
 # asserts what the script did with the answer, so any libcurl can run it.
 test-shell-portable:
+	@if [ -d app ]; then python3 tests/test_app_make.py; fi
 	python3 tests/test_diagnostics.py
 	python3 tests/test_network_migration.py
 	python3 tests/test_plugin_workflow.py
@@ -221,6 +238,24 @@ test-qml:
 	python3 tests/test_sidebar_text.py "$(QMLTESTRUNNER)"
 	QMLTESTRUNNER="$(QMLTESTRUNNER)" cargo test --locked --lib message::html::tests::native_output_cannot_trigger_qt_resource_requests -- --ignored
 
+test-app-qml:
+	@test -n "$(QMLTESTRUNNER)" || { \
+		echo "qmltestrunner not found: install Qt 6 QML test tooling" >&2; \
+		exit 1; \
+	}
+	cmake -S app -B "$(APP_BUILD_DIR)" -DOMAMAIL_BACKEND="$(APP_BACKEND)"
+	cmake --build "$(APP_BUILD_DIR)" --parallel
+	python3 app/tests/test_qml_inventory.py
+	QT_QPA_PLATFORM=offscreen ctest --test-dir "$(APP_BUILD_DIR)" --output-on-failure -R 'tst_standalone_composition'
+
+app-build:
+	cargo build --locked --no-default-features --features standalone --target-dir "$(APP_TARGET_DIR)" --bin omamail
+	cmake -S app -B "$(APP_BUILD_DIR)" -DOMAMAIL_BACKEND="$(APP_BACKEND)"
+	cmake --build "$(APP_BUILD_DIR)" --parallel
+
+app-run: app-build
+	OMAMAIL_DEVELOPMENT_RESOURCES=1 OMAMAIL_BIN="$(APP_BACKEND)" "$(APP_EXECUTABLE)"
+
 # Both engines on the same fixtures. The QML column is the one that decides
 # anything — the shell runs that engine, not node's — so run it on the machine
 # the shell runs on. Not part of `test`: it takes a few seconds and measures
@@ -233,6 +268,10 @@ qml-check:
 	$(QMLLINT) -I $(HOME)/.config/quickshell/nbshell $(QML_FILES)
 
 validate: test qml-check
+	nbshell plugin validate .
+	git diff --check
+
+validate-standalone: test test-app-qml qml-check
 	nbshell plugin validate .
 	git diff --check
 

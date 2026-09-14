@@ -19,6 +19,23 @@ const MAX_RESPONSE: usize = 16 * 1024 * 1024;
 const DEADLINE: Duration = Duration::from_secs(20);
 static CLIENT: OnceLock<Result<reqwest::Client, &'static str>> = OnceLock::new();
 
+// The integration fixture exercises the real dispatcher, credential reader and
+// request serializer. This override exists only in test builds and only inside
+// its task scope; production has no environment/configuration bypass.
+#[cfg(test)]
+tokio::task_local! {
+    static TEST_TRANSPORT: (reqwest::Client, String);
+}
+
+#[cfg(test)]
+pub(crate) async fn with_test_transport<T>(
+    client: reqwest::Client,
+    origin: String,
+    work: impl std::future::Future<Output = T>,
+) -> T {
+    TEST_TRANSPORT.scope((client, origin), work).await
+}
+
 fn client() -> Result<&'static reqwest::Client, &'static str> {
     CLIENT
         .get_or_init(build_client)
@@ -68,6 +85,26 @@ async fn execute(
     request: Request,
     deadline: Duration,
 ) -> Result<Value, &'static str> {
+    #[cfg(test)]
+    let test_transport = TEST_TRANSPORT.try_with(Clone::clone).ok();
+    #[cfg(test)]
+    let (client, request) = if let Some((ref client, ref origin)) = test_transport {
+        let mut request = request;
+        let url = reqwest::Url::parse(&request.url).unwrap();
+        assert_eq!(url.scheme(), "https");
+        assert!(matches!(
+            url.host_str(),
+            Some("gmail.googleapis.com" | "oauth2.googleapis.com")
+        ));
+        request.url = format!("{origin}{}", url.path());
+        if let Some(query) = url.query() {
+            request.url.push('?');
+            request.url.push_str(query);
+        }
+        (client, request)
+    } else {
+        (client, request)
+    };
     tokio::time::timeout(deadline, async {
         let empty_success =
             request.authorization.is_some() && request.method != reqwest::Method::GET;
@@ -134,6 +171,14 @@ fn valid(value: &str) -> Result<(), &'static str> {
     Ok(())
 }
 
+pub(super) fn validate_path_part(value: &str) -> Result<(), &'static str> {
+    valid(value)?;
+    if value.is_empty() || matches!(value, "." | "..") {
+        return Err("gmail_invalid_input");
+    }
+    Ok(())
+}
+
 fn encode(value: &str) -> String {
     const HEX: &[u8] = b"0123456789ABCDEF";
     let mut result = String::new();
@@ -160,10 +205,7 @@ fn prepare_get(
     }
     let mut url = String::from("https://gmail.googleapis.com/gmail/v1/users/me/");
     for (index, part) in path.iter().enumerate() {
-        valid(part)?;
-        if part.is_empty() || *part == "." || *part == ".." {
-            return Err("gmail_invalid_input");
-        }
+        validate_path_part(part)?;
         if index != 0 {
             url.push('/');
         }

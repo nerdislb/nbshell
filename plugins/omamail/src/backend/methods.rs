@@ -2,6 +2,9 @@
 pub const ALL: &[&str] = &[
     "system.info",
     "system.quit",
+    "credentials.get",
+    "credentials.put",
+    "credentials.delete",
     "accounts.list",
     "account.identities",
     "account.conversation",
@@ -61,6 +64,10 @@ pub const ALL: &[&str] = &[
     "upload.append",
     "upload.discard",
     "request.upload",
+    "mail.list",
+    "mail.read",
+    "mail.act",
+    "mail.send",
     "mail.watch",
     "mail.unwatch",
     "mail.check",
@@ -170,3 +177,12 @@ pub const ALL: &[&str] = &[
     "jmap.stream.poll",
     "jmap.stream.close",
 ];
+
+pub fn available() -> Vec<&'static str> {
+    ALL.iter()
+        .copied()
+        .filter(|method| {
+            !method.starts_with("agent.") || cfg!(all(feature = "agent", target_os = "linux"))
+        })
+        .collect()
+}

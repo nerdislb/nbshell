@@ -25,7 +25,7 @@
     {
       "name": "Mail",
       "repository": "https://github.com/huacnlee/omamail",
-      "reviewedCommit": "6f91932de257369ec884db9bf7ef5b655220a79f"
+      "reviewedCommit": "3460ac858b0e3bfee9a5b2aa8fe9ae9e11636932"
     },
     {
       "name": "Quick Translate",
@@ -52,7 +52,7 @@
     {
       "name": "Hermes Agent",
       "repository": "https://github.com/NousResearch/hermes-agent",
-      "reviewedCommit": "b9271bcb34e1a8b8fe0eeaef0ef4a6e1f93ba543",
+      "reviewedCommit": "14efb46089250e8b9e56e59b74291cf8dce8b207",
       "check": "github-api"
     },
     {

@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell
 import Quickshell.Io
 import "../calendar/Palette.js" as Palette
 
@@ -13,9 +12,7 @@ QtObject {
 
   property var values: ({})
   readonly property var slots: Palette.keys()
-  readonly property string configHome: Quickshell.env("XDG_CONFIG_HOME")
-    || (Quickshell.env("HOME") + "/.config")
-  readonly property string palettePath: configHome + "/nbshell/palette.sh"
+  property string palettePath: ""
 
   function colorFor(key) {
     var normalized = Palette.normalizeKey(key)

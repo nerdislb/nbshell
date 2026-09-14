@@ -2,24 +2,18 @@
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{
-    ffi::CString,
-    fs::File,
-    io::{Read, Write},
-    os::fd::{AsRawFd, FromRawFd},
+    io::Read,
     path::{Path, PathBuf},
-    sync::atomic::{AtomicU64, Ordering},
 };
 const MAX_BYTES: usize = 16 * 1024 * 1024;
+#[cfg(test)]
+use std::sync::atomic::{AtomicU64, Ordering};
+#[cfg(all(test, unix))]
+use std::{fs::File, os::fd::AsRawFd};
+#[cfg(test)]
 static SERIAL: AtomicU64 = AtomicU64::new(0);
 type Result<T> = std::result::Result<T, &'static str>;
-struct RecoveryLock(File);
-impl Drop for RecoveryLock {
-    fn drop(&mut self) {
-        unsafe {
-            libc::flock(self.0.as_raw_fd(), libc::LOCK_UN);
-        }
-    }
-}
+
 fn text(value: &Value) -> String {
     match value {
         Value::Null | Value::Bool(false) => String::new(),
@@ -77,6 +71,11 @@ fn draft(value: &Value) -> Result<Value> {
     }
     if value["deliveryUnknown"] == true {
         out["deliveryUnknown"] = json!(true);
+    }
+    // Absence belongs to legacy snapshots: the UI then derives whether the
+    // draft was edited from its contents. Preserve explicit false separately.
+    if let Some(modified) = value.get("userModified") {
+        out["userModified"] = json!(modified.as_bool().ok_or("recovery_invalid_user_modified")?);
     }
     let mode = text(&value["mode"]);
     out["mode"] = json!(if mode.is_empty() {
@@ -145,6 +144,9 @@ fn draft(value: &Value) -> Result<Value> {
     Ok(out)
 }
 fn meaningful(d: &Value) -> bool {
+    if d["userModified"] == true {
+        return true;
+    }
     for key in ["to", "cc", "bcc", "subject"] {
         if !text(&d[key]).trim().is_empty() {
             return true;
@@ -184,12 +186,7 @@ pub fn normalize(value: &Value) -> Result<Value> {
     )
 }
 fn home() -> Result<PathBuf> {
-    std::env::var_os("XDG_CONFIG_HOME")
-        .filter(|s| !s.is_empty())
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|p| PathBuf::from(p).join(".config")))
-        .filter(|p| p.is_absolute())
-        .ok_or("config_home_invalid")
+    Ok(crate::platform::dirs::AppDirs::discover()?.config)
 }
 fn revision(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
@@ -233,31 +230,17 @@ fn call_at(root: &Path, method: &str, params: &Value) -> Result<Value> {
         return Ok(json!({"record":empty(),"revision":revision(&[])}));
     };
     let _lock = if writing {
-        let fd = unsafe {
-            libc::openat(
-                dir.as_raw_fd(),
-                c".compose.lock".as_ptr(),
-                libc::O_RDWR
-                    | libc::O_CREAT
-                    | libc::O_NOFOLLOW
-                    | libc::O_NONBLOCK
-                    | libc::O_CLOEXEC,
-                0o600,
-            )
-        };
-        if fd < 0 {
-            return Err("recovery_unsafe_path");
-        }
-        let file = unsafe { File::from_raw_fd(fd) };
-        use std::os::unix::fs::MetadataExt;
-        let meta = file.metadata().map_err(|_| "recovery_unavailable")?;
-        if !meta.is_file() || meta.nlink() != 1 || meta.uid() != unsafe { libc::geteuid() } {
-            return Err("recovery_unsafe_path");
-        }
-        if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } != 0 {
-            return Err("recovery_busy");
-        }
-        Some(RecoveryLock(file))
+        Some(
+            crate::platform::private_fs::lock_exclusive(&dir, ".compose.lock").map_err(
+                |error| {
+                    if error == "private_fs_busy" {
+                        "recovery_busy"
+                    } else {
+                        error
+                    }
+                },
+            )?,
+        )
     } else {
         None
     };
@@ -276,46 +259,15 @@ fn call_at(root: &Path, method: &str, params: &Value) -> Result<Value> {
     if params["expectedRevision"] != revision(&old) {
         return Err("recovery_conflict");
     }
-    let temporary = CString::new(format!(
-        ".compose.{}.{}",
-        std::process::id(),
-        SERIAL.fetch_add(1, Ordering::Relaxed)
-    ))
-    .unwrap();
-    let fd = unsafe {
-        libc::openat(
-            dir.as_raw_fd(),
-            temporary.as_ptr(),
-            libc::O_WRONLY | libc::O_CREAT | libc::O_EXCL | libc::O_NOFOLLOW | libc::O_CLOEXEC,
-            0o600,
-        )
-    };
-    if fd < 0 {
-        return Err("recovery_unavailable");
-    }
-    let mut file = unsafe { File::from_raw_fd(fd) };
-    let result = (|| {
-        file.write_all(&bytes)
-            .and_then(|_| file.sync_all())
-            .map_err(|_| "recovery_unavailable")?;
-        if unsafe {
-            libc::renameat(
-                dir.as_raw_fd(),
-                temporary.as_ptr(),
-                dir.as_raw_fd(),
-                c"compose.json".as_ptr(),
-            )
-        } != 0
-        {
-            return Err("recovery_unavailable");
+    crate::platform::private_fs::atomic_replace(&dir, "compose.json", &bytes).map_err(|error| {
+        if error == "cache_unavailable" {
+            "recovery_unavailable"
+        } else {
+            error
         }
-        dir.sync_all().map_err(|_| "recovery_unavailable")?;
-        Ok(json!({"record":record(&bytes)?,"revision":revision(&bytes)}))
-    })();
-    if result.is_err() {
-        unsafe { libc::unlinkat(dir.as_raw_fd(), temporary.as_ptr(), 0) };
-    }
-    result
+    })?;
+    Ok(json!({"record":record(&bytes)?,"revision":revision(&bytes)}))
 }
+
 #[cfg(test)]
 mod tests;

@@ -1,13 +1,15 @@
 use clap::{CommandFactory, Parser, Subcommand};
 use std::io::{self, Read};
 mod call;
+mod mail;
 mod output;
 
 #[derive(Parser)]
 #[command(
     name = "omamail",
     version,
-    about = "Mail backend and command-line client"
+    about = "Mail backend and command-line client",
+    after_help = "Examples:\n  omamail list --account me@example.org --json\n  omamail read MESSAGE_ID --json\n  omamail mark star MESSAGE_ID\n  omamail archive MESSAGE_ID\n  omamail archive MESSAGE_ID --execute\n  printf 'Hello\\n' | omamail send --to you@example.org --subject Hello --json\n\nMutations preview by default. Add --execute to apply them.\nOmitted --account uses the active account; message IDs and page tokens are opaque."
 )]
 struct Cli {
     /// Print machine-readable JSON instead of human-readable tables
@@ -19,8 +21,23 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// List messages (Inbox, 25 rows by default)
+    List(mail::List),
+    /// Read safe message content without changing its read state
+    Read(mail::ReadMessage),
+    /// Preview a read or star change; use --execute to apply it
+    Mark(mail::Mark),
+    /// Preview archiving messages; use --execute to apply it
+    Archive(mail::Action),
+    /// Preview moving messages to trash; use --execute to apply it
+    Trash(mail::Action),
+    /// Preview reporting spam; use --execute to apply it
+    Spam(mail::Action),
+    /// Preview a message with UTF-8 body on stdin (maximum 16 MiB); --execute sends
+    Send(mail::Send),
     /// Serve JSON-RPC 2.0 on persistent stdin/stdout pipes
     Serve,
+    #[cfg(all(feature = "agent", target_os = "linux"))]
     #[command(hide = true)]
     AgentWorker { id: String },
     /// Report backend version and implemented methods
@@ -92,6 +109,7 @@ pub fn run() {
         }
         return;
     }
+    #[cfg(all(feature = "agent", target_os = "linux"))]
     if let Command::AgentWorker { ref id } = command {
         let result = crate::backend::runtime()
             .map_err(|_| "agent_runtime_failed")
@@ -107,8 +125,31 @@ pub fn run() {
         std::process::exit(1);
     });
     let empty = serde_json::json!({});
-    let envelope = matches!(command, Command::Call { .. });
+    let envelope = matches!(
+        command,
+        Command::Call { .. }
+            | Command::List(_)
+            | Command::Read(_)
+            | Command::Mark(_)
+            | Command::Archive(_)
+            | Command::Trash(_)
+            | Command::Spam(_)
+            | Command::Send(_)
+    );
     let result = match command {
+        Command::List(args) => runtime.block_on(session.dispatch("mail.list", &args.params())),
+        Command::Read(args) => runtime.block_on(session.dispatch("mail.read", &args.params())),
+        Command::Mark(args) => runtime.block_on(session.dispatch("mail.act", &args.params())),
+        Command::Archive(args) => {
+            runtime.block_on(session.dispatch("mail.act", &args.params("archive")))
+        }
+        Command::Trash(args) => {
+            runtime.block_on(session.dispatch("mail.act", &args.params("trash")))
+        }
+        Command::Spam(args) => runtime.block_on(session.dispatch("mail.act", &args.params("spam"))),
+        Command::Send(args) => args
+            .params(io::stdin())
+            .and_then(|params| runtime.block_on(call::dispatch(&session, "mail.send", &params))),
         Command::Info => runtime.block_on(session.dispatch("system.info", &empty)),
         Command::Accounts { .. } => runtime.block_on(session.dispatch("accounts.list", &empty)),
         Command::Providers { .. } => runtime.block_on(session.dispatch("providers.list", &empty)),
@@ -121,8 +162,10 @@ pub fn run() {
             Ok(serde_json::json!({"version":env!("CARGO_PKG_VERSION")}))
         }
         Command::Call { method } => call::read_params(io::stdin())
-            .and_then(|params| runtime.block_on(session.dispatch(&method, &params))),
-        Command::Serve | Command::AgentWorker { .. } => unreachable!(),
+            .and_then(|params| runtime.block_on(call::dispatch(&session, &method, &params))),
+        Command::Serve => unreachable!(),
+        #[cfg(all(feature = "agent", target_os = "linux"))]
+        Command::AgentWorker { .. } => unreachable!(),
     };
     output::print_result(result, cli.json, envelope);
 }

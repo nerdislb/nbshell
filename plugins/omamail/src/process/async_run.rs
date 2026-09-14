@@ -5,18 +5,11 @@ use tokio::{
     process::Command,
 };
 
+#[derive(Debug)]
 pub struct Output {
     pub success: bool,
     pub stdout: Vec<u8>,
     pub stderr: Vec<u8>,
-}
-struct Group(u32);
-impl Drop for Group {
-    fn drop(&mut self) {
-        unsafe {
-            libc::kill(-(self.0 as i32), libc::SIGKILL);
-        }
-    }
 }
 async fn read(mut pipe: impl AsyncRead + Unpin, limit: usize) -> Result<Vec<u8>, &'static str> {
     let mut out = Vec::new();
@@ -42,6 +35,16 @@ pub async fn run(
     timeout: Duration,
     limit: usize,
 ) -> Result<Output, &'static str> {
+    run_with_stderr_limit(program, args, input, timeout, limit, limit.min(65536)).await
+}
+pub(super) async fn run_with_stderr_limit(
+    program: &str,
+    args: &[String],
+    input: &[u8],
+    timeout: Duration,
+    limit: usize,
+    stderr_limit: usize,
+) -> Result<Output, &'static str> {
     if input.len() > limit {
         return Err("process_input_too_large");
     }
@@ -52,9 +55,11 @@ pub async fn run(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    command.as_std_mut().process_group(0);
+    super::platform::configure(command.as_std_mut());
     let mut child = command.spawn().map_err(|_| "process_unavailable")?;
-    let group = Group(child.id().ok_or("process_unavailable")?);
+    // Windows assigns the still-suspended process to its job before resuming it.
+    // A failed attach cannot execute any child code.
+    let group = super::platform::Tree::for_async_child(&child)?;
     let mut stdin = child.stdin.take().ok_or("process_pipe_failed")?;
     let stdout = child.stdout.take().ok_or("process_pipe_failed")?;
     let stderr = child.stderr.take().ok_or("process_pipe_failed")?;
@@ -68,12 +73,8 @@ pub async fn run(
             Ok(())
         };
         let wait = async { child.wait().await.map_err(|_| "process_wait_failed") };
-        let (_, stdout, stderr, status) = tokio::try_join!(
-            write,
-            read(stdout, limit),
-            read(stderr, limit.min(65536)),
-            wait
-        )?;
+        let (_, stdout, stderr, status) =
+            tokio::try_join!(write, read(stdout, limit), read(stderr, stderr_limit), wait)?;
         Ok(Output {
             success: status.success(),
             stdout,
@@ -90,9 +91,8 @@ pub async fn run(
     }
     result
 }
-use std::os::unix::process::CommandExt;
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
     #[tokio::test]
@@ -121,18 +121,33 @@ mod tests {
     }
     #[tokio::test]
     async fn requests_overlap_and_cancellation_kills_the_process_group() {
-        let started = std::time::Instant::now();
-        let args = vec!["-c".into(), "sleep 0.1; printf ok".into()];
+        let root = std::env::temp_dir().join(format!(
+            "omamail-async-overlap-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir(&root).unwrap();
+        let root_arg = root.to_str().unwrap().to_owned();
+        // Each child announces that it started, then refuses to finish until
+        // all three announcements exist. A serialized runner would deadlock
+        // and time out; successful output therefore proves actual overlap
+        // without relying on scheduler-sensitive elapsed time.
+        let script = "import os,sys,time\nroot,name=sys.argv[1:3]\nopen(os.path.join(root,name),'x').close()\nwhile len(os.listdir(root)) < 3: time.sleep(0.01)\nsys.stdout.write('ok')";
+        let a_args = vec!["-c".into(), script.into(), root_arg.clone(), "a".into()];
+        let b_args = vec!["-c".into(), script.into(), root_arg.clone(), "b".into()];
+        let c_args = vec!["-c".into(), script.into(), root_arg, "c".into()];
         let (a, b, c) = tokio::join!(
-            run("/bin/sh", &args, b"", Duration::from_secs(2), 1024),
-            run("/bin/sh", &args, b"", Duration::from_secs(2), 1024),
-            run("/bin/sh", &args, b"", Duration::from_secs(2), 1024)
+            run("python3", &a_args, b"", Duration::from_secs(2), 1024),
+            run("python3", &b_args, b"", Duration::from_secs(2), 1024),
+            run("python3", &c_args, b"", Duration::from_secs(2), 1024)
         );
         for result in [a, b, c] {
             assert_eq!(result.unwrap().stdout, b"ok");
         }
-        assert!(started.elapsed() < Duration::from_millis(280));
-        let marker = std::env::temp_dir().join(format!("omamail-cancel-{}", std::process::id()));
+        let marker = root.join("cancel");
         let path = marker.to_str().unwrap().to_owned();
         let task = tokio::spawn(async move {
             run("python3", &["-c".into(), "import os,sys,time; open(sys.argv[1],'w').write(str(os.getpid())); time.sleep(30)".into(), path], b"", Duration::from_secs(30), 1024).await
@@ -163,7 +178,7 @@ mod tests {
             0,
             "cancelled child must be gone"
         );
-        std::fs::remove_file(marker).unwrap();
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[tokio::test]

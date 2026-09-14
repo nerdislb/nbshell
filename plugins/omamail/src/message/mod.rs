@@ -2,9 +2,10 @@
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde_json::{Value, json};
 
-pub mod direction;
 pub mod compose;
 pub mod content;
+pub mod direction;
+pub(crate) mod envelope;
 pub mod html;
 pub mod signature;
 

@@ -134,7 +134,7 @@ fn field<'a>(p: &'a Value, key: &str) -> Result<&'a str, &'static str> {
         .ok_or("invalid_params")
 }
 async fn registered(account: &str) -> Result<String, &'static str> {
-    let list = tokio::task::spawn_blocking(crate::account::list)
+    let list = tokio::task::spawn_blocking(crate::account::list_readonly)
         .await
         .map_err(|_| "worker_failed")??;
     list["accounts"]
@@ -181,7 +181,7 @@ impl Session {
             "imap" | "outlook" => {
                 let response = crate::providers::imap::call(
                     "imap.messages",
-                    &json!({"accountId":account,"ids":[id],"full":true,"progressive":false}),
+                    &json!({"accountId":account,"ids":[id],"full":true,"progressive":false,"readOnly":true}),
                 )
                 .await?;
                 response["messages"]
@@ -499,7 +499,7 @@ fn render_prepared(
 
 #[cfg(test)]
 #[allow(clippy::too_many_arguments)]
-fn projection(
+pub(super) fn projection(
     resource: &Value,
     account: &str,
     id: &str,

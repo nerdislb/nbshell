@@ -1,7 +1,18 @@
 //! Account-bound keyring resolution used by autonomous backend jobs.
 use super::*;
+use crate::credentials::{
+    self as store, CredentialKey, CredentialKind, Error as StoreError, Secret,
+};
 
 pub fn settings(provider: &str, account: &str) -> Result<Value, &'static str> {
+    settings_with(provider, account, crate::account::raw_registry()?)
+}
+
+pub fn settings_readonly(provider: &str, account: &str) -> Result<Value, &'static str> {
+    settings_with(provider, account, crate::account::raw_registry_readonly()?)
+}
+
+fn settings_with(provider: &str, account: &str, raw: Value) -> Result<Value, &'static str> {
     if !["gmail", "outlook", "imap", "jmap"].contains(&provider)
         || account.is_empty()
         || account.len() > 1024
@@ -9,7 +20,6 @@ pub fn settings(provider: &str, account: &str) -> Result<Value, &'static str> {
     {
         return Err("auth_account_invalid");
     }
-    let raw = crate::account::raw_registry()?;
     if raw["version"] != 1 {
         return Err("accounts_version_unsupported");
     }
@@ -47,58 +57,51 @@ fn valid_account(provider: &str, account: &str) -> Result<(), &'static str> {
     Ok(())
 }
 
-async fn keyring(args: Vec<String>, input: Vec<u8>) -> Result<String, &'static str> {
-    let result = crate::process::async_run::run(
-        "secret-tool",
-        &args,
-        &input,
-        Duration::from_secs(15),
-        16385,
-    )
-    .await
-    .map_err(|_| "auth_keyring_failed")?;
-    if !result.success {
-        if args.first().is_some_and(|s| s == "lookup")
-            && result.stdout.is_empty()
-            && result.stderr.is_empty()
-        {
-            return Err("auth_signed_out");
-        }
-        return Err("auth_keyring_failed");
+fn store_error(error: StoreError) -> &'static str {
+    match error {
+        StoreError::Missing => "auth_signed_out",
+        StoreError::InvalidKey => "auth_account_invalid",
+        StoreError::InvalidSecret | StoreError::TooLarge => "auth_secret_invalid",
+        StoreError::Unavailable | StoreError::Ambiguous => "auth_keyring_failed",
     }
-    let bytes = result.stdout;
-    let bytes = bytes.strip_suffix(b"\n").unwrap_or(&bytes);
-    let value = std::str::from_utf8(bytes).map_err(|_| "auth_secret_invalid")?;
+}
+
+fn text_secret(secret: &Secret) -> Result<&str, &'static str> {
+    let value = secret.text().map_err(store_error)?;
+    if value.is_empty() {
+        return Err("auth_signed_out");
+    }
     if value.len() > 16384 || value.chars().any(char::is_control) {
         return Err("auth_secret_invalid");
     }
-    Ok(value.to_owned())
+    Ok(value)
+}
+
+fn outlook_key(client: &str, account: &str) -> CredentialKey {
+    CredentialKey {
+        provider: "outlook".into(),
+        account_id: account.to_lowercase(),
+        kind: CredentialKind::OutlookRefreshToken {
+            client_id: client.into(),
+        },
+    }
 }
 
 pub async fn password(provider: &str, account: &str) -> Result<String, &'static str> {
     valid_account(provider, account)?;
     let kind = match provider {
-        "imap" => "imap-password",
-        "jmap" => "jmap-secret",
+        "imap" => CredentialKind::ImapPassword,
+        "jmap" => CredentialKind::JmapSecret,
         _ => return Err("auth_provider_invalid"),
     };
-    let args = [
-        "lookup",
-        "service",
-        "omamail",
-        "kind",
+    let secret = store::get(CredentialKey {
+        provider: provider.into(),
+        account_id: account.to_lowercase(),
         kind,
-        "account",
-        &account.to_lowercase(),
-    ]
-    .into_iter()
-    .map(str::to_owned)
-    .collect();
-    let secret = keyring(args, vec![]).await?;
-    if secret.is_empty() {
-        return Err("auth_signed_out");
-    }
-    Ok(secret)
+    })
+    .await
+    .map_err(store_error)?;
+    Ok(text_secret(&secret)?.to_owned())
 }
 
 type Tokens = std::collections::HashMap<String, (String, std::time::Instant)>;
@@ -111,15 +114,38 @@ pub async fn access_token(
     account: &str,
     resource: &str,
 ) -> Result<String, &'static str> {
+    access_token_with(provider, account, resource, false).await
+}
+
+pub async fn access_token_readonly(
+    provider: &str,
+    account: &str,
+    resource: &str,
+) -> Result<String, &'static str> {
+    access_token_with(provider, account, resource, true).await
+}
+
+async fn access_token_with(
+    provider: &str,
+    account: &str,
+    resource: &str,
+    read_only: bool,
+) -> Result<String, &'static str> {
     if provider != "outlook" {
         return Err("auth_provider_invalid");
     }
     valid_account(provider, account)?;
     let scope = scope(resource)?;
     let owned = account.to_owned();
-    let entry = tokio::task::spawn_blocking(move || settings("outlook", &owned))
-        .await
-        .map_err(|_| "auth_account_invalid")??;
+    let entry = tokio::task::spawn_blocking(move || {
+        if read_only {
+            settings_readonly("outlook", &owned)
+        } else {
+            settings("outlook", &owned)
+        }
+    })
+    .await
+    .map_err(|_| "auth_account_invalid")??;
     let client_id = entry["clientId"].as_str().ok_or("auth_client_missing")?;
     if client_id.is_empty() || client_id.len() > 1024 || client_id.chars().any(char::is_control) {
         return Err("auth_client_invalid");
@@ -141,31 +167,16 @@ pub async fn access_token(
     {
         return Ok(token.clone());
     }
-    let attrs = [
-        "service",
-        "omamail",
-        "kind",
-        "outlook-refresh-token",
-        "client-id",
-        client_id,
-        "account",
-        &account.to_lowercase(),
-    ]
-    .map(str::to_owned);
-    let args = std::iter::once("lookup".to_owned())
-        .chain(attrs.iter().cloned())
-        .collect();
-    let refresh = keyring(args, vec![]).await?;
-    if refresh.is_empty() {
-        return Err("auth_signed_out");
-    }
+    let key = outlook_key(client_id, account);
+    let refresh_secret = store::get(key.clone()).await.map_err(store_error)?;
+    let refresh = text_secret(&refresh_secret)?;
     let reply = post(
         client()?,
         &url,
         callback::form(&[
             ("client_id", client_id),
             ("grant_type", "refresh_token"),
-            ("refresh_token", &refresh),
+            ("refresh_token", refresh),
             ("scope", scope),
         ]),
     )
@@ -195,19 +206,7 @@ pub async fn access_token(
                 && !s.chars().any(|c| c.is_whitespace() || c.is_control())
         })
         .ok_or("auth_invalid_response")?;
-    if let Some(rotated) = token["refresh_token"]
-        .as_str()
-        .filter(|s| !s.is_empty() && *s != refresh)
-    {
-        if rotated.len() > 16384 || rotated.chars().any(char::is_control) {
-            return Err("auth_invalid_response");
-        }
-        let args = ["store".into(), "--label=Omamail Outlook".into()]
-            .into_iter()
-            .chain(attrs)
-            .collect();
-        keyring(args, rotated.as_bytes().to_vec()).await?;
-    }
+    persist_outlook_rotation(refresh, &token, key, read_only).await?;
     let granted = token["scope"].as_str().unwrap_or("");
     if scope
         .split_whitespace()
@@ -270,25 +269,20 @@ pub(super) async fn change_outlook(params: &Value, clear: bool) -> Result<Value,
     )
     .await?;
     let mut tokens = lock.lock().await;
-    let mut args: Vec<String> = if clear {
-        vec!["clear".into()]
+    let key = outlook_key(client, account);
+    if clear {
+        match store::delete(key).await {
+            Ok(()) | Err(StoreError::Missing) => {}
+            Err(error) => return Err(store_error(error)),
+        }
     } else {
-        vec!["store".into(), "--label=Omamail Outlook".into()]
-    };
-    args.extend(
-        [
-            "service",
-            "omamail",
-            "kind",
-            "outlook-refresh-token",
-            "client-id",
-            client,
-            "account",
-            &account.to_lowercase(),
-        ]
-        .map(str::to_owned),
-    );
-    keyring(args, token.as_bytes().to_vec()).await?;
+        store::put(
+            key,
+            Secret::new(token.as_bytes().to_vec()).map_err(store_error)?,
+        )
+        .await
+        .map_err(store_error)?;
+    }
     tokens.clear();
     Ok(json!({"saved":!clear,"cleared":clear}))
 }
@@ -317,7 +311,10 @@ pub(super) async fn store_google(
     account: &str,
     token: &str,
 ) -> Result<(), &'static str> {
-    store_google_with(client_id, account, token, keyring).await
+    store_google_with(client_id, account, token, |key, secret| async {
+        store::put(key, secret).await.map_err(store_error)
+    })
+    .await
 }
 
 async fn store_google_with<F, Fut>(
@@ -327,8 +324,8 @@ async fn store_google_with<F, Fut>(
     mut run: F,
 ) -> Result<(), &'static str>
 where
-    F: FnMut(Vec<String>, Vec<u8>) -> Fut,
-    Fut: std::future::Future<Output = Result<String, &'static str>>,
+    F: FnMut(CredentialKey, Secret) -> Fut,
+    Fut: std::future::Future<Output = Result<(), &'static str>>,
 {
     if client_id.is_empty()
         || client_id.len() > 1024
@@ -343,39 +340,18 @@ where
     {
         return Err("auth_secret_invalid");
     }
-    let old = [
-        "clear",
-        "service",
-        "omamail",
-        "kind",
-        "refresh-token",
-        "client-id",
-        client_id,
-        "account",
-        &account.to_lowercase(),
-    ]
-    .map(str::to_owned)
-    .to_vec();
-    // Match the existing current-grant migration: libsecret may otherwise
-    // replace a pre-grant item while retaining its old attribute set.
-    let _ = run(old, vec![]).await;
-    let args = [
-        "store",
-        "--label=Omamail Google",
-        "service",
-        "omamail",
-        "kind",
-        "refresh-token",
-        "client-id",
-        client_id,
-        "account",
-        &account.to_lowercase(),
-        "grant",
-        "calendar-events-v1",
-    ]
-    .map(str::to_owned)
-    .to_vec();
-    run(args, token.as_bytes().to_vec()).await?;
+    let key = CredentialKey {
+        provider: "gmail".into(),
+        account_id: account.to_lowercase(),
+        kind: CredentialKind::GoogleRefreshToken {
+            client_id: client_id.into(),
+        },
+    };
+    run(
+        key,
+        Secret::new(token.as_bytes().to_vec()).map_err(store_error)?,
+    )
+    .await?;
     Ok(())
 }
 
@@ -391,9 +367,72 @@ pub(super) fn scope(resource: &str) -> Result<&'static str, &'static str> {
     })
 }
 
+async fn persist_outlook_rotation(
+    refresh: &str,
+    token: &Value,
+    key: CredentialKey,
+    read_only: bool,
+) -> Result<(), &'static str> {
+    persist_outlook_rotation_with(refresh, token, key, read_only, |key, secret| async {
+        store::put(key, secret).await.map_err(store_error)
+    })
+    .await
+}
+
+async fn persist_outlook_rotation_with<F, Fut>(
+    refresh: &str,
+    token: &Value,
+    key: CredentialKey,
+    read_only: bool,
+    mut put: F,
+) -> Result<(), &'static str>
+where
+    F: FnMut(CredentialKey, Secret) -> Fut,
+    Fut: std::future::Future<Output = Result<(), &'static str>>,
+{
+    if let Some(rotated) = token["refresh_token"]
+        .as_str()
+        .filter(|s| !s.is_empty() && *s != refresh)
+    {
+        if rotated.len() > 16384 || rotated.chars().any(char::is_control) {
+            return Err("auth_invalid_response");
+        }
+        if read_only {
+            return Ok(());
+        }
+        put(
+            key,
+            Secret::new(rotated.as_bytes().to_vec()).map_err(store_error)?,
+        )
+        .await?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn outlook_readonly_refresh_never_persists_rotated_credentials() {
+        let key = outlook_key("synthetic", "outlook:test@example.org");
+        let token = json!({"refresh_token":"rotated-synthetic"});
+        persist_outlook_rotation_with("old-synthetic", &token, key.clone(), true, |_, _| async {
+            panic!("read-only refresh must never write credentials")
+        })
+        .await
+        .unwrap();
+        let calls = std::sync::Mutex::new(Vec::new());
+        persist_outlook_rotation_with("old-synthetic", &token, key.clone(), false, |key, bytes| {
+            calls.lock().unwrap().push((key, bytes));
+            async { Ok(()) }
+        })
+        .await
+        .unwrap();
+        let calls = calls.lock().unwrap();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].0, key);
+        assert!(calls[0].1.as_slice() == b"rotated-synthetic");
+    }
     #[tokio::test]
     async fn invalidation_waits_for_rotation_without_opening_another_refresh_lane() {
         let account = "outlook:rotation-fixture@example.org";
@@ -439,7 +478,7 @@ mod tests {
         );
     }
     #[tokio::test]
-    async fn google_grant_is_bound_and_secret_is_only_stdin() {
+    async fn google_grant_is_bound_and_secret_is_only_in_memory() {
         let calls = std::sync::Mutex::new(Vec::new());
         let synthetic = "token'\\\"测试";
         store_google_with(
@@ -448,46 +487,24 @@ mod tests {
             synthetic,
             |args, bytes| {
                 calls.lock().unwrap().push((args, bytes));
-                async { Ok(String::new()) }
+                async { Ok(()) }
             },
         )
         .await
         .unwrap();
         let calls = calls.into_inner().unwrap();
-        assert_eq!(calls.len(), 2);
+        assert_eq!(calls.len(), 1);
         assert_eq!(
             calls[0].0,
-            [
-                "clear",
-                "service",
-                "omamail",
-                "kind",
-                "refresh-token",
-                "client-id",
-                "synthetic-client",
-                "account",
-                "user@example.org"
-            ]
+            CredentialKey {
+                provider: "gmail".into(),
+                account_id: "user@example.org".into(),
+                kind: CredentialKind::GoogleRefreshToken {
+                    client_id: "synthetic-client".into()
+                },
+            }
         );
-        assert!(calls[0].1.is_empty());
-        assert_eq!(
-            calls[1].0,
-            [
-                "store",
-                "--label=Omamail Google",
-                "service",
-                "omamail",
-                "kind",
-                "refresh-token",
-                "client-id",
-                "synthetic-client",
-                "account",
-                "user@example.org",
-                "grant",
-                "calendar-events-v1"
-            ]
-        );
-        assert_eq!(calls[1].1, synthetic.as_bytes());
+        assert!(calls[0].1.as_slice() == synthetic.as_bytes());
     }
     #[tokio::test]
     async fn invalid_google_grant_never_invokes_keyring() {

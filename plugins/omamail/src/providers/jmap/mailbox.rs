@@ -17,6 +17,49 @@ pub(super) const BOX_PROPERTIES: &[&str] = &[
     "unreadThreads",
 ];
 pub(super) const MEMBER_PROPERTIES: &[&str] = &["id", "threadId", "mailboxIds", "keywords"];
+const ACTION_ROW_BYTES: usize = 4 * 1024 * 1024;
+
+pub(crate) fn validate_action_id(id: &str) -> Result<(), &'static str> {
+    if id.is_empty()
+        || id.len() > 8192
+        || id.chars().any(|character| {
+            character.is_control()
+                || matches!(
+                    character,
+                    '\u{061c}'
+                        | '\u{200e}'
+                        | '\u{200f}'
+                        | '\u{202a}'..='\u{202e}'
+                        | '\u{2066}'..='\u{2069}'
+                )
+        })
+    {
+        return Err("mail_action_invalid_target");
+    }
+    Ok(())
+}
+
+fn action_id(value: &Value) -> Result<String, &'static str> {
+    let id = value.as_str().ok_or("mail_action_invalid_target")?;
+    validate_action_id(id)?;
+    Ok(id.to_owned())
+}
+
+pub(super) fn action_ids(value: &Value) -> Result<Vec<String>, &'static str> {
+    let values = value.as_array().ok_or("invalid_params")?;
+    if values.is_empty() || values.len() > 1000 {
+        return Err("invalid_params");
+    }
+    let mut ids = Vec::with_capacity(values.len());
+    let mut seen = std::collections::HashSet::new();
+    for value in values {
+        let id = action_id(value)?;
+        if seen.insert(id.clone()) {
+            ids.push(id);
+        }
+    }
+    Ok(ids)
+}
 #[derive(Default)]
 pub(super) struct Context {
     pub(super) rejected: std::sync::atomic::AtomicBool,
@@ -87,6 +130,280 @@ impl Snapshot {
     }
 }
 impl Session {
+    pub(crate) async fn planned_action_availability(
+        &self,
+        account: &str,
+    ) -> Result<crate::mail::action::ActionAvailability, &'static str> {
+        let context = self.context(account)?;
+        let result = tokio::time::timeout(std::time::Duration::from_secs(25), async {
+            if context.rejected.load(std::sync::atomic::Ordering::Acquire) {
+                return Err("jmap_unauthorized");
+            }
+            let snapshot = self.snapshot(account, &context).await?;
+            let value = self.action_availability(&context, &snapshot).await?;
+            Ok(crate::mail::action::ActionAvailability {
+                refusals: value["refusals"].clone(),
+                mailboxes: value["mailboxes"].clone(),
+                mailbox_required: Value::Null,
+                rows_context: value["roles"].clone(),
+            })
+        })
+        .await
+        .unwrap_or(Err("jmap_timeout"));
+        if matches!(result, Err("jmap_unauthorized")) {
+            context
+                .rejected
+                .store(true, std::sync::atomic::Ordering::Release);
+        }
+        result
+    }
+
+    pub(crate) async fn planned_action_rows(
+        &self,
+        account: &str,
+        ids: &[String],
+        roles: &Value,
+        operation: &str,
+    ) -> Result<Vec<Value>, &'static str> {
+        let context = self.context(account)?;
+        let result = tokio::time::timeout(std::time::Duration::from_secs(25), async {
+            if context.rejected.load(std::sync::atomic::Ordering::Acquire) {
+                return Err("jmap_unauthorized");
+            }
+            let snapshot = self.snapshot(account, &context).await?;
+            self.action_rows(&context, &snapshot, ids, roles, operation)
+                .await
+        })
+        .await
+        .unwrap_or(Err("jmap_timeout"));
+        if matches!(result, Err("jmap_unauthorized")) {
+            context
+                .rejected
+                .store(true, std::sync::atomic::Ordering::Release);
+        }
+        result
+    }
+
+    fn action_availability_for(snapshot: &Snapshot, roles: &Value) -> Value {
+        json!({
+            "refusals":{
+                "archive":if string(&roles["archive"]).is_empty(){json!("Archive mailbox unavailable")}else{Value::Null},
+                "spam":if string(&roles["junk"]).is_empty(){json!("Junk mailbox unavailable")}else if !super::mutation::learns_junk(snapshot){json!("This account cannot learn from Junk")}else{Value::Null},
+            },
+            "mailboxes":{
+                "archive":!string(&roles["archive"]).is_empty(),
+                "trash":!string(&roles["trash"]).is_empty(),
+                "spam":!string(&roles["junk"]).is_empty() && super::mutation::learns_junk(snapshot),
+            }
+        })
+    }
+
+    pub(super) async fn action_availability(
+        &self,
+        context: &Context,
+        snapshot: &Snapshot,
+    ) -> Result<Value, &'static str> {
+        let result = self
+            .api(
+                context,
+                snapshot,
+                json!([["Mailbox/get",{"accountId":snapshot.account,"ids":null,"properties":BOX_PROPERTIES},"0"]]),
+                false,
+            )
+            .await?;
+        let boxes = argument(&result, "0", "Mailbox/get")?["list"]
+            .as_array()
+            .ok_or("jmap_invalid_response")?;
+        let roles = query::roles(boxes);
+        let mut availability = Self::action_availability_for(snapshot, &roles);
+        availability["roles"] = roles;
+        Ok(availability)
+    }
+
+    pub(super) async fn action_rows(
+        &self,
+        context: &Context,
+        snapshot: &Snapshot,
+        ids: &[String],
+        roles: &Value,
+        operation: &str,
+    ) -> Result<Vec<Value>, &'static str> {
+        let requested = action_ids(&json!(ids))?;
+        let action = crate::account::model::domain_action(operation)?;
+        let roles = roles.as_object().ok_or("mail_action_invalid_target")?;
+        let roles = Value::Object(roles.clone());
+        let emails = self
+            .get_emails(context, snapshot, &requested, false, true)
+            .await?;
+        let mut by_id = Map::new();
+        for email in emails {
+            let id = action_id(&email["id"])?;
+            if !requested.contains(&id) || by_id.contains_key(&id) {
+                return Err("mail_action_invalid_target");
+            }
+            by_id.insert(id, email);
+        }
+        if by_id.len() != requested.len() {
+            return Err("mail_action_target_unknown");
+        }
+        // A message-scoped action needs only the validated representatives.
+        // Unrelated conversation size and membership cannot prevent starring.
+        if crate::account::model::action_scope(action) == "message" {
+            return Ok(requested.iter().map(|id| json!({"id":id})).collect());
+        }
+        let mut thread_ids = Vec::new();
+        for id in &requested {
+            let thread = action_id(&by_id[id]["threadId"])?;
+            if !thread_ids.contains(&thread) {
+                thread_ids.push(thread);
+            }
+        }
+        let mut members = Map::new();
+        let mut all_member_ids = Vec::new();
+        let mut seen_members = std::collections::HashSet::new();
+        let mut member_bytes = 0usize;
+        let mut member_occurrences = 0usize;
+        for chunk in thread_ids.chunks(snapshot.limit("maxObjectsInGet", 256)) {
+            let result = self
+                .api(
+                    context,
+                    snapshot,
+                    json!([["Thread/get",{"accountId":snapshot.account,"ids":chunk},"0"]]),
+                    false,
+                )
+                .await?;
+            let threads = argument(&result, "0", "Thread/get")?["list"]
+                .as_array()
+                .ok_or("jmap_invalid_response")?;
+            for thread in threads {
+                let id = action_id(&thread["id"])?;
+                if !chunk.contains(&id) || members.contains_key(&id) {
+                    return Err("mail_action_invalid_target");
+                }
+                let values_json = thread["emailIds"]
+                    .as_array()
+                    .ok_or("mail_action_invalid_target")?;
+                if values_json.len() > 2000 {
+                    return Err("mail_action_target_limit");
+                }
+                member_occurrences = member_occurrences.saturating_add(values_json.len());
+                if member_occurrences > 2000 {
+                    return Err("mail_action_target_limit");
+                }
+                let mut values = Vec::with_capacity(values_json.len());
+                for value in values_json {
+                    let raw = value.as_str().ok_or("mail_action_invalid_target")?;
+                    member_bytes = member_bytes.saturating_add(raw.len());
+                    if member_bytes > ACTION_ROW_BYTES {
+                        return Err("jmap_response_too_large");
+                    }
+                    let member = action_id(value)?;
+                    if seen_members.insert(member.clone()) {
+                        if all_member_ids.len() == 2000 {
+                            return Err("mail_action_target_limit");
+                        }
+                        all_member_ids.push(member.clone());
+                    }
+                    values.push(member);
+                }
+                members.insert(id, json!(values));
+            }
+        }
+        if members.len() != thread_ids.len() {
+            return Err("mail_action_target_unknown");
+        }
+        let member_rows = self
+            .get_emails(context, snapshot, &all_member_ids, false, true)
+            .await?;
+        let mut member_by_id = Map::new();
+        for member in member_rows {
+            let id = action_id(&member["id"])?;
+            if !seen_members.contains(&id) || member_by_id.contains_key(&id) {
+                return Err("mail_action_invalid_target");
+            }
+            if !member["mailboxIds"]
+                .as_object()
+                .is_some_and(|mailboxes| mailboxes.values().all(|value| value == true))
+            {
+                return Err("mail_action_invalid_target");
+            }
+            member_by_id.insert(id, member);
+        }
+        if member_by_id.len() != all_member_ids.len() {
+            return Err("mail_action_target_unknown");
+        }
+        // A response has one row per requested representative, so a server can
+        // otherwise make 1,000 representatives of one 2,000-member thread
+        // retain two million copied IDs. Share the expansion per thread/view
+        // and reject the aggregate projection before any row is built.
+        let mut scoped = std::collections::HashMap::<(String, String), (Vec<String>, usize)>::new();
+        let mut output_count = 0usize;
+        let mut output_bytes = 0usize;
+        for id in &requested {
+            let email = by_id.get(id).ok_or("mail_action_target_unknown")?;
+            let thread = action_id(&email["threadId"])?;
+            let raw_member_ids = members.get(&thread).ok_or("mail_action_target_unknown")?;
+            let viewed = if super::resource::in_mailbox(email, string(&roles["junk"])) {
+                string(&roles["junk"])
+            } else if super::resource::in_mailbox(email, string(&roles["trash"])) {
+                string(&roles["trash"])
+            } else {
+                ""
+            };
+            let key = (thread, viewed.to_owned());
+            if !scoped.contains_key(&key) {
+                let mut member_ids = Vec::new();
+                let mut bytes = 0usize;
+                for member in raw_member_ids
+                    .as_array()
+                    .ok_or("mail_action_invalid_target")?
+                {
+                    let member = action_id(member)?;
+                    let member_row = member_by_id
+                        .get(&member)
+                        .ok_or("mail_action_target_unknown")?;
+                    if super::resource::thread_member_visible(member_row, &roles, viewed)
+                        && super::mutation::applies_to_action(
+                            operation,
+                            &roles,
+                            Some(&member_row["mailboxIds"]),
+                        )
+                    {
+                        bytes = bytes.saturating_add(member.len());
+                        member_ids.push(member);
+                    }
+                }
+                scoped.insert(key.clone(), (member_ids, bytes));
+            }
+            let (member_ids, bytes) = scoped.get(&key).ok_or("mail_action_target_unknown")?;
+            output_count = output_count.saturating_add(member_ids.len());
+            output_bytes = output_bytes.saturating_add(*bytes);
+            if output_count > 2000 {
+                return Err("mail_action_target_limit");
+            }
+            if output_bytes > ACTION_ROW_BYTES {
+                return Err("jmap_response_too_large");
+            }
+        }
+        let rows = requested
+            .iter()
+            .map(|id| {
+                let email = by_id.get(id).ok_or("mail_action_target_unknown")?;
+                let thread = action_id(&email["threadId"])?;
+                let viewed = if super::resource::in_mailbox(email, string(&roles["junk"])) {
+                    string(&roles["junk"])
+                } else if super::resource::in_mailbox(email, string(&roles["trash"])) {
+                    string(&roles["trash"])
+                } else {
+                    ""
+                };
+                let member_ids = &scoped[&(thread.clone(), viewed.to_owned())].0;
+                Ok(json!({"id":id,"thread":{"memberIds":member_ids}}))
+            })
+            .collect::<Result<Vec<_>, &'static str>>()?;
+        Ok(rows)
+    }
+
     pub(super) fn context(&self, id: &str) -> Result<Arc<Context>, &'static str> {
         if !id.starts_with("jmap:") || id.len() > 512 {
             return Err("invalid_params");
@@ -146,9 +463,10 @@ impl Session {
             return Ok(snapshot.clone());
         }
         let lookup = id.to_owned();
-        let settings = tokio::task::spawn_blocking(move || crate::auth::settings("jmap", &lookup))
-            .await
-            .map_err(|_| "worker_failed")??;
+        let settings =
+            tokio::task::spawn_blocking(move || crate::auth::settings_readonly("jmap", &lookup))
+                .await
+                .map_err(|_| "worker_failed")??;
         let secret = crate::auth::password("jmap", id).await?;
         let username = settings["jmap"]["username"]
             .as_str()

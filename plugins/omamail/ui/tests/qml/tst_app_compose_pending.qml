@@ -9,13 +9,23 @@ Item {
   QtObject {
     id: recoveryBackend
     property bool ready: false
+    property int apiVersion: 3
     property var requests: []
     function call(method, params, callback) { requests = requests.concat([{method:method,params:params,done:callback}]) }
   }
 
   QtObject {
+    id: recoveryRuntime
+    property string state: "ready"
+    property bool canInstall: false
+    property int requiredApiVersion: 2
+    property int latestApiVersion: 3
+  }
+
+  QtObject {
     id: mailService
     property var backend: recoveryBackend
+    property var backendRuntime: null
 
     property bool hasAgent: true
     property bool agentStarting: false
@@ -70,6 +80,9 @@ Item {
     property string pluginDir: ""
     property string accountEmail: "me@example.com"
     property string activeAccountId: "me@example.com"
+    property string composeAccountId: "me@example.com"
+    function signatureFor(account) { return "My signature" }
+    function accountEmailFor(account) { return "me@example.com" }
     property string mailboxKey: "inbox"
     property string searchQuery: ""
     property string rawQuery: ""
@@ -92,6 +105,8 @@ Item {
     property var calendarController: null
     property var lastSavedDraft: null
     property string lastLoadedAttachmentId: ""
+    property bool deferAttachments: false
+    property var attachmentCallback: null
     property bool failDraftSave: false
     property bool deferDraftSave: false
     property var draftSaveCallbacks: []
@@ -122,6 +137,7 @@ Item {
     }
     function loadAttachments(messageId, attachments, callback) {
       lastLoadedAttachmentId = String(messageId || "")
+      if (deferAttachments) { attachmentCallback = callback; return }
       var listed = Array.isArray(attachments) ? attachments : []
       var loaded = []
       for (var i = 0; i < listed.length; i++) {
@@ -196,7 +212,16 @@ Item {
     }
 
     function init() {
+      mailService.backendRuntime = null
+      app.draftSavedToast = ""
+      app.composeRecoveryNotice = ""
+      app.composeRecoveryUpdateNoticePending = false
+      var exitDialog = named(app, "compose-exit-dialog")
+      if (exitDialog) exitDialog.close()
       recoveryBackend.ready = false
+      recoveryBackend.apiVersion = 3
+      recoveryRuntime.requiredApiVersion = 2
+      recoveryRuntime.latestApiVersion = 3
       recoveryBackend.requests = []
       app.composeWriting = false
       app.composeReading = false
@@ -227,12 +252,16 @@ Item {
       mailService.lastAgentPrompt = ""
       mailService.sending = false
       mailService.lastSavedDraft = null
+      mailService.activeAccountId = "me@example.com"
       mailService.failDraftSave = false
       mailService.deferDraftSave = false
       mailService.draftSaveCallbacks = []
       mailService.lastError = ""
       mailService.actionStatus = ""
       mailService.lastLoadedAttachmentId = ""
+      mailService.pluginDir = ""
+      mailService.deferAttachments = false
+      mailService.attachmentCallback = null
       mailService.mailboxKey = "inbox"
       mailService.detailLoading = false
       mailService.detailPainted = false
@@ -268,12 +297,108 @@ Item {
       compare(recoveryBackend.requests[0].method, "compose.recoveryRead")
       recoveryBackend.requests[0].done({record:{active:false,returnView:"",draft:null,parked:[]},revision:"initial"}, null)
     }
+    function test_edit_history_recovery_waits_for_fixed_api_three() {
+      recoveryBackend.apiVersion = 2
+      recoveryBackend.ready = true
+      mailService.backendRuntime = recoveryRuntime
+      compare(recoveryBackend.requests.length, 0)
+      var record = {version:1,active:true,draft:{userModified:true,body:""}}
+      app.writeComposeRecovery(JSON.stringify(record))
+      compare(recoveryBackend.requests.length, 0, "old backend must not erase an emptied draft")
+      verify(app.composeWriteQueued)
+      verify(app.draftSavedNotice.indexOf("Keep this window open") >= 0)
+      recoveryRuntime.requiredApiVersion = 3
+      app.readComposeRecovery()
+      compare(recoveryBackend.requests.length, 0, "release metadata cannot enable API 3 behavior")
+      recoveryBackend.apiVersion = 3
+      tryCompare(recoveryBackend.requests, "length", 1)
+      lastNativeRequest("compose.recoveryRead").done({record:{active:false},revision:"initial"}, null)
+      var saved = lastNativeRequest("compose.recoverySave")
+      verify(saved !== null)
+      compare(saved.params.record.draft.userModified, true)
+      compare(saved.params.record.draft.body, "")
+      saved.done({record:saved.params.record,revision:"next"}, null)
+      compare(app.draftSavedNotice, "", "the update notice clears only after recovery is durable")
+      recoveryRuntime.latestApiVersion = 4
+      app.writeComposeRecovery(JSON.stringify(record))
+      verify(lastNativeRequest("compose.recoverySave") !== saved, "later APIs must not disable API 3 recovery")
+    }
     function lastNativeRequest(method) {
       for (var i = recoveryBackend.requests.length - 1; i >= 0; i--) if (recoveryBackend.requests[i].method === method) return recoveryBackend.requests[i]
       return null
     }
+    function test_offline_recovery_warns_on_old_backend_connection_data() {
+      return [{tag:"api-three",api:3},{tag:"later-api",api:4}]
+    }
+    function test_offline_recovery_warns_on_old_backend_connection(data) {
+      recoveryBackend.apiVersion = 0
+      var record = {version:1,active:true,draft:{userModified:true,body:"Offline edit"}}
+      var raw = JSON.stringify(record)
+      app.writeComposeRecovery(raw)
+      verify(app.composeWriteQueued)
+      compare(recoveryBackend.requests.length, 0)
+      compare(app.draftSavedNotice, "")
+
+      recoveryBackend.apiVersion = 2
+      compare(app.draftSavedNotice, "", "disconnected version metadata alone cannot report a connection")
+      recoveryBackend.ready = true
+      verify(app.draftSavedNotice.indexOf("Keep this window open") >= 0,
+        "connecting an old backend must warn about the pending recovery")
+      compare(recoveryBackend.requests.length, 0)
+      verify(app.composeWriteQueued)
+      compare(app.composeWritePayload, raw)
+
+      recoveryBackend.ready = false
+      recoveryBackend.apiVersion = data.api
+      recoveryBackend.ready = true
+      tryCompare(recoveryBackend.requests, "length", 1)
+      lastNativeRequest("compose.recoveryRead").done({record:{active:false},revision:"initial"}, null)
+      var saved = lastNativeRequest("compose.recoverySave")
+      verify(saved !== null)
+      compare(saved.params.record, record)
+      verify(app.draftSavedNotice.indexOf("Keep this window open") >= 0,
+        "connecting a capable backend does not itself persist the draft")
+      saved.done({record:saved.params.record,revision:"durable"}, null)
+      compare(app.composeWriteQueued, false)
+      compare(app.composeWritePayload, "")
+      compare(app.composeRecovery, record)
+      compare(app.draftSavedNotice, "")
+    }
     function recoveredPending() {
       return {version:1,active:true,returnView:"list",draft:{body:"Recovered queued message",accountId:"me@example.com",pendingSendId:"receipt-one"},parked:[]}
+    }
+    function test_recovery_update_notice_survives_saved_toast_timeout() {
+      app.startCompose("new")
+      named(composeView(), "compose-subject-field").text = "Prior saved draft"
+      app.saveAndLeaveCompose(true)
+      verify(mailService.lastSavedDraft !== null)
+      compare(app.draftSavedNotice, "Draft saved")
+      var priorRequests = recoveryBackend.requests.length
+
+      recoveryBackend.apiVersion = 2
+      recoveryBackend.ready = true
+      var record = {version:1,active:true,draft:{userModified:true,body:"Keep this draft"}}
+      var raw = JSON.stringify(record)
+      app.writeComposeRecovery(raw)
+      var warning = app.draftSavedNotice
+      verify(warning.indexOf("Keep this window open") >= 0)
+      wait(4200)
+      compare(app.draftSavedNotice, warning, "the prior save's timer cannot dismiss a recovery warning")
+      compare(recoveryBackend.requests.length, priorRequests, "the old connection receives no recovery RPC")
+      verify(app.composeWriteQueued)
+      compare(app.composeWritePayload, raw)
+
+      recoveryBackend.apiVersion = 3
+      tryCompare(recoveryBackend.requests, "length", priorRequests + 1)
+      lastNativeRequest("compose.recoveryRead").done({record:{active:false},revision:"initial"}, null)
+      var saved = lastNativeRequest("compose.recoverySave")
+      verify(saved !== null)
+      compare(saved.params.record, record)
+      compare(app.draftSavedNotice, warning)
+      saved.done({record:saved.params.record,revision:"durable"}, null)
+      compare(app.composeWriteQueued, false)
+      compare(app.composeWritePayload, "")
+      compare(app.draftSavedNotice, "")
     }
     function test_sent_receipt_is_not_restored_and_is_acknowledged_only_after_durable_save() {
       recoveryBackend.ready = true
@@ -621,17 +746,364 @@ Item {
       compare(named(compose, "compose-body-editor").text, "Second message")
     }
 
-    function test_escape_saves_a_nonempty_compose_before_closing_it() {
+    function test_untouched_reply_leaves_without_saving() {
+      app.open("{}")
+      app.cursorId = "message-1"
+      app.runShortcut("reply", "R")
       var compose = composeView()
+      verify(compose.opened)
+      var request = lastNativeRequest("message.composeText")
+      verify(request !== null)
+      request.done({body:"My signature\n\n> Original body",quote:"> Original body",replySubject:"Re: Original subject"}, null)
+      compare(named(compose, "compose-body-editor").text, "My signature\n\n> Original body")
+      mailService.deferDraftSave = true
+      app.goBack()
+      compare(compose.opened, false, "an untouched prefilled reply leaves immediately")
+      compare(mailService.draftSaveCallbacks.length, 0, "prefill is not a user edit")
+    }
+
+    function editField(compose, fieldName) {
+      var field = named(compose, fieldName)
+      field.forceActiveFocus()
+      keyClick(Qt.Key_X)
+    }
+
+    function test_untouched_forward_hydration_is_not_an_edit() {
+      mailService.deferAttachments = true
+      mailService.selectedAttachments = [{filename:"original.txt",data:"eA",size:1}]
+      app.startCompose("forward")
+      var compose = composeView()
+      compare(compose.forwardAttachmentsLoading,true)
+      wait(0)
+      mailService.attachmentCallback([{filename:"original.txt",data:"eA",size:1}],"")
+      lastNativeRequest("message.composeText").done({body:"My signature\n> Body",quote:"> Body"},null)
+      compare(compose.forwardedAttachments.length, 1)
+      compare(compose.userModified, false)
+      app.goBack()
+      compare(compose.opened, false)
+      compare(mailService.lastSavedDraft, null)
+    }
+
+    function test_user_actions_prompt_data() {
+      return [
+        {tag:"sender"}, {tag:"acceptTo"}, {tag:"acceptCc"}, {tag:"acceptBcc"},
+        {tag:"contacts"}, {tag:"cc"}, {tag:"bcc"}, {tag:"reply-to"},
+        {tag:"attach"}, {tag:"remove"}, {tag:"replaceBody"}, {tag:"insertAtCursor"}
+      ]
+    }
+    function test_user_actions_prompt(data) {
+      app.open("{}")
+      app.startCompose("new")
+      var compose = composeView()
+      wait(0)
+      if (data.tag === "sender") compose.chooseFrom({email:"alias@example.com"})
+      else if (data.tag.indexOf("accept") === 0) compose[data.tag]({email:"contact@example.com",name:"Contact"})
+      else if (data.tag === "contacts") named(compose,"compose-contacts-picker").contactChosen({email:"contact@example.com"},"to")
+      else if (data.tag === "attach") compose.finishAttach("read", JSON.stringify({ok:true,filename:"notes.txt",data:"eA",size:1}))
+      else if (data.tag === "remove") {
+        compose.draftAttachments = [{filename:"notes.txt",data:"eA",size:1}]
+        compose.removeAttachment(0)
+      } else if (data.tag === "replaceBody" || data.tag === "insertAtCursor") compose[data.tag]("AI edit")
+      else named(compose,"compose-" + data.tag + "-toggle").clicked()
+      compare(compose.userModified, true)
+      app.goBack()
+      var dialog = named(app,"compose-exit-dialog")
+      verify(dialog)
+      compare(dialog.opened, true)
+      dialog.discard()
+      compare(compose.opened, false)
+      compare(compose.userModified, false)
+      compare(mailService.lastSavedDraft, null)
+    }
+
+    function test_exit_dialog_keyboard_data() {
+      return [{tag:"save",key:Qt.Key_Tab,tabs:0},
+        {tag:"cancel",key:Qt.Key_Tab,tabs:1},
+        {tag:"discard",key:Qt.Key_Backtab,tabs:1}]
+    }
+    function test_exit_dialog_keyboard(data) {
+      app.open("{}")
+      app.startCompose("new")
+      var compose = composeView()
+      wait(0)
+      editField(compose,"compose-subject-field")
+      keyClick(Qt.Key_Escape)
+      var dialog = named(app,"compose-exit-dialog")
+      verify(dialog)
+      tryCompare(dialog,"opened",true)
+      wait(0)
+      for (var i = 0; i < data.tabs; i++) keyClick(data.key, data.key === Qt.Key_Backtab ? Qt.ShiftModifier : Qt.NoModifier)
+      keyClick(Qt.Key_Return)
+      tryCompare(dialog,"opened",false)
+      compare(compose.opened, data.tag === "cancel")
+      compare(mailService.lastSavedDraft !== null, data.tag === "save")
+    }
+
+    function test_popup_escape_restores_compose_focus_and_content() {
+      app.open("{}")
+      app.startCompose("new")
+      var compose = composeView()
+      wait(0)
+      editField(compose,"compose-subject-field")
+      var before = compose.snapshotDraft()
+      keyClick(Qt.Key_Escape)
+      var dialog = named(app,"compose-exit-dialog")
+      verify(dialog)
+      tryCompare(dialog,"opened",true)
+      keyClick(Qt.Key_Escape)
+      tryCompare(dialog,"opened",false)
+      compare(compose.opened,true)
+      compare(compose.snapshotDraft(),before)
+      tryCompare(named(compose,"compose-subject-field"),"activeFocus",true)
+      compare(mailService.lastSavedDraft,null)
+    }
+
+    function test_explicit_save_failure_restores_dirty_snapshot() {
+      app.open("{}")
+      app.startCompose("new")
+      var compose = composeView()
+      wait(0)
+      editField(compose,"compose-body-editor")
+      var before = compose.snapshotDraft()
+      mailService.deferDraftSave = true
+      app.goBack()
+      var dialog = named(app,"compose-exit-dialog")
+      verify(dialog)
+      dialog.save()
+      compare(mailService.draftSaveCallbacks.length,1)
+      mailService.finishDraftSave(0,"server refused it")
+      compare(compose.opened,true)
+      compare(compose.snapshotDraft(),before)
+      compare(compose.userModified,true)
+      app.goBack()
+      compare(dialog.opened,true)
+    }
+
+    function test_explicit_save_with_unavailable_service_keeps_draft() {
+      app.open("{}")
+      app.startCompose("new")
+      var compose = composeView()
+      wait(0)
+      editField(compose,"compose-body-editor")
+      var before = compose.snapshotDraft()
+      app.goBack()
+      try {
+        app.service = null
+        named(app,"compose-exit-dialog").save()
+        compare(compose.opened,true)
+        compare(compose.snapshotDraft(),before)
+      } finally { app.service = mailService }
+    }
+
+    function test_exit_choice_cannot_act_on_a_restored_send_data() {
+      return [{tag:"save"},{tag:"discard"},{tag:"cancel"},
+        {tag:"saveRequested"},{tag:"discardRequested"}]
+    }
+    function test_exit_choice_cannot_act_on_a_restored_send(data) {
+      app.open("{}")
+      app.startCompose("new")
+      var compose = composeView()
+      named(compose,"compose-to-field").text = "first@example.com"
+      named(compose,"compose-subject-field").text = "Queued A"
+      wait(0)
+      editField(compose,"compose-body-editor")
+      var first = compose.snapshotDraft()
+      compose.submit()
+
+      app.startCompose("new")
+      named(compose,"compose-subject-field").text = "Edited B"
+      wait(0)
+      editField(compose,"compose-body-editor")
+      var second = compose.snapshotDraft()
+      app.goBack()
+      var dialog = named(app,"compose-exit-dialog")
+      compare(dialog.opened,true)
+      mailService.deferDraftSave = true
+      mailService.replyFailed()
+      compare(compose.snapshotDraft(),first,"the failed send restores A")
+      compare(dialog.opened,false,"restoring A immediately invalidates B's choice")
+      compare(compose.interruptedDraft,second,"B remains held until its save succeeds")
+      compare(mailService.draftSaveCallbacks.length,1)
+      compare(mailService.lastSavedDraft.subject,"Edited B")
+
+      dialog[data.tag](second.draftKey)
+      compare(compose.snapshotDraft(),first,"B's old dialog cannot discard or save A")
+      compare(compose.opened,true)
+      compare(dialog.opened,false,"replacement invalidates the open choice")
+      compare(mailService.draftSaveCallbacks.length,1,"only displaced B is saved")
+      mailService.finishDraftSave(0,"server refused it")
+      compare(compose.interruptedDraft,second)
+      compose.finish()
+      compare(compose.snapshotDraft(),second,"B stays reachable through the existing recovery path")
+    }
+
+    function test_exit_choice_is_invalidated_by_compose_lifecycle_data() {
+      return [{tag:"begin"},{tag:"beginDraft"},{tag:"clear"},{tag:"account"},{tag:"window"}]
+    }
+    function test_exit_choice_is_invalidated_by_compose_lifecycle(data) {
+      app.open("{}")
+      app.startCompose("new")
+      var compose = composeView()
+      wait(0)
+      editField(compose,"compose-body-editor")
+      app.goBack()
+      var dialog = named(app,"compose-exit-dialog")
+      compare(dialog.opened,true)
+      if (data.tag === "begin") app.startCompose("new")
+      else if (data.tag === "beginDraft") compose.beginDraft({subject:"Replacement",body:"Preserve this"})
+      else if (data.tag === "clear") compose.clearCurrentDraft(true)
+      else if (data.tag === "window") app.close()
+      else mailService.activeAccountId = "other@example.com"
+      compare(dialog.opened,false)
+      var current = compose.snapshotDraft()
+      dialog.discard()
+      dialog.save()
+      dialog.cancel()
+      compare(compose.opened,true)
+      compare(compose.snapshotDraft(),current)
+      compare(mailService.lastSavedDraft,null)
+    }
+
+    function test_emptied_provider_draft_can_be_explicitly_saved() {
+      app.open("{}")
+      var compose = composeView()
+      compose.beginDraft({mode:"draft",subject:"Remove me"},"draft-empty",[])
+      wait(0)
+      var subject = named(compose,"compose-subject-field")
+      subject.forceActiveFocus()
+      subject.selectAll()
+      keyClick(Qt.Key_Backspace)
+      app.goBack()
+      var dialog = named(app,"compose-exit-dialog")
+      verify(dialog)
+      compare(dialog.opened,true)
+      dialog.save()
+      compare(mailService.lastSavedDraft.draftId,"draft-empty")
+      compare(mailService.lastSavedDraft.subject,"")
+      compare(compose.opened,false)
+    }
+
+    function test_dirty_snapshot_restoration_and_fresh_compose_reset() {
+      var compose = composeView()
+      compose.restoreDraft({subject:"Recovered old format"})
+      compare(compose.userModified,true)
+      compose.finish()
+      app.startCompose("new")
+      compare(compose.userModified,false)
+      app.goBack()
+      compare(compose.opened,false)
+      compare(mailService.lastSavedDraft,null)
+    }
+
+    function test_bottom_discard_exits_immediately_without_prompt() {
+      app.open("{}")
+      app.startCompose("new")
+      var compose = composeView()
+      wait(0)
+      editField(compose,"compose-body-editor")
+      named(compose,"compose-discard-button").clicked()
+      compare(compose.opened,false)
+      compare(named(app,"compose-exit-dialog").opened,false)
+      compare(mailService.lastSavedDraft,null)
+    }
+
+    function test_late_attachment_cannot_modify_the_next_compose() {
+      app.open("{}")
+      app.startCompose("new")
+      var compose = composeView()
+      mailService.pluginDir = "/synthetic-plugin"
+      recoveryBackend.ready = true
+      compose.enqueueAttach("read","/synthetic-attachment")
+      var request = lastNativeRequest("attachment.read")
+      verify(request !== null)
+      compose.finish()
+      app.startCompose("new")
+      request.done({ok:true,filename:"old-draft.txt",data:"eA",size:1},null)
+      compare(compose.draftAttachments.length,0,"a completion belongs to the draft that requested it")
+      compare(compose.userModified,false)
+      app.goBack()
+      compare(compose.opened,false)
+      compare(mailService.lastSavedDraft,null)
+    }
+
+    function test_late_attachment_helper_results_stay_with_their_draft_data() {
+      return [
+        {tag:"picker",mode:"pick",result:{ok:true,paths:["/synthetic-old-file"]}},
+        {tag:"clipboard-files",mode:"clipboard",result:{ok:true,paths:["/synthetic-old-file"]}},
+        {tag:"clipboard-text",mode:"clipboard",result:{ok:false,error:"no-image"}},
+        {tag:"clipboard-image",mode:"clipboard",result:{ok:true,path:"/synthetic-old-image",data:"eA",filename:"old.png",size:1}}
+      ]
+    }
+    function test_late_attachment_helper_results_stay_with_their_draft(data) {
+      app.startCompose("new")
+      var compose = composeView()
+      var owner = compose.draftKey
+      compose.finish()
+      app.startCompose("new")
+      recoveryBackend.ready = true
+      mailService.pluginDir = "/synthetic-plugin"
+      compose.pasteInFlight = true
+      compose.finishAttach(data.mode,JSON.stringify(data.result),owner)
+      compare(compose.draftAttachments.length,0)
+      compare(compose.userModified,false)
+      compare(compose.pasteInFlight,true,"an old clipboard answer cannot finish the next draft's paste")
+      compare(lastNativeRequest("attachment.read"),null)
+      if (data.tag === "clipboard-image") {
+        verify(lastNativeRequest("attachment.forget") !== null)
+        compare(lastNativeRequest("attachment.forget").params.path,"/synthetic-old-image")
+        lastNativeRequest("attachment.forget").done({ok:true},null)
+      }
+    }
+
+    function test_modified_fields_prompt_data() {
+      return [
+        {tag:"to",field:"compose-to-field"},
+        {tag:"cc",field:"compose-cc-field"},
+        {tag:"bcc",field:"compose-bcc-field"},
+        {tag:"replyTo",field:"compose-reply-to-field"},
+        {tag:"subject",field:"compose-subject-field"},
+        {tag:"body",field:"compose-body-editor"}
+      ]
+    }
+    function test_modified_fields_prompt(data) {
+      app.open("{}")
+      app.startCompose("new")
+      var compose = composeView()
+      compose.ccVisible = true
+      compose.bccVisible = true
+      compose.replyToVisible = true
+      wait(0)
+      editField(compose, data.field)
+      compare(compose.userModified, true)
+      app.goBack()
+      compare(compose.opened, true)
+      var dialog = named(app, "compose-exit-dialog")
+      verify(dialog)
+      compare(dialog.opened, true)
+      compare(mailService.lastSavedDraft, null)
+      dialog.cancel()
+      compare(compose.opened, true)
+    }
+
+    function test_escape_prompts_then_explicit_save_closes_it() {
+      var compose = composeView()
+      app.open("{}")
       app.startCompose("new")
       named(compose, "compose-subject-field").text = "Quarterly plan"
       named(compose, "compose-body-editor").text = "First draft"
+      wait(0)
+      editField(compose, "compose-subject-field")
 
       app.goBack()
+      compare(compose.opened, true)
+      var dialog = named(app, "compose-exit-dialog")
+      verify(dialog)
+      compare(dialog.opened, true)
+      dialog.save()
 
       verify(mailService.lastSavedDraft,
         "Escape must hand the composition to the provider's Drafts storage")
-      compare(mailService.lastSavedDraft.subject, "Quarterly plan")
+      compare(mailService.lastSavedDraft.subject, "Quarterly planx")
       compare(mailService.lastSavedDraft.body, "First draft")
       compare(app.composing, false)
       compare(app.draftSavedNotice, "Draft saved")
@@ -643,11 +1115,11 @@ Item {
 
       app.startCompose("new")
       named(compose, "compose-body-editor").text = "First draft"
-      app.goBack()
+      app.saveAndLeaveCompose()
 
       app.startCompose("new")
       named(compose, "compose-body-editor").text = "Second draft"
-      app.goBack()
+      app.saveAndLeaveCompose()
       compare(mailService.draftSaveCallbacks.length, 2)
       compare(app.composeRecovery.draft.body, "Second draft")
 
@@ -664,10 +1136,10 @@ Item {
 
       app.startCompose("new")
       named(compose, "compose-body-editor").text = "First draft"
-      app.goBack()
+      app.saveAndLeaveCompose()
       app.startCompose("new")
       named(compose, "compose-body-editor").text = "Second draft"
-      app.goBack()
+      app.saveAndLeaveCompose()
 
       mailService.finishDraftSave(0, "server refused it")
       compare(app.composeRecovery.draft.body, "Second draft",
@@ -745,8 +1217,14 @@ Item {
       compare(compose.draftAttachments.length, 1)
       compare(compose.draftAttachments[0].filename, "plan.txt")
 
-      named(compose, "compose-subject-field").text = "Updated subject"
       app.goBack()
+      compare(compose.opened, false)
+      compare(mailService.lastSavedDraft, null, "an unchanged provider draft is not rewritten")
+      compose.beginDraft({mode:"draft", subject:"Saved subject", body:"Saved body"}, "draft-7", [])
+      named(compose, "compose-subject-field").text = "Updated subject"
+      compose.noteUserModified()
+      app.goBack()
+      named(app, "compose-exit-dialog").save()
 
       verify(mailService.lastSavedDraft)
       compare(mailService.lastSavedDraft.draftId, "draft-7",
