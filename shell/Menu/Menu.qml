@@ -219,7 +219,10 @@ PanelWindow {
         },
         {
             "key": "i", "label": "AI & Agents", "description": "Agents, models, projects, sessions, and usage", "icon": Icons.cp(0xF1218),
-            "run": () => Runtime.agentCenterOpen = true
+            "sub": [
+                { "key": "a", "label": "Agent Center", "description": "Agents, projects, sessions, and usage", "icon": Icons.cp(0xF1218), "run": () => Runtime.agentCenterOpen = true },
+                { "key": "o", "label": "Install / Open OpenClaw", "description": "Local AI workspace with subscription sign-in", "icon": Icons.download, "run": () => root.term("nbshell openclaw install") }
+            ]
         },
         {
             "key": "m", "label": "Media & Capture", "description": "Media controls, screenshots, recording, OCR, and audio tools", "icon": Icons.camera,

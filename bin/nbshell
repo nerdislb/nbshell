@@ -487,6 +487,8 @@ nbshell -- an independent Quickshell desktop shell for Umbriel
   nbshell clip              clipboard history (toggle, list, clear)
   nbshell cal               calendar (also: next, sync, status)
   nbshell gaming status     show installed and available gaming tools
+  nbshell openclaw install  install local OpenClaw with subscription sign-in
+  nbshell openclaw open     open the existing OpenClaw dashboard
   nbshell gaming install <item>
                             install an optional gaming tool
   nbshell gaming remove <item>
@@ -1052,6 +1054,9 @@ for b in d["binds"]:
         ;;
     gaming|games)
         bash "$GAMING_TOOL" "${1:-status}" "${2:-}"
+        ;;
+    openclaw)
+        python3 "${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/openclaw-setup.py" "${1:-install}"
         ;;
     layout)
         case "${1:-toggle}" in
