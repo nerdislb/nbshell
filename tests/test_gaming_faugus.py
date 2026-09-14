@@ -32,6 +32,21 @@ class GamingTests(unittest.TestCase):
         self.env.stop()
         self.tmp.cleanup()
 
+    def test_window_query_reports_missing_runtime_library(self):
+        result = Mock(returncode=127, stderr='libtomlplusplus.so.3: cannot open shared object file')
+        with patch.object(gaming.subprocess, 'run', return_value=result):
+            with self.assertRaisesRegex(RuntimeError, 'libtomlplusplus'):
+                gaming.desktop_windows()
+
+    def test_window_query_rejects_invalid_shape(self):
+        with patch.object(gaming.subprocess, 'run', return_value=Mock(returncode=0, stdout='{}')):
+            with self.assertRaisesRegex(RuntimeError, 'Cannot query Umbriel'):
+                gaming.desktop_windows()
+
+    def test_window_query_accepts_empty_desktop(self):
+        with patch.object(gaming.subprocess, 'run', return_value=Mock(returncode=0, stdout='[]')):
+            self.assertEqual(gaming.desktop_windows(), [])
+
     def test_private_environment_removes_wayland(self):
         with patch.dict(os.environ, WAYLAND_DISPLAY='wayland-0'):
             env = gaming.environment(self.paths, Mock(env={'DISPLAY': ':97', 'XAUTHORITY': '/tmp/auth'}))

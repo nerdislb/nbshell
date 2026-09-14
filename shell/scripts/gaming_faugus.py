@@ -308,9 +308,15 @@ def install(store, paths):
 def desktop_windows():
     try:
         result = subprocess.run(['umbriel', 'windows', '--json'], capture_output=True, text=True, timeout=3)
-        return json.loads(result.stdout) if result.returncode == 0 else []
-    except (OSError, ValueError, subprocess.TimeoutExpired):
-        return []
+        if result.returncode:
+            detail = result.stderr.strip()[:400]
+            raise RuntimeError('Cannot query Umbriel windows. Repair the compositor command before launching. ' + detail)
+        windows = json.loads(result.stdout)
+        if not isinstance(windows, list) or not all(isinstance(w, dict) for w in windows):
+            raise ValueError('unexpected window response')
+        return windows
+    except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+        raise RuntimeError('Cannot query Umbriel windows. Check the desktop session and compositor installation.') from error
 
 
 def launch(store, paths):
