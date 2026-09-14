@@ -250,7 +250,7 @@ PanelWindow {
                 { "key": "i", "label": "Install", "icon": Icons.download, "sub": [
                     { "key": "s", "label": "Steam", "icon": "", "run": () => root.term("nbshell gaming install steam") },
                     { "key": "r", "label": "RetroArch", "icon": "󰯉", "run": () => root.term("nbshell gaming install retroarch") },
-                    { "key": "m", "label": "Minecraft", "icon": "󰍳", "run": () => root.term("nbshell gaming install minecraft") },
+                    { "key": "m", "label": "Minecraft", "icon": "󰍳", "run": () => Quickshell.execDetached(["nbshell", "gaming", "install", "minecraft"]) },
                     { "key": "n", "label": "NVIDIA GeForce NOW", "icon": "󰢹", "run": () => root.term("nbshell gaming install geforce-now") },
                     { "key": "x", "label": "Xbox Cloud Gaming", "icon": "", "run": () => root.term("nbshell gaming install xbox-cloud") },
                     { "key": "c", "label": "Xbox Controllers", "icon": "󰂯", "run": () => root.term("nbshell gaming install xbox-controllers") },

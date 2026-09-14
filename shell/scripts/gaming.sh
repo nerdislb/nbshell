@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
 # Optional gaming setup for Arch Linux. Every mutating action is started by an
-# explicit menu choice and confirmed again here in the terminal.
+# explicit menu choice. Native package authentication remains visible when needed.
 set -euo pipefail
 
 ACTION="${1:-status}"
 ITEM="${2:-}"
 APP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+
+# Minecraft installs natively, using the same progress surface without auto-launch.
+if [[ "$ITEM" == "minecraft" && "$ACTION" == "install" ]]; then
+    export NBSHELL_GAMING_STORE=minecraft NBSHELL_GAMING_ACTION=install
+    exec "$(command -v qs || command -v quickshell)" -p "$(dirname "${BASH_SOURCE[0]}")/../GamingSetup.qml"
+fi
 
 # Windows stores use one background worker; native games retain their own setup.
 if [[ "$ITEM" =~ ^(battlenet|gog|epic)$ ]]; then
@@ -49,33 +55,13 @@ minecraft_instance() {
 }
 
 write_minecraft_desktop() {
-    local instance icon="org.prismlauncher.PrismLauncher"
-    mkdir -p "$APP_DIR"
-    instance="$(minecraft_instance 2>/dev/null || true)"
-    if [[ -n "$instance" ]]; then
-        local candidate="${XDG_DATA_HOME:-$HOME/.local/share}/PrismLauncher/instances/$instance/minecraft/icon.png"
-        [[ -f "$candidate" ]] && icon="$candidate"
-    fi
-    cat >"$APP_DIR/nbshell-minecraft.desktop" <<EOF
-[Desktop Entry]
-Type=Application
-Name=Minecraft
-Comment=Launch the selected Minecraft instance directly
-Exec=nbshell gaming launch minecraft
-Icon=$icon
-Terminal=false
-Categories=Game;
-Keywords=minecraft;game;prism;
-StartupNotify=true
-EOF
-    command -v update-desktop-database >/dev/null && update-desktop-database "$APP_DIR" || true
+    python3 "$(dirname "${BASH_SOURCE[0]}")/gaming_minecraft.py" desktop
 }
 
 launch_minecraft() {
     command -v prismlauncher >/dev/null 2>&1 || die "Install Minecraft from the nbshell Gaming menu first."
     local instance
     instance="$(minecraft_instance 2>/dev/null || true)"
-    write_minecraft_desktop
     if [[ -z "$instance" ]]; then
         note "Create or import a Minecraft instance once. Future launches will start it directly."
         exec prismlauncher
@@ -146,7 +132,7 @@ label() {
 installed() {
     case "$1" in
         steam|retroarch|lutris) have_pkg "$1" ;;
-        minecraft) have_pkg minecraft-launcher || have_pkg prismlauncher ;;
+        minecraft) have_pkg prismlauncher ;;
         heroic) have_pkg heroic-games-launcher-bin || have_pkg heroic-games-launcher ;;
         geforce-now) have_flatpak com.nvidia.geforcenow ;;
         xbox-cloud) [[ -f "$APP_DIR/nbshell-xbox-cloud.desktop" ]] ;;
@@ -176,17 +162,6 @@ install_item() {
                 libretro-mupen64plus-next libretro-beetle-psx-hw libretro-flycast \
                 libretro-ppsspp libretro-mame
             mkdir -p "$HOME/Games/roms" "$HOME/Games/bios"
-            ;;
-        minecraft)
-            # Prism is open source and maintained on Arch; it supports Microsoft
-            # accounts and avoids depending on Mojang's AUR-only legacy launcher.
-            install_packages prismlauncher jre21-openjdk
-            write_minecraft_desktop
-            note "Minecraft now appears in the app search and launches the selected instance directly."
-            if ! minecraft_instance >/dev/null 2>&1; then
-                note "Prism will open once so you can sign in and create or import your Minecraft instance."
-                setsid -f prismlauncher >/dev/null 2>&1 || true
-            fi
             ;;
         lutris)
             read -r -a gpu <<<"$(gpu_lib32_packages)"

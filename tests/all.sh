@@ -56,6 +56,7 @@ run python3 tests/test_openclaw_setup.py
 run python3 tests/test_mail_upgrade.py
 run python3 tests/test_battlenet.py
 run python3 tests/test_gaming_faugus.py
+run python3 tests/test_gaming_minecraft.py
 run python3 tests/test_fork_updates.py
 run python3 tests/test_theme_maker.py
 run node tests/theme-maker-palette.cjs

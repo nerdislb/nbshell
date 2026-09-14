@@ -10,7 +10,7 @@ import qs.Widgets
 ShellRoot {
     id: root
     readonly property string store: Quickshell.env("NBSHELL_GAMING_STORE") || "battlenet"
-    readonly property string workerPath: decodeURIComponent(Qt.resolvedUrl("scripts/gaming_faugus.py").toString().replace("file://", ""))
+    readonly property string workerPath: decodeURIComponent(Qt.resolvedUrl(root.store === "minecraft" ? "scripts/gaming_minecraft.py" : "scripts/gaming_faugus.py").toString().replace("file://", ""))
     property string action: Quickshell.env("NBSHELL_GAMING_ACTION") || "install"
     property string phase: "checking"
     property string message: "Preparing gaming setup…"
@@ -18,7 +18,7 @@ ShellRoot {
     property bool cancelling: false
     property string jobToken: ""
     readonly property bool busy: worker.running
-    readonly property string storeTitle: ({battlenet: "Battle.net", gog: "GOG Galaxy", epic: "Epic Games"})[store] || "Gaming"
+    readonly property string storeTitle: ({battlenet: "Battle.net", gog: "GOG Galaxy", epic: "Epic Games", minecraft: "Minecraft"})[store] || "Gaming"
 
     function cancel() {
         if (!root.busy) { Qt.quit(); return; }
@@ -45,7 +45,7 @@ ShellRoot {
                     if (!root.cancelling) root.message = event.message;
                     root.detail = event.total > 0
                         ? Math.floor(event.received * 100 / event.total) + "% downloaded"
-                        : "";
+                        : (event.detail || "");
                 } catch (error) { /* Ignore non-protocol library output. */ }
             }
         }
@@ -59,8 +59,8 @@ ShellRoot {
                 root.phase = "error";
                 root.message = "Setup stopped unexpectedly. See the gaming install log.";
             }
-            root.detail = "";
-            if (exitCode === 0 && root.action === "install" && root.phase === "done") {
+            if (root.phase !== "done") root.detail = "";
+            if (exitCode === 0 && root.action === "install" && root.phase === "done" && root.store !== "minecraft") {
                 Qt.callLater(() => {
                     root.action = "launch";
                     root.jobToken = "";
