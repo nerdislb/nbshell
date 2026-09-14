@@ -85,6 +85,9 @@ run python3 tests/hermarchy-theme.py
 run python3 tests/cli-consistency.py
 run python3 -m unittest discover -s tests/accessibility -p 'test_*.py'
 run bash tests/calendar-backend.sh
+run python3 plugins/calendar/tests/test_backend.py
+run bash plugins/calendar/tests/run-ui.sh
+run python3 plugins/calendar/tests/smoke.py
 run bash tests/release-audit.sh
 run python3 tests/release-gate.py
 
