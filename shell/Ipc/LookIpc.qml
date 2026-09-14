@@ -80,6 +80,7 @@ Scope {
             // Fehler woanders.
             if (!ThemeIndex.byName(name))
                 return "unknown theme: " + name;
+            Theme.resetDesktopPreview();
             Config.set("theme", name);
             return name;
         }
@@ -232,6 +233,21 @@ Scope {
 
     IpcHandler {
         target: "themes"
+
+        function preview(payload: string): string {
+            try {
+                const draft = JSON.parse(payload);
+                if (!draft.palette || !["background", "foreground", "accent"].every(key => /^#[0-9a-fA-F]{6}$/.test(draft.palette[key])))
+                    return "Invalid preview palette";
+                Theme.applyDesktopPreview(draft.palette, draft.wallpaper || null);
+                return "preview applied";
+            } catch (error) { return "Invalid preview: " + error; }
+        }
+
+        function resetPreview(): string {
+            Theme.resetDesktopPreview();
+            return "preview reset";
+        }
 
         function list(): string {
             return ThemeIndex.list.map(t => (t.name === Config.theme ? " * " : "   ") + t.name).join("\n");

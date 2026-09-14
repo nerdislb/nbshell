@@ -37,6 +37,7 @@ Singleton {
     }
 
     function apply(name) {
+        Theme.resetDesktopPreview();
         Config.set("theme", name);
     }
 

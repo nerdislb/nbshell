@@ -19,6 +19,26 @@ Singleton {
     id: root
 
     property var c: ({})
+    // Standalone editors can detach from disk without affecting other engines.
+    property bool sourceEnabled: true
+    property string accentRoleOverride: ""
+    property bool desktopPreview: false
+    property var previewWallpaper: null
+    property var paletteBeforePreview: ({})
+
+    function applyDesktopPreview(palette, wallpaper) {
+        if (!desktopPreview) paletteBeforePreview = JSON.parse(JSON.stringify(c));
+        desktopPreview = true;
+        previewWallpaper = wallpaper;
+        c = normalize(palette);
+    }
+    function resetDesktopPreview() {
+        if (!desktopPreview) return;
+        c = paletteBeforePreview;
+        previewWallpaper = null;
+        desktopPreview = false;
+    }
+    onThemePathChanged: resetDesktopPreview()
 
     // ── Palette ───────────────────────────────────────────────────────────
 
@@ -87,7 +107,7 @@ Singleton {
     readonly property var accentRoles: ["theme", "red", "green", "yellow", "blue", "magenta", "cyan", "orange", "foreground"]
 
     readonly property string accentRole: {
-        const wish = String(Config.value("accent", "theme")).toLowerCase();
+        const wish = String((root.desktopPreview ? "theme" : root.accentRoleOverride) || Config.value("accent", "theme")).toLowerCase();
         return root.accentRoles.indexOf(wish) >= 0 ? wish : "theme";
     }
 
@@ -457,13 +477,16 @@ Singleton {
     FileView {
         id: themeFile
 
-        path: root.themePath
+        path: root.sourceEnabled ? root.themePath : ""
         watchChanges: true
         printErrors: false
 
         onFileChanged: reload()
         onLoaded: {
+            if (!root.sourceEnabled) return;
             root.c = root.normalize(root.parseToml(text()));
+            root.previewWallpaper = null;
+            root.desktopPreview = false;
             // Ohne diese Warnung faellt ein kaputter Parser nicht auf: die
             // Vorgabewerte oben sind ein vollstaendiges Theme und sehen
             // richtig aus.
@@ -471,6 +494,7 @@ Singleton {
                 console.warn("nbshell: Theme", Config.theme, "nur teilweise gelesen —", Object.keys(root.c).length, "Werte");
         }
         onLoadFailed: {
+            if (!root.sourceEnabled) return;
             console.warn("nbshell: theme not found:", root.themePath);
             root.c = ({});
         }

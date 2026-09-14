@@ -415,6 +415,7 @@ nbshell -- an independent Quickshell desktop shell for Umbriel
   nbshell ui-gallery        preview the shared nbshell component language
   nbshell touchpad          open native touchpad settings and Mac-inspired curves
   nbshell touchpad status   inspect touchpad configuration as JSON
+  nbshell theme-maker       create themes with an isolated live UI preview
   nbshell update            check nbshell and the Umbriel stack
   nbshell update install    verify and install the latest nbshell release
   nbshell update umbriel    build, test and install the Umbriel stack
@@ -699,6 +700,11 @@ case "$cmd" in
         esac
         ;;
     themes)
+        case "${1:-}" in
+            reload) ipc themes reload; exit ;;
+            preview) ipc themes preview "${2:?Missing preview JSON}"; exit ;;
+            reset-preview) ipc themes resetPreview; exit ;;
+        esac
         # Aus der laufenden Shell, damit der Stern stimmt; ohne sie vom Datei-
         # system.
         if ! ipc themes list 2>/dev/null; then
@@ -986,6 +992,9 @@ for b in d["binds"]:
             open) exec "$QS" -p "$RUNTIME_DIR/Touchpad.qml" ;;
             *) exec python3 "$RUNTIME_DIR/scripts/touchpad.py" "$@" ;;
         esac
+        ;;
+    theme-maker)
+        exec "$QS" -p "$RUNTIME_DIR/ThemeMaker.qml"
         ;;
     ui-gallery|gallery)
         ipc uiGallery toggle

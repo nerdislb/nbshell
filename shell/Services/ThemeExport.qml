@@ -143,6 +143,8 @@ Singleton {
     }
 
     function exportNow() {
+        // Desktop previews are memory-only; never export them to other apps.
+        if (Theme.desktopPreview || !Theme.sourceEnabled) return;
         umbrielMotionFile.setText(umbrielMotion());
         umbrielReloadTimer.restart();
         if (Object.keys(Theme.c).length < 5)
@@ -185,6 +187,7 @@ Singleton {
         // Palette enthaelt. Beides haengt deshalb hier.
         interval: 200
         onTriggered: {
+            if (Theme.desktopPreview || !Theme.sourceEnabled) return;
             reload.running = true;
             hook.running = true;
             browserTheme.running = true;
@@ -211,6 +214,13 @@ Singleton {
     // Fensterrahmen und des Cursors haengt daran, das Theme aber nicht.
     Connections {
         target: Theme
+
+        function onDesktopPreviewChanged() {
+            if (Theme.desktopPreview) {
+                reloadTimer.stop();
+                umbrielReloadTimer.stop();
+            } else root.exportNow();
+        }
 
         function onCChanged() {
             root.exportNow();

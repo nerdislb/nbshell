@@ -9,7 +9,7 @@ import "../Wallpaper/WallpaperPolicy.js" as Policy
 
 Singleton {
     id: root
-    readonly property var settings: Policy.normalize(Config.value("dynamicWallpaper", {}))
+    readonly property var settings: Policy.normalize(Theme.previewWallpaper || Config.value("dynamicWallpaper", {}))
     property date now: new Date()
     readonly property string fallback: Config.value("wallpaperOverride", "") || (ThemeIndex.current?.wallpaper ?? "")
     readonly property var selection: Policy.sources(settings, now.getHours() * 60 + now.getMinutes(), fallback)

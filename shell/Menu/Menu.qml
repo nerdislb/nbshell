@@ -325,6 +325,7 @@ PanelWindow {
                         Config.set("mode", order[(order.indexOf(Config.mode) + 1) % order.length]);
                     } },
                     { "key": "g", "label": "UI gallery", "icon": Icons.cp(0xF03D9), "run": () => Runtime.uiGalleryOpen = true },
+                    { "key": "e", "label": "Theme Maker", "description": "Create a theme with a live UI preview", "icon": Icons.palette, "run": () => Quickshell.execDetached(["nbshell", "theme-maker"]) },
                     { "key": "a", "label": "Open Aether", "icon": Icons.palette, "run": () => Quickshell.execDetached(["aether"]) },
                     { "key": "i", "label": "Import Aether theme", "icon": Icons.download, "run": () => root.term("$HOME/.local/bin/nb-aether-import") },
                     { "key": "x", "label": "Remove theme", "icon": Icons.cp(0xF01B4), "run": () => root.term("$HOME/.local/bin/nbshell theme remove") }
