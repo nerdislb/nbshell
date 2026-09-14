@@ -30,7 +30,7 @@ Singleton {
     property string attentionKind: ""
     property bool overviewVisible: false
     property int monitorUsers: 0
-    property bool workVisible: false
+    readonly property bool workVisible: WorkState.active
     property string monitorError: ""
     property var openclaw: ({installed: false, online: false, working: 0, sessions: 0, agents: [], error: ""})
 

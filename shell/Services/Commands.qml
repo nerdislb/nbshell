@@ -44,6 +44,7 @@ Singleton {
     readonly property var builtin: {
         const out = [];
 
+        out.push(entry("Desktop work cards", "Toggle sessions, Git, device and quotas (Mod+Alt+I)", "Windows", () => Config.set("workDesktop", !WorkState.desktopActive)));
         // ── Windows ──────────────────────────────────────────────────────
         out.push(entry("Settings", "Shell options", "Windows", () => Runtime.settingsOpen = true));
         out.push(entry("Main menu", "Command center (Mod+Space)", "Windows", () => Runtime.openMenu()));

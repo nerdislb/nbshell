@@ -109,6 +109,7 @@ ShellRoot {
     Bar {}
 
     Wallpaper {}
+    LazyLoader { active: Config.value("workDesktop", false); WorkDesktop {} }
 
     Launcher {}
 

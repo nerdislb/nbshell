@@ -7,46 +7,16 @@ import qs.Widgets
 Item {
     id: root
     property bool active: false
-    property var projects: ({})
-    property string projectError: ""
     signal openSession(var row)
-    readonly property var rows: Agents.sessions.concat(Agents.openclaw.online ? (Agents.openclaw.items || []) : []).slice().sort((a, b) => rank(a) - rank(b) || Number(b.updatedAt || 0) - Number(a.updatedAt || 0))
-    readonly property var paths: [...new Set(rows.map(row => String(row.project || "")).filter(p => p.startsWith("/")))].sort().slice(0, 12)
-    function rank(row) {
-        return ["waiting", "permission", "blocked"].includes(row.status) ? 0 : row.status === "working" ? 1 : 2;
-    }
-    function statusText(row) {
-        return ({working: "Working", idle: "Idle", waiting: "Needs input", permission: "Needs permission", blocked: "Blocked", done: "Done"})[row.status] || "Unknown";
-    }
-    function projectText(row) {
-        if (!row.project) return "Project not provided";
-        const git = projects[row.project];
-        if (!git) return row.project + " · " + (paths.includes(row.project) ? "checking Git…" : "Git limit reached");
-        if (git.error) return row.project + " · " + git.error;
-        return git.root + " · " + git.branch + " · " + (git.conflicts ? git.conflicts + " conflicts · " : "") + git.changed + " changes";
-    }
-    function refreshGit() {
-        if (!active || gitProc.running) return;
-        gitProc.command = ["python3", Qt.resolvedUrl("../scripts/work-projects.py").toString().replace("file://", ""), JSON.stringify(paths)];
-        gitProc.running = true;
-    }
-    onActiveChanged: {
-        Agents.workVisible = active;
-        if (active) { Agents.refreshSessions(); refreshGit(); }
-    }
-    onPathsChanged: refreshGit()
-    Component.onDestruction: Agents.workVisible = false
-    Timer { interval: 15000; repeat: true; running: root.active; onTriggered: root.refreshGit() }
-    Process {
-        id: gitProc
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try { root.projects = JSON.parse(text); root.projectError = ""; }
-                catch (e) { root.projects = ({}); root.projectError = "Project status unavailable"; }
-            }
-        }
-        onExited: (code, status) => { if (code !== 0) { root.projects = ({}); root.projectError = "Project status unavailable"; } }
-    }
+    readonly property var rows: WorkState.rows
+    readonly property var projects: WorkState.projects
+    readonly property string projectError: WorkState.projectError
+    function rank(row) { return WorkState.rank(row); }
+    function statusText(row) { return WorkState.statusText(row); }
+    function projectText(row) { return WorkState.projectText(row); }
+    onActiveChanged: WorkState.dashboardActive = active
+    Component.onCompleted: WorkState.dashboardActive = active
+    Component.onDestruction: WorkState.dashboardActive = false
     Column {
         anchors.fill: parent
         anchors.margins: Theme.spaceSm

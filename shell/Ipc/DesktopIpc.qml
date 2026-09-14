@@ -19,6 +19,24 @@ Scope {
     // the IPC command that opens the panel cannot exist until the panel is
     // already open.
     IpcHandler {
+        target: "work"
+        function toggle(): string { Config.set("workDesktop", !WorkState.desktopActive); return WorkState.desktopActive ? "on" : "off"; }
+        function on(): string { Config.set("workDesktop", true); return "on"; }
+        function off(): string { Config.set("workDesktop", false); return "off"; }
+        function status(): string { return JSON.stringify({enabled: WorkState.desktopActive, sessions: WorkState.active, git: WorkState.gitActive, modules: ["sessions", "activity", "git", "device", "quotas"].filter(n => WorkState.moduleEnabled(n))}); }
+        function module(name: string, mode: string): string {
+            if (!["sessions", "activity", "git", "device", "quotas"].includes(name) || !["on", "off", "toggle"].includes(mode)) return "module sessions|activity|git|device|quotas on|off|toggle";
+            Config.set("workModule_" + name, mode === "toggle" ? !WorkState.moduleEnabled(name) : mode === "on");
+            return name + ": " + (WorkState.moduleEnabled(name) ? "on" : "off");
+        }
+        function project(path: string): string {
+            if (!path.startsWith("/")) return "An absolute project directory is required";
+            Config.set("workProjects", [...new Set(Config.value("workProjects", []).concat([path]))].slice(0, 12));
+            return "Project pinned";
+        }
+    }
+
+    IpcHandler {
         target: "agentCenter"
         function toggle(): string { Runtime.agentCenterOpen = !Runtime.agentCenterOpen; return Runtime.agentCenterOpen ? "open" : "closed"; }
         function open(): string { Runtime.agentCenterOpen = true; return "open"; }
