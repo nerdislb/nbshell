@@ -18,7 +18,9 @@ class MailUpgrade(unittest.TestCase):
         with tempfile.TemporaryDirectory() as name:
             script = Path(name)/'agent-job.py'
             script.write_text('import time; time.sleep(30)')
-            child = subprocess.Popen([sys.executable, str(script), 'run', 'synthetic-job'])
+            alias = Path(name)/'linked-worker.py'
+            alias.symlink_to(script)
+            child = subprocess.Popen([sys.executable, str(alias), 'run', 'synthetic-job'])
             try:
                 self.assertIn(str(child.pid), list(upgrade.active_workers(script)))
                 self.assertEqual(list(upgrade.active_workers(Path(name)/'other/agent-job.py')), [])

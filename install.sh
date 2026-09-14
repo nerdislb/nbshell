@@ -701,6 +701,9 @@ elif [ "$was_running" = "1" ]; then
     sleep 0.3
 fi
 
+# Recheck after stopping the shell, in case a legacy AI job started during staging.
+python3 "$SRC/plugins/omamail/scripts/check-upgrade.py" "$DATA_DIR/plugins/omamail/scripts/agent-job.py"
+
 # A stopped shell cannot race the config snapshot. Service-hosted installs keep
 # their already-loaded old QML process alive and defer migration to the next
 # start, which is safe because the new CLI has already been installed above.
