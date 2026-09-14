@@ -7,6 +7,19 @@ ACTION="${1:-status}"
 ITEM="${2:-}"
 APP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 
+# Windows stores use one background worker; native games retain their own setup.
+if [[ "$ITEM" =~ ^(battlenet|gog|epic)$ ]]; then
+    case "$ACTION" in
+        install|launch)
+            export NBSHELL_GAMING_STORE="$ITEM" NBSHELL_GAMING_ACTION="$ACTION"
+            exec "$(command -v qs || command -v quickshell)" -p "$(dirname "${BASH_SOURCE[0]}")/../GamingSetup.qml"
+            ;;
+        remove|cancel)
+            exec python3 "$(dirname "${BASH_SOURCE[0]}")/gaming_faugus.py" "$ACTION" "$ITEM"
+            ;;
+    esac
+fi
+
 printf '\033]0;nbshell-gaming\007'
 
 die() { printf '\033[31m%s\033[0m\n' "$*" >&2; exit 1; }
@@ -123,7 +136,7 @@ label() {
     case "$1" in
         steam) echo Steam ;; retroarch) echo RetroArch ;; minecraft) echo Minecraft ;;
         geforce-now) echo "NVIDIA GeForce NOW" ;; xbox-cloud) echo "Xbox Cloud Gaming" ;;
-        xbox-controllers) echo "Xbox Controllers" ;; battlenet) echo Battle.net ;;
+        xbox-controllers) echo "Xbox Controllers" ;; battlenet) echo Battle.net ;; gog) echo "GOG Galaxy" ;; epic) echo "Epic Games" ;;
         lutris) echo Lutris ;; heroic) echo "Heroic Games Launcher" ;;
         moonlight) echo Moonlight ;; retro-launcher) echo "RetroArch Game Launcher" ;;
         *) echo "$1" ;;
@@ -138,7 +151,7 @@ installed() {
         geforce-now) have_flatpak com.nvidia.geforcenow ;;
         xbox-cloud) [[ -f "$APP_DIR/nbshell-xbox-cloud.desktop" ]] ;;
         xbox-controllers) have_pkg xpadneo-dkms ;;
-        battlenet) [[ -d "$HOME/Games/battlenet" ]] && find "$HOME/Games/battlenet" -mindepth 1 -print -quit | grep -q . ;;
+        battlenet|gog|epic) python3 "$(dirname "${BASH_SOURCE[0]}")/gaming_faugus.py" status "$1" >/dev/null ;;
         moonlight) have_pkg moonlight-qt ;;
         retro-launcher) have_pkg retroarch ;;
         *) return 1 ;;
@@ -212,13 +225,6 @@ EOF
                 sudo modprobe hid_xpadneo 2>/dev/null || true
             }
             ;;
-        battlenet)
-            read -r -a gpu <<<"$(gpu_lib32_packages)"
-            install_packages lutris wine-staging umu-launcher "${gpu[@]}"
-            mkdir -p "$HOME/Games/battlenet"
-            note "Lutris will open. Search its Sources or website for the current Battle.net installer."
-            command -v lutris >/dev/null && setsid -f lutris lutris:battlenet >/dev/null 2>&1 || true
-            ;;
         *) die "Unknown gaming item: $ITEM" ;;
     esac
     note "$name setup finished."
@@ -246,10 +252,6 @@ remove_item() {
         xbox-controllers)
             remove_packages xpadneo-dkms
             sudo rm -f /etc/modprobe.d/nbshell-blacklist-xpad.conf /etc/modules-load.d/nbshell-xpadneo.conf
-            ;;
-        battlenet)
-            note "The Battle.net prefix at ~/Games/battlenet contains installed games and is not deleted automatically."
-            ask "Delete that complete prefix too?" && rm -rf -- "$HOME/Games/battlenet"
             ;;
         *) die "Unknown gaming item: $ITEM" ;;
     esac
@@ -294,7 +296,7 @@ case "$ACTION" in
         launch_minecraft
         ;;
     status)
-        for ITEM in steam retroarch minecraft geforce-now xbox-cloud xbox-controllers battlenet lutris heroic moonlight; do
+        for ITEM in steam retroarch minecraft geforce-now xbox-cloud xbox-controllers battlenet gog epic lutris heroic moonlight; do
             if installed "$ITEM"; then state=installed; else state=available; fi
             printf '%-24s %s\n' "$(label "$ITEM")" "$state"
         done

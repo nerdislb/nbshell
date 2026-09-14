@@ -1,5 +1,7 @@
 # Battle.net: verified Faugus launcher setup
 
+> The shared background installer is documented in [Windows stores through Faugus](gaming-faugus.md). The registration commands below remain compatible.
+
 This checkpoint packages the tested **launcher**, original app icon and Wine
 workarounds. It does **not** yet implement the proposed one-click background
 installer or native progress panel. Gaming > Install > Battle.net still uses
