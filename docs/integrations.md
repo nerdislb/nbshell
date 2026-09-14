@@ -79,4 +79,3 @@ nbshell gaming remove steam
   login. Zen, Chromium, Chrome, and Brave sessions can be imported directly;
   the built-in request-header paste flow remains a fallback. Authentication
   files are stored with mode `0600`.
-
