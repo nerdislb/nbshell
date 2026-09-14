@@ -14,12 +14,14 @@ import pathlib
 import re
 import sys
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent
+ROOT = pathlib.Path(__file__).resolve().parent.parent / "ui"
 
 # What a message, an account or Google can put words into.
 UNTRUSTED = re.compile(
     r"\b(summary\s*\.|\.subject\b|\.snippet\b|\.from\b|\.display\b|\.email\b"
     r"|modelData\s*\.\s*filename\b|formatAddressList\b|lastError\b"
+    # What the agent handed back about a message: its words, not ours.
+    r"|modelData\s*\.\s*(notes|location)\b|suggestionWhen\b"
     r"|root\s*\.\s*requested\b|subjectField\s*\.\s*text\b"
     # A server's host name, which whoever answered discovery chose.
     r"|\.host\b"

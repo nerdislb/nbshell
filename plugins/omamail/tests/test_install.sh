@@ -14,7 +14,7 @@ for kind in service bar-widget panel; do
   case " $kinds " in *" $kind "*) ;; *) fail "manifest kinds must include $kind" ;; esac
 done
 
-for entry in service:Service.qml barWidget:BarWidget.qml panel:App.qml; do
+for entry in service:ui/Service.qml barWidget:ui/BarWidget.qml panel:ui/App.qml; do
   key=${entry%%:*}
   file=${entry##*:}
   declared=$(python3 -c "import json; print(json.load(open('manifest.json'))['entryPoints'].get('$key',''))")

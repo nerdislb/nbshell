@@ -11,9 +11,9 @@ by the app, and scoped to the contexts where it means something.
 
 Everything follows from that:
 
-- Every binding lives in one table, `keys/Keymap.js`. Nothing else describes a
+- Every binding lives in one table, `ui/keys/Keymap.js`. Nothing else describes a
   key. The shortcut sheet and the status-bar hints render from that table.
-- `components/KeyRouter.qml` turns the table into `Shortcut` objects and reports
+- `ui/components/KeyRouter.qml` turns the table into `Shortcut` objects and reports
   what was pressed by id. `App.qml` answers with one `runShortcut` function.
 - `Escape` is a binding like any other, not a `Keys.onEscapePressed` handler, so
   it does not depend on who holds the focus.
@@ -38,7 +38,7 @@ readonly property string keyContext:
 | Context | What it is | What it binds |
 |---|---|---|
 | `list` | The message list | The mailbox keys |
-| `reader` | A message open | The mailbox keys, plus reply/forward and zoom. `j`/`k` move the mailbox cursor; `Shift+J`/`Shift+K` scroll the message body |
+| `reader` | A message open | The mailbox keys, plus reply/forward and zoom. `j`/`k` move the mailbox cursor and immediately open its message; `Shift+J`/`Shift+K` scroll the message body |
 | `search` | A query being typed | `Escape`, and the modified keys |
 | `compose` | A draft being written | `Escape`, `Ctrl+Return`, and the modified keys |
 | `assistant` | Typing or reading in the AI dock | `Return`/`Enter` sends, `Escape`, and the modified keys |
@@ -46,13 +46,20 @@ readonly property string keyContext:
 | `page` | Setup or settings | `Escape`, and the modified keys |
 | `calendar` | The calendar month | Calendar navigation and the modified keys |
 
+`Ctrl+,` opens Settings from every context, including a focused draft field.
+Back returns to the previous screen with the draft intact.
+
 While an AI request is running, Escape interrupts it and keeps the dock open;
 otherwise Escape closes the dock. An open command menu or history view is left first.
 
 The AI input uses `assistant`: Return/Enter sends and Shift+Return/Enter inserts
 a newline. Ctrl+Return/Enter also sends for compatibility.
 While `/` command candidates are visible, `assistantCommands` owns Up/Down and
-Return/Enter; choosing a command fills the input without sending it. Escape
+Return/Enter; choosing a command inserts a highlighted slash token without sending it.
+Tokens expand into their full instructions only when sent. Editing through a token
+(including Backspace, Delete, or a selection replacement) removes the whole command;
+ordinary text around it remains editable. This is text-edit normalization, not an
+additional key binding. Escape
 first dismisses those candidates, then closes the dock. Both contexts keep the
 keyboard in the AI text area.
 The `assistantSend` row's `sequenceContexts` restricts bare Return/Enter to
@@ -104,7 +111,7 @@ the two cannot disagree.
 
 ## The bindings
 
-Generated from `keys/Keymap.js`. `tests/test_keymap.js` asserts this table
+Generated from `ui/keys/Keymap.js`. `ui/tests/test_keymap.js` asserts this table
 matches it, so the two cannot drift — three hand-written copies of this list
 used to exist, and they had.
 
@@ -144,7 +151,7 @@ used to exist, and they had.
 | `send` | `Ctrl+Return`, `Ctrl+Enter` | compose | Send |
 | `undoSend` | `Alt+Z` | all | Undo send |
 | `search` | `/` | mail | Search |
-| `goMailbox` | `Ctrl+1`, `Ctrl+2`, `Ctrl+3`, `Ctrl+4`, `Ctrl+5`, `Ctrl+6`, `Ctrl+7`, `Ctrl+8`, `Ctrl+9`, `Ctrl+0` | mail | Go to that mailbox |
+| `goMailbox` | `Ctrl+1`, `Ctrl+2`, `Ctrl+3`, `Ctrl+4`, `Ctrl+5`, `Ctrl+6`, `Ctrl+7`, `Ctrl+8`, `Ctrl+9` | mail | Go to that mailbox |
 | `goAccount` | `Alt+1`, `Alt+2`, `Alt+3`, `Alt+4`, `Alt+5`, `Alt+6`, `Alt+7`, `Alt+8`, `Alt+9`, `Alt+0` | mail+calendar | Go to that email account |
 | `switchAccount` | `Alt+A` | mail | Switch account |
 | `askAgent` | `Alt+G` | mail+compose | Ask AI about the message or draft |
@@ -158,7 +165,7 @@ used to exist, and they had.
 | `toggleSidebar` | `[` | mail+calendar | Show or hide the sidebar |
 | `zoomIn` | `Ctrl++`, `Ctrl+=` | reader | Zoom the message body in |
 | `zoomOut` | `Ctrl+-` | reader | Zoom the message body out |
-| `zoomReset` | `Ctrl+Shift+0` | reader | Reset the zoom |
+| `zoomReset` | `Ctrl+0` | reader | Reset the zoom |
 | `refresh` | `F5`, `Ctrl+R` | all | Check for mail |
 | `settings` | `Ctrl+,` | all | Open settings |
 | `help` | `?` | mail | Toggle all keybindings |
@@ -168,11 +175,11 @@ used to exist, and they had.
 The bare `?` opens the complete key sheet from mail. In a text-entry context it
 stays text, like every other bare character except `Escape`.
 
-In Drafts, `Enter`, `o` and `c` open the selected draft in the composer, with what was written in it; a click previews it, as in every other mailbox. Leaving the composer saves the draft back over the one it came from; sending it takes that draft away. In every other mailbox, `c` starts a new message.
+In Drafts, `Enter`, `o` and `c` open the selected draft in the composer, with what was written in it; `j`, `k` and a click open it in the reader. Leaving the composer saves the draft back over the one it came from; sending it takes that draft away. In every other mailbox, `c` starts a new message.
 
 `Space` or `x` toggles the cursor row's selection in the list or reader context. Shift+click applies the clicked row's next checked state to the inclusive range from the cursor: an unchecked endpoint selects the range, and a checked endpoint clears it. Selections outside the range remain unchanged; the cursor then moves to the clicked row.
 
-`n` and `p` walk the conversation rail beside the message on a provider whose listing collapses to conversations, opening the next and previous member in the same reader and stopping at the ends. The rail runs newest at the top, so `n` opens the stop below the open message, which is the older one, and `p` the stop above it, the newer — the keys follow the rail as it is drawn, the way `j` and `k` follow the list. They move the reader and nothing else: `j` and `k` go on moving the list cursor underneath, because the cursor and the open message are two different things. A message whose conversation has one member draws no rail, and both keys then do nothing. A right-click on a stop opens the same menu a row has — reply, archive, trash, spam, read, star — for that one message: the action reaches the member alone, where the same verb on the row reaches every counted member, and if the open message is the one taken out of the view the reader moves to the stop beside it, the newer one above or else the older below.
+`n` and `p` walk the conversation rail beside the message on a provider whose listing collapses to conversations, opening the next and previous member in the same reader and stopping at the ends. The rail runs newest at the top, so `n` opens the stop below the open message, which is the older one, and `p` the stop above it, the newer — the keys follow the rail as it is drawn, the way `j` and `k` follow the list. They move the reader and nothing else. `j` and `k` move the list cursor and immediately open the representative of that row, leaving the conversation member selected with `n` or `p`. A message whose conversation has one member draws no rail, and both keys then do nothing. A right-click on a stop opens the same menu a row has — reply, archive, trash, spam, read, star — for that one message: the action reaches the member alone, where the same verb on the row reaches every counted member, and if the open message is the one taken out of the view the reader moves to the stop beside it, the newer one above or else the older below.
 
 The delayed-send toast does not create a keyboard context. The current screen keeps its normal keys while the toast is visible. A new draft, reply, or forward can open during the delay. The send button waits for the queued message, but every draft field remains editable. The toast button restores the queued message. `Alt+Z` does the same from every context. `Ctrl+Z` remains text undo while composing or searching. If another compose is open, Omamail saves it to the provider's Drafts storage before dropping its in-memory fallback. A failed save keeps that fallback. Back and `Escape` save a non-empty composition before leaving it. The explicit Discard button remains the destructive exit.
 
@@ -190,13 +197,14 @@ clock had been running. Measured, not guessed:
 And they had to be memorised. Four bindings that look like nothing on screen,
 for the four places you actually go.
 
-`Ctrl+1`…`Ctrl+0` replaces both. A modifier has no deadline, and **holding Ctrl
+`Ctrl+1`…`Ctrl+9` replaces both. A modifier has no deadline, and **holding Ctrl
 puts the digit on every row of the rail**, so there is nothing to remember —
 the rail says which key opens it. The numbers run down the rail as it is drawn,
 mailboxes first and then the server's labels, from `Model.sidebarSlots`, which
 is the same list the badges are drawn from: the number beside a row and the row
-a number opens are one fact rather than two. Past the tenth row there is simply
-no number, because there is no digit left to offer.
+a number opens are one fact rather than two. Past the ninth row there is simply
+no number: `Ctrl+0` is reset zoom, the way it is in every browser, and the
+rail does not take it.
 
 Held Ctrl is the one `Keys` handler in `App.qml`, and it is not a binding — a
 modifier alone cannot be a `Shortcut`, so there is nothing to route. It accepts
@@ -209,7 +217,7 @@ everywhere. With rows ticked and the list on screen — alone, or beside the
 reader in a wide window — it unticks them first and goes nowhere; the next
 press goes back. Where it goes is not decided by the key: the window keeps a history
 of the places it has been — a stack in `App.qml`, ruled by
-`account/Navigation.js` — and `Escape`, like every Back bar, calls `back()`,
+`ui/account/Navigation.js` — and `Escape`, like every Back bar, calls `back()`,
 which pops one entry. A draft, the event form and the shortcut sheet are
 entries too, so the sheet closes before the message under it, and a reply
 raised from the list returns to the list, not to the message it opened on the
@@ -237,7 +245,7 @@ name, by the name they were given or their address; `Down` and `Up`, or `Ctrl`
 with `j`, `k`, `n` or `p`, walk what is left; `Enter` opens the row the cursor
 is on. A bare `j` or `k` is a letter there now, as it has to be for "jack" to
 find a mailbox.
-`tests/qml/tst_popup_keys.qml` holds the Qt behaviour that makes it so, and
+`ui/tests/qml/tst_popup_keys.qml` holds the Qt behaviour that makes it so, and
 `Model.wrappedIndex` holds the only decision in it — the cursor wraps, where the
 message list clamps.
 
@@ -249,9 +257,17 @@ area: movement was anchored on the opened message, so in the list — where
 nothing is open — every step resolved to the first row, and `j` moved once and
 then stopped.
 
+`j`, `k`, `Down` and `Up` now move the cursor and immediately open the row in
+the reader, in both wide and narrow windows. There is no preview settling delay
+or read dwell: the same explicit-open path displays cached content or fetches
+the message and marks it read when that path normally would. Prefetching stays
+separate and never marks a message read. Moving at a list boundary does not
+reopen the same message. The context continues to park focus outside text fields,
+so successive navigation keys work while the reader is open.
+
 `s` is the one acting key that follows the reader rather than the cursor. With a message open it stars the open message, on every provider, because that is the star the button beside it draws; `e` and `d` act on the cursor row, which is the row the open message belongs to. The difference only shows on a provider whose listing collapses to conversations, where `n` and `p` can walk the reader onto a member while the cursor stays on the row.
 
-Three rules, all in `account/Model.js` so the node tests reach them:
+Three rules, all in `ui/account/Model.js` so the node tests reach them:
 
 - **`cursorAfterOffset`** — moving. Anchored on the cursor itself, clamped at
   both ends, and starting from the end the move came from when there is no
@@ -274,8 +290,8 @@ plausible targets. So there is no `positionViewAtIndex`, and keyboard movement
 has to scroll the list itself: **`Model.contentYToReveal`** decides where the
 scroller goes, leaving it alone while the row is already visible so stepping one
 row does not drag the list under someone reading it. It is called from
-`moveCursor`, not from `cursorId` changing, because hovering a row moves the
-cursor too and scrolling under the pointer fights the mouse.
+`moveCursor`, not from `cursorId` changing. Hover never changes the cursor, and
+scrolling under the pointer would fight the mouse.
 
 ## The mouse
 
@@ -289,11 +305,11 @@ pointer that has not moved, and the list scrolls to follow the keyboard. With
 hover writing `cursorId`, pressing `j` moved the cursor, the scroll brought a
 different row under the still pointer, and the cursor snapped back to it — so
 `j` and `k` stuck on whichever rows the mouse was resting near.
-`tests/qml/tst_hover_under_scroll.qml` pins the Qt behaviour that makes this so.
+`ui/tests/qml/tst_hover_under_scroll.qml` pins the Qt behaviour that makes this so.
 
 ## Adding a key
 
-1. Add a row to `BINDINGS` in `keys/Keymap.js`. Name the contexts it means
+1. Add a row to `BINDINGS` in `ui/keys/Keymap.js`. Name the contexts it means
    something in — that is the guard, and there is no other. A `display` string
    is how the sheet shows a range instead of enumerating every key.
 2. Add a case to `runShortcut` in `App.qml`. The second argument is the

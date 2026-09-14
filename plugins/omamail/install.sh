@@ -23,6 +23,8 @@ command -v nbshell >/dev/null 2>&1 || {
   exit 1
 }
 
+python3 "$project_dir/scripts/check-upgrade.py" "$install_path/scripts/agent-job.py"
+
 printf '%s\n' 'Validating Mail…'
 nbshell plugin validate "$project_dir"
 "$project_dir/scripts/migrate-storage.sh"

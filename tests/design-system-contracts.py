@@ -698,14 +698,14 @@ required_accessible_names = {
         'Accessible.description: accessibleDescription',
         'Accessible.passwordEdit: password',
     ],
-    ROOT / "plugins/omamail/components/AppMenu.qml": [
+    ROOT / "plugins/omamail/ui/components/AppMenu.qml": [
         'accessibleName: "More options"',
     ],
-    ROOT / "plugins/omamail/components/SearchBar.qml": [
+    ROOT / "plugins/omamail/ui/components/SearchBar.qml": [
         'accessibleName: "Search mail"',
         'accessibleName: "Clear search"',
     ],
-    ROOT / "plugins/omamail/components/ComposeView.qml": [
+    ROOT / "plugins/omamail/ui/components/ComposeView.qml": [
         '"Change sender. Current sender: "',
         '"Hide Cc field"',
         '"Show Cc field"',
@@ -713,11 +713,11 @@ required_accessible_names = {
         'accessibleName: "Cc"',
         'accessibleName: "Subject"',
     ],
-    ROOT / "plugins/omamail/components/SetupPage.qml": [
+    ROOT / "plugins/omamail/ui/components/SetupPage.qml": [
         'accessibleName: "Google OAuth client ID"',
         'accessibleName: "Google OAuth client secret"',
     ],
-    ROOT / "plugins/omamail/components/ImapSetupPage.qml": [
+    ROOT / "plugins/omamail/ui/components/ImapSetupPage.qml": [
         'accessibleName: "Email address"',
         'accessibleName: "Mailbox password"',
         'accessibleName: "IMAP server"',
@@ -864,6 +864,8 @@ for snippet in ("## Start from the scaffold", "### Design check", "nbshell-desig
         raise SystemExit(f"Plugin authoring guide is incomplete: {snippet}")
 
 ui_gallery = (ROOT / "shell/Settings/UiGallery.qml").read_text(encoding="utf-8")
+assert "GalleryContent {" in ui_gallery
+ui_gallery += (ROOT / "shell/Settings/GalleryContent.qml").read_text(encoding="utf-8")
 for snippet in (
     'text: "Plugin design contract"',
     'text: "NATIVE  qs.Common + qs.Widgets"',

@@ -49,13 +49,65 @@ and **Replace body** apply only a completed successful reply; neither sends mail
 Replacement is two text edits and can require two undo steps. The mail list has no AI icon. The header AI button stays static without a
 breathing animation.
 
+## Suggested events
+
+With **Suggest calendar events from mail** on in Settings — off until it is — a
+message opened in the reader whose text mentions a date or a time is handed to
+the system AI once, in the background, with rules that ask for a JSON array of
+the events it finds and nothing else. The reader draws a card per event above
+the message: what, when, where, with **Add** and **Dismiss**. Add opens the
+calendar's event composer with the fields filled in, so the owner chooses the
+calendar and looks the times over before anything is written; a written event
+waves its suggestion away, a dismissed one stays away for the session.
+
+The gates are local and cheap, and they come before the model, because a
+look is a model call with the whole message in it: the setting; a message
+from a person rather than a machine or a list — `Agent.automatedMail` reads
+the sender (`noreply`, `notifications@`, `mailer-daemon`, a newsletter or
+alerts address) and Gmail's Promotions, Updates, Forums and Social
+categories off the row, and the reader knows a list by its List-Unsubscribe
+header; a time or a date in the subject or the text (`Agent.mentionsDate`: a
+clock time, a month with a day, a numeric date, "tomorrow", or a weekday
+bound to a plan like "on Thursday" — a bare "Sunday" in prose is a word);
+a message from the last two months (one with no known date is not looked
+at); no look at that message yet; and at most two looks running at once — a
+look that cannot start yet waits its turn. The worker sends at most the
+first 8,000 characters of the message. A
+look is a job started through the same account-bound `agent.context` read as an
+ask, with `events: true` on the payload; Rust records it with kind `events`.
+It is a background job — no row glyph, no glow, no place in the dock's history,
+and a note only when it found something — but it is polled while it runs, and
+`agent.jobsProjection` returns it under `eventLooks` by account and message
+with `activeEventLooks` counting the running ones. A look that failed or was
+cancelled answered nothing and is not held, so the message may be looked at
+again.
+
+The native worker runs Claude only, as it does for the panel. With another
+default agent selected in Omarchy, Rust refuses the first look
+(`agent_choose_claude`), the status line stays quiet, and no other message
+is looked at until the setting is turned off and on; the panel explains the
+setup when opened. The worker runs a look at the `haiku` model with the same non-interactive
+`dontAsk` permissions as every request. Its prompt is the rules, whose message
+it is, then every line of the message behind a `| ` prefix between two fence
+lines and nothing after the closing fence, which would be the one place a
+message could pretend to be the owner. The rules say those lines are a
+stranger's words, not instructions: that is a request to the model, not a
+sandbox, which is why the setting is off until you turn it on. When the job
+finishes, Rust reads the last JSON array out of the answer, keeps at most ten
+events on the job with their strings cleaned and cut to size and their times as
+epoch milliseconds — whole days from midnight to the next in this machine's
+zone — and validates that record again whenever it is read back. An answer
+with no array, or with dates that do not parse, is no event and no failure.
+
 ## Background bridge
 
-`AgentContext.qml` loads bodies; `Agent.js` builds context and matches identity.
-`AgentRunner.qml` starts a Python worker and polls validated display snapshots.
-`scripts/agent-job.py` reads requests on stdin and launches the installed Claude
+`AgentContext.qml` requests account-bound context from Rust; `AgentRunner.qml`
+polls native task projections and validated display snapshots.
+The persistent Rust backend accepts structured job requests over JSON-RPC and launches a detached `omamail agent-worker` process. The worker launches the installed Claude
 CLI with non-interactive streaming JSON output. Mail and questions reach Claude
 through stdin, never process arguments. No terminal launcher is invoked.
+Already-running workers from the prior Python bridge remain visible and cancellable
+during an upgrade; new tasks always use the native worker.
 
 Each turn has a private 0700 directory under
 `$XDG_STATE_HOME/omamail/assistant/<turn-id>/`; files are 0600. The parser imports

@@ -3,7 +3,7 @@
   "id": "omamail",
   "name": "Mail",
   "category": "Communication",
-  "version": "0.8.2-nbshell.1",
+  "version": "0.10.0-nbshell.1",
   "author": "Jason Lee <huacnlee@gmail.com>",
   "license": "MIT",
   "repository": "https://github.com/huacnlee/omamail",
@@ -43,9 +43,9 @@
   ],
   "activation": "on-demand",
   "entryPoints": {
-    "service": "Service.qml",
-    "barWidget": "BarWidget.qml",
-    "panel": "App.qml"
+    "service": "ui/Service.qml",
+    "barWidget": "ui/BarWidget.qml",
+    "panel": "ui/App.qml"
   },
   "barWidget": {
     "displayName": "Mail",
@@ -74,11 +74,11 @@
       "oauthPort": 9481,
       "undoSendSeconds": 10,
       "unifiedCalendarView": false,
-      "openOnClick": "Window",
       "showBarIcon": true,
       "previewOnCursor": false,
       "markReadDelaySec": 2,
-      "contactSuggestions": "Off"
+      "contactSuggestions": "Off",
+      "suggestEvents": false
     },
     "schema": [
       {
@@ -86,7 +86,7 @@
         "type": "boolean",
         "label": "Show the icon in the bar",
         "defaultValue": true,
-        "description": "Turn this off to run Omamail with no envelope in the bar. Mail is still checked and still notifies; only the icon goes. With it off the window opens from a keybinding or a terminal and nowhere else, so bind a key first: o.bind(\"SUPER + SHIFT + G\", \"Omamail\", \"omarchy shell shell toggle omamail '{}'\")"
+        "description": "Show the mail icon in the bar. When hidden, open Mail with Alt+Z or nbshell extension open omamail."
       },
       {
         "key": "refreshIntervalSec",
@@ -193,17 +193,6 @@
         "description": "Show calendars from every connected account instead of following the current mailbox."
       },
       {
-        "key": "openOnClick",
-        "type": "enum",
-        "label": "Clicking the bar icon opens",
-        "options": [
-          "Window",
-          "Quick preview"
-        ],
-        "defaultValue": "Window",
-        "description": "The full window, or a small card with the most recent unread mail."
-      },
-      {
         "key": "contactSuggestions",
         "type": "enum",
         "label": "Local contact suggestions",
@@ -213,6 +202,13 @@
         ],
         "defaultValue": "Off",
         "description": "When enabled, Mail reads addresses from local Thunderbird and Betterbird profile databases without modifying them."
+      },
+      {
+        "key": "suggestEvents",
+        "type": "boolean",
+        "label": "Suggest calendar events from mail",
+        "defaultValue": false,
+        "description": "Uses the system AI: a message from a person that names a time is sent to it once when opened, which spends tokens. Notifications, newsletters and lists are skipped. Nothing is written until you Add."
       }
     ]
   }

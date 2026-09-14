@@ -1,0 +1,132 @@
+name: Release
+
+# make publish pushes one versioned branch and opens its PR. The backend is
+# published before CI advances the pin on that same branch; main is PR-only.
+on:
+  workflow_dispatch:
+  push:
+    branches: ['release/**']
+    paths-ignore: ['backend-version', 'backend-api.json']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      branch: ${{ steps.version.outputs.branch }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN"
+          version="$(python3 scripts/package-backend.py check)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          branch="$(VERSION="$version" bash scripts/release-source.sh)"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+      - name: Require an unused release version
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          # Listing must succeed; network/authentication failures never mean absent.
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq '.[].tag_name' > releases.txt
+          if grep -Fx "v$VERSION" releases.txt; then echo 'Release version already exists' >&2; exit 1; else test "$?" -eq 1; fi
+      - name: Require a new API revision when the published contract changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(python3 scripts/package-backend.py pin-version)"
+          mkdir baseline
+          gh release download "v$version" --dir baseline --pattern backend-api.json
+          python3 scripts/package-backend.py check-api --baseline baseline/backend-api.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: make test-js test-shell-portable
+      - run: python3 tests/test_backend_release.py
+
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - run: rustup target add "${{ matrix.target }}"
+      - name: Test and build native static Linux backend
+        env:
+          CARGO_BUILD_TARGET: ${{ matrix.target }}
+          RUSTFLAGS: -C linker=musl-gcc
+        run: |
+          cargo test --locked
+          cargo build --release --locked
+      - name: Verify native version and static linkage, then package
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          TARGET: ${{ matrix.target }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          binary="target/$TARGET/release/omamail"
+          test "$("$binary" --version)" = "omamail $VERSION"
+          readelf -l "$binary" > program-headers.txt
+          readelf -d "$binary" > dynamic-headers.txt
+          if grep -q INTERP program-headers.txt; then echo 'Binary has a dynamic interpreter' >&2; exit 1; else test "$?" -eq 1; fi
+          if grep -q NEEDED dynamic-headers.txt; then echo 'Binary has dynamic dependencies' >&2; exit 1; else test "$?" -eq 1; fi
+          python3 scripts/package-backend.py check-api
+          python3 tests/test_backend_api.py --binary "$binary" --expected-version "$VERSION"
+          python3 scripts/package-backend.py package "$binary" "$ARCH" artifact
+          python3 scripts/package-backend.py verify artifact --arch "$ARCH"
+          python3 scripts/package-backend.py provenance --output artifact/backend-build.json
+          cp backend-api.json artifact/backend-api.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend-${{ matrix.arch }}
+          path: artifact/*
+          if-no-files-found: error
+
+  publish-and-pin:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASE_TOKEN }}
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: backend-*
+          path: artifacts
+      - name: Publish complete release, verify downloads, then advance the release branch pin
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          BRANCH: ${{ needs.prepare.outputs.branch }}
+        run: |
+          bash scripts/publish-backend.sh

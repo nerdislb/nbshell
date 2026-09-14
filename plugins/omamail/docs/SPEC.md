@@ -11,9 +11,9 @@ Three plugin entry points (`manifest.kinds`):
 
 | Kind | File | Responsibility |
 |---|---|---|
-| `service` | `Service.qml` | Shared singleton: auth, API, mailbox state, unread polling, new-mail notifications. Lives whether or not the window is open. |
-| `bar-widget` | `BarWidget.qml` | Envelope icon + unread badge in the bar. Left click opens the app window. |
-| `panel` | `App.qml` | The application window — a single `FloatingWindow`, 980×720 default, 760×520 minimum. Hyprland treats it as an ordinary window. |
+| `service` | `ui/Service.qml` | Shared singleton: auth, API, mailbox state, unread polling, new-mail notifications. Lives whether or not the window is open. |
+| `bar-widget` | `ui/BarWidget.qml` | Envelope icon + unread dot in the bar — a dot, never a count (see `DESIGN.md`). Left click opens the app window. |
+| `panel` | `ui/App.qml` | The application window — a single `FloatingWindow`, 980×720 default, 760×520 minimum. Hyprland treats it as an ordinary window. |
 
 ## Confirmed decisions
 
@@ -27,7 +27,7 @@ Three plugin entry points (`manifest.kinds`):
 | Compose surface | **The whole content area of the one window.** Omarchy's panel mechanism gives every extra window its own region, so a reply must not open one. Several accounts share that window; a second mailbox is not a second window. |
 | Mailto handler | **This window's compose form.** Install writes a `.desktop` file claiming `x-scheme-handler/mailto` and summons the panel with the URL. Toggle would close a mailbox that is already open. |
 | List triage | **Right-click context menu** on any row: reply / reply all / forward, archive / trash / spam, mark read-unread, star, open in browser. |
-| Reader actions | **Icons with tooltips**, not labelled buttons — six actions fit where six labels would not, with the destructive one set apart by a rule and the urgent colour. Icons are Nerd Font glyphs from the Material Design Icons range the Omarchy shell uses, named in `components/MailIcons.js`; only the two-colour brand mark is drawn. |
+| Reader actions | **Icons with tooltips**, not labelled buttons — six actions fit where six labels would not, with the destructive one set apart by a rule and the urgent colour. Icons are Nerd Font glyphs from the Material Design Icons range the Omarchy shell uses, named in `ui/components/Icons.js`; only the two-colour brand mark is drawn. |
 | Invitations | **Read from the message's own `text/calendar` part, answered as an RFC 5546 reply.** No calendar API and no second OAuth scope: an RSVP is a mail to the organiser carrying `METHOD:REPLY` and this account's `ATTENDEE` line, which is what every calendar server already listens for — so it works identically on IMAP. Gmail withholds the octets of any part the sender named and Google Calendar names both of the two it sends, so the file itself is one more request, made only for a message that has an invitation in it. Times are resolved through the `VTIMEZONE` the sender ships rather than a timezone database; a zone that arrives without one keeps the organiser's wall clock and names it, instead of showing a conversion nothing backs. |
 | Unsubscribing | **One click where RFC 8058 promises it will work, and only there.** A `List-Unsubscribe-Post` header plus an `https` URL on a public host is a POST that finishes in the window; an address is a message; anything else opens the sender's page, and the label says so. Whether a URL may be fetched is the same judgement that decides whether a message may load a picture. |
 | Sidebar | **An open but narrow icon rail** (148px; 44px collapsed), named by tooltips either way. Collapsing is one click. |
@@ -70,7 +70,7 @@ Outlook.com and Hotmail use Microsoft's OAuth device-code flow for delegated IMA
 - Calendar: month and week views over Google Calendar, Microsoft calendars (Outlook.com and Microsoft 365, through Graph with the mailbox's sign-in) and CalDAV, with event create, edit and delete. Google calendars follow the current mailbox by default. A setting can combine every connected account in one view.
 - One-click unsubscribe from mailing lists that support it
 - Search using Gmail's own operator syntax
-- Unread badge in the bar; merged desktop notification for new mail
+- Unread dot in the bar, deliberately without a count; merged desktop notification for new mail
 - CJK correctness: RFC 2047 encoded-word headers, hand-rolled base64 + UTF-8
 - Full keyboard operation with Gmail's key bindings
 - Several accounts at once, each with its own cache and unread count, switched
@@ -86,7 +86,7 @@ Outlook.com and Hotmail use Microsoft's OAuth device-code flow for delegated IMA
 
 The keyboard belongs to the application and the context says what a key means
 where, the way a TUI scopes its keys. Every binding lives in one table,
-`keys/Keymap.js`; the shortcut sheet, the status hints and `docs/KEYS.md` all
+`ui/keys/Keymap.js`; the shortcut sheet, the status hints and `docs/KEYS.md` all
 render or are checked against it, so no second list is maintained by hand.
 
 `j`/`k` move · `Enter` or `o` open · `u` back to list · `e` archive · `d` trash ·

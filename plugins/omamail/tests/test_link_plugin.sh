@@ -14,7 +14,7 @@ for kind in service bar-widget panel; do
   case " $kinds " in *" $kind "*) ;; *) fail "manifest kinds must include $kind" ;; esac
 done
 
-for entry in service:Service.qml barWidget:BarWidget.qml panel:App.qml; do
+for entry in service:ui/Service.qml barWidget:ui/BarWidget.qml panel:ui/App.qml; do
   key=${entry%%:*}
   file=${entry##*:}
   declared=$(python3 -c "import json; print(json.load(open('manifest.json'))['entryPoints'].get('$key',''))")
@@ -23,7 +23,8 @@ for entry in service:Service.qml barWidget:BarWidget.qml panel:App.qml; do
 done
 
 [ -x scripts/link-plugin.sh ] || fail "scripts/link-plugin.sh must be executable"
-grep -q 'plugin-backups' scripts/link-plugin.sh || fail "backups must not land inside the plugins directory"
+grep -q 'exec "$project_dir/install.sh"' scripts/link-plugin.sh || fail "development install must delegate to nbshell installer"
+grep -q 'plugin-backups' install.sh || fail "backups must not land inside the plugins directory"
 
 test_root=$(mktemp -d)
 trap 'rm -rf "$test_root"' EXIT
@@ -92,7 +93,7 @@ grep -q '^MimeType=x-scheme-handler/mailto;$' "$desktop" \
   || fail "omamail.desktop must claim mailto"
 grep -q "^Exec=$(pwd)/scripts/mailto.sh %u$" "$desktop" \
   || fail "omamail.desktop Exec must be the plugin mailto handler"
-grep -q "^Icon=$(pwd)/assets/omamail.svg$" "$desktop" \
+grep -q "^Icon=$(pwd)/ui/assets/omamail.svg$" "$desktop" \
   || fail "omamail.desktop must use the Omamail mark"
 # A second run with the file already there must not require --claim-default
 # just to keep the desktop file current.

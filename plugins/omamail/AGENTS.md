@@ -16,29 +16,54 @@
 
 ## Layout
 
-**Grouped by module, not by file type.** A module holds whatever doing its job
+Rust lives in `src/`; Qt/QML and its JavaScript live in `ui/`. Keep CLI
+argument handling in `src/cli/`, protocol and process dispatch in `src/backend/`,
+and shared business modules beside them, such as `src/account/` and `src/message/`.
+`tests/` holds integration tests; Rust unit tests live with their modules and
+UI unit tests live in `ui/tests/`.
+
+**Within each layer, group by module, not by file type.** A UI module holds whatever doing its job
 takes — the rules in `.js`, the object in `.qml`, side by side. There is no
 directory of "all the JavaScript": that arrangement puts a provider's parsing
 three directories away from the client that calls it.
 
 | Module | What it is |
 |-----------------|--------------------------------------------------------|
-| root | `Service.qml`, `BarWidget.qml`, `App.qml`, and nothing else. `manifest.json` names these three and the shell loads them at that path. |
-| `providers/` | Everything that differs between mail services: a description per provider, the registry over them, the protocol each speaks, and the pair of objects — signs in, fetches — that each needs. |
-| `account/` | One mailbox and the list of them. `MailAccount.qml`, `Accounts.js`, and the rules in `Model.js` about what a list does after an action. |
-| `cache/` | What a query result and a message body are kept in, and the two objects that keep them. |
-| `calendar/` | The calendars an account serves and their events: the sources in `Sources.js`, the rules in `Calendar.js`, the controller that reads and writes them, and the range cache. |
-| `message/` | A message's own content: parsing it (`Message.js`) and making it safe to draw (`Html.js`). |
-| `components/` | Views. They draw what they are given and decide nothing. |
-| `agent/` | The message agent: the rules in `Agent.js`, the runner object in `AgentRunner.qml` that starts, lists and stops jobs through `scripts/agent-job.py`. Each job is a transient systemd user unit; see `docs/AGENT.md`. |
+| `ui/` | `Service.qml`, `BarWidget.qml`, and `App.qml` are the shell entry points. The root `manifest.json` names their `ui/` paths. |
+| `ui/providers/` | Everything that differs between mail services: a description per provider, the registry over them, the protocol each speaks, and the pair of objects — signs in, fetches — that each needs. |
+| `ui/account/` | One mailbox and the list of them. `MailAccount.qml`, `Accounts.js`, and the rules in `Model.js` about what a list does after an action. |
+| `ui/cache/` | What a query result and a message body are kept in, and the two objects that keep them. |
+| `ui/calendar/` | The calendars an account serves and their events: the sources in `Sources.js`, the rules in `Calendar.js`, the controller that reads and writes them, and the range cache. |
+| `ui/message/` | A message's own content: parsing it (`Message.js`) and making it safe to draw (`Html.js`). |
+| `ui/components/` | Views. They draw what they are given and decide nothing. |
+| `ui/agent/` | The message agent: presentation helpers in `Agent.js` and the thin `AgentRunner.qml` RPC adapter. Rust `src/agent/` owns context, durable task state and detached native worker processes; see `docs/AGENT.md`. |
 
-- `tests/test_qml_names.py` fails on a fourth `.qml` at the root, and on any QML
+- `tests/test_qml_names.py` checks the entry points under `ui/`, and any QML
   file the Makefile does not list — a file `qmllint` never sees is a file nobody
   checks.
 - QML resolves a type by name from its own directory, so a file that builds a
   type from another module imports that directory: `Service.qml` has
-  `import "account"`, `account/MailAccount.qml` has `import "../providers"` and
+  `import "account"`, `ui/account/MailAccount.qml` has `import "../providers"` and
   `import "../cache"`.
+
+## Backend API compatibility
+
+- `backend-version` is the installed plugin's exact binary pin, independent of
+  the development Cargo version. Never resolve main/latest or a PATH binary for
+  the plugin. Keep old release assets available and never overwrite them.
+- `backend-api.json` versions the public API contract. Internal Rust changes do
+  not require a release, but new QML dependencies on methods, parameters,
+  responses or error semantics require updated contract fixtures and a higher
+  API revision — one step past `releasedApiVersion`, with the new methods and
+  cases named under `unreleased`, and the feature checking the connected backend against its fixed minimum API revision (for example API 2 for event suggestions). Keep that requirement after release; `released` and `unreleased` describe publication state, not a feature's permanent capability. A second step
+  waits for a release. See "Released and unreleased" in `docs/BACKEND-RUNTIME.md`.
+- The required Published backend merge gate tests the actual pinned release with
+  current QML codecs. Extend the contract tests for changed behavior; an inventory
+  check alone does not prove compatibility. Source fingerprints are release
+  provenance, not a requirement that future Rust source remain unchanged.
+- Plugin-local exact version and API handshake checks must both remain in place.
+  The missing-apiVersion exception applies only to the historical 0.9.0 binary
+  with API 1. See `docs/BACKEND-RUNTIME.md` for the release process.
 
 ## JavaScript libraries
 
@@ -46,14 +71,17 @@ three directories away from the client that calls it.
   and use `var` and `function` only — no `const`, `let`, arrow functions, or
   template literals. `tests/test_source.sh` finds them wherever they are, so a
   new module is covered without being added to a list.
-- Everything that parses, formats, or decides lives in one of them, so the node
-  tests can reach it without a compositor. QML holds no logic worth testing.
+- UI decisions belong in these libraries so node tests can reach them without
+  a compositor. Mail fetching, parsing, classification, organization and updates
+  are migrating into shared Rust modules; see `docs/BACKEND.md`. QML retains
+  presentation and interaction state and communicates with a persistent backend
+  over stdin/stdout, not by invoking CLI commands.
 - One JS resource may build on others with QML's `.import "Other.js" as Other`,
-  which is how `providers/Registry.js` is assembled out of `Gmail.js`,
+  which is how `ui/providers/Registry.js` is assembled out of `Gmail.js`,
   `Outlook.js`, `Hey.js`, `Jmap.js` and `Imap.js` — and those out of `GmailApi.js`,
   `HeyCli.js` and `JmapProtocol.js` in turn, because where a message lives on
   the web, or what a query string means, is a fact about the service rather
-  than about the registry. `tests/load.js` resolves the chain the same
+  than about the registry. `ui/tests/load.js` resolves the chain the same
   way the engine does, so the tests exercise the real files.
 - Tests name the module path: `load("cache/Cache.js")`. A bare filename would no
   longer say where the thing lives.
@@ -90,7 +118,7 @@ different features and only one of them is here.
   elides the *logical* end of a right-to-left string under `Text.ElideRight`,
   resolves each `<br>`-separated line of a plain body separately, and needs no
   help with an Arabic subject or an Arabic paragraph.
-- `message/Direction.js` exists for the three places it is wrong or absent, and
+- `ui/message/Direction.js` exists for the three places it is wrong or absent, and
   for nothing else. Adding a fourth caller is a decision, not a formality.
 - **A subject is asked with `resolveSubject`, never `resolve`.** A reply prefix
   is Latin whatever the thread is written in, so `Re: مرحبا` reads left-to-right
@@ -136,7 +164,7 @@ different features and only one of them is here.
   a delimiter by searching for `--` and the boundary anywhere in the body, so an
   inner boundary that began with the outer one would be found by the outer scan
   as well and the message would come apart at the wrong line. `nestedBoundary`
-  puts its tag in front for that reason, and `tests/test_message.js` asserts the
+  puts its tag in front for that reason, and `ui/tests/test_message.js` asserts the
   inner delimiter cannot be read as the outer one.
 - The calendar reply keeps its two parts and gains no twin. An RSVP's sentence
   is generated rather than composed, so there is no writer's direction to carry,
@@ -168,7 +196,7 @@ different features and only one of them is here.
 The design and the full table are in `docs/KEYS.md`; read it before touching a
 key. What matters while working:
 
-- Every binding lives in `keys/Keymap.js` and nothing else describes one. The
+- Every binding lives in `ui/keys/Keymap.js` and nothing else describes one. The
   shortcut sheet and the status hints render from it, and a test asserts
   `docs/KEYS.md` matches it. Three hand-written copies used to exist and had
   already drifted apart.
@@ -211,7 +239,7 @@ key. What matters while working:
   popup's `contentItem` is the only thing that works. The account switcher
   and the agent prompt are the components that answer keys themselves, for
   this reason.
-  `tests/qml/tst_popup_keys.qml` asserts both halves, so the exception cannot
+  `ui/tests/qml/tst_popup_keys.qml` asserts both halves, so the exception cannot
   be tidied back into the rule by someone who only read the rule.
 - The mouse does not move the keyboard's cursor. Qt re-reports hover when
   content moves under a still pointer and the list scrolls to follow the
@@ -503,7 +531,7 @@ key. What matters while working:
 - Screenshots go to GitHub's attachment host by dragging them into an issue or
   a release, never into the tree. A 320 KB PNG that nothing referenced was a
   quarter of what a clone cost.
-- `assets/` holds what the running plugin draws, which includes the provider
+- `ui/assets/` holds what the running plugin draws, which includes the provider
   artwork — a few kilobytes each, at 128px, reached through `Registry.mark` and
   `Registry.logo`. Those are two different questions: `mark` is the square icon
   a list row wants, `logo` is the lockup a page about the service opens with,
@@ -523,28 +551,20 @@ key. What matters while working:
 
 - **Every PR that changes UI must include before-and-after screenshots in its description and explain the visible differences.** Label the screenshots clearly and capture the same view, state, window size, theme and scale so reviewers can compare them directly. Cover each changed view or interaction state; update the screenshots when later commits change the UI. Use synthetic or redacted mail data and upload images to GitHub's attachment host, never to the repository. A UI PR without this evidence is not ready for approval; passing tests do not replace the visual comparison.
 
-- **No scope prefix, and this is where the project departs from GPUI Component on purpose.** A title is the imperative outcome and nothing in front of it: `Read a message at a readable size`, not `reader: Read a message at a readable size`.
-
-  gpui-component prefixes everything — `markdown: Share the parsed block list instead of cloning it every frame`, `dock: Keep a split filled when its last slot is hidden`, `input: Stop copying the value into InputPresentation` — and it is right to. That repository is a kit of separable components and crates, so the first question a reader has is *which one*, and the prefix answers it before the sentence starts.
-
-  This repository is one application that does one thing: mail. There is no kit, no second component, and nothing a reader has to be told apart from anything else — so the question the prefix answers never arises, and a prefix put there anyway has to be invented. That is what `app:` is: a word that names nothing, on the changes that were worth doing. Do not restore the prefix by reading gpui-component and concluding the style should match. The style follows from the shape of the repository, and the shapes are different. This has been re-litigated once already.
+- **Choose the scope prefix from the final change.** AI feature changes use `ai: `, documentation-only changes use `docs: `, website changes use `website: `, and repository maintenance changes — release workflows, CI, builds, dependency upkeep and developer tooling — use `chore: `. Website content changes use `website: `; `docs: ` is for repository documentation. Other changes have no scope prefix. For mixed changes, use the primary outcome rather than stacking prefixes; supporting documentation does not turn a feature or maintenance PR into a documentation PR. A release-flow PR with README cleanup therefore uses `chore: `.
+- **Start the title's action with `Fix ` for a bug fix or `Add ` for a new feature.** These words take a space, not a colon, and follow the scope prefix when one applies: `ai: Fix command deletion`, `ai: Add highlighted slash command tokens`, `website: Add provider setup examples`, `docs: Fix backend release instructions`, `chore: Fix backend release ordering with a single release PR`, or `Fix unread counts`. Without a scope prefix, `Fix ` or `Add ` begins the entire title. Other changes use the imperative verb that accurately describes the result.
 - **A title names machinery and what happened to it, in the words the code uses.** It is read by somebody deciding whether this is the change they are looking for. `Use the body and the read state already on disk` says which machinery moved; `Open a message on what the list already knows` describes the mechanism that produced the result and names nothing, and reads as a title only to somebody who has already seen the diff. Prose that could sit in a release note is not a title.
 - Derive the pull request title from the final `base...HEAD` diff. Do not copy the first commit subject when later commits have broadened or changed the outcome.
 - **Re-derive it every time a commit is added, not only when the pull request is opened.** The rule above is easy to satisfy at creation and easy to lose afterwards — one pull request here was opened for a single fix, grew three more, and kept the first commit's subject until somebody read it and said it was wrong. The description carries the same rule for the same reason; the title needs it said out loud because a title is short enough to go on looking true.
 - Rewrite the pull request description whenever its scope changes. It states the user-visible results, the architectural reason and invariants, and the verification actually performed; it does not preserve a chronological list of implementation attempts.
-- Commit subjects follow the same rule: imperative, outcome-oriented, unprefixed. A conventional prefix never substitutes for a precise result.
+- Commit subjects follow the same naming rules as PR titles, based on the changes in that commit: imperative and outcome-oriented, with the opening defined above. A prefix never substitutes for a precise result.
 - Markdown prose uses one source line per paragraph. Do not hard-wrap prose to a column width.
 
 ## Releasing
 
-- `scripts/bump.sh 0.2.0` is the whole of it: it sets the manifest version,
-  commits, tags and pushes both. The release workflow refuses a tag that
-  disagrees with the manifest, and by then the tag is on the remote and has to
-  be deleted from it — deriving both from one argument is what stops that.
-- It refuses before it writes: a `v` prefix, a version that is not
-  MAJOR.MINOR.PATCH, one the manifest already carries, a branch that is not
-  main, a dirty tree, a tag that already exists here or on the remote, and a
-  main that is behind the remote. It runs `make test` before tagging.
+- `make publish VERSION=X.Y.Z` creates `release/X.Y.Z` and one PR from a clean, synchronized main; without VERSION it increments the patch. It prepares version metadata and pushes only the release branch. Never push main directly or bypass its PR requirement.
+- Release CI accepts only the matching versioned release branch. It builds both native backends, creates the tag, publishes and verifies public assets, then updates `backend-version` and folds `backend-api.json` on that same branch. Merge that PR once after the pin commit passes the required backend gate. Never update the QML backend pin before its release succeeds.
+- Pin-only pushes exclude both `backend-version` and `backend-api.json` from the Release trigger. Existing tags and releases are never overwritten; failures leave the pin unchanged. See `docs/BACKEND-RUNTIME.md` for recovery.
 - A user-visible pull request carries a `## Release Notes` section in its
   description. Write the shipped results there as concise user-facing bullets;
   implementation details and verification belong in their own sections.
@@ -553,7 +573,7 @@ key. What matters while working:
   `## Release Notes` section and builds the complete change list. Do not replace
   this with GitHub's generated notes: those do not read the PR descriptions and
   can omit a pull request that is present in the tagged history.
-- The tag is the only thing that publishes a release. Nothing else creates one.
+- Tags do not trigger publication. Only a versioned release branch runs Release; neither the local publish command nor CI pushes main.
 
 ## Verification
 

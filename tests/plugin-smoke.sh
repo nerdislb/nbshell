@@ -16,7 +16,7 @@ for plugin in beispiel wetter headset buds-control hermarchy-agent omamail ytmus
     done < <(find "$root" -type f -name '*.qml' -print0)
 done
 
-make -C "$ROOT/plugins/omamail" test
+make -C "$ROOT/plugins/omamail" test test-backend-process
 bash "$ROOT/plugins/ytmusic/scripts/test.sh"
 node --test "$ROOT/plugins/pit-wall/tests/model.test.js"
 

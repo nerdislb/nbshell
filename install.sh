@@ -31,6 +31,10 @@ if ! flock -n 9; then
     exit 1
 fi
 
+# The published backend cannot adopt a Python worker from the old plugin path.
+# Refuse before any payload mutation; never kill or relaunch the user's job.
+python3 "$SRC/plugins/omamail/scripts/check-upgrade.py" "$DATA_DIR/plugins/omamail/scripts/agent-job.py"
+
 # ── Voraussetzungen ──────────────────────────────────────────────────────
 missing=()
 command -v quickshell >/dev/null 2>&1 || command -v qs >/dev/null 2>&1 || missing+=("quickshell")
@@ -830,12 +834,9 @@ else
     echo "Plugins -> $DATA_DIR/plugins ($(find "$DATA_DIR/plugins" -maxdepth 2 -name manifest.json 2>/dev/null | wc -l) installed, existing files kept)"
 fi
 
-# Mail owns a one-time migration from its pre-0.2 `omarchy-gmail` state. Run
-# the installed, reviewed helper on both fresh and update paths; it is
-# idempotent and never touches current `omamail` state.
-if [ -x "$DATA_DIR/plugins/omamail/scripts/migrate-storage.sh" ]; then
-    "$DATA_DIR/plugins/omamail/scripts/migrate-storage.sh"
-fi
+# nbshell owns this legacy storage migration independently of the upstream plugin.
+# Never merge or replace an existing current Mail store.
+bash "$SRC/shell/scripts/mail-migrate-storage.sh"
 
 # Managed plugin updates must also refresh an already installed backend copy.
 # The YouTube Music service deliberately runs outside the plugin tree, so merely
