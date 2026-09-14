@@ -286,6 +286,7 @@ PanelWindow {
                     { "key": "s", "label": "Speedtest", "icon": Icons.cpu, "run": () => Runtime.speedOpen = true }
                 ] },
                 { "key": "d", "label": "Displays", "description": "Resolution, scale, orientation, and position", "icon": Icons.cp(0xF0379), "run": () => Runtime.displayOpen = true },
+                { "key": "t", "label": "Touchpad", "description": "Pointer feel, Mac-inspired curves, scrolling and clicking", "icon": Icons.cp(0xF07F8), "run": () => Quickshell.execDetached(["nbshell", "touchpad"]) },
                 { "key": "p", "label": "Processes", "icon": Icons.cpu, "run": () => Runtime.procsOpen = true },
                 { "key": "v", "label": "Security", "description": "Password manager and session security", "icon": Icons.cp(0xF033E), "sub": [
                     { "key": "p", "label": "Approve next system action", "description": "Use the paired phone for one sudo or Polkit request", "icon": Icons.cp(0xF033E), "run": () => root.term("nbshell auth approve-next system") },

@@ -413,6 +413,8 @@ nbshell -- an independent Quickshell desktop shell for Umbriel
   nbshell display place <output> left|right|above|below <reference>
                             position connected displays
   nbshell ui-gallery        preview the shared nbshell component language
+  nbshell touchpad          open native touchpad settings and Mac-inspired curves
+  nbshell touchpad status   inspect touchpad configuration as JSON
   nbshell update            check nbshell and the Umbriel stack
   nbshell update install    verify and install the latest nbshell release
   nbshell update umbriel    build, test and install the Umbriel stack
@@ -975,6 +977,12 @@ for b in d["binds"]:
         case "${1:-open}" in
             open|toggle) ipc displays toggle ;;
             *) python3 "$DISPLAY_TOOL" "$@" ;;
+        esac
+        ;;
+    touchpad)
+        case "${1:-open}" in
+            open) exec "$QS" -p "$RUNTIME_DIR/Touchpad.qml" ;;
+            *) exec python3 "$RUNTIME_DIR/scripts/touchpad.py" "$@" ;;
         esac
         ;;
     ui-gallery|gallery)
