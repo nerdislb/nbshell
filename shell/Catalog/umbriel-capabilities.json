@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "contractVersion": 1,
   "backend": "umbriel",
-  "referenceRevision": "3cfd5e3f2ab87bd69a92038b110de0941cf71ecc",
+  "referenceRevision": "4ad5bca8006a5f8950b00a91d50864c4a3d8d692",
   "transport": {
     "type": "unix-stream",
     "framing": "newline-delimited-json",
@@ -11,22 +11,136 @@
     "maxRequestBytes": 65536
   },
   "capabilities": [
-    {"id": "query.windows", "kind": "query", "wireName": "windows", "required": true, "fallback": "unavailable"},
-    {"id": "query.workspaces", "kind": "query", "wireName": "workspaces", "required": true, "fallback": "unavailable"},
-    {"id": "event.windows", "kind": "event", "wireName": "windows", "required": true, "fallback": "unavailable"},
-    {"id": "event.workspaces", "kind": "event", "wireName": "workspaces", "required": true, "fallback": "unavailable"},
-    {"id": "event.keyboard-layout", "kind": "event", "wireName": "keyboard_layout", "required": false, "fallback": "empty"},
-    {"id": "workspace.focus", "kind": "action", "wireName": "workspace-switch", "argument": "workspace", "required": true, "fallback": "unavailable"},
-    {"id": "workspace.layout.set", "kind": "action", "wireName": "workspace-set-layout", "argument": "layout", "required": true, "fallback": "unavailable"},
-    {"id": "window.focus", "kind": "action", "wireName": "window-focus", "argument": "window-id", "required": true, "fallback": "unavailable"},
-    {"id": "window.focus-warp", "kind": "action", "wireName": "window-focus-warp", "argument": "window-id", "required": false, "fallback": "window.focus"},
-    {"id": "window.close", "kind": "action", "wireName": "window-close", "argument": "window-id", "required": true, "fallback": "unavailable"},
-    {"id": "window.move-to-workspace", "kind": "action", "wireName": "window-move-to-workspace", "argument": "workspace", "required": true, "fallback": "unavailable"},
-    {"id": "window.floating.toggle", "kind": "action", "wireName": "window-toggle-floating", "argument": "none", "required": true, "fallback": "unavailable"},
-    {"id": "window.width.set", "kind": "action", "wireName": "window-set-width", "argument": "fraction", "required": false, "fallback": "unavailable"},
-    {"id": "session.quit", "kind": "action", "wireName": "session-quit", "argument": "quit-mode", "required": true, "fallback": "unavailable"},
-    {"id": "config.reload", "kind": "action", "wireName": "config-reload", "argument": "none", "required": true, "fallback": "unavailable"},
-    {"id": "output.dpms.off", "kind": "action", "wireName": "dpms-off", "argument": "optional-output", "required": true, "fallback": "unavailable"},
-    {"id": "output.dpms.on", "kind": "action", "wireName": "dpms-on", "argument": "optional-output", "required": false, "fallback": "unavailable"}
+    {
+      "id": "query.windows",
+      "kind": "query",
+      "wireName": "windows",
+      "required": true,
+      "fallback": "unavailable"
+    },
+    {
+      "id": "query.workspaces",
+      "kind": "query",
+      "wireName": "workspaces",
+      "required": true,
+      "fallback": "unavailable"
+    },
+    {
+      "id": "event.windows",
+      "kind": "event",
+      "wireName": "windows",
+      "required": true,
+      "fallback": "unavailable"
+    },
+    {
+      "id": "event.workspaces",
+      "kind": "event",
+      "wireName": "workspaces",
+      "required": true,
+      "fallback": "unavailable"
+    },
+    {
+      "id": "event.keyboard-layout",
+      "kind": "event",
+      "wireName": "keyboard_layout",
+      "required": false,
+      "fallback": "empty"
+    },
+    {
+      "id": "workspace.focus",
+      "kind": "action",
+      "wireName": "workspace-switch",
+      "argument": "workspace",
+      "required": true,
+      "fallback": "unavailable"
+    },
+    {
+      "id": "workspace.layout.set",
+      "kind": "action",
+      "wireName": "workspace-set-layout",
+      "argument": "layout",
+      "required": true,
+      "fallback": "unavailable"
+    },
+    {
+      "id": "window.focus",
+      "kind": "action",
+      "wireName": "window-focus",
+      "argument": "window-id",
+      "required": true,
+      "fallback": "unavailable"
+    },
+    {
+      "id": "window.focus-warp",
+      "kind": "action",
+      "wireName": "window-focus-warp",
+      "argument": "window-id",
+      "required": false,
+      "fallback": "window.focus"
+    },
+    {
+      "id": "window.close",
+      "kind": "action",
+      "wireName": "window-close",
+      "argument": "window-id",
+      "required": true,
+      "fallback": "unavailable"
+    },
+    {
+      "id": "window.move-to-workspace",
+      "kind": "action",
+      "wireName": "window-move-to-workspace",
+      "argument": "workspace",
+      "required": true,
+      "fallback": "unavailable"
+    },
+    {
+      "id": "window.floating.toggle",
+      "kind": "action",
+      "wireName": "window-toggle-floating",
+      "argument": "none",
+      "required": true,
+      "fallback": "unavailable"
+    },
+    {
+      "id": "window.width.set",
+      "kind": "action",
+      "wireName": "window-set-width",
+      "argument": "fraction",
+      "required": false,
+      "fallback": "unavailable"
+    },
+    {
+      "id": "session.quit",
+      "kind": "action",
+      "wireName": "session-quit",
+      "argument": "quit-mode",
+      "required": true,
+      "fallback": "unavailable"
+    },
+    {
+      "id": "config.reload",
+      "kind": "action",
+      "wireName": "config-reload",
+      "argument": "none",
+      "required": true,
+      "fallback": "unavailable"
+    },
+    {
+      "id": "output.dpms.off",
+      "kind": "action",
+      "wireName": "dpms-off",
+      "argument": "optional-output",
+      "required": true,
+      "fallback": "unavailable"
+    },
+    {
+      "id": "output.dpms.on",
+      "kind": "action",
+      "wireName": "dpms-on",
+      "argument": "optional-output",
+      "required": false,
+      "fallback": "unavailable"
+    }
   ]
 }

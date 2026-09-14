@@ -38,7 +38,9 @@ assert contract["transport"] == {
 reference_revision = contract["referenceRevision"]
 assert re.fullmatch(r"[0-9a-f]{40}", reference_revision)
 setup = (ROOT / "setup-umbriel.sh").read_text()
-assert f'UMBRIEL_REVISION="{reference_revision}"' in setup
+recipe = json.loads((ROOT / "umbriel/source.json").read_text())
+assert recipe["revision"] == reference_revision
+assert 'prepare-umbriel-source.py" "$SOURCE_ROOT/umbriel"' in setup
 manifest = tomllib.loads((ROOT / "iso/packages/MANIFEST.toml").read_text())
 manifest_umbriel = next(row for row in manifest["custom"] if row["name"] == "umbriel")
 # The ISO can ship a newer independently reviewed build than the capability
@@ -49,7 +51,7 @@ pkgbuild = (ROOT / "iso/packages/pkgbuilds/umbriel/PKGBUILD").read_text()
 assert re.search(rf"^_commit={package_revision}$", pkgbuild, re.MULTILINE)
 external_sources = json.loads((ROOT / "shell/Catalog/external-sources.json").read_text())
 external_umbriel = next(row for row in external_sources["sources"] if row["name"] == "Umbriel")
-assert reference_revision.startswith(external_umbriel["reviewedCommit"])
+assert recipe["baseRevision"].startswith(external_umbriel["reviewedCommit"])
 capabilities = {row["id"]: row for row in contract["capabilities"]}
 assert len(capabilities) == len(contract["capabilities"])
 assert not any(row["wireName"] == "spawn" for row in contract["capabilities"])
@@ -142,7 +144,7 @@ assert "--niri-only" not in setup
 assert '"$SRC/setup-umbriel.sh" --skip-shell-install' in setup
 assert "greetd-regreet" not in setup
 umbriel_setup = (ROOT / "setup-umbriel.sh").read_text()
-assert contract["referenceRevision"] in umbriel_setup
+assert 'prepare-umbriel-source.py" "$SOURCE_ROOT/umbriel"' in umbriel_setup
 assert 'tests/umbriel-capability-contract.py"' in umbriel_setup
 assert '--binary "$SOURCE_ROOT/umbriel/build-nbshell/umbriel"' in umbriel_setup
 assert '--source "$SOURCE_ROOT/umbriel"' in umbriel_setup

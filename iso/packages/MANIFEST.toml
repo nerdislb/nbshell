@@ -142,7 +142,7 @@ packages = [
 name = "umbriel"
 pkgbuild = "pkgbuilds/umbriel"
 source = "https://github.com/noctalia-dev/umbriel.git"
-revision = "c3bb2a85d6f889d458349bbf780f8b692c611633"
+revision = "5678f161f3e5e42c72ce818402b4c2960db31bc2"
 description = "Umbriel Wayland compositor (nbshell's supported session)"
 
 [[custom]]

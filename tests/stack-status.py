@@ -34,7 +34,9 @@ class PolicyTests(unittest.TestCase):
     def test_release_identity_and_pins_do_not_drift(self):
         self.assertEqual(self.manifest["nbshellVersion"], (ROOT / "VERSION").read_text().strip())
         setup = (ROOT / "setup-umbriel.sh").read_text()
-        for name, var in (("umbriel", "UMBRIEL"), ("portal", "PORTAL")):
+        recipe = stack.load_json(ROOT / "umbriel/source.json")
+        self.assertEqual(recipe["revision"], self.manifest["components"]["umbriel"]["supported"][0])
+        for name, var in (("portal", "PORTAL"),):
             self.assertIn(f'{var}_REVISION="{self.manifest["components"][name]["supported"][0]}"', setup)
         contract = stack.load_json(ROOT / "shell/Catalog/umbriel-capabilities.json")
         self.assertEqual(contract["referenceRevision"], self.manifest["components"]["umbriel"]["supported"][0])

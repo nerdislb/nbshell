@@ -1,6 +1,6 @@
-tree 044f18aab7f092181764c33ad9398798c8add475
-parent c3bb2a85d6f889d458349bbf780f8b692c611633
-author nerdi <erni1983@gmail.com> 1788961940 +0200
-committer nerdi <erni1983@gmail.com> 1789130923 +0200
+tree 482cad9b1db4dc706bf5437e8974c93a9fb4cae6
+parent 5678f161f3e5e42c72ce818402b4c2960db31bc2
+author nerdi <nerdi@localhost> 1789325973 +0200
+committer nerdi <nerdi@localhost> 1789325973 +0200
 
-fix: forward keyboard modifiers to pointer-focused clients
+Preserve nbshell pointer modifier lifecycle on approved Umbriel upstream

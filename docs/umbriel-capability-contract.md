@@ -252,3 +252,7 @@ and reconstructs the exact tested commit locally. It never pushes to upstream.
 Dirty source checkouts are rejected. This preserves exact revision checks while
 making a fresh installation independent of a pre-existing local Git object.
 The normal test gate exercises a remote containing only the parent commit.
+
+## Beta 12 reference refresh (2026-09-14)
+
+The current source recipe and contract use `4ad5bca8006a5f8950b00a91d50864c4a3d8d692`. Help fixtures were recaptured from its clean `build-approved/umbriel` build. The capability suite checks those exact bytes and source provenance; the real Wayland widget drag regression passed against the installed candidate. The earlier acceptance record above remains historical, not evidence for all current hardware behavior.
