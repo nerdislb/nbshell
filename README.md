@@ -1,5 +1,7 @@
 # nbshell
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Y3G326ZLYS)
+
 nbshell is an independent desktop shell for the
 [Umbriel](https://github.com/noctalia-dev/umbriel) Wayland compositor. It is built with
 [Quickshell](https://quickshell.org) and takes visual inspiration from

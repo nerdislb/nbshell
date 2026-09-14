@@ -34,3 +34,9 @@ things needed for a first installation and will grow alongside the project.
 
 The repository README remains the short project overview. This directory is
 the long-form source for the documentation website.
+
+## Support development
+
+If you enjoy nbshell, you can support its development on Ko-fi.
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Y3G326ZLYS)
