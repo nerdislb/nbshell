@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import Quickshell.Io
 import "Wire.js" as Wire
 import "Upload.js" as Upload
