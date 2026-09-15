@@ -604,6 +604,8 @@ transaction_backup_path "$BIN_DIR/nbshell-install-recover" recovery-command
 transaction_backup_path "$CONFIG_HOME/aether/custom/nbshell" aether-hook
 transaction_backup_path "$SHARE_DIR/applications/dev.nerdi.nbshell.desktop" app-shell
 transaction_backup_path "$SHARE_DIR/applications/dev.nerdi.nbshell.Calculator.desktop" app-calculator
+transaction_backup_path "$SHARE_DIR/applications/dev.nerdi.nbshell.Windows.desktop" app-windows
+transaction_backup_path "$SHARE_DIR/icons/hicolor/256x256/apps/dev.nerdi.nbshell.Windows.png" icon-windows
 transaction_backup_path "$CONFIG_HOME/omarchy-gmail" old-mail-config
 transaction_backup_path "${XDG_CACHE_HOME:-$HOME/.cache}/omarchy-gmail" old-mail-cache
 transaction_backup_path "$CONFIG_HOME/omamail" mail-config
@@ -1003,8 +1005,11 @@ APP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 mkdir -p "$APP_DIR"
 install -m 644 "$SRC/data/dev.nerdi.nbshell.desktop" "$APP_DIR/dev.nerdi.nbshell.desktop"
 install -m 644 "$SRC/data/dev.nerdi.nbshell.Calculator.desktop" "$APP_DIR/dev.nerdi.nbshell.Calculator.desktop"
+install -m 644 "$SRC/data/dev.nerdi.nbshell.Windows.desktop" "$APP_DIR/dev.nerdi.nbshell.Windows.desktop"
+mkdir -p "$SHARE_DIR/icons/hicolor/256x256/apps"
+install -m 644 "$SRC/shell/assets/windows/windows.png" "$SHARE_DIR/icons/hicolor/256x256/apps/dev.nerdi.nbshell.Windows.png"
 command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$APP_DIR" >/dev/null 2>&1 || true
-green "Apps    -> $APP_DIR (nbshell and Calculator)"
+green "Apps    -> $APP_DIR (nbshell, Calculator and Windows)"
 
 # ── Agent skill ──────────────────────────────────────────────────────────
 # One versioned source, linked into the common Agent Skills locations. The

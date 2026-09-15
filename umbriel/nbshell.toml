@@ -258,3 +258,10 @@ blur_popups = false
 match.namespace = "^nbshell:(dashboard|agents)$"
 blur = false
 blur_popups = false
+
+# The RDP desktop follows the Windows app identity and opens as a regular window.
+[[window_rule]]
+match.app_id = "^dev[.]nerdi[.]nbshell[.]Windows$"
+default_floating = true
+default_focused = true
+default_size = [1280, 800]

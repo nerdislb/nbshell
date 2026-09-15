@@ -292,6 +292,16 @@ PanelWindow {
                     { "key": "q", "label": "Wi-Fi QR code", "icon": Icons.cp(0xF0432), "run": () => Runtime.qrOpen = true },
                     { "key": "s", "label": "Speedtest", "icon": Icons.cpu, "run": () => Runtime.speedOpen = true }
                 ] },
+                { "key": "w", "label": "Windows", "description": "Windows 11 on demand, shared files, and development", "icon": Icons.cp(0xF17A), "sub": [
+                    { "key": "s", "label": "Start Windows", "description": "Open Windows; stop the VM when closed", "icon": Icons.cp(0xF17A), "run": () => Quickshell.execDetached(["nbshell", "windows", "launch"]) },
+                    { "key": "b", "label": "Start Windows for builds", "description": "Keep Windows running after the window closes", "icon": Icons.cp(0xF17A), "run": () => Quickshell.execDetached(["nbshell", "windows", "launch", "--keep-alive"]) },
+                    { "key": "i", "label": "Install / Configure", "description": "Install Windows or adjust VM resources", "icon": Icons.download, "run": () => Quickshell.execDetached(["nbshell", "windows", "install"]) },
+                    { "key": "f", "label": "Shared folder", "description": "Files shared with Windows", "icon": Icons.cp(0xF024B), "run": () => Quickshell.execDetached(["nbshell", "windows", "shared"]) },
+                    { "key": "c", "label": "Installation console", "description": "View installation and recovery in the browser", "icon": Icons.cp(0xF108), "run": () => Quickshell.execDetached(["nbshell", "windows", "console"]) },
+                    { "key": "l", "label": "Windows sign-in", "description": "Show the private VM login in a local terminal", "icon": Icons.cp(0xF033E), "run": () => root.term("nbshell windows credentials") },
+                    { "key": "t", "label": "Status", "icon": Icons.cpu, "run": () => root.term("nbshell windows status") },
+                    { "key": "x", "label": "Stop Windows", "description": "Shut down the VM, including background builds", "icon": Icons.cp(0xF011), "run": () => Quickshell.execDetached(["nbshell", "windows", "stop"]) }
+                ] },
                 { "key": "d", "label": "Displays", "description": "Resolution, scale, orientation, and position", "icon": Icons.cp(0xF0379), "run": () => Runtime.displayOpen = true },
                 { "key": "t", "label": "Touchpad", "description": "Pointer feel, Mac-inspired curves, scrolling and clicking", "icon": Icons.cp(0xF07F8), "run": () => Quickshell.execDetached(["nbshell", "touchpad"]) },
                 { "key": "p", "label": "Processes", "icon": Icons.cpu, "run": () => Runtime.procsOpen = true },

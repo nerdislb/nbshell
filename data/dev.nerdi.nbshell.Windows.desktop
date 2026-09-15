@@ -1,0 +1,29 @@
+[Desktop Entry]
+Type=Application
+Name=Windows
+GenericName=Windows 11 Virtual Machine
+Comment=Open Windows on demand with shared clipboard, sound and files
+Exec=nbshell windows launch
+Icon=dev.nerdi.nbshell.Windows
+Terminal=false
+Categories=System;Emulator;
+Keywords=Windows;Microsoft;VM;RDP;Office;Visual Studio;
+StartupWMClass=dev.nerdi.nbshell.Windows
+StartupNotify=false
+Actions=Install;KeepAlive;Shared;Stop;
+
+[Desktop Action Install]
+Name=Install / Configure Windows
+Exec=nbshell windows install
+
+[Desktop Action KeepAlive]
+Name=Start Windows for builds
+Exec=nbshell windows launch --keep-alive
+
+[Desktop Action Shared]
+Name=Shared folder
+Exec=nbshell windows shared
+
+[Desktop Action Stop]
+Name=Stop Windows
+Exec=nbshell windows stop

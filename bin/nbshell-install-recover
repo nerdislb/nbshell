@@ -31,6 +31,8 @@ expected_transaction_path() {
         aether-hook) printf '%s\n' "$config_home/aether/custom/nbshell" ;;
         app-shell) printf '%s\n' "$data_home/applications/dev.nerdi.nbshell.desktop" ;;
         app-calculator) printf '%s\n' "$data_home/applications/dev.nerdi.nbshell.Calculator.desktop" ;;
+        app-windows) printf '%s\n' "$data_home/applications/dev.nerdi.nbshell.Windows.desktop" ;;
+        icon-windows) printf '%s\n' "$data_home/icons/hicolor/256x256/apps/dev.nerdi.nbshell.Windows.png" ;;
         old-mail-config) printf '%s\n' "$config_home/omarchy-gmail" ;;
         old-mail-cache) printf '%s\n' "$cache_home/omarchy-gmail" ;;
         mail-config) printf '%s\n' "$config_home/omamail" ;;

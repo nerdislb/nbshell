@@ -488,6 +488,11 @@ nbshell -- an independent Quickshell desktop shell for Umbriel
   nbshell bongo             Bongo Cat: status, test, on, off, allow, revoke
   nbshell clip              clipboard history (toggle, list, clear)
   nbshell cal               calendar (also: next, sync, status)
+  nbshell windows install  install/configure optional Windows 11 VM
+  nbshell windows launch [--keep-alive]
+                            open Windows (normally stops after closing)
+  nbshell windows stop|status|shared|console|credentials|remove
+                            manage Windows and open its shared files
   nbshell gaming status     show installed and available gaming tools
   nbshell openclaw install  install local OpenClaw with subscription sign-in
   nbshell openclaw open     open the existing OpenClaw dashboard
@@ -1072,6 +1077,9 @@ for b in d["binds"]:
         ;;
     gaming|games)
         bash "$GAMING_TOOL" "${1:-status}" "${2:-}"
+        ;;
+    windows)
+        python3 "$RUNTIME_DIR/scripts/windows.py" "$@"
         ;;
     openclaw)
         python3 "${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/nbshell/scripts/openclaw-setup.py" "${1:-install}"

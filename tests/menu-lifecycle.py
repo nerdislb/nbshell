@@ -11,6 +11,13 @@ def instrument(shell):
     source = source[:end] + '''
     IpcHandler {
         target: "menuProbe"
+        function windows(): string {
+            root.open();
+            root.activate(root.tree.findIndex(e => e.label === "System"));
+            root.activate(root.items.findIndex(e => e.label === "Windows"));
+            return JSON.stringify(root.items.map(e => e.label));
+        }
+        function lastWindowsItem(): void { root.selected = root.items.length - 1; }
         function state(): string {
             const row = menuRows.itemAt(root.selected);
             const point = box.mapToItem(root.contentItem, 0, 0);
@@ -72,3 +79,17 @@ ShellRoot {
         Path('/work/menu-result.json').write_text(json.dumps({'first':first,'last':last,'focus':result},indent=2))
     finally:
         keyboard.wait(timeout=10)
+
+    # Exercise the real Windows submenu in each private theme/geometry run.
+    labels = json.loads(ipc('menuProbe', 'windows'))
+    assert labels == ['Start Windows', 'Start Windows for builds', 'Install / Configure',
+                      'Shared folder', 'Installation console', 'Windows sign-in', 'Status', 'Stop Windows'], labels
+    wait(mapped, 'Windows submenu mapped'); time.sleep(.4)
+    windows_state = state(); bounds(windows_state)
+    run(['grim', '/work/windows-menu.png'])
+    ipc('menuProbe', 'lastWindowsItem'); time.sleep(.3)
+    last_windows_state = state(); bounds(last_windows_state)
+    run(['grim', '/work/windows-menu-last.png'])
+    ipc('menu', 'close')
+    wait(lambda:not mapped(), 'Windows submenu closes')
+    Path('/work/windows-menu-result.json').write_text(json.dumps({'labels': labels, 'state': windows_state}, indent=2))

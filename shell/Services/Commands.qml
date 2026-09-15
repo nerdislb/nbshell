@@ -68,6 +68,10 @@ Singleton {
         out.push(entry("Library", "themes, wallpapers, and reviewed plugins", "Windows", () => Runtime.storeOpen = true));
         out.push(entry("Session", "lock, log out, power off", "Windows", () => Runtime.powerOpen = true));
 
+        out.push(entry("Install Windows", "Set up Windows 11 or change VM resources", "Windows VM", () => Quickshell.execDetached(["nbshell", "windows", "install"])));
+        out.push(entry("Windows: keep running", "Open Windows for background builds", "Windows VM", () => Quickshell.execDetached(["nbshell", "windows", "launch", "--keep-alive"])));
+        out.push(entry("Stop Windows", "Shut down the Windows VM", "Windows VM", () => Quickshell.execDetached(["nbshell", "windows", "stop"]), true));
+
         // ── Form der Leiste ──────────────────────────────────────────────
         out.push(entry("Bar: full width", "spans the entire screen width", "Shape", () => Config.set("mode", "bar")));
         out.push(entry("Bar: island", "floating and collapsible", "Shape", () => Config.set("mode", "island")));
