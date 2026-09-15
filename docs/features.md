@@ -174,3 +174,5 @@ Large on-demand surfaces are lazy loaded, and the service includes a
 conservative jemalloc policy for lower idle memory. See
 [Performance](performance.md) for the measurement method and allocator
 override.
+
+Audio panel presentation and keyboard behavior: [Omarchy alignment](audio-parity.md).

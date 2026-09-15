@@ -97,12 +97,12 @@ ShellRoot {
     results = []
     try:
         for cycle in range(2):
-            wait(lambda:state()['keyboard'] and state()['focusName'] == 'Output volume', 'volume initial focus')
+            wait(lambda:state()['keyboard'] and state()['focusName'] == 'Unmute audio and microphone', 'volume initial focus')
             initial = state(); assert initial['count'] == 1 and not initial['open'], initial
             wait(lambda:state()['open'], 'switch to control')
             wait(lambda:state()['keyboard'] and not state()['open'], 'switch back to volume')
             switched = state(); assert switched['count'] == 1, switched
-            # With no audio devices the volume slider is the only Tab target.
+            # With no audio devices the audio header is the only Tab target.
             time.sleep(1.2)
             tab = state(); assert tab['keyboard'] and tab['focusName'], tab
             run(['grim',f'/work/panel-switch-tab-{cycle}.png'])

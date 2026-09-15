@@ -42,6 +42,7 @@ PopupWindow {
     // anfassen. Das Schliessen macht es trotzdem selbst (siehe unten): der
     // Griff wird zwar erteilt, aber beim Klick daneben nicht beendet.
     property bool takesKeyboard: true
+    property bool closeOnLeave: true
     property int leaveDelayOverride: -1
 
     // Zeit, bis ein Popout von selbst zugeht, nachdem die Maus es und seine
@@ -54,7 +55,10 @@ PopupWindow {
     readonly property bool pointerInside: hover.hovered || (root.anchorItem?.hovered ?? false)
 
     // Innenabstand in Zellen, damit auch das Popout auf dem Raster sitzt.
-    readonly property real padding: Theme.panelPadding
+    property bool insetBorder: false
+    property real padding: Theme.panelPadding
+    property real surfaceBorderWidth: Theme.borderWidth
+    property color surfaceBorderColor: Theme.focusBorder
 
     color: "transparent"
     // Load and lay out the content before mapping the Wayland popup. Mapping
@@ -69,8 +73,8 @@ PopupWindow {
     // zusaetzliche visible-Bedingung weder noetig noch hilfreich.
     grabFocus: takesKeyboard && requestedVisible && !closing
 
-    implicitWidth: lockedContentWidth > 0 ? lockedContentWidth + padding * 2 + Theme.borderWidth * 2 : 1
-    implicitHeight: lockedContentHeight > 0 ? lockedContentHeight + padding * 2 + Theme.borderWidth * 2 : 1
+    implicitWidth: lockedContentWidth > 0 ? lockedContentWidth + padding * 2 + surfaceBorderWidth * 2 : 1
+    implicitHeight: lockedContentHeight > 0 ? lockedContentHeight + padding * 2 + surfaceBorderWidth * 2 : 1
 
     anchor.item: root.anchorItem
     anchor.rect.y: Config.edge === "bottom" ? -Config.gap : (root.anchorItem?.height ?? 0) + Config.gap
@@ -267,7 +271,7 @@ PopupWindow {
     Timer {
         id: leaveTimer
         interval: root.leaveDelay
-        onTriggered: if (!root.pointerInside)
+        onTriggered: if (root.closeOnLeave && !root.pointerInside)
             root.close()
     }
 
@@ -351,6 +355,8 @@ PopupWindow {
         anchors.fill: parent
         clip: true
         accentBorder: true
+        border.width: root.surfaceBorderWidth
+        border.color: root.surfaceBorderColor
         autoEnter: false
         enterOffsetY: Config.edge === "bottom" ? Theme.spaceSm : -Theme.spaceSm
         transformOrigin: Config.edge === "bottom" ? Item.Bottom : Item.Top
@@ -364,7 +370,7 @@ PopupWindow {
             id: contentViewport
 
             anchors.fill: parent
-            anchors.margins: root.padding
+            anchors.margins: root.padding + (root.insetBorder ? root.surfaceBorderWidth : 0)
             contentWidth: loader.width
             contentHeight: loader.height
             flickableDirection: Flickable.VerticalFlick

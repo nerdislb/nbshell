@@ -298,6 +298,31 @@ Singleton {
     readonly property color menuSelectedText: readable(accent, menuSelection, 4.5)
     readonly property color menuScrim: alpha(bg, 0.50)
 
+    // Omarchy Quattro 6ea3215 audio defaults. Opt-in: other panels and the
+    // bar keep their existing metrics. Font-relative source values, not a
+    // second global spacing scale.
+    readonly property real audioScale: Math.max(1 / 12, fontSize / 12)
+    readonly property int audioWidth: Math.round(380 * audioScale)
+    readonly property int audioMaxHeight: Math.round(560 * audioScale)
+    readonly property int audioPadding: Math.round(14 * audioScale)
+    readonly property int audioBorderWidth: Math.max(1, Math.round(2 * audioScale))
+    readonly property int audioGap: Math.round(14 * audioScale)
+    readonly property int audioRowGap: Math.round(6 * audioScale)
+    readonly property int audioControlGap: Math.round(8 * audioScale)
+    readonly property int audioRowPadding: Math.round(10 * audioScale)
+    readonly property int audioIconSlot: Math.round(22 * audioScale)
+    readonly property int audioSliderHeight: Math.round(22 * audioScale)
+    readonly property int audioTrackHeight: Math.max(4, Math.round(28 * audioScale * 0.11))
+    readonly property int audioKnobSize: Math.max(14, Math.round(28 * audioScale * 0.38))
+    readonly property int audioSwitchHeight: Math.max(22, Math.round(28 * audioScale * 0.55))
+    readonly property int audioCaptionSize: Math.round(fontSize * 0.833)
+    readonly property int audioTitleSize: Math.round(fontSize * 1.167)
+    readonly property int audioHeroSize: Math.round(fontSize * 2)
+    readonly property color audioHover: mix(bg, fg, 0.06)
+    readonly property color audioSelected: mix(bg, fg, 0.08)
+    readonly property color audioOutline: mix(bg, fg, 0.25)
+    readonly property color audioSecondary: readable(mix(bg, fg, 0.65), bg, 4.5)
+
     // Selected controls must be opaque before their foreground contrast is
     // calculated. A translucent accent is composited by QML later and made
     // the old calculation depend on whatever happened to sit behind it.

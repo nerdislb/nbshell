@@ -33,6 +33,16 @@ Singleton {
         .filter(n => n.audio && n.isSink && n.isStream)
         .sort((a, b) => root.label(a).localeCompare(root.label(b)))
 
+    readonly property var sources: Pipewire.nodes.values
+        .filter(n => n.audio && !n.isSink && !n.isStream && n.name !== "quickshell")
+    readonly property real micPeak: inputPeak.peak
+
+    PwNodePeakMonitor {
+        id: inputPeak
+        node: root.source
+        enabled: Runtime.audioPanelOpen && !!root.source
+    }
+
     readonly property int micVolume: source?.audio ? Math.round(source.audio.volume * 100) : 0
     readonly property bool micMuted: source?.audio ? source.audio.muted : false
 
@@ -254,6 +264,16 @@ Singleton {
     function toggleMute() {
         setMuted(!muted);
         return muted;
+    }
+
+    function setMicVolume(percent) {
+        if (source?.audio)
+            source.audio.volume = Math.max(0, Math.min(100, Math.round(percent))) / 100;
+    }
+
+    function setSource(node) {
+        if (node)
+            Pipewire.preferredDefaultAudioSource = node;
     }
 
     function setMicMuted(value) {

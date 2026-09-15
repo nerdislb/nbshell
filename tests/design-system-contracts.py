@@ -366,14 +366,17 @@ volume = (ROOT / "shell/Bar/Widgets/Volume.qml").read_text(encoding="utf-8")
 volume_header = volume[:volume.index("popout: Component")]
 if "popoutTakesKeyboard: true" not in volume_header:
     raise SystemExit("Audio popout no longer accepts keyboard focus")
-if "initialFocusItem: outputVolume" not in volume:
-    raise SystemExit("Audio popout no longer identifies its initial keyboard target")
+audio_panel = (ROOT / "shell/Bar/Widgets/AudioPanel.qml").read_text(encoding="utf-8")
 for snippet in (
-    'keyboardFocusable: true\n                    accessibleName: "Output volume"',
-    'accessibleName: Audio.label(appRow.modelData) + " volume"',
-    'accessibleName: Audio.micMuted ? "Unmute microphone" : "Mute microphone"',
+    'initialFocusItem: audio.ready ? outputVolume : powerSwitch',
+    'accessibleName: "Output volume"',
+    'accessibleName: "Microphone volume"',
+    'accessibleName: title + " volume"',
+    'component VolumeControl: InteractiveSurface',
+    'Accessible.onIncreaseAction: adjust(1)',
+    'Accessible.onDecreaseAction: adjust(-1)',
 ):
-    if snippet not in volume:
+    if snippet not in audio_panel:
         raise SystemExit(f"Audio popout keyboard control contract is incomplete: {snippet}")
 popout = (ROOT / "shell/Widgets/Popout.qml").read_text(encoding="utf-8")
 for snippet in (
@@ -411,13 +414,10 @@ for snippet in (
 ):
     if snippet not in level_bar:
         raise SystemExit(f"LevelBar accessibility contract is incomplete: {snippet}")
-sink_start = volume.index("model: Audio.sinks")
-sink_contract = volume[sink_start:]
-if "PanelRow {" not in sink_contract:
-    raise SystemExit("Audio sink rows no longer use the canonical PanelRow")
-for legacy in ("id: mouse", "onTapped: Audio.setSink"):
-    if legacy in sink_contract:
-        raise SystemExit(f"Audio sink rows regressed to manual interaction: {legacy}")
+if "component ActionRow: InteractiveSurface" not in audio_panel:
+    raise SystemExit("Audio device/route/codec rows must use canonical guarded interaction")
+if "onTapped: { action.forceActiveFocus(Qt.MouseFocusReason); action.activate(); }" not in audio_panel:
+    raise SystemExit("Audio pointer and keyboard activation paths diverged")
 
 themes = (ROOT / "shell/Bar/Widgets/Themes.qml").read_text(encoding="utf-8")
 for snippet in (

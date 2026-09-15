@@ -71,6 +71,12 @@ Item {
 
     readonly property bool nimmtKlicks: root.interactive || (root.popout !== null && !root.popoutOnHover)
     property bool popoutTakesKeyboard: false
+    property bool popoutCloseOnLeave: true
+    property bool popoutInsetBorder: false
+    property real popoutPadding: Theme.panelPadding
+    property real popoutBorderWidth: Theme.borderWidth
+    property color popoutBorderColor: Theme.focusBorder
+    property real popoutHeightLimit: Infinity
     property bool active: false
     property int pendingPopoutToken: -1
     property string popupMode: ""
@@ -380,7 +386,13 @@ Item {
 
         Popout {
             anchorItem: root
-            maximumContentHeight: Math.max(1, root.Screen.height - Theme.barHeight - Theme.panelPadding * 4)
+            closeOnLeave: !takesKeyboard || root.popoutCloseOnLeave
+            insetBorder: takesKeyboard && root.popoutInsetBorder
+            padding: takesKeyboard ? root.popoutPadding : Theme.panelPadding
+            surfaceBorderWidth: takesKeyboard ? root.popoutBorderWidth : Theme.borderWidth
+            surfaceBorderColor: takesKeyboard ? root.popoutBorderColor : Theme.focusBorder
+            maximumContentHeight: Math.min(root.popoutHeightLimit,
+                Math.max(1, root.Screen.height - Theme.barHeight - Theme.panelPadding * 4))
         }
     }
 
