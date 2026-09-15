@@ -323,6 +323,25 @@ Singleton {
     readonly property color audioOutline: mix(bg, fg, 0.25)
     readonly property color audioSecondary: readable(mix(bg, fg, 0.65), bg, 4.5)
 
+    // Omarchy Quattro 6ea3215 network defaults; opt-in for NetworkPanel.
+    // Other panels, the audio round and the bar are deliberately unchanged.
+    readonly property real networkScale: Math.max(1 / 12, fontSize / 12)
+    readonly property int networkWidth: Math.round(380 * networkScale)
+    readonly property int networkPadding: Math.round(14 * networkScale)
+    readonly property int networkBorderWidth: Math.max(1, Math.round(2 * networkScale))
+    readonly property int networkGap: Math.round(12 * networkScale)
+    readonly property int networkRowGap: Math.round(4 * networkScale)
+    readonly property int networkRowInset: Math.round(10 * networkScale)
+    readonly property int networkIconSlot: Math.round(22 * networkScale)
+    readonly property int networkCaptionSize: Math.round(fontSize * 0.833)
+    readonly property int networkTitleSize: Math.round(fontSize * 1.167)
+    readonly property int networkHeroSize: Math.round(fontSize * 2)
+    readonly property int networkSwitchHeight: Math.max(22, Math.round(28 * networkScale * 0.55))
+    readonly property color networkSelected: mix(bg, fg, 0.08)
+    readonly property color networkHover: mix(bg, fg, 0.06)
+    readonly property color networkOutline: mix(bg, fg, 0.25)
+    readonly property color networkSecondary: readable(mix(bg, fg, 0.65), bg, 4.5)
+
     // Selected controls must be opaque before their foreground contrast is
     // calculated. A translucent accent is composited by QML later and made
     // the old calculation depend on whatever happened to sit behind it.

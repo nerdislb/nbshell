@@ -559,7 +559,7 @@ for snippet in (
     if snippet not in wallpaper:
         raise SystemExit(f"Wallpaper desktop gesture contract is incomplete: {snippet}")
 
-control = (ROOT / "shell/Bar/Widgets/Control.qml").read_text(encoding="utf-8")
+control = (ROOT / "shell/Bar/Widgets/NetworkPanel.qml").read_text(encoding="utf-8")
 panel_row_source = (ROOT / "shell/Widgets/PanelRow.qml").read_text(encoding="utf-8")
 for snippet in (
     "default property alias overlayData: overlay.data",
