@@ -275,6 +275,29 @@ Singleton {
     readonly property real uiScale: Math.max(1, fontSize / 12)
     readonly property real menuRowHeight: Math.round(50 * uiScale)
 
+    // Omarchy Quattro 6ea3215 menu defaults, scoped to Menu/Launcher only.
+    // The bar and other panels retain their existing geometry and state tokens.
+    readonly property real menuScale: Math.max(1 / 12, fontSize / 12)
+    readonly property int menuWidth: Math.round(300 * menuScale)
+    readonly property int menuPadding: Math.round(18 * menuScale)
+    readonly property int menuBorderWidth: Math.max(1, Math.round(2 * menuScale))
+    readonly property int menuInset: menuPadding + menuBorderWidth
+    readonly property int menuHeaderHeight: Math.round(34 * menuScale)
+    readonly property int menuGap: Math.round(6 * menuScale)
+    readonly property int menuRowSpacing: Math.round(3 * menuScale)
+    readonly property int menuBaseRowHeight: Math.round(50 * menuScale)
+    readonly property int menuDetailRowHeight: Math.round(58 * menuScale)
+    readonly property int menuFontSize: Math.round(fontSize * 1.333)
+    readonly property int menuDetailFontSize: Math.round(fontSize * 0.917)
+    readonly property int menuIconSize: Math.round(fontSize * 1.5)
+    readonly property int menuIconSlot: Math.round(36 * menuScale)
+    readonly property int menuRowInset: Math.round(8 * menuScale)
+    readonly property int menuTrailWidth: Math.round(14 * menuScale)
+    readonly property int menuScreenMargin: Math.max(1, Math.round(5 * menuScale))
+    readonly property color menuSelection: mix(bg, fg, 0.08)
+    readonly property color menuSelectedText: readable(accent, menuSelection, 4.5)
+    readonly property color menuScrim: alpha(bg, 0.50)
+
     // Selected controls must be opaque before their foreground contrast is
     // calculated. A translucent accent is composited by QML later and made
     // the old calculation depend on whatever happened to sit behind it.

@@ -3,6 +3,9 @@
 This page is a map of nbshell. Most features are available from the searchable
 main menu, the bar, or the `nbshell` command.
 
+See [menu and launcher behavior](menu-parity.md) for the Omarchy-style presentation
+and the retained nbshell search modes.
+
 ## Desktop shell
 
 - Island, expanding pill, or full-width bar

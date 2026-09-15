@@ -5,6 +5,7 @@ import Quickshell.Widgets
 import qs.Common
 import qs.Services
 import qs.Widgets
+import "../Common/MenuLayout.js" as MenuLayout
 
 // Anwendungsstarter und Befehlspalette in einem.
 //
@@ -52,7 +53,6 @@ PanelWindow {
     // The explicit property reads keep this binding reactive when an
     // asynchronous provider completes after the text itself stopped changing.
     readonly property var results: {
-        const fileRevision = SearchProviders.files;
         const q = root.query;
         if (root.mode === "cmd")
             return Commands.rank(q).map(x => x.entry);
@@ -64,8 +64,12 @@ PanelWindow {
             return SearchProviders.rankClipboard(q).map(x => x.entry);
         if (root.mode === "calculator")
             return SearchProviders.calculator(q).map(x => x.entry);
-        if (root.mode === "file")
+        if (root.mode === "file") {
+            // Late file results must not rebuild unrelated modes or disturb
+            // their keyboard/pointer selection and pending confirmations.
+            const fileRevision = SearchProviders.files;
             return SearchProviders.fileRows(q).map(x => x.entry);
+        }
 
         const apps = Apps.rank(q);
         const cmds = Commands.rank(q);
@@ -85,9 +89,30 @@ PanelWindow {
         return merged.map(x => x.entry);
     }
 
-    // Wie DMS' Spotlight: die Liste bleibt so lang, wie Platz ist, und der
-    // Kasten waechst nicht bei jedem Tastendruck.
+    // Share the menu geometry; pin its top after the first edit.
     property int selected: 0
+    property real pinnedTop: -1
+    property real maxRowsHeight: -1
+    property var pointerPosition: null
+    readonly property bool showDetails: root.query !== ""
+    readonly property var rowHeights: results.length ? results.map(e => showDetails && (e.genericName || e.comment) ? Theme.menuDetailRowHeight : Theme.menuBaseRowHeight) : [Theme.menuBaseRowHeight]
+    readonly property real rowsHeight: MenuLayout.foldedHeight(rowHeights, Theme.menuRowSpacing, Math.min(root.height * 0.7, maxRowsHeight >= 0 ? maxRowsHeight : root.height, root.height - (pinnedTop >= 0 ? pinnedTop : Theme.menuScreenMargin) - Theme.menuScreenMargin - Theme.menuInset * 2 - Theme.menuHeaderHeight - Theme.menuGap - footer.height))
+    onResultsChanged: {
+        selected = Math.min(selected, Math.max(0, results.length - 1));
+        pointerPosition = null;
+    }
+    function freezePosition() {
+        if (visible && pinnedTop < 0) { pinnedTop = box.y; maxRowsHeight = list.height; }
+        pointerPosition = null;
+    }
+    function pointTo(index, item, mouse) {
+        const point = item.mapToItem(root.contentItem, mouse.x, mouse.y);
+        if (MenuLayout.moved(pointerPosition, point)) {
+            if (selected !== index) pending = null;
+            selected = index;
+        }
+        if (pointerPosition === null || MenuLayout.moved(pointerPosition, point)) pointerPosition = point;
+    }
 
     // Was sich nicht zurueckdrehen laesst (Ausschalten, Abmelden), verlangt
     // ein zweites Enter. In einer Suchpalette liegt sonst der Feierabend einen
@@ -128,7 +153,7 @@ PanelWindow {
         if (!entry) {
             // Nichts getroffen: die Eingabe war offenbar ein Befehl fuer die
             // Shell darunter, kein Suchbegriff.
-            Apps.run(root.mode === "beides" ? input.text : root.query);
+            Apps.run(root.mode === "all" ? input.text : root.query);
             close();
             return;
         }
@@ -151,16 +176,20 @@ PanelWindow {
         if (results.length === 0)
             return;
         root.pending = null;
-        selected = Math.max(0, Math.min(results.length - 1, selected + delta));
+        pointerPosition = null;
+        selected = MenuLayout.nextIndex(selected, delta, results.length);
         list.positionViewAtIndex(selected, ListView.Contain);
     }
 
     onVisibleChanged: {
         if (visible) {
             box.enter();
+            root.pinnedTop = -1; root.maxRowsHeight = -1; root.pointerPosition = null;
             input.text = Runtime.launcherPrefill;
+            root.pinnedTop = -1; root.maxRowsHeight = -1;
             input.cursorPosition = input.text.length;
             selected = 0;
+            list.positionViewAtBeginning();
             pending = null;
             input.forceActiveFocus();
         } else {
@@ -183,7 +212,7 @@ PanelWindow {
         }
     }
 
-    Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: box.opacity }
+    Rectangle { anchors.fill: parent; color: Theme.menuScrim; opacity: box.opacity }
 
     // Klick daneben schliesst.
     MouseArea {
@@ -193,287 +222,188 @@ PanelWindow {
 
     MotionSurface {
         id: box
-
+        motionEnabled: false
         anchors.horizontalCenter: parent.horizontalCenter
-        // Etwas oberhalb der Mitte: dort sucht das Auge zuerst, und die Liste
-        // waechst nach unten.
-        y: Math.round(parent.height * 0.12)
+        y: Math.max(Theme.menuScreenMargin, Math.min(root.pinnedTop >= 0 ? root.pinnedTop : Math.round((parent.height - height) / 2), parent.height - height - Theme.menuScreenMargin))
+        width: Math.max(1, Math.min(Theme.menuWidth, parent.width - Theme.menuScreenMargin * 2))
+        height: Math.max(1, Math.min(Theme.menuInset * 2 + Theme.menuHeaderHeight + Theme.menuGap + root.rowsHeight + footer.height, parent.height - Theme.menuScreenMargin * 2))
+        color: Theme.bg
+        border.width: Theme.menuBorderWidth
+        border.color: Theme.fg
+        clip: true
+        MouseArea { anchors.fill: parent }
 
-        width: Math.min(parent.width - Theme.spaceXl * 4, Math.round(Theme.cellW * 92))
-        height: header.height + list.height + footer.height + Theme.cellH
-
-        accentBorder: true
-
-        // Klicks im Kasten sollen ihn nicht schliessen.
-        MouseArea {
-            anchors.fill: parent
-        }
-
-        Item {
-            id: header
-
+        TextField {
+            id: input
             anchors.top: parent.top
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.margins: Theme.cellW
-            height: Theme.cellH * 2.35
-
-            Rectangle {
-                anchors.fill: parent
-                color: Theme.panelSurfaceRaised
-                radius: Theme.radius
-                border.width: Theme.borderWidth
-                border.color: input.activeFocus ? Theme.focusBorder : Theme.panelBorder
+            anchors.margins: Theme.menuInset
+            height: Theme.menuHeaderHeight
+            color: Theme.fg
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.menuFontSize
+            background: null
+            horizontalPadding: 0
+            accessibleName: "Search applications and commands"
+            accessibleDescription: "Prefixes: > commands, ! applications, # windows, ^ clipboard, @ files, = calculator"
+            focus: true
+            selectByMouse: true
+            placeholderText: "Apps…"
+            placeholderTextColor: Theme.alpha(Theme.fg, 0.58)
+            selectionColor: Theme.menuSelection
+            selectedTextColor: Theme.menuSelectedText
+            onTextChanged: {
+                root.freezePosition();
+                root.selected = 0;
+                root.pending = null;
+                list.positionViewAtBeginning();
+                const typed = input.text;
+                Qt.callLater(() => {
+                    if (input.text === typed && typed.startsWith("@")) SearchProviders.requestFiles(typed.substring(1));
+                });
             }
-
-            Line {
-                id: prompt
-
-                anchors.left: parent.left
-                anchors.verticalCenter: parent.verticalCenter
-                text: "> "
-                color: Theme.readable(Theme.accent, Theme.panelSurfaceRaised, 4.5)
+            Keys.onEscapePressed: {
+                if (root.pending) root.pending = null;
+                else if (input.text) input.clear();
+                else root.close();
             }
-
-            TextField {
-                id: input
-
-                anchors.left: prompt.right
-                anchors.right: counter.left
-                anchors.verticalCenter: parent.verticalCenter
-                color: Theme.fg
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSubtitle
-                background: null
-                horizontalPadding: 0
-                accessibleName: "Search applications and commands"
-                accessibleDescription: "Type a command, application, or @ followed by a file name"
-                focus: true
-                selectByMouse: true
-                selectionColor: Theme.selection
-                selectedTextColor: Theme.fg
-
-                onTextChanged: {
-                    root.selected = 0;
-                    root.pending = null;
-                    list.positionViewAtBeginning();
-                    const typed = input.text;
-                    Qt.callLater(() => {
-                        if (input.text === typed && typed.startsWith("@"))
-                            SearchProviders.requestFiles(typed.substring(1));
-                    });
-                }
-
-                // Erst die Rueckfrage abraeumen, dann das Fenster: wer sich bei
-                // "Ausschalten" vertippt hat, will nicht blind ein zweites Mal
-                // Esc druecken muessen und dabei raten, was gerade passiert.
-                Keys.onEscapePressed: {
-                    if (root.pending)
-                        root.pending = null;
-                    else
-                        root.close();
-                }
-                Keys.onReturnPressed: root.accept()
-                Keys.onEnterPressed: root.accept()
-                Keys.onUpPressed: root.move(-1)
-                Keys.onDownPressed: root.move(1)
-                Keys.onPressed: event => {
-                    // Ctrl-N/P wie in jedem Terminalprogramm.
-                    if (event.modifiers & Qt.ControlModifier) {
-                        if (event.key === Qt.Key_N) {
-                            root.move(1);
-                            event.accepted = true;
-                        } else if (event.key === Qt.Key_P) {
-                            root.move(-1);
-                            event.accepted = true;
-                        }
+            Keys.onReturnPressed: root.accept()
+            Keys.onEnterPressed: root.accept()
+            Keys.onUpPressed: root.move(-1)
+            Keys.onDownPressed: root.move(1)
+            Keys.onPressed: event => {
+                if (event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown) {
+                    root.move(event.key === Qt.Key_PageUp ? -6 : 6); event.accepted = true;
+                } else if (event.modifiers & Qt.ControlModifier) {
+                    if (event.key === Qt.Key_N || event.key === Qt.Key_P) {
+                        root.move(event.key === Qt.Key_N ? 1 : -1); event.accepted = true;
                     }
                 }
-
-                Line {
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: input.text === ""
-                    text: "Search apps, commands, windows, or calculate"
-                    color: Theme.muted
-                }
             }
-
-            Line {
-                id: counter
-
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                text: root.results.length + ""
-                color: Theme.fgDim
-            }
-
         }
 
         ListView {
             id: list
-
-            anchors.top: header.bottom
+            anchors.top: input.bottom
+            anchors.topMargin: Theme.menuGap
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.margins: Theme.cellW
-            anchors.topMargin: Theme.cellH * 0.4
-
-            // Feste Zeilenzahl statt einer Hoehe in Pixeln: der Kasten aendert
-            // seine Groesse beim Tippen dann nicht.
-            height: rowHeight * Math.min(14, Math.max(1, root.results.length))
-            readonly property real rowHeight: Theme.menuRowHeight
-
+            anchors.leftMargin: Theme.menuInset
+            anchors.rightMargin: Theme.menuInset
+            height: root.rowsHeight
+            spacing: Theme.menuRowSpacing
             clip: true
-            // Hidden layer-shell windows keep their QML tree alive. Avoid
-            // resolving and rasterizing a screenful of desktop SVG icons at
-            // startup; populate delegates only while the launcher is open.
             model: root.visible ? root.results : []
             currentIndex: root.selected
             boundsBehavior: Flickable.StopAtBounds
-
-            delegate: Rectangle {
+            onHeightChanged: if (currentIndex >= 0) Qt.callLater(() => list.positionViewAtIndex(currentIndex, ListView.Contain))
+            delegate: InteractiveSurface {
                 id: row
-
                 required property var modelData
                 required property int index
-
+                readonly property bool active: index === root.selected
+                readonly property string detail: modelData.genericName || modelData.comment || ""
                 width: list.width
-                height: list.rowHeight
+                height: root.showDetails && detail ? Theme.menuDetailRowHeight : Theme.menuBaseRowHeight
                 radius: Theme.radius
-                color: index === root.selected ? Theme.selectedSurface(Theme.accent) : "transparent"
-                border.width: index === root.selected ? Theme.borderWidth : 0
-                border.color: Theme.focusBorder
-                scale: index === root.selected ? 1 : 0.992
-                Behavior on color { ColorAnimation { duration: Theme.motionFast } }
-                Behavior on scale {
-                    NumberAnimation {
-                        duration: Theme.motionEffect
-                        easing.type: Easing.BezierSpline
-                        easing.bezierCurve: Theme.motionCurveEffect
-                    }
-                }
-
-                Line {
-                    id: marker
-
-                    anchors.left: parent.left
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: row.index === root.selected ? "▸" : " "
-                    color: row.index === root.selected ? Theme.selectedForeground(Theme.accent) : Theme.accent
-                }
-
-                // Das Symbol des Programms. Die einzige Stelle im Starter, die
-                // nicht aus Zeichen besteht -- ohne sie sucht das Auge laenger.
+                color: active ? Theme.menuSelection : "transparent"
+                keyboardFocusable: false
+                accessibleName: modelData.name || "Search result"
+                accessibleDescription: [detail, modelData.category || modelData.kind || ""].filter(Boolean).join("; ")
+                accessibleSelected: active
+                onTriggered: { root.selected = index; root.accept(); }
                 Item {
                     id: appIcon
-
-                    anchors.left: marker.right
-                    anchors.leftMargin: Theme.cellW
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: Math.round(Theme.cellH * 1.75)
-                    height: width
-
-                    // Befehle haben kein Symbol und sollen auch keines
-                    // vortaeuschen: sie bekommen das Prompt-Zeichen, an dem
-                    // man sie auf einen Blick von einer Anwendung trennt.
+                    anchors.left: parent.left
+                    anchors.leftMargin: Theme.menuRowInset
+                    width: Theme.menuIconSlot
+                    height: Theme.menuIconSize
+                    y: rowText.y + (labelText.height - height) / 2
                     readonly property bool isCommand: row.modelData.kind === "cmd"
                     readonly property bool isApp: row.modelData.kind === "app" || !!row.modelData.command
                     readonly property string iconSource: isApp ? Apps.iconFor(row.modelData) : ""
-
                     IconImage {
-                        anchors.fill: parent
+                        anchors.centerIn: parent
+                        width: Theme.menuIconSize; height: width
                         visible: appIcon.iconSource !== ""
                         source: appIcon.iconSource
                     }
-
-                    // Ersatz fuer Programme ohne Symbol: der erste Buchstabe in
-                    // einem Kasten, wie ein Kuerzel.
-                    Rectangle {
-                        anchors.fill: parent
+                    Line {
+                        anchors.centerIn: parent
                         visible: appIcon.iconSource === ""
-                        color: "transparent"
-                        border.width: Theme.borderWidth
-                        border.color: appIcon.isCommand ? Theme.accent : Theme.muted
-                        radius: Theme.radius
-
-                        Line {
-                            anchors.centerIn: parent
-                            text: appIcon.isCommand ? ">" : row.modelData.kind === "window" ? "#"
-                                : row.modelData.kind === "clipboard" ? "^" : row.modelData.kind === "calculator" ? "="
-                                : row.modelData.kind === "file" ? "@" : (row.modelData.name || "?").charAt(0).toUpperCase()
-                            color: appIcon.isCommand ? Theme.accent : Theme.fgDim
-                        }
+                        text: appIcon.isCommand ? ">" : row.modelData.kind === "window" ? "#"
+                            : row.modelData.kind === "clipboard" ? "^" : row.modelData.kind === "calculator" ? "="
+                            : row.modelData.kind === "file" ? "@" : (row.modelData.name || "?").charAt(0).toUpperCase()
+                        color: row.active ? Theme.menuSelectedText : Theme.fg
+                        font.pixelSize: Theme.menuIconSize
                     }
                 }
-
                 Column {
+                    id: rowText
                     anchors.left: appIcon.right
-                    anchors.leftMargin: Theme.cellW
-                    anchors.right: badge.left
-                    anchors.rightMargin: Theme.cellW
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 0
-
-                    Line {
-                        width: parent.width
-                        text: row.modelData.name
-                        color: row.index === root.selected ? Theme.selectedForeground(Theme.accent) : Theme.fg
-                        font.pixelSize: Theme.fontBody
-                        elide: Text.ElideRight
-                    }
-
-                    Line {
-                        width: parent.width
-                        visible: text !== ""
-                        text: row.modelData.genericName || row.modelData.comment || ""
-                        color: row.index === root.selected ? Theme.selectedForeground(Theme.accent) : Theme.fgDim
-                        font.pixelSize: Theme.fontCaption
-                        elide: Text.ElideRight
-                    }
-                }
-
-                Line {
-                    id: badge
-
+                    anchors.leftMargin: Theme.menuGap
                     anchors.right: parent.right
-                    anchors.rightMargin: Theme.cellW / 2
+                    anchors.rightMargin: Theme.menuRowInset + Theme.menuTrailWidth + Theme.menuGap
                     anchors.verticalCenter: parent.verticalCenter
-                    text: row.modelData.kind === "cmd" ? (row.modelData.category || "COMMAND").toUpperCase()
-                        : row.modelData.kind === "app" || row.modelData.command ? (row.modelData.runInTerminal ? "TUI" : "APP")
-                        : (row.modelData.category || row.modelData.kind || "RESULT").toUpperCase()
-                    color: row.index === root.selected ? Theme.selectedForeground(Theme.accent)
-                        : (row.modelData.kind === "cmd" ? Theme.fgDim : Theme.muted)
-                    font.pixelSize: Theme.fontCaption
+                    spacing: Theme.menuRowSpacing
+                    Line {
+                        id: labelText
+                        width: parent.width; text: row.modelData.name
+                        color: row.active ? Theme.menuSelectedText : Theme.fg
+                        font.pixelSize: Theme.menuFontSize; font.weight: Font.Medium
+                        elide: Text.ElideRight
+                    }
+                    Line {
+                        width: parent.width; visible: root.showDetails && row.detail !== ""
+                        text: row.detail; color: Theme.fg; opacity: 0.52
+                        font.pixelSize: Theme.menuDetailFontSize; elide: Text.ElideRight
+                    }
                 }
-
                 MouseArea {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onEntered: root.selected = row.index
-                    onClicked: root.accept()
+                    onEntered: root.pointTo(row.index, row, {x: mouseX, y: mouseY})
+                    onPositionChanged: mouse => root.pointTo(row.index, row, mouse)
+                    onClicked: row.activate()
                 }
+            }
+            Line {
+                parent: list
+                anchors.fill: parent
+                visible: root.results.length === 0
+                text: "No results"
+                color: Theme.fg; opacity: 0.58
+                font.pixelSize: Theme.menuFontSize
+                verticalAlignment: Text.AlignVCenter
             }
         }
 
-        Line {
+        // Keep the extra command execution/confirmation behavior, but show its
+        // explanation only when relevant, not as permanent launcher chrome.
+        Item {
             id: footer
-
             anchors.bottom: parent.bottom
             anchors.left: parent.left
-            anchors.margins: Theme.cellW
-            height: Theme.cellH * 1.4
-            verticalAlignment: Text.AlignVCenter
-            text: {
-                if (root.pending)
-                    return "\"" + root.pending.name + "\" -- press Enter again to confirm, Esc cancels";
-                if (root.results.length > 0)
-                    return "↑↓ SELECT · ENTER OPEN/COPY · # WINDOWS · ^ CLIPBOARD · @ FILES · = CALCULATOR";
-                if (input.text === "")
-                    return "nothing found";
-                return "Enter runs \"" + root.query + "\" as a command";
+            anchors.right: parent.right
+            anchors.margins: Theme.menuInset
+            height: visible ? footerText.implicitHeight + Theme.menuGap : 0
+            visible: !!root.pending || (root.results.length === 0 && input.text !== "")
+            Line {
+                id: footerText
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                wrapMode: Text.Wrap
+                maximumLineCount: 3
+                elide: Text.ElideRight
+                text: root.pending
+                    ? "\"" + root.pending.name + "\" — Enter again confirms, Esc cancels"
+                    : "Enter runs \"" + root.query + "\" as a command"
+                color: root.pending ? Theme.readable(Theme.red, Theme.bg, 4.5) : Theme.fgDim
+                font.pixelSize: Theme.menuDetailFontSize
             }
-            color: root.pending ? Theme.red : Theme.muted
         }
     }
 }

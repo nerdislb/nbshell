@@ -17,6 +17,9 @@ def instrument(shell):
             root.activate(root.items.findIndex(e => e.label === "Windows"));
             return JSON.stringify(root.items.map(e => e.label));
         }
+        function search(value: string): void { root.setFilter(value); }
+        function step(delta: int): void { root.move(delta); }
+        function back(): void { root.back(); }
         function lastWindowsItem(): void { root.selected = root.items.length - 1; }
         function state(): string {
             const row = menuRows.itemAt(root.selected);
@@ -29,6 +32,40 @@ def instrument(shell):
         }
     }
 ''' + source[end:]
+    path.write_text(source)
+
+    path = shell / 'Launcher/Launcher.qml'
+    source = path.read_text().replace('import QtQuick', 'import Quickshell.Io\nimport QtQuick', 1)
+    end = source.rfind('}')
+    source = source[:end] + """
+    IpcHandler {
+        target: "launcherProbe"
+        function search(value: string): void { input.text = value; }
+        function step(delta: int): void { root.move(delta); }
+        function lateFiles(): bool {
+            input.text = ">";
+            root.pointerPosition = {x: 10, y: 20};
+            const before = root.results;
+            SearchProviders.files = SearchProviders.files.slice();
+            return root.results === before && root.pointerPosition !== null;
+        }
+        function confirm(): bool {
+            input.text = ">";
+            const i = root.results.findIndex(e => e.confirm);
+            if (i < 0) return false;
+            root.selected = i; root.accept();
+            return root.pending !== null;
+        }
+        function state(): string {
+            const point = box.mapToItem(root.contentItem, 0, 0);
+            const row = list.itemAtIndex(root.selected);
+            return JSON.stringify({selected:root.selected,count:root.results.length,
+                x:point.x,y:point.y,w:box.width,h:box.height,sw:root.width,sh:root.height,
+                query:input.text,mode:root.mode,pending:root.pending !== null,focused:input.activeFocus,
+                rowVisible:!!row && row.y >= list.contentY-1 && row.y+row.height <= list.contentY+list.height+1});
+        }
+    }
+""" + source[end:]
     path.write_text(source)
 
 
@@ -93,3 +130,59 @@ ShellRoot {
     ipc('menu', 'close')
     wait(lambda:not mapped(), 'Windows submenu closes')
     Path('/work/windows-menu-result.json').write_text(json.dumps({'labels': labels, 'state': windows_state}, indent=2))
+
+    # Filtering and drilling keep the header fixed; wrap navigation remains
+    # keyboard-owned even when rows move under a stationary pointer.
+    ipc('menu', 'open'); wait(mapped, 'menu reopens'); time.sleep(.2)
+    initial = state()
+    ipc('menuProbe', 'search', 'network'); time.sleep(.25)
+    filtered = state(); bounds(filtered)
+    assert filtered['y'] == initial['y'], (initial, filtered)
+    run(['grim', '/work/menu-search.png'])
+    ipc('menuProbe', 'search', 'zzzz-no-matching-menu-entry'); time.sleep(.2)
+    empty = state(); assert empty['count'] == 0 and empty['y'] == initial['y'], empty
+    run(['grim', '/work/menu-empty.png'])
+    ipc('menuProbe', 'search', ''); time.sleep(.2)
+    ipc('menuProbe', 'step', '-1'); time.sleep(.25)
+    wrapped = state(); bounds(wrapped)
+    assert wrapped['selected'] == wrapped['count']-1, wrapped
+    ipc('menu', 'close'); wait(lambda:not mapped(), 'menu closes')
+
+    def launcher_state(): return json.loads(ipc('launcherProbe', 'state'))
+    def launcher_mapped():
+        return any(l['namespace']=='nbshell:launcher' and l['mapped'] for l in json.loads(run(['/test-bin/umbriel','layers','--json']).stdout))
+    # Keep a keyboard attached while the real text field owns focus.
+    keyboard = launch(['/test-bin/pointer-client',str(args.width),str(args.height),'pause','6000','tap','1','pause','1500','tap','1','pause','1500','tap','1','pause','500','tap','30','pause','3000'], 'launcher-keyboard.log')
+    try:
+        time.sleep(.2); ipc('launcher', 'open'); wait(launcher_mapped, 'launcher maps'); time.sleep(.4)
+        first_launcher = launcher_state(); bounds(first_launcher)
+        assert first_launcher['focused'], first_launcher
+        run(['grim', '/work/launcher-first.png'])
+        for query, mode in [('>','cmd'),('!','app'),('#','window'),('^','clipboard'),('=2+2','calculator'),('@missing-fixture','file')]:
+            ipc('launcherProbe','search',query); time.sleep(.2)
+            current = launcher_state()
+            assert current['mode'] == mode, current
+            assert current['y'] == first_launcher['y'], (first_launcher,current)
+            if mode == 'calculator':
+                bounds(current); run(['grim','/work/launcher-calculator.png'])
+        ipc('launcherProbe', 'search', 'zzzz-no-matching-launcher-entry'); time.sleep(.3)
+        empty_launcher = launcher_state(); assert empty_launcher['count'] == 0, empty_launcher
+        assert empty_launcher['y'] == first_launcher['y'], empty_launcher
+        run(['grim','/work/launcher-empty.png'])
+        assert ipc('launcherProbe', 'lateFiles') == 'true', 'Late file results changed command selection'
+        assert ipc('launcherProbe', 'confirm') == 'true', 'Guarded command must require confirmation'
+        time.sleep(.2); run(['grim','/work/launcher-confirm.png'])
+        # First Escape cancels confirmation, second clears search, third closes.
+        wait(lambda:not launcher_state()['pending'], 'Escape cancels confirmation')
+        assert launcher_mapped() and launcher_state()['query'] == '>', launcher_state()
+        wait(lambda:launcher_state()['query'] == '', 'Escape clears query')
+        assert launcher_mapped()
+        wait(lambda:not launcher_mapped(), 'Escape closes launcher')
+        wait(lambda:focus()['keys'] == [65,65], 'Launcher returns focus without leaked keys')
+        log = Path('/work/shell.log').read_text()
+        assert not any(word in log for word in ['Binding loop','ReferenceError','TypeError','Unable to assign']), log
+        Path('/work/round1-result.json').write_text(json.dumps({'menuInitial':initial,'filtered':filtered,'wrapped':wrapped,'launcher':first_launcher,'emptyLauncher':empty_launcher,'prefixes':True,'confirmation':True},indent=2))
+    finally:
+        if keyboard.poll() is None: keyboard.terminate()
+        keyboard.wait(timeout=3)
+        processes.remove(keyboard)
