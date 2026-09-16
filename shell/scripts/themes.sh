@@ -30,6 +30,16 @@ first_wallpaper() {
     printf ''
 }
 
+# Prefer a theme's supplied screenshot for the gallery, without changing
+# its actual wallpaper (also consumed by DynamicWallpaper and public IPC).
+first_preview() {
+    local base f
+    for base in "$1"/preview.{png,jpg,jpeg,webp,gif,bmp}; do
+        [ -f "$base" ] && { printf '%s' "$base"; return 0; }
+    done
+    first_wallpaper "$1" "$2"
+}
+
 # Die Palette eines Themes -- in BEIDEN Dialekten.
 #
 # Omarchys colors.toml gibt es zweimal:
@@ -126,9 +136,14 @@ for dir in "$THEME_DIR"/*/; do
     [ -n "$cyan" ] || cyan="$blue"
     [ $first -eq 1 ] || printf ','
     first=0
-    printf '{"name":"%s","mode":"%s","background":"%s","foreground":"%s","accent":"%s","red":"%s","green":"%s","yellow":"%s","blue":"%s","magenta":"%s","muted":"%s","dimForeground":"%s","brightForeground":"%s","cyan":"%s","wallpaper":"%s"}' \
-        "$name" "$mode" "$bg" "$fg" "$accent" "$red" "$green" "$yellow" "$blue" "$magenta" \
-        "$muted" "$dimfg" "$brightfg" "$cyan" \
-        "$(first_wallpaper "${dir%/}" "$name")"
+    jq -cn --arg name "$name" --arg mode "$mode" --arg background "$bg" \
+        --arg foreground "$fg" --arg accent "$accent" --arg red "$red" \
+        --arg green "$green" --arg yellow "$yellow" --arg blue "$blue" \
+        --arg magenta "$magenta" --arg muted "$muted" --arg dimForeground "$dimfg" \
+        --arg brightForeground "$brightfg" --arg cyan "$cyan" \
+        --arg wallpaper "$(first_wallpaper "${dir%/}" "$name")" \
+        --arg preview "$(first_preview "${dir%/}" "$name")" \
+        '$ARGS.named'
+
 done
 printf ']\n'

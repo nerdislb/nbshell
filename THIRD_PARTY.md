@@ -8,6 +8,10 @@ Better Displays, and Omarchy Notification Center are retained in
 [`LICENSES/THIRD_PARTY_MIT.md`](LICENSES/THIRD_PARTY_MIT.md). Components with
 their own bundled license files are linked below.
 
+- The theme gallery image-fan geometry and masking adapt Omarchy’s MIT-licensed
+  `shell/plugins/image-picker/ImagePicker.qml` at commit `6ea3215`. nbshell
+  retains its theme index, configuration, and Umbriel lifecycle; the Omarchy
+  notice is included in `LICENSES/THIRD_PARTY_MIT.md`.
 - Color definitions under `themes/` come from
   [Omarchy](https://github.com/basecamp/omarchy). See
   [themes/ATTRIBUTION.md](themes/ATTRIBUTION.md).
