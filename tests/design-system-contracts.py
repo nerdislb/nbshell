@@ -432,16 +432,14 @@ if "popout: Component" in themes:
 
 theme_gallery = (ROOT / "shell/Wallpaper/ThemeGallery.qml").read_text(encoding="utf-8")
 for snippet in (
-    "MotionSurface {",
-    "orientation: ListView.Horizontal",
-    "snapMode: ListView.SnapOneItem",
-    "highlightRangeMode: ListView.StrictlyEnforceRange",
     "property string query:",
+    "property string selectedName:",
     "model: root.filteredThemes",
-    "Accessible.name: \"Search themes\"",
-    "highlightMoveVelocity: -1",
+    'Accessible.name: "Choose theme"',
     "ThemeIndex.apply(current.name)",
-    "enabled: !Theme.reducedMotion",
+    "maskSource: maskShape",
+    "Keys.priority: Keys.BeforeItem",
+    "function handleEscape()",
 ):
     if snippet not in theme_gallery:
         raise SystemExit(f"Standalone theme gallery contract is incomplete: {snippet}")

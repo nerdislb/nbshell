@@ -1,24 +1,37 @@
 import QtQuick
+import QtQuick.Effects
+import QtQuick.Shapes
 import Quickshell
 import Quickshell.Wayland
 import qs.Common
 import qs.Services
 import qs.Widgets
 
-// Standalone theme browser. It is deliberately independent from the optional
-// bar widget so every menu, IPC, and desktop gesture opens the same surface.
+// Visual geometry adapted from Omarchy's ImagePicker at 6ea3215 (MIT).
+// Only the view is shared: nbshell keeps its theme store and apply backend.
 PanelWindow {
     id: root
-
-    property int selected: 0
     property string query: ""
-    readonly property var filteredThemes: {
+    property string selectedName: Config.theme
+    property bool closing: false
+    readonly property var filteredThemes: ThemeIndex.list.filter(theme => {
         const needle = query.trim().toLocaleLowerCase();
-        if (!needle)
-            return ThemeIndex.list;
-        return ThemeIndex.list.filter(theme => String(theme.name || "").toLocaleLowerCase().includes(needle));
-    }
-    readonly property var current: filteredThemes[selected] ?? null
+        return String(theme.name).toLocaleLowerCase().includes(needle)
+            || label(theme.name).toLocaleLowerCase().includes(needle);
+    })
+    readonly property int selected: filteredThemes.findIndex(theme => theme.name === selectedName)
+    readonly property var current: selected >= 0 ? filteredThemes[selected] : null
+    // These are the upstream image-fan dimensions, not a new control scale.
+    readonly property real fit: Math.max(0.1, Math.min(1, (width - Theme.spaceXl * 2) / 900,
+        (height - Theme.spaceXl * 2) / (475 + 30 * Theme.menuScale + chromeHeight)))
+    readonly property real previewWidth: 768 * fit
+    readonly property real previewHeight: 475 * fit
+    readonly property real sliceWidth: 108 * fit
+    readonly property real sliceHeight: 432 * fit
+    readonly property real sliceSpacing: -30 * fit
+    readonly property real skew: 28 * fit
+    readonly property real chromeHeight: Math.max(104, Theme.audioHeroSize + Theme.audioTitleSize + Theme.spaceLg * 3)
+    readonly property real topSpace: 30 * Theme.menuScale * fit
 
     visible: true
     screen: Compositor.focusedScreen
@@ -29,423 +42,237 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: Runtime.themePickerOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    function themeIndex() {
-        const index = filteredThemes.findIndex(theme => theme.name === Config.theme);
-        return index >= 0 ? index : 0;
+    function label(name) {
+        return String(name || "").replace(/[-_]+/g, " ").replace(/\b\w/g, ch => ch.toUpperCase());
+    }
+    function reconcile() {
+        if (filteredThemes.length && !filteredThemes.some(theme => theme.name === selectedName))
+            selectedName = filteredThemes[0].name;
     }
     function select(index) {
-        if (!filteredThemes.length)
-            return;
-        selected = (index + filteredThemes.length) % filteredThemes.length;
+        if (!filteredThemes.length || closing) return;
+        selectedName = filteredThemes[(index + filteredThemes.length) % filteredThemes.length].name;
     }
-    function move(delta) { select(selected + delta); }
+    function move(delta) { select(Math.max(0, selected) + delta); }
     function apply() {
-        if (!current)
-            return;
+        if (!current || closing || ThemeIndex.loading) return;
+        closing = true;
         ThemeIndex.apply(current.name);
-        close();
+        Runtime.themePickerOpen = false;
     }
-    function close() { frame.dismiss(() => Runtime.themePickerOpen = false); }
-    function requestClose(done) { frame.dismiss(done); }
-    function requestOpen() { frame.enter(); }
-
-    onVisibleChanged: if (visible) {
-        query = "";
+    function close() { closing = true; Runtime.themePickerOpen = false; }
+    function requestClose(done) { closing = true; done(); }
+    function requestOpen() { closing = false; Qt.callLater(() => keys.forceActiveFocus()); }
+    function handleEscape() { if (query) query = ""; else close(); }
+    onFilteredThemesChanged: reconcile()
+    Component.onCompleted: {
         ThemeIndex.refresh();
-        selected = themeIndex();
-        searchInput.forceActiveFocus();
-        Qt.callLater(() => strip.positionViewAtIndex(selected, ListView.Center));
+        Qt.callLater(() => { reconcile(); keys.forceActiveFocus(); });
     }
 
-    onQueryChanged: {
-        selected = themeIndex();
-        Qt.callLater(() => {
-            if (filteredThemes.length)
-                strip.positionViewAtIndex(selected, ListView.Center);
-        });
-    }
-
-    Connections {
-        target: ThemeIndex
-        function onListChanged() {
-            root.selected = root.themeIndex();
-            Qt.callLater(() => {
-                if (root.filteredThemes.length)
-                    strip.positionViewAtIndex(root.selected, ListView.Center);
-            });
-        }
-    }
-
-    Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: frame.opacity * 0.55 }
+    Rectangle { anchors.fill: parent; color: Theme.menuScrim }
     MouseArea { anchors.fill: parent; onClicked: root.close() }
 
-    FocusScope {
+    Item {
         id: keys
         anchors.fill: parent
-        focus: root.visible
-        Keys.onEscapePressed: root.close()
-        Keys.onLeftPressed: root.move(-1)
-        Keys.onRightPressed: root.move(1)
-        Keys.onReturnPressed: root.apply()
-        Keys.onEnterPressed: root.apply()
+        clip: true
+        focus: true
+        Accessible.role: Accessible.List
+        Accessible.name: "Choose theme"
+        Accessible.description: "Type to search. Left, Right or Tab to browse. Enter to apply. Escape to clear search or close. " + (root.current ? root.label(root.current.name) : "No matches")
+        Keys.priority: Keys.BeforeItem
         Keys.onPressed: event => {
-            if (event.key === Qt.Key_Home) {
-                root.select(0);
-                event.accepted = true;
-            } else if (event.key === Qt.Key_End) {
-                root.select(root.filteredThemes.length - 1);
-                event.accepted = true;
-            }
+            if (event.key === Qt.Key_Escape) root.handleEscape();
+            else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                if (!event.isAutoRepeat) root.apply();
+            } else if (event.key === Qt.Key_Left || event.key === Qt.Key_Backtab || (event.key === Qt.Key_Tab && event.modifiers & Qt.ShiftModifier)) root.move(-1);
+            else if (event.key === Qt.Key_Right || event.key === Qt.Key_Tab) root.move(1);
+            else if (event.key === Qt.Key_Home) root.select(0);
+            else if (event.key === Qt.Key_End) root.select(root.filteredThemes.length - 1);
+            else if (event.key === Qt.Key_Backspace) root.query = event.modifiers & Qt.ControlModifier ? "" : root.query.slice(0, -1);
+            else if (event.key === Qt.Key_U && event.modifiers & Qt.ControlModifier) root.query = "";
+            else if (event.text && !(event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier)) && event.text.charCodeAt(0) >= 32) root.query += event.text;
+            else return;
+            event.accepted = true;
         }
 
-        MotionSurface {
+        Item {
             id: frame
             anchors.centerIn: parent
-            width: Math.min(parent.width - Theme.spaceXl * 4, Theme.cellW * 116)
-            height: Math.min(parent.height - Theme.spaceXl * 4, Theme.cellH * 39)
-            accentBorder: true
+            width: parent.width
+            height: root.previewHeight + root.topSpace + root.chromeHeight
             MouseArea { anchors.fill: parent; onClicked: {} }
-
-            Column {
-                anchors.fill: parent
-                anchors.margins: Theme.spaceXl
-                spacing: Theme.spaceMd
-
-                PanelHead {
-                    rowWidth: parent.width
-                    icon: Icons.palette
-                    title: root.current?.name || "Themes"
-                    subtitle: root.current?.name === Config.theme ? "Current theme" : "Preview"
-                    badge: ThemeIndex.loading ? "…" : String(ThemeIndex.list.length)
+            WheelHandler {
+                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                onWheel: event => {
+                    const delta = Math.abs(event.angleDelta.x) > Math.abs(event.angleDelta.y) ? event.angleDelta.x : event.angleDelta.y;
+                    if (delta !== 0) root.move(delta > 0 ? -1 : 1);
+                    event.accepted = true;
                 }
-
-                Rule { rowWidth: parent.width }
-
-                Rectangle {
-                    width: parent.width
-                    height: Theme.controlHeight
-                    radius: Theme.radius
-                    color: Theme.controlFill(searchHover.hovered || searchInput.activeFocus, false, false)
-                    border.width: searchInput.activeFocus ? Theme.borderWidth : Theme.controlBorderWidth(searchHover.hovered, false, false)
-                    border.color: searchInput.activeFocus ? Theme.focusBorder : Theme.controlBorder(searchHover.hovered, false, false)
-
-                    Behavior on color { ColorAnimation { duration: Theme.motionFast } }
-                    Behavior on border.color { ColorAnimation { duration: Theme.motionFast } }
-
-                    Line {
-                        id: searchPrompt
-                        anchors.left: parent.left
-                        anchors.leftMargin: Theme.spaceLg
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: ">"
-                        color: Theme.accent
-                        font.pixelSize: Theme.fontBody
-                        Accessible.ignored: true
-                    }
-
-                    TextField {
-                        id: searchInput
-                        anchors.left: searchPrompt.right
-                        anchors.right: matchCount.left
-                        anchors.leftMargin: Theme.spaceSm
-                        anchors.rightMargin: Theme.spaceLg
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: root.query
-                        color: Theme.fg
-                        selectionColor: Theme.selectedSurface(Theme.accent)
-                        selectedTextColor: Theme.selectedForeground(Theme.accent)
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontBody
-                        background: null
-                        horizontalPadding: 0
-                        clip: true
-                        activeFocusOnTab: true
-                        accessibleName: "Search themes"
-                        accessibleDescription: "Filters the available themes"
-                        Accessible.name: "Search themes"
-                        onTextEdited: root.query = text
-                        Keys.onEscapePressed: root.close()
-                        Keys.onLeftPressed: root.move(-1)
-                        Keys.onRightPressed: root.move(1)
-                        Keys.onReturnPressed: root.apply()
-                        Keys.onEnterPressed: root.apply()
-                        Keys.onPressed: event => {
-                            if (event.key === Qt.Key_Home) {
-                                root.select(0);
-                                event.accepted = true;
-                            } else if (event.key === Qt.Key_End) {
-                                root.select(root.filteredThemes.length - 1);
-                                event.accepted = true;
-                            }
-                        }
-                    }
-
-                    Line {
-                        anchors.left: searchInput.left
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: searchInput.text.length === 0
-                        text: "type to search themes"
-                        color: Theme.muted
-                        font.pixelSize: Theme.fontBody
-                        Accessible.ignored: true
-                    }
-
-                    Line {
-                        id: matchCount
-                        anchors.right: parent.right
-                        anchors.rightMargin: Theme.spaceLg
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: String(root.filteredThemes.length) + " / " + String(ThemeIndex.list.length)
-                        color: Theme.muted
-                        font.pixelSize: Theme.fontCaption
-                    }
-
-                    HoverHandler { id: searchHover; cursorShape: Qt.IBeamCursor }
-                    TapHandler { onTapped: searchInput.forceActiveFocus() }
+            }
+            DragHandler {
+                id: swipe
+                target: null
+                yAxis.enabled: false
+                property real distance: 0
+                onTranslationChanged: if (active) distance = activeTranslation.x
+                onActiveChanged: {
+                    if (active) distance = 0;
+                    else if (Math.abs(distance) > Theme.spaceXl) root.move(distance > 0 ? -1 : 1);
                 }
-
-                ListView {
-                    id: strip
-                    readonly property real cardWidth: Math.min(Theme.cellW * 35, width * 0.36)
-                    width: parent.width
-                    height: parent.height - Theme.cellH * 10.2
-                    orientation: ListView.Horizontal
+            }
+            Item {
+                id: carousel
+                y: root.topSpace
+                width: parent.width
+                height: root.previewHeight
+                readonly property real previewX: (width - root.previewWidth) / 2
+                readonly property real itemStep: root.sliceWidth + root.sliceSpacing
+                Repeater {
                     model: root.filteredThemes
-                    currentIndex: root.selected
-                    spacing: Theme.spaceLg
-                    clip: true
-                    boundsBehavior: Flickable.StopAtBounds
-                    snapMode: ListView.SnapOneItem
-                    highlightRangeMode: ListView.StrictlyEnforceRange
-                    preferredHighlightBegin: (width - cardWidth) / 2
-                    preferredHighlightEnd: preferredHighlightBegin + cardWidth
-                    highlightMoveDuration: Theme.reducedMotion ? 0 : Theme.motionMove
-                    highlightMoveVelocity: -1
-                    keyNavigationWraps: true
-
-                    function centerSelection() {
-                        if (!root.filteredThemes.length)
-                            return;
-                        const center = strip.contentX + strip.width / 2;
-                        let closest = root.selected;
-                        let distance = Number.MAX_VALUE;
-                        for (let index = 0; index < count; index++) {
-                            const item = itemAtIndex(index);
-                            if (!item)
-                                continue;
-                            const itemCenter = item.x + item.width / 2;
-                            const candidate = Math.abs(itemCenter - center);
-                            if (candidate < distance) {
-                                distance = candidate;
-                                closest = index;
-                            }
-                        }
-                        root.select(closest);
-                    }
-
-                    onMovementEnded: centerSelection()
-
-                    WheelHandler {
-                        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-                        onWheel: wheelEvent => {
-                            const delta = Math.abs(wheelEvent.angleDelta.x) > Math.abs(wheelEvent.angleDelta.y)
-                                ? wheelEvent.angleDelta.x : wheelEvent.angleDelta.y;
-                            root.move(delta > 0 ? -1 : 1);
-                        }
-                    }
-
-                    Line {
-                        anchors.centerIn: parent
-                        visible: root.filteredThemes.length === 0
-                        text: "No themes match ‘" + root.query + "’"
-                        color: Theme.muted
-                        font.pixelSize: Theme.fontBody
-                    }
-
-                    delegate: Item {
-                        id: cardSlot
+                    delegate: InteractiveSurface {
+                        id: tile
                         required property var modelData
                         required property int index
+                        readonly property int relativeIndex: index - root.selected
                         readonly property bool selected: index === root.selected
-                        width: strip.cardWidth
-                        height: strip.height
-
-                        Rectangle {
-                            id: card
-                            anchors.centerIn: parent
-                            width: parent.width
-                            height: parent.height * 0.92
-                            scale: cardSlot.selected ? 1 : 0.88
-                            opacity: cardSlot.selected ? 1 : 0.52
-                            color: cardSlot.modelData.background || Theme.bgDarker
-                            radius: Theme.radius
-                            border.width: cardSlot.selected ? Math.max(2, Theme.borderWidth * 2) : Theme.borderWidth
-                            border.color: cardSlot.modelData.accent || Theme.panelBorder
-
-                            Behavior on scale {
-                                enabled: !Theme.reducedMotion
-                                NumberAnimation {
-                                    duration: Theme.motionMove
-                                    easing.type: Easing.BezierSpline
-                                    easing.bezierCurve: Theme.motionCurveEffect
+                        // Allocate masks/textures only for slices intersecting this output.
+                        readonly property bool nearby: x + width >= 0 && x <= carousel.width
+                        readonly property string previewPath: modelData.preview || modelData.wallpaper || ""
+                        visible: nearby
+                        color: "transparent"
+                        keyboardFocusable: false
+                        accessibleRole: Accessible.ListItem
+                        accessibleName: root.label(modelData.name)
+                        accessibleSelected: selected
+                        accessibleDescription: selected ? "Apply theme" : "Preview theme"
+                        onTriggered: {
+                            keys.forceActiveFocus();
+                            if (selected) root.apply(); else root.select(index);
+                        }
+                        x: selected ? carousel.previewX : (relativeIndex < 0 ? carousel.previewX + relativeIndex * carousel.itemStep : carousel.previewX + root.previewWidth + root.sliceSpacing + (relativeIndex - 1) * carousel.itemStep)
+                        width: selected ? root.previewWidth : root.sliceWidth
+                        height: selected ? root.previewHeight : root.sliceHeight
+                        y: selected ? 0 : (root.previewHeight - root.sliceHeight) / 2
+                        z: selected ? 100 : 50 - Math.min(Math.abs(relativeIndex), 40)
+                        Item {
+                            id: maskShape
+                            anchors.fill: parent
+                            visible: false
+                            layer.enabled: tile.nearby
+                            Shape {
+                                anchors.fill: parent
+                                antialiasing: true
+                                preferredRendererType: Shape.CurveRenderer
+                                ShapePath {
+                                    fillColor: "white"
+                                    strokeColor: "transparent"
+                                    startX: root.skew; startY: 0
+                                    PathLine { x: tile.width; y: 0 }
+                                    PathLine { x: tile.width - root.skew; y: tile.height }
+                                    PathLine { x: 0; y: tile.height }
+                                    PathLine { x: root.skew; y: 0 }
                                 }
                             }
-                            Behavior on opacity {
-                                enabled: !Theme.reducedMotion
-                                NumberAnimation { duration: Theme.motionEffect }
+                        }
+                        Item {
+                            anchors.fill: parent
+                            layer.enabled: tile.nearby
+                            layer.smooth: true
+                            layer.effect: MultiEffect {
+                                maskEnabled: true
+                                maskSource: maskShape
+                                maskThresholdMin: 0.3
+                                maskSpreadAtMin: 0.3
                             }
-
+                            Rectangle { anchors.fill: parent; color: tile.modelData.background || Theme.bg }
                             Image {
                                 id: wallpaper
                                 anchors.fill: parent
-                                anchors.margins: card.border.width
-                                source: String(cardSlot.modelData.wallpaper || "") !== ""
-                                    ? "file://" + String(cardSlot.modelData.wallpaper) : ""
-                                visible: status === Image.Ready
+                                source: tile.nearby && tile.previewPath ? "file://" + tile.previewPath.split("/").map(encodeURIComponent).join("/") : ""
                                 fillMode: Image.PreserveAspectCrop
                                 asynchronous: true
-                                cache: false
-                                sourceSize.width: Math.max(1, Math.ceil(width))
-                                sourceSize.height: Math.max(1, Math.ceil(height))
+                                sourceSize.width: Math.round(root.previewWidth * (root.screen?.devicePixelRatio || 1))
+                                sourceSize.height: Math.round(root.previewHeight * (root.screen?.devicePixelRatio || 1))
                             }
-
-                            Rectangle {
-                                anchors.fill: parent
-                                color: Theme.alpha(cardSlot.modelData.background || Theme.bgDarker,
-                                    cardSlot.selected ? 0.36 : 0.58)
-                                radius: parent.radius
-                            }
-
-                            Rectangle {
+                            Column {
                                 anchors.centerIn: parent
-                                width: parent.width * 0.76
-                                height: parent.height * 0.52
-                                color: Theme.alpha(cardSlot.modelData.background || Theme.bgDarker, 0.94)
-                                radius: Theme.radius
-                                border.width: Theme.borderWidth
-                                border.color: cardSlot.modelData.accent || Theme.panelBorder
-
-                                Column {
-                                    anchors.fill: parent
-                                    anchors.margins: Theme.spaceLg
-                                    spacing: Theme.spaceSm
-
-                                    Row {
-                                        spacing: Theme.spaceXs
-                                        Repeater {
-                                            model: [cardSlot.modelData.red, cardSlot.modelData.yellow, cardSlot.modelData.green]
-                                            Rectangle {
-                                                required property var modelData
-                                                width: Theme.cellH * 0.46
-                                                height: width
-                                                radius: width / 2
-                                                color: modelData || Theme.muted
-                                            }
-                                        }
-                                    }
-                                    Line {
-                                        width: parent.width
-                                        text: "$ nbshell theme " + cardSlot.modelData.name
-                                        color: cardSlot.modelData.accent || Theme.accent
-                                        font.pixelSize: Theme.fontCaption
-                                        elide: Text.ElideRight
-                                    }
-                                    Line {
-                                        width: parent.width
-                                        text: "Umbriel  ·  nbshell"
-                                        color: cardSlot.modelData.foreground || Theme.fg
-                                        font.pixelSize: Theme.fontBody
-                                        elide: Text.ElideRight
-                                    }
-                                    Item { width: 1; height: Theme.spaceSm }
-                                    Row {
-                                        width: parent.width
-                                        spacing: 1
-                                        Repeater {
-                                            model: [
-                                                cardSlot.modelData.red, cardSlot.modelData.yellow,
-                                                cardSlot.modelData.green, cardSlot.modelData.cyan,
-                                                cardSlot.modelData.blue, cardSlot.modelData.magenta,
-                                                cardSlot.modelData.accent, cardSlot.modelData.foreground
-                                            ]
-                                            Rectangle {
-                                                required property var modelData
-                                                width: (parent.width - 7) / 8
-                                                height: Theme.cellH
-                                                color: modelData || "transparent"
-                                            }
+                                width: parent.width * 0.75
+                                spacing: Theme.spaceMd
+                                visible: wallpaper.status !== Image.Ready
+                                Line {
+                                    width: parent.width
+                                    text: root.label(tile.modelData.name)
+                                    color: tile.modelData.foreground || Theme.fg
+                                    font.pixelSize: Theme.audioTitleSize
+                                    horizontalAlignment: Text.AlignHCenter
+                                    elide: Text.ElideRight
+                                }
+                                Row {
+                                    width: parent.width
+                                    Repeater {
+                                        model: [tile.modelData.red, tile.modelData.yellow, tile.modelData.green, tile.modelData.cyan, tile.modelData.blue, tile.modelData.magenta]
+                                        Rectangle {
+                                            required property var modelData
+                                            width: parent.width / 6
+                                            height: Theme.cellH
+                                            color: modelData || Theme.muted
                                         }
                                     }
                                 }
                             }
-
-                            Rectangle {
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.bottom: parent.bottom
-                                height: Theme.cellH * 4
-                                color: Theme.alpha(cardSlot.modelData.background || Theme.bgDarker, 0.92)
-                                radius: parent.radius
-
-                                Column {
-                                    anchors.centerIn: parent
-                                    width: parent.width - Theme.spaceXl * 2
-                                    spacing: Theme.spaceXs
-                                    Line {
-                                        anchors.horizontalCenter: parent.horizontalCenter
-                                        width: parent.width
-                                        text: cardSlot.modelData.name
-                                        color: cardSlot.modelData.foreground || Theme.fg
-                                        font.pixelSize: Theme.fontTitle
-                                        font.bold: cardSlot.selected
-                                        horizontalAlignment: Text.AlignHCenter
-                                        elide: Text.ElideRight
-                                    }
-                                    Line {
-                                        anchors.horizontalCenter: parent.horizontalCenter
-                                        text: cardSlot.modelData.name === Config.theme ? "ACTIVE" : (cardSlot.selected ? "ENTER TO APPLY" : "")
-                                        color: cardSlot.modelData.accent || Theme.accent
-                                        font.pixelSize: Theme.fontCaption
-                                    }
-                                }
-                            }
-
-                            TapHandler {
-                                acceptedButtons: Qt.LeftButton
-                                onTapped: root.select(cardSlot.index)
-                                onDoubleTapped: {
-                                    root.select(cardSlot.index);
-                                    root.apply();
-                                }
+                            Rectangle { anchors.fill: parent; color: Theme.alpha(Theme.bg, tile.selected ? 0 : 0.42) }
+                        }
+                        Shape {
+                            anchors.fill: parent
+                            antialiasing: true
+                            preferredRendererType: Shape.CurveRenderer
+                            ShapePath {
+                                fillColor: "transparent"
+                                strokeColor: tile.selected ? Theme.accent : Theme.alpha(Theme.fg, 0.28)
+                                strokeWidth: tile.selected ? 3 : 1
+                                startX: root.skew; startY: 0
+                                PathLine { x: tile.width; y: 0 }
+                                PathLine { x: tile.width - root.skew; y: tile.height }
+                                PathLine { x: 0; y: tile.height }
+                                PathLine { x: root.skew; y: 0 }
                             }
                         }
+                        TapHandler { onTapped: tile.activate() }
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
                     }
                 }
-
-                Rule { rowWidth: parent.width }
-
-                Row {
-                    width: parent.width
-                    height: Theme.controlHeight
-                    spacing: Theme.spaceSm
-
-                    Line {
-                        width: parent.width - applyButton.width - parent.spacing
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "type to search  ·  ← → browse  ·  scroll or swipe  ·  Enter apply  ·  Esc close"
-                        color: Theme.muted
-                        font.pixelSize: Theme.fontCaption
-                        elide: Text.ElideRight
-                    }
-                    ControlButton {
-                        id: applyButton
-                        width: Theme.cellW * 22
-                        height: Theme.controlHeight
-                        text: root.current?.name === Config.theme ? "CURRENT" : "APPLY THEME"
-                        enabled: !!root.current && root.current?.name !== Config.theme
-                        onTriggered: root.apply()
-                    }
-                }
+            }
+            Line {
+                id: nameLabel
+                anchors.top: carousel.bottom
+                anchors.topMargin: Math.round(16 * Theme.menuScale)
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: Math.min(root.previewWidth, parent.width - Theme.spaceXl * 2)
+                text: root.current ? root.label(root.current.name) : (ThemeIndex.loading ? "Loading themes…" : (root.query ? "No matches" : "No themes installed"))
+                color: Theme.fg
+                style: Text.Outline
+                styleColor: Theme.alpha(Theme.bg, 0.7)
+                font.pixelSize: Theme.audioHeroSize
+                font.family: "sans-serif"
+                font.weight: Font.DemiBold
+                horizontalAlignment: Text.AlignHCenter
+                elide: Text.ElideRight
+            }
+            Line {
+                anchors.top: nameLabel.bottom
+                anchors.topMargin: Theme.spaceSm
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: nameLabel.width
+                text: root.query
+                color: Theme.fg
+                opacity: 0.85
+                style: Text.Outline
+                styleColor: Theme.alpha(Theme.bg, 0.7)
+                font.pixelSize: Theme.audioTitleSize
+                horizontalAlignment: Text.AlignHCenter
+                elide: Text.ElideRight
             }
         }
     }
