@@ -1,10 +1,11 @@
 # nbshell agent guide
 
-Read the repository-root `DESIGN.md` before changing visible shell UI or creating a plugin. Read `docs/plugin-development.md` before changing the plugin contract, scaffolds, validator, or store flow.
+Read the repository-root `DESIGN.md` and `docs/omarchy-look-and-feel.md` before changing visible shell UI or creating a plugin. These are mandatory for every agent, including delegated reviewers. Read `docs/plugin-development.md` before changing the plugin contract, scaffolds, validator, or store flow.
 
 ## UI rules
 
-- Preserve nbshell's character-grid, compact TUI identity and existing bar/island/pill behavior.
+- Match the pinned Omarchy reference for look and feel; preserve nbshell's existing bar/island/pill and additional functionality. Older unaligned UI is not a precedent.
+- Record the reference surface and any deliberate exception before implementation. Preserve approved rounds; do not perform incidental global restyling.
 - New native UI uses `qs.Common` and `qs.Widgets`; portable compatibility work may use `qs.Commons` and `qs.Ui`.
 - Reuse shared Theme tokens and UI primitives. Do not introduce private palettes, arbitrary spacing scales, fixed animation durations, or hand-built standard controls.
 - Pointer, keyboard, and accessibility actions must converge on the same state and guarded activation path.

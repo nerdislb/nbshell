@@ -1,6 +1,24 @@
 # nbshell design system
 
-nbshell is a compact, keyboard-first desktop shell with a character-grid rhythm, a visible wallpaper, semantic theme roles, and one shared interaction language across core surfaces and plugins. This document is the stable design contract for new UI. It describes the incumbent system; it does not replace nbshell's identity with a generic toolkit.
+nbshell is a compact, keyboard-first desktop shell with a character-grid rhythm, a visible wallpaper, semantic theme roles, and one shared interaction language across core surfaces and plugins. This document is the mandatory design contract for agents and human contributors. Omarchy is the look-and-feel reference for shell surfaces; nbshell retains Umbriel, its custom bar/island/pill and additional functionality. Older, not-yet-aligned screens are not design precedents.
+
+## Reference-first implementation
+
+Before changing visible UI, read [the parity reference map](docs/omarchy-look-and-feel.md)
+and identify the corresponding Omarchy surface at the recorded upstream commit.
+Use its actual geometry, typography, spacing, state treatment and interaction;
+matching colors alone is not parity. For nbshell-only features, use the closest
+approved surface and the same tokens/primitives instead of inventing new chrome.
+
+Preserve the custom bar and all additional functions. Document intentional
+exceptions, unavailable references and unverified behavior. Never remove a feature
+for a matching screenshot. Do not re-style already approved surfaces or change
+shared tokens globally as a side effect of a single-surface task.
+
+The reference map distinguishes direct ports from adaptations without an exact
+upstream counterpart. Pin the source and compare before/reference/after under
+comparable theme, font and output conditions. Reuse portable original controls
+or scoped native adapters; do not import Hyprland dependencies into Umbriel.
 
 ## Public UI contracts
 
@@ -30,7 +48,7 @@ Use `Theme` roles instead of private values:
 - Motion: effects, spatial, enter, exit, attention, and loop tokens. Every animation must honor `reducedMotion`.
 - State: `controlFill()`, `controlBorder()`, selected surfaces, and readable foreground helpers.
 
-A hard-coded metric is acceptable only for a domain-specific visualization whose meaning cannot be expressed by an existing token. It must not become a second spacing, typography, color, or motion system.
+A scoped metric is acceptable for an attributed upstream geometry or a domain-specific visualization whose meaning cannot be expressed by an existing token. Record its source and scale it with the appropriate font/theme/output constraints. It must not become a second spacing, typography, color, or motion system.
 
 ## Components
 
