@@ -126,7 +126,9 @@ QtObject {
     root.composeReading = true
     var mine = root.composeRecoveryRevision
     root.service.backend.call("compose.recoveryRead", {}, function(result, error) {
-      if (typeof root === "undefined" || !root) return
+      // The shell may unload the app before its persistent backend replies.
+      if (typeof root === "undefined" || !root || typeof root.loadComposeRecovery !== "function"
+          || typeof root.drainComposeRecovery !== "function") return
       root.composeReading = false
       if (error || !result) return
       if (root.composeRecoveryConflict && root.composeWriteQueued) return
@@ -229,7 +231,8 @@ QtObject {
     root.composeWriteQueued = false
     root.composeWriting = true
     root.service.backend.call("compose.recoverySave", { record: JSON.parse(raw), expectedRevision: root.composeStorageRevision }, function(result, error) {
-      if (typeof root === "undefined" || !root) return
+      if (typeof root === "undefined" || !root || typeof root.acknowledgeComposeReceipts !== "function"
+          || typeof root.drainComposeRecovery !== "function") return
       root.composeWriting = false
       if (error || !result) {
         // Keep the live draft. A stale process must never overwrite another

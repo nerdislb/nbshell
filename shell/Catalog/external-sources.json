@@ -4,7 +4,7 @@
     {
       "name": "Umbriel",
       "repository": "https://github.com/noctalia-dev/umbriel",
-      "reviewedCommit": "11c0c99b85c5aa579224cf0d2302f4f7356ac5c4"
+      "reviewedCommit": "6ca1d08c7fe49f396fe68eb65386ab59f5ca7c6e"
     },
     {
       "name": "Umbriel portal",
@@ -20,12 +20,12 @@
     {
       "name": "WhatsApp",
       "repository": "https://github.com/MoizIbnYousaf/Omarchy-Whatsapp",
-      "reviewedCommit": "7ee1540"
+      "reviewedCommit": "51ce7fce992466a85f315d668738aee06cbc73dd"
     },
     {
       "name": "Mail",
       "repository": "https://github.com/huacnlee/omamail",
-      "reviewedCommit": "3460ac858b0e3bfee9a5b2aa8fe9ae9e11636932"
+      "reviewedCommit": "451748bd309dea91db03c41615b6353569d8f378"
     },
     {
       "name": "Quick Translate",
