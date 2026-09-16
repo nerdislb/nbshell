@@ -68,7 +68,7 @@ Item {
     pluginDir: root.pluginDir
     bundledExecutable: root.standalone ? String(root.platform.backendPath || "") : ""
     bundledVersion: root.standalone ? root.version : ""
-    bundledApiVersion: root.standalone ? 4 : 0
+    bundledApiVersion: root.standalone ? 5 : 0
     bundledMode: root.standalone
     developmentExecutable: root.standalone ? "" : (Quickshell.env("OMAMAIL_BIN") || "")
     onValidated: Qt.callLater(rustBackend.reconcileProcess)
@@ -110,6 +110,8 @@ Item {
   readonly property bool backendNeedsUpdate: backend.needsUpdate
   // Event suggestions require API 2 regardless of when that API is released.
   readonly property bool backendCanSuggestEvents: backend.ready && backend.apiVersion >= 2
+  readonly property bool backendCanCheckMicrosoftConnection: backend.ready && backend.apiVersion >= 5
+  readonly property bool backendCanDiscoverCalendars: backend.ready && backend.apiVersion >= 5
 
   readonly property string pluginId: manifest && manifest.id
     ? String(manifest.id) : "omamail"
@@ -1381,6 +1383,7 @@ Item {
         id: accounts[i].id,
         email: accounts[i].email,
         provider: accounts[i].provider,
+        calendarProvider: Accounts.calendarProvider(accounts[i]),
         label: Accounts.label(accounts[i]),
         // The name that was chosen, if one was. `label` always answers —
         // falling through to the local part — so it cannot say whether
@@ -2327,6 +2330,16 @@ Item {
   function signIn() { if (current) current.signIn() }
   function cancelSignIn() { if (current) current.cancelSignIn() }
   function signOut() { if (current) current.signOut() }
+  function checkMicrosoftConnection(callback) {
+    var host = current
+    if (!host || typeof host.checkMicrosoftConnection !== "function") {
+      if (typeof callback === "function") callback({ mail: false, graph: false, calendar: false })
+      return
+    }
+    host.checkMicrosoftConnection(function(report) {
+      if (root.current === host && typeof callback === "function") callback(report)
+    })
+  }
 
   // The password providers' sign-in. Gmail's is a browser and answers false,
   // which is what lets one setup page ask without checking first.

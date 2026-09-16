@@ -533,6 +533,23 @@ function graphResponseError(status, responseText) {
   return detail !== "" ? "Microsoft Graph answered: " + detail : "Microsoft Graph answered " + status
 }
 
+// Keep native backend diagnostics private while giving each provider an
+// actionable recovery path. This deliberately does not depend on backend
+// error-message semantics, so it remains compatible with the pinned API.
+function nativeRequestError(kind) {
+  if (kind === "microsoft")
+    return "Microsoft calendar request failed. Check Graph permissions in Settings, then sign in again"
+  if (kind === "google")
+    return "Google calendar request failed. Sign in again and check Calendar access"
+  if (kind === "caldav")
+    return "CalDAV calendar request failed. Check its server address and password in Settings"
+  // An iCloud calendar signs in with the mailbox's app-specific password, so
+  // that is what a refusal points at; there is no separate calendar password.
+  if (kind === "icloud")
+    return "iCloud calendar request failed. Check the mailbox's app-specific password in Settings"
+  return "The calendar request failed"
+}
+
 function googleEventsUrl(startMs, endMs) {
   return "https://www.googleapis.com/calendar/v3/calendars/primary/events?"
     + "singleEvents=true&orderBy=startTime&maxResults=2500"
@@ -671,7 +688,7 @@ function createEvent(fields, nowMs) {
 function writeRefusal(source, event) {
   if (!source) return "Choose a calendar"
   if (source.readOnly === true) return "This calendar is read-only"
-  if (source.kind !== "caldav") return ""
+  if (source.kind !== "caldav" && source.kind !== "icloud") return ""
   // A RECURRENCE-ID too malformed to parse leaves recurrenceIdMs at 0, but
   // the event's href still names the series' shared file — the raw line the
   // parser kept answers for it.

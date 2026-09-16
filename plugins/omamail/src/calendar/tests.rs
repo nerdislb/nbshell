@@ -50,6 +50,125 @@ fn provider_chooses_origin_and_encodes_event_id() {
 }
 
 #[test]
+fn microsoft_calendar_identity_is_one_encoded_path_segment() {
+    let list = prepare(&json!({
+        "source":{"kind":"microsoft","calendarId":"A/B?C"},
+        "operation":"list","start":"2026-09-01T00:00:00Z","end":"2026-10-01T00:00:00Z"
+    }))
+    .unwrap();
+    assert_eq!(list.url.path(), "/v1.0/me/calendars/A%2FB%3FC/calendarView");
+    let update = prepare(&json!({
+        "source":{"kind":"microsoft","calendarId":"A/B?C"},
+        "operation":"update","eventId":"event/one","body":"{}"
+    }))
+    .unwrap();
+    assert_eq!(
+        update.url.path(),
+        "/v1.0/me/calendars/A%2FB%3FC/events/event%2Fone"
+    );
+}
+
+#[test]
+fn empty_microsoft_calendar_identity_keeps_the_default_calendar() {
+    let request = prepare(&json!({
+        "source":{"kind":"microsoft","calendarId":""},
+        "operation":"list","start":"2026-09-01T00:00:00Z","end":"2026-10-01T00:00:00Z"
+    }))
+    .unwrap();
+    assert_eq!(request.url.path(), "/v1.0/me/calendarView");
+    for id in [".", ".."] {
+        assert!(
+            prepare(&json!({
+                "source":{"kind":"microsoft","calendarId":id},
+                "operation":"list","start":"a","end":"b"
+            }))
+            .is_err()
+        );
+    }
+}
+
+#[test]
+fn icloud_calendar_refuses_non_apple_destinations_before_credentials() {
+    assert!(
+        prepare(&json!({
+            "source":{"kind":"icloud","accountId":"imap:person@icloud.com",
+              "url":"https://evil.example/calendars/private/"},
+            "operation":"list","body":"report"
+        }))
+        .is_err()
+    );
+    assert!(
+        prepare(&json!({
+            "source":{"kind":"icloud","accountId":"imap:person@icloud.com",
+              "url":"https://p37-caldav.icloud.com/123/calendars/private/"},
+            "operation":"list","body":"report"
+        }))
+        .is_ok()
+    );
+}
+
+#[tokio::test]
+async fn icloud_refusal_never_contacts_an_untrusted_target() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("https://{}/calendar/", listener.local_addr().unwrap());
+    let result = call(
+        &json!({
+            "source":{"kind":"icloud","accountId":"imap:missing@icloud.com","url":url},
+            "operation":"list","body":"synthetic report"
+        }),
+        None,
+    )
+    .await;
+    assert_eq!(result, Err("calendar_origin_refused"));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(50), listener.accept())
+            .await
+            .is_err()
+    );
+}
+
+// A Graph calendar id is base64 with `=` padding, which the request builder
+// writes into the path literally while a nextLink may carry it as `%3D`. Both
+// spell the same resource, so the second page must not be refused; a link that
+// decodes to a different resource still is.
+#[test]
+fn pagination_compares_the_decoded_resource_path() {
+    let list = prepare(&json!({
+        "source":{"kind":"microsoft","calendarId":"AAMkAGI2AAA="},
+        "operation":"list","start":"2026-09-01T00:00:00Z","end":"2026-10-01T00:00:00Z"
+    }))
+    .unwrap();
+    assert_eq!(
+        list.url.path(),
+        "/v1.0/me/calendars/AAMkAGI2AAA=/calendarView"
+    );
+    let encoded =
+        "https://graph.microsoft.com/v1.0/me/calendars/AAMkAGI2AAA%3D/calendarView?$skip=50";
+    assert!(
+        next_page(&list.url, &json!({"@odata.nextLink":encoded}), "value")
+            .unwrap()
+            .is_some()
+    );
+    let literal =
+        "https://graph.microsoft.com/v1.0/me/calendars/AAMkAGI2AAA=/calendarView?$skip=50";
+    assert!(
+        next_page(&list.url, &json!({"@odata.nextLink":literal}), "value")
+            .unwrap()
+            .is_some()
+    );
+    for other in [
+        "https://graph.microsoft.com/v1.0/me/calendars/AAMkAGI2AAB%3D/calendarView?$skip=50",
+        "https://graph.microsoft.com/v1.0/me/calendars/AAMkAGI2AAA%3D/events?$skip=50",
+        "https://graph.microsoft.com/v1.0/me/calendars/AAMkAGI2AAA%3D%2FcalendarView?$skip=50",
+    ] {
+        assert!(
+            next_page(&list.url, &json!({"@odata.nextLink":other}), "value").is_err(),
+            "{other}"
+        );
+    }
+}
+
+#[test]
 fn pagination_cannot_change_credential_destination_or_resource() {
     let base =
         Url::parse("https://graph.microsoft.com/v1.0/me/calendarView?startDateTime=now").unwrap();
@@ -96,6 +215,7 @@ fn local_request(url: Url) -> Request {
         kind: "google".into(),
         source_id: String::new(),
         username: String::new(),
+        account_id: String::new(),
     }
 }
 

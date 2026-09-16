@@ -1,9 +1,9 @@
 {
   "repository": "https://github.com/noctalia-dev/umbriel.git",
-  "baseRevision": "11c0c99b85c5aa579224cf0d2302f4f7356ac5c4",
-  "revision": "ae25aaa5facb0470b078d3a26a29b010ef81b6b5",
-  "tree": "9f365f22f5ea468c7aa187af954e82002abb50dd",
+  "baseRevision": "6ca1d08c7fe49f396fe68eb65386ab59f5ca7c6e",
+  "revision": "8268c605da26d92f2337d6c8381167357317a059",
+  "tree": "f48ec07dab0fb61f8971753de8bc646a05fc90c5",
   "patch": "umbriel/pointer-modifiers.patch",
-  "patchSha256": "d90273b8eef66e535ece3f1f8e4b29ef95f093540642473f7137b707bc8cdddc",
+  "patchSha256": "a7402e31ef2adc4ffb2824be5d49fe958236d4e5713a5f531a592e89c460050e",
   "commit": "umbriel/pointer-modifiers.commit"
 }

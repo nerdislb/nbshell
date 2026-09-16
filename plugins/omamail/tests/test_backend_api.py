@@ -309,6 +309,22 @@ def main():
         credential_helper.write_text('#!/bin/sh\nprintf touched >> "$HOME/credential-touched"\nexit 1\n')
         credential_helper.chmod(0o700)
         env['PATH'] = str(helpers) + os.pathsep + env.get('PATH', '')
+        if os.name == 'nt':
+            # The private storage check wants what the backend itself creates:
+            # owned by this user, with a protected DACL naming nobody else.
+            # What mkdir made here inherits the runner's ACL and, from an
+            # elevated token, belongs to Administrators. The whole fixture home
+            # is made private the same way, files included.
+            #
+            # One object at a time: an inheritance flag on a file's ACE makes
+            # it inherit-only, which grants the file's own reader nothing.
+            user = os.environ['USERNAME']
+            subprocess.run(['icacls', str(home), '/setowner', user, '/T', '/Q'],
+                           check=True, capture_output=True)
+            for path in [home] + sorted(home.rglob('*')):
+                grant = user + (':(OI)(CI)F' if path.is_dir() else ':F')
+                subprocess.run(['icacls', str(path), '/inheritance:r', '/grant:r', grant, '/Q'],
+                               check=True, capture_output=True)
         process = subprocess.Popen(['node', '-e', HARNESS], env=env, cwd=home,
                                    **process_group_options())
         try:

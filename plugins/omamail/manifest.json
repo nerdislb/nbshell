@@ -3,7 +3,7 @@
   "id": "omamail",
   "name": "Mail",
   "category": "Communication",
-  "version": "0.10.3-nbshell.1",
+  "version": "0.10.4-nbshell.1",
   "author": "Jason Lee <huacnlee@gmail.com>",
   "license": "MIT",
   "repository": "https://github.com/huacnlee/omamail",

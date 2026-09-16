@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "contractVersion": 1,
   "backend": "umbriel",
-  "referenceRevision": "ae25aaa5facb0470b078d3a26a29b010ef81b6b5",
+  "referenceRevision": "8268c605da26d92f2337d6c8381167357317a059",
   "transport": {
     "type": "unix-stream",
     "framing": "newline-delimited-json",

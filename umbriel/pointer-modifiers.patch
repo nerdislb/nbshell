@@ -1,5 +1,5 @@
 diff --git a/docs/user/actions.md b/docs/user/actions.md
-index b6f232a..a5feccc 100644
+index d0540d3..ad026dd 100644
 --- a/docs/user/actions.md
 +++ b/docs/user/actions.md
 @@ -44,7 +44,7 @@ are required, `[bracket]` forms are optional.
@@ -20,7 +20,7 @@ index b6f232a..a5feccc 100644
  | `workspace-focus-last` | Focus the previously active workspace |
  
  ## Move & size
-@@ -123,7 +123,7 @@ Sizing rules per layout live in [Sizing behavior](layout.md#sizing-behavior).
+@@ -127,7 +127,7 @@ Sizing rules per layout live in [Sizing behavior](layout.md#sizing-behavior).
  | `window-toggle-fullscreen` | Toggle fullscreen or exit a window covering the focus |
  | `window-toggle-maximize` | Toggle full width for the focused column |
  | `window-toggle-maximize-to-edges` | Toggle maximize without gaps, struts, or borders |
@@ -30,7 +30,7 @@ index b6f232a..a5feccc 100644
  ## Scratchpad
  
 diff --git a/src/config/keybind_parse.cpp b/src/config/keybind_parse.cpp
-index bf83c88..786a1ba 100644
+index 65abf4f..8bfafb6 100644
 --- a/src/config/keybind_parse.cpp
 +++ b/src/config/keybind_parse.cpp
 @@ -246,8 +246,8 @@ namespace umbriel {
@@ -53,7 +53,7 @@ index bf83c88..786a1ba 100644
           KeybindAction::WindowFocusWarpId, ActionArgKind::WindowId},
          {"window-modify-height", "<delta>", "Change the focused window's height by a fraction",
           KeybindAction::WindowModifyHeight, ActionArgKind::WidthDelta},
-@@ -324,7 +324,8 @@ namespace umbriel {
+@@ -332,7 +332,8 @@ namespace umbriel {
          {"window-toggle-maximize", "", "Toggle full width for the focused column", KeybindAction::ToggleMaximize},
          {"window-toggle-maximize-to-edges", "", "Toggle maximize without gaps, struts, or borders",
           KeybindAction::ToggleMaximizeToEdges},
@@ -64,10 +64,10 @@ index bf83c88..786a1ba 100644
           KeybindAction::WindowToggleScratchpad, ActionArgKind::OptionalScratchpad},
          {"workspace-focus-last", "", "Focus the previously active workspace", KeybindAction::WorkspaceFocusLast},
 diff --git a/src/input/cursor.cpp b/src/input/cursor.cpp
-index ff4d3a2..38ad442 100644
+index fa431f1..6ff4db9 100644
 --- a/src/input/cursor.cpp
 +++ b/src/input/cursor.cpp
-@@ -947,6 +947,7 @@ namespace umbriel {
+@@ -951,6 +951,7 @@ namespace umbriel {
      // A client data-device drag owns the seat grab. Its initiating release must reach wlroots even when the drag began
      // from a panel over the overview. Otherwise the drag icon and both input grabs remain active indefinitely.
      if (wlr_seat* seat = m_server->seat()->wlr(); seat->drag != nullptr) {
@@ -75,7 +75,7 @@ index ff4d3a2..38ad442 100644
        wlr_seat_pointer_notify_button(seat, timeMsec, button, state);
        if (seat->drag == nullptr) {
          // The drag grab suppressed normal pointer motion. Re-run hit testing at
-@@ -999,6 +1000,7 @@ namespace umbriel {
+@@ -1003,6 +1004,7 @@ namespace umbriel {
          if (surface != nullptr) {
            setPointerFocus(surface, sx, sy);
          }
@@ -83,7 +83,7 @@ index ff4d3a2..38ad442 100644
          wlr_seat_pointer_notify_button(seat, timeMsec, button, state);
          // The popup's xdg-shell grab already owns focus. Refocusing its parent layer would end the keyboard grab, whose
          // wlroots cancel handler also ends the pointer grab before the menu receives the matching release.
-@@ -1034,6 +1036,7 @@ namespace umbriel {
+@@ -1038,6 +1040,7 @@ namespace umbriel {
          resetMode();
          return;
        }
@@ -91,7 +91,7 @@ index ff4d3a2..38ad442 100644
        wlr_seat_pointer_notify_button(m_server->seat()->wlr(), timeMsec, button, state);
  
        // After the final release, refresh pointer focus so it matches the surface actually under the cursor. The
-@@ -1058,6 +1061,7 @@ namespace umbriel {
+@@ -1062,6 +1065,7 @@ namespace umbriel {
      if (wlr_seat* seat = m_server->seat()->wlr(); seat->drag == nullptr
          && seat->pointer_state.button_count > 0
          && seat->pointer_state.focused_surface != nullptr) {
@@ -99,7 +99,7 @@ index ff4d3a2..38ad442 100644
        wlr_seat_pointer_notify_button(seat, timeMsec, button, state);
        return;
      }
-@@ -1069,6 +1073,7 @@ namespace umbriel {
+@@ -1073,6 +1077,7 @@ namespace umbriel {
      View* view = m_server->viewAt(m_cursor->x, m_cursor->y, &surface, &sx, &sy, &layer);
  
      if (m_server->sessionLocked()) {
@@ -107,7 +107,7 @@ index ff4d3a2..38ad442 100644
        wlr_seat_pointer_notify_button(m_server->seat()->wlr(), timeMsec, button, state);
        if (surface != nullptr) {
          if (wlr_session_lock_surface_v1* lockSurface = wlr_session_lock_surface_v1_try_from_wlr_surface(surface)) {
-@@ -1101,6 +1106,7 @@ namespace umbriel {
+@@ -1105,6 +1110,7 @@ namespace umbriel {
        clearPointerFocus();
      }
  
@@ -231,10 +231,10 @@ index 62c0779..f538b81 100644
      Server* m_server = nullptr;
      wlr_seat* m_seat = nullptr;
 diff --git a/src/server/server_events.cpp b/src/server/server_events.cpp
-index ae6c9ce..294e6df 100644
+index f75c069..1aef73a 100644
 --- a/src/server/server_events.cpp
 +++ b/src/server/server_events.cpp
-@@ -2475,6 +2475,9 @@ namespace umbriel {
+@@ -2476,6 +2476,9 @@ namespace umbriel {
        }
        // Detach wlroots' later destroy listener so it cannot clear the replacement.
        wlr_seat_set_keyboard(seat, replacement);

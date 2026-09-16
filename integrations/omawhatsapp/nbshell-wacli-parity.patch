@@ -43,3 +43,26 @@
      ("groups", "participants", "promote"): "whatsapp-write",
      ("groups", "participants", "remove"): "destructive",
      ("groups", "prune"): "local-write",
+--- a/tests/test_backend.py
++++ b/tests/test_backend.py
+@@ -1213,16 +1213,17 @@
+         with self.assertRaisesRegex(backend_module.OmaWhatsAppError, "too long"):
+             self.backend.send("alex@s.whatsapp.net", "x" * 4097)
+ 
+-    def test_wacli_parity_registry_covers_every_0171_leaf(self) -> None:
++    def test_wacli_parity_registry_covers_every_0181_leaf(self) -> None:
+         policies = backend_module.WACLI_OPERATION_POLICIES
+-        self.assertEqual(len(policies), 103)
++        self.assertEqual(len(policies), 104)
++        self.assertEqual(policies[("groups", "participants", "list")], "local-read")
+         self.assertEqual(len(set(policies)), len(policies))
+         self.assertEqual(set(policies.values()), {
+             "local-read", "remote-read", "local-write", "sync",
+             "whatsapp-write", "destructive", "interactive",
+         })
+         capabilities = self.backend.capabilities()
+-        self.assertEqual(capabilities["wacli_parity_version"], "0.17.1")
++        self.assertEqual(capabilities["wacli_parity_version"], "0.18.1")
+         self.assertEqual(capabilities["operation_count"], len(policies))
+         self.assertEqual(len(capabilities["operations"]), len(policies))
+ 

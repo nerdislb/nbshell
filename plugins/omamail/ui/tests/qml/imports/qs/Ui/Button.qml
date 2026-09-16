@@ -14,8 +14,13 @@ Rectangle {
   property bool bordered: false
   property bool selected: false
   property bool hasCursor: false
+  readonly property bool hot: hasCursor || mouseArea.containsMouse
   property bool leftAlign: false
   property bool focusable: false
+  activeFocusOnTab: focusable
+  Keys.onReturnPressed: if (focusable) clicked()
+  Keys.onEnterPressed: if (focusable) clicked()
+  Keys.onSpacePressed: if (focusable) clicked()
   property string fontFamily: "monospace"
   property real fontSize: 13
   property real horizontalPadding: 8
@@ -36,6 +41,7 @@ Rectangle {
   }
 
   MouseArea {
+    id: mouseArea
     anchors.fill: parent
     onClicked: parent.clicked()
   }

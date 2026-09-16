@@ -44,4 +44,10 @@ makefile = (ROOT / "Makefile").read_text()
 assert "validate-standalone: test test-app-qml qml-check" in makefile
 assert 'test-app-qml:\n\t@test -n "$(QMLTESTRUNNER)"' in makefile
 
+# CMake may not independently find Qt's runner outside PATH. Forward the
+# already resolved executable and fail instead of silently testing nothing.
+qml = make("-n", "test-app-qml", "QMLTESTRUNNER=/synthetic/qt/bin/qmltestrunner")
+assert '-DQMLTESTRUNNER_EXECUTABLE="/synthetic/qt/bin/qmltestrunner"' in qml
+assert '--no-tests=error' in qml
+
 print("test_app_make.py ok")

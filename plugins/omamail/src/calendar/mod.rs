@@ -3,19 +3,26 @@ use reqwest::{Client, Method, Url};
 use serde_json::{Value, json};
 use std::{sync::OnceLock, time::Duration};
 
+mod discovery;
+pub use discovery::discover;
+
 const LIMIT: usize = 16 * 1024 * 1024;
 static CLIENT: OnceLock<Result<Client, &'static str>> = OnceLock::new();
 
-fn client() -> Result<&'static Client, &'static str> {
+fn client_builder() -> reqwest::ClientBuilder {
+    Client::builder()
+        .https_only(true)
+        .hickory_dns(true)
+        .no_proxy()
+        .redirect(reqwest::redirect::Policy::none())
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(20))
+}
+
+pub(super) fn client() -> Result<&'static Client, &'static str> {
     CLIENT
         .get_or_init(|| {
-            Client::builder()
-                .https_only(true)
-                .hickory_dns(true)
-                .no_proxy()
-                .redirect(reqwest::redirect::Policy::none())
-                .connect_timeout(Duration::from_secs(10))
-                .timeout(Duration::from_secs(20))
+            client_builder()
                 .build()
                 .map_err(|_| "calendar_network_failed")
         })
@@ -77,6 +84,7 @@ struct Request {
     kind: String,
     source_id: String,
     username: String,
+    account_id: String,
 }
 
 fn prepare(params: &Value) -> Result<Request, &'static str> {
@@ -101,16 +109,45 @@ fn prepare(params: &Value) -> Result<Request, &'static str> {
         kind: kind.into(),
         source_id: String::new(),
         username: String::new(),
+        account_id: String::new(),
     };
     match kind {
         "google" | "microsoft" => {
             if kind == "microsoft" {
-                request.url = Url::parse(if op == "list" {
-                    "https://graph.microsoft.com/v1.0/me/calendarView"
+                // Legacy/default sources serialize an empty identity. They
+                // still address /me/calendarView until discovery names one.
+                let calendar_id = source
+                    .get("calendarId")
+                    .and_then(Value::as_str)
+                    .filter(|value| !value.is_empty());
+                if let Some(calendar_id) = calendar_id {
+                    if calendar_id == "."
+                        || calendar_id == ".."
+                        || calendar_id.len() > 8192
+                        || calendar_id.chars().any(char::is_control)
+                    {
+                        return Err("calendar_invalid_input");
+                    }
+                    request.url =
+                        Url::parse("https://graph.microsoft.com/v1.0/me/calendars").unwrap();
+                    request
+                        .url
+                        .path_segments_mut()
+                        .unwrap()
+                        .push(calendar_id)
+                        .push(if op == "list" {
+                            "calendarView"
+                        } else {
+                            "events"
+                        });
                 } else {
-                    "https://graph.microsoft.com/v1.0/me/events"
-                })
-                .unwrap();
+                    request.url = Url::parse(if op == "list" {
+                        "https://graph.microsoft.com/v1.0/me/calendarView"
+                    } else {
+                        "https://graph.microsoft.com/v1.0/me/events"
+                    })
+                    .unwrap();
+                }
             }
             if op == "update" || op == "delete" {
                 let id = text(params, "eventId")?;
@@ -148,10 +185,15 @@ fn prepare(params: &Value) -> Result<Request, &'static str> {
                 }
             }
         }
-        "caldav" => {
-            request.source_id = text(source, "id")?.into();
-            request.username = text(source, "username")?.into();
-            let base = configured_url(text(source, "url")?)?;
+        "caldav" | "icloud" => {
+            let base = if kind == "icloud" {
+                request.account_id = text(source, "accountId")?.into();
+                discovery::icloud_url(text(source, "url")?)?
+            } else {
+                request.source_id = text(source, "id")?.into();
+                request.username = text(source, "username")?.into();
+                configured_url(text(source, "url")?)?
+            };
             request.url = if op == "list" {
                 base
             } else {
@@ -190,7 +232,7 @@ where
     Fut:
         std::future::Future<Output = Result<crate::credentials::Secret, crate::credentials::Error>>,
 {
-    let request = prepare(params)?;
+    let mut request = prepare(params)?;
     let password = if request.kind == "caldav" {
         let key = crate::credentials::CredentialKey {
             provider: "caldav".into(),
@@ -206,10 +248,18 @@ where
             return Err("calendar_password_invalid");
         }
         Some(secret)
+    } else if request.kind == "icloud" {
+        request.username = discovery::icloud_username(&request.account_id)?;
+        let password = crate::auth::password("imap", &request.account_id).await?;
+        Some(
+            crate::credentials::Secret::new(password.into_bytes())
+                .map_err(|_| "calendar_password_invalid")?,
+        )
     } else {
         None
     };
-    let paginated = params["operation"] == "list" && request.kind != "caldav";
+    let paginated =
+        params["operation"] == "list" && !matches!(request.kind.as_str(), "caldav" | "icloud");
     let origin = request.url.clone();
     let mut result = execute(
         client()?,
@@ -278,11 +328,44 @@ fn next_page(origin: &Url, payload: &Value, items_key: &str) -> Result<Option<Ur
             return Ok(None);
         };
         let next = configured_url(raw)?;
-        if next.origin() != origin.origin() || next.path() != origin.path() {
+        if next.origin() != origin.origin() || decoded_path(&next) != decoded_path(origin) {
             return Err("calendar_origin_refused");
         }
         Ok(Some(next))
     }
+}
+
+// The path as a list of decoded segments. A calendar id goes into the request
+// path with `=` and `+` literal, and the server may hand the same id back with
+// them percent-encoded: comparing the serialized strings would refuse the
+// second page of every such calendar. Segments stay separate so an encoded
+// slash inside one cannot spell a different resource.
+fn decoded_path(url: &Url) -> Vec<Vec<u8>> {
+    url.path()
+        .split('/')
+        .map(|segment| {
+            let bytes = segment.as_bytes();
+            let mut out = Vec::with_capacity(bytes.len());
+            let mut i = 0;
+            while i < bytes.len() {
+                let decoded = (bytes[i] == b'%' && i + 2 < bytes.len())
+                    .then(|| std::str::from_utf8(&bytes[i + 1..i + 3]).ok())
+                    .flatten()
+                    .and_then(|hex| u8::from_str_radix(hex, 16).ok());
+                match decoded {
+                    Some(byte) => {
+                        out.push(byte);
+                        i += 3;
+                    }
+                    None => {
+                        out.push(bytes[i]);
+                        i += 1;
+                    }
+                }
+            }
+            out
+        })
+        .collect()
 }
 
 async fn execute(
@@ -292,7 +375,7 @@ async fn execute(
     password: Option<&str>,
 ) -> Result<Value, &'static str> {
     let mut builder = client.request(request.method.clone(), request.url);
-    if request.kind == "caldav" {
+    if matches!(request.kind.as_str(), "caldav" | "icloud") {
         builder = builder.basic_auth(request.username, password);
         if request.method.as_str() == "REPORT" {
             builder = builder

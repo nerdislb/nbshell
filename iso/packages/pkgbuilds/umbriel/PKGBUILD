@@ -11,7 +11,7 @@
 
 pkgname=umbriel
 _url=https://github.com/noctalia-dev/umbriel.git
-_commit=11c0c99b85c5aa579224cf0d2302f4f7356ac5c4
+_commit=6ca1d08c7fe49f396fe68eb65386ab59f5ca7c6e
 pkgver=0.1.0.r912.gc3bb2a8
 pkgrel=1
 pkgdesc="Umbriel Wayland compositor (nbshell's supported session)"
@@ -31,7 +31,7 @@ source=("git+${_url}#commit=${_commit}" "pointer-modifiers.patch")
 # (verified against MANIFEST.toml before this PKGBUILD is ever built), not
 # by a content checksum -- SKIP is the standard makepkg convention for VCS
 # sources pinned this way.
-sha256sums=('SKIP' 'd90273b8eef66e535ece3f1f8e4b29ef95f093540642473f7137b707bc8cdddc')
+sha256sums=('SKIP' 'a7402e31ef2adc4ffb2824be5d49fe958236d4e5713a5f531a592e89c460050e')
 
 pkgver() {
     cd "$pkgname"
@@ -41,7 +41,7 @@ pkgver() {
 prepare() {
     cd "$pkgname"
     git submodule update --init --recursive
-    # Verified local commit ae25aaa; ship its exact patch without publishing it.
+    # Verified local commit 8268c60; ship its exact patch without publishing it.
     patch -Np1 -i "$srcdir/pointer-modifiers.patch"
 }
 

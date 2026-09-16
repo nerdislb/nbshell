@@ -1,6 +1,6 @@
-tree 9f365f22f5ea468c7aa187af954e82002abb50dd
-parent 11c0c99b85c5aa579224cf0d2302f4f7356ac5c4
+tree f48ec07dab0fb61f8971753de8bc646a05fc90c5
+parent 6ca1d08c7fe49f396fe68eb65386ab59f5ca7c6e
 author nerdi <nerdi@localhost> 1789411991 +0200
-committer nerdi <nerdi@localhost> 1789411991 +0200
+committer nerdi <erni1983@gmail.com> 1789541545 +0200
 
 Preserve pointer modifiers and verify pinned fullscreen restoration on approved Umbriel

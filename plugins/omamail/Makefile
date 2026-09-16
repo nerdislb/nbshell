@@ -243,10 +243,10 @@ test-app-qml:
 		echo "qmltestrunner not found: install Qt 6 QML test tooling" >&2; \
 		exit 1; \
 	}
-	cmake -S app -B "$(APP_BUILD_DIR)" -DOMAMAIL_BACKEND="$(APP_BACKEND)"
+	cmake -S app -B "$(APP_BUILD_DIR)" -DOMAMAIL_BACKEND="$(APP_BACKEND)" -DQMLTESTRUNNER_EXECUTABLE="$(QMLTESTRUNNER)"
 	cmake --build "$(APP_BUILD_DIR)" --parallel
 	python3 app/tests/test_qml_inventory.py
-	QT_QPA_PLATFORM=offscreen ctest --test-dir "$(APP_BUILD_DIR)" --output-on-failure -R 'tst_standalone_composition'
+	QT_QPA_PLATFORM=offscreen ctest --test-dir "$(APP_BUILD_DIR)" --output-on-failure --no-tests=error -R 'tst_standalone_composition'
 
 app-build:
 	cargo build --locked --no-default-features --features standalone --target-dir "$(APP_TARGET_DIR)" --bin omamail

@@ -10,10 +10,20 @@ Item {
     id: mailService
 
     property var requests: []
+    property var nextResult: ({ body: "{}", status: 200 })
+    property var nextError: null
+    property bool backendCanDiscoverCalendars: true
+    property var discoveryCallback: null
     property var credentialWrites: []
-    property var backend: ({ call: function(method, params, callback) {
+    property var configWrites: []
+    property var configCallback: null
+    property var backend: ({ ready: false, call: function(method, params, callback) {
       mailService.requests.push({ method: method, params: params })
-      callback({ body: "{}", status: 200 }, null)
+      if (method === "calendar.discover") {
+        mailService.discoveryCallback = callback
+        return
+      }
+      callback(mailService.nextResult, mailService.nextError)
     } })
     property bool unifiedCalendarView: false
     property var accountSummaries: [
@@ -32,6 +42,10 @@ Item {
       credentialWrites.push({kind:kind,accountId:accountId,clientId:clientId,secret:secret})
       callback(true, "")
       return true
+    }
+    function writeConfig(name, payload, callback) {
+      configWrites.push({name:name, payload:payload})
+      configCallback = callback
     }
   }
 
@@ -52,13 +66,33 @@ Item {
 
   TestCase {
     name: "CalendarController"
+    SignalSpy { id: discoverySpy; target: controller; signalName: "discoveryFinished" }
+
+    property var originalSummaries: JSON.parse(JSON.stringify(mailService.accountSummaries))
 
     function init() {
       // Reset here rather than at the end of each case: a failed compare aborts
       // the function, so a restore on its last line does not run and one real
       // failure becomes a cascade that hides it.
+      mailService.accountSummaries = JSON.parse(JSON.stringify(originalSummaries))
       mailService.requests = []
+      mailService.nextResult = ({ body: "{}", status: 200 })
+      mailService.nextError = null
+      mailService.backendCanDiscoverCalendars = true
+      mailService.discoveryCallback = null
+      mailService.backend.ready = false
+      mailService.accountSummaries = [
+        { id: "imap:work@example.com", email: "work@example.com",
+          provider: "imap", signedIn: true },
+        { id: "one@gmail.com", email: "one@gmail.com",
+          provider: "gmail", signedIn: true },
+        { id: "two@gmail.com", email: "two@gmail.com",
+          provider: "gmail", signedIn: true }
+      ]
       mailService.credentialWrites = []
+      mailService.configWrites = []
+      mailService.configCallback = null
+      discoverySpy.clear()
       mailService.unifiedCalendarView = false
       controller.accountId = "imap:work@example.com"
       controller.refreshScope = ""
@@ -71,6 +105,51 @@ Item {
       controller.savingSource = false
       controller.sourceBeingSaved = null
       controller.sourceSecret = ""
+      controller.discoveringCalendars = false
+      controller.discoveringAccountId = ""
+      controller.discoverySaving = false
+      controller.discoveryPendingCount = 0
+      controller.discoveryError = ""
+      controller.refreshAfterSourceWrite = false
+      controller.sourceList = ({version:1, sources:[{
+        id:"caldav:team", kind:"caldav", name:"Team",
+        url:"https://calendar.example/team/", username:"work@example.com",
+        enabled:true, readOnly:false, colorKey:"accent"
+      }]})
+    }
+
+    function test_discovery_persists_through_platform_settings_data() {
+      return [{tag:"saved", ok:true}, {tag:"failed", ok:false}]
+    }
+
+    function test_discovery_persists_through_platform_settings(data) {
+      var before = JSON.stringify(controller.sourceList)
+      mailService.accountSummaries = [{id:"outlook:work@example.com",
+        calendarProvider:"microsoft", signedIn:true}]
+      mailService.backend.ready = true
+      verify(controller.discoverAccountCalendars("outlook:work@example.com"))
+      mailService.discoveryCallback({provider:"microsoft", accountId:"outlook:work@example.com",
+        calendars:[{sourceId:"microsoft:work", calendarId:"work", name:"Work", readOnly:false}]}, null)
+      compare(mailService.configWrites.length, 1)
+      compare(mailService.configWrites[0].name, "calendars.json")
+      compare(JSON.parse(mailService.configWrites[0].payload).sources.length, 2)
+      compare(JSON.stringify(controller.sourceList), before, "no optimistic replacement before persistence")
+      compare(controller.savingSource, true)
+      compare(controller.discoverySaving, true)
+      compare(discoverySpy.count, 0)
+      controller.setSourceEnabled("caldav:team", false)
+      compare(mailService.configWrites.length, 1, "no concurrent writer while saving discovery")
+      mailService.configCallback(data.ok, data.ok ? "" : "synthetic write refusal")
+      compare(controller.savingSource, false)
+      compare(controller.discoverySaving, false)
+      compare(controller.discoveryPendingCount, 0)
+      compare(controller.refreshAfterSourceWrite, false)
+      compare(discoverySpy.count, 1)
+      compare(Array.prototype.slice.call(discoverySpy.signalArguments[0]), data.ok ? [true, "", 1]
+        : [false, "The discovered calendars could not be saved", 0])
+      compare(mailService.credentialWrites.length, 0, "discovery never writes a credential")
+      if (data.ok) compare(controller.sourceList.sources.length, 2)
+      else compare(JSON.stringify(controller.sourceList), before)
     }
 
     function test_network_requests_are_owned_by_backend() {
@@ -86,6 +165,168 @@ Item {
       compare(mailService.requests[0].method, "calendar.request")
       compare(mailService.requests[0].params.source.accountId, "one@gmail.com")
       verify(mailService.requests[0].params.token === undefined)
+    }
+
+    function test_z_icloud_requests_and_discovery_never_carry_credentials() {
+      var source = {kind: "icloud", accountId: "imap:person@icloud.com",
+        id: "icloud:one", url: "https://p37-caldav.icloud.com/123/calendars/one/"}
+      controller.nativeRequest(source, "list", {start: "a", end: "b", body: "report"},
+        function(_result, error) { compare(error, "") })
+      compare(mailService.requests.length, 1)
+      compare(mailService.requests[0].method, "calendar.request")
+      compare(mailService.requests[0].params.source.accountId, "imap:person@icloud.com")
+      verify(mailService.requests[0].params.password === undefined)
+      verify(mailService.requests[0].params.credentials === undefined)
+
+      mailService.accountSummaries = [{ id: "imap:person@icloud.com",
+        email: "person@icloud.com", provider: "imap", calendarProvider: "icloud",
+        signedIn: true }]
+      mailService.backend.ready = true
+      verify(controller.discoverAccountCalendars("imap:person@icloud.com"))
+      compare(mailService.requests.length, 2)
+      compare(mailService.requests[1].method, "calendar.discover")
+      compare(JSON.stringify(mailService.requests[1].params),
+        JSON.stringify({accountId: "imap:person@icloud.com"}))
+      verify(mailService.discoveryCallback !== null)
+      controller.setSourceEnabled("caldav:team", false)
+      compare(controller.savingSource, false,
+        "calendar settings cannot race the discovery result writer")
+      mailService.discoveryCallback(null, {code: -32000, message: "calendar_auth_refused"})
+      compare(controller.discoveringCalendars, false)
+      compare(controller.discoveryError, "Sign in to this mailbox again")
+
+      verify(controller.discoverAccountCalendars("imap:person@icloud.com"))
+      mailService.accountSummaries = []
+      mailService.discoveryCallback({ provider: "icloud",
+        accountId: "imap:person@icloud.com", calendars: [] }, null)
+      compare(controller.savingSource, false)
+      compare(controller.discoveryError, "Calendars could not be discovered")
+    }
+
+    function test_discovery_failure_uses_only_known_rpc_messages() {
+      var cases = [
+        {message: "auth_signed_out", expected: "Sign in to this mailbox again"},
+        {message: "calendar_auth_refused", expected: "Sign in to this mailbox again"},
+        {message: "calendar_provider_unsupported", expected: "This mailbox does not provide iCloud or Microsoft calendars"},
+        {message: "calendar_timeout", expected: "Calendar discovery timed out"},
+        {message: "private diagnostic <img src='https://example.org/tracker'>", expected: "Calendars could not be discovered"}
+      ]
+      for (var i = 0; i < cases.length; i++) {
+        compare(controller.discoveryFailure({code: -32000, message: cases[i].message}), cases[i].expected)
+      }
+      compare(controller.discoveryFailure(null), "Calendars could not be discovered")
+    }
+
+    function test_discovery_on_an_old_backend_makes_no_request_or_settings_write() {
+      mailService.accountSummaries = [{ id: "imap:person@icloud.com",
+        calendarProvider: "icloud", signedIn: true }]
+      mailService.backend.ready = true
+      mailService.backendCanDiscoverCalendars = false
+      compare(controller.discoverAccountCalendars("imap:person@icloud.com"), false)
+      compare(mailService.requests.length, 0)
+      compare(mailService.configWrites.length, 0)
+      compare(mailService.credentialWrites.length, 0)
+      compare(controller.savingSource, false)
+      compare(controller.discoveringCalendars, false)
+    }
+    function test_old_backend_never_reads_or_writes_a_discovered_calendar_as_default() {
+      mailService.backendCanDiscoverCalendars = false
+      var sources = [{kind: "microsoft", calendarId: "other-calendar"}, {kind: "icloud"}]
+      var operations = ["list", "create", "update", "delete"]
+      var replies = 0
+      for (var s = 0; s < sources.length; s++) {
+        for (var op = 0; op < operations.length; op++) {
+          controller.nativeRequest(sources[s], operations[op], {}, function(result, error) {
+            compare(result, null)
+            compare(error, "Update the backend to access this calendar")
+            replies++
+          })
+        }
+      }
+      compare(replies, 8)
+      compare(mailService.requests.length, 0)
+      controller.nativeRequest({kind: "microsoft", calendarId: ""}, "list", {}, function() {})
+      compare(mailService.requests.length, 1, "the established default calendar still works")
+    }
+
+    // Discovery stores the default calendar's real Graph id. A backend one
+    // API step behind cannot address a calendar by id, but the default is
+    // the one calendar it reaches without one, so the source degrades to the
+    // pre-discovery request instead of being refused.
+    function test_old_backend_reaches_the_discovered_default_calendar_without_its_identity() {
+      mailService.backendCanDiscoverCalendars = false
+      var defaultCalendar = {id: "microsoft:outlook:me@contoso.com", kind: "microsoft",
+        accountId: "outlook:me@contoso.com", calendarId: "default-id", discovered: true}
+      var replies = 0
+      controller.nativeRequest(defaultCalendar, "list", {}, function(result, error) {
+        compare(error, "")
+        replies++
+      })
+      compare(replies, 1)
+      compare(mailService.requests.length, 1)
+      compare(mailService.requests[0].params.source.calendarId, "")
+      compare(mailService.requests[0].params.source.id, "microsoft:outlook:me@contoso.com")
+      compare(defaultCalendar.calendarId, "default-id", "the saved source keeps its identity")
+      var secondary = {id: "microsoft:outlook:me@contoso.com:hash", kind: "microsoft",
+        accountId: "outlook:me@contoso.com", calendarId: "holiday-id", discovered: true}
+      controller.nativeRequest(secondary, "list", {}, function(result, error) {
+        compare(error, "Update the backend to access this calendar")
+        replies++
+      })
+      compare(replies, 2)
+      compare(mailService.requests.length, 1, "a secondary calendar has no request an old backend can make")
+    }
+
+    function test_native_request_explains_icloud_recovery() {
+      mailService.nextResult = null
+      mailService.nextError = ({ code: -32000, message: "calendar_auth_refused" })
+      var called = false
+      controller.nativeRequest({ kind: "icloud" }, "list", {}, function(result, error) {
+        compare(result, null)
+        compare(error, "iCloud calendar request failed. Check the mailbox's app-specific password in Settings")
+        called = true
+      })
+      verify(called)
+    }
+
+    function test_a_calendar_error_names_a_discovered_calendar_with_its_mailbox() {
+      mailService.accountSummaries = [
+        { id: "outlook:me@contoso.com", email: "me@contoso.com", provider: "outlook", signedIn: true },
+        { id: "outlook:other@contoso.com", email: "other@contoso.com", provider: "outlook", signedIn: true }
+      ]
+      controller.refreshScope = controller.calendarScope
+      controller.activeSource = { id: "microsoft:outlook:other@contoso.com", kind: "microsoft",
+        name: "Calendar", accountId: "outlook:other@contoso.com", calendarId: "default-id",
+        discovered: true }
+      controller.failSource("Something refused", "microsoft")
+      compare(controller.lastError, "Calendar · other@contoso.com: Something refused")
+      controller.refreshScope = controller.calendarScope
+      controller.activeSource = { id: "caldav:team", kind: "caldav", name: "Team" }
+      controller.failSource("Something refused", "caldav")
+      compare(controller.lastError, "Team: Something refused")
+    }
+
+    function test_native_request_explains_microsoft_recovery() {
+      mailService.nextResult = null
+      mailService.nextError = ({ code: -32000, message: "calendar_auth_refused" })
+      var called = false
+      controller.nativeRequest({ kind: "microsoft" }, "list", {}, function(result, error) {
+        compare(result, null)
+        compare(error, "Microsoft calendar request failed. Check Graph permissions in Settings, then sign in again")
+        called = true
+      })
+      verify(called)
+    }
+
+    function test_native_request_does_not_display_backend_diagnostics() {
+      mailService.nextResult = null
+      mailService.nextError = ({ code: -32000, message: "private backend diagnostic" })
+      var called = false
+      controller.nativeRequest({ kind: "microsoft" }, "list", {}, function(_result, error) {
+        compare(error, "Microsoft calendar request failed. Check Graph permissions in Settings, then sign in again")
+        called = true
+      })
+      verify(called)
     }
 
     function sourceIds(list) {
@@ -175,6 +416,57 @@ Item {
         accountId:"caldav:team",clientId:"",secret:"new-secret"}])
       compare(controller.pendingRangeStart, 1000)
       compare(controller.pendingRangeEnd, 2000)
+    }
+
+    // Google and Microsoft calendars arrive with their account's sign-in,
+    // after a view that was already open asked for its range.
+    function test_a_calendar_arriving_with_a_sign_in_reloads_the_range() {
+      var summaries = JSON.parse(JSON.stringify(mailService.accountSummaries))
+      summaries[1].signedIn = false
+      mailService.accountSummaries = summaries
+      controller.accountId = "one@gmail.com"
+      var cache = null
+      for (var i = 0; i < controller.children.length; i++) {
+        if (controller.children[i].cacheName !== undefined) cache = controller.children[i]
+      }
+      verify(cache !== null, "the controller owns an event cache")
+      cache.loaded = true
+      controller.refresh(1000, 2000)
+      mailService.requests = []
+      mailService.accountSummaries = JSON.parse(JSON.stringify(summaries))
+      compare(mailService.requests.length, 0, "a poll that changes nothing asks nothing")
+      summaries = JSON.parse(JSON.stringify(summaries))
+      summaries[1].signedIn = true
+      mailService.accountSummaries = summaries
+      var asked = mailService.requests.map(function(r) { return r.params.source.id })
+      verify(asked.indexOf("google:one@gmail.com") >= 0, "asked " + JSON.stringify(asked))
+      compare(mailService.requests[0].params.start, new Date(1000).toISOString())
+      cache.loaded = false
+    }
+
+    // The sources file is watched, and its directory is touched by the
+    // backend on every registry read. Learning again that the file is still
+    // absent is not a change of sources: announcing one refreshed every
+    // calendar, which read the registry, which touched the directory.
+    function test_a_still_missing_sources_file_is_not_a_change() {
+      var sourcesFile = null
+      for (var i = 0; i < controller.data.length; i++) {
+        if (controller.data[i] && typeof controller.data[i].loadFailed === "function")
+          sourcesFile = controller.data[i]
+      }
+      verify(sourcesFile !== null, "the controller watches its sources file")
+      var originalList = controller.sourceList
+      var announced = 0
+      var count = function() { announced++ }
+      controller.sourceListChanged.connect(count)
+      sourcesFile.loadFailed()
+      compare(announced, 1, "an absent file empties a loaded list once")
+      sourcesFile.loadFailed()
+      sourcesFile.loadFailed()
+      controller.sourceListChanged.disconnect(count)
+      controller.sourceList = originalList
+      compare(announced, 1)
+      compare(controller.sourcesLoaded, true)
     }
   }
 }

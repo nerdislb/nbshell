@@ -16,6 +16,13 @@ function frozen(list) {
 // ------------------------------------------------------------------- shape
 
 deepEqual(accounts.emptyList(), { version: accounts.VERSION, accounts: [], activeId: "" })
+assert.strictEqual(accounts.calendarProvider({ provider: "outlook" }), "microsoft")
+assert.strictEqual(accounts.calendarProvider({ provider: "imap", email: "person@icloud.com" }), "icloud")
+assert.strictEqual(accounts.calendarProvider({ provider: "imap", email: "person@example.com",
+  imap: { imapHost: "imap.mail.me.com" } }), "icloud",
+  "an iCloud custom-domain mailbox is identified by its saved server")
+assert.strictEqual(accounts.calendarProvider({ provider: "imap", email: "person@example.com",
+  imap: { imapHost: "imap.example.com" } }), "")
 assert.strictEqual(accounts.VERSION, 1)
 assert.strictEqual(accounts.count(accounts.emptyList()), 0)
 

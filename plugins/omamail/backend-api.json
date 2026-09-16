@@ -1,5 +1,5 @@
 {
-  "apiVersion": 4,
+  "apiVersion": 5,
   "releasedApiVersion": 4,
   "protocolVersion": 1,
   "methods": [
@@ -94,6 +94,7 @@
     "public.image",
     "public.unsubscribe",
     "calendar.request",
+    "calendar.discover",
     "auth.form",
     "auth.begin",
     "auth.poll",
@@ -103,6 +104,7 @@
     "auth.store",
     "auth.clear",
     "outlook.graphSend",
+    "outlook.connectionCheck",
     "hey.probe",
     "hey.status",
     "hey.profile",
@@ -181,6 +183,34 @@
     "jmap.stream.close"
   ],
   "contractCases": [
+    {
+      "name": "iCloud request refuses an external credential origin",
+      "method": "calendar.request",
+      "params": {
+        "source": {"kind": "icloud", "accountId": "imap:missing@icloud.com", "url": "https://example.org/calendar/"},
+        "operation": "list", "body": "report"
+      },
+      "errorCode": -32000,
+      "equals": {"message": "calendar_origin_refused"}
+    },
+    {
+      "name": "strict calendar discovery parameters",
+      "method": "calendar.discover",
+      "params": {},
+      "errorCode": -32602
+    },
+    {
+      "name": "missing Outlook connection",
+      "method": "outlook.connectionCheck",
+      "params": {
+        "accountId": "outlook:missing@example.org"
+      },
+      "equals": {
+        "mail": false,
+        "graph": false,
+        "calendar": false
+      }
+    },
     {
       "name": "mail action rejects malformed HEY IDs before preview",
       "method": "mail.act",
@@ -688,10 +718,25 @@
       "equals": {
         "message": "Invalid params"
       }
+    },
+    {
+      "name": "gmail message mutation answers with a queue ticket",
+      "method": "gmail.trash",
+      "params": {"accountId": "contract@example.org", "id": "contract-message"},
+      "equals": {"queued": true},
+      "types": {"ticket": "string"}
+    },
+    {
+      "name": "gmail batch mutation answers with a queue ticket",
+      "method": "gmail.batchModify",
+      "params": {"accountId": "contract@example.org", "ids": ["contract-message"], "addLabelIds": ["STARRED"], "removeLabelIds": []},
+      "equals": {"queued": true},
+      "types": {"ticket": "string"}
     }
   ],
   "unreleased": {
-    "methods": [],
-    "cases": []
+    "methods": ["outlook.connectionCheck", "calendar.discover"],
+    "cases": ["missing Outlook connection", "strict calendar discovery parameters", "iCloud request refuses an external credential origin",
+      "gmail message mutation answers with a queue ticket", "gmail batch mutation answers with a queue ticket"]
   }
 }

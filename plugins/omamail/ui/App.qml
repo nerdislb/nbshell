@@ -175,22 +175,11 @@ Item {
   readonly property bool compact: mailWidth < Style.space(760)
 
   property string cursorId: ""
-  // The rows ticked for a bulk action, by id. Like the cursor, a fact about
-  // this window rather than about the mailbox, and pruned the same way when
-  // the list under it changes. Only the list acts on it: in the reader there
-  // is one message and it is the one open.
+  // Window-local bulk selection, pruned when the list changes.
   property var checkedIds: []
-  // The mailbox the ticks belong to. An IMAP id is a UID and a folder, unique
-  // only inside one account, so a tick carried across an account switch
-  // would name whatever the other mailbox keeps under the same id — and a
-  // batch dispatched through it would act on that. The ticks are bound to
-  // the account they were made in and dropped the moment it changes, from
-  // any path, before a batch can run.
+  // Bind selection to its account: IMAP IDs can collide across mailboxes.
   property string checkedAccountId: ""
-  // Ticked rows mean the selection whenever the list is on screen: alone, or
-  // beside the reader in a wide window. A plain click opens a message and
-  // puts the window in the reader view, so a click, a Shift+click and `d`
-  // used to trash only the open message — the ticks were there and ignored.
+  // Visible list selections win over the reader, including wide split view.
   readonly property bool listOnScreen: currentView === "list"
     || (currentView === "reader" && !compact)
   readonly property bool selectionActive: checkedIds.length > 0 && listOnScreen
@@ -1636,17 +1625,31 @@ Item {
         visible: !root.composing
 
         // Kept below the header controls so their own pointer handlers win.
-        // Empty title-bar space starts the platform's native move operation,
-        // preserving compositor snapping instead of updating x/y ourselves.
+        // Empty title-bar space starts the platform's native move operation.
+        // A DragHandler with no target: a MouseArea keeps the grab and feeds
+        // moves into QML while the compositor is already dragging, which is
+        // the lag of a window that trails the pointer.
         MouseArea {
           id: windowMoveArea
           objectName: "app-title-bar-drag-area"
           anchors.fill: parent
           enabled: root.standaloneWindowChrome
-          acceptedButtons: Qt.LeftButton
-          onPressed: function(mouse) {
-            var nativeWindow = header.Window.window
-            if (!nativeWindow || !nativeWindow.startSystemMove()) mouse.accepted = false
+          acceptedButtons: Qt.NoButton
+          hoverEnabled: false
+          // Exposed for tests: a target would fight the compositor drag.
+          readonly property bool dragsTheWindow: windowMoveHandler.target === null
+
+          DragHandler {
+            id: windowMoveHandler
+            enabled: windowMoveArea.enabled
+            target: null
+            dragThreshold: 0
+            acceptedButtons: Qt.LeftButton
+            onActiveChanged: {
+              if (!active) return
+              var nativeWindow = header.Window.window
+              if (nativeWindow) nativeWindow.startSystemMove()
+            }
           }
         }
 
