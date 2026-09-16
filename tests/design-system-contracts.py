@@ -320,7 +320,7 @@ for snippet in (
     "PanelSurface {",
     "SectionHeader {",
     "delegate: PanelRow {",
-    "opacity: box.opacity * 0.45",
+    "opacity: box.opacity",
 ):
     if snippet not in modules:
         raise SystemExit(f"Modules menu no longer follows the shared panel language: {snippet}")

@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import Quickshell
 import Quickshell.Wayland
 import qs.Common
@@ -51,6 +52,7 @@ PanelWindow {
     property int groupIndex: 0
     property int itemIndex: 0
     property bool inCatalog: false
+    property bool footerFocused: false
     property int catalogIndex: 0
     property int dragGroup: -1
     property int dragIndex: -1
@@ -86,19 +88,23 @@ PanelWindow {
         if (!root.visible || root.closing || root.dragGroup >= 0)
             return;
         const group = groupRows.itemAt(root.groupIndex);
-        const row = root.inCatalog ? catalogRows.itemAt(root.catalogIndex)
+        const row = root.footerFocused ? closeButton : root.inCatalog ? catalogRows.itemAt(root.catalogIndex)
             : (group ? group.rowAt(root.itemIndex) : null);
-        (row || closeButton).forceActiveFocus();
-        if (row)
+        (row || keys).forceActiveFocus();
+        if (row && row !== closeButton)
             revealFocusedItem(row, root.inCatalog ? rightScroll : leftScroll);
     }
 
     function revealFocusedItem(item, viewport) {
         const mapped = item.mapToItem(viewport.contentItem, 0, 0);
+        // Keep the group heading in view when selecting its first placement.
+        const margin = viewport === leftScroll && root.itemIndex === 0
+            ? Theme.controlHeight + Theme.spaceSm : Theme.spaceSm;
         viewport.contentY = FocusScroll.contentYForFocus(mapped.y, item.height,
-            viewport.contentY, viewport.height, viewport.contentHeight, Theme.spaceSm);
+            viewport.contentY, viewport.height, viewport.contentHeight, margin);
     }
 
+    onFooterFocusedChanged: Qt.callLater(root.syncFocus)
     onGroupIndexChanged: Qt.callLater(root.syncFocus)
     onItemIndexChanged: Qt.callLater(root.syncFocus)
     onInCatalogChanged: Qt.callLater(root.syncFocus)
@@ -123,14 +129,14 @@ PanelWindow {
     }
 
     function save(i, list) {
-        Config.set(groups[i].key, list);
+        return Config.set(groups[i].key, list);
     }
 
     function saveMove(fromGroup, from, toGroup, to) {
         const changes = {};
         changes[groups[fromGroup].key] = from;
         changes[groups[toGroup].key] = to;
-        Config.setValues(changes);
+        return Config.setValues(changes);
     }
 
     function placements(id) {
@@ -169,18 +175,20 @@ PanelWindow {
 
     // Innerhalb der Gruppe schieben.
     function moveWithin(delta) {
+        if (!Config.configValid || root.closing) return;
         const list = listOf(groupIndex);
         const target = itemIndex + delta;
         if (target < 0 || target >= list.length)
             return;
         const item = list.splice(itemIndex, 1)[0];
         list.splice(target, 0, item);
-        save(groupIndex, list);
+        if (!save(groupIndex, list)) return;
         itemIndex = target;
     }
 
     // In die Nachbargruppe schieben -- ans Ende, dort faellt es auf.
     function moveToGroup(delta) {
+        if (!Config.configValid || root.closing) return;
         const from = listOf(groupIndex);
         if (itemIndex >= from.length)
             return;
@@ -190,21 +198,23 @@ PanelWindow {
         const item = from.splice(itemIndex, 1)[0];
         const to = listOf(target);
         to.push(item);
-        saveMove(groupIndex, from, target, to);
+        if (!saveMove(groupIndex, from, target, to)) return;
         groupIndex = target;
         itemIndex = to.length - 1;
     }
 
     function removeItem() {
+        if (!Config.configValid || root.closing) return;
         const list = listOf(groupIndex);
         if (itemIndex >= list.length)
             return;
         list.splice(itemIndex, 1);
-        save(groupIndex, list);
+        if (!save(groupIndex, list)) return;
         itemIndex = Math.max(0, Math.min(itemIndex, list.length - 1));
     }
 
     function moveDragged(toGroup, toIndex) {
+        if (!Config.configValid || root.closing) return;
         if (dragGroup < 0 || dragIndex < 0 || toGroup < 0 || toGroup >= groups.length)
             return;
         const fromGroup = dragGroup;
@@ -214,20 +224,20 @@ PanelWindow {
             return;
         const item = from.splice(fromIndex, 1)[0];
         if (fromGroup === toGroup) {
-            var adjusted = Math.max(0, Math.min(toIndex, from.length));
-            if (fromIndex < toIndex)
-                adjusted = Math.max(0, adjusted - 1);
+            const adjusted = Math.max(0, Math.min(toIndex - (fromIndex < toIndex ? 1 : 0), from.length));
             from.splice(adjusted, 0, item);
-            save(fromGroup, from);
-            groupIndex = fromGroup;
-            itemIndex = adjusted;
+            if (save(fromGroup, from)) {
+                groupIndex = fromGroup;
+                itemIndex = adjusted;
+            }
         } else {
             const to = listOf(toGroup);
             const target = Math.max(0, Math.min(toIndex, to.length));
             to.splice(target, 0, item);
-            saveMove(fromGroup, from, toGroup, to);
-            groupIndex = toGroup;
-            itemIndex = target;
+            if (saveMove(fromGroup, from, toGroup, to)) {
+                groupIndex = toGroup;
+                itemIndex = target;
+            }
         }
         inCatalog = false;
         dragGroup = -1;
@@ -235,6 +245,7 @@ PanelWindow {
     }
 
     function addFromCatalog() {
+        if (!Config.configValid || root.closing) return;
         const list = listOf(groupIndex);
         const item = catalog[catalogIndex];
         if (item === undefined)
@@ -246,7 +257,7 @@ PanelWindow {
             return;
         }
         list.push(item);
-        save(groupIndex, list);
+        if (!save(groupIndex, list)) return;
         itemIndex = list.length - 1;
     }
 
@@ -254,7 +265,7 @@ PanelWindow {
         const item = catalog[catalogIndex];
         if (item === undefined)
             return;
-        if (!selectConfigured(item))
+        if (item === "sep" || !selectConfigured(item))
             addFromCatalog();
     }
 
@@ -278,6 +289,15 @@ PanelWindow {
         itemIndex = i;
     }
 
+    function switchPane(direction = 1) {
+        const order = root.catalog.length ? [0, 1, 2] : [0, 2];
+        const current = root.footerFocused ? 2 : root.inCatalog ? 1 : 0;
+        const next = order[(order.indexOf(current) + direction + order.length) % order.length];
+        root.footerFocused = next === 2;
+        root.inCatalog = next === 1;
+        Qt.callLater(root.syncFocus);
+    }
+
     onVisibleChanged: {
         if (visible) {
             closing = false;
@@ -291,7 +311,7 @@ PanelWindow {
         }
     }
 
-    Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: box.opacity * 0.45 }
+    Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: box.opacity }
     MouseArea { anchors.fill: parent; onClicked: root.close() }
 
     FocusScope {
@@ -300,13 +320,13 @@ PanelWindow {
         focus: root.visible
 
         Keys.onEscapePressed: root.close()
-        Keys.onTabPressed: root.inCatalog = !root.inCatalog
-        Keys.onBacktabPressed: root.inCatalog = !root.inCatalog
-        Keys.onUpPressed: root.inCatalog ? root.catalogIndex = Math.max(0, root.catalogIndex - 1) : root.stepItem(-1)
-        Keys.onDownPressed: root.inCatalog ? root.catalogIndex = Math.min(root.catalog.length - 1, root.catalogIndex + 1) : root.stepItem(1)
+        Keys.onTabPressed: root.switchPane()
+        Keys.onBacktabPressed: root.switchPane(-1)
+        Keys.onUpPressed: if (!root.footerFocused) root.inCatalog ? root.catalogIndex = Math.max(0, root.catalogIndex - 1) : root.stepItem(-1)
+        Keys.onDownPressed: if (!root.footerFocused) root.inCatalog ? root.catalogIndex = Math.min(root.catalog.length - 1, root.catalogIndex + 1) : root.stepItem(1)
 
         Keys.onLeftPressed: event => {
-            if (root.inCatalog)
+            if (root.inCatalog || root.footerFocused)
                 return;
             if (event.modifiers & Qt.ShiftModifier)
                 root.moveToGroup(-1);
@@ -314,7 +334,7 @@ PanelWindow {
                 root.moveWithin(-1);
         }
         Keys.onRightPressed: event => {
-            if (root.inCatalog)
+            if (root.inCatalog || root.footerFocused)
                 return;
             if (event.modifiers & Qt.ShiftModifier)
                 root.moveToGroup(1);
@@ -322,7 +342,7 @@ PanelWindow {
                 root.moveWithin(1);
         }
         Keys.onPressed: event => {
-            if (!root.inCatalog && (event.key === Qt.Key_X || event.key === Qt.Key_Delete)) {
+            if (!root.inCatalog && !root.footerFocused && (event.key === Qt.Key_X || event.key === Qt.Key_Delete)) {
                 root.removeItem();
                 event.accepted = true;
             }
@@ -333,6 +353,9 @@ PanelWindow {
             dockedTop: true
             preferredWidth: Theme.cellW * 112
             preferredHeight: Theme.cellH * 38
+            motionEnabled: false
+            color: Theme.bg
+            border.color: Theme.panelBorder
 
             MouseArea { anchors.fill: parent }
 
@@ -342,27 +365,40 @@ PanelWindow {
                 anchors.margins: Theme.spaceXl
                 spacing: Theme.spaceLg
 
-                PanelHead {
+                Column {
                     id: head
-                    rowWidth: content.width
-                    icon: Icons.cp(0xF12E)
-                    title: "Bar modules"
-                    subtitle: "Arrange here or Mod-drag modules directly on the bar"
-                    badge: root.inCatalog ? "AVAILABLE" : root.groups[root.groupIndex].label.toUpperCase()
-                    badgeColor: Theme.accent
+                    width: parent.width
+                    spacing: Theme.spaceXs
+                    PanelHead { rowWidth: parent.width; title: "Bar modules" }
+                    Line {
+                        width: parent.width
+                        text: "Arrange here or Mod-drag modules directly on the bar"
+                        font.pixelSize: Theme.fontCaption
+                        color: Theme.readable(Theme.fgDim, Theme.bg, 4.5)
+                        elide: Text.ElideRight
+                    }
+                }
+                Line {
+                    id: errors
+                    width: parent.width
+                    visible: Config.readError !== "" || Config.writeError !== ""
+                    text: [Config.readError, Config.writeError].filter(e => e !== "").join("\n")
+                    color: Theme.readable(Theme.red, Theme.bg, 4.5)
+                    wrapMode: Text.Wrap
                 }
 
                 Row {
                     id: panes
                     width: content.width
-                    height: content.height - head.height - footer.height - content.spacing * 2
+                    height: Math.max(Theme.rowHeight, content.height - head.height - footer.height
+                        - content.spacing * (errors.visible ? 3 : 2) - (errors.visible ? errors.height : 0))
                     spacing: Theme.spaceXl
 
                     PanelSurface {
                         width: root.leftWidth
                         height: parent.height
-                        raised: true
-                        accentBorder: !root.inCatalog
+                        color: "transparent"
+                        border.width: 0
 
                         Column {
                             anchors.fill: parent
@@ -383,10 +419,13 @@ PanelWindow {
                                 contentHeight: left.height
                                 clip: true
                                 boundsBehavior: Flickable.StopAtBounds
+                                onContentHeightChanged: Qt.callLater(root.syncFocus)
+                                onHeightChanged: Qt.callLater(root.syncFocus)
+                                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
                                 Column {
                                     id: left
-                                    width: root.leftWidth - Theme.spaceSm * 2
+                                    width: root.leftWidth - Theme.spaceSm * 3
                                     height: childrenRect.height
                                     spacing: Theme.spaceSm
 
@@ -399,11 +438,11 @@ PanelWindow {
                                             id: group
                                             required property var modelData
                                             required property int index
-                                            function rowAt(index) { return moduleRows.itemAt(index); }
+                                            function rowAt(index) { return group.widgets.length ? moduleRows.itemAt(index) : emptyRow; }
                                             readonly property var widgets: group.modelData.key === "collapsedWidgets" ? Config.collapsedWidgets
                                                 : (group.modelData.key === "leftWidgets" ? Config.leftWidgets
                                                 : (group.modelData.key === "centerWidgets" ? Config.centerWidgets : Config.rightWidgets))
-                                            width: root.leftWidth - Theme.spaceSm * 2
+                                            width: root.leftWidth - Theme.spaceSm * 3
                                             height: childrenRect.height
                                             spacing: 0
 
@@ -430,14 +469,26 @@ PanelWindow {
                                                 }
                                             }
 
-                                            Line {
+                                            PanelRow {
+                                                id: emptyRow
                                                 visible: group.widgets.length === 0
                                                 width: parent.width
                                                 height: Math.max(Theme.rowHeight, Theme.cellH * 2 + Theme.spaceSm)
-                                                leftPadding: Theme.spaceXl
-                                                verticalAlignment: Text.AlignVCenter
-                                                text: "No modules"
-                                                color: Theme.muted
+                                                title: "No modules"
+                                                detail: "Select from Available to add"
+                                                interactive: true
+                                                accessibleSelected: !root.inCatalog && !root.footerFocused && root.groupIndex === group.index
+                                                color: activeFocus || hovered ? Theme.mix(Theme.bg, Theme.fg, 0.08) : "transparent"
+                                                border.width: activeFocus ? Theme.borderWidth : 0
+                                                Keys.forwardTo: [keys]
+                                                onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(emptyRow, leftScroll)
+                                                onTriggered: {
+                                                    root.groupIndex = group.index;
+                                                    root.itemIndex = 0;
+                                                    root.footerFocused = false;
+                                                    root.inCatalog = root.catalog.length > 0;
+                                                    Qt.callLater(root.syncFocus);
+                                                }
                                             }
 
                                             Repeater {
@@ -450,7 +501,7 @@ PanelWindow {
                                                     id: moduleRow
                                                     required property var modelData
                                                     required property int index
-                                                    readonly property bool current: !root.inCatalog
+                                                    readonly property bool current: !root.inCatalog && !root.footerFocused
                                                         && group.index === root.groupIndex
                                                         && moduleRow.index === root.itemIndex
 
@@ -458,8 +509,10 @@ PanelWindow {
                                                     height: Math.max(Theme.rowHeight, Theme.cellH * 2 + Theme.spaceSm)
                                                     title: Plugins.label(moduleRow.modelData)
                                                     detail: Plugins.source(moduleRow.modelData) === "" ? "Built in" : "Plugin"
-                                                    value: moduleRow.current ? "DRAG  ·  ← →" : ""
-                                                    selected: moduleRow.current
+                                                    value: moduleRow.current ? "↔" : ""
+                                                    accessibleSelected: moduleRow.current
+                                                    color: moduleRow.current || hovered ? Theme.mix(Theme.bg, Theme.fg, 0.08) : "transparent"
+                                                    border.width: activeFocus ? Theme.borderWidth : 0
                                                     visualFocus: activeFocus
                                                     interactive: true
                                                     Keys.forwardTo: [keys]
@@ -468,6 +521,7 @@ PanelWindow {
                                                     z: moduleDrag.active ? 20 : 0
 
                                                     onTriggered: {
+                                                        root.footerFocused = false;
                                                         root.inCatalog = false;
                                                         root.groupIndex = group.index;
                                                         root.itemIndex = moduleRow.index;
@@ -501,6 +555,7 @@ PanelWindow {
 
                                                     DragHandler {
                                                         id: moduleDrag
+                                                        enabled: Config.configValid
                                                         acceptedButtons: Qt.LeftButton
                                                         target: menuDragProxy
                                                         onActiveChanged: {
@@ -572,8 +627,8 @@ PanelWindow {
                     PanelSurface {
                         width: panes.width - root.leftWidth - panes.spacing
                         height: parent.height
-                        raised: false
-                        accentBorder: root.inCatalog
+                        color: "transparent"
+                        border.width: 0
 
                         Column {
                             anchors.fill: parent
@@ -594,13 +649,23 @@ PanelWindow {
                                 contentHeight: available.height
                                 clip: true
                                 boundsBehavior: Flickable.StopAtBounds
+                                onContentHeightChanged: Qt.callLater(root.syncFocus)
+                                onHeightChanged: Qt.callLater(root.syncFocus)
+                                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
                                 Column {
                                     id: available
-                                    width: rightScroll.width
+                                    width: Math.max(0, rightScroll.width - Theme.spaceSm)
                                     height: childrenRect.height
                                     spacing: 0
 
+                                    Line {
+                                        visible: root.catalog.length === 0
+                                        width: parent.width
+                                        text: "No available modules"
+                                        color: Theme.readable(Theme.fgDim, Theme.bg, 4.5)
+                                        wrapMode: Text.Wrap
+                                    }
                                     Repeater {
                                         id: catalogRows
                                         model: root.catalog
@@ -611,7 +676,7 @@ PanelWindow {
                                             id: catalogRow
                                             required property var modelData
                                             required property int index
-                                            readonly property bool current: root.inCatalog && catalogRow.index === root.catalogIndex
+                                            readonly property bool current: root.inCatalog && !root.footerFocused && catalogRow.index === root.catalogIndex
                                             readonly property string placement: root.placements(catalogRow.modelData)
                                             readonly property string placementState: root.placementStatus(catalogRow.modelData)
 
@@ -619,13 +684,16 @@ PanelWindow {
                                             height: Math.max(Theme.rowHeight, Theme.cellH * 2 + Theme.spaceSm)
                                             title: Plugins.label(catalogRow.modelData)
                                             detail: placement !== "" ? "Placed: " + placement : Plugins.describe(catalogRow.modelData)
-                                            value: placementState === "ADD" && catalogRow.current ? "ENTER  ·  ADD" : placementState
-                                            selected: catalogRow.current
+                                            value: placementState
+                                            accessibleSelected: catalogRow.current
+                                            color: catalogRow.current || hovered ? Theme.mix(Theme.bg, Theme.fg, 0.08) : "transparent"
+                                            border.width: activeFocus ? Theme.borderWidth : 0
                                             visualFocus: activeFocus
                                             interactive: true
                                             Keys.forwardTo: [keys]
                                             onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(catalogRow, rightScroll)
                                             onTriggered: {
+                                                root.footerFocused = false;
                                                 root.inCatalog = true;
                                                 root.catalogIndex = catalogRow.index;
                                                 root.activateCatalog();
@@ -642,15 +710,17 @@ PanelWindow {
                 Row {
                     id: footer
                     width: content.width
-                    height: Theme.controlHeight
+                    height: Math.max(Theme.controlHeight, shortcutHelp.implicitHeight)
                     spacing: Theme.spaceMd
 
                     Line {
+                        id: shortcutHelp
                         width: parent.width - closeButton.width - parent.spacing
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Tab switches pane  ·  ↑↓ selects  ·  ←→ reorders  ·  Shift+←→ changes group  ·  Delete removes"
-                        color: Theme.muted
-                        elide: Text.ElideRight
+                        text: "Tab: layout / available / close  ·  ↑↓ select  ·  ←→ reorder  ·  Shift+←→ move group  ·  Enter add/select  ·  Delete remove"
+                        font.pixelSize: Theme.fontCaption
+                        color: Theme.readable(Theme.fgDim, Theme.bg, 4.5)
+                        wrapMode: Text.WordWrap
                     }
 
                     ActionButton {
@@ -658,6 +728,7 @@ PanelWindow {
                         text: "Close"
                         compact: true
                         Keys.forwardTo: [keys]
+                        onActiveFocusChanged: if (activeFocus) root.footerFocused = true
                         onTriggered: root.close()
                     }
                 }
