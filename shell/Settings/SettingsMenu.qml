@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import Quickshell
 import qs.Common
 import qs.Services
@@ -30,8 +31,8 @@ Item {
     signal backRequested()
     signal closeRequested()
 
-    // Welche Seite die Tasten bekommt: 0 = Gruppen links, 1 = Zeilen rechts.
-    property int pane: 1
+    // Keyboard region: 0 categories, 1 options, 2 recovery, 3 close.
+    property int pane: 0
     property int group: 0
     property int selected: 0
 
@@ -618,37 +619,44 @@ Item {
             }
             return;
         }
+        if (root.pane !== 1) return;
         const i = root.selected + delta;
         if (i >= 0 && i < root.items.length)
             root.selected = i;
     }
 
-    function switchPane() {
-        root.pane = Config.readError !== "" ? (root.pane + 1) % 3 : (root.pane === 0 ? 1 : 0);
+    function switchPane(direction = 1) {
+        const order = Config.readError !== "" ? [0, 1, 2, 3] : [0, 1, 3];
+        const index = order.indexOf(root.pane);
+        root.pane = order[(index + direction + order.length) % order.length];
     }
 
     function syncFocus() {
         if (!root.visible || root.closing)
             return;
         const row = root.pane === 2 && recoveryButton.visible ? recoveryButton
+            : root.pane === 3 ? closeButton
             : root.pane === 0 ? groupRows.itemAt(root.group) : settingRows.itemAt(root.selected);
         (row || closeButton).forceActiveFocus();
         revealFocusedItem(row || closeButton);
     }
 
     function revealFocusedItem(item) {
-        if (viewport.height <= 0 || item.height <= 0)
-            return;
-        const mapped = item.mapToItem(content, 0, 0);
-        // Early delegate focus can scroll before layout has its final size.
-        // The first row should keep the panel heading visible whenever it fits.
-        const firstRow = root.pane === 0 ? root.group === 0 : root.selected === 0;
-        if (firstRow && mapped.y + item.height + Theme.spaceSm <= viewport.height) {
-            viewport.contentY = 0;
-            return;
+        const view = root.pane === 0 ? navigation : root.pane === 1 ? viewport : null;
+        if (!view || view.height <= 0 || !item || item.height <= 0) return;
+        const mapped = item.mapToItem(view.contentItem, 0, 0);
+        view.contentY = FocusScroll.contentYForFocus(mapped.y, item.height,
+            view.contentY, view.height, view.contentHeight, Theme.spaceSm);
+    }
+
+    Connections {
+        target: Config
+        function onReadErrorChanged() {
+            if (Config.readError === "" && root.pane === 2) {
+                root.pane = 0;
+                Qt.callLater(root.syncFocus);
+            }
         }
-        viewport.contentY = FocusScroll.contentYForFocus(mapped.y, item.height,
-            viewport.contentY, viewport.height, viewport.contentHeight, Theme.spaceSm);
     }
 
     onPaneChanged: Qt.callLater(root.syncFocus)
@@ -664,9 +672,8 @@ Item {
         if (visible) {
             Cursor.ensureThemes();
             closing = false;
-            // Rechts anfangen: dann bleibt es bei ↑↓ waehlen, ←→ aendern --
-            // so, wie die Liste sich vorher bedienen liess.
-            pane = Config.readError !== "" ? 2 : 1;
+            // Start in navigation; browsing categories never changes a setting.
+            pane = Config.readError !== "" ? 2 : 0;
             group = 0;
             selected = 0;
             Qt.callLater(root.syncFocus);
@@ -694,142 +701,132 @@ Item {
         Keys.onUpPressed: root.move(-1)
         Keys.onDownPressed: root.move(1)
         Keys.onTabPressed: root.switchPane()
-        Keys.onBacktabPressed: root.switchPane()
+        Keys.onBacktabPressed: root.switchPane(-1)
 
         // Links steht die Gruppenliste: dort ist rechts der Weg zu den
         // Zeilen, nicht das Aendern eines Werts.
         Keys.onLeftPressed: {
             if (root.pane === 1)
                 root.step(root.items[root.selected], -1);
-            else
+            else if (root.pane === 0)
                 root.back();
         }
         Keys.onRightPressed: {
             if (root.pane === 0)
                 root.pane = 1;
-            else
+            else if (root.pane === 1)
                 root.step(root.items[root.selected], 1);
         }
 
 
         OverlaySurface {
             id: box
-
             readonly property real rowHeight: Theme.rowHeight
-            readonly property real leftWidth: Theme.cellW * 22
-            readonly property real rightWidth: Theme.cellW * 44
+            readonly property real leftWidth: Math.min(Theme.cellW * 22, content.width * 0.32)
+            preferredWidth: Theme.cellW * 70 + Theme.spaceXl * 2
+            preferredHeight: Math.min(Theme.overlayHeightLarge, Theme.spaceXl * 2
+                + Theme.cellH * 5 + root.maxItems * box.rowHeight)
+            motionEnabled: false
+            color: Theme.bg
+            border.color: Theme.panelBorder
 
-            preferredWidth: box.leftWidth + box.rightWidth + Theme.spaceXl * 3
-            preferredHeight: Theme.spaceXl * 2
-                + Theme.cellH * 2.6
-                + Theme.spaceLg
-                + Theme.controlHeight
-                + root.maxItems * box.rowHeight
-                + Theme.spaceLg
-                + Theme.controlHeight
-
-            MouseArea {
-                anchors.fill: parent
-            }
-
-            Flickable {
-                id: viewport
-                anchors.fill: parent
-                anchors.margins: Theme.spaceXl
-                contentWidth: width
-                contentHeight: content.implicitHeight
-                clip: true
-                boundsBehavior: Flickable.StopAtBounds
-            }
+            MouseArea { anchors.fill: parent }
 
             Column {
                 id: content
-                parent: viewport.contentItem
-                width: viewport.width
+                anchors.fill: parent
+                anchors.margins: Theme.spaceXl
                 spacing: Theme.spaceLg
 
-                PanelHead {
-                    rowWidth: content.width
-                    icon: Icons.cp(0xF0493)
-                    title: "Settings"
-                    subtitle: root.embedded
-                        ? "Main menu  ›  Personalize  ·  changes apply immediately"
-                        : "Appearance, behavior and services  ·  changes apply immediately"
-                    badge: root.groups[root.group]?.head || ""
-                    badgeColor: Theme.accent
+                Column {
+                    id: heading
+                    width: parent.width
+                    spacing: Theme.spaceXs
+                    PanelHead { rowWidth: parent.width; title: "Settings" }
+                    Line {
+                        width: parent.width
+                        text: root.embedded ? "Main menu  ›  Personalize  ·  Changes apply immediately"
+                            : "Appearance, behavior and services  ·  Changes apply immediately"
+                        font.pixelSize: Theme.fontCaption
+                        color: Theme.readable(Theme.fgDim, Theme.bg, 4.5)
+                        elide: Text.ElideRight
+                    }
                 }
 
-                Line {
-                    width: content.width
-                    visible: Config.readError !== ""
-                    text: Config.readError + " Settings are read-only until the file is repaired."
-                    color: Theme.readable(Theme.red, Theme.panelSurface)
-                    wrapMode: Text.Wrap
-                }
-                ControlButton {
-                    id: recoveryButton
-                    Keys.forwardTo: [keys]
-                    onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(recoveryButton)
-                    visible: Config.readError !== ""
-                    text: "Open configuration recovery"
-                    onTriggered: Quickshell.execDetached(["nbshell", "config", "repair"])
-                }
-
-                Line {
-                    width: content.width
-                    visible: Config.writeError !== ""
-                    text: Config.writeError
-                    color: Theme.readable(Theme.red, Theme.panelSurface)
-                    wrapMode: Text.Wrap
+                Column {
+                    id: errors
+                    width: parent.width
+                    spacing: Theme.spaceXs
+                    visible: Config.readError !== "" || Config.writeError !== ""
+                    Line {
+                        width: parent.width
+                        visible: Config.readError !== ""
+                        text: Config.readError + " Settings are read-only until the file is repaired."
+                        color: Theme.readable(Theme.red, Theme.bg)
+                        wrapMode: Text.Wrap
+                    }
+                    ControlButton {
+                        id: recoveryButton
+                        Keys.forwardTo: [keys]
+                        visible: Config.readError !== ""
+                        text: "Open configuration recovery"
+                        onActiveFocusChanged: if (activeFocus) root.pane = 2
+                        onTriggered: Quickshell.execDetached(["nbshell", "config", "repair"])
+                    }
+                    Line {
+                        width: parent.width
+                        visible: Config.writeError !== ""
+                        text: Config.writeError
+                        color: Theme.readable(Theme.red, Theme.bg)
+                        wrapMode: Text.Wrap
+                    }
                 }
 
                 Row {
-                    width: content.width
-                    height: Theme.controlHeight + root.maxItems * box.rowHeight
-                    spacing: Theme.spaceXl
+                    id: body
+                    width: parent.width
+                    height: Math.max(Theme.rowHeight, content.height - heading.height
+                        - footer.height - content.spacing * (errors.visible ? 3 : 2)
+                        - (errors.visible ? errors.height : 0))
+                    spacing: Theme.spaceLg
 
-                    Rectangle {
+                    Flickable {
                         id: navigation
                         width: box.leftWidth
-                        height: Theme.controlHeight + root.groups.length * box.rowHeight + Theme.spaceSm * 2
-                        radius: Theme.radius
-                        color: Theme.panelSurfaceRaised
-                        border.width: Theme.borderWidth
-                        border.color: root.pane === 0 ? Theme.focusBorder : Theme.panelBorder
-
+                        height: parent.height
+                        contentWidth: width
+                        contentHeight: categories.implicitHeight
+                        onContentHeightChanged: Qt.callLater(root.syncFocus)
+                        onHeightChanged: Qt.callLater(root.syncFocus)
+                        boundsBehavior: Flickable.StopAtBounds
+                        clip: true
+                        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                         Column {
-                            anchors.fill: parent
-                            anchors.margins: Theme.spaceSm
-                            spacing: 0
-
-                            SectionHeader {
-                                width: parent.width
-                                text: "Categories"
-                                detail: (root.group + 1) + " / " + root.groups.length
-                            }
-
+                            id: categories
+                            width: Math.max(0, navigation.width - Theme.spaceSm)
+                            spacing: Theme.spaceXs
                             Repeater {
                                 id: groupRows
                                 model: root.groups
                                 onItemAdded: Qt.callLater(root.syncFocus)
-
                                 PanelRow {
                                     id: groupRow
                                     required property var modelData
                                     required property int index
-
                                     width: parent.width
                                     height: box.rowHeight
-                                    title: groupRow.modelData.head
-                                    value: String(groupRow.modelData.items.length)
-                                    glyph: root.groupIcon(groupRow.modelData.head)
-                                    selected: groupRow.index === root.group
-                                    visualFocus: activeFocus
+                                    title: modelData.head.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+                                    glyph: root.groupIcon(modelData.head)
+                                    accessibleSelected: index === root.group
+                                    color: index === root.group ? Theme.mix(Theme.bg, Theme.fg, 0.08)
+                                        : hovered || activeFocus ? Theme.mix(Theme.bg, Theme.fg, 0.08) : "transparent"
+                                    border.width: activeFocus ? Theme.borderWidth : 0
+                                    border.color: Theme.focusBorder
                                     interactive: true
                                     Keys.forwardTo: [keys]
                                     onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(groupRow)
                                     onTriggered: {
-                                        root.group = groupRow.index;
+                                        root.group = index;
                                         root.selected = 0;
                                         root.pane = 1;
                                         Qt.callLater(root.syncFocus);
@@ -839,63 +836,75 @@ Item {
                         }
                     }
 
-                    Column {
-                        id: itemColumn
-                        width: Math.max(0, parent.width - navigation.width - parent.spacing)
+                    Rectangle {
+                        width: Theme.borderWidth
                         height: parent.height
-                        spacing: 0
+                        color: Theme.mix(Theme.bg, Theme.fg, 0.12)
+                    }
 
-                        SectionHeader {
-                            width: parent.width
-                            text: root.groups[root.group]?.head || "Settings"
-                            detail: root.items.length + (root.items.length === 1 ? " option" : " options")
-                        }
-
-                        Repeater {
-                            id: settingRows
-                            model: root.items
-                            onItemAdded: Qt.callLater(root.syncFocus)
-
-                            PanelRow {
-                                id: settingRow
-                                required property var modelData
-                                required property int index
-
-                                readonly property bool current: settingRow.index === root.selected
-
-                                width: itemColumn.width
-                                height: box.rowHeight
-                                title: settingRow.modelData.label
-                                detail: settingRow.modelData.action !== undefined ? "Open dedicated view" : ""
-                                value: (settingRow.current && root.pane === 1 ? "◂  " : "")
-                                    + root.shown(settingRow.modelData)
-                                    + (settingRow.current && root.pane === 1 ? "  ▸" : "")
-                                selected: settingRow.current && root.pane === 1
-                                visualFocus: activeFocus
-                                interactive: true
-                                Keys.forwardTo: [keys]
-                                onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(settingRow)
-                                onTriggered: {
-                                    root.selected = settingRow.index;
-                                    root.pane = 1;
-                                    root.step(settingRow.modelData, 1);
-                                    Qt.callLater(root.syncFocus);
-                                }
-
-                                TapHandler {
-                                    acceptedButtons: Qt.RightButton
-                                    onTapped: {
-                                        root.selected = settingRow.index;
+                    Flickable {
+                        id: viewport
+                        width: Math.max(0, parent.width - navigation.width - Theme.borderWidth - parent.spacing * 2)
+                        height: parent.height
+                        contentWidth: width
+                        contentHeight: itemColumn.implicitHeight
+                        onContentHeightChanged: Qt.callLater(root.syncFocus)
+                        onHeightChanged: Qt.callLater(root.syncFocus)
+                        boundsBehavior: Flickable.StopAtBounds
+                        clip: true
+                        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                        Column {
+                            id: itemColumn
+                            width: Math.max(0, viewport.width - Theme.spaceSm)
+                            spacing: Theme.spaceXs
+                            SectionHeader {
+                                width: parent.width
+                                text: root.groups[root.group]?.head || "Settings"
+                                detail: root.items.length + (root.items.length === 1 ? " option" : " options")
+                            }
+                            Repeater {
+                                id: settingRows
+                                model: root.items
+                                onItemAdded: Qt.callLater(root.syncFocus)
+                                PanelRow {
+                                    id: settingRow
+                                    required property var modelData
+                                    required property int index
+                                    readonly property bool current: index === root.selected
+                                    width: itemColumn.width
+                                    height: box.rowHeight
+                                    title: modelData.label
+                                    detail: modelData.action !== undefined ? "Open dedicated view" : ""
+                                    value: (current && root.pane === 1 ? "◂  " : "")
+                                        + root.shown(modelData) + (current && root.pane === 1 ? "  ▸" : "")
+                                    accessibleSelected: current && root.pane === 1
+                                    color: current && root.pane === 1 ? Theme.mix(Theme.bg, Theme.fg, 0.08)
+                                        : hovered || activeFocus ? Theme.mix(Theme.bg, Theme.fg, 0.08) : "transparent"
+                                    border.width: activeFocus ? Theme.borderWidth : 0
+                                    border.color: Theme.focusBorder
+                                    interactive: true
+                                    Keys.forwardTo: [keys]
+                                    onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(settingRow)
+                                    onTriggered: {
+                                        root.selected = index;
                                         root.pane = 1;
-                                        root.step(settingRow.modelData, -1);
+                                        root.step(modelData, 1);
+                                        Qt.callLater(root.syncFocus);
                                     }
-                                }
-
-                                WheelHandler {
-                                    onWheel: wheelEvent => {
-                                        root.selected = settingRow.index;
-                                        root.pane = 1;
-                                        root.step(settingRow.modelData, wheelEvent.angleDelta.y > 0 ? 1 : -1);
+                                    TapHandler {
+                                        acceptedButtons: Qt.RightButton
+                                        onTapped: {
+                                            root.selected = settingRow.index;
+                                            root.pane = 1;
+                                            root.step(settingRow.modelData, -1);
+                                        }
+                                    }
+                                    WheelHandler {
+                                        onWheel: wheelEvent => {
+                                            root.selected = settingRow.index;
+                                            root.pane = 1;
+                                            root.step(settingRow.modelData, wheelEvent.angleDelta.y > 0 ? 1 : -1);
+                                        }
                                     }
                                 }
                             }
@@ -904,24 +913,24 @@ Item {
                 }
 
                 Row {
-                    width: content.width
+                    id: footer
+                    width: parent.width
                     height: Theme.controlHeight
                     spacing: Theme.spaceMd
-
                     Line {
                         width: parent.width - closeButton.width - parent.spacing
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Tab switches pane  ·  ↑↓ selects  ·  ←→ changes  ·  right-click goes back"
-                        color: Theme.muted
+                        text: "Tab: categories / options / close  ·  ↑↓ select  ·  ←→ change"
+                        font.pixelSize: Theme.fontCaption
+                        color: Theme.readable(Theme.fgDim, Theme.bg, 4.5)
                         elide: Text.ElideRight
                     }
-
                     ActionButton {
                         id: closeButton
                         text: root.embedded ? "Back" : "Close"
                         compact: true
                         Keys.forwardTo: [keys]
-                        onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(closeButton)
+                        onActiveFocusChanged: if (activeFocus) root.pane = 3
                         onTriggered: root.back()
                     }
                 }
