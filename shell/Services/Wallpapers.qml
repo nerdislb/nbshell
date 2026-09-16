@@ -69,20 +69,15 @@ Singleton {
     function apply(path) {
         const map = JSON.parse(JSON.stringify(Config.value("wallpaperByTheme", {})));
         map[Config.theme] = path;
-        Config.set("wallpaperByTheme", map);
-        Config.set("wallpaperOverride", path);
-        // Ein gewaehltes Bild ohne sichtbaren Hintergrund waere eine
-        // Enttaeuschung -- also gleich einschalten.
-        if (!Config.wallpaperEnabled)
-            Config.set("wallpaper", true);
+        // One queued transaction keeps the per-theme memory and override in sync.
+        return Config.setValues({wallpaperByTheme: map, wallpaperOverride: path, wallpaper: true});
     }
 
     // Zurueck zum Bild, das das Theme selbst mitbringt.
     function reset() {
         const map = JSON.parse(JSON.stringify(Config.value("wallpaperByTheme", {})));
         delete map[Config.theme];
-        Config.set("wallpaperByTheme", map);
-        Config.set("wallpaperOverride", "");
+        return Config.setValues({wallpaperByTheme: map, wallpaperOverride: ""});
     }
 
     function nameOf(item) {

@@ -102,7 +102,7 @@ def inside(args):
         wait(lambda: run(['/test-bin/qs', '-p', '/work/shell', 'ipc', 'call', 'state', 'dump'], False).returncode == 0, 'shell IPC')
         ipc('wallpaper', 'pick')
         time.sleep(1)
-        run(['wtype', '-s', '200', '-k', 'd', '-s', '200'])
+        run(['wtype', '-s', '200', '-M', 'ctrl', '-k', 'd', '-m', 'ctrl', '-s', '200'])
         require(ipc('wallpaperUi', 'isOpen') == 'true', 'Keyboard did not open dynamic settings')
         ipc('wallpaperProbe', 'config', 'dynamicWallpaper', json.dumps({'daytimeEnabled':True}))
         time.sleep(1)

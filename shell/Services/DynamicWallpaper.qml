@@ -13,12 +13,14 @@ Singleton {
     property date now: new Date()
     readonly property string fallback: Config.value("wallpaperOverride", "") || (ThemeIndex.current?.wallpaper ?? "")
     readonly property var selection: Policy.sources(settings, now.getHours() * 60 + now.getMinutes(), fallback)
-    readonly property string stillPath: selection.image
+    // Volatile picker-only preview: never written to configuration.
+    property string pickerPreview: ""
+    readonly property string stillPath: pickerPreview || selection.image
     readonly property string videoPath: selection.video
     property bool nativeLocked: false
     property string error: ""
     readonly property bool resting: nativeLocked || ["locked", "Screen off", "screen saver"].indexOf(Idle.state) >= 0
-    readonly property bool videoEligible: settings.videoEnabled && videoPath !== "" && !UPower.onBattery
+    readonly property bool videoEligible: settings.videoEnabled && !pickerPreview && videoPath !== "" && !UPower.onBattery
         && !Theme.reducedMotion && !resting && Compositor.available && Config.wallpaperEnabled
 
     function clearDesktop(output) {

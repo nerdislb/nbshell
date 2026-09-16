@@ -1,8 +1,13 @@
 # Dynamic wallpapers
 
-Double-click an empty desktop to open the wallpaper picker, then choose **DYNAMIC**
-(or press **d**). Settings save immediately; **BACK** returns to the picker.
+Double-click an empty desktop to open the wallpaper picker, then choose **Dynamic…**
+(or press **Ctrl+D**). Settings save immediately; **BACK** returns to the picker.
 Both modes are off by default and work independently.
+
+The picker's optional **Desktop preview** is temporary: it pauses video playback
+and shows the highlighted still without changing these settings. Closing the
+picker or entering dynamic settings removes the preview. See
+[Wallpaper picker](wallpaper-picker-parity.md) for selection controls.
 
 - **DAYTIME** selects one of four slots using local time: Morning 06:00, Day
   10:00, Evening 18:00, Night 22:00. Edit the unique HH:MM start times to suit
