@@ -23,6 +23,7 @@ Singleton {
     readonly property bool available: device !== null && device.isLaptopBattery
 
     readonly property int percent: device ? Math.round(device.percentage * 100) : 0
+    readonly property bool onBattery: UPower.onBattery
     readonly property bool charging: device ? device.state === UPowerDeviceState.Charging : false
     readonly property bool full: device ? device.state === UPowerDeviceState.FullyCharged : false
 
@@ -131,6 +132,9 @@ Singleton {
         { "label": "Performance", "value": "throughput-performance" }
     ]
 
+    readonly property bool profileBusy: profileRequestPending || setProc.running
+    property bool profileRequestPending: false
+    property string profileError: ""
     property string activeProfile: ""
     readonly property string activeProfileLabel: profileLabel(activeProfile)
 
@@ -162,8 +166,10 @@ Singleton {
 
     function setProfile(name) {
         const canonical = canonicalProfile(name);
-        if (!canonical)
+        if (!canonical || profileBusy)
             return false;
+        profileError = "";
+        profileRequestPending = true;
         setProc.command = ["tuned-adm", "profile", canonical];
         setProc.running = true;
         return true;
@@ -186,7 +192,19 @@ Singleton {
 
     Process {
         id: setProc
-        onExited: root.refreshProfile()
+        onRunningChanged: if (!running) Qt.callLater(() => {
+            // FailedToStart need not emit exited. Normal exits clear pending.
+            if (root.profileRequestPending && !setProc.running) {
+                root.profileRequestPending = false;
+                root.profileError = "Could not start tuned-adm. Check that tuned is installed and try again.";
+                root.refreshProfile();
+            }
+        })
+        onExited: function(code) {
+            root.profileRequestPending = false;
+            if (code !== 0) root.profileError = "Could not change power profile. Check that tuned is available and try again.";
+            root.refreshProfile();
+        }
     }
 
     Process {

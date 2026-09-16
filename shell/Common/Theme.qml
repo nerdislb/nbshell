@@ -347,6 +347,15 @@ Singleton {
     readonly property int bluetoothRowGap: Math.round(10 * networkScale)
     readonly property int bluetoothListHeight: Math.round(400 * networkScale)
 
+    // Battery uses the same Omarchy panel geometry, with a larger percentage.
+    readonly property int powerWidth: networkWidth
+    readonly property int powerPadding: networkPadding
+    readonly property int powerBorderWidth: networkBorderWidth
+    readonly property int powerGap: Math.round(14 * networkScale)
+    readonly property int powerMeterHeight: Math.max(1,Math.round(8 * networkScale))
+    readonly property int powerPercentSize: Math.round(fontSize * 2.333)
+    readonly property int powerProfileGap: Math.round(6 * networkScale)
+
     // Selected controls must be opaque before their foreground contrast is
     // calculated. A translucent accent is composited by QML later and made
     // the old calculation depend on whatever happened to sit behind it.
