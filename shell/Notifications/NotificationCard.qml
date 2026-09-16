@@ -10,6 +10,7 @@ Rectangle {
 
     required property var entry
     property bool selected: false
+    property bool keyboardSelected: false
     property bool detailed: true
     property bool showActions: true
     property bool unread: false
@@ -19,6 +20,8 @@ Rectangle {
 
     signal opened()
     signal removed()
+    readonly property Item firstAction: openButton
+    signal controlFocused(Item control)
     signal focusEntered()
 
     onActiveFocusChanged: if (activeFocus) focusEntered()
@@ -52,17 +55,11 @@ Rectangle {
         event.accepted = true;
     }
 
-    implicitHeight: content.implicitHeight + Theme.spaceMd * 2
+    implicitHeight: content.implicitHeight + Theme.toastPaddingY * 2
     radius: Theme.radius
-    color: selected ? Theme.selectedSurface(urgent ? Theme.red : Theme.accent)
-        : (standalone ? Theme.panelSurfaceRaised
-            : Theme.controlFill(hover.hovered || activeFocus, false, false))
-    border.width: activeFocus || selected || standalone || urgent
-        ? Theme.borderWidth
-        : Theme.controlBorderWidth(hover.hovered, false, false)
-    border.color: activeFocus ? Theme.focusBorder
-        : (urgent ? Theme.red
-            : (selected ? Theme.controlBorder(false, true, false) : Theme.panelBorder))
+    color: selected ? Theme.menuSelection : hovered ? Theme.networkHover : "transparent"
+    border.width: activeFocus || keyboardSelected || urgent ? Theme.borderWidth : 0
+    border.color: activeFocus || keyboardSelected ? Theme.focusBorder : Theme.red
     activeFocusOnTab: enabled && !showActions
 
     Accessible.role: showActions ? Accessible.ListItem : Accessible.AlertMessage
@@ -101,13 +98,13 @@ Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        anchors.margins: Math.round(Theme.cellW * 0.75)
-        spacing: Theme.cellW
+        anchors.margins: Theme.toastPaddingX
+        spacing: Theme.toastPaddingX
 
         Item {
-            width: Math.round(Theme.cellH * 2.15)
+            width: Theme.toastIconSize
             height: width
-            anchors.verticalCenter: parent.verticalCenter
+            y: (parent.height - height) / 2
 
             Rectangle {
                 anchors.fill: parent
@@ -138,26 +135,26 @@ Rectangle {
                 text: root.fallbackIcon !== ""
                     ? root.fallbackIcon
                     : Notify.sourceName(root.entry).slice(0, 1).toUpperCase()
-                color: root.selected ? Theme.selectedForeground(root.urgent ? Theme.red : Theme.accent)
-                    : Theme.fgDim
+                color: root.selected ? Theme.menuSelectedText
+                    : Theme.networkSecondary
                 font.pixelSize: root.fallbackIcon !== "" ? Theme.fontTitle : Theme.fontSubtitle
                 font.bold: true
             }
         }
 
         Column {
-            width: parent.width - Math.round(Theme.cellH * 2.15) - parent.spacing
-            spacing: Math.round(Theme.cellH * 0.12)
+            width: parent.width - Theme.toastIconSize - parent.spacing
+            spacing: Theme.toastTextGap
 
             Row {
                 width: parent.width
 
                 Line {
                     width: parent.width - age.width
-                    text: Notify.sourceName(root.entry).toUpperCase()
-                        + ((root.entry.repeat ?? 1) > 1 ? "  ×" + root.entry.repeat : "")
-                    color: root.selected ? Theme.selectedForeground(root.urgent ? Theme.red : Theme.accent)
-                        : Theme.fgDim
+                    text: (root.urgent ? "Urgent · " : "") + Notify.sourceName(root.entry)
+                        + ((root.entry.count ?? 1) > 1 ? "  ×" + root.entry.count : "")
+                    color: root.selected ? Theme.menuSelectedText
+                        : Theme.networkSecondary
                     font.pixelSize: Theme.fontCaption
                     font.bold: true
                     elide: Text.ElideRight
@@ -167,17 +164,17 @@ Rectangle {
                     id: age
                     visible: !hover.hovered || root.showActions
                     text: Notify.ago(root.entry.time)
-                    color: Theme.fgDim
+                    color: Theme.networkSecondary
                 }
             }
 
             Line {
                 width: parent.width
                 text: root.entry.summary || ""
-                color: Theme.fgBright
-                font.pixelSize: Theme.fontSubtitle
-                wrapMode: Text.WordWrap
-                maximumLineCount: 1
+                color: root.selected ? Theme.menuSelectedText : Theme.fg
+                font.pixelSize: Theme.networkTitleSize
+                wrapMode: Text.Wrap
+                maximumLineCount: 2
                 elide: Text.ElideRight
             }
 
@@ -185,46 +182,51 @@ Rectangle {
                 width: parent.width
                 visible: root.detailed && text !== ""
                 text: Notify.plain(root.entry.body)
-                color: Theme.fgDim
+                color: Theme.networkSecondary
                 font.pixelSize: Theme.fontBody
-                wrapMode: Text.WordWrap
-                maximumLineCount: 2
+                wrapMode: Text.Wrap
+                maximumLineCount: 3
                 elide: Text.ElideRight
             }
 
             Flow {
                 width: parent.width
-                spacing: Math.round(Theme.cellW * 0.7)
+                spacing: Theme.spaceSm
                 visible: root.showActions
 
-                ActionButton {
+                ControlButton {
                     id: openButton
                     text: "Open"
-                    tone: "primary"
-                    compact: true
                     onTriggered: root.opened()
-                    onActiveFocusChanged: if (activeFocus) root.focusEntered()
+                    onActiveFocusChanged: if (activeFocus) { root.focusEntered(); root.controlFocused(this); }
                 }
 
                 Repeater {
                     model: root.liveActions.filter(a => a.identifier !== "default")
 
-                    ActionButton {
+                    ControlButton {
                         required property var modelData
-                        text: modelData.text || "Action"
-                        compact: true
+                        TextMetrics {
+                            id: actionText
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontBody
+                            text: modelData.text || "Action"
+                            elide: Text.ElideRight
+                            elideWidth: Math.max(1, content.width - Theme.toastIconSize - content.spacing - Theme.spaceXl * 2)
+                        }
+                        text: actionText.elidedText
+                        accessibleName: modelData.text || "Action"
                         onTriggered: Notify.invoke(root.entry.key, modelData)
-                        onActiveFocusChanged: if (activeFocus) root.focusEntered()
+                        onActiveFocusChanged: if (activeFocus) { root.focusEntered(); root.controlFocused(this); }
                     }
                 }
 
-                ActionButton {
+                ControlButton {
                     id: dismissButton
                     text: "Dismiss"
-                    tone: "danger"
-                    compact: true
+                    danger: true
                     onTriggered: root.removed()
-                    onActiveFocusChanged: if (activeFocus) root.focusEntered()
+                    onActiveFocusChanged: if (activeFocus) { root.focusEntered(); root.controlFocused(this); }
                 }
             }
         }

@@ -10,11 +10,12 @@ import "../Widgets/FocusScroll.js" as FocusScroll
 PanelWindow {
     id: root
     property string query: ""
-    property int selected: 0
+    property string selectedKey: ""
+    readonly property int selected: shown.findIndex(entry => entry.key === selectedKey)
     property bool clearArmed: false
     readonly property var shown: Notify.history.filter(entry => {
         const needle = query.trim().toLowerCase();
-        return needle === "" || ((entry.appName || "") + " " + (entry.summary || "") + " " + (entry.body || "")).toLowerCase().indexOf(needle) >= 0;
+        return needle === "" || (Notify.sourceName(entry) + " " + (entry.summary || "") + " " + Notify.plain(entry.body || "")).toLowerCase().includes(needle);
     })
 
     visible: true
@@ -26,11 +27,11 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: Runtime.notificationCenterOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    function close() { Runtime.notificationCenterOpen = false; }
-    function requestClose(done) { box.dismiss(done); }
-    function requestOpen() { box.enter(); }
+    function close() { cancelClear(); Runtime.notificationCenterOpen = false; }
+    function requestClose(done) { cancelClear(); box.dismiss(done); }
+    function requestOpen() { box.enter(); Qt.callLater(() => search.forceActiveFocus()); }
     function dropSelected() {
-        if (shown[selected]) Notify.drop(shown[selected].key);
+        if (shown[selected]) Notify.drop(selectedKey);
     }
     function openSelected() {
         if (shown[selected]) {
@@ -38,26 +39,44 @@ PanelWindow {
             close();
         }
     }
+    function cancelClear() { clearArmed = false; clearReset.stop(); }
     function requestClear() {
+        if (!Notify.count) return;
         if (!clearArmed) {
             clearArmed = true;
             clearReset.restart();
             return;
         }
-        clearReset.stop();
-        clearArmed = false;
+        cancelClear();
         Notify.clear();
     }
-    onVisibleChanged: if (visible) { query = ""; selected = 0; clearArmed = false; keys.forceActiveFocus(); }
+    function handleEscape() {
+        if (clearArmed) cancelClear();
+        else if (query !== "") query = "";
+        else close();
+    }
+    function moveSelection(delta) {
+        if (!shown.length) return;
+        const next = Math.max(0, Math.min(shown.length - 1, Math.max(0, selected) + delta));
+        selectedKey = shown[next].key;
+        flick.forceActiveFocus(Qt.TabFocusReason);
+    }
     onQueryChanged: {
-        selected = 0;
-        Qt.callLater(() => flick.revealSelected());
+        Qt.callLater(() => { selectedKey = shown.length ? shown[0].key : ""; });
+        cancelClear();
     }
     onShownChanged: {
-        selected = Math.max(0, Math.min(selected, shown.length - 1));
-        Qt.callLater(() => flick.revealSelected());
+        // Incoming notifications must not redirect a pending Open/Dismiss.
+        Qt.callLater(() => {
+            if (!shown.some(entry => entry.key === selectedKey))
+                selectedKey = shown.length ? shown[0].key : "";
+            flick.revealSelected();
+            // Repeater replacement can destroy a focused per-card action.
+            if (!search.activeFocus && !dnd.activeFocus && !clearButton.activeFocus) flick.forceActiveFocus(Qt.TabFocusReason);
+        });
     }
     onSelectedChanged: Qt.callLater(() => flick.revealSelected())
+    Component.onCompleted: Qt.callLater(() => search.forceActiveFocus())
 
     Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: box.opacity }
     MouseArea { anchors.fill: parent; onClicked: root.close() }
@@ -65,83 +84,110 @@ PanelWindow {
     FocusScope {
         id: keys
         anchors.fill: parent
-        focus: root.visible
-        Keys.onPressed: event => {
-            let handled = true;
-            if (event.key === Qt.Key_Escape) root.query !== "" ? root.query = "" : root.close();
-            else if (event.key === Qt.Key_Backspace) root.query = root.query.slice(0, -1);
-            else if (event.key === Qt.Key_Up) root.selected = Math.max(0, root.selected - 1);
-            else if (event.key === Qt.Key_Down && root.shown.length > 0)
-                root.selected = Math.min(root.shown.length - 1, root.selected + 1);
-            else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) root.openSelected();
-            else if (event.key === Qt.Key_Delete || event.key === Qt.Key_X) root.dropSelected();
-            else if (event.key === Qt.Key_D) Notify.setDnd(!Notify.dnd);
-            else if (event.key === Qt.Key_C && (event.modifiers & Qt.ControlModifier)) root.requestClear();
-            else if (event.text && event.text >= " ") root.query += event.text;
-            else handled = false;
-            event.accepted = handled;
-        }
+        focus: true
+        Keys.onEscapePressed: event => { root.handleEscape(); event.accepted = true; }
 
         OverlaySurface {
             id: box
-            // Breiter fuer klare Kartenzeilen, aber bewusst nur rund ein
-            // halber Bildschirm hoch. Der Verlauf scrollt innerhalb der Box.
-            preferredWidth: Theme.cellW * 116
-            preferredHeight: Theme.cellH * 31
+            // Omarchy's centered history-panel frame. Full notification history
+            // is a native extension; see docs/notification-center-parity.md.
+            preferredWidth: Theme.activityWidth
+            preferredHeight: Theme.activityHeight
+            color: Theme.bg
+            border.width: Theme.networkBorderWidth
             MouseArea { anchors.fill: parent }
 
             Column {
                 anchors.fill: parent
-                anchors.margins: Theme.cellW * 2
-                spacing: Theme.cellH * 0.4
+                anchors.margins: Theme.activityPadding + box.border.width
+                spacing: Theme.activityGap
                 Row {
+                    id: header
                     width: parent.width
-                    Line { width: parent.width - controls.width; text: Icons.bell + "  NOTIFICATIONS  (" + Notify.count + ")"; color: Theme.fg; font.pixelSize: Theme.fontHeading; font.bold: true }
+                    spacing: Theme.spaceSm
+                    Line {
+                        width: Math.max(0, parent.width - controls.width - parent.spacing)
+                        height: Theme.controlHeight
+                        verticalAlignment: Text.AlignVCenter
+                        text: "Notifications · " + Notify.count
+                        color: Theme.fg
+                        font.pixelSize: Theme.activityHeadingSize
+                        elide: Text.ElideRight
+                    }
                     Row {
                         id: controls
-                        spacing: Theme.cellW
-                        ActionButton { text: Notify.dnd ? "DND on" : "DND off"; tone: Notify.dnd ? "primary" : "secondary"; compact: true; accentColor: Theme.yellow; onTriggered: Notify.setDnd(!Notify.dnd) }
-                        ActionButton {
+                        spacing: Theme.spaceSm
+                        ControlButton {
+                            id: dnd
+                            text: Notify.dnd ? "DND on" : "DND off"
+                            selected: Notify.dnd
+                            accessibleCheckable: true
+                            accessibleChecked: Notify.dnd
+                            onTriggered: Notify.setDnd(!Notify.dnd)
+                        }
+                        ControlButton {
+                            id: clearButton
                             text: root.clearArmed ? "Confirm clear" : "Clear all"
-                            tone: "danger"
-                            compact: true
+                            danger: true
+                            selected: root.clearArmed
                             enabled: Notify.count > 0
                             onTriggered: root.requestClear()
                         }
                     }
                 }
-                Rectangle {
-                    width: parent.width; height: Theme.controlHeight; radius: Theme.radius; color: Theme.panelSurfaceRaised
-                    border.width: Theme.borderWidth; border.color: root.query !== "" ? Theme.focusBorder : Theme.panelBorder
-                    Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; text: root.query !== "" ? root.query : "Type to search …"; color: root.query !== "" ? Theme.fg : Theme.muted }
+                TextField {
+                    id: search
+                    width: parent.width
+                    height: Theme.activitySearchHeight
+                    accessibleName: "Search notifications"
+                    placeholderText: "Search notifications…"
+                    text: root.query
+                    onTextEdited: root.query = text
+                    Keys.onDownPressed: root.moveSelection(0)
+                    Keys.onReturnPressed: event => { if (!event.isAutoRepeat) root.openSelected(); }
+                    Keys.onEnterPressed: event => { if (!event.isAutoRepeat) root.openSelected(); }
                 }
-                Rule { rowWidth: parent.width }
                 Flickable {
                     id: flick
                     width: parent.width
-                    height: parent.height - Theme.cellH * 8
+                    height: Math.max(1, parent.height - header.height - search.height - footer.height - 3 * parent.spacing)
                     contentHeight: cards.implicitHeight
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
-                    function revealSelected() {
-                        const item = notificationCards.itemAt(root.selected);
-                        if (!item)
-                            return;
+                    activeFocusOnTab: true
+                    KeyNavigation.tab: notificationCards.itemAt(root.selected)?.firstAction ?? null
+                    Accessible.role: Accessible.List
+                    Accessible.name: "Notification history"
+                    Accessible.description: root.shown[root.selected]?.summary || "Empty"
+                    Accessible.focusable: true
+                    Accessible.focused: activeFocus
+                    Keys.onPressed: event => {
+                        let handled = true;
+                        if (event.isAutoRepeat && [Qt.Key_Return, Qt.Key_Enter, Qt.Key_Space, Qt.Key_Delete, Qt.Key_X, Qt.Key_D, Qt.Key_C].includes(event.key)) { event.accepted = true; return; }
+                        if (event.key === Qt.Key_C && event.modifiers === Qt.ControlModifier) root.requestClear();
+                        else if (event.modifiers !== Qt.NoModifier) handled = false;
+                        else if (event.key === Qt.Key_Up) root.moveSelection(-1);
+                        else if (event.key === Qt.Key_Down) root.moveSelection(1);
+                        else if ((event.key === Qt.Key_Home || event.key === Qt.Key_End) && root.shown.length)
+                            root.selectedKey = root.shown[event.key === Qt.Key_Home ? 0 : root.shown.length - 1].key;
+                        else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) root.openSelected();
+                        else if (event.key === Qt.Key_Delete || event.key === Qt.Key_X) root.dropSelected();
+                        else if (event.key === Qt.Key_D) Notify.setDnd(!Notify.dnd);
+                        else handled = false;
+                        event.accepted = handled;
+                    }
+                    function revealSelected() { revealItem(notificationCards.itemAt(root.selected)); }
+                    function revealItem(item) {
+                        if (!item) return;
                         const mapped = item.mapToItem(cards, 0, 0);
                         contentY = FocusScroll.contentYForFocus(
                             mapped.y, item.height, contentY, height, contentHeight, Theme.spaceMd);
                     }
-                    ScrollBar.vertical: ScrollBar {
-                        width: Math.max(Theme.borderWidth * 3, 4)
-                        policy: flick.contentHeight > flick.height ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
-                        contentItem: Rectangle { color: Theme.accent; radius: Theme.radius }
-                        background: Rectangle { color: Theme.muted; radius: Theme.radius }
-                    }
+                    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                     Column {
                         id: cards
-                        width: flick.width
-                        spacing: Theme.cellH * 0.3
-                        Line { visible: root.shown.length === 0; text: Notify.count ? "No results" : "No notifications yet"; color: Theme.muted }
+                        width: flick.width - Theme.spaceSm
+                        spacing: Theme.activityGap
                         Repeater {
                             id: notificationCards
                             model: root.shown
@@ -151,24 +197,50 @@ PanelWindow {
                                 required property int index
                                 width: cards.width
                                 entry: modelData
-                                selected: index === root.selected
+                                selected: modelData.key === root.selectedKey
+                                keyboardSelected: selected && flick.activeFocus
                                 onOpened: { Notify.open(modelData); root.close(); }
                                 onRemoved: Notify.drop(modelData.key)
-                                HoverHandler { onHoveredChanged: if (hovered) root.selected = index }
-                                onActiveFocusChanged: if (activeFocus) root.selected = index
-                                onFocusEntered: root.selected = index
+                                onFocusEntered: {
+                                    root.selectedKey = modelData.key;
+                                }
+                                onControlFocused: control => Qt.callLater(() => flick.revealItem(control))
                             }
                         }
                     }
+                    Column {
+                        parent: flick
+                        anchors.centerIn: parent
+                        width: parent.width
+                        spacing: Theme.spaceMd
+                        visible: root.shown.length === 0
+                        Line {
+                            width: parent.width
+                            text: Icons.bell
+                            font.pixelSize: Theme.fontDisplay
+                            color: Theme.networkSecondary
+                            horizontalAlignment: Text.AlignHCenter
+                        }
+                        Line {
+                            width: parent.width
+                            text: Notify.count ? "No matches" : "No notifications yet"
+                            color: Theme.networkSecondary
+                            horizontalAlignment: Text.AlignHCenter
+                        }
+                    }
                 }
-                Line { text: "↑↓ select · x/Del remove · d DND · Ctrl+c twice clears · type to search · Esc"; color: Theme.muted }
+                Line {
+                    id: footer
+                    width: parent.width
+                    text: root.clearArmed ? "Clear all notifications? Activate again to confirm · Esc cancels"
+                        : "↑↓ select · Enter open · x/Del dismiss · d DND · Ctrl+c twice clears · Esc"
+                    color: Theme.networkSecondary
+                    font.pixelSize: Theme.fontCaption
+                    wrapMode: Text.WordWrap
+                }
             }
         }
     }
 
-    Timer {
-        id: clearReset
-        interval: 3000
-        onTriggered: root.clearArmed = false
-    }
+    Timer { id: clearReset; interval: 3000; onTriggered: root.clearArmed = false }
 }

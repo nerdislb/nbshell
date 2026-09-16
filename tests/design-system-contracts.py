@@ -642,7 +642,7 @@ for snippet in (
     "Accessible.onPressAction: if (!showActions) root.opened()",
     "signal focusEntered()",
     "onActiveFocusChanged: if (activeFocus) focusEntered()",
-    "onActiveFocusChanged: if (activeFocus) root.focusEntered()",
+    "root.controlFocused(this)",
     "Keys.onReturnPressed",
     "Keys.onDeletePressed",
     "TapHandler { onTapped: root.removed() }",
@@ -658,7 +658,7 @@ for snippet in (
     "root.openSelected()",
     "else handled = false",
     "onShownChanged: {",
-    "onFocusEntered: root.selected = index",
+    "root.selectedKey = modelData.key",
 ):
     if snippet not in notification_center:
         raise SystemExit(f"Notification Center keyboard contract is incomplete: {snippet}")

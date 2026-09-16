@@ -20,7 +20,7 @@ def instrument(shell):
     text = text.replace('Component.onDestruction: {', 'Component.onDestruction: {\n        Notify.testToasts = Notify.testToasts.filter(t => t !== root);')
     toast.write_text(text)
     center = shell / 'Notifications/NotificationCenter.qml'
-    center.write_text(center.read_text().replace('id: root', 'id: root\n    Component.onCompleted: Notify.testCenter = root\n    Component.onDestruction: Notify.testCenter = null', 1).replace('Keys.onPressed: event => {', 'Keys.onPressed: event => {\n            Notify.testKeys = Notify.testKeys.concat([event.key]);'))
+    center.write_text(center.read_text().replace('id: root', 'id: root\n    QtObject { Component.onCompleted: Notify.testCenter = root }\n    Component.onDestruction: Notify.testCenter = null', 1).replace('Keys.onPressed: event => {', 'Keys.onPressed: event => {\n            Notify.testKeys = Notify.testKeys.concat([event.key]);'))
     main = shell / 'shell.qml'
     text = main.read_text(); end = text.rfind('}')
     text = text[:end] + '''
@@ -36,6 +36,7 @@ def instrument(shell):
                 hover: Notify.popupHoverCounts,
                 more: Notify.testMore ? {visible:Notify.testMore.visible, count:Notify.testLayer.overflowCount,x:Notify.testMore.mapToGlobal(0,0).x,y:Notify.testMore.mapToGlobal(0,0).y,w:Notify.testMore.width,h:Notify.testMore.height} : null,
                 center: Runtime.notificationCenterOpen,
+                focus: Notify.testCenter?.contentItem.Window.window.activeFocusItem?.Accessible.name || "",
                 keys: Notify.testKeys, query: Notify.testCenter ? Notify.testCenter.query : null,
                 layer: Notify.testLayer ? {w:Notify.testLayer.width,h:Notify.testLayer.height,right:Notify.testLayer.margins.right,top:Notify.testLayer.margins.top,bottom:Notify.testLayer.margins.bottom,atTop:Notify.testLayer.atTop,sw:Notify.testLayer.screen.width,sh:Notify.testLayer.screen.height} : null,
                 toasts: Notify.testToasts.map(t => { const p=t.mapToGlobal(0,0); return {key:t.entry.key,x:p.x,y:p.y,w:t.width,h:t.height,visible:t.visible,hover:t.testHovered,icon:t.iconPath,iconStatus:t.testIconStatus,hasIcon:t.hasIcon,compact:t.compactGlyph,closeInset:Theme.toastBorderWidth+Theme.toastCloseInset,closeSize:Theme.toastCloseSize}; })
@@ -172,7 +173,7 @@ def exercise(run, launch, wait, ipc, processes, shell, args):
     ipc('notify','center')
     wait(lambda:state()['center'],'center opened')
     time.sleep(1.3);shot('keyboard-tab')
-    record('Tab keeps center open and reaches key handler',state()['center'] and 16777217 in state()['keys'])
+    record('Tab keeps center open and reaches history',state()['center'] and state()['focus']=='Notification history')
     keyboard.wait(timeout=5)
     wait(lambda:not any(l['namespace']=='nbshell:notification-center' and l['mapped'] for l in json.loads(run(['/test-bin/umbriel','layers','--json']).stdout)), 'center unmapped after Escape')
     record('Escape closes notification center',not state()['center'] and 16777216 in state()['keys'],state())
