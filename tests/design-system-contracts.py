@@ -572,14 +572,10 @@ for snippet in (
     "readonly property Item initialFocusItem: portalAction.visible ? portalAction : wifiRepeater.count > 0",
     "readonly property Item focusTarget: wifiRow",
     "id: vpnRepeater",
-    "id: btRepeater",
     "id: wifiRow",
     "id: vpnRow",
-    "id: btRow",
     "accessibleName: entry.modelData.name",
     "accessibleName: vpnRow.modelData.name",
-    "accessibleName: Bt.label(btRow.modelData)",
-    "pointerActivationExclusion: removeButton",
 ):
     if snippet not in control:
         raise SystemExit(f"Control Center row migration contract is incomplete: {snippet}")

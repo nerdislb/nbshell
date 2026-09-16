@@ -342,6 +342,11 @@ Singleton {
     readonly property color networkOutline: mix(bg, fg, 0.25)
     readonly property color networkSecondary: readable(mix(bg, fg, 0.65), bg, 4.5)
 
+    // Bluetooth shares panel chrome; only its own list rhythm differs.
+    readonly property int bluetoothGap: Math.round(14 * networkScale)
+    readonly property int bluetoothRowGap: Math.round(10 * networkScale)
+    readonly property int bluetoothListHeight: Math.round(400 * networkScale)
+
     // Selected controls must be opaque before their foreground contrast is
     // calculated. A translucent accent is composited by QML later and made
     // the old calculation depend on whatever happened to sit behind it.
