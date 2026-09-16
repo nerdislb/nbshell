@@ -279,15 +279,14 @@ if '"hint": "agy bridge"' in agent_center:
 
 keys = (ROOT / "shell/Keys/KeysWindow.qml").read_text(encoding="utf-8")
 for snippet in (
-    "OverlaySurface {",
-    "dockedTop: true",
-    "PanelHead {",
-    "SectionHeader {",
-    "component ShortcutColumn: PanelSurface",
-    "opacity: box.opacity * 0.45",
+    "MotionSurface {", "TextField {", "Flickable {", "InteractiveSurface {",
+    "Theme.menuScrim", "Theme.menuBorderWidth", "Reference only", "function refresh()",
 ):
     if snippet not in keys:
-        raise SystemExit(f"Keyboard shortcuts no longer follows the shared panel language: {snippet}")
+        raise SystemExit(f"Keyboard shortcuts lost its shared menu/search contract: {snippet}")
+if "Quickshell.exec" in keys or "Compositor.command" in keys:
+    raise SystemExit("Keyboard shortcut reference must not dispatch commands")
+
 for removed in ("DragHandler {", "x: (parent.width - width) / 2", "y: (parent.height - height) / 2"):
     if removed in keys:
         raise SystemExit(f"Keyboard shortcuts regressed to the detached legacy window: {removed}")
