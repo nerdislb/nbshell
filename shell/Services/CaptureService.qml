@@ -30,12 +30,14 @@ Singleton {
 
     property bool recording: false
     property string pendingAction: ""
+    property var pendingWindowId: null
 
     // CaptureMenu is lazy-loaded. Closing it destroys the menu immediately,
     // so delayed work must live in this always-loaded service rather than in
     // a Timer owned by the menu itself.
-    function schedule(action) {
+    function schedule(action, windowId) {
         pendingAction = action;
+        pendingWindowId = windowId ?? null;
         actionDelay.restart();
     }
 
@@ -59,8 +61,11 @@ Singleton {
         interval: 250
         onTriggered: {
             const action = root.pendingAction;
+            const windowId = root.pendingWindowId;
             root.pendingAction = "";
-            root.runAction(action);
+            root.pendingWindowId = null;
+            if (action === "window") root.shootWindow(windowId);
+            else root.runAction(action);
         }
     }
 
