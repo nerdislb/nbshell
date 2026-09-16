@@ -52,7 +52,7 @@
     {
       "name": "Hermes Agent",
       "repository": "https://github.com/NousResearch/hermes-agent",
-      "reviewedCommit": "14efb46089250e8b9e56e59b74291cf8dce8b207",
+      "reviewedCommit": "2b7292ff0f5a61ceb212d28832883e2912949c96",
       "check": "github-api"
     },
     {
