@@ -8,6 +8,9 @@ Better Displays, and Omarchy Notification Center are retained in
 [`LICENSES/THIRD_PARTY_MIT.md`](LICENSES/THIRD_PARTY_MIT.md). Components with
 their own bundled license files are linked below.
 
+- Speed-test gauge geometry adapts Omarchy’s MIT-licensed
+  `shell/Ui/SpeedTestOverlay.qml` at `6ea3215`; native measurement, cancellation,
+  theme and motion handling remain nbshell-owned. See `LICENSES/THIRD_PARTY_MIT.md`.
 - The theme gallery and wallpaper picker image-fan geometry and masking adapt Omarchy’s MIT-licensed
   `shell/plugins/image-picker/ImagePicker.qml` at commit `6ea3215`. nbshell
   retains its theme index, configuration, and Umbriel lifecycle; the Omarchy

@@ -10,6 +10,7 @@ if [[ ! -x $RUNNER ]]; then
 fi
 
 python3 "$ROOT/tests/design-system-contracts.py"
+python3 "$ROOT/tests/test_speedtest.py"
 python3 "$ROOT/tests/notification-replacement.py"
 python3 "$ROOT/tests/tray-runtime.py"
 python3 "$ROOT/tests/test_icon_theme.py"

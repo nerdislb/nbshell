@@ -180,7 +180,7 @@ ShellRoot {
 
     LazyLoader { active: Runtime.qrOpen; QrWindow {} }
 
-    LazyLoader { active: Runtime.speedOpen; SpeedWindow {} }
+    MotionLoader { requested: Runtime.speedOpen; sourceComponent: Component { SpeedWindow {} } }
 
     MotionLoader {
         requested: Runtime.audioToolsOpen
