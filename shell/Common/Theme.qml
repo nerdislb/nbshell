@@ -356,6 +356,24 @@ Singleton {
     readonly property int powerPercentSize: Math.round(fontSize * 2.333)
     readonly property int powerProfileGap: Math.round(6 * networkScale)
 
+    // Omarchy notification card geometry; sans text is scoped to toasts only.
+    readonly property int toastWidth: Math.round(380 * networkScale)
+    readonly property int toastBorderWidth: networkBorderWidth
+    readonly property int toastPaddingX: Math.round(12 * networkScale)
+    readonly property int toastPaddingY: Math.round(10 * networkScale)
+    readonly property int toastCompactPadding: Math.round(7 * networkScale)
+    readonly property int toastGap: Math.round(8 * networkScale)
+    readonly property int toastTextGap: Math.round(2 * networkScale) * 2
+    readonly property int toastIconSize: Math.round(40 * networkScale)
+    readonly property int toastGlyphSize: Math.round(14 * networkScale)
+    readonly property int toastCompactGap: Math.round(8 * networkScale)
+    readonly property int toastCloseReserve: Math.round(10 * networkScale)
+    readonly property int toastCloseInset: Math.round(3 * networkScale)
+    readonly property int toastCloseSize: Math.round(18 * networkScale)
+    readonly property string toastFontFamily: "Liberation Sans"
+    readonly property int toastFontSize: networkTitleSize
+    readonly property color toastBodyColor: readable(Qt.darker(fg,1.15),bg,4.5)
+
     // Selected controls must be opaque before their foreground contrast is
     // calculated. A translucent accent is composited by QML later and made
     // the old calculation depend on whatever happened to sit behind it.

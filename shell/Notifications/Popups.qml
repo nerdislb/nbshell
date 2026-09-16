@@ -19,6 +19,22 @@ Variants {
 
         required property var modelData
 
+        // Replacing a JS-array model destroys every delegate. Keep identities
+        // when a sender updates the same keys, so stationary hover and its
+        // lifetime pause survive. Inserts/removals still use the normal model.
+        property var popupEntries: []
+        function syncEntries() {
+            const next=Notify.popups;
+            const same=next.length===popupEntries.length && next.every((e,i)=>e.key===popupEntries[i].key);
+            if(!same) { popupEntries=next.slice(); return; }
+            for(let i=0;i<cards.count;i++) {
+                const card=cards.itemAt(i);
+                if(card) card.entry=Object.assign({},next[i]);
+            }
+        }
+        Component.onCompleted: syncEntries()
+        Connections { target:Notify; function onPopupsChanged() { win.syncEntries(); } }
+
         // Keep the explicit bottom override for existing users. The native
         // default stays at the top-right, clear of the shell bar.
         readonly property bool atTop: {
@@ -41,7 +57,7 @@ Variants {
         readonly property real barSpace: sameSideAsBar ? Theme.barHeight + (Config.mode === "bar" ? 0 : Config.gap) : 0
         readonly property real heightBudget: Math.max(0, Math.min(screen.height * 0.85,
             screen.height - barSpace) - Theme.spaceMd * 2)
-        readonly property real toastWidth: Math.max(1, Math.min(Theme.cellW * 48,
+        readonly property real toastWidth: Math.max(1, Math.min(Theme.toastWidth,
             screen.width - margins.right - Theme.spaceMd * 2))
         property int shownCount: 0
         readonly property int overflowCount: Math.max(0, cards.count - shownCount)
@@ -119,11 +135,11 @@ Variants {
             anchors.bottom: win.atTop ? undefined : parent.bottom
             anchors.margins: Theme.spaceMd
 
-            spacing: Theme.spaceSm
+            spacing: Theme.toastGap
 
             Repeater {
                 id: cards
-                model: Notify.popups
+                model: win.popupEntries
                 onItemAdded: win.reflow()
                 onItemRemoved: Qt.callLater(win.reflow)
                 onCountChanged: Qt.callLater(win.reflow)
@@ -136,8 +152,9 @@ Variants {
                     onImplicitHeightChanged: Qt.callLater(win.reflow)
                     entry: modelData
                     onOpened: {
-                        if (!Notify.open(modelData))
-                            Notify.dismissPopup(modelData.key);
+                        const current=Notify.popups.find(e=>e.key===entry.key);
+                        if (current && !Notify.open(current))
+                            Notify.dismissPopup(current.key);
                     }
                     onRemoved: Notify.dismissPopup(modelData.key)
                 }
