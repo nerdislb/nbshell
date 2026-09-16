@@ -1,98 +1,106 @@
 import QtQuick
+import QtQuick.Controls
 import Quickshell
 import Quickshell.Wayland
 import qs.Common
 import qs.Services
 import qs.Widgets
 
-// Die Einblendung selbst. Ein Fenster je Bildschirm -- welcher gerade
-// angeschaut wird, weiss die Shell nicht, und auf dem falschen zu erscheinen
-// waere aergerlicher als auf beiden.
-//
-// `mask: Region {}` macht das Fenster vollstaendig klickdurchlaessig: es soll
-// nur zeigen, nie im Weg sein.
+// Omarchy 6ea3215 plugins/osd: measured icon + 142px track + fixed readout,
+// 16px padding/gaps and 67px edge clearance, scaled through the native theme.
+// Keep nbshell's all-screen, opposite-bar placement and pill handoff.
 Variants {
     model: Quickshell.screens
-
     delegate: PanelWindow {
         id: win
-
         required property var modelData
-
-        // In der Pille zeigt die Leiste die Einblendung selbst -- dann waere
-        // dieses Fenster die zweite Anzeige desselben Werts, gleichzeitig, an
-        // zwei Bildschirmraendern.
         readonly property bool takenByPill: Config.osdInPill && Config.mode === "pill"
-
+        readonly property real pad: Math.round(16 * Theme.uiScale)
+        readonly property real gap: Math.round(16 * Theme.uiScale)
+        readonly property real clearance: Math.round(67 * Theme.uiScale)
+        readonly property string symbol: Osd.kind === "brightness" ? Icons.monitor
+            : Osd.kind === "mic" ? (Osd.muted ? "󰍭" : "󰍬")
+            : Osd.muted || Osd.value <= 0 ? ""
+            : Osd.value <= 33 ? Icons.volumeLow : Osd.value <= 66 ? Icons.volumeMid : Icons.volumeHigh
+        readonly property real iconWidth: Math.ceil(Math.max(iconMetrics.tightBoundingRect.width, widestIcon.tightBoundingRect.width))
+        readonly property real valueWidth: Math.ceil(Math.max(valueMetrics.advanceWidth, mutedMetrics.advanceWidth))
         screen: modelData
         visible: Osd.showing && !takenByPill
         color: "transparent"
-
         WlrLayershell.namespace: "nbshell:osd"
         WlrLayershell.layer: WlrLayershell.Overlay
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
         exclusionMode: ExclusionMode.Ignore
-
-        // Immer gegenueber der Leiste: steht die Insel unten, blendet die
-        // Anzeige oben ein und umgekehrt. Sonst legen sich die beiden
-        // uebereinander.
         anchors.left: true
         anchors.right: true
         anchors.top: Config.edge === "bottom"
         anchors.bottom: Config.edge !== "bottom"
-
-        implicitHeight: Theme.cellH * 8
-
+        implicitHeight: box.height + clearance
         mask: Region {}
 
+        TextMetrics { id: iconMetrics; text: win.symbol; font.family: Theme.fontFamily; font.pixelSize: Theme.fontDisplay }
+        TextMetrics { id: widestIcon; text: Icons.volumeHigh; font: iconMetrics.font }
+        TextMetrics { id: valueMetrics; text: "100%"; font.family: Theme.fontFamily; font.pixelSize: Theme.fontTitle; font.bold: true }
+        TextMetrics { id: mutedMetrics; text: "Muted"; font: valueMetrics.font }
         PanelSurface {
             id: box
-            accentBorder: true
-
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: Config.edge === "bottom" ? parent.top : undefined
             anchors.bottom: Config.edge === "bottom" ? undefined : parent.bottom
-            anchors.margins: Theme.cellH * 2
-
-            width: content.implicitWidth + Theme.cellW * 4
-            height: content.implicitHeight + Theme.cellH
-
-            // Kurz da, kurz weg -- ohne Bewegung wirkt es wie ein Fehler.
-            opacity: Osd.showing ? 1 : 0
-
-            Behavior on opacity {
-                NumberAnimation {
-                    duration: Theme.motionEffectsFast
-                }
-            }
-
-            // Kinder eines Positionierers duerfen KEINE anchors haben -- mit
-            // ihnen meldet die Reihe Breite 0, der Kasten schrumpft auf nichts
-            // und die Einblendung bleibt unsichtbar, obwohl das Fenster da ist.
-            // Alle drei Teile sind ohnehin eine Zeile hoch.
+            anchors.margins: win.clearance
+            width: Math.min(win.width - Theme.spaceMd * 2,
+                win.iconWidth + Math.round(142 * Theme.uiScale) + win.valueWidth + win.gap * 2 + win.pad * 2 + border.width * 2)
+            height: Theme.fontDisplay + win.pad * 2 + border.width * 2
+            color: Theme.alpha(Theme.bg, 0.97)
+            border.color: Theme.panelBorder
+            Accessible.role: Accessible.StaticText
+            Accessible.name: Osd.label + ": " + (Osd.muted ? "muted" : Osd.value + "%")
             Row {
-                id: content
-
-                anchors.centerIn: parent
-                spacing: Theme.cellW * 2
-
-                Line {
-                    text: Osd.label
-                    color: Theme.fgDim
+                anchors.fill: parent
+                anchors.margins: win.pad + box.border.width
+                spacing: win.gap
+                Item {
+                    width: win.iconWidth
+                    height: parent.height
+                    Line {
+                        x: Math.round((win.iconWidth - iconMetrics.tightBoundingRect.width) / 2 - iconMetrics.tightBoundingRect.x)
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: win.symbol
+                        font: iconMetrics.font
+                        color: Theme.fg
+                    }
                 }
-
-                LevelBar {
-                    cells: 24
-                    value: Osd.value
-                    interactive: false
-                    fillColor: Osd.muted ? Theme.muted : Osd.tint
+                ProgressBar {
+                    id: meter
+                    width: Math.max(0, parent.width - win.iconWidth - win.valueWidth - win.gap * 2)
+                    height: Math.max(Theme.spaceSm, Math.round(6 * Theme.uiScale))
+                    anchors.verticalCenter: parent.verticalCenter
+                    from: 0
+                    to: 100
+                    value: Osd.muted ? 0 : Math.max(0, Math.min(100, Osd.value))
+                    padding: 0
+                    activeFocusOnTab: false
+                    Accessible.ignored: true
+                    background: Rectangle { color: Theme.alpha(Theme.fg, 0.45) }
+                    contentItem: Item {
+                        Rectangle {
+                            width: parent.width * meter.position
+                            height: parent.height
+                            color: Theme.accent
+                            Behavior on width {
+                                enabled: Osd.showing && !Theme.reducedMotion
+                                NumberAnimation { duration: Theme.motionSpatialFast; easing.type: Easing.OutCubic }
+                            }
+                        }
+                    }
                 }
-
                 Line {
-                    // Feste Breite in Zeichen, damit der Kasten beim Regeln
-                    // nicht atmet.
-                    text: (Osd.muted ? "muted" : (Osd.value + "%")).padStart(6, " ")
-                    color: Osd.muted ? Theme.red : Theme.fg
+                    width: win.valueWidth
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: Osd.muted ? "Muted" : Osd.value + "%"
+                    font: valueMetrics.font
+                    horizontalAlignment: Text.AlignRight
+                    color: Theme.fg
                 }
             }
         }
