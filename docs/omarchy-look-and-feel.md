@@ -34,6 +34,7 @@ remain authoritative for integration.
 | Module arrangement | Approved settings language; no exact upstream editor | Native four-group editor; independent island layout retained |
 | Plugin manager | Approved settings language; no identical upstream manager | Installed/store/porting tabs and confirmations retained |
 | Display settings | `shell/plugins/panels/monitor/` + native settings language | Resolution/orientation/placement retained; backend unchanged |
+| Calculator | Panel/menu language; no standalone upstream calculator | Native floating keypad, arithmetic parser, keyboard and clipboard retained; `docs/calculator-parity.md` |
 | Custom bar | Deliberate nbshell exception | Existing bar/island/pill preserved; DuoBar icon explicitly requested |
 
 Approved rounds above must not drift during unrelated work. See the relevant

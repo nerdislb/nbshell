@@ -182,7 +182,7 @@ default_size = [1100, 760]
 match.title = "^nbshell Calculator$"
 default_floating = true
 default_focused = true
-default_size = [430, 650]
+# CalculatorWindow chooses an output-aware initial size.
 
 [[window_rule]]
 match.title = "^nbshell-screensaver$"
