@@ -838,7 +838,7 @@ for snippet in (
 
 power_menu = (ROOT / "shell/Power/PowerMenu.qml").read_text(encoding="utf-8")
 notification_center = (ROOT / "shell/Notifications/NotificationCenter.qml").read_text(encoding="utf-8")
-if "property int confirmIndex: -1" not in power_menu or "Enter again confirms" not in power_menu:
+if 'property string confirmKey: ""' not in power_menu or "Activate again to confirm" not in power_menu:
     raise SystemExit("Destructive session actions no longer require confirmation")
 if "function requestClear()" not in notification_center or "Ctrl+c twice clears" not in notification_center:
     raise SystemExit("Notification-center clear no longer shares a guarded confirmation path")
