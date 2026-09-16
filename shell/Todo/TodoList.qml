@@ -134,16 +134,18 @@ PanelWindow {
         onClicked: root.close()
     }
 
-    PanelSurface {
+    Rectangle { anchors.fill: parent; color: Theme.scrim; z: -1 }
+
+    MotionSurface {
         id: box
-        accentBorder: true
+        accentBorder: false
 
         // Centered at the top. Umbriel treats this as a layer-shell surface and
         // nicht verschieben: es ist eine Layer-Shell-Flaeche und liegt
         // ausserhalb seiner Zustaendigkeit, Mod+Ziehen gilt nur fuer normale
         // Fenster. Also zieht der Kasten sich selbst.
         x: Math.round((parent.width - width) / 2)
-        y: Math.round(parent.height * 0.18)
+        y: Math.max(Theme.panelPadding, (parent.height - height) / 2)
 
         DragHandler {
             acceptedModifiers: Qt.MetaModifier
@@ -158,7 +160,7 @@ PanelWindow {
         // Breiter als der Starter (64 Zeichen): hier steht in der Fusszeile
         // neben den Tasten auch der Ablageort, und beides zusammen passt sonst
         // nicht nebeneinander.
-        width: Math.round(Theme.cellW * 80)
+        width: Math.min(parent.width - Theme.panelPadding * 2, Theme.cellW * 80)
         // Die Fusszeile braucht Luft nach oben, sonst klebt sie an der letzten
         // Aufgabe und liest sich wie eine weitere Zeile der Liste.
         height: header.height + rows.height + footer.height + Theme.cellH * 1.6
@@ -184,7 +186,7 @@ PanelWindow {
                 anchors.right: counts.left
                 anchors.rightMargin: Theme.cellW
                 elide: Text.ElideMiddle
-                text: "TASKS" + (root.shortPath !== "" ? "  ·  " + root.shortPath : "")
+                text: "Tasks" + (root.shortPath !== "" ? "  ·  " + root.shortPath : "")
                 color: Theme.fgDim
             }
 
@@ -297,7 +299,7 @@ PanelWindow {
             anchors.topMargin: Theme.cellH * 0.4
 
             // Feste Zeilenzahl: der Kasten soll beim Eintragen nicht springen.
-            height: rowHeight * Math.min(14, Math.max(1, root.list.length))
+            height: Math.max(rowHeight, Math.min(rowHeight * Math.min(14, Math.max(1, root.list.length)), root.height - header.height - footer.height - Theme.cellH * 1.6 - Theme.panelPadding * 2))
 
             clip: true
             model: root.list
@@ -391,15 +393,16 @@ PanelWindow {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.margins: Theme.cellW
-            height: Theme.cellH * 1.4
+            height: footerText.implicitHeight
 
             Line {
+                id: footerText
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.editing !== "" ? "Enter saves · Esc cancels" : "Tab toggles · ↑↓ select · Ctrl+E edit · Ctrl+D delete · Ctrl+L clean up"
                 color: Theme.muted
-                elide: Text.ElideRight
+                wrapMode: Text.WordWrap
             }
         }
     }

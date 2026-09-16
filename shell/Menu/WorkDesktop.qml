@@ -58,7 +58,7 @@ Scope {
                                 required property string modelData
                                 text: "● " + modelData.toUpperCase()
                                 implicitWidth: labelWidth.implicitWidth + Theme.spaceLg * 2
-                                radius: height / 2
+                                radius: Theme.radius
                                 selected: WorkState.moduleEnabled(modelData)
                                 color: Theme.alpha(Theme.panelSurface, selected ? 0.55 : 0.25)
                                 border.width: Theme.borderWidth
@@ -68,7 +68,7 @@ Scope {
                                 Line { id: labelWidth; visible: false; text: parent.text }
                             }
                         }
-                        ControlButton { text: "Hide · Mod+Alt+I"; radius: height / 2; onTriggered: Config.set("workDesktop", false) }
+                        ControlButton { text: "Hide · Mod+Alt+I"; radius: Theme.radius; onTriggered: Config.set("workDesktop", false) }
                     }
                     // A single column on narrow displays; separate tall sessions
                     // and compact telemetry rails on larger desktops.

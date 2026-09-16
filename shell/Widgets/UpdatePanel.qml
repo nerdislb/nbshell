@@ -152,7 +152,7 @@ Item {
         PanelHead {
             anchors.left: parent.left
             rowWidth: root.rowWidth - headerActions.width - Theme.spaceLg
-            icon: root.checking ? Icons.refresh : Icons.download
+            icon: ""
             title: qsTr("Updates")
             subtitle: root.tab === "fork" ? qsTr("%1 need review · %2 approved").arg(ForkUpdates.attentionCount).arg(ForkUpdates.approvedCount) : ShellUpdates.summary
             badge: root.checking ? "…" : String(root.availableKinds)

@@ -39,10 +39,11 @@ FocusScope {
             id: contents
             width: scroll.width
             spacing: Theme.spaceLg
-            Row {
+            Flow {
+                width: parent.width
                 spacing: Theme.spaceSm
-                ControlButton { focus: true; text: "BACK"; onTriggered: root.back() }
-                Line { text: "DYNAMIC WALLPAPER"; height: Theme.controlHeight; verticalAlignment: Text.AlignVCenter }
+                ControlButton { focus: true; text: "Back"; onTriggered: root.back() }
+                Line { text: "Dynamic wallpaper"; height: Theme.controlHeight; verticalAlignment: Text.AlignVCenter }
             }
             Line {
                 width: parent.width
@@ -54,12 +55,12 @@ FocusScope {
                 width: parent.width
                 spacing: Theme.spaceSm
                 ControlButton {
-                    text: "DAYTIME " + (selected ? "ON" : "OFF")
+                    text: "Daytime " + (selected ? "on" : "off")
                     selected: DynamicWallpaper.settings.daytimeEnabled
                     onTriggered: DynamicWallpaper.update("daytimeEnabled", !selected)
                 }
                 ControlButton {
-                    text: "VIDEO " + (selected ? "ON" : "OFF")
+                    text: "Video " + (selected ? "on" : "off")
                     selected: DynamicWallpaper.settings.videoEnabled
                     onTriggered: DynamicWallpaper.update("videoEnabled", !selected)
                 }
@@ -88,7 +89,7 @@ FocusScope {
                     Row {
                         spacing: Theme.spaceMd
                         Line {
-                            text: slot.phaseIndex >= 0 ? slot.entry.name : "ALL DAY"
+                            text: slot.phaseIndex >= 0 ? slot.entry.name : "All day"
                             width: Theme.cellW * 12
                             height: Theme.controlHeight
                             verticalAlignment: Text.AlignVCenter
@@ -113,15 +114,16 @@ FocusScope {
                             required property string modelData
                             width: slot.width
                             spacing: Theme.spaceXs
-                            Row {
+                            Flow {
+                                width: parent.width
                                 spacing: Theme.spaceSm
                                 ControlButton {
-                                    text: fileRow.modelData === "image" ? "CHOOSE IMAGE" : "CHOOSE VIDEO"
+                                    text: fileRow.modelData === "image" ? "Choose image" : "Choose video"
                                     accessibleName: text + " · " + (slot.entry.name || "All day")
                                     onTriggered: root.choose(fileRow.modelData, slot.phaseIndex)
                                 }
                                 ControlButton {
-                                    text: "CLEAR"
+                                    text: "Clear"
                                     enabled: !!slot.entry[fileRow.modelData]
                                     accessibleName: "Clear " + fileRow.modelData + " · " + (slot.entry.name || "All day")
                                     onTriggered: DynamicWallpaper.update(fileRow.modelData, "", slot.phaseIndex)

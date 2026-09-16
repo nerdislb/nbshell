@@ -58,7 +58,7 @@ Cell {
             id: viewport
 
             property var closePopout: null
-            readonly property real rowWidth: 56 * Theme.cellW
+            readonly property real rowWidth: Math.max(1, Math.min(56 * Theme.cellW, (Compositor.focusedScreen?.width ?? 1920) - Theme.panelPadding * 4))
             readonly property Item initialFocusItem: deviceRepeater.count > 0
                 ? deviceRepeater.itemAt(0) : null
             implicitWidth: rowWidth
@@ -160,6 +160,8 @@ Cell {
 
             Line {
                 visible: Kdeconnect.devices.length === 0
+                width: panel.rowWidth
+                wrapMode: Text.WordWrap
                 text: "No devices — is KDE Connect running on the phone?"
                 color: Theme.muted
             }

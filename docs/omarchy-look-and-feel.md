@@ -41,6 +41,14 @@ remain authoritative for integration.
 Approved rounds above must not drift during unrelated work. See the relevant
 `docs/*parity.md` notes and task evidence for behavior and verification limits.
 
+## Remaining-surface batch (pending user acceptance)
+
+The post-round-21 inventory is implemented/audited in
+[remaining-surfaces-parity.md](remaining-surfaces-parity.md). Wi-Fi QR follows
+`shell/plugins/panels/wifiqr/Panel.qml`; other native tools adapt the approved
+panel/menu language while retaining their backends and extra functions.
+This is a review candidate, not an extension of the user-approved surface list.
+
 ## Settings and surfaces without an exact counterpart
 
 Omarchy routes setup through its menu and dedicated panels; the pinned source

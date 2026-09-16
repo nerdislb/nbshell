@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.Services
 import qs.Common
 import qs.Widgets
 
@@ -21,7 +22,8 @@ Cell {
 
     readonly property bool ready: data.ok === true
     readonly property int level: ready ? (data.level ?? 0) : 0
-    readonly property bool charging: ready && data.charging === true
+    // Older user-owned helpers expose the same state under "laedt".
+    readonly property bool charging: ready && (data.charging ?? data.laedt) === true
 
     shown: root.ready
     label: "HEADSET"
@@ -74,14 +76,16 @@ Cell {
 
             property var closePopout: null
 
-            readonly property real rowWidth: Theme.cellW * 30
+            readonly property real rowWidth: Math.max(1, Math.min(Theme.cellW * 30, (Compositor.focusedScreen?.width ?? 1920) - Theme.panelPadding * 4))
 
             spacing: Theme.cellH * 0.25
 
             Text {
                 textFormat: Text.PlainText
-                text: root.ready ? String(root.data.geraet).toUpperCase() : "HEADSET"
-                color: Theme.readable(Theme.accent, Theme.bg)
+                width: panel.rowWidth
+                elide: Text.ElideRight
+                text: root.ready ? String(root.data.geraet) : "Headset"
+                color: Theme.fg
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontBody
                 renderType: Text.QtRendering
@@ -99,7 +103,7 @@ Cell {
 
             LevelBar {
                 visible: root.ready
-                cells: 30
+                cells: Math.max(1, Math.floor(panel.rowWidth / Theme.cellW))
                 value: root.level
                 interactive: false
                 fillColor: root.level <= 20 && !root.charging ? Theme.red : (root.charging ? Theme.green : Theme.accent)

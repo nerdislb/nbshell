@@ -7,7 +7,7 @@ PanelSurface {
     id: root
     implicitHeight: content.height + Theme.spaceLg * 2
     color: Theme.alpha(Theme.panelSurface, Theme.isLight ? 0.82 : 0.48)
-    radius: Theme.spaceXl
+    radius: Theme.radius
     border.color: Theme.alpha(Theme.fg, 0.22)
     readonly property var providers: Object.keys(AiUsage.localStats).filter(k => (AiUsage.localStats[k].recentDays || []).length)
     readonly property var dates: providers.length ? (AiUsage.localStats[providers[0]].recentDays || []).slice(-7) : []

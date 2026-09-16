@@ -31,7 +31,8 @@ Column {
     // Sechs Zeichen je Tag, nicht vier: das Gitter darf Luft haben wie bei
     // omacal. Vier war die Breite, in die "31" gerade so passt -- daneben sah
     // es aus wie eine Tabelle, nicht wie ein Kalender.
-    readonly property real cellWidth: Math.round(Theme.cellW * 6)
+    property real availableWidth: Theme.cellW * 58
+    readonly property real cellWidth: Math.min(Math.round(Theme.cellW * 6), Math.max(1, (availableWidth - Theme.cellW * 5) / 7))
 
     // Zwei Zeilen hoch: die Zahl oben, der Punkt darunter. Bei anderthalb
     // Zeilen sass der Punkt auf der Zahl -- "31" sah aus wie "3.1".
@@ -42,7 +43,7 @@ Column {
 
     // Breit genug fuer die Terminzeile darunter, nicht nur fuer das Gitter:
     // Uhrzeit, Farbstreifen und ein Titel, von dem noch etwas uebrig bleibt.
-    readonly property real rowWidth: Math.max(gridWidth, Theme.cellW * 58)
+    readonly property real rowWidth: Math.min(availableWidth, Math.max(gridWidth, Theme.cellW * 58))
 
     // Die Kopfzeile nach dem Vorbild von omacal: nicht bloss "AUGUST 2026",
     // sondern Tag, Kalenderwoche und Jahr -- "12. AUGUST  W33  2026". Damit
@@ -161,11 +162,15 @@ Column {
         Heading {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
+            anchors.right: monthActions.left
+            anchors.rightMargin: Theme.spaceSm
+            elide: Text.ElideRight
             text: panel.title
             color: Theme.readable(Theme.accent, Theme.bg)
         }
 
         Row {
+            id: monthActions
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             spacing: Theme.cellW * 1.5

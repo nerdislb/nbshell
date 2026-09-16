@@ -11,7 +11,7 @@ Column {
         width: parent.width
         height: liveContent.height + Theme.panelPadding * 2
         color: Theme.alpha(Theme.panelSurface, Theme.isLight ? 0.82 : 0.48)
-        radius: Theme.spaceXl
+        radius: Theme.radius
         border.color: Theme.alpha(Theme.fg, 0.22)
         Column {
             id: liveContent
@@ -33,7 +33,7 @@ Column {
                         required property var modelData
                         width: (cards.width - cards.spacing * (cards.columns - 1)) / cards.columns
                         height: Math.max(Theme.cellH * 13, cardDetails.height + Theme.spaceLg * 2)
-                        radius: Theme.spaceXl
+                        radius: Theme.radius
                         color: Theme.alpha(Theme.panelSurfaceRaised, 0.35)
                         border.width: Theme.borderWidth
                         border.color: visualFocus ? Theme.focusBorder : Theme.alpha(Theme.accent, 0.35)

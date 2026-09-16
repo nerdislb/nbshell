@@ -73,7 +73,7 @@ Item {
         color: Theme.bg
         implicitWidth: Theme.cellW * 92
         implicitHeight: Theme.cellH * 34
-        minimumSize: Qt.size(Theme.cellW * 72, Theme.cellH * 25)
+        minimumSize: Qt.size(Theme.cellW * 36, Theme.cellH * 20)
 
         onVisibleChanged: {
             if (!visible && root.opened && !root.closingFromHost)
@@ -91,6 +91,8 @@ Item {
                 focus: true
 
                 Keys.onEscapePressed: root.requestClose()
+                Keys.onLeftPressed: tableScroll.contentX = Math.max(0, tableScroll.contentX - Theme.cellW * 8)
+                Keys.onRightPressed: tableScroll.contentX = Math.min(Math.max(0, tableScroll.contentWidth - tableScroll.width), tableScroll.contentX + Theme.cellW * 8)
                 Keys.onPressed: event => {
                     if (event.key === Qt.Key_R && service) {
                         service.refresh();
@@ -98,9 +100,32 @@ Item {
                     }
                 }
 
+                Line {
+                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                    text: "←→ scroll timing table · R refresh · Esc closes"
+                    color: Theme.fgDim; font.pixelSize: Theme.fontCaption; wrapMode: Text.WordWrap
+                }
+                Connections {
+                    target: window.contentItem.Window.window
+                    function onActiveFocusItemChanged() {
+                        const item = window.contentItem.Window.window.activeFocusItem;
+                        if (!item || item === focusScope) return;
+                        const pos = item.mapToItem(content,0,0);
+                        tableScroll.contentX = Math.max(0,Math.min(tableScroll.contentWidth-tableScroll.width,pos.x < tableScroll.contentX ? pos.x : pos.x+item.width>tableScroll.contentX+tableScroll.width ? pos.x+item.width-tableScroll.width : tableScroll.contentX));
+                        tableScroll.contentY = Math.max(0,Math.min(Math.max(0,tableScroll.contentHeight-tableScroll.height),pos.y < tableScroll.contentY ? pos.y : pos.y+item.height>tableScroll.contentY+tableScroll.height ? pos.y+item.height-tableScroll.height : tableScroll.contentY));
+                    }
+                }
+                Flickable {
+                    id: tableScroll
+                    anchors.fill: parent
+                    anchors.bottomMargin: Theme.cellH * 2
+                    contentWidth: Math.max(width, Theme.cellW * 72)
+                    contentHeight: content.implicitHeight
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
                 Column {
                     id: content
-                    anchors.fill: parent
+                    width: tableScroll.contentWidth
                     spacing: Theme.cellH * 0.55
 
                     component Label: Text {
@@ -130,7 +155,7 @@ Item {
 
                             Heading {
                                 width: parent.width
-                                text: root.race ? root.race.name.toUpperCase() : "PIT WALL"
+                                text: root.race ? root.race.name : "Pit Wall"
                                 elide: Text.ElideRight
                             }
 
@@ -353,6 +378,7 @@ Item {
                             horizontalAlignment: Text.AlignRight
                         }
                     }
+                }
                 }
             }
         }

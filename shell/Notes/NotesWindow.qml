@@ -20,7 +20,7 @@ FloatingWindow {
     color: Theme.bg
     implicitWidth: Math.round(Theme.cellW * 96)
     implicitHeight: Math.round(Theme.cellH * 38)
-    minimumSize: Qt.size(Math.round(Theme.cellW * 68), Math.round(Theme.cellH * 25))
+    minimumSize: Qt.size(Math.round(Theme.cellW * 36), Math.round(Theme.cellH * 20))
 
     function newNote() {
         editingId = "";
@@ -118,8 +118,8 @@ FloatingWindow {
     onClosed: requestClose()
 
     Shortcut { sequence: "Alt+S"; onActivated: root.saveAndClose() }
-    Shortcut { sequence: "Escape"; onActivated: root.requestClose() }
-    Shortcut { sequence: "Ctrl+N"; onActivated: root.requestNewNote() }
+    Shortcut { sequence: "Escape"; autoRepeat: false; onActivated: root.requestClose() }
+    Shortcut { sequence: "Ctrl+N"; autoRepeat: false; onActivated: root.requestNewNote() }
     Timer { id: discardConfirmationTimer; interval: 5000; onTriggered: root.clearDiscardConfirmation() }
     Timer { id: deleteConfirmationTimer; interval: 5000; onTriggered: root.confirmDelete = false }
 
@@ -127,7 +127,7 @@ FloatingWindow {
         anchors.fill: parent
         color: Theme.bg
         border.width: Math.max(1, Theme.borderWidth)
-        border.color: Theme.focusBorder
+        border.color: Theme.panelBorder
         radius: Theme.radius
 
         Row {
@@ -138,7 +138,7 @@ FloatingWindow {
             Rectangle {
                 width: Math.round(parent.width * 0.28)
                 height: parent.height
-                color: Theme.bgDarker
+                color: Theme.panelSurface
 
                 Column {
                     anchors.fill: parent
@@ -147,10 +147,10 @@ FloatingWindow {
 
                     Row {
                         width: parent.width
-                        Line { text: "NOTES"; color: Theme.accent; width: parent.width - addButton.width }
+                        Line { text: "Notes"; color: Theme.fg; width: parent.width - addButton.width }
                         ActionButton {
                             id: addButton
-                            text: root.pendingNavigation === "new" ? "CONFIRM NEW" : "NEW"
+                            text: root.pendingNavigation === "new" ? "Confirm" : "New"
                             compact: true
                             accessibleDescription: "Create a new note"
                             onTriggered: root.requestNewNote()
@@ -176,7 +176,7 @@ FloatingWindow {
                             radius: Theme.radius
                             color: String(root.editingId) === String(modelData.id) ? Theme.selectedSurface() : (visualFocus ? Theme.hover : "transparent")
                             border.width: visualFocus ? Theme.borderWidth : 0
-                            border.color: Theme.focusBorder
+                            border.color: Theme.panelBorder
                             onTriggered: root.requestEditNote(modelData)
                             onActiveFocusChanged: if (activeFocus) noteList.positionViewAtIndex(index, ListView.Contain)
                             Column {
@@ -205,16 +205,16 @@ FloatingWindow {
 
                 Column {
                     anchors.fill: parent
-                    anchors.margins: Theme.spaceXl
+                    anchors.margins: Theme.panelPadding
                     spacing: Theme.spaceMd
 
                     Row {
                         width: parent.width
-                        Line { text: root.editingId === "" ? "NEW NOTE" : Notes.titleFor(editor.text); color: Theme.fgDim; width: parent.width - removeButton.width }
+                        Line { text: root.editingId === "" ? "New note" : Notes.titleFor(editor.text); color: Theme.fgDim; width: parent.width - removeButton.width; elide: Text.ElideRight }
                         ActionButton {
                             id: removeButton
                             visible: root.editingId !== ""
-                            text: root.confirmDelete ? "CONFIRM DELETE" : "DELETE"
+                            text: root.confirmDelete ? "Confirm" : "Delete"
                             tone: "danger"
                             compact: true
                             accessibleDescription: root.confirmDelete
@@ -226,7 +226,7 @@ FloatingWindow {
 
                     ScrollView {
                         width: parent.width
-                        height: parent.height - Theme.cellH * 4
+                        height: Math.max(Theme.controlHeight, parent.height - editorFooter.implicitHeight - Theme.controlHeight - parent.spacing * 2)
                         clip: true
                         TextArea {
                             id: editor
@@ -251,7 +251,9 @@ FloatingWindow {
                     }
 
                     Line {
+                        id: editorFooter
                         width: parent.width
+                        wrapMode: Text.WordWrap
                         text: root.confirmDiscard
                             ? "Unsaved changes — activate " + (root.pendingNavigation === "close" ? "close" : root.pendingNavigation === "new" ? "new note" : "the selected note") + " again to discard"
                             : "Alt+S save & close  ·  Esc close  ·  Ctrl+N new"

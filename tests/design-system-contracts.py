@@ -62,7 +62,7 @@ if exported_ui_types != expected_ui_types:
     )
 
 dashboard = (ROOT / "shell/Menu/Dashboard.qml").read_text(encoding="utf-8")
-tab_start = dashboard.index('model: ["OVERVIEW", "CALENDAR", "TOOLS", "WORK"]')
+tab_start = dashboard.index('model: ["Overview", "Calendar", "Tools", "Work"]')
 tab_end = dashboard.index("// ── TODAY", tab_start)
 tab_contract = dashboard[tab_start:tab_end]
 if "ControlButton {" not in tab_contract:
@@ -200,7 +200,7 @@ if "component Action: Rectangle" in dashboard:
     raise SystemExit("Dashboard actions regressed to manual Rectangle controls")
 for snippet in (
     "dockedTop: true",
-    'model: ["OVERVIEW", "CALENDAR", "TOOLS", "WORK"]',
+    'model: ["Overview", "Calendar", "Tools", "Work"]',
     "opacity: box.opacity * 0.45",
 ):
     if snippet not in dashboard:
@@ -230,7 +230,7 @@ if '"media": 0' not in desktop_ipc or 'target: "music"' not in data_ipc:
 agent_center = (ROOT / "shell/Menu/AgentCenter.qml").read_text(encoding="utf-8")
 for snippet in (
     "dockedTop: true",
-    'model: ["NOW", "WORK", "SETUP"]',
+    'model: ["Now", "Work", "Setup"]',
     "root.selectPage(event.key - Qt.Key_1, true)",
     "visible: root.page === 1 && (Agents.hermesJobs || []).length > 0",
     "visible: root.page === 2",
@@ -461,7 +461,7 @@ for snippet in (
     "accessibleName: itemBlock.modelData.label",
     "row.activate();",
     "systemScroll.contentY = FocusScroll.contentYForFocus(",
-    'text: "OPEN EXTERNALLY"',
+    'text: "Open externally"',
 ):
     if snippet not in system_hub:
         raise SystemExit(f"System Hub keyboard action contract is incomplete: {snippet}")
@@ -486,7 +486,7 @@ for snippet in (
     "function requestNewNote()",
     "function requestEditNote(note)",
     "function requestDelete()",
-    'text: root.confirmDelete ? "CONFIRM DELETE" : "DELETE"',
+    'text: root.confirmDelete ? "Confirm" : "Delete"',
     "Accessible.role: Accessible.EditableText",
 ):
     if snippet not in notes_window:
@@ -514,7 +514,7 @@ shopping_service = (ROOT / "shell/Services/ShoppingDraft.qml").read_text(encodin
 config = (ROOT / "shell/Common/Config.qml").read_text(encoding="utf-8")
 for snippet in (
     "OverlaySurface {",
-    "PanelHead {",
+    'text: "Shopping list"',
     "PanelSurface {",
     "ActionButton {",
     "Accessible.name: \"Shopping list items\"",

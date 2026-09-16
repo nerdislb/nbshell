@@ -16,7 +16,10 @@ import qs.Widgets
 PanelWindow {
     id: root
 
+    property string pendingDelete: ""
+    onSelectedRoutineChanged: pendingDelete = ""
     property int selected: 0
+    onSelectedChanged: pendingDelete = ""
     property string selectedRoutine: "all"
     property string editing: ""
 
@@ -113,638 +116,168 @@ PanelWindow {
         input.forceActiveFocus();
     }
 
-    MouseArea {
+    Rectangle { anchors.fill: parent; color: Theme.scrim }
+    MouseArea { anchors.fill: parent; onClicked: root.close() }
+    FocusScope {
         anchors.fill: parent
-        onClicked: root.close()
-    }
-
-    PanelSurface {
-        id: box
-        accentBorder: true
-
-        x: Math.round((parent.width - width) / 2)
-        y: Math.round(parent.height * 0.10)
-        width: Math.min(parent.width - Theme.cellW * 8, Theme.cellW * 96)
-        height: Math.min(parent.height * 0.20 + Theme.cellH * 34, Theme.cellH * 44)
-
-        DragHandler {
-            acceptedModifiers: Qt.MetaModifier
-            cursorShape: Qt.ClosedHandCursor
-            target: box
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            onClicked: {}
-        }
-
-        Column {
-            anchors.fill: parent
-            anchors.margins: Theme.cellW * 2
-            spacing: Theme.cellH * 0.55
-
-            // ── Kopfbereich ────────────────────────────────────────────────
-            Item {
-                width: parent.width
-                height: Theme.cellH * 1.6
-
+        focus: true
+        Keys.onEscapePressed: root.close()
+        OverlaySurface {
+            id: box
+            preferredWidth: Theme.cellW * 96
+            preferredHeight: Theme.cellH * 42
+            accentBorder: false
+            MouseArea { anchors.fill: parent }
+            Column {
+                id: body
+                anchors.fill: parent
+                anchors.margins: Theme.panelPadding
+                spacing: Theme.spaceMd
                 Row {
-                    anchors.left: parent.left
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: Theme.cellW
-
-                    Text {
-                        textFormat: Text.PlainText
-                        text: Icons.habit
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontTitle
-                        font.bold: true
-                        color: Theme.accent
-                    }
-
-                    Text {
-                        textFormat: Text.PlainText
-                        text: "HABITS"
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontTitle
-                        font.bold: true
-                        color: Theme.fg
-                    }
+                    id: header
+                    width: parent.width
+                    Line { width: parent.width - closeButton.width; text: "Habits"; font.pixelSize: Theme.fontTitle; color: Theme.fg }
+                    ControlButton { id: closeButton; text: "Close"; onTriggered: root.close() }
                 }
-
-                Row {
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: Theme.cellW
-
-                    Rectangle {
-                        radius: Theme.radius
-                        color: "transparent"
-                        border.width: Theme.borderWidth
-                        border.color: Theme.muted
-                        width: themeLabel.width + Theme.cellW * 1.5
-                        height: Theme.cellH * 1.4
-                        anchors.verticalCenter: parent.verticalCenter
-
-                        Text {
-                            textFormat: Text.PlainText
-                            id: themeLabel
-                            anchors.centerIn: parent
-                            text: Config.theme.toUpperCase()
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontCaption
-                            color: Theme.fgDim
-                        }
-                    }
-
-                    Text {
-                        textFormat: Text.PlainText
-                        text: "Esc closes"
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontCaption
-                        font.bold: true
-                        color: Theme.red
-                        anchors.verticalCenter: parent.verticalCenter
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.close()
-                        }
-                    }
+                Line {
+                    id: status
+                    width: parent.width
+                    text: Habits.doneCount + " / " + Habits.count + " completed · " + Habits.progressPercent + "% · " + Habits.todayString
+                    color: Habits.progressPercent >= 100 ? Theme.readable(Theme.green, Theme.panelSurface) : Theme.fgDim
+                    wrapMode: Text.WordWrap
                 }
-            }
-
-            // ── Status & Fortschrittsbalken ────────────────────────────────
-            Rectangle {
-                width: parent.width
-                height: Theme.cellH * 3.4
-                color: "transparent"
-
+                LevelBar { id: progress; width: parent.width; value: Habits.progressPercent; interactive: false }
                 Column {
-                    anchors.fill: parent
-                    spacing: Theme.cellH * 0.15
-
-                    Item {
-                        width: parent.width
-                        height: Theme.cellH
-
-                        Text {
-                            textFormat: Text.PlainText
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "STATUS  ·  " + Habits.todayString
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontBody
-                            color: Theme.fgDim
-                        }
-
-                        Text {
-                            textFormat: Text.PlainText
-                            anchors.right: parent.right
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: root.shortPath !== "" ? root.shortPath : "Sync active"
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontCaption
-                            color: Theme.fgDim
-                        }
-                    }
-
-                    Text {
-                        textFormat: Text.PlainText
-                        text: Habits.doneCount + " / " + Habits.count + " DONE  ·  " + Habits.progressPercent + "%"
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontBody
-                        color: Habits.progressPercent >= 100 ? Theme.green : Theme.accent
-                    }
-
-                    // Progress Bar
-                    Rectangle {
-                        width: parent.width
-                        height: Theme.borderWidth
-                        color: Theme.muted
-
-                        Rectangle {
-                            width: Math.round(parent.width * (Habits.progressPercent / 100.0))
-                            height: parent.height
-                            color: Habits.progressPercent >= 100 ? Theme.green : Theme.accent
-                        }
-                    }
-                }
-            }
-
-            // ── Contribution Matrix Heatmap ────────────────────────────────
-            Rectangle {
-                width: parent.width
-                height: Theme.cellH * 6.2
-                color: "transparent"
-
-                Column {
-                    anchors.fill: parent
-                    spacing: Theme.cellH * 0.35
-
-                    Item {
-                        width: parent.width
-                        height: Theme.cellH
-
-                        Text {
-                            textFormat: Text.PlainText
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "HISTORY  ·  20 WEEKS"
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontCaption
-                            color: Theme.fgDim
-                        }
-
-                        Text {
-                            textFormat: Text.PlainText
-                            anchors.right: parent.right
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "LESS  ░ ▒ ▓ █  MORE"
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontCaption
-                            color: Theme.fgDim
-                        }
-                    }
-
+                    id: history
+                    width: parent.width
+                    spacing: Theme.spaceXs
+                    Line { width: parent.width; text: "History · 20 weeks"; color: Theme.fgDim; font.pixelSize: Theme.fontCaption }
                     Grid {
-                        columns: 20
-                        rows: 7
-                        rowSpacing: Math.max(2, Math.round(Theme.cellH * 0.14))
-                        columnSpacing: Math.max(2, Math.round(Theme.cellW * 0.35))
-                        flow: Grid.TopToBottom
-
+                        id: matrix
+                        readonly property bool compact: body.height < Theme.cellH * 30
+                        columns: 20; rows: 7; flow: Grid.TopToBottom
+                        spacing: matrix.compact ? Theme.spaceXs / 2 : Theme.spaceXs
                         Repeater {
                             model: Habits.matrixCells
-
                             Rectangle {
                                 required property var modelData
-
-                                width: Math.max(7, Math.round(Theme.cellW * 0.75))
-                                height: Math.max(7, Math.round(Theme.cellH * 0.48))
-                                radius: 0
-
-                                color: {
-                                    if (modelData.level === 4) return Theme.accent;
-                                    if (modelData.level === 3) return Theme.cyan;
-                                    if (modelData.level === 2) return Theme.green;
-                                    if (modelData.level === 1) return Theme.alpha(Theme.accent, 0.5);
-                                    return Theme.alpha(Theme.fg, 0.1);
-                                }
-                                border.width: modelData.isToday ? 1 : 0
+                                width: Math.max(1, Math.min(Theme.cellW * (matrix.compact ? .65 : 1), (body.width - matrix.spacing * 19) / 20))
+                                height: width
+                                color: Theme.alpha(Theme.accent, modelData.level > 0 ? .2 + modelData.level * .2 : .08)
+                                border.width: modelData.isToday ? Theme.borderWidth : 0
                                 border.color: Theme.fg
                             }
                         }
                     }
                 }
-            }
-
-            // ── Routine Tabs ───────────────────────────────────────────────
-            Row {
-                width: parent.width
-                spacing: Theme.cellW * 0.5
-
-                readonly property var routines: [
-                    { id: "all", label: "ALL" },
-                    { id: "morning", label: "MORNING" },
-                    { id: "workout", label: "TRAINING" },
-                    { id: "work", label: "WORK" },
-                    { id: "evening", label: "EVENING" },
-                    { id: "general", label: "GENERAL" }
-                ]
-
-                Repeater {
-                    model: parent.routines
-
-                    Rectangle {
-                        required property var modelData
-
-                        width: tabText.width + Theme.cellW * 2
-                        height: Theme.cellH * 1.45
-                        radius: Theme.radius
-                        color: root.selectedRoutine === modelData.id ? Theme.selectedSurface() : Theme.panelSurfaceRaised
-                        border.width: Theme.borderWidth
-                        border.color: root.selectedRoutine === modelData.id ? Theme.accent : Theme.muted
-
-                        Text {
-                            textFormat: Text.PlainText
-                            id: tabText
-                            anchors.centerIn: parent
-                            text: modelData.label
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontCaption
-                            color: root.selectedRoutine === modelData.id ? Theme.selectedForeground() : Theme.fgDim
+                Flow {
+                    id: routines
+                    width: parent.width
+                    spacing: Theme.spaceXs
+                    Repeater {
+                        model: ["all", "morning", "workout", "work", "evening", "general"]
+                        ControlButton {
+                            required property string modelData
+                            text: modelData === "workout" ? "Training" : modelData.charAt(0).toUpperCase() + modelData.slice(1)
+                            selected: root.selectedRoutine === modelData
+                            onTriggered: { root.selectedRoutine = modelData; root.selected = 0; }
                         }
-
+                    }
+                }
+                ListView {
+                    id: habitList
+                    width: parent.width
+                    height: Math.max(Theme.rowHeight, body.height - header.height - status.height - progress.height - history.height - routines.height - input.height - hint.height - body.spacing * 7)
+                    clip: true
+                    model: root.filteredHabits
+                    spacing: Theme.spaceSm
+                    boundsBehavior: Flickable.StopAtBounds
+                    Line { visible: habitList.count === 0; text: "No habits in this routine"; color: Theme.fgDim }
+                    delegate: PanelSurface {
+                        id: row
+                        required property var modelData
+                        required property int index
+                        readonly property var todayEntry: Habits.todayMap[String(modelData.id)]
+                        readonly property bool isDone: todayEntry ? todayEntry.isCompleted : false
+                        readonly property real curVal: todayEntry ? todayEntry.currentValue : 0
+                        readonly property var streakData: Habits.calculateStreak(modelData.id)
+                        width: habitList.width
+                        height: details.implicitHeight + Theme.spaceMd * 2
+                        color: root.selected === index ? Theme.selectedSurface() : "transparent"
+                        border.width: 0
                         MouseArea {
                             anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                root.selectedRoutine = modelData.id;
-                                root.selected = 0;
-                            }
+                            onClicked: { root.selected = row.index; input.forceActiveFocus(Qt.MouseFocusReason); }
                         }
-                    }
-                }
-            }
-
-            // ── Gewohnheiten-Liste ─────────────────────────────────────────
-            ListView {
-                id: habitList
-                width: parent.width
-                // Der Rest der Spalte belegt rund 17,7 Textzeilen. So bleibt
-                // die Eingabe auch auf kleineren Displays innerhalb des
-                // Rahmens, statt unter ihm zu verschwinden.
-                height: Math.max(Theme.cellH * 4, parent.height - Theme.cellH * 17.7)
-                clip: true
-                spacing: 0
-                model: root.filteredHabits
-                boundsBehavior: Flickable.StopAtBounds
-
-                delegate: Rectangle {
-                    id: row
-                    required property var modelData
-                    required property int index
-
-                    readonly property var todayEntry: Habits.todayMap[String(modelData.id)]
-                    readonly property bool isDone: todayEntry ? todayEntry.isCompleted : false
-                    readonly property real curVal: todayEntry ? todayEntry.currentValue : 0.0
-                    readonly property var streakData: Habits.calculateStreak(modelData.id)
-
-                    width: habitList.width
-                    height: Theme.cellH * 2.5
-                    color: root.selected === index ? Theme.selectedSurface() : "transparent"
-                    radius: Theme.radius
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: root.selected = index
-                    }
-
-                    Row {
-                        anchors.left: parent.left
-                        anchors.leftMargin: Theme.cellW * 0.5
-                        anchors.right: actionRow.left
-                        anchors.rightMargin: 10
-                        anchors.verticalCenter: parent.verticalCenter
-                        spacing: Theme.cellW
-
-                        Text {
-                            textFormat: Text.PlainText
-                            text: root.selected === index ? "▸" : " "
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontBody
-                            color: root.selected === index ? Theme.selectedForeground() : Theme.accent
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-
-                        // Icon
-                        Text {
-                            textFormat: Text.PlainText
-                            text: row.isDone ? Icons.check : Icons.circleOutline
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontBody
-                            color: row.isDone ? Theme.green : (root.selected === index ? Theme.selectedForeground() : Theme.fgDim)
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-
-                        // Info Spalte
                         Column {
-                            width: parent.width - Theme.cellW * 7
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 3
-
-                            Row {
-                                spacing: 8
-                                Text {
-                                    textFormat: Text.PlainText
-                                    text: modelData.name
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontBody
-                                    font.strikeout: row.isDone
-                                    color: row.isDone ? Theme.muted : (root.selected === index ? Theme.selectedForeground() : Theme.fg)
-                                    elide: Text.ElideRight
-                                    width: Math.min(implicitWidth, 260)
-                                }
-
-                                Text {
-                                    textFormat: Text.PlainText
-                                    text: "· " + String(modelData.routine || "all").toUpperCase()
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontCaption
-                                    color: root.selected === index ? Theme.selectedForeground() : Theme.fgDim
-                                }
-
-                                Text {
-                                    textFormat: Text.PlainText
-                                    text: "STREAK " + row.streakData.current + "D"
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontCaption
-                                    color: root.selected === index ? Theme.selectedForeground() : Theme.yellow
-                                }
-
-                                Text {
-                                    textFormat: Text.PlainText
-                                    text: "SHIELDS " + (modelData.shields || 2)
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontCaption
-                                    color: root.selected === index ? Theme.selectedForeground() : Theme.fgDim
-                                }
+                            id: details
+                            anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+                            anchors.margins: Theme.spaceMd
+                            spacing: Theme.spaceXs
+                            Line { width: parent.width; text: row.modelData.name; font.strikeout: row.isDone; wrapMode: Text.WordWrap; color: root.selected === row.index ? Theme.selectedForeground() : Theme.fg }
+                            Line {
+                                width: parent.width
+                                text: String(row.modelData.routine || "general") + " · Streak " + row.streakData.current + "d · Shields " + (row.modelData.shields ?? 2)
+                                    + (["COUNTER","NUMBER","DURATION","TIMER"].includes(row.modelData.mode) ? " · " + row.curVal + "/" + row.modelData.targetValue + " " + (row.modelData.unit || "") : "")
+                                wrapMode: Text.WordWrap
+                                color: root.selected === row.index ? Theme.selectedForeground() : Theme.fgDim
+                                font.pixelSize: Theme.fontCaption
                             }
-
-                            Row {
-                                spacing: 6
-                                visible: modelData.mode === "COUNTER" || modelData.mode === "NUMBER" || modelData.mode === "DURATION" || modelData.mode === "TIMER"
-
-                                Text {
-                                    textFormat: Text.PlainText
-                                    text: row.curVal + " / " + modelData.targetValue + " " + (modelData.unit || "")
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontCaption
-                                    color: root.selected === index ? Theme.selectedForeground() : Theme.fgDim
-                                }
-                            }
-                        }
-                    }
-
-                    // Interaktive Knoepfe
-                    Row {
-                        id: actionRow
-                        anchors.right: parent.right
-                        anchors.rightMargin: Theme.cellW * 0.5
-                        anchors.verticalCenter: parent.verticalCenter
-                        spacing: Theme.cellW * 0.5
-
-                            // Kompakte Stepper fuer Counter.
-                            Rectangle {
-                                visible: modelData.mode === "COUNTER"
-                                width: Theme.cellW * 4
-                                height: Theme.cellH * 1.5
-                                color: Theme.panelSurfaceRaised
-                                border.width: Theme.borderWidth
-                                border.color: Theme.muted
-
-                                Text {
-                                    textFormat: Text.PlainText
-                                    anchors.centerIn: parent
-                                    text: "−"
-                                    font.family: Theme.fontFamily
-                                    font.bold: true
-                                    font.pixelSize: Theme.fontSubtitle
-                                    color: root.selected === index ? Theme.selectedForeground() : Theme.fgDim
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: Habits.increment(modelData.id, -1)
-                                }
-                            }
-
-                            Rectangle {
-                                visible: modelData.mode === "COUNTER"
-                                width: Theme.cellW * 5
-                                height: Theme.cellH * 1.5
-                                color: Theme.panelSurfaceRaised
-                                border.width: Theme.borderWidth
-                                border.color: Theme.panelBorder
-
-                                Text {
-                                    textFormat: Text.PlainText
-                                    anchors.centerIn: parent
-                                    text: "+1"
-                                    font.family: Theme.fontFamily
-                                    font.bold: true
-                                    font.pixelSize: Theme.fontBody
-                                    color: root.selected === index ? Theme.selectedForeground() : Theme.accent
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: Habits.increment(modelData.id, 1)
-                                }
-                            }
-
-                            // Dauer-Schnellknoepfe
-                            Rectangle {
-                                visible: modelData.mode === "DURATION"
-                                width: Theme.cellW * 6
-                                height: Theme.cellH * 1.5
-                                color: Theme.panelSurfaceRaised
-                                border.width: Theme.borderWidth
-                                border.color: Theme.panelBorder
-
-                                Text {
-                                    textFormat: Text.PlainText
-                                    anchors.centerIn: parent
-                                    text: "+15m"
-                                    font.family: Theme.fontFamily
-                                    font.bold: true
-                                    font.pixelSize: Theme.fontCaption
-                                    color: root.selected === index ? Theme.selectedForeground() : Theme.accent
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: Habits.increment(modelData.id, 15)
-                                }
-                            }
-
-                            // TIMER (Focus): der Pomodoro laeuft in der App --
-                            // hier markiert der Knopf die Fokus-Session erledigt
-                            // (ersetzt fuer diesen Modus die Checkbox).
-                            Rectangle {
-                                visible: modelData.mode === "TIMER"
-                                width: Theme.cellW * 11
-                                height: Theme.cellH * 1.5
-                                color: Theme.alpha(Theme.magenta, 0.16)
-                                border.width: Theme.borderWidth
-                                border.color: Theme.magenta
-
-                                Text {
-                                    textFormat: Text.PlainText
-                                    anchors.centerIn: parent
-                                    text: row.isDone ? "FOCUS ✓" : "FOCUS"
-                                    font.family: Theme.fontFamily
-                                    font.bold: true
-                                    font.pixelSize: Theme.fontCaption
-                                    color: root.selected === index ? Theme.selectedForeground() : Theme.magenta
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: Habits.toggle(modelData.id)
-                                }
-                            }
-
-                            // Checkbox Button
-                            Rectangle {
-                                visible: modelData.mode !== "TIMER"
-                                width: Theme.cellW * 9
-                                height: Theme.cellH * 1.5
-                                color: Theme.alpha(row.isDone ? Theme.green : Theme.accent, 0.14)
-                                border.width: Theme.borderWidth
-                                border.color: row.isDone ? Theme.green : Theme.muted
-
-                                Text {
-                                    textFormat: Text.PlainText
-                                    anchors.centerIn: parent
-                                    text: row.isDone ? "DONE" : "COMPLETE"
-                                    font.family: Theme.fontFamily
-                                    font.bold: true
-                                    font.pixelSize: Theme.fontCaption
-                                    color: root.selected === index ? Theme.selectedForeground() : (row.isDone ? Theme.green : Theme.fgDim)
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: Habits.toggle(modelData.id)
-                                }
-                            }
-
-                            // Delete Button
-                            Text {
-                                textFormat: Text.PlainText
-                                text: "×"
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontTitle
-                                color: root.selected === index ? Theme.selectedForeground() : Theme.red
-                                anchors.verticalCenter: parent.verticalCenter
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: Habits.remove(modelData.id)
+                            Flow {
+                                width: parent.width; spacing: Theme.spaceXs
+                                ControlButton { visible: row.modelData.mode === "COUNTER"; text: "−"; accessibleName: "Decrease " + row.modelData.name; onTriggered: Habits.increment(row.modelData.id, -1) }
+                                ControlButton { visible: row.modelData.mode === "COUNTER"; text: "+1"; accessibleName: "Increase " + row.modelData.name; onTriggered: Habits.increment(row.modelData.id, 1) }
+                                ControlButton { visible: row.modelData.mode === "DURATION"; text: "+15m"; accessibleName: "Add 15 minutes to " + row.modelData.name; onTriggered: Habits.increment(row.modelData.id, 15) }
+                                ControlButton { text: row.modelData.mode === "TIMER" ? (row.isDone ? "Focus done" : "Focus") : (row.isDone ? "Done" : "Complete"); selected: row.isDone; accessibleName: "Toggle " + row.modelData.name; onTriggered: Habits.toggle(row.modelData.id) }
+                                ControlButton {
+                                    text: root.pendingDelete === String(row.modelData.id) ? "Confirm delete" : "Delete"
+                                    danger: true
+                                    onTriggered: {
+                                        if (root.pendingDelete !== String(row.modelData.id)) { root.pendingDelete = String(row.modelData.id); return; }
+                                        Habits.remove(row.modelData.id); root.pendingDelete = "";
+                                    }
                                 }
                             }
                         }
                     }
                 }
-
-            // ── Eingabezeile fuer neue Gewohnheiten ─────────────────────────
-            Rectangle {
-                width: parent.width
-                height: Theme.cellH * 2.2
-                radius: Theme.radius
-                color: "transparent"
-                border.width: Theme.borderWidth
-                border.color: input.activeFocus ? Theme.accent : Theme.muted
-
-                Text {
-                    textFormat: Text.PlainText
-                    id: prompt
-                    anchors.left: parent.left
-                    anchors.leftMargin: Theme.cellW
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "> "
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSubtitle
-                    font.bold: true
-                    color: Theme.green
-                }
-
                 TextField {
                     id: input
-                    anchors.left: prompt.right
-                    anchors.leftMargin: Theme.cellW * 0.5
-                    anchors.right: hintText.left
-                    anchors.rightMargin: Theme.cellW
-                    anchors.verticalCenter: parent.verticalCenter
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontBody
-                    color: Theme.fg
-                    background: null
-                    horizontalPadding: 0
+                    width: parent.width
                     accessibleName: "New habit"
-                    accessibleDescription: "Add a habit, optionally followed by // and a routine"
+                    placeholderText: "New habit, optional // routine"
                     focus: true
-                    selectByMouse: true
-                    selectionColor: Theme.selection
-                    selectedTextColor: Theme.on(Theme.selection)
-
-                    Keys.onReturnPressed: root.accept()
-                    Keys.onEnterPressed: root.accept()
-                    Keys.onEscapePressed: {
-                        if (input.text !== "") {
-                            input.text = "";
-                        } else {
-                            root.close();
-                        }
-                    }
+                    Keys.onReturnPressed: event => { if (!event.isAutoRepeat) root.accept(); }
+                    Keys.onEnterPressed: event => { if (!event.isAutoRepeat) root.accept(); }
+                    Keys.onEscapePressed: { if (text !== "") text = ""; else root.close(); }
                     Keys.onUpPressed: root.move(-1)
                     Keys.onDownPressed: root.move(1)
-                    Keys.onTabPressed: (event) => {
-                        event.accepted = true;
-                        root.toggleCurrent();
-                    }
-
-                    Text {
-                        textFormat: Text.PlainText
-                        anchors.left: parent.left
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: input.text === ""
-                        text: "new habit, optional // routine"
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontBody
-                        color: Theme.fgDim
-                    }
+                    // Keep the existing editing shortcut; Shift+Tab reaches buttons.
+                    Keys.onTabPressed: event => { event.accepted = true; if (!event.isAutoRepeat) root.toggleCurrent(); }
                 }
-
-                Text {
-                    textFormat: Text.PlainText
-                    id: hintText
-                    anchors.right: parent.right
-                    anchors.rightMargin: Theme.cellW
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "Enter adds"
-                    font.family: Theme.fontFamily
+                Line {
+                    id: hint
+                    width: parent.width
+                    text: "Enter adds · Tab toggles · Shift+Tab actions · " + root.shortPath
+                    wrapMode: Text.WordWrap
+                    color: Theme.fgDim
                     font.pixelSize: Theme.fontCaption
-                    color: Theme.accent
+                }
+            }
+            Connections {
+                target: root.contentItem.Window.window
+                function onActiveFocusItemChanged() {
+                    const item = root.contentItem.Window.window.activeFocusItem;
+                    if (!item) return;
+                    for (let p = item; p; p = p.parent) {
+                        if (p.parent === habitList.contentItem) {
+                            root.selected = p.index;
+                            const pos = item.mapToItem(habitList.contentItem, 0, 0);
+                            habitList.contentY = Math.max(0, Math.min(habitList.contentHeight - habitList.height,
+                                Math.min(pos.y, Math.max(habitList.contentY, pos.y + item.height - habitList.height))));
+                            return;
+                        }
+                    }
                 }
             }
         }

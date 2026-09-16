@@ -93,7 +93,7 @@ Cell {
         Column {
             id: panel
             property var closePopout: null
-            readonly property real rowWidth: 48 * Theme.cellW
+            readonly property real rowWidth: Math.max(1, Math.min(Theme.cellW * 48, (Compositor.focusedScreen?.width ?? 1920) - Theme.panelPadding * 4))
             spacing: Theme.cellH * 0.55
             focus: true
 

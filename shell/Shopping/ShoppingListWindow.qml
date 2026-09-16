@@ -115,6 +115,7 @@ PanelWindow {
 
         OverlaySurface {
             id: box
+            accentBorder: false
             dockedTop: true
             preferredWidth: Theme.cellW * 104
             preferredHeight: Theme.cellH * 36
@@ -126,14 +127,12 @@ PanelWindow {
                 anchors.margins: Theme.spaceXl
                 spacing: Theme.spaceMd
 
-                PanelHead {
+                Column {
                     id: header
-                    rowWidth: parent.width
-                    icon: Icons.cp(0xF0110)
-                    title: "Shopping list"
-                    subtitle: "WhatsApp group · " + root.targetGroup
-                    badge: root.items.length === 1 ? "1 item" : root.items.length + " items"
-                    badgeColor: root.items.length > 0 ? Theme.accent : Theme.fgDim
+                    width: parent.width
+                    spacing: Theme.spaceXs
+                    Line { width: parent.width; text: "Shopping list"; font.pixelSize: Theme.fontTitle }
+                    Line { width: parent.width; text: root.items.length + " items · WhatsApp group · " + root.targetGroup; color: Theme.fgDim; elide: Text.ElideRight }
                 }
 
                 Rule { id: separator; rowWidth: parent.width }

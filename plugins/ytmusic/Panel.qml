@@ -59,7 +59,7 @@ Item {
   readonly property bool compactHeight: window.height < Style.space(620)
   readonly property bool compactWidth: window.width < 620
   readonly property bool mediumWidth: window.width < 920
-  readonly property real areaRadius: Math.max(Style.space(14), Style.cornerRadius)
+  readonly property real areaRadius: Style.cornerRadius
   readonly property real sidebarJoinRadius: Math.max(8,
     Math.min(root.compactWidth ? Style.space(10) : root.areaRadius,
       root.areaRadius))
@@ -752,11 +752,12 @@ Item {
           textFormat: Text.PlainText
           width: parent.width
           text: "YouTube Music has no official desktop API. If Chromium on this computer is already signed in at music.youtube.com, copy that session. No DevTools paste."
-          color: Qt.darker(root.foreground, 1.3)
+          color: root.foreground
           wrapMode: Text.WordWrap
           font.pixelSize: Style.font.body
         }
-        Row {
+        Flow {
+          width: parent.width
           spacing: Style.space(8)
           Button {
             text: root.service && root.service.loginBusy ? "Working…" : "Use Chromium session"
@@ -1324,7 +1325,7 @@ Item {
     color: root.background
     implicitWidth: 980
     implicitHeight: 720
-    minimumSize: Qt.size(700, 560)
+    minimumSize: Qt.size(Style.space(360), Style.space(480))
 
     onVisibleChanged: {
       if (!visible && root.opened && !root.closingFromHost) root.requestClose()
@@ -1875,7 +1876,7 @@ Item {
           anchors.left: parent.left
           anchors.right: parent.right
           anchors.bottom: parent.bottom
-          height: visible ? Style.space(root.compactHeight ? 118 : 148) : 0
+          height: visible ? (root.mediumWidth ? Style.space(86) + transportBox.implicitHeight : Style.space(root.compactHeight ? 118 : 148)) : 0
           radius: root.areaRadius
           color: Style.normalFillFor(root.foreground, root.accent)
           borderSpec: Border.none()
@@ -1887,16 +1888,16 @@ Item {
 
             Row {
               id: nowPlayingBox
-              anchors.left: parent.left
-              anchors.verticalCenter: parent.verticalCenter
+              x: 0
+              y: root.mediumWidth ? 0 : (parent.height - height) / 2
               height: Style.space(66)
-              width: Math.max(Style.space(220),
+              width: root.mediumWidth ? playerRow.width - volumeBox.width - Style.space(10) : Math.max(Style.space(220),
                 Math.min(Style.space(380), playerRow.width * 0.42))
               spacing: Style.space(9)
 
               Artwork {
                 id: artworkNowPlaying
-                width: parent.height - Style.space(12)
+                width: Style.space(54)
                 height: width
                 anchors.verticalCenter: parent.verticalCenter
                 radius: root.areaRadius
@@ -1986,14 +1987,12 @@ Item {
 
             Column {
               id: transportBox
-              anchors.left: nowPlayingBox.right
-              anchors.right: volumeBox.left
-              anchors.leftMargin: Style.space(10)
-              anchors.rightMargin: Style.space(10)
-              anchors.verticalCenter: parent.verticalCenter
+              x: root.mediumWidth ? 0 : nowPlayingBox.width + Style.space(10)
+              y: root.mediumWidth ? nowPlayingBox.height : (parent.height - height) / 2
+              width: playerRow.width - x - volumeBox.width - Style.space(10)
               spacing: Style.space(1)
-              Row {
-                anchors.left: parent.left
+              Flow {
+                width: parent.width
                 spacing: Style.space(3)
                 Chicklet {
                   iconText: "󰒟"

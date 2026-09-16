@@ -127,6 +127,7 @@ PanelWindow {
 
         OverlaySurface {
             id: box
+            accentBorder: false
             dockedTop: true
             preferredWidth: Theme.cellW * 112
             preferredHeight: Theme.cellH * 32
@@ -142,16 +143,16 @@ PanelWindow {
                     spacing: Theme.cellW
                     Line {
                         width: parent.width - refreshLine.width - parent.spacing
-                        text: Icons.cp(0xF1218) + "  AGENTS  ·  "
+                        text: "Agents · "
                             + Agents.hermesProvider.toUpperCase() + "  ·  "
                             + Agents.hermesMode.toUpperCase()
                         color: Theme.fg
-                        font.pixelSize: Theme.fontHeading
-                        font.bold: true
+                        font.pixelSize: Theme.fontTitle
+                        elide: Text.ElideRight
                     }
                     ActionButton {
                         id: refreshLine
-                        text: "REFRESH"
+                        text: "Refresh"
                         compact: true
                         busy: Agents.loading
                         accessibleDescription: "Refresh agent and Hermes status"
@@ -164,7 +165,7 @@ PanelWindow {
                     spacing: Theme.cellW
                     Repeater {
                         id: pageTabs
-                        model: ["NOW", "WORK", "SETUP"]
+                        model: ["Now", "Work", "Setup"]
                         ControlButton {
                             required property string modelData
                             required property int index

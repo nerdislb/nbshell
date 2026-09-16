@@ -6,7 +6,7 @@ import qs.Widgets
 PanelSurface {
     implicitHeight: content.height + Theme.panelPadding * 2
     color: Theme.alpha(Theme.panelSurface, Theme.isLight ? 0.82 : 0.48)
-    radius: Theme.spaceXl
+    radius: Theme.radius
     border.color: Theme.alpha(Theme.fg, 0.22)
     Column {
         id: content

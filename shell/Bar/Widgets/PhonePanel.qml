@@ -41,7 +41,8 @@ Column {
         wrapMode: Text.WordWrap
     }
 
-    Row {
+    Flow {
+        width: root.rowWidth
         spacing: Theme.cellW
         visible: Phone.available
 
@@ -79,7 +80,7 @@ Column {
         text: Phone.status
         color: Phone.status.indexOf("fehlt") !== -1 || Phone.status.indexOf("none") !== -1 ? Theme.yellow : Theme.green
         wrapMode: Text.WordWrap
-        font.pixelSize: Theme.fontSize - 1
+        font.pixelSize: Theme.fontCaption
     }
 
     Rule {
@@ -104,7 +105,8 @@ Column {
         wrapMode: Text.WordWrap
     }
 
-    Row {
+    Flow {
+        width: root.rowWidth
         spacing: Theme.cellW
         visible: Phone.available
 

@@ -99,8 +99,8 @@ FocusScope {
         Row {
             width: parent.width
             spacing: Theme.spaceMd
-            Line { width: parent.width - close.implicitWidth - parent.spacing; text: "TOUCHPAD"; font.pixelSize: Theme.fontHeading; font.bold: true }
-            ControlButton { id: close; text: "ESC  CLOSE"; onTriggered: root.closeRequested() }
+            Line { width: parent.width - close.implicitWidth - parent.spacing; text: "Touchpad"; font.pixelSize: Theme.fontTitle; elide: Text.ElideRight }
+            ControlButton { id: close; text: "Close"; onTriggered: root.closeRequested() }
         }
         Line {
             id: notice
@@ -115,8 +115,8 @@ FocusScope {
             width: parent.width
             spacing: Theme.spaceSm
             Line { text: "Discard unapplied changes?" }
-            ControlButton { text: "KEEP EDITING"; onTriggered: root.confirmClose = false }
-            ControlButton { text: "DISCARD & CLOSE"; onTriggered: { root.allowClose = true; root.closeRequested(); } }
+            ControlButton { text: "Keep editing"; onTriggered: root.confirmClose = false }
+            ControlButton { text: "Discard & close"; onTriggered: { root.allowClose = true; root.closeRequested(); } }
         }
         Controls.ScrollView {
             id: scroll
@@ -220,7 +220,7 @@ FocusScope {
             width: parent.width
             spacing: Theme.spaceSm
             ControlButton { text: root.busy ? "WORKING…" : "APPLY & TRY"; selected: root.dirty; enabled: root.loaded && !root.busy && root.dirty; onTriggered: root.request("apply") }
-            ControlButton { text: "RESTORE PREVIOUS"; enabled: root.state.canRestore === true && !root.busy && !root.dirty; onTriggered: root.request("restore") }
+            ControlButton { text: "Restore previous"; enabled: root.state.canRestore === true && !root.busy && !root.dirty; onTriggered: root.request("restore") }
             ControlButton { text: root.dirty ? "DISCARD DRAFT" : "REFRESH"; enabled: !root.busy; onTriggered: root.request("status") }
         }
     }

@@ -125,6 +125,20 @@ PanelWindow {
         Qt.callLater(search.forceActiveFocus);
     }
 
+    Connections {
+        target: root.contentItem.Window.window
+        function onActiveFocusItemChanged() {
+            const item = root.contentItem.Window.window.activeFocusItem;
+            if (!item) return;
+            for (let p = item; p; p = p.parent) {
+                if (p !== previewContent) continue;
+                const top = item.mapToItem(previewContent,0,0).y;
+                previewScroll.contentY = Math.max(0, Math.min(Math.max(0,previewScroll.contentHeight-previewScroll.height), top < previewScroll.contentY ? top : top+item.height > previewScroll.contentY+previewScroll.height ? top+item.height-previewScroll.height : previewScroll.contentY));
+                return;
+            }
+        }
+    }
+
     Rectangle { anchors.fill: parent; color: Theme.scrim }
     MouseArea { anchors.fill: parent; onClicked: root.close() }
 
@@ -133,7 +147,7 @@ PanelWindow {
         anchors.centerIn: parent
         width: Math.min(parent.width - Theme.spaceXl * 4, Math.round(Theme.cellW * 112))
         height: Math.min(parent.height - Theme.spaceXl * 4, Math.round(Theme.cellH * 42))
-        accentBorder: true
+        accentBorder: false
         MouseArea { anchors.fill: parent }
 
         FocusScope {
@@ -150,76 +164,50 @@ PanelWindow {
                 anchors.margins: Theme.spaceXl
                 spacing: Theme.spaceMd
 
-                PanelHead {
-                    rowWidth: parent.width
-                    icon: "󰏖"
-                    title: "Library"
-                    subtitle: "Themes, wallpapers, and reviewed extensions"
-                    badge: String(root.items.length)
-                }
+                Line { id: libraryTitle; width: parent.width; text: "Library"; font.pixelSize: Theme.fontTitle }
 
-                Row {
+                Column {
+                    id: selectors
                     width: parent.width
-                    height: Theme.controlHeight
                     spacing: Theme.spaceSm
-                    Repeater {
-                        model: [{id: "themes", label: "THEMES"}, {id: "wallpapers", label: "WALLPAPERS"}, {id: "plugins", label: "PLUGINS"}]
-                        ControlButton {
-                            required property var modelData
-                            text: modelData.label
-                            selected: root.tab === modelData.id
-                            onTriggered: root.chooseTab(modelData.id)
+                    Flow {
+                        width: parent.width
+                        spacing: Theme.spaceSm
+                        Repeater {
+                            model: [{id:"themes",label:"Themes"},{id:"wallpapers",label:"Wallpapers"},{id:"plugins",label:"Plugins"}]
+                            ControlButton {
+                                required property var modelData
+                                text: modelData.label
+                                selected: root.tab === modelData.id
+                                onTriggered: root.chooseTab(modelData.id)
+                            }
                         }
                     }
-                    Rectangle {
-                        width: parent.width - Theme.cellW * 42
-                        height: Theme.controlHeight
-                        color: Theme.panelSurfaceRaised
-                        radius: Theme.radius
-                        border.width: search.activeFocus ? Theme.borderWidth : 0
-                        border.color: Theme.focusBorder
-                        TextField {
-                            id: search
-                            anchors.fill: parent
-                            anchors.leftMargin: Theme.spaceMd
-                            anchors.rightMargin: Theme.spaceMd
-                            verticalAlignment: Text.AlignVCenter
-                            color: Theme.fg
-                            selectionColor: Theme.selection
-                            selectedTextColor: Theme.fg
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontBody
-                            background: null
-                            horizontalPadding: 0
-                            accessibleName: "Search this collection"
-                            accessibleDescription: "Filters the selected store collection"
-                            text: root.query
-                            onTextEdited: root.query = text
-                            Keys.onEscapePressed: root.close()
-                            Keys.onUpPressed: root.move(-1)
-                            Keys.onDownPressed: root.move(1)
-                            Keys.onReturnPressed: root.activate(root.current)
-                        }
-                        Line {
-                            anchors.left: parent.left
-                            anchors.leftMargin: Theme.spaceMd
-                            anchors.verticalCenter: parent.verticalCenter
-                            visible: search.text === ""
-                            text: "Search this collection"
-                            color: Theme.muted
-                        }
+                    TextField {
+                        id: search
+                        width: parent.width
+                        accessibleName: "Search this collection"
+                        placeholderText: "Search this collection"
+                        text: root.query
+                        onTextEdited: root.query = text
+                        Keys.onEscapePressed: root.close()
+                        Keys.onUpPressed: root.move(-1)
+                        Keys.onDownPressed: root.move(1)
+                        Keys.onReturnPressed: event => { if (!event.isAutoRepeat) root.activate(root.current); }
                     }
                 }
 
-                Row {
+                Grid {
+                    id: workspace
+                    columns: width < Theme.cellW * 75 ? 1 : 2
                     width: parent.width
-                    height: parent.height - Theme.controlHeight * 2 - Theme.cellH * 4
+                    height: Math.max(Theme.controlHeight * 4, parent.height - libraryTitle.height - selectors.height - footer.implicitHeight - parent.spacing * 3)
                     spacing: Theme.spaceLg
 
                     ListView {
                         id: list
-                        width: parent.width * 0.48
-                        height: parent.height
+                        width: workspace.columns === 1 ? workspace.width : (workspace.width - workspace.spacing) * .48
+                        height: workspace.columns === 1 ? workspace.height * .35 : workspace.height
                         model: root.items
                         currentIndex: root.selected
                         clip: true
@@ -275,19 +263,26 @@ PanelWindow {
                     }
 
                     PanelSurface {
-                        width: parent.width - list.width - parent.spacing
-                        height: parent.height
+                        width: workspace.columns === 1 ? workspace.width : workspace.width - list.width - workspace.spacing
+                        height: workspace.columns === 1 ? workspace.height - list.height - workspace.spacing : workspace.height
                         color: Theme.panelSurfaceRaised
 
+                        Flickable {
+                            id: previewScroll
+                            anchors.fill: parent; anchors.margins: Theme.panelPadding
+                            contentHeight: previewContent.implicitHeight
+                            clip: true
+                            boundsBehavior: Flickable.StopAtBounds
                         Column {
-                            anchors.fill: parent
-                            anchors.margins: Theme.spaceXl
-                            spacing: Theme.spaceLg
+                            id: previewContent
+                            width: previewScroll.width
+                            spacing: Theme.spaceMd
 
                             Rectangle {
                                 id: visualPreview
                                 width: parent.width
-                                height: Math.min(parent.height * 0.48, Theme.cellH * 15)
+                                height: Math.min(previewScroll.height * .55, Theme.cellH * 15)
+                                clip: true
                                 color: root.tab === "themes" ? (root.current?.background || Theme.bgDarker) : Theme.bgDarker
                                 radius: Theme.radius
                                 border.width: Theme.borderWidth
@@ -306,7 +301,7 @@ PanelWindow {
                                     anchors.fill: parent
                                     anchors.margins: Theme.borderWidth
                                     visible: (root.tab === "wallpapers" || root.tab === "themes") && !!root.current
-                                    source: visible ? "file://" + (root.tab === "themes" ? String(root.current?.wallpaper || "") : Wallpapers.pathOf(root.current)) : ""
+                                    source: visible && (root.tab === "themes" ? root.current?.wallpaper : Wallpapers.pathOf(root.current)) ? "file://" + (root.tab === "themes" ? String(root.current.wallpaper) : Wallpapers.pathOf(root.current)) : ""
                                     fillMode: Image.PreserveAspectCrop
                                     // Decode only at preview resolution. A
                                     // 4K wallpaper would otherwise add tens
@@ -326,7 +321,7 @@ PanelWindow {
                                         anchors.verticalCenter: parent.verticalCenter
                                         x: modelData < 0 ? Theme.spaceSm : parent.width - width - Theme.spaceSm
                                         width: Math.max(Theme.cellW * 5, parent.width * 0.13)
-                                        height: parent.height * 0.62
+                                        height: parent.height * 0.90
                                         color: neighborItem?.background || Theme.bgDarker
                                         radius: Theme.radius
                                         border.width: Theme.borderWidth
@@ -337,7 +332,7 @@ PanelWindow {
                                         Image {
                                             anchors.fill: parent
                                             anchors.margins: parent.border.width
-                                            source: parent.visible ? "file://" + String(parent.neighborItem?.wallpaper || "") : ""
+                                            source: parent.visible && parent.neighborItem?.wallpaper ? "file://" + String(parent.neighborItem.wallpaper) : ""
                                             fillMode: Image.PreserveAspectCrop
                                             asynchronous: true
                                             cache: false
@@ -380,7 +375,7 @@ PanelWindow {
                                     visible: root.tab === "themes" && !!root.current
                                     anchors.centerIn: parent
                                     width: parent.width * 0.72
-                                    height: parent.height * 0.62
+                                    height: parent.height * 0.90
                                     color: root.current?.background || Theme.bgDarker
                                     opacity: 0.94
                                     radius: Math.max(2, Theme.radius * 0.72)
@@ -442,20 +437,21 @@ PanelWindow {
                             Item { width: 1; height: 1 }
                             ControlButton {
                                 width: parent.width
-                                text: root.tab === "plugins" ? "MANAGE" : "APPLY"
+                                text: root.tab === "plugins" ? "Manage" : "Apply"
                                 enabled: !!root.current
                                 onTriggered: root.activate(root.current)
                             }
                             ControlButton {
                                 width: parent.width
-                                text: root.tab === "plugins" ? "BROWSE PLUGIN STORE" : root.tab === "wallpapers" ? "OPEN VISUAL PICKER" : "OPEN THEME PICKER"
+                                text: root.tab === "plugins" ? "Plugin store" : root.tab === "wallpapers" ? "Wallpaper picker" : "Theme picker"
                                 onTriggered: root.browse()
                             }
+                        }
                         }
                     }
                 }
 
-                Line { width: parent.width; text: "↑↓ SELECT  ·  ENTER APPLY  ·  ESC CLOSE  ·  INSTALLING NEVER ACTIVATES PLUGINS"; color: Theme.muted; font.pixelSize: Theme.fontCaption; horizontalAlignment: Text.AlignRight }
+                Line { id: footer; wrapMode: Text.WordWrap; width: parent.width; text: "↑↓ SELECT  ·  ENTER APPLY  ·  ESC CLOSE  ·  INSTALLING NEVER ACTIVATES PLUGINS"; color: Theme.muted; font.pixelSize: Theme.fontCaption; horizontalAlignment: Text.AlignRight }
             }
         }
     }

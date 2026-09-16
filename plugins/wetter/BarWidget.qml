@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.Services
 import qs.Common
 import qs.Widgets
 
@@ -59,50 +60,50 @@ Cell {
     function describe(code) {
         switch (code) {
         case 0:
-            return "klar";
+            return "Clear";
         case 1:
-            return "ueberwiegend klar";
+            return "Mostly clear";
         case 2:
-            return "teils bewoelkt";
+            return "Partly cloudy";
         case 3:
-            return "bedeckt";
+            return "Overcast";
         case 45:
         case 48:
-            return "Nebel";
+            return "Fog";
         case 51:
         case 53:
         case 55:
-            return "Niesel";
+            return "Drizzle";
         case 56:
         case 57:
-            return "gefrierender Niesel";
+            return "Freezing drizzle";
         case 61:
-            return "leichter Regen";
+            return "Light rain";
         case 63:
-            return "Regen";
+            return "Rain";
         case 65:
-            return "starker Regen";
+            return "Heavy rain";
         case 66:
         case 67:
-            return "gefrierender Regen";
+            return "Freezing rain";
         case 71:
-            return "leichter Schnee";
+            return "Light snow";
         case 73:
-            return "Schnee";
+            return "Snow";
         case 75:
-            return "starker Schnee";
+            return "Heavy snow";
         case 77:
-            return "Schneegriesel";
+            return "Snow grains";
         case 80:
         case 81:
-            return "Schauer";
+            return "Showers";
         case 82:
-            return "kraeftige Schauer";
+            return "Heavy showers";
         case 85:
         case 86:
-            return "Schneeschauer";
+            return "Snow showers";
         case 95:
-            return "Gewitter";
+            return "Thunderstorm";
         case 96:
         case 99:
             return "Thunderstorm with hail";
@@ -189,7 +190,7 @@ Cell {
 
             property var closePopout: null
 
-            readonly property real rowWidth: Theme.cellW * 40
+            readonly property real rowWidth: Math.max(1, Math.min(Theme.cellW * 40, (Compositor.focusedScreen?.width ?? 1920) - Theme.panelPadding * 4))
             readonly property var d: root.data
 
             spacing: Theme.cellH * 0.25
@@ -209,12 +210,15 @@ Cell {
                 Line {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: root.ready ? String(panel.d.ort).toUpperCase() : "WEATHER"
-                    color: Theme.readable(Theme.accent, Theme.bg)
+                    anchors.right: refreshButton.left
+                    anchors.rightMargin: Theme.spaceSm
+                    text: root.ready ? String(panel.d.ort) : "Weather"
+                    color: Theme.fg
                     elide: Text.ElideRight
                 }
 
                 ControlButton {
+                    id: refreshButton
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     text: root.loading ? "Loading …" : "Refresh"
@@ -234,6 +238,8 @@ Cell {
             // ── Jetzt ─────────────────────────────────────────────────────
 
             Row {
+                id: conditions
+                width: panel.rowWidth
                 visible: root.ready
                 spacing: Theme.cellW * 1.5
 
@@ -248,23 +254,30 @@ Cell {
                         anchors.horizontalCenterOffset: big.inkOffsetX
                         inkHeight: Theme.cellH * 1.6
                         text: root.glyph(root.code, root.day)
-                        color: Theme.readable(Theme.accent, Theme.bg)
+                        color: Theme.fg
                     }
                 }
 
                 Column {
+                    width: panel.rowWidth - big.inkWidth - conditions.spacing
                     spacing: 0
 
                     Line {
+                        width: parent.width
+                        wrapMode: Text.WordWrap
                         text: root.ready ? (panel.d.temp + " °C   " + root.describe(root.code)) : ""
                     }
 
                     Line {
+                        width: parent.width
+                        wrapMode: Text.WordWrap
                         text: root.ready ? ("feels like " + panel.d.gefuehlt + " °C") : ""
                         color: Theme.fgDim
                     }
 
                     Line {
+                        width: parent.width
+                        wrapMode: Text.WordWrap
                         text: root.ready ? ("Wind " + panel.d.wind + " km/h   Humidity " + panel.d.feuchte + " %") : ""
                         color: Theme.fgDim
                     }
@@ -272,8 +285,10 @@ Cell {
             }
 
             Line {
+                width: panel.rowWidth
+                wrapMode: Text.WordWrap
                 visible: root.ready
-                text: "  sunrise " + root.clock(panel.d.auf) + "   sunset " + root.clock(panel.d.unter) + "   updated " + root.clock(panel.d.stand)
+                text: "Sunrise " + root.clock(panel.d.auf) + "   sunset " + root.clock(panel.d.unter) + "   updated " + root.clock(panel.d.stand)
                 color: Theme.muted
             }
 
@@ -341,7 +356,7 @@ Cell {
                         anchors.leftMargin: Theme.cellW * 2
                         anchors.verticalCenter: parent.verticalCenter
                         visible: dayRow.modelData.regen !== null && dayRow.modelData.regen > 0
-                        text: dayRow.modelData.regen + " % Regen"
+                        text: dayRow.modelData.regen + " % rain"
                         color: Theme.fgDim
                     }
                 }

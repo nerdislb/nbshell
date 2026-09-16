@@ -31,7 +31,7 @@ PanelWindow {
         stderr: StdioCollector { onStreamFinished: if (String(text).trim()) console.warn("audio-tools:", String(text).trim()) }
     }
 
-    Rectangle { anchors.fill: parent; color: Theme.alpha(Theme.bgDarker, .78); opacity: box.opacity }
+    Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: box.opacity }
     MouseArea { anchors.fill: parent; onClicked: root.close() }
     FocusScope {
         id: keys; anchors.fill: parent; focus: root.visible
@@ -39,14 +39,23 @@ PanelWindow {
         Keys.onPressed: event => { if (event.key === Qt.Key_F5) root.run(["status"]); }
         OverlaySurface {
             id: box
+            accentBorder: false
             preferredWidth: Theme.cellW * 72; preferredHeight: Theme.cellH * 30
             MouseArea { anchors.fill: parent }
+            Flickable {
+                id: viewport
+                anchors.fill: parent; anchors.margins: Theme.panelPadding
+                contentHeight: content.implicitHeight
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
             Column {
-                anchors.fill: parent; anchors.margins: Theme.cellW * 2; spacing: Theme.cellH * .6
-                PanelHead { rowWidth: parent.width; icon: Icons.volumeHigh; title: "Focus & equalizer"; subtitle: "PipeWire · EasyEffects"; badge: root.loading ? "…" : "" }
+                id: content
+                width: viewport.width; spacing: Theme.spaceMd
+                Line { width: parent.width; text: "Focus & equalizer" + (root.loading ? " · Loading…" : ""); font.pixelSize: Theme.fontTitle; wrapMode: Text.WordWrap }
                 Rule { rowWidth: parent.width }
                 SectionHeader { width: parent.width; text: "Focus sounds" }
-                Row {
+                Flow {
+                    width: parent.width;
                     spacing: Theme.cellW
                     Repeater {
                         model: [{id:"pink",label:"Pink"},{id:"brown",label:"Brown"},{id:"rain",label:"Rain"},{id:"white",label:"White"}]
@@ -60,15 +69,16 @@ PanelWindow {
                     }
                     ControlButton { width: Theme.cellW * 12; text: "Stop"; danger: true; onTriggered: root.run(["stop"]) }
                 }
-                Line { text: "Runs as a separate PipeWire stream and can be controlled in the audio popout."; color: Theme.muted }
+                Line { width: parent.width; wrapMode: Text.WordWrap; text: "Runs as a separate PipeWire stream and can be controlled in the audio popout."; color: Theme.muted }
                 Rule { rowWidth: parent.width }
                 SectionHeader { width: parent.width; text: "Equalizer" }
-                Row {
+                Flow {
+                    width: parent.width;
                     spacing: Theme.cellW * 2
                     ControlButton { width: Theme.cellW * 21; text: root.toolState.bypass === "an" ? "Effects off" : "Effects active"; selected: root.toolState.bypass !== "an"; onTriggered: root.run(["bypass"]) }
                     ControlButton { width: Theme.cellW * 24; text: "Edit equalizer"; onTriggered: Quickshell.execDetached(["easyeffects"]) }
                 }
-                Line { text: root.toolState.presets.length ? "PRESETS" : "No presets yet · save one in the editor, then press F5"; color: Theme.fgDim }
+                Line { width: parent.width; wrapMode: Text.WordWrap; text: root.toolState.presets.length ? "PRESETS" : "No presets yet · save one in the editor, then press F5"; color: Theme.fgDim }
                 Flow {
                     width: parent.width; spacing: Theme.cellW
                     Repeater {
@@ -81,7 +91,22 @@ PanelWindow {
                     }
                 }
                 Item { width: 1; height: Theme.cellH }
+                ControlButton { text: "Close"; onTriggered: root.close() }
                 Line { text: "F5 refreshes · Esc closes"; color: Theme.muted }
+            }
+            }
+            Connections {
+                target: root.contentItem.Window.window
+                function onActiveFocusItemChanged() {
+                    const item = root.contentItem.Window.window.activeFocusItem;
+                    if (!item || item === keys) return;
+                    for (let p = item; p; p = p.parent) {
+                        if (p !== content) continue;
+                        const y = item.mapToItem(content,0,0).y;
+                        viewport.contentY = Math.max(0, Math.min(Math.max(0, viewport.contentHeight - viewport.height), y < viewport.contentY ? y : y + item.height > viewport.contentY + viewport.height ? y + item.height - viewport.height : viewport.contentY));
+                        break;
+                    }
+                }
             }
         }
     }

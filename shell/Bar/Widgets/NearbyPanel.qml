@@ -38,16 +38,14 @@ Column {
     Repeater {
         model: root.available ? Nearby.devices : []
 
-        Rectangle {
+        PanelSurface {
             id: deviceRow
             required property var modelData
 
             width: root.rowWidth
             height: deviceBody.implicitHeight + Theme.cellH
             radius: Theme.radius
-            color: Theme.alpha(Theme.fg, 0.05)
-            border.width: Theme.borderWidth
-            border.color: Theme.alpha(Theme.fg, 0.12)
+            raised: false
 
             Column {
                 id: deviceBody
@@ -58,24 +56,27 @@ Column {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: Theme.cellH * 0.2
 
-                Item {
+                Column {
                     width: parent.width
-                    height: deviceAlias.implicitHeight
+                    spacing: Theme.spaceXs
 
                     Line {
                         id: deviceAlias
-                        anchors.left: parent.left
+                        width: parent.width
+                        elide: Text.ElideRight
                         text: deviceRow.modelData.alias
                         color: Theme.fg
                     }
                     Line {
-                        anchors.right: parent.right
+                        width: parent.width
+                        elide: Text.ElideRight
                         text: deviceRow.modelData.model + "  " + deviceRow.modelData.ip
                         color: Theme.muted
                     }
                 }
 
-                Row {
+                Flow {
+                    width: parent.width
                     spacing: Theme.cellW * 2
 
                     component NearbyAction: ActionButton {
@@ -106,8 +107,10 @@ Column {
 
     Line {
         visible: root.available
+        width: root.rowWidth
+        wrapMode: Text.WordWrap
         text: "  Files: nbshell nearby send <file>"
         color: Theme.muted
-        font.pixelSize: Theme.fontSize - 1
+        font.pixelSize: Theme.fontCaption
     }
 }

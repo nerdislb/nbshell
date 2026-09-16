@@ -132,14 +132,21 @@ PanelWindow {
     }
 
     // Kleine, wiederverwendbare TUI-Karte.
-    component Card: PanelSurface {
+    component Card: InteractiveSurface {
+        id: cardRoot
         property string title: ""
         property string badge: ""
         property var run: null
         property bool primary: false
         default property alias content: body.data
-        raised: primary
-        border.color: primary ? Theme.panelBorder : "transparent"
+        implicitHeight: body.implicitHeight + Theme.cellH * 3
+        clip: true
+        interactive: run !== null
+        accessibleName: title
+        color: primary ? Theme.panelSurfaceRaised : "transparent"
+        border.width: Theme.borderWidth
+        onTriggered: if (run) run()
+        border.color: visualFocus ? Theme.focusBorder : primary ? Theme.panelBorder : "transparent"
 
         HoverHandler {
             enabled: parent.run !== null
@@ -147,8 +154,7 @@ PanelWindow {
         }
         TapHandler {
             enabled: parent.run !== null
-            onTapped: if (parent.run)
-                parent.run()
+            onTapped: { cardRoot.forceActiveFocus(Qt.MouseFocusReason); cardRoot.activate(); }
         }
 
         Line {
@@ -165,9 +171,22 @@ PanelWindow {
             id: body
             anchors.left: parent.left; anchors.right: parent.right
             anchors.top: parent.top; anchors.topMargin: Theme.cellH * 2
-            anchors.bottom: parent.bottom
             anchors.margins: Theme.cellW * 1.2
             spacing: Theme.cellH * 0.25
+        }
+    }
+
+    Connections {
+        target: root.contentItem.Window.window
+        function onActiveFocusItemChanged() {
+            const item = root.contentItem.Window.window.activeFocusItem;
+            if (!item || root.page !== 0) return;
+            for (let p = item; p; p = p.parent) {
+                if (p !== overviewGrid) continue;
+                const top = item.mapToItem(overviewGrid,0,0).y;
+                overview.contentY = Math.max(0, Math.min(Math.max(0,overview.contentHeight-overview.height), top < overview.contentY ? top : top + item.height > overview.contentY + overview.height ? top + item.height - overview.height : overview.contentY));
+                return;
+            }
         }
     }
 
@@ -202,6 +221,7 @@ PanelWindow {
 
         OverlaySurface {
             id: box
+            accentBorder: false
             dockedTop: true
             preferredWidth: Theme.cellW * 112
             preferredHeight: Theme.cellH * 38
@@ -218,17 +238,19 @@ PanelWindow {
                     height: Theme.cellH * 2.6
                     Column {
                         anchors.left: parent.left
-                        Line { text: root.now.toLocaleString(Qt.locale(Config.value("locale", "en_US")), "dddd, dd. MMMM"); color: Theme.fgBright; font.pixelSize: Theme.fontTitle; font.bold: true }
-                        Line { text: "WEEK " + Calendar.isoWeek(root.now) + "  ·  " + Calendar.moonName(root.now); color: Theme.fgDim; font.pixelSize: Theme.fontCaption }
+                        anchors.right: dashboardTime.left
+                        anchors.rightMargin: Theme.spaceMd
+                        Line { width: parent.width; elide: Text.ElideRight; text: root.now.toLocaleString(Qt.locale(Config.value("locale", "en_US")), "dddd, dd. MMMM"); color: Theme.fgBright; font.pixelSize: Theme.fontTitle; font.bold: true }
+                        Line { width: parent.width; elide: Text.ElideRight; text: "Week " + Calendar.isoWeek(root.now) + "  ·  " + Calendar.moonName(root.now); color: Theme.fgDim; font.pixelSize: Theme.fontCaption }
                     }
-                    Line { anchors.right: parent.right; anchors.top: parent.top; text: root.now.toLocaleTimeString(Qt.locale(), "HH:mm"); color: Theme.readable(Theme.accent, Theme.bg); font.pixelSize: Theme.fontHeading; font.bold: true }
+                    Line { id: dashboardTime; anchors.right: parent.right; anchors.top: parent.top; text: root.now.toLocaleTimeString(Qt.locale(), "HH:mm"); color: Theme.readable(Theme.accent, Theme.bg); font.pixelSize: Theme.fontHeading; font.bold: true }
                 }
 
                 Row {
                     width: parent.width
                     spacing: Theme.cellW
                     Repeater {
-                        model: ["OVERVIEW", "CALENDAR", "TOOLS", "WORK"]
+                        model: ["Overview", "Calendar", "Tools", "Work"]
                         ControlButton {
                             required property var modelData
                             required property int index
@@ -243,28 +265,32 @@ PanelWindow {
                 }
 
                 // ── TODAY ───────────────────────────────────────────────
-                Item {
+                Flickable {
+                    id: overview
+                    clip: true
+                    contentHeight: overviewGrid.implicitHeight
+                    boundsBehavior: Flickable.StopAtBounds
                     visible: root.page === 0
                     width: parent.width
                     height: parent.height - Theme.cellH * 8.2
 
-                    Row {
-                        anchors.fill: parent
-                        anchors.margins: root.cardGap
+                    Grid {
+                        id: overviewGrid
+                        width: overview.width
+                        columns: width < Theme.cellW * 85 ? 1 : 2
                         spacing: root.cardGap
 
                         Column {
-                            width: (parent.width - root.cardGap) * 0.58
-                            height: parent.height
+                            width: overviewGrid.columns === 1 ? overviewGrid.width : (overviewGrid.width - root.cardGap) * .58
                             spacing: root.cardGap
 
                             Card {
-                            width: parent.width; height: (parent.height - root.cardGap) / 2
+                            width: parent.width; height: Math.max(implicitHeight, overviewGrid.columns === 1 ? 0 : (overview.height - root.cardGap) / 2)
                             title: "Upcoming events"
                             primary: true
                             badge: Calendar.loading ? "…" : "OPEN  ·  " + String(root.nextEvents.length)
                             run: () => root.page = 1
-                            Line { visible: root.nextEvents.length === 0; text: Calendar.available ? "nothing in the next few days" : Calendar.problem; color: Theme.muted }
+                            Line { width: parent.width; wrapMode: Text.WordWrap; visible: root.nextEvents.length === 0; text: Calendar.available ? "nothing in the next few days" : Calendar.problem; color: Theme.muted }
                             Repeater {
                                 model: root.nextEvents.slice(0, 5)
                                 Item {
@@ -278,20 +304,20 @@ PanelWindow {
                         }
 
                             Card {
-                            width: parent.width; height: (parent.height - root.cardGap) / 2
+                            width: parent.width; height: Math.max(implicitHeight, overviewGrid.columns === 1 ? 0 : (overview.height - root.cardGap) / 2)
                             title: "Weather"
                             badge: root.weather.ok ? String(root.weather.ort || Config.value("weatherPlace", "")) : ""
                             Row {
                                 visible: root.weather.ok === true
                                 spacing: Theme.cellW * 2
-                                Line { text: root.weatherGlyph(root.weather.code || 0, root.weather.tag !== false); color: Theme.accent; font.pixelSize: Theme.fontSize + 24 }
+                                Line { text: root.weatherGlyph(root.weather.code || 0, root.weather.tag !== false); color: Theme.accent; font.pixelSize: Theme.fontDisplay }
                                 Column {
-                                    Line { text: Math.round(root.weather.temp) + " °C"; color: Theme.fgBright; font.pixelSize: Theme.fontSize + 8 }
+                                    Line { text: Math.round(root.weather.temp) + " °C"; color: Theme.fgBright; font.pixelSize: Theme.fontTitle }
                                     Line { text: "feels like " + root.weather.gefuehlt + " °C"; color: Theme.fgDim }
                                     Line { text: "Wind " + root.weather.wind + " km/h  ·  Humidity " + root.weather.feuchte + " %"; color: Theme.fgDim }
                                 }
                             }
-                            Line { visible: root.weather.ok !== true; text: root.weatherLoading ? "loading weather …" : (root.weather.grund || "no weather data yet"); color: Theme.muted }
+                            Line { width: parent.width; wrapMode: Text.WordWrap; visible: root.weather.ok !== true; text: root.weatherLoading ? "loading weather …" : (root.weather.grund || "no weather data yet"); color: Theme.muted }
                             Row {
                                 visible: root.weather.ok === true
                                 spacing: Theme.cellW * 2
@@ -309,22 +335,21 @@ PanelWindow {
                         }
 
                         Column {
-                            width: (parent.width - root.cardGap) * 0.42
-                            height: parent.height
+                            width: overviewGrid.columns === 1 ? overviewGrid.width : (overviewGrid.width - root.cardGap) * .42
                             spacing: root.cardGap
 
                             Card {
-                            width: parent.width; height: (parent.height - root.cardGap * 2) / 3
+                            width: parent.width; height: Math.max(implicitHeight, overviewGrid.columns === 1 ? 0 : (overview.height - root.cardGap * 2) / 3)
                             title: "System"
                             badge: SysInfo.uptimeText(SysInfo.detail?.laufzeit ?? 0)
                             Line { text: "CPU  " + String(SysInfo.cpuPercent).padStart(3, " ") + " %"; color: SysInfo.cpuPercent >= 90 ? Theme.red : Theme.fg }
-                            LevelBar { width: parent.width; cells: 26; value: SysInfo.cpuPercent; fillColor: SysInfo.cpuPercent >= 90 ? Theme.red : Theme.accent }
-                            Line { text: "RAM  " + String(SysInfo.memPercent).padStart(3, " ") + " %   " + SysInfo.memUsedGb.toFixed(1) + "/" + SysInfo.memTotalGb.toFixed(1) + " GB"; color: Theme.fg }
-                            LevelBar { width: parent.width; cells: 26; value: SysInfo.memPercent; fillColor: Theme.cyan }
+                            LevelBar { width: parent.width; cells: Math.max(1, Math.floor(parent.width / Theme.cellW)); interactive: false; value: SysInfo.cpuPercent; fillColor: SysInfo.cpuPercent >= 90 ? Theme.red : Theme.accent }
+                            Line { width: parent.width; elide: Text.ElideRight; text: "RAM  " + String(SysInfo.memPercent).padStart(3, " ") + " %   " + SysInfo.memUsedGb.toFixed(1) + "/" + SysInfo.memTotalGb.toFixed(1) + " GB"; color: Theme.fg }
+                            LevelBar { width: parent.width; cells: Math.max(1, Math.floor(parent.width / Theme.cellW)); interactive: false; value: SysInfo.memPercent; fillColor: Theme.cyan }
                         }
 
                             Card {
-                            width: parent.width; height: (parent.height - root.cardGap * 2) / 3
+                            width: parent.width; height: Math.max(implicitHeight, overviewGrid.columns === 1 ? 0 : (overview.height - root.cardGap * 2) / 3)
                             title: "Today"
                             badge: Todo.count + " open"
                             Line { text: Icons.todo + "  Tasks     " + Todo.count; color: Todo.count > 0 ? Theme.fg : Theme.fgDim }
@@ -333,14 +358,14 @@ PanelWindow {
                         }
 
                             Card {
-                            width: parent.width; height: (parent.height - root.cardGap * 2) / 3
+                            width: parent.width; height: Math.max(implicitHeight, overviewGrid.columns === 1 ? 0 : (overview.height - root.cardGap * 2) / 3)
                             title: MediaService.active ? "Now playing" : "Media"
                             badge: MediaService.playing ? "PLAY" : (MediaService.active ? "PAUSE" : "")
                             Line { width: parent.width; text: MediaService.active ? (MediaService.title || "unknown") : "no active player"; color: Theme.fgBright; elide: Text.ElideRight }
                             Line { width: parent.width; text: MediaService.artist; color: Theme.fgDim; elide: Text.ElideRight }
                             Row {
                                 visible: MediaService.active
-                                spacing: Theme.cellW * 3
+                                spacing: Theme.spaceSm
                                 ActionButton { text: "Previous"; compact: true; onTriggered: MediaService.previous() }
                                 ActionButton { text: MediaService.playing ? "Pause" : "Play"; tone: "primary"; compact: true; onTriggered: MediaService.playPause() }
                                 ActionButton { text: "Next"; compact: true; onTriggered: MediaService.next() }
@@ -438,6 +463,7 @@ PanelWindow {
 
                         CalendarPanel {
                             id: calendarPanel
+                            availableWidth: parent.width
                             x: Math.round((parent.width - width) / 2)
                         }
                     }
@@ -452,6 +478,8 @@ PanelWindow {
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
                         text: "Esc close  ·  1–4 pages  ·  ↑↓←→ tools  ·  Tab actions"
+                        wrapMode: Text.WordWrap
+                        font.pixelSize: Theme.fontCaption
                         color: Theme.muted
                     }
                 }

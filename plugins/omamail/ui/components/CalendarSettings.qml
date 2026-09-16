@@ -169,6 +169,7 @@ Column {
         spacing: Style.space(2)
 
         Text {
+          textFormat: Text.PlainText
           width: parent.width
           text: root.providerName(discoveryRow.modelData) + " calendars"
           color: root.textColor

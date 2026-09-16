@@ -69,7 +69,7 @@ Cell {
             id: panel
 
             property var closePopout: null
-            readonly property real rowWidth: Theme.cellW * 50
+            readonly property real rowWidth: Math.max(1, Math.min(Theme.cellW * 50, (Compositor.focusedScreen?.width ?? 1920) - Theme.panelPadding * 4))
             readonly property var leftBattery: root.buds ? root.buds.battery("Left bud", "battery1Level", "battery1Status") : ({})
             readonly property var rightBattery: root.buds ? root.buds.battery("Right bud", "battery2Level", "battery2Status") : ({})
             readonly property var caseBattery: root.buds ? root.buds.battery("Case", "battery3Level", "battery3Status") : ({})
@@ -198,7 +198,7 @@ Cell {
                 label: root.buds && root.buds.version !== "" ? "BUDSLINK " + root.buds.version + "  ·  LIVE DBUS" : "OPTIONAL BACKEND"
             }
 
-            Row {
+            Flow {
                 width: panel.rowWidth
                 spacing: Theme.spaceSm
 

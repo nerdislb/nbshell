@@ -278,6 +278,7 @@ Column {
   // have nothing to change.
 
   Text {
+    textFormat: Text.PlainText
     id: appearanceHeading
     visible: !!root.service && root.service.hasAppearance === true
     text: "APPEARANCE"
@@ -306,6 +307,7 @@ Column {
       spacing: Style.space(2)
 
       Text {
+        textFormat: Text.PlainText
         width: parent.width
         text: "Theme"
         color: root.textColor
@@ -314,6 +316,7 @@ Column {
       }
 
       Text {
+        textFormat: Text.PlainText
         width: parent.width
         text: "System follows the desktop's light or dark setting."
         color: root.dimColor

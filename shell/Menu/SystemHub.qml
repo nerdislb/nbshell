@@ -86,6 +86,7 @@ PanelWindow {
 
         OverlaySurface {
             id: box
+            accentBorder: false
             preferredWidth: Theme.cellW * 96
             preferredHeight: Theme.cellH * 42
             MouseArea { anchors.fill: parent; onClicked: {} }
@@ -97,10 +98,10 @@ PanelWindow {
 
                 Row {
                     width: parent.width
-                    Line { width: parent.width - reload.width; text: Icons.matrix + "  SYSTEM & PLUGINS"; color: Theme.fg; font.pixelSize: Theme.fontHeading; font.bold: true }
+                    Line { width: parent.width - reload.width; text: "System & plugins"; color: Theme.fg; font.pixelSize: Theme.fontTitle; elide: Text.ElideRight }
                     ActionButton {
                         id: reload
-                        text: "REFRESH"
+                        text: "Refresh"
                         compact: true
                         busy: root.loading
                         accessibleDescription: "Refresh system and plugin status"
@@ -170,7 +171,7 @@ PanelWindow {
                                                 color: itemBlock.modelData.state === "ok" ? Theme.green : (itemBlock.modelData.state === "warn" ? Theme.yellow : Theme.muted)
                                             }
                                             Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW * 1.5; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.34; text: itemBlock.modelData.label; color: Theme.fg; elide: Text.ElideRight }
-                                            Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.58; horizontalAlignment: Text.AlignRight; text: itemBlock.modelData.detail + (itemBlock.hasDetails ? (itemBlock.expanded ? "  ⌃" : "  ⌄") : (itemBlock.modelData.command ? "  ›" : "")); color: itemBlock.modelData.state === "off" ? Theme.muted : Theme.fgDim; elide: Text.ElideRight }
+                                            Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.58; horizontalAlignment: Text.AlignRight; text: String(itemBlock.modelData.detail).replace(/\s+/g, " ") + (itemBlock.hasDetails ? (itemBlock.expanded ? "  ⌃" : "  ⌄") : (itemBlock.modelData.command ? "  ›" : "")); color: itemBlock.modelData.state === "off" ? Theme.muted : Theme.fgDim; elide: Text.ElideRight }
                                             HoverHandler { id: hover; cursorShape: itemBlock.hasDetails || itemBlock.modelData.command ? Qt.PointingHandCursor : Qt.ArrowCursor }
                                             TapHandler {
                                                 acceptedButtons: Qt.LeftButton | Qt.RightButton
@@ -203,7 +204,7 @@ PanelWindow {
                                                 onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(detailRow)
                                                 Rectangle { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: Theme.borderWidth * 2; height: parent.height * 0.45; color: detailRow.modelData.state === "warn" ? Theme.yellow : Theme.green }
                                                 Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW * 2; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.35; text: detailRow.modelData.label; color: Theme.fg; elide: Text.ElideRight }
-                                                Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.56; horizontalAlignment: Text.AlignRight; text: detailRow.modelData.detail; color: Theme.fgDim; elide: Text.ElideRight }
+                                                Line { anchors.right: parent.right; anchors.rightMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.56; horizontalAlignment: Text.AlignRight; text: String(detailRow.modelData.detail).replace(/\s+/g, " "); color: Theme.fgDim; elide: Text.ElideRight }
                                                 HoverHandler { id: detailHover; cursorShape: detailRow.modelData.command ? Qt.PointingHandCursor : Qt.ArrowCursor }
                                                 TapHandler {
                                                     enabled: !!detailRow.modelData.command
@@ -218,7 +219,7 @@ PanelWindow {
                                         ActionButton {
                                             id: externalAction
                                             visible: itemBlock.expanded && !!itemBlock.modelData.command
-                                            text: "OPEN EXTERNALLY"
+                                            text: "Open externally"
                                             compact: true
                                             accessibleDescription: "Open " + itemBlock.modelData.label
                                             onTriggered: root.run(itemBlock.modelData.command)
@@ -230,7 +231,7 @@ PanelWindow {
                         }
                     }
                 }
-                Line { text: "Esc closes · F5 refreshes · Enter opens details"; color: Theme.muted }
+                Line { width: parent.width; text: "Esc closes · F5 refreshes · Enter opens details"; wrapMode: Text.WordWrap; font.pixelSize: Theme.fontCaption; color: Theme.muted }
             }
         }
     }

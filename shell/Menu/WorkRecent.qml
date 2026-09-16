@@ -10,7 +10,7 @@ Column {
         width: parent.width
         height: recentContent.height + Theme.panelPadding * 2
         color: Theme.alpha(Theme.panelSurface, Theme.isLight ? 0.82 : 0.48)
-        radius: Theme.spaceXl
+        radius: Theme.radius
         border.color: Theme.alpha(Theme.fg, 0.22)
         Column {
             id: recentContent
@@ -26,7 +26,7 @@ Column {
                     required property var modelData
                     width: recentContent.width
                     height: Theme.controlHeight
-                    radius: height / 2
+                    radius: Theme.radius
                     color: Theme.alpha(Theme.panelSurfaceRaised, 0.25)
                     border.width: Theme.borderWidth
                     border.color: visualFocus ? Theme.focusBorder : Theme.alpha(Theme.fg, 0.12)

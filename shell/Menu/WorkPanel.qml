@@ -23,7 +23,7 @@ Item {
         spacing: Theme.spaceSm
         Line {
             width: parent.width
-            text: "WORK  ·  " + root.rows.filter(r => root.rank(r) === 0).length + " need you  ·  " + root.rows.filter(r => r.status === "working").length + " working"
+            text: "Work · " + root.rows.filter(r => root.rank(r) === 0).length + " need you  ·  " + root.rows.filter(r => r.status === "working").length + " working"
             color: Theme.fgBright
             elide: Text.ElideRight
         }
@@ -62,7 +62,7 @@ Item {
                         border.color: visualFocus ? Theme.focusBorder : Theme.panelBorder
                         HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
                         readonly property bool hovered: hover.hovered
-                        TapHandler { onTapped: entry.activate() }
+                        TapHandler { onTapped: { entry.forceActiveFocus(Qt.MouseFocusReason); entry.activate(); } }
                         Column {
                             id: content
                             x: Theme.spaceSm
