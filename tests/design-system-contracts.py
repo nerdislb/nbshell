@@ -666,16 +666,20 @@ for snippet in (
         raise SystemExit(f"Notification Center keyboard contract is incomplete: {snippet}")
 if "shown.length - 2" in notification_center:
     raise SystemExit("Notification Center double-clamps selection after deletion")
+if "popoutTakesKeyboard: true" not in notification_bar:
+    raise SystemExit("Notification bar must take keyboard focus")
+activity_panel = (ROOT / "shell/Bar/Widgets/ActivityPanel.qml").read_text(encoding="utf-8")
 for snippet in (
-    "popoutTakesKeyboard: true",
-    "readonly property Item initialFocusItem: notificationsTab",
+    "readonly property Item initialFocusItem: search",
     "component HeaderAction: ActionButton",
     "accessibleSelected: active",
-    "function revealItem(item)",
-    "onFocusEntered: historyView.revealItem(historyCard)",
+    "function moveSelection(delta)",
+    "list.positionViewAtIndex(selectedIndex,ListView.Contain)",
+    "Keys.onDeletePressed:",
+    "function requestClear()",
 ):
-    if snippet not in notification_bar:
-        raise SystemExit(f"Notification bar popout keyboard contract is incomplete: {snippet}")
+    if snippet not in activity_panel:
+        raise SystemExit(f"Activity popout keyboard contract is incomplete: {snippet}")
 
 required_accessible_names = {
     ROOT / "shell/Ui/PanelSlider.qml": [

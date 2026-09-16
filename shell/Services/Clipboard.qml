@@ -18,6 +18,7 @@ Singleton {
 
     property var entries: []
     property var images: []
+    readonly property bool removingImage: imageRemove.running
 
     readonly property string statePath: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/nbshell/clipboard.json"
     readonly property string imageDir: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/nbshell/clipboard-images"
@@ -74,8 +75,10 @@ Singleton {
     }
 
     function removeImage(entry) {
+        if (imageRemove.running || !images.some(e => e.file === entry.file)) return false;
         imageRemove.command = ["python3", imageScript, "remove", imageDir, entry.file];
         imageRemove.running = true;
+        return true;
     }
 
     // Fuer die Anzeige: eine Zeile, sichtbare Zeilenumbrueche.

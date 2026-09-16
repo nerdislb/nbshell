@@ -356,6 +356,17 @@ Singleton {
     readonly property int powerPercentSize: Math.round(fontSize * 2.333)
     readonly property int powerProfileGap: Math.round(6 * networkScale)
 
+    // Omarchy clipboard's split list/preview geometry, scoped to Activity.
+    readonly property int activityWidth: Math.round(875 * networkScale)
+    readonly property int activityHeight: Math.round(600 * networkScale)
+    readonly property int activityRowHeight: Math.round(50 * networkScale)
+    readonly property int activityPadding: Math.round(18 * networkScale)
+    readonly property int activityGap: Math.round(6 * networkScale)
+    readonly property int activitySearchHeight: Math.round(34 * networkScale)
+    readonly property int activityRowPaddingX: Math.round(12 * networkScale)
+    readonly property int activityRowPaddingY: Math.round(8 * networkScale)
+    readonly property int activityHeadingSize: Math.round(fontSize * 1.333)
+
     // Omarchy notification card geometry; sans text is scoped to toasts only.
     readonly property int toastWidth: Math.round(380 * networkScale)
     readonly property int toastBorderWidth: networkBorderWidth
