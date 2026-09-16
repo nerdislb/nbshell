@@ -179,8 +179,8 @@ for snippet in (
         raise SystemExit(f"Shared modal contract is incomplete: {snippet}")
 plugin_developer = (ROOT / "shell/Settings/PluginDeveloper.qml").read_text(encoding="utf-8")
 for snippet in (
-    "pendingFocusItem = opener || root.activeFocusItem",
-    "previewFocusItem = root.activeFocusItem",
+    "pendingFocusItem = opener || keys.Window.window.activeFocusItem",
+    "previewFocusItem = keys.Window.window.activeFocusItem",
     "root.ask(\"update\", item, clipped, opener)",
     "restoreFocusItem: root.pendingFocusItem",
 ):

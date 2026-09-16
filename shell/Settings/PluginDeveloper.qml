@@ -1,10 +1,12 @@
 import QtQuick
+import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import qs.Common
 import qs.Services
 import qs.Widgets
+import "../Widgets/FocusScroll.js" as FocusScroll
 
 // User-facing plugin manager and curated nbshell store. Third-party QML runs
 // inside the shell with the user's privileges, so discovery and execution are
@@ -78,6 +80,7 @@ PanelWindow {
         return id !== "" && Plugins.enabledIds.indexOf(id) >= 0;
     }
     function localFor(item) { return item; }
+    function isInstalled(item) { return !!item && (tab === "installed" || !!item.installed); }
     function selectTab(value) {
         tab = value;
         selected = 0;
@@ -97,7 +100,7 @@ PanelWindow {
         statusText = local.name + (next ? " enabled" : " disabled");
     }
     function ask(action, item, detail, opener) {
-        pendingFocusItem = opener || root.activeFocusItem;
+        pendingFocusItem = opener || keys.Window.window.activeFocusItem;
         pendingAction = action;
         pendingItem = item;
         pendingDetail = detail || "";
@@ -134,7 +137,7 @@ PanelWindow {
     }
     function previewUpdate(item) {
         if (busy || !item) return;
-        previewFocusItem = root.activeFocusItem;
+        previewFocusItem = keys.Window.window.activeFocusItem;
         busy = true;
         previewItem = item;
         statusError = false;
@@ -159,10 +162,14 @@ PanelWindow {
         return isEnabled(localFor(item)) ? "DISABLE" : "ENABLE";
     }
     function primaryAction(item) {
-        if (!item) return;
+        if (!item || busy || pendingAction !== "") return;
         if (tab === "store" && !item.installed) {
             if (String(item.repository || "").startsWith("https://"))
                 ask("install", item, "The plugin will be cloned but remain disabled until you review and enable it.");
+            else {
+                statusError = true;
+                statusText = "This catalog entry needs an HTTPS repository before it can be installed.";
+            }
             return;
         }
         toggleEnabled(item);
@@ -180,7 +187,18 @@ PanelWindow {
         return state.state;
     }
 
-    onListChanged: selected = Math.max(0, Math.min(selected, list.length - 1))
+    function moveSelection(delta) {
+        const hadRowFocus = pluginRepeater.itemAt(selected)?.activeFocus ?? false;
+        selected = Math.max(0, Math.min(list.length - 1, selected + delta));
+        if (hadRowFocus) pluginRepeater.itemAt(selected)?.forceActiveFocus();
+    }
+    function revealSelection() {
+        const row = pluginRepeater.itemAt(selected);
+        if (row) pluginScroll.contentY = FocusScroll.contentYForFocus(row.y, row.height,
+            pluginScroll.contentY, pluginScroll.height, pluginScroll.contentHeight, Theme.spaceSm);
+    }
+    onSelectedChanged: { Qt.callLater(revealSelection); detailScroll.contentY = 0; }
+    onListChanged: { selected = Math.max(0, Math.min(selected, list.length - 1)); Qt.callLater(revealSelection); }
     onVisibleChanged: {
         if (visible) {
             tab = Runtime.pluginManagerTab;
@@ -259,8 +277,8 @@ PanelWindow {
             else if (root.query !== "") root.query = "";
             else root.close();
         }
-        Keys.onUpPressed: if (root.tab !== "porting") root.selected = Math.max(0, root.selected - 1)
-        Keys.onDownPressed: if (root.tab !== "porting") root.selected = Math.min(root.list.length - 1, root.selected + 1)
+        Keys.onUpPressed: if (root.tab !== "porting") root.moveSelection(-1)
+        Keys.onDownPressed: if (root.tab !== "porting") root.moveSelection(1)
         Keys.onReturnPressed: if (root.tab !== "porting") root.primaryAction(root.plugin)
         Keys.onPressed: event => {
             if (event.key === Qt.Key_1) { root.selectTab("installed"); event.accepted = true; }
@@ -271,26 +289,35 @@ PanelWindow {
 
         OverlaySurface {
             id: box
+            color: Theme.bg
+            border.color: Theme.panelBorder
+            accentBorder: false
+            motionEnabled: false
             preferredWidth: Theme.cellW * 104
             preferredHeight: Theme.cellH * 39
             MouseArea { anchors.fill: parent }
 
             Column {
                 id: pluginContent
-                readonly property real bodyHeight: Math.max(0, height - pluginHead.height - tabsRow.height - topRule.height - bottomRule.height - footerText.height - spacing * 5)
+                readonly property real bodyHeight: Math.max(0, height - pluginHead.height - tabsRow.height - topRule.height - bottomRule.height - footerRow.height - (search.visible ? search.height : 0) - spacing * (search.visible ? 6 : 5))
                 anchors.fill: parent
                 anchors.margins: Theme.spaceLg
                 spacing: Theme.spaceSm
 
-                PanelHead {
+                Column {
                     id: pluginHead
-                    rowWidth: box.width - Theme.spaceLg * 2
-                    icon: Icons.cp(0xF12E)
-                    title: "Plugins"
-                    subtitle: root.tab === "porting"
-                        ? "Assess public community sources before deciding to port"
-                        : "Installed modules and the curated nbshell store"
-                    badge: root.tab === "porting" ? "LAB" : String(root.list.length)
+                    width: parent.width
+                    spacing: Theme.spaceXs
+                    PanelHead { rowWidth: parent.width; title: "Plugins" }
+                    Line {
+                        width: parent.width
+                        text: root.tab === "porting"
+                            ? "Assess public community sources before deciding to port"
+                            : "Installed modules and the curated nbshell store"
+                        color: Theme.fgDim
+                        font.pixelSize: Theme.fontCaption
+                        elide: Text.ElideRight
+                    }
                 }
 
                 Row {
@@ -299,60 +326,30 @@ PanelWindow {
                     height: Theme.controlHeight
                     spacing: Theme.spaceSm
 
-                    ControlButton { id: installedTab; text: "INSTALLED"; selected: root.tab === "installed"; onTriggered: root.selectTab("installed") }
-                    ControlButton { id: storeTab; text: "STORE"; selected: root.tab === "store"; onTriggered: root.selectTab("store") }
-                    ControlButton { id: portingTab; text: "PORTING LAB"; selected: root.tab === "porting"; onTriggered: root.selectTab("porting") }
+                    ControlButton { id: installedTab; text: "Installed"; selected: root.tab === "installed"; onTriggered: root.selectTab("installed") }
+                    ControlButton { id: storeTab; text: "Store"; selected: root.tab === "store"; onTriggered: root.selectTab("store") }
+                    ControlButton { id: portingTab; text: "Porting Lab"; selected: root.tab === "porting"; onTriggered: root.selectTab("porting") }
 
-                    Rectangle {
-                        visible: root.tab !== "porting"
-                        width: Math.max(0, tabsRow.width - installedTab.width - storeTab.width - portingTab.width - tabsRow.spacing * 3)
-                        height: Theme.controlHeight
-                        radius: Theme.radius
-                        color: Theme.alpha(Theme.fg, 0.06)
-                        border.width: search.activeFocus ? Theme.borderWidth : 0
-                        border.color: Theme.focusBorder
+                }
 
-                        TextField {
-                            id: search
-                            anchors.fill: parent
-                            anchors.leftMargin: Theme.spaceMd
-                            anchors.rightMargin: Theme.spaceMd
-                            verticalAlignment: Text.AlignVCenter
-                            color: Theme.fg
-                            selectionColor: Theme.accent
-                            selectedTextColor: Theme.on(Theme.accent)
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontBody
-                            background: null
-                            horizontalPadding: 0
-                            accessibleName: "Search plugins"
-                            accessibleDescription: "Filters installed and store plugins"
-                            text: root.query
-                            onTextEdited: root.query = text
-                            Keys.onPressed: event => {
-                                if ((event.modifiers & Qt.AltModifier) && event.key === Qt.Key_1) {
-                                    root.selectTab("installed");
-                                    event.accepted = true;
-                                } else if ((event.modifiers & Qt.AltModifier) && event.key === Qt.Key_2) {
-                                    root.selectTab("store");
-                                    event.accepted = true;
-                                } else if ((event.modifiers & Qt.AltModifier) && event.key === Qt.Key_3) {
-                                    root.selectTab("porting");
-                                    event.accepted = true;
-                                } else if (event.key === Qt.Key_F5) {
-                                    Plugins.refresh();
-                                    event.accepted = true;
-                                }
-                            }
-                        }
-
-                        Line {
-                            anchors.left: parent.left
-                            anchors.leftMargin: Theme.spaceMd
-                            anchors.verticalCenter: parent.verticalCenter
-                            visible: search.text === "" && !search.activeFocus
-                            text: "Search plugins…"
-                            color: Theme.muted
+                TextField {
+                    id: search
+                    width: parent.width
+                    height: Theme.controlHeight
+                    visible: root.tab !== "porting"
+                    placeholderText: "Search plugins…"
+                    accessibleName: "Search plugins"
+                    accessibleDescription: "Filters installed and store plugins"
+                    text: root.query
+                    background: null
+                    KeyNavigation.tab: pluginRepeater.itemAt(root.selected) || closeButton
+                    onTextEdited: root.query = text
+                    Keys.onPressed: event => {
+                        if ((event.modifiers & Qt.AltModifier) && event.key >= Qt.Key_1 && event.key <= Qt.Key_3) {
+                            root.selectTab(["installed", "store", "porting"][event.key - Qt.Key_1]);
+                            event.accepted = true;
+                        } else if (event.key === Qt.Key_F5) {
+                            Plugins.refresh(); event.accepted = true;
                         }
                     }
                 }
@@ -360,6 +357,7 @@ PanelWindow {
                 Rule { id: topRule; rowWidth: parent.width }
 
                 Row {
+                    id: browser
                     visible: root.tab !== "porting"
                     width: parent.width
                     height: pluginContent.bodyHeight
@@ -367,16 +365,19 @@ PanelWindow {
 
                     Flickable {
                         id: pluginScroll
-                        width: Theme.cellW * 38
+                        width: Math.floor((parent.width - parent.spacing * 2 - Theme.borderWidth) * 0.4)
                         height: parent.height
                         contentWidth: width
                         contentHeight: pluginRows.implicitHeight
                         clip: true
                         boundsBehavior: Flickable.StopAtBounds
+                        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                        onContentHeightChanged: Qt.callLater(root.revealSelection)
+                        onHeightChanged: Qt.callLater(root.revealSelection)
 
                         Column {
                             id: pluginRows
-                            width: pluginScroll.width
+                            width: pluginScroll.width - Theme.spaceMd
                             spacing: Theme.spaceXs
 
                             Line {
@@ -389,80 +390,85 @@ PanelWindow {
                             }
 
                             Repeater {
+                                id: pluginRepeater
                                 model: root.list
-                                Rectangle {
+                                PanelRow {
                                     required property var modelData
                                     required property int index
                                     width: pluginRows.width
-                                    height: Theme.cellH * 3.2
-                                    radius: Theme.radius
-                                    color: index === root.selected ? Theme.selectedSurface(Theme.accent)
-                                        : Theme.alpha(Theme.fg, rowHover.hovered ? 0.08 : 0.035)
-
-                                    Rectangle {
-                                        width: Math.max(3, Theme.borderWidth * 2)
-                                        height: parent.height - Theme.spaceMd
-                                        x: Theme.spaceSm
-                                        y: Theme.spaceSm / 2
-                                        radius: width / 2
-                                        color: root.isEnabled(root.localFor(modelData)) ? Theme.green : Theme.muted
-                                        opacity: root.tab === "store" && !modelData.installed ? 0.25 : 1
-                                    }
-
-                                    Column {
-                                        x: Theme.spaceLg
-                                        y: Theme.spaceSm
-                                        width: parent.width - Theme.spaceXl
-                                        spacing: Theme.spaceXs
-                                        Line { width: parent.width; text: modelData.name; color: index === root.selected ? Theme.selectedForeground(Theme.accent) : Theme.fg; font.bold: true; elide: Text.ElideRight }
-                                        Line { width: parent.width; text: modelData.id; color: Theme.fgDim; font.pixelSize: Theme.fontCaption; elide: Text.ElideMiddle }
-                                        Line { width: parent.width; text: modelData.description || "No description"; color: Theme.fgDim; font.pixelSize: Theme.fontCaption; elide: Text.ElideRight }
-                                    }
-
-                                    HoverHandler { id: rowHover; cursorShape: Qt.PointingHandCursor; onHoveredChanged: if (hovered) root.selected = index }
-                                    TapHandler { onTapped: root.selected = index }
+                                    height: Theme.controlHeight * 2
+                                    interactive: true
+                                    keyboardFocusable: selected
+                                    KeyNavigation.tab: primaryButton.enabled ? primaryButton : closeButton
+                                    KeyNavigation.backtab: search
+                                    title: modelData.name
+                                    detail: modelData.id
+                                    value: root.isEnabled(modelData) ? "on" : ""
+                                    selected: index === root.selected
+                                    tone: Theme.fg
+                                    color: selected || hovered ? Theme.mix(Theme.bg, Theme.fg, 0.08) : "transparent"
+                                    border.width: activeFocus ? Theme.borderWidth : 0
+                                    contentLeftPadding: Theme.spaceSm
+                                    onTriggered: root.selected = index
+                                    onActiveFocusChanged: if (activeFocus) { root.selected = index; root.revealSelection(); }
                                 }
                             }
                         }
                     }
 
-                    Rectangle { width: Theme.borderWidth; height: parent.height; color: Theme.muted }
+                    Rectangle { width: Theme.borderWidth; height: parent.height; color: Theme.panelBorder }
 
-                    Column {
-                        width: parent.width - Theme.cellW * 40 - Theme.spaceLg
-                        spacing: Theme.spaceSm
-
-                        Line { width: parent.width; text: root.plugin?.name ?? "Select a plugin"; color: Theme.fg; font.pixelSize: Theme.fontTitle; font.bold: true; elide: Text.ElideRight }
-                        Line { width: parent.width; visible: !!root.plugin; text: root.plugin?.description ?? ""; color: Theme.fgDim; wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight }
-                        Rule { rowWidth: parent.width }
-                        Line { width: parent.width; visible: !!root.plugin; text: "ID          " + (root.plugin?.id ?? ""); color: Theme.fgDim; elide: Text.ElideMiddle }
-                        Line { width: parent.width; visible: !!root.plugin; text: "AUTHOR      " + (root.plugin?.author || "Unknown"); color: Theme.fgDim; elide: Text.ElideRight }
-                        Line { width: parent.width; visible: !!root.plugin; text: "LICENSE     " + (root.plugin?.license || "Not declared"); color: root.plugin?.license ? Theme.fgDim : Theme.yellow; elide: Text.ElideRight }
-                        Line { width: parent.width; visible: !!root.plugin; text: "SOURCE      " + (root.plugin?.managed ? "Bundled with nbshell" : (root.plugin?.gitManaged ? "Git checkout" : "Local folder")); color: Theme.fgDim }
-                        Line { width: parent.width; visible: !!root.plugin; text: "REQUIRES    " + root.dependencyText(root.plugin); color: Theme.fgDim; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
-                        Line { width: parent.width; visible: !!root.plugin; text: "KINDS       " + ((root.plugin?.kinds ?? []).join(" · ") || "—"); color: Theme.fgDim; elide: Text.ElideRight }
-
-                        Row {
-                            visible: !!root.plugin
+                    Flickable {
+                        id: detailScroll
+                        width: parent.width - pluginScroll.width - Theme.borderWidth - parent.spacing * 2
+                        height: parent.height
+                        contentWidth: width
+                        contentHeight: details.implicitHeight
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                        function reveal(item) {
+                            const p = item.mapToItem(contentItem, 0, 0);
+                            contentY = FocusScroll.contentYForFocus(p.y, item.height, contentY, height, contentHeight, Theme.spaceSm);
+                        }
+                        Column {
+                            id: details
+                            width: detailScroll.width - Theme.spaceMd
                             spacing: Theme.spaceSm
-                            ControlButton { text: root.actionLabel(root.plugin); enabled: !root.busy; selected: root.isEnabled(root.localFor(root.plugin)); onTriggered: root.primaryAction(root.plugin) }
-                            ControlButton { text: "SOURCE"; enabled: root.repositoryUrl(root.plugin) !== ""; onTriggered: Quickshell.execDetached(["xdg-open", root.repositoryUrl(root.plugin)]) }
-                            ControlButton { text: "UPDATE"; visible: root.localFor(root.plugin)?.gitManaged ?? false; enabled: !root.busy; onTriggered: root.previewUpdate(root.plugin) }
-                            ControlButton { text: "REMOVE"; visible: !!root.localFor(root.plugin)?.id && !(root.localFor(root.plugin)?.managed ?? true); enabled: !root.busy; danger: true; onTriggered: root.ask("remove", root.plugin, "The plugin folder and its nbshell configuration references will be removed.") }
-                        }
 
-                        Rule { rowWidth: parent.width; visible: !!root.plugin }
-                        SectionHeader { visible: !!root.plugin; text: "RUNTIME"; detail: root.isEnabled(root.localFor(root.plugin)) ? "enabled" : "disabled" }
-                        Repeater {
-                            model: root.plugin?.kinds ?? []
-                            Line {
-                                required property string modelData
+                            Line { width: parent.width; text: root.plugin?.name ?? "Select a plugin"; color: Theme.fg; font.pixelSize: Theme.fontTitle; font.bold: true; elide: Text.ElideRight }
+                            Line { width: parent.width; visible: !!root.plugin; text: root.plugin?.description ?? ""; color: Theme.fgDim; wrapMode: Text.Wrap }
+                            Rule { rowWidth: parent.width }
+                            Line { width: parent.width; visible: !!root.plugin; text: "ID          " + (root.plugin?.id ?? ""); color: Theme.fgDim; elide: Text.ElideMiddle }
+                            Line { width: parent.width; visible: !!root.plugin; text: "AUTHOR      " + (root.plugin?.author || "Unknown"); color: Theme.fgDim; elide: Text.ElideRight }
+                            Line { width: parent.width; visible: !!root.plugin; text: "LICENSE     " + (root.plugin?.license || "Not declared"); color: root.plugin?.license ? Theme.fgDim : Theme.yellow; elide: Text.ElideRight }
+                            Line { width: parent.width; visible: !!root.plugin; text: "SOURCE      " + (!root.isInstalled(root.plugin) ? "Not installed" : root.plugin?.managed ? "Bundled with nbshell" : (root.plugin?.gitManaged ? "Git checkout" : "Local folder")); color: Theme.fgDim; wrapMode: Text.Wrap }
+                            Line { width: parent.width; visible: !!root.plugin; text: "REQUIRES    " + root.dependencyText(root.plugin); color: Theme.fgDim; wrapMode: Text.Wrap }
+                            Line { width: parent.width; visible: !!root.plugin; text: "KINDS       " + ((root.plugin?.kinds ?? []).join(" · ") || "—"); color: Theme.fgDim; elide: Text.ElideRight }
+
+                            Flow {
                                 width: parent.width
-                                text: modelData.padEnd(13) + root.stateText(root.plugin, modelData)
-                                color: text.indexOf("error") >= 0 ? Theme.red : Theme.fgDim
-                                elide: Text.ElideRight
+                                visible: !!root.plugin
+                                spacing: Theme.spaceSm
+                                ControlButton { id: primaryButton; onActiveFocusChanged: if (activeFocus) detailScroll.reveal(this); text: root.actionLabel(root.plugin); enabled: !root.busy; selected: root.isEnabled(root.localFor(root.plugin)); onTriggered: root.primaryAction(root.plugin) }
+                                ControlButton { onActiveFocusChanged: if (activeFocus) detailScroll.reveal(this); text: "SOURCE"; enabled: root.repositoryUrl(root.plugin) !== ""; onTriggered: Quickshell.execDetached(["xdg-open", root.repositoryUrl(root.plugin)]) }
+                                ControlButton { onActiveFocusChanged: if (activeFocus) detailScroll.reveal(this); text: "UPDATE"; visible: root.localFor(root.plugin)?.gitManaged ?? false; enabled: !root.busy; onTriggered: root.previewUpdate(root.plugin) }
+                                ControlButton { onActiveFocusChanged: if (activeFocus) detailScroll.reveal(this); id: removeButton; text: "REMOVE"; visible: root.isInstalled(root.plugin) && !(root.localFor(root.plugin)?.managed ?? true); enabled: !root.busy; danger: true; onTriggered: root.ask("remove", root.plugin, "The plugin folder and its nbshell configuration references will be removed.") }
                             }
-                        }
+
+                            Rule { rowWidth: parent.width; visible: !!root.plugin }
+                            SectionHeader { visible: !!root.plugin; text: "RUNTIME"; detail: root.isEnabled(root.localFor(root.plugin)) ? "enabled" : "disabled" }
+                            Repeater {
+                                model: root.plugin?.kinds ?? []
+                                Line {
+                                    required property string modelData
+                                    width: parent.width
+                                    text: modelData.padEnd(13) + root.stateText(root.plugin, modelData)
+                                    color: text.indexOf("error") >= 0 ? Theme.red : Theme.fgDim
+                                    elide: Text.ElideRight
+                                }
+                            }
+                    }
                     }
                 }
 
@@ -474,14 +480,22 @@ PanelWindow {
                 }
 
                 Rule { id: bottomRule; rowWidth: parent.width }
-                Line {
-                    id: footerText
+                Row {
+                    id: footerRow
                     width: parent.width
-                    text: root.tab === "porting"
-                        ? "Alt+1/2/3 tabs · Enter analyze · report: j/k or arrows scroll · Esc close"
-                        : (root.statusText !== "" ? root.statusText : "Alt+1/2/3 tabs · ↑↓ select · Enter enable/install · F5 refresh · Esc close")
-                    color: root.statusError ? Theme.red : Theme.muted
-                    elide: Text.ElideRight
+                    height: Math.max(footerText.implicitHeight, closeButton.height)
+                    spacing: Theme.spaceMd
+                    Line {
+                        id: footerText
+                        width: parent.width - closeButton.width - parent.spacing
+                        text: root.tab === "porting"
+                            ? "Alt+1/2/3 tabs · Enter analyze · report: j/k or arrows scroll · Esc close"
+                            : (root.statusText !== "" ? root.statusText : "Alt+1/2/3 tabs · ↑↓ select · Tab actions · F5 refresh · Esc close")
+                        color: root.statusError ? Theme.red : Theme.muted
+                        font.pixelSize: Theme.fontCaption
+                        wrapMode: Text.Wrap
+                    }
+                    ActionButton { id: closeButton; text: "Close"; onTriggered: root.close() }
                 }
             }
 
@@ -498,21 +512,55 @@ PanelWindow {
                     + (root.pendingItem?.name ?? "PLUGIN") + "?"
                 dialogDescription: root.pendingDetail
                 preferredWidth: Theme.cellW * 62
-                preferredHeight: confirmationContent.implicitHeight + Theme.panelPadding * 2
+                preferredHeight: Math.min(Theme.cellH * 24, confirmationTitle.implicitHeight + confirmationDetail.implicitHeight + (confirmationWarning.visible ? confirmationWarning.implicitHeight : 0) + confirmationButtons.height + Theme.panelPadding * 2 + Theme.spaceMd * (confirmationWarning.visible ? 3 : 2))
                 scrimRadius: box.radius
                 closeOnScrim: false
                 onCloseRequested: root.cancelPending()
+                Connections { target: confirmationModal; function onVisibleChanged() { if (confirmationModal.visible) confirmationScroll.contentY = 0; } }
+                Keys.onPressed: event => {
+                    if ([Qt.Key_Up, Qt.Key_Down, Qt.Key_PageUp, Qt.Key_PageDown].indexOf(event.key) < 0) return;
+                    const direction = event.key === Qt.Key_Up || event.key === Qt.Key_PageUp ? -1 : 1;
+                    confirmationScroll.contentY = Math.max(0, Math.min(confirmationScroll.contentHeight - confirmationScroll.height,
+                        confirmationScroll.contentY + direction * (event.key === Qt.Key_Up || event.key === Qt.Key_Down ? Theme.rowHeight : confirmationScroll.height)));
+                    event.accepted = true;
+                }
 
                 Column {
                     id: confirmationContent
 
-                    width: parent.width - Theme.panelPadding * 2
-                    anchors.centerIn: parent
+                    anchors.fill: parent
+                    anchors.margins: Theme.panelPadding
                     spacing: Theme.spaceMd
-                    Line { width: parent.width; text: root.pendingAction.toUpperCase() + " " + (root.pendingItem?.name ?? "PLUGIN") + "?"; color: Theme.fg; font.pixelSize: Theme.fontTitle; font.bold: true; horizontalAlignment: Text.AlignHCenter }
-                    Line { width: parent.width; text: root.pendingDetail; color: Theme.fgDim; wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter }
-                    Line { width: parent.width; visible: root.pendingAction === "install"; text: "Third-party QML runs unsandboxed with your user permissions. Review the source before enabling it."; color: Theme.yellow; wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter }
+                    Line {
+                        id: confirmationTitle
+                        width: parent.width
+                        text: root.pendingAction.toUpperCase() + " " + (root.pendingItem?.name ?? "PLUGIN") + "?"
+                        color: Theme.fg
+                        font.pixelSize: Theme.fontTitle
+                        font.bold: true
+                        elide: Text.ElideRight
+                    }
+                    Flickable {
+                        id: confirmationScroll
+                        width: parent.width
+                        height: Math.max(0, parent.height - confirmationTitle.height - confirmationButtons.height - (confirmationWarning.visible ? confirmationWarning.height : 0) - parent.spacing * (confirmationWarning.visible ? 3 : 2))
+                        contentWidth: width
+                        contentHeight: confirmationDetail.implicitHeight
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                        Line { id: confirmationDetail; width: parent.width - Theme.spaceMd; text: root.pendingDetail; color: Theme.fgDim; wrapMode: Text.Wrap }
+                    }
+                    Line {
+                        id: confirmationWarning
+                        width: parent.width
+                        visible: root.pendingAction === "install"
+                        text: "Third-party QML runs unsandboxed with your user permissions. Review the source before enabling it."
+                        color: Theme.yellow
+                        wrapMode: Text.WordWrap
+                    }
                     Row {
+                        id: confirmationButtons
                         anchors.horizontalCenter: parent.horizontalCenter
                         spacing: Theme.spaceMd
                         ControlButton { id: cancelConfirmation; text: "CANCEL"; onTriggered: root.cancelPending() }

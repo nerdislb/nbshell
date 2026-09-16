@@ -31,6 +31,7 @@ remain authoritative for integration.
 | Activity / clipboard | `shell/plugins/clipboard/` | Two-column activity view; history tab and search retained |
 | Themes / wallpaper | `shell/plugins/image-picker/` | ThemeGallery / WallpaperPicker; collections and dynamic wallpaper retained |
 | Settings main view | Panel / developer-gallery language; no exact upstream editor | Native settings navigation; all options and recovery retained |
+| Module arrangement | Approved settings language; no exact upstream editor | Native four-group editor; independent island layout retained |
 | Custom bar | Deliberate nbshell exception | Existing bar/island/pill preserved; DuoBar icon explicitly requested |
 
 Approved rounds above must not drift during unrelated work. See the relevant
