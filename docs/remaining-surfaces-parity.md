@@ -3,8 +3,10 @@
 ## Scope and reference
 
 The user requested that the remaining inventory be processed in one batch,
-with joint visual acceptance afterwards. Rounds 1–20 remain approved; round 21
-and this batch are not user-approved until that review.
+with joint visual acceptance afterwards. The user accepted the appearance of
+round 21 and this batch on 2026-09-16. Earlier rounds remain approved. Technical
+review and test limitations are tracked separately; visual acceptance does not
+close them.
 
 Reference: Omarchy Quattro `6ea3215542fbb269dfe5c2be928e6144f9cb6466`.
 The Wi-Fi QR surface follows `shell/plugins/panels/wifiqr/Panel.qml`: floating
@@ -80,11 +82,17 @@ bar arrangement, island/pill geometry, provider credentials or agent auth change
 - Integration fixtures cover offline/empty states, long content, phone/nearby
   sample devices, weather/headset sample values and WorkDesktop. Plugin panel
   services are persistent in the fixture, matching production lifetime.
-- Omamail settings native QML: 19 tests passed; its own text-format check passed.
-  `make qml-check` exits successfully with existing import/type warnings.
-  Full `make validate` is **not green**: the bundled Makefile references missing
-  `app/tests/test_theme.js`; the preceding Rust tests passed. No missing upstream
-  app tree was fabricated to hide that limitation.
+- Omamail full `make validate`: **passed after the acceptance follow-up**,
+  including Rust, JavaScript, shell/transport tests, 946 native QML checks,
+  6 HTTP checks, 64 native sidebar-text checks and the explicitly enabled
+  HTML-resource/network protection test. QML lint exits successfully with
+  existing import/type warnings.
+- The initial validation failure referenced `app/tests/test_theme.js`, although
+  the managed nbshell bundle intentionally omits the standalone desktop app.
+  `test-app-js` now reports that packaging boundary explicitly. A present app
+  tree must run both tests; a missing app outside a managed bundle, missing test
+  files or failing tests still fail. All plugin suites remain active. Six
+  workflow regression tests cover scope and the existing install contracts.
 
 Reproduce the isolated native pass (requires the native pointer client with
 `key-press`/`key-release` support):
@@ -110,9 +118,10 @@ and focused tests found no new blocking issue. This is not a full security audit
 No real mail/message sending, account login, update installation, Bluetooth/phone
 control or cloud quotas were changed/tested. Fixture success does not certify
 those external services. Full timing-table width in Pit Wall intentionally uses
-horizontal panning on small windows. User visual acceptance remains pending.
+horizontal panning on small windows. User visual acceptance was received on
+2026-09-16.
 
-## Joint acceptance checklist
+## Joint acceptance checklist — accepted 2026-09-16
 
 1. Speed test from round 21, then Wi-Fi QR and process list (do not stop an
    unrelated process simply to review the appearance).
@@ -121,9 +130,9 @@ horizontal panning on small windows. User visual acceptance remains pending.
 4. Audio tools, touchpad, phone/KDE Connect, Nearby, updates and library.
 5. Dynamic wallpaper settings and plugin windows/popouts: Mail, Music, Calendar,
    Pit Wall, Weather, Headset/Buds, Hermarchy; existing external integrations.
-6. Confirm custom bar/extras unchanged, then record acceptance or concrete fixes
-   in the canonical Brain roadmap. Until then, neither round 21 nor this batch
-   should be labelled user-approved.
+6. Confirm custom bar/extras unchanged and record acceptance or concrete fixes
+   in the canonical Brain roadmap. The user accepted this visual batch on
+   2026-09-16; technical evidence and limitations remain distinct.
 
 
 ## Installed-state receipt (2026-09-16)
@@ -144,3 +153,21 @@ The agent terminal has no `WAYLAND_DISPLAY`; CLI instance selection works with
 message did not indicate a dead desktop service. No global environment was changed.
 Only synthetic screenshots/logs are archived as project evidence; the live
 user-desktop screenshot is excluded.
+
+
+## Acceptance follow-up
+
+On 2026-09-16 the user accepted the visual result and requested immediate fixes
+for remaining findings, followed by commit/push. The only code change in this
+follow-up is the Omamail test-dispatch correction above and its regression tests;
+no accepted UI or mail runtime behavior is changed.
+
+Local security verdict for the workflow change: **PASS within this narrow
+scope**. Only trusted local developer tests are dispatched; present or failing
+app suites cannot become skips, and no credential/network/runtime boundary is
+modified. This is not an independent security review of the whole plugin.
+
+Fable was retried and returned usage-limit HTTP 429. One bounded Antigravity
+Gemini 3.8 Flash High attempt for this small patch timed out with no review.
+The independent-review gap remains explicit; no paid route or permissions
+bypass was enabled. Visual acceptance and complete plugin validation are closed.

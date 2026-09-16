@@ -82,7 +82,7 @@ APP_TARGET_DIR ?= $(CURDIR)/target/standalone
 APP_BACKEND := $(APP_TARGET_DIR)/debug/omamail$(APP_EXEEXT)
 APP_EXECUTABLE := $(CURDIR)/$(APP_BUILD_DIR)/omamail-app$(APP_EXEEXT)
 
-.PHONY: test test-js test-shell test-shell-portable test-shell-libcurl \
+.PHONY: test test-js test-app-js test-shell test-shell-portable test-shell-libcurl \
 	test-qml test-app-qml test-local test-backend-process qml-check validate bench install \
 	app-build app-run help
 
@@ -110,9 +110,18 @@ backend:
 
 # The parsing, formatting, and decision rules live in plain JS precisely so
 # they can be tested without a compositor. These run anywhere node does.
-test-js:
-	node app/tests/test_theme.js
-	node app/tests/test_shell_theme.js
+# The managed nbshell bundle ships the plugin, not the standalone desktop app.
+# Missing tests in a present app tree must still fail; do not skip individual files.
+test-app-js:
+	@if [ -d app ]; then \
+		node app/tests/test_theme.js && node app/tests/test_shell_theme.js; \
+	elif [ -f .nbshell-managed ]; then \
+		echo "Standalone app is not bundled; its two theme tests do not apply."; \
+	else \
+		echo "Standalone app tree missing outside the managed nbshell bundle" >&2; exit 1; \
+	fi
+
+test-js: test-app-js
 	node ui/tests/test_backend_wire.js
 	node ui/tests/test_backend_compatibility.js
 	node ui/tests/test_backend_runtime.js
