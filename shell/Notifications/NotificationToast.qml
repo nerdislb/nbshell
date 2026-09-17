@@ -39,6 +39,15 @@ MotionSurface {
     }
     function activate() { root.opened(); }
 
+    // Der Host haelt einen ausgelaufenen Eintrag noch Theme.motionExit lang im
+    // Modell. Diese Karte steht dabei schon opak und blendet dann aus, statt
+    // hart zu verschwinden -- dieselbe Bewegung, nur von uns statt vom
+    // Compositor (dessen Layer-Animation ist aus).
+    function closeWithTransition() {
+        cancelTransition();
+        dismiss(null);
+    }
+
     implicitWidth: Theme.toastWidth
     implicitHeight: Math.max(textColumn.implicitHeight,iconSlot.height)+2*(verticalInset+border.width)
     color: Theme.bg

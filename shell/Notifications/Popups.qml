@@ -22,18 +22,45 @@ Variants {
         // Replacing a JS-array model destroys every delegate. Keep identities
         // when a sender updates the same keys, so stationary hover and its
         // lifetime pause survive. Inserts/removals still use the normal model.
+        //
+        // Eintraege, die das Modell verlaesst, bleiben noch Theme.motionExit
+        // lang in `popupEntries` und sind mit `_closing` markiert: die Karte
+        // blendet in dieser Zeit aus, statt zu verschwinden. Das ist die
+        // Ausblendung, die der Compositor nicht mehr liefert (Layer-Animation
+        // ist aus, siehe docs/behaviour-parity.md).
         property var popupEntries: []
+        property var closingKeys: []
+
         function syncEntries() {
             const next=Notify.popups;
+            const liveKeys=next.map(e=>e.key);
             const same=next.length===popupEntries.length && next.every((e,i)=>e.key===popupEntries[i].key);
-            if(!same) { popupEntries=next.slice(); return; }
-            for(let i=0;i<cards.count;i++) {
-                const card=cards.itemAt(i);
-                if(card) card.entry=Object.assign({},next[i]);
+            if(same) {
+                for(let i=0;i<cards.count;i++) {
+                    const card=cards.itemAt(i);
+                    if(card) card.entry=Object.assign({},next[i]);
+                }
+                return;
             }
+            const fresh=popupEntries.filter(e=>!liveKeys.includes(e.key) && closingKeys.indexOf(e.key)<0);
+            if(fresh.length) {
+                for(const e of fresh) closingKeys.push(e.key);
+                if(!removalTimer.running) removalTimer.restart();
+            }
+            const closing=popupEntries.filter(e=>!liveKeys.includes(e.key) && closingKeys.indexOf(e.key)>=0);
+            popupEntries=next.concat(closing);
         }
         Component.onCompleted: syncEntries()
         Connections { target:Notify; function onPopupsChanged() { win.syncEntries(); } }
+
+        Timer {
+            id: removalTimer
+            interval: Math.max(1, Theme.motionExit)
+            onTriggered: {
+                win.closingKeys=[];
+                win.popupEntries=Notify.popups.slice();
+            }
+        }
 
         // Keep the explicit bottom override for existing users. The native
         // default stays at the top-right, clear of the shell bar.
@@ -151,6 +178,10 @@ Variants {
                     visible: index < win.shownCount
                     onImplicitHeightChanged: Qt.callLater(win.reflow)
                     entry: modelData
+                    // Auslaufende Eintraege nicht einblenden, sondern sofort
+                    // opak stehen und ausblenden.
+                    autoEnter: !modelData._closing
+                    Component.onCompleted: if (modelData._closing) closeWithTransition()
                     onOpened: {
                         const current=Notify.popups.find(e=>e.key===entry.key);
                         if (current && !Notify.open(current))
