@@ -76,7 +76,14 @@ Item {
     // bedienbarem Inhalt hatten es nie gesetzt -- dort war Escape wirkungslos.
     // Wer nur etwas ANZEIGT, schaltet es ausdruecklich ab.
     property bool popoutTakesKeyboard: true
-    property bool popoutCloseOnLeave: true
+    // Ein Klick-Popout bleibt stehen, wenn der Zeiger es verlaesst. Wer darin
+    // liest oder mit der Tastatur arbeitet, hat den Zeiger selten ueber der
+    // Flaeche, und ein Nachlauf riss ihm die Oberflaeche weg (gemessen: zu in
+    // 1,2 s). Geschlossen wird ueber den Klick auf den leeren Desktop -- die
+    // Hintergrundflaeche faengt ihn ab --, ueber Escape, ueber einen Klick in
+    // ein Fenster oder wenn ein anderes Popout aufgeht. Die Hover-Vorschau
+    // setzt `takesKeyboard` auf false und schliesst weiterhin beim Verlassen.
+    property bool popoutCloseOnLeave: false
     property bool popoutInsetBorder: false
     property real popoutPadding: Theme.panelPadding
     property real popoutBorderWidth: Theme.borderWidth

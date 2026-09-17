@@ -46,17 +46,13 @@ PopupWindow {
     property int leaveDelayOverride: -1
 
     // Zeit, bis ein Popout von selbst zugeht, nachdem die Maus es und seine
-    // Zelle verlassen hat. Der Kompositor meldet uns keinen Klick daneben --
-    // ohne diesen Nachlauf bliebe es stehen, bis man dieselbe Zelle noch
-    // einmal trifft. Deshalb ist er die einzige Reaktion auf einen Klick auf
-    // den leeren Desktop, und 2500 ms lasen sich dafuer wie "es passiert
-    // nichts". 400 ms wirken wie ein Schliessen auf Klick und verzeihen
-    // trotzdem einen kurzen Ausflug des Zeigers.
-    //
-    // Nur Klick-Popouts nutzen diesen Wert; die Hover-Vorschau bringt mit
-    // `show(component, false, 700)` ihren eigenen mit.
+    // Zelle verlassen hat. Nur Flaechen mit `closeOnLeave` nutzen sie -- die
+    // Hover-Vorschau (eigener Wert ueber `show(component, false, 700)`) und
+    // Popouts, die das ausdruecklich wollen. Klick-Popouts schliessen
+    // stattdessen ueber den Klick auf den Desktop, Escape oder ein anderes
+    // Popout; siehe `Cell.popoutCloseOnLeave`.
     readonly property int leaveDelay: leaveDelayOverride >= 0
-        ? leaveDelayOverride : Config.value("popoutLeaveDelay", 400)
+        ? leaveDelayOverride : Config.value("popoutLeaveDelay", 2500)
 
     readonly property bool pointerInside: hover.hovered || (root.anchorItem?.hovered ?? false)
 

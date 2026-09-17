@@ -201,6 +201,23 @@ Scope {
                 id: wallpaperInput
                 anchors.fill: parent
 
+                // Ein Klick auf den leeren Desktop schliesst ein offenes
+                // Popout. Damit braucht der Nachlauf es nicht mehr zu erraten:
+                // Der Kompositor liefert den Klick zwar an keine Flaeche, die
+                // das Popout kennt, aber diese Hintergrundflaeche bekommt ihn
+                // -- Fenster und Shell-Overlays liegen darueber und behalten
+                // Vorrang, ein Klick in sie schliesst ebenfalls (der
+                // Kompositor beendet dort den Tastaturgriff).
+                TapHandler {
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    gesturePolicy: TapHandler.ReleaseWithinBounds
+                    onTapped: {
+                        const open = Runtime.activePopout;
+                        if (open && open.takesKeyboard)
+                            open.close();
+                    }
+                }
+
                 TapHandler {
                     acceptedButtons: Qt.LeftButton
                     gesturePolicy: TapHandler.ReleaseWithinBounds
