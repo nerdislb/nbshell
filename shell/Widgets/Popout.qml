@@ -236,10 +236,12 @@ PopupWindow {
     }
 
     onPointerInsideChanged: {
-        if (pointerInside)
+        if (pointerInside) {
+            pointerWasInside = true;
             leaveTimer.stop();
-        else if (visible)
+        } else if (visible) {
             leaveTimer.restart();
+        }
     }
 
     onVisibleChanged: {
@@ -268,19 +270,23 @@ PopupWindow {
         }
     }
 
-    // Ein Popout, das die Tastatur haelt, darf nicht unter der Tastatur
-    // wegklappen. Wer darin mit Tab arbeitet, hat den Zeiger nicht ueber dem
-    // Fenster -- der Nachlauf schloss es dann mitten in der Bedienung. Die
-    // Referenz laesst ihre Klickpanels beim Zeigerverlassen ohnehin offen;
-    // hier bleibt das bequeme Schliessen fuer die Maus erhalten und tritt nur
-    // zurueck, solange wirklich ein Bedienelement den Fokus hat.
-    readonly property bool keyboardInUse: takesKeyboard
-        && focusIsOnKeyboardControl(focusWindow ? focusWindow.activeFocusItem : null)
+    // Der Nachlauf darf nur schliessen, wenn der Zeiger das Popout auch
+    // wirklich benutzt hat. Ein per Tastatur oder IPC geoeffnetes Popout hat
+    // den Zeiger nie darin -- dort waere ein Schliessen nach dem Nachlauf
+    // grundlos. Ein Maus-Popout haelt den Zeiger beim Oeffnen auf der Zelle
+    // (`pointerInside` schliesst den Anker ein), wird also geschlossen, sobald
+    // man weggeht.
+    //
+    // Die fruehere Fassung fragte stattdessen, ob ein Bedienelement den Fokus
+    // hat. Das ist beim Oeffnen immer der Fall (initialFocusItem), also schloss
+    // der Nachlauf nie wieder -- ein Klick auf den leeren Desktop liess das
+    // Popout stehen, wo es vorher nach dem Nachlauf zuging.
+    property bool pointerWasInside: false
 
     Timer {
         id: leaveTimer
         interval: root.leaveDelay
-        onTriggered: if (root.closeOnLeave && !root.pointerInside && !root.keyboardInUse)
+        onTriggered: if (root.closeOnLeave && !root.pointerInside && root.pointerWasInside)
             root.close()
     }
 
