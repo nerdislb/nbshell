@@ -283,7 +283,14 @@ PanelWindow {
                     // Feste Spaltenbreiten: bei Monospace reicht dafuer das
                     // Auffuellen mit Leerzeichen, kein Tabellenlayout noetig.
                     text: (row.index === root.selected ? "▸ " : "  ") + row.pad(row.modelData.pid, 7) + "  " + row.pad(row.modelData.cpu.toFixed(1), 5) + "%  " + row.pad(row.modelData.mem.toFixed(1), 5) + "%  " + row.pad((row.modelData.rss / 1024).toFixed(0), 7) + "M   " + row.modelData.name
-                    color: row.index === root.selected ? Theme.selectedForeground(Theme.accent) : (row.modelData.cpu >= 50 ? Theme.red : Theme.fg)
+                    // Die CPU-Warnung ist eine Aussage ueber den Prozess, keine
+                    // Gestaltung: sie muss auch in der ausgewaehlten Zeile
+                    // sichtbar bleiben. Vorher ersetzte die Auswahl sie durch
+                    // die Auswahlfarbe -- mit dem neutralen Wash faellt das
+                    // nicht mehr auf, der Informationsverlust bleibt aber.
+                    color: row.modelData.cpu >= 50
+                        ? Theme.readable(Theme.red, row.index === root.selected ? Theme.selectedSurface(Theme.accent) : Theme.bg, 4.5)
+                        : (row.index === root.selected ? Theme.selectedForeground(Theme.accent) : Theme.fg)
                     font.pixelSize: Theme.fontBody
                     elide: Text.ElideRight
                 }
@@ -294,8 +301,10 @@ PanelWindow {
                     width: parent.width
                     Line {
                         width: parent.width
-                        text: row.modelData.name + " · " + row.modelData.pid
-                        color: row.index === root.selected ? Theme.selectedForeground(Theme.accent) : Theme.fg
+                        text: (row.index === root.selected ? "▸ " : "") + row.modelData.name + " · " + row.modelData.pid
+                        color: row.modelData.cpu >= 50
+                            ? Theme.readable(Theme.red, row.index === root.selected ? Theme.selectedSurface(Theme.accent) : Theme.bg, 4.5)
+                            : (row.index === root.selected ? Theme.selectedForeground(Theme.accent) : Theme.fg)
                         elide: Text.ElideRight
                     }
                     Line {

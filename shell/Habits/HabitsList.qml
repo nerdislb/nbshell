@@ -203,11 +203,31 @@ PanelWindow {
                         readonly property var streakData: Habits.calculateStreak(modelData.id)
                         width: habitList.width
                         height: details.implicitHeight + Theme.spaceMd * 2
-                        color: root.selected === index ? Theme.selectedSurface() : "transparent"
-                        border.width: 0
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: { root.selected = row.index; input.forceActiveFocus(Qt.MouseFocusReason); }
+                        color: root.selected === index ? Theme.selectedSurface() : (rowHover.hovered ? Theme.hover : "transparent")
+                        // Die Zeile war eine Flaeche mit nackter MouseArea: kein
+                        // Fokus, keine Tastatur, keine Accessibility-Rolle.
+                        // Auswahl ist hier die Füllung, Fokus der Rahmen.
+                        activeFocusOnTab: true
+                        border.width: activeFocus ? Theme.borderWidth : 0
+                        border.color: Theme.focusBorder
+                        Accessible.role: Accessible.ListItem
+                        Accessible.name: String(modelData.name)
+                        Accessible.description: (isDone ? "Done" : "Not done") + ", streak " + (streakData ? streakData.current : 0)
+                        Accessible.selected: root.selected === index
+                        Accessible.focused: activeFocus
+                        function activateRow() {
+                            root.selected = row.index;
+                            input.forceActiveFocus(Qt.MouseFocusReason);
+                        }
+                        Keys.onReturnPressed: event => { row.activateRow(); event.accepted = true }
+                        Keys.onEnterPressed: event => { row.activateRow(); event.accepted = true }
+                        Keys.onSpacePressed: event => { row.activateRow(); event.accepted = true }
+                        HoverHandler { id: rowHover; cursorShape: Qt.PointingHandCursor }
+                        TapHandler {
+                            onTapped: {
+                                row.forceActiveFocus(Qt.MouseFocusReason);
+                                row.activateRow();
+                            }
                         }
                         Column {
                             id: details

@@ -217,8 +217,10 @@ PanelWindow {
                                         radius: Theme.radius
                                         color: modelData.id === Agents.defaultAgent ? Theme.selectedSurface(Theme.accent)
                                             : (agentHover.hovered || visualFocus ? Theme.hover : "transparent")
-                                        border.width: Theme.borderWidth
-                                        border.color: modelData.id === Agents.defaultAgent || visualFocus ? Theme.focusBorder : Theme.panelBorder
+                                        // Selection is the fill, focus is the ring:
+                                        // upstream sets selected-border-width to 0.
+                                        border.width: visualFocus || modelData.id !== Agents.defaultAgent ? Theme.borderWidth : 0
+                                        border.color: visualFocus ? Theme.focusBorder : Theme.panelBorder
                                         onTriggered: {
                                             if (!modelData.installed)
                                                 Agents.install(modelData.id);
@@ -303,7 +305,8 @@ PanelWindow {
                                     accessibleSelected: String(modelData.id) === Agents.selectedBrainProposalId
                                     width: body.width; height: Theme.cellH * 2.4; radius: Theme.radius
                                     color: String(modelData.id) === Agents.selectedBrainProposalId ? Theme.selectedSurface(Theme.accent) : (brainHover.hovered || visualFocus ? Theme.hover : "transparent")
-                                    border.width: Theme.borderWidth; border.color: String(modelData.id) === Agents.selectedBrainProposalId || visualFocus ? Theme.focusBorder : Theme.panelBorder
+                                    border.width: visualFocus || String(modelData.id) !== Agents.selectedBrainProposalId ? Theme.borderWidth : 0
+                                    border.color: visualFocus ? Theme.focusBorder : Theme.panelBorder
                                     onTriggered: Agents.selectBrainProposal(modelData.id)
                                     onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(brainRow)
                                     Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.48; text: String(brainRow.modelData.target); color: Theme.fg; elide: Text.ElideMiddle }
@@ -431,8 +434,8 @@ PanelWindow {
                                     height: Theme.cellH * 2.3
                                     radius: Theme.radius
                                     color: String(modelData.id) === Agents.selectedJobId ? Theme.selectedSurface(Theme.accent) : (transactionHover.hovered || visualFocus ? Theme.hover : "transparent")
-                                    border.width: Theme.borderWidth
-                                    border.color: String(modelData.id) === Agents.selectedJobId || visualFocus ? Theme.focusBorder : Theme.panelBorder
+                                    border.width: visualFocus || String(modelData.id) !== Agents.selectedJobId ? Theme.borderWidth : 0
+                                    border.color: visualFocus ? Theme.focusBorder : Theme.panelBorder
                                     onTriggered: Agents.selectHermesJob(modelData.id)
                                     onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(transactionRow)
                                     Line { anchors.left: parent.left; anchors.leftMargin: Theme.cellW; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.2; text: String(transactionRow.modelData.provider).toUpperCase(); color: Theme.accent }
@@ -648,8 +651,8 @@ PanelWindow {
                                         height: Theme.cellH * 2.6
                                         radius: Theme.radius
                                         color: modelData.id === Agents.hermesProvider ? Theme.selectedSurface(Theme.accent) : (hermesProviderHover.hovered || visualFocus ? Theme.hover : "transparent")
-                                        border.width: Theme.borderWidth
-                                        border.color: modelData.id === Agents.hermesProvider || visualFocus ? Theme.focusBorder : Theme.panelBorder
+                                        border.width: visualFocus || modelData.id !== Agents.hermesProvider ? Theme.borderWidth : 0
+                                        border.color: visualFocus ? Theme.focusBorder : Theme.panelBorder
                                         onTriggered: Agents.setHermesProvider(modelData.id)
                                         onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(hermesProviderButton)
                                         Column {
@@ -687,8 +690,8 @@ PanelWindow {
                                         height: Theme.cellH * 2.6
                                         radius: Theme.radius
                                         color: modelData.id === Agents.hermesMode ? Theme.selectedSurface(Theme.accent) : (hermesModeHover.hovered || visualFocus ? Theme.hover : "transparent")
-                                        border.width: Theme.borderWidth
-                                        border.color: modelData.id === Agents.hermesMode || visualFocus ? Theme.focusBorder : Theme.panelBorder
+                                        border.width: visualFocus || modelData.id !== Agents.hermesMode ? Theme.borderWidth : 0
+                                        border.color: visualFocus ? Theme.focusBorder : Theme.panelBorder
                                         onTriggered: Agents.setHermesMode(modelData.id)
                                         onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(hermesModeButton)
                                         Column {
