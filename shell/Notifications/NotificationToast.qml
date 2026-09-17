@@ -7,7 +7,14 @@ import qs.Widgets
 
 // Omarchy-sized passive toast; history retains source/time and full actions.
 // Lifetime and hover accounting remain owned by Notify, once across outputs.
-PanelSurface {
+//
+// MotionSurface, not a bare PanelSurface: layer animation is off in the
+// compositor (Umbriel has no per-rule switch, and switching it on globally
+// would fade the bar and the overlays that animate themselves), so the toast
+// brings its own enter transition from the shared motion tokens. That also
+// makes Reduced Motion apply to it. The reference fades toasts in and out; the
+// exit still needs a removal grace in Popups.qml -- see docs/behaviour-parity.md.
+MotionSurface {
     id: root
     required property var entry
     signal opened()

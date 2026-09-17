@@ -42,8 +42,14 @@ Variants {
         TextMetrics { id: widestIcon; text: Icons.volumeHigh; font: iconMetrics.font }
         TextMetrics { id: valueMetrics; text: "100%"; font.family: Theme.fontFamily; font.pixelSize: Theme.fontTitle; font.bold: true }
         TextMetrics { id: mutedMetrics; text: "Muted"; font: valueMetrics.font }
-        PanelSurface {
+        // MotionSurface statt PanelSurface: die Layer-Animation des Compositors
+        // ist aus (Umbriel kennt keinen Schalter je Regel, siehe
+        // docs/behaviour-parity.md), also bringt die Flaeche ihre Einblendung
+        // aus den geteilten Motion-Tokens selbst mit -- und Reduced Motion
+        // wirkt damit auch hier.
+        MotionSurface {
             id: box
+            visible: win.visible
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: Config.edge === "bottom" ? parent.top : undefined
             anchors.bottom: Config.edge === "bottom" ? undefined : parent.bottom

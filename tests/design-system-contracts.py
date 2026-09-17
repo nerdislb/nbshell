@@ -807,12 +807,17 @@ for snippet in (
 for snippet in (
     "Notify.setPopupHovered(root.entry.key, hovered)",
     "Component.onDestruction",
-    "PanelSurface {",
     "Accessible.role: Accessible.AlertMessage",
     "Accessible.onPressAction: root.activate()",
 ):
     if snippet not in notification_toast:
         raise SystemExit(f"Notification toast contract is incomplete: {snippet}")
+# The toast must build on a shared surface, never on a hand-rolled Rectangle.
+# MotionSurface is a PanelSurface plus the enter/exit lifecycle, and that
+# lifecycle is now the toast's own job because the compositor's layer animation
+# is off (Umbriel has no per-rule switch; see docs/behaviour-parity.md).
+if "MotionSurface {" not in notification_toast and "PanelSurface {" not in notification_toast:
+    raise SystemExit("Notification toast contract is incomplete: shared surface primitive")
 if "consumePopupLifetime" in notification_toast or "Timer {" in notification_toast:
     raise SystemExit("Per-output notification toasts must not own the shared lifetime clock")
 
