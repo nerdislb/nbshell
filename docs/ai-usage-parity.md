@@ -25,11 +25,15 @@ Pinned reference: Omarchy Quattro commit
   geometry and state treatment.
 - `docs/omarchy-shell.md` — token and interactive-state contract.
 
-The local research checkouts under `~/.cache/omarchy-research/omarchy` and
-`~/projects/omarchy-comparison-20260907` are **later** revisions than the pin.
-`default/themed/shell.toml.tpl` and `shell/Ui/BarIconButton.qml` were therefore
-read again from the pinned commit before use. Do not adopt later revision
-changes without recording a new pin first.
+The local research checkouts under `~/.cache/omarchy-research/omarchy` (HEAD
+`0b3f1b7`, 2026-08-29) and `~/projects/omarchy-comparison-20260907` (HEAD
+`346e69e`, 2026-08-30) are **older** than the pin (2026-09-15) and are shallow
+clones holding a single commit each, which is why `git cat-file` cannot resolve
+the pin inside them. They must not be used as the reference: at the pin,
+`shell/Ui/` also contains `BackgroundMedia.qml`, `BackgroundVideo.qml` and
+`PluginBarApi.qml`. Every value quoted in this note was read from the pinned
+commit itself. Do not adopt a different revision without recording a new pin
+first.
 
 ## Extracted rules that apply here
 
