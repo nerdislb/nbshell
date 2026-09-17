@@ -12,8 +12,14 @@ Reuse the existing activity panel geometry/padding, menu selection and shared
 native text fields, action controls, overlay/motion lifecycle. Keep a single
 scrolling notification list with source, time, repetition, urgency, app icons,
 Open, live actions and Dismiss. Monospace typography and persistent actions are
-intentional differences from passive upstream toasts. No shared token, bar,
-Activity panel, toast, notification service or storage policy changes.
+intentional differences from passive upstream toasts. No bar, Activity panel,
+toast, notification service or storage policy changes.
+
+**Amended 2026-09-17:** the claim that no shared token changes is superseded.
+`Theme.selectedSurface()` and `Theme.hover` moved to the pinned reference's
+values, which reaches this panel's DND and Clear-all chips through
+`ControlButton`. The DND chip carries its state in its label ("DND on"), so
+the neutral wash costs no meaning there; see [ui-porting.md](ui-porting.md).
 
 Native search preserves ordinary text editing; list shortcuts do not consume
 search letters. Selection follows stable notification keys during new arrivals.

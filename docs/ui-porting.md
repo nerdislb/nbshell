@@ -179,15 +179,23 @@ This is the honest remainder, to be shortened deliberately:
 - 21 upstream components, listed by `tests/ui-kit-coverage.py`
 - the bar's own island/pill geometry and collapse behaviour (intentional)
 - `Util.execDetached` / `Util.execArgv` (see above)
-- selection and focus still share one border on several surfaces, for example
-  `Menu/AgentCenter.qml`, `Menu/Dashboard.qml`, `Habits/HabitsList.qml` and
-  `Procs/ProcessList.qml`. Upstream drops the border on a selected control
-  (`selected-border-width = 0`); nbshell keeps it, so the fill gap is doing the
-  work. Worth aligning one surface at a time.
-- `Habits/HabitsList.qml` expresses the *done* status through `ControlButton`'s
-  `selected`, and `Procs/ProcessList.qml` replaces a red CPU warning with the
-  selection fill. Both are statuses, not selections, and read weaker since the
-  wash replaced the accent tint.
+- tray entries and workspace pills stay pointer-only. Tray menus belong to
+  third-party items, and workspace switching already has a keyboard path
+  through the compositor bindings, so neither is a contract violation — but
+  neither is keyboard-operable from the bar either.
+- `Habits/HabitsList.qml` still expresses the *done* status through a
+  `ControlButton`'s `selected`. That is legitimate for a toggle whose label
+  says "Done"/"Complete", so the wash costs no meaning; only the green cue is
+  gone. Left alone deliberately rather than inventing a status role the shared
+  primitive does not own.
+
+Settled by the follow-up commits of 2026-09-17 (no longer open): the shared
+selection/focus border in `Menu/AgentCenter.qml` (five sites — selection is now
+the fill, focus the ring, matching `selected-border-width = 0`), the
+hand-built rows and buttons in `Habits/HabitsList.qml`, `HabitsWidget.qml` and
+`KdeConnect.qml`, `Procs/ProcessList.qml` losing its CPU warning under
+selection, `WindowTitle.qml`'s truncated accessible name, and the popup and
+overlay geometry that ignored `Config.gap` and the popup frame.
 
 ## Selection and focus: decision taken 2026-09-17
 

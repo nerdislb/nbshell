@@ -28,10 +28,19 @@ integration/design defects without replacing original application layouts.
 No provider authentication, messaging, device operations or installs are part
 of visual verification. Only synthetic fixtures may exercise writable actions.
 
-Custom bar/island/pill and shared theme/motion tokens are unchanged. Previously
-approved panels are not restyled. Work-desktop overlays are additional surfaces,
-not permission to alter the bar. Existing helper and service implementations
-remain authoritative.
+Custom bar/island/pill geometry and the collapse behaviour are unchanged.
+Previously approved panels are not restyled by this batch. Work-desktop
+overlays are additional surfaces, not permission to alter the bar. Existing
+helper and service implementations remain authoritative.
+
+**Superseded 2026-09-17:** the sentence that shared theme tokens are unchanged
+no longer holds. The owner asked for the pinned reference's selection
+treatment, so `Theme.selectedSurface()` is now a foreground wash and
+`Theme.hover` follows `[controls] hover-cursor-fill-alpha`; the bar adopts the
+reference height ratio. The affected surfaces in this batch — Procs, Notes,
+Habits and the Wi-Fi QR window — were re-checked in
+[ui-porting.md](ui-porting.md) and the follow-up commits listed there. The
+token change was decided centrally, not as part of this batch.
 
 ## Evidence
 
