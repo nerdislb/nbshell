@@ -481,6 +481,12 @@ Item {
             compare(Border.controlHasWidth("selected"), false);
             compare(Border.canUseNative(normal), true);
             compare(Border.needsOverlay(normal), false);
+            // Upstream resolves per-surface borders from theme sections; our
+            // adapter returns a flat border in the caller's fallback colour so
+            // a ported component still runs. The signature must match.
+            const surface = Border.surfaceSpec("popups", "border", Color.foreground, 2);
+            compare(Border.uniformWidth(surface), 2);
+            verify(Border.color(surface).valid);
         }
 
         function test_util_singleton_contracts() {

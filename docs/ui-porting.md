@@ -112,7 +112,18 @@ upstream so ported code runs unchanged. It is deliberately different in
   singleton breaks the stock Qt test runner (the `quickshell-coreplugin` cannot
   load outside the Quickshell process), which takes the whole `qs.Commons`
   module down with it. Use a nbshell service to launch processes.
-- `Border.surfaceSpec` is not provided yet.
+- `Border.surfaceSpec` is provided as a **flat shim**. Upstream resolves a
+  per-surface border out of the theme's `[section]` tokens — colour, per-side
+  widths, optional gradient. nbshell's `Theme` has no per-surface token store;
+  its surfaces map onto `panelBorder` and `focusBorder`. The shim therefore
+  returns a flat border in the caller's fallback colour, so a ported component
+  runs unchanged and draws the same border language as the rest of the shell.
+  Gradient and per-side fidelity are the documented limitation; a faithful port
+  would first need a per-surface token store in `Theme`.
+
+With that, the adapter covers **every singleton member upstream's `shell/Ui`
+calls**: `tests/ui-kit-coverage.py` reports zero missing members against the
+pinned commit.
 
 The compat singletons must stay loadable by `qmltestrunner`. Anything that
 requires the `Quickshell` module belongs in `shell/Widgets`, `shell/Services`
@@ -175,10 +186,14 @@ installed shell to change appearance without a decision.
 
 This is the honest remainder, to be shortened deliberately:
 
-- `Border.surfaceSpec` (adapter member)
-- 21 upstream components, listed by `tests/ui-kit-coverage.py`
+- 24 upstream components, listed by `tests/ui-kit-coverage.py`. Counted against
+  the pinned commit, not the older local checkouts: upstream ships **35**
+  components in `shell/Ui`, the adapter provides **11**, and every singleton
+  member they call is now covered.
 - the bar's own island/pill geometry and collapse behaviour (intentional)
 - `Util.execDetached` / `Util.execArgv` (see above)
+- `Border.surfaceSpec`'s gradient and per-side widths (see above; the shim is
+  flat)
 - tray entries and workspace pills stay pointer-only. Tray menus belong to
   third-party items, and workspace switching already has a keyboard path
   through the compositor bindings, so neither is a contract violation — but
@@ -188,6 +203,18 @@ This is the honest remainder, to be shortened deliberately:
   says "Done"/"Complete", so the wash costs no meaning; only the green cue is
   gone. Left alone deliberately rather than inventing a status role the shared
   primitive does not own.
+
+To reproduce the numbers against the pin:
+
+```sh
+git -C ~/.cache/omarchy-research/omarchy fetch --depth 1 origin \
+  6ea3215542fbb269dfe5c2be928e6144f9cb6466
+git -C ~/.cache/omarchy-research/omarchy worktree add --detach /tmp/omarchy-pin <sha>
+tests/ui-kit-coverage.py --omarchy /tmp/omarchy-pin --strict
+```
+
+The older research checkouts are shallow clones from August and understate the
+gap (they were used for the first pass and reported 21 components).
 
 Settled by the follow-up commits of 2026-09-17 (no longer open): the shared
 selection/focus border in `Menu/AgentCenter.qml` (five sites — selection is now

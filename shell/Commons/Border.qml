@@ -15,6 +15,16 @@ QtObject {
   }
   function controlHasWidth(state) { return state !== "selected" }
   function localOrSurfaceSpec(surface, role, localColor, defaultColor, width) { return flat(localColor, width) }
+  // Upstream resolves a per-surface border out of the theme's [section] tokens:
+  // colour, per-side widths and an optional gradient. nbshell's Theme has no
+  // per-surface token store — its surfaces map onto panelBorder/focusBorder —
+  // so this returns a flat border in the caller's fallback colour. A ported
+  // component therefore runs unchanged and draws the same border language as
+  // the rest of the shell; gradient and per-side fidelity are the documented
+  // limitation (see docs/ui-porting.md).
+  function surfaceSpec(section, token, fallbackColor, fallbackWidth, alphaKey) {
+    return flat(fallbackColor, fallbackWidth)
+  }
   function top(spec) { return spec && spec.widths ? Number(spec.widths.top || 0) : 0 }
   function right(spec) { return spec && spec.widths ? Number(spec.widths.right || 0) : 0 }
   function bottom(spec) { return spec && spec.widths ? Number(spec.widths.bottom || 0) : 0 }
