@@ -179,7 +179,17 @@ Singleton {
     readonly property real barItemPadding: Math.max(1, Math.round(padX * 0.62))
     readonly property real barItemGap: Math.max(1, Math.round(gap * 0.55))
 
-    readonly property real barHeight: Math.round(cellH * Config.lines + padY * 2)
+    // Bar-Höhe: Omarchy pinnt `[bar] size-horizontal = 26` bei seiner
+    // Basisschrift 12 und skaliert sie mit der Schrift. Auf unserem
+    // Zeichenraster ergab die alte Ableitung (cellH * lines + padY * 2) bei
+    // Schriftgröße 14 nur 27 px, also ein Verhältnis von 1,93 statt 2,17 —
+    // die Leiste sass enger um den Text als die Referenz. Das
+    // Referenzverhältnis ist jetzt der Boden; `lines` und `padY` bleiben als
+    // Nutzer-Einstellung und koennen die Leiste weiterhin hoeher machen.
+    // Siehe docs/ui-porting.md, Abschnitt "Bar-Uebernahme".
+    readonly property real barReferenceHeight: Math.round(26 * fontSize / 12)
+    readonly property real barHeight: Math.max(barReferenceHeight,
+        Math.round(cellH * Config.lines + padY * 2))
     readonly property real barIconSlot: Math.round(cellH * 1.08)
     readonly property real barIconCanvas: Math.round(cellH)
     readonly property real barIconHeight: Math.round(cellH * 0.76)

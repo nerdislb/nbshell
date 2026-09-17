@@ -37,7 +37,7 @@ remain authoritative for integration.
 | Calculator | Panel/menu language; no standalone upstream calculator | Native floating keypad, arithmetic parser, keyboard and clipboard retained; `docs/calculator-parity.md` |
 | Speed test | `shell/Ui/SpeedTestOverlay.qml` and `shell/plugins/panels/speedtest/Panel.qml` | Native gauge adaptation; batch backend, ping/server/persistent scale and cancellation retained; `docs/speedtest-parity.md` |
 | AI usage bar module | `shell/Ui/BarIconButton.qml` + `BarIndicator.qml`; `[bar]`, `[controls]`, `[spacing]`, `[font]`, `[popups]` in `default/themed/shell.toml.tpl` | `shell/Bar/Widgets/AiFill.qml`; icon-only module, limits plus local token view, hover and click detail retained; `docs/ai-usage-parity.md` |
-| Custom bar | Deliberate nbshell exception | Existing bar/island/pill preserved; DuoBar icon explicitly requested |
+| Custom bar | `[bar]` in `default/themed/shell.toml.tpl`; `shell/Ui/BarWidget.qml`, `BarIndicator.qml`, `BarIconButton.qml` | Existing bar/island/pill and the collapse behaviour preserved; optics follow the reference ratios, see `docs/ui-porting.md` |
 
 Approved rounds above must not drift during unrelated work. See the relevant
 `docs/*parity.md` notes and task evidence for behavior and verification limits.
