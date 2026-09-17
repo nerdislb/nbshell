@@ -230,8 +230,16 @@ PanelWindow {
                 selectionColor: Theme.selection
                 selectedTextColor: Theme.on(Theme.selection)
 
-                Keys.onReturnPressed: root.accept()
-                Keys.onEnterPressed: root.accept()
+                // Auto-Repeat sperren: ein gehaltenes Enter darf eine Aufgabe
+                // nicht mehrfach anlegen oder abhaken.
+                Keys.onReturnPressed: event => {
+                    if (!event.isAutoRepeat) root.accept();
+                    event.accepted = true;
+                }
+                Keys.onEnterPressed: event => {
+                    if (!event.isAutoRepeat) root.accept();
+                    event.accepted = true;
+                }
                 Keys.onUpPressed: root.move(-1)
                 Keys.onDownPressed: root.move(1)
 

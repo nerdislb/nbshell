@@ -268,8 +268,19 @@ PanelWindow {
                 else if (input.text) input.clear();
                 else root.close();
             }
-            Keys.onReturnPressed: root.accept()
-            Keys.onEnterPressed: root.accept()
+            // Auto-Repeat muss gesperrt sein: sonst erfuellt ein gehaltenes
+            // Enter die verlangte zweite Aktivierung von selbst, und
+            // Abmelden/Neustart/Ausschalten liefen ohne bewussten zweiten
+            // Druck. Die geteilten Primitive (InteractiveSurface, Cell) machen
+            // das seit je; dieser eigene Handler tat es nicht.
+            Keys.onReturnPressed: event => {
+                if (!event.isAutoRepeat) root.accept();
+                event.accepted = true;
+            }
+            Keys.onEnterPressed: event => {
+                if (!event.isAutoRepeat) root.accept();
+                event.accepted = true;
+            }
             Keys.onUpPressed: root.move(-1)
             Keys.onDownPressed: root.move(1)
             Keys.onPressed: event => {

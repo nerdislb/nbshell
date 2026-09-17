@@ -279,7 +279,16 @@ PanelWindow {
         }
         Keys.onUpPressed: if (root.tab !== "porting") root.moveSelection(-1)
         Keys.onDownPressed: if (root.tab !== "porting") root.moveSelection(1)
-        Keys.onReturnPressed: if (root.tab !== "porting") root.primaryAction(root.plugin)
+        // Auto-Repeat sperren: die Aktion installiert oder aktiviert ein Plugin
+        // und darf von einem gehaltenen Enter nicht mehrfach ausgeloest werden.
+        Keys.onReturnPressed: event => {
+            if (!event.isAutoRepeat && root.tab !== "porting") root.primaryAction(root.plugin);
+            event.accepted = true;
+        }
+        Keys.onEnterPressed: event => {
+            if (!event.isAutoRepeat && root.tab !== "porting") root.primaryAction(root.plugin);
+            event.accepted = true;
+        }
         Keys.onPressed: event => {
             if (event.key === Qt.Key_1) { root.selectTab("installed"); event.accepted = true; }
             if (event.key === Qt.Key_2) { root.selectTab("store"); event.accepted = true; }

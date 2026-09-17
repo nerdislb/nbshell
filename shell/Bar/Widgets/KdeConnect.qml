@@ -332,8 +332,16 @@ Cell {
                         text: panel.draft
                         onTextChanged: panel.draft = text
 
-                        Keys.onReturnPressed: sendBtn.go()
-                        Keys.onEnterPressed: sendBtn.go()
+                        // Auto-Repeat sperren, sonst verschickt ein gehaltenes
+                        // Enter dieselbe Nachricht mehrfach.
+                        Keys.onReturnPressed: event => {
+                            if (!event.isAutoRepeat) sendBtn.go();
+                            event.accepted = true;
+                        }
+                        Keys.onEnterPressed: event => {
+                            if (!event.isAutoRepeat) sendBtn.go();
+                            event.accepted = true;
+                        }
                         Keys.onEscapePressed: { panel.composer = ""; panel.draft = ""; }
 
                         Line {
