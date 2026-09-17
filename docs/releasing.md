@@ -6,6 +6,8 @@ change before version 1.0.
 
 ## Prepare a release
 
+For the separately delivered Mail executable, follow the [backend maintenance and release policy](mail-backend-maintenance.md). A source dependency fix is not a fix to the user's downloaded binary.
+
 1. Update `VERSION` and move the relevant entries from `Unreleased` in
    `CHANGELOG.md` to a dated version section.
 2. Run the complete local gate:

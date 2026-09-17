@@ -246,6 +246,21 @@ class ReleaseTests(unittest.TestCase):
         result = self.check_api('--published', self.published)
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_nbshell_rebuild_has_distinct_version_and_independent_ui_base(self):
+        self.metadata()
+        for filename in ('Cargo.toml', 'Cargo.lock'):
+            path = self.root / filename
+            path.write_text(path.read_text().replace('0.8.2', '0.8.2-nbshell.1'))
+        result = self.run_helper('check', '--root', self.root)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        (self.root / 'app/CMakeLists.txt').unlink()  # backend-only vendored tree
+        result = self.run_helper('check', '--root', self.root)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        (self.root / 'backend-version').write_text('0.8.2-nbshell.1\n')
+        self.assertEqual(self.run_helper('pin-version', '--root', self.root).returncode, 0)
+        (self.root / 'manifest.json').write_text('{"version":"0.8.3"}')
+        self.assertNotEqual(self.run_helper('check', '--root', self.root).returncode, 0)
+
     def test_api_revisions_and_pin_require_canonical_values(self):
         contract = self.api_fixture()
         for value in (True, 0, -1, '1', 1.5, 2147483648):

@@ -270,6 +270,71 @@ touch linked
         self.assertEqual(result, dict(state="missing", requiredVersion="0.8.2", requiredApiVersion=1, latestApiVersion=1, unreleasedMethods=[], installedVersion="", executable=str(self.binary), error="", cliInstalled=False))
         self.assertFalse(self.binary.parent.exists())
 
+    def test_nbshell_release_requires_source_anchored_hash_before_execution(self):
+        version = "0.8.2-nbshell.1"
+        (self.root / "backend-version").write_text(version + "\n")
+        archive = self.archive(version=version)
+        digest = hashlib.sha256(archive).hexdigest()
+        metadata = dict(schemaVersion=1, version=version,
+                        archives=dict(x86_64=digest, aarch64="a" * 64))
+        pin = self.root / "backend-release.json"
+        pin.write_text(json.dumps(metadata))
+        requested = []
+        def fetch(url, limit):
+            self.assertTrue(url.startswith("https://github.com/nerdislb/nbshell/releases/download/mail-backend-" + version + "/"))
+            requested.append(url)
+            return ((digest + "  omamail-linux-x86_64.tar.gz\n").encode()
+                    if url.endswith("SHA256SUMS") else archive)
+        with patch.object(self.manager, "download", side_effect=fetch):
+            self.assertEqual(self.manager.run("install")["state"], "ready")
+            old = self.binary.read_bytes()
+            # A changed remote archive AND matching remote checksum cannot replace it.
+            archive += b"changed"
+            digest = hashlib.sha256(archive).hexdigest()
+            with patch.object(self.manager, "version_of", side_effect=AssertionError("must not execute")):
+                result = self.manager.run("install")
+            self.assertEqual(result["state"], "error", result)
+            self.assertIn("trusted shell pin", result["error"])
+            self.assertEqual(self.binary.read_bytes(), old)
+            self.assertEqual(len(requested), 3)  # reject before the second archive download
+
+    def test_nbshell_release_missing_malformed_or_redirected_pin_never_downloads(self):
+        version = "0.8.2-nbshell.1"
+        (self.root / "backend-version").write_text(version + "\n")
+        metadata = dict(schemaVersion=1, version=version,
+                        archives=dict(x86_64="a" * 64, aarch64="b" * 64))
+        pin = self.root / "backend-release.json"
+        self.assertEqual(self.manager.run("install")["state"], "error")
+        for value in (dict(metadata, version="0.8.2-nbshell.2"),
+                      dict(metadata, schemaVersion=True),
+                      dict(metadata, url="https://example.org/evil"),
+                      dict(metadata, archives={"x86_64": "a" * 64})):
+            pin.write_text(json.dumps(value))
+            self.assertEqual(self.manager.run("install")["state"], "error")
+        pin.write_text(json.dumps(metadata).replace('"schemaVersion": 1', '"schemaVersion": 1, "schemaVersion": 1'))
+        self.assertEqual(self.manager.run("install")["state"], "error")
+
+    def test_nbshell_release_pin_race_preserves_previous_binary(self):
+        version = "0.8.2-nbshell.1"
+        (self.root / "backend-version").write_text(version + "\n")
+        archive = self.archive(version=version)
+        digest = hashlib.sha256(archive).hexdigest()
+        pin = self.root / "backend-release.json"
+        metadata = dict(schemaVersion=1, version=version,
+                        archives=dict(x86_64=digest, aarch64="a" * 64))
+        pin.write_text(json.dumps(metadata))
+        self.binary.parent.mkdir(parents=True)
+        self.binary.write_bytes(b"previous")
+        def fetch(url, limit):
+            if url.endswith("SHA256SUMS"):
+                return (digest + "  omamail-linux-x86_64.tar.gz\n").encode()
+            pin.write_text(json.dumps(dict(metadata, archives=dict(x86_64="f" * 64, aarch64="a" * 64))))
+            return archive
+        with patch.object(self.manager, "download", side_effect=fetch):
+            result = self.manager.run("install")
+        self.assertEqual(result["state"], "error", result)
+        self.assertEqual(self.binary.read_bytes(), b"previous")
+
     def test_release_status_uses_only_local_pin_and_api_despite_newer_cargo(self):
         self.local_checkout()
         self.release(self.archive())

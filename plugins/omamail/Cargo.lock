@@ -1309,7 +1309,7 @@ dependencies = [
 
 [[package]]
 name = "omamail"
-version = "0.10.4"
+version = "0.10.4-nbshell.1"
 dependencies = [
  "base64",
  "chrono",
