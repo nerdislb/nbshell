@@ -395,11 +395,20 @@ Singleton {
     readonly property int toastFontSize: networkTitleSize
     readonly property color toastBodyColor: readable(Qt.darker(fg,1.15),bg,4.5)
 
-    // Selected controls must be opaque before their foreground contrast is
-    // calculated. A translucent accent is composited by QML later and made
-    // the old calculation depend on whatever happened to sit behind it.
+    // Omarchy's selected state is a foreground wash — `[controls]
+    // selected-color = foreground` with `selected-fill-alpha = 0.18`, and
+    // `[menu] selected-background = foreground` with `selected-text = accent`.
+    // nbshell used an accent tint here instead, which read as a different
+    // design language on every selected row, chip and segment.
+    //
+    // The wash stays an opaque mix rather than an alpha value: a translucent
+    // fill is composited by QML later, which would make the foreground
+    // contrast below depend on whatever happens to sit behind the control.
+    //
+    // The `tone` argument is kept because callers pass it positionally, but it
+    // no longer tints the surface — that is the point of the change.
     function selectedSurface(tone) {
-        return mix(bg, tone ?? accent, 0.18);
+        return mix(bg, fg, 0.18);
     }
 
     function selectedForeground(tone) {
