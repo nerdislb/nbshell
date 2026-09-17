@@ -77,8 +77,11 @@ Flow {
                 Math.max(Theme.cellW * 4, text.implicitWidth + Theme.cellW * 2))
             height: Theme.controlHeight
             radius: Theme.radius
-            border.width: Theme.controlBorderWidth(hover.hovered, segment.active, false)
-            border.color: Theme.controlBorder(hover.hovered, segment.active, false)
+            // Die geteilten Zustandshelfer kennen nur Hover und Auswahl; der
+            // Fokusring folgt PanelRow/ActionButton, sonst waere der
+            // Tastaturfokus auf der gewaehlten Option unsichtbar.
+            border.width: segment.visualFocus ? Theme.borderWidth : Theme.controlBorderWidth(hover.hovered, segment.active, false)
+            border.color: segment.visualFocus ? Theme.focusBorder : Theme.controlBorder(hover.hovered, segment.active, false)
             color: segment.active ? Theme.selectedSurface(Theme.accent) : (hover.hovered ? Theme.hover : "transparent")
             keyboardFocusable: segment.active || root.currentIndex() < 0
             accessibleRole: Accessible.RadioButton
