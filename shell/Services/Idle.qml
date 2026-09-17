@@ -41,7 +41,11 @@ Singleton {
     readonly property int saverAfter: Config.value("idleSaver", 180)
     readonly property int dimAfter: Config.value("idleDim", 240)
     readonly property int offAfter: Config.value("idleScreenOff", 600)
-    readonly property int lockAfter: Config.value("idleLock", 900)
+    // 300 s wie die Referenz. Vorher 900: damit lag die Sperre HINTER dem
+    // Ausschalten des Bildschirms (600), und der Rechner stand bis zu fuenf
+    // Minuten dunkel und unverschlossen da -- genau bei dem Geraet, das laut
+    // Dateikopf in eine Tasche wandert.
+    readonly property int lockAfter: Config.value("idleLock", 300)
 
     // Wie dunkel gedimmt wird, in Prozent der aktuellen Helligkeit.
     readonly property int dimTo: Config.value("idleDimPercent", 20)

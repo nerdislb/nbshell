@@ -62,7 +62,9 @@ Column {
         const items = controls(panel, []);
         if (!items.length) return;
         const index = items.findIndex(item => item.activeFocus);
-        items[(index + direction + items.length) % items.length].forceActiveFocus(Qt.TabFocusReason);
+        // Begrenzen statt umlaufen -- die Referenz bleibt am Ende stehen.
+        const next = Math.max(0, Math.min(items.length - 1, (index < 0 ? 0 : index) + direction));
+        items[next].forceActiveFocus(Qt.TabFocusReason);
     }
     Keys.onPressed: event => {
         if (event.modifiers !== Qt.NoModifier) return;

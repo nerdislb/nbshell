@@ -12,7 +12,7 @@ Singleton {
     id: root
 
     readonly property bool enabled: Config.value("osd", true)
-    readonly property int timeout: Config.value("osdTimeout", 2000)
+    readonly property int timeout: Config.value("osdTimeout", 1200)
 
     property bool showing: false
     property string kind: ""

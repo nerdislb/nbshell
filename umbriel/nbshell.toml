@@ -6,6 +6,12 @@ files = ["nbshell-outputs.toml", "nbshell-cursor.toml", "nbshell-overview.toml",
 
 [general]
 show_cheatsheet = false
+# Referenzverhalten: die Referenz setzt misc.focus_on_activate = true, Umbriels
+# Vorgabe ist false. Ohne das bekommt eine Fremdanwendung, die Aktivierung
+# anfordert, keinen Fokus; wir haben das bisher nur ueber die
+# default_focused-Liste je nbshell-Fenstertyp aufgefangen, und die deckt
+# Fremdanwendungen nicht ab. Siehe docs/behaviour-parity.md.
+focus_on_activate = true
 
 [layout]
 mode = "dwindle"

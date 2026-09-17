@@ -86,7 +86,9 @@ Column {
     function moveSelection(delta) {
         pointerPrimed = false;
         if (!rows.length) return;
-        const next = Math.max(0,Math.min(rows.length-1,Math.max(0,selectedIndex)+delta));
+        // Umlaufend wie die Zwischenablage der Referenz (die Panels der
+        // Referenz begrenzen dagegen; Audio und Netzwerk tun das jetzt auch).
+        const next = ((Math.max(0, selectedIndex) + delta) % rows.length + rows.length) % rows.length;
         selectedKey = rows[next].key;
         list.forceActiveFocus(Qt.TabFocusReason);
     }
