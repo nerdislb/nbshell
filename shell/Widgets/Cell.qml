@@ -76,14 +76,16 @@ Item {
     // bedienbarem Inhalt hatten es nie gesetzt -- dort war Escape wirkungslos.
     // Wer nur etwas ANZEIGT, schaltet es ausdruecklich ab.
     property bool popoutTakesKeyboard: true
-    // Ein Klick-Popout bleibt stehen, wenn der Zeiger es verlaesst. Wer darin
-    // liest oder mit der Tastatur arbeitet, hat den Zeiger selten ueber der
-    // Flaeche, und ein Nachlauf riss ihm die Oberflaeche weg (gemessen: zu in
-    // 1,2 s). Geschlossen wird ueber den Klick auf den leeren Desktop -- die
-    // Hintergrundflaeche faengt ihn ab --, ueber Escape, ueber einen Klick in
-    // ein Fenster oder wenn ein anderes Popout aufgeht. Die Hover-Vorschau
-    // setzt `takesKeyboard` auf false und schliesst weiterhin beim Verlassen.
-    property bool popoutCloseOnLeave: false
+    // Standardmaessig schliesst der Nachlauf ein Popout, wenn der Zeiger es und
+    // seine Zelle verlaesst. Das ist Pflicht fuer Bausteine, die ihr Popout per
+    // Hover oeffnen (MusicControls, Visualizer, ytmusic) -- ohne den Nachlauf
+    // blieben sie fuer immer stehen. Grosse Klick-Popouts, in denen man liest,
+    // schalten es einzeln ab (Battery, Volume, Control, Notifications).
+    //
+    // Der Klick auf den leeren Desktop schliesst zusaetzlich und sofort; die
+    // Hintergrundflaeche faengt ihn ab. Der Nachlauf ist damit nur noch ein
+    // Rueckfall und keine Vertretung fuer einen Klick.
+    property bool popoutCloseOnLeave: true
     property bool popoutInsetBorder: false
     property real popoutPadding: Theme.panelPadding
     property real popoutBorderWidth: Theme.borderWidth
@@ -183,8 +185,12 @@ Item {
         // weiss auch, ob der Zeiger inzwischen IN ihm steht -- ein Schliessen
         // von hier wuerde es genau in dem Moment wegnehmen, in dem man
         // hineinfaehrt.
+        // Ein per Hover geoeffnetes Popout bleibt passiv: man hat es nicht
+        // angeklickt, also darf es weder den Tastaturgriff nehmen noch dem
+        // fokussierten Fenster die Tastatur wegziehen. Es schliesst ueber
+        // seinen Nachlauf.
         if (root.popoutOnHover && root.hovered)
-            root.setPopout(true);
+            root.setPopout(true, false);
     }
 
     // ── Aussehen je Baustein ─────────────────────────────────────────────
@@ -345,7 +351,7 @@ Item {
     }
 
     // Popout von aussen schalten (Tastenkuerzel, IPC).
-    function setPopout(open) {
+    function setPopout(open, keyboard) {
         // Nur die Zelle, die gerade zu sehen ist: ein Baustein kann in der
         // zugeklappten Insel UND im Balken stehen (`clock` tut das), und dann
         // oeffnete ein Tastenkuerzel beide Popouts uebereinander. `enabled`
@@ -357,7 +363,8 @@ Item {
         if (popupLoader.item) {
             if (open) {
                 previewTimer.stop();
-                popupLoader.item.show(root.popout, root.popoutTakesKeyboard, -1);
+                popupLoader.item.show(root.popout,
+                    keyboard === undefined ? root.popoutTakesKeyboard : keyboard, -1);
                 root.popupMode = "popout";
             } else if (root.popupMode === "popout") {
                 popupLoader.item.close();

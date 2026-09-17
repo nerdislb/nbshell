@@ -117,7 +117,9 @@ PopupWindow {
         // one before returning from the click handler.
         if (previous && previous !== root)
             previous.closeImmediately();
-        if (replacingContent)
+        // Auch eine laufende Ausblendung abbrechen: sonst feuert deren
+        // Rueckruf in die frisch angeforderte Flaeche und nimmt sie wieder weg.
+        if (replacingContent || surface.closing)
             surface.cancelTransition();
         // Loader creation is synchronous by default. Assigning the component
         // before mapping gives the popup its final initial geometry while we
@@ -254,13 +256,6 @@ PopupWindow {
             if (prev && prev !== root)
                 prev.close();
             Runtime.activePopout = root;
-            // Der Umbau Vorschau -> Popout entfernt und mappt die Flaeche, und
-            // bis der Kompositor das Zeiger-Enter nachgeliefert hat, meldet Qt
-            // "draussen", obwohl der Zeiger auf der Zelle steht. Gemessen:
-            // 380 ms lang. Ohne diese Einschwingzeit schliesst der Nachlauf in
-            // genau dieses Loch, und das eben geoeffnete Popout verschwindet
-            // sofort wieder.
-            openedAt = Date.now();
             if (!pointerInside)
                 leaveTimer.restart();
         } else {
@@ -276,6 +271,10 @@ PopupWindow {
             loader.sourceComponent = null;
             lockedContentWidth = 0;
             lockedContentHeight = 0;
+            // Der Zeiger war in DIESEM Popout, nicht in einem spaeteren: ohne
+            // das Zuruecksetzen schloesse ein per Tastatur geoeffnetes Popout
+            // beim ersten Verlassen, das es nie hatte.
+            pointerWasInside = false;
         }
     }
 
@@ -292,25 +291,11 @@ PopupWindow {
     // Popout stehen, wo es vorher nach dem Nachlauf zuging.
     property bool pointerWasInside: false
 
-    // Einschwingzeit nach dem Oeffnen: solange darf der Nachlauf nicht
-    // schliessen, weil der Zeigerzustand in diesem Fenster noch nicht
-    // verlaesslich ist (siehe onVisibleChanged).
-    property double openedAt: 0
-    readonly property int settleMs: 500
-
     Timer {
         id: leaveTimer
         interval: root.leaveDelay
-        onTriggered: {
-            // Frisch geoeffnet: der Zeigerzustand ist noch nicht angekommen,
-            // also noch einmal abwarten statt zu schliessen.
-            if (Date.now() - root.openedAt < root.settleMs) {
-                leaveTimer.restart();
-                return;
-            }
-            if (root.closeOnLeave && !root.pointerInside && root.pointerWasInside)
-                root.close();
-        }
+        onTriggered: if (root.closeOnLeave && !root.pointerInside && root.pointerWasInside)
+            root.close()
     }
 
     Timer {

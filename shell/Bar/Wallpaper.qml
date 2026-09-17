@@ -16,6 +16,15 @@ import qs.Services
 Scope {
     id: root
 
+    // Schliesst ein offenes Popout, wenn auf den leeren Desktop geklickt wird.
+    // Passive Flaechen (Vorschau, Hover-Popout) bleiben aussen vor: sie haben
+    // keinen Tastaturgriff und schliessen ueber ihren Nachlauf.
+    function dismissPopout() {
+        const open = Runtime.activePopout;
+        if (open && open.takesKeyboard)
+            open.close();
+    }
+
     // ── Der Hintergrund, den man immer sieht ──────────────────────────────
 
     Variants {
@@ -202,31 +211,26 @@ Scope {
                 anchors.fill: parent
 
                 // Ein Klick auf den leeren Desktop schliesst ein offenes
-                // Popout. Damit braucht der Nachlauf es nicht mehr zu erraten:
-                // Der Kompositor liefert den Klick zwar an keine Flaeche, die
-                // das Popout kennt, aber diese Hintergrundflaeche bekommt ihn
-                // -- Fenster und Shell-Overlays liegen darueber und behalten
-                // Vorrang, ein Klick in sie schliesst ebenfalls (der
-                // Kompositor beendet dort den Tastaturgriff).
-                TapHandler {
-                    acceptedButtons: Qt.LeftButton | Qt.RightButton
-                    gesturePolicy: TapHandler.ReleaseWithinBounds
-                    onTapped: {
-                        const open = Runtime.activePopout;
-                        if (open && open.takesKeyboard)
-                            open.close();
-                    }
-                }
-
+                // Popout: Der Kompositor liefert den Klick an keine Flaeche,
+                // die das Popout kennt, aber diese Hintergrundflaeche bekommt
+                // ihn -- Fenster und Shell-Overlays liegen darueber und
+                // behalten Vorrang.
+                //
+                // Bewusst EIN Handler je Taste. Zwei Handler derselben Taste
+                // kaempfen um denselben exklusiven Grab, und der Verlierer
+                // bekommt weder `tapped` noch `doubleTapped` -- der Doppelklick
+                // auf Wallpaper oder Theme waere dann still tot.
                 TapHandler {
                     acceptedButtons: Qt.LeftButton
                     gesturePolicy: TapHandler.ReleaseWithinBounds
+                    onTapped: root.dismissPopout()
                     onDoubleTapped: Runtime.wallpaperOpen = true
                 }
 
                 TapHandler {
                     acceptedButtons: Qt.RightButton
                     gesturePolicy: TapHandler.ReleaseWithinBounds
+                    onTapped: root.dismissPopout()
                     onDoubleTapped: Runtime.themePickerOpen = true
                 }
             }
