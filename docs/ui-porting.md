@@ -92,10 +92,21 @@ upstream so ported code runs unchanged. It is deliberately different in
   `Style.controlBorderWidth(focused, hot)` follow upstream order. The earlier
   `controlBorder(enabled, hot, ...)` "disabled means muted" special case is
   gone; a caller that needs it handles disabled state itself.
-- Selection and focus use nbshell's accent roles rather than upstream's
-  foreground wash. Changing that is a **global token decision** that restyles
-  every approved surface, so it is not done as a side effect of a port. See
-  "Open decision" below.
+- Selection uses the reference treatment: a **foreground wash**, not an accent
+  tint. `selectedSurface()` returns `mix(bg, fg, 0.18)` — upstream's
+  `[controls] selected-color = foreground` with `selected-fill-alpha = 0.18` —
+  and the text on it stays accent, which is upstream's
+  `[menu] selected-text = accent`. The wash is mixed opaquely so a control's
+  foreground contrast never depends on what sits behind a translucent fill.
+  The `tone` argument is kept because 46 call sites pass it positionally; it no
+  longer tints the surface.
+- `Theme.hover` is `mix(bg, fg, 0.08)`, upstream's
+  `hover-cursor-fill-alpha = 0.08`. This is **not** cosmetic: with the wash in
+  place, the earlier `0.14` left hover and selection four alpha points apart in
+  the same hue, and surfaces that give selection and focus the same border
+  (for example `Menu/AgentCenter.qml`) became unable to show which item was
+  chosen and which merely focused. The reference ratio `0.08 : 0.18` restores
+  the gap.
 - `Util.execDetached` and `Util.execArgv` are **not** ported. Both need
   `Quickshell.execDetached`, and importing the Quickshell module in a compat
   singleton breaks the stock Qt test runner (the `quickshell-coreplugin` cannot
@@ -167,14 +178,42 @@ This is the honest remainder, to be shortened deliberately:
 - `Border.surfaceSpec` (adapter member)
 - 21 upstream components, listed by `tests/ui-kit-coverage.py`
 - the bar's own island/pill geometry and collapse behaviour (intentional)
-- selection/focus palette (open decision below)
 - `Util.execDetached` / `Util.execArgv` (see above)
+- selection and focus still share one border on several surfaces, for example
+  `Menu/AgentCenter.qml`, `Menu/Dashboard.qml`, `Habits/HabitsList.qml` and
+  `Procs/ProcessList.qml`. Upstream drops the border on a selected control
+  (`selected-border-width = 0`); nbshell keeps it, so the fill gap is doing the
+  work. Worth aligning one surface at a time.
+- `Habits/HabitsList.qml` expresses the *done* status through `ControlButton`'s
+  `selected`, and `Procs/ProcessList.qml` replaces a red CPU warning with the
+  selection fill. Both are statuses, not selections, and read weaker since the
+  wash replaced the accent tint.
 
-## Open decision
+## Selection and focus: decision taken 2026-09-17
 
-Upstream's selected state is a **foreground wash** (`selected-fill-alpha 0.18`
-applied to the foreground); nbshell's is an **accent tint**. This is visible on
-every selected row, chip and segment in the shell. Moving to the upstream
-treatment would be closer to a 1:1 look, but it changes a shared token that
-every already-approved surface consumes, so it needs an explicit decision and a
-surface-by-surface re-check rather than a quiet edit.
+The owner asked for the reference selection treatment, so it is adopted and the
+open decision is closed:
+
+| Token | Value | Upstream |
+|---|---|---|
+| `selectedSurface()` | `mix(bg, fg, 0.18)` | `[controls] selected-color = foreground`, `selected-fill-alpha = 0.18` |
+| `Theme.hover` | `mix(bg, fg, 0.08)` | `[controls] hover-cursor-fill-alpha = 0.08` |
+| text on selection | accent, contrast-adjusted | `[menu] selected-text = accent` |
+
+Upstream has no `[panels]` section, so `0.18` is the control-chrome value and
+there is no documented panel-row value to adopt. Panel **rows** therefore carry
+the controls value; menus and launchers already used the lighter `0.08` through
+`Theme.menuSelection` and were not touched.
+
+The surface-by-surface re-check this change requires is not complete. Reviewed
+and confirmed unaffected: `Menu/Menu.qml`, `Launcher/Launcher.qml`, the emoji,
+keybindings, capture, calculator, toast and speed-test surfaces (all either on
+`menuSelection` or without a selection state). Regression fixes made so far:
+`Widgets/ActionButton.qml` (primary emphasis is not selection),
+`Bar/Widgets/CalendarPanel.qml` (selected day outside the shown month), and
+`Theme.hover` above.
+
+One correction to the record: the message of commit `f6ac022` cites "the
+launcher's selected row" as evidence for the new treatment. The launcher reads
+`Theme.menuSelection` and was not affected by that commit. Only the second half
+of that claim — the AI popout's `Widgets/Segments.qml:85` — holds.

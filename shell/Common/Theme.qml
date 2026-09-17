@@ -71,7 +71,15 @@ Singleton {
     // Als Hoverflaeche in der Leiste blendet sie, und jede Schrift darauf muss
     // umgerechnet werden. Aus dem Hintergrund gemischt ist sie immer dezent --
     // und der normale Text bleibt ohne Rechnerei lesbar.
-    readonly property color hover: mix(bg, fg, 0.14)
+    //
+    // 0.08 ist Omarchys `[controls] hover-cursor-fill-alpha`. Das ist hier
+    // nicht nur Nachahmung: `selectedSurface()` ist seit dem 2026-09-17
+    // ebenfalls eine Vordergrund-Waesche (0.18), und mit dem frueheren 0.14
+    // lagen Hover und Auswahl im GLEICHEN Farbton nur vier Punkte auseinander.
+    // Fokus und Auswahl waren damit an Stellen mit gemeinsamem Rahmen nicht
+    // mehr unterscheidbar. Das Referenzverhaeltnis 0.08 : 0.18 stellt den
+    // Abstand wieder her.
+    readonly property color hover: mix(bg, fg, 0.08)
 
     readonly property color red: c.red ?? "#f7768e"
     readonly property color green: c.green ?? "#9ece6a"
