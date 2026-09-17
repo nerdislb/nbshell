@@ -8,7 +8,7 @@ from pathlib import Path
 def instrument(shell):
     for i in range(24):
         Path(f'/work/scene-{i}.svg').write_text(f'<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="640"><rect width="1024" height="640" fill="#{(i*782331+0x345678)%0xffffff:06x}"/><circle cx="700" cy="160" r="65" fill="#efc98a"/><path d="M0 600L220 180L580 640M250 640L700 270L1024 620V640" fill="#273147"/></svg>')
-    p = shell / 'Services/ThemeIndex.qml' 
+    p = shell / 'Services/ThemeIndex.qml'
     s = p.read_text().replace('    id: root', '    id: root\n    property var testActions: []', 1)
     s = re.sub(r'    function refresh\(\) \{.*?\n    }', '    function refresh() {}', s, flags=re.S)
     s = re.sub(r'    function apply\(name\) \{.*?\n    }', '    function apply(name) { testActions = testActions.concat([name]); }', s, flags=re.S)
