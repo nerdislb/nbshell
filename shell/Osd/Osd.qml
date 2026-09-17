@@ -25,7 +25,25 @@ Variants {
         readonly property real iconWidth: Math.ceil(Math.max(iconMetrics.tightBoundingRect.width, widestIcon.tightBoundingRect.width))
         readonly property real valueWidth: Math.ceil(Math.max(valueMetrics.advanceWidth, mutedMetrics.advanceWidth))
         screen: modelData
-        visible: Osd.showing && !takenByPill
+        // Layer-Flaechen blendet der Compositor nicht mehr ueber (die
+        // Layer-Animation ist aus, siehe docs/behaviour-parity.md). Damit das
+        // OSD ausblenden kann, statt zu verschwinden, bleibt das Fenster noch
+        // Theme.motionExit lang gemappt, waehrend die Flaeche ausblendet;
+        // danach faellt es weg. Reduced Motion laesst den Rueckruf sofort
+        // laufen, dann gibt es keinen Nachlauf.
+        readonly property bool wanted: Osd.showing && !takenByPill
+        property bool closing: false
+        visible: wanted || closing
+        onWantedChanged: {
+            if (wanted) {
+                closing = false;
+                box.enter();
+            } else {
+                closing = true;
+                box.dismiss(() => { win.closing = false; });
+            }
+        }
+        Component.onCompleted: if (wanted) box.enter()
         color: "transparent"
         WlrLayershell.namespace: "nbshell:osd"
         WlrLayershell.layer: WlrLayershell.Overlay
@@ -50,6 +68,10 @@ Variants {
         MotionSurface {
             id: box
             visible: win.visible
+            // Ein- und Ausblenden steuert das Fenster oben ausdruecklich,
+            // damit ein schnelles Wiederauftauchen das Ausblenden sauber
+            // abbricht.
+            autoEnter: false
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: Config.edge === "bottom" ? parent.top : undefined
             anchors.bottom: Config.edge === "bottom" ? undefined : parent.bottom
