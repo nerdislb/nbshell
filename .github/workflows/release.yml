@@ -19,6 +19,8 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Verify tag and release metadata
         run: |
@@ -102,11 +104,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           prerelease=()
           [[ "$(cat VERSION)" == *-* ]] && prerelease+=(--prerelease)
           version="$(cat VERSION)"
+          # Backend-only tags must not become the baseline for shell release notes.
+          previous="$(git describe --tags --abbrev=0 --match 'v[0-9]*' "${GITHUB_SHA}^")"
           gh release create "${GITHUB_REF_NAME}" nbshell-manual.zip \
             "nbshell-${version}.tar.gz" "nbshell-${version}.tar.gz.sha256" \
             "nbshell-${version}.tar.gz.sigstore.json" \
             --title "nbshell $(cat VERSION)" \
-            --generate-notes "${prerelease[@]}"
+            --generate-notes --notes-start-tag "$previous" "${prerelease[@]}"
