@@ -36,6 +36,7 @@ remain authoritative for integration.
 | Display settings | `shell/plugins/panels/monitor/` + native settings language | Resolution/orientation/placement retained; backend unchanged |
 | Calculator | Panel/menu language; no standalone upstream calculator | Native floating keypad, arithmetic parser, keyboard and clipboard retained; `docs/calculator-parity.md` |
 | Speed test | `shell/Ui/SpeedTestOverlay.qml` and `shell/plugins/panels/speedtest/Panel.qml` | Native gauge adaptation; batch backend, ping/server/persistent scale and cancellation retained; `docs/speedtest-parity.md` |
+| AI usage bar module | `shell/Ui/BarIconButton.qml` + `BarIndicator.qml`; `[bar]`, `[controls]`, `[spacing]`, `[font]`, `[popups]` in `default/themed/shell.toml.tpl` | `shell/Bar/Widgets/AiFill.qml`; icon-only module, limits plus local token view, hover and click detail retained; `docs/ai-usage-parity.md` |
 | Custom bar | Deliberate nbshell exception | Existing bar/island/pill preserved; DuoBar icon explicitly requested |
 
 Approved rounds above must not drift during unrelated work. See the relevant
