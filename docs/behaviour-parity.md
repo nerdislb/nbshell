@@ -61,7 +61,7 @@ shallow clones and were not used as evidence.
 |---|---|---|---|
 | 6 | medium — probably already closed, one live check owed | Outside-click dismissal appeared not to work on a background with no client surface | **The compositor is not the cause. Verified, and a candidate patch was built and then dropped.** `tests/harness/checks/515_popup_focus.sh` clicks bare background at `(1,1)` with a grabbed popup open, and the popup is dismissed. A fix was built in the `surface == nullptr` branch of `Cursor::processButton` (end the keyboard grab there) and that check was run against both builds: it passes **with and without** the fix, so the fix was reverted instead of shipped. The likelier cause is that the popout held no xdg_popup grab at all: `Popout.grabFocus` requires `takesKeyboard`, and `Cell.popoutTakesKeyboard` used to default to `false`, so most click popouts never took a grab for wlroots to dismiss. The keyboard-default change earlier in this round is what gives them one. A live confirmation is still owed: open a bar popout and click the desktop. Previews stay grabless on purpose and close on pointer leave |
 | 7 | medium | No per-monitor screensaver: one window starts, the other outputs keep the desktop | Feasible now, but not verifiable here. Umbriel's `WindowRule` has `defaultOutput` (TOML key `output`), so the shape is: launch one process per output with a per-output window title, and let a generated rule place each on its output — `ThemeExport` already writes the per-output config. Two reasons it is not done: it needs a title convention, N tracked processes and generated rules, and **this machine has a single output (`eDP-1`)**, so multi-monitor placement cannot be observed. It needs a machine or VM with two outputs |
-| 1b | — | **Closed.** Toasts fade out again | See the table above. The same treatment still has to be applied to the OSD window's unmap and to the power/lock previews; those are single surfaces with a `visible` binding, so they need a delayed unmap rather than a model grace |
+| 1b | — | **Closed.** Toasts fade out again | The OSD does too: its window stays mapped for `Theme.motionExit` while the surface dismisses, and a re-show cancels that. `PowerMenu` already animated through `MotionSurface`. The only surface left in that finding is the lock preview, which lives in the separate lock shell — see the note under this table |
 
 Two more need a live probe rather than a code read: whether Umbriel reports
 activity when the screensaver window maps (the reference guards that with a 3 s
@@ -81,6 +81,9 @@ fix went into QML instead: the surfaces that should fade now do it themselves.
 `animation.windows_in`/`windows_out` separately from `animation.layers`, so the
 window popin and fade are untouched by any of this.
 
-Completing #1b means giving `Popups.qml` a removal grace and calling
-`MotionSurface.dismiss()` before the delegate goes away; the same treatment
-would cover the OSD window's unmap.
+#1b is complete for the surfaces that matter: `Popups.qml` holds a removed
+entry for `Theme.motionExit` and calls `MotionSurface.dismiss()` before the
+delegate goes away, and the OSD window stays mapped for the same interval while
+its surface dismisses. The one surface still without a transition is the lock
+preview, which runs inside the separate lock shell; giving it one means the same
+delayed-unmap treatment in `shell/lock/shell.qml`.
