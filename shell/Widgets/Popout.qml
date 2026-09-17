@@ -268,10 +268,19 @@ PopupWindow {
         }
     }
 
+    // Ein Popout, das die Tastatur haelt, darf nicht unter der Tastatur
+    // wegklappen. Wer darin mit Tab arbeitet, hat den Zeiger nicht ueber dem
+    // Fenster -- der Nachlauf schloss es dann mitten in der Bedienung. Die
+    // Referenz laesst ihre Klickpanels beim Zeigerverlassen ohnehin offen;
+    // hier bleibt das bequeme Schliessen fuer die Maus erhalten und tritt nur
+    // zurueck, solange wirklich ein Bedienelement den Fokus hat.
+    readonly property bool keyboardInUse: takesKeyboard
+        && focusIsOnKeyboardControl(focusWindow ? focusWindow.activeFocusItem : null)
+
     Timer {
         id: leaveTimer
         interval: root.leaveDelay
-        onTriggered: if (root.closeOnLeave && !root.pointerInside)
+        onTriggered: if (root.closeOnLeave && !root.pointerInside && !root.keyboardInUse)
             root.close()
     }
 

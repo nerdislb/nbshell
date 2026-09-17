@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Widgets
 import qs.Common
+import qs.Commons as Commons
 import qs.Services
 import qs.Settings
 import qs.Widgets
@@ -76,17 +77,22 @@ PanelWindow {
         const needle = filterText.trim().toLowerCase();
         if (needle === "") return levelItems;
 
+        // Auch innerhalb eines Untermenues wird der ganze Teilbaum
+        // durchsucht, nicht nur die direkte Ebene: die Referenz findet eine
+        // Aktion ueber dieselbe Suche, egal wie tief sie liegt.
         if (trail.length)
-            return levelItems.filter(e => (e.label + " " + (e.description || "")).toLowerCase().indexOf(needle) >= 0);
+            return root.searchTree(levelItems, needle, trail, "");
 
         // Root search spans the complete nested menu as well as installed
-        // desktop applications. Caps keep one-letter queries on screen.
-        const appMatches = Apps.rank(needle).slice(0, 5).map(match => ({
+        // desktop applications. The reference caps nothing; our list scrolls
+        // and maxRowsHeight bounds it, so the earlier slices (five apps,
+        // seven actions) only made existing entries unreachable by search.
+        const appMatches = Apps.rank(needle).map(match => ({
             "label": match.entry.name,
             "description": match.entry.genericName || match.entry.comment || "Application",
             "appEntry": match.entry
         }));
-        const menuMatches = root.searchTree(root.tree, needle, [], "").slice(0, 7);
+        const menuMatches = root.searchTree(root.tree, needle, [], "");
         return appMatches.concat(menuMatches);
     }
 
@@ -412,9 +418,17 @@ PanelWindow {
         Keys.onPressed: event => {
             if (event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown) {
                 root.move(event.key === Qt.Key_PageUp ? -6 : 6); event.accepted = true;
+            } else if (Commons.Util.editsFilter(event, root.filterText)) {
+                // Dieselben Bearbeitungstasten wie die Referenz: Backspace
+                // loescht ein Zeichen, Strg+Backspace ein Wort, Strg+U die
+                // ganze Suche. Util.editsFilter/editedFilter sind genau dafuer
+                // portiert worden und waren hier ungenutzt.
+                root.setFilter(Commons.Util.editedFilter(event, root.filterText));
+                event.accepted = true;
             } else if (event.key === Qt.Key_Backspace) {
-                if (root.filterText) root.setFilter(root.filterText.slice(0, -1));
-                else root.back();
+                // Nur wenn nichts zu loeschen ist: Backspace geht eine Ebene
+                // zurueck (dokumentiertes nbshell-Verhalten).
+                root.back();
                 event.accepted = true;
             } else if ((event.modifiers & Qt.ControlModifier) && (event.key === Qt.Key_N || event.key === Qt.Key_P)) {
                 root.move(event.key === Qt.Key_N ? 1 : -1); event.accepted = true;
