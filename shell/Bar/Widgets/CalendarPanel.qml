@@ -314,7 +314,8 @@ Column {
                                 anchors.centerIn: parent
                                 anchors.verticalCenterOffset: -Theme.cellH * 0.3
                                 text: dayCell.day.getDate()
-                                color: dayCell.inMonth ? (dayCell.isSelected ? Theme.selectedForeground(Theme.accent) : (dayCell.isToday ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg)) : Theme.muted
+                                color: dayCell.isSelected ? Theme.selectedForeground(Theme.accent)
+                                    : (dayCell.inMonth ? (dayCell.isToday ? Theme.readable(Theme.accent, Theme.bg) : Theme.fg) : Theme.muted)
                             }
 
                             // Der Punkt sagt nur "da steht etwas an" -- wie viel,
@@ -325,7 +326,8 @@ Column {
                                 anchors.bottomMargin: Theme.cellH * 0.1
                                 visible: dayCell.busy
                                 text: "·"
-                                color: dayCell.inMonth ? (dayCell.isSelected ? Theme.selectedForeground(Theme.accent) : Theme.readable(Theme.accent, Theme.bg)) : Theme.muted
+                                color: dayCell.isSelected ? Theme.selectedForeground(Theme.accent)
+                                    : (dayCell.inMonth ? Theme.readable(Theme.accent, Theme.bg) : Theme.muted)
                             }
 
                             // KEINE MouseArea mit `hoverEnabled`: die nimmt das

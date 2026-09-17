@@ -19,15 +19,22 @@ InteractiveSurface {
     accessibleDescription: busy ? "Action in progress" : ""
     accessiblePressed: tap.pressed
 
+    // Primary emphasis is not the same state as a selected row.
+    // `selectedSurface` is Omarchy's selection wash (foreground-tinted), which
+    // made a primary action look neutral at rest and only pick up its accent
+    // identity on hover. Derive the primary fill from the accent explicitly so
+    // the emphasis stays stable across states.
     readonly property color idleSurface: tone === "primary"
-        ? Theme.selectedSurface(accentColor)
+        ? Theme.mix(Theme.bg, accentColor, 0.18)
         : (tone === "danger" ? Theme.mix(Theme.bg, Theme.red, 0.12) : Theme.panelSurfaceRaised)
     readonly property color activeSurface: tone === "primary"
         ? Theme.mix(Theme.bg, accentColor, 0.28)
         : (tone === "danger" ? Theme.mix(Theme.bg, Theme.red, 0.22) : Theme.hover)
-    readonly property color labelColor: tone === "danger"
-        ? Theme.readable(Theme.red, idleSurface, 4.5)
-        : (tone === "primary" ? Theme.selectedForeground(accentColor) : Theme.fg)
+    // Contrast is measured against the surface this button actually paints,
+    // not against the shared selection wash.
+    readonly property color labelColor: tone === "primary" || tone === "danger"
+        ? Theme.readable(accentColor, idleSurface, 4.5)
+        : Theme.fg
 
     // Compact actions live in dense popout rows. Keep their hit target clear,
     // but do not let the surrounding surface dominate the terminal-like text.
