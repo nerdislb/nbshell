@@ -70,7 +70,12 @@ Item {
     property bool popoutOnHover: false
 
     readonly property bool nimmtKlicks: root.interactive || (root.popout !== null && !root.popoutOnHover)
-    property bool popoutTakesKeyboard: false
+    // Ein Klick-Popout ist ein Overlay und muss Tastatur annehmen: Escape
+    // schliesst es, und die enthaltenen Bedienelemente sind per Tab
+    // erreichbar. Vorher war das ein Opt-in, und zehn Bausteine mit
+    // bedienbarem Inhalt hatten es nie gesetzt -- dort war Escape wirkungslos.
+    // Wer nur etwas ANZEIGT, schaltet es ausdruecklich ab.
+    property bool popoutTakesKeyboard: true
     property bool popoutCloseOnLeave: true
     property bool popoutInsetBorder: false
     property real popoutPadding: Theme.panelPadding

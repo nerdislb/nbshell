@@ -137,87 +137,40 @@ Cell {
                         anchors.right: parent.right
                         anchors.rightMargin: Theme.cellW / 2
                         anchors.verticalCenter: parent.verticalCenter
-                        spacing: 6
+                        spacing: Theme.spaceXs
 
-                        Rectangle {
+                        // Geteilte Knoepfe statt gebauter Kaestchen: die
+                        // frueheren 24x20-Rectangles mit nackter MouseArea
+                        // hatten weder Fokus noch Tastatur noch eine
+                        // Accessibility-Rolle. `ActionButton` bringt alles drei
+                        // mit und ist die dichte Variante fuer Popout-Zeilen.
+                        ActionButton {
                             visible: modelData.mode === "COUNTER"
-                            width: 24
-                            height: 20
-                            radius: 2
-                            color: Theme.panelSurfaceRaised
-                            border.width: 1
-                            border.color: Theme.panelBorder
-
-                            Text {
-                                textFormat: Text.PlainText
-                                anchors.centerIn: parent
-                                text: "+1"
-                                font.family: Theme.fontFamily
-                                font.pixelSize: 10
-                                font.bold: true
-                                color: Theme.accent
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: Habits.increment(modelData.id, 1)
-                            }
+                            compact: true
+                            text: "+1"
+                            accessibleName: "Increase " + modelData.name
+                            onTriggered: Habits.increment(modelData.id, 1)
                         }
 
                         // TIMER (Focus): der eigentliche Pomodoro laeuft in der
-                        // App; hier markiert ▶ die Fokus-Session als erledigt
-                        // (ersetzt fuer diesen Modus die generische Checkbox).
-                        Rectangle {
+                        // App; hier markiert die Aktion die Fokus-Session als
+                        // erledigt (ersetzt fuer diesen Modus die Checkbox).
+                        ActionButton {
                             visible: modelData.mode === "TIMER"
-                            width: 24
-                            height: 20
-                            radius: 2
-                            color: row.isDone ? Theme.green : Theme.alpha(Theme.magenta, 0.2)
-                            border.width: 1
-                            border.color: row.isDone ? Theme.green : Theme.magenta
-
-                            Text {
-                                textFormat: Text.PlainText
-                                anchors.centerIn: parent
-                                text: row.isDone ? "✔" : "▶"
-                                font.family: Theme.fontFamily
-                                font.pixelSize: 10
-                                font.bold: true
-                                color: row.isDone ? Theme.bg : Theme.magenta
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: Habits.toggle(modelData.id)
-                            }
+                            compact: true
+                            text: row.isDone ? "Focus done" : "Focus"
+                            tone: row.isDone ? "primary" : "secondary"
+                            accessibleName: "Toggle focus session for " + modelData.name
+                            onTriggered: Habits.toggle(modelData.id)
                         }
 
-                        Rectangle {
+                        ActionButton {
                             visible: modelData.mode !== "TIMER"
-                            width: 22
-                            height: 20
-                            radius: 2
-                            color: row.isDone ? Theme.green : "transparent"
-                            border.width: 1
-                            border.color: row.isDone ? Theme.green : Theme.muted
-
-                            Text {
-                                textFormat: Text.PlainText
-                                anchors.centerIn: parent
-                                text: row.isDone ? "✔" : ""
-                                font.family: Theme.fontFamily
-                                font.pixelSize: 10
-                                font.bold: true
-                                color: Theme.bg
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: Habits.toggle(modelData.id)
-                            }
+                            compact: true
+                            text: row.isDone ? "Done" : "Complete"
+                            tone: row.isDone ? "primary" : "secondary"
+                            accessibleName: "Toggle " + modelData.name
+                            onTriggered: Habits.toggle(modelData.id)
                         }
                     }
 

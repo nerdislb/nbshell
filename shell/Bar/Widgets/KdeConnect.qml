@@ -255,43 +255,31 @@ Cell {
                         return a;
                     }
 
-                    Rectangle {
+                    ActionButton {
                         id: actBtn
                         required property var modelData
                         readonly property bool active: panel.composer === modelData.id
 
-                        width: actLabel.implicitWidth + Theme.cellW * 2
-                        height: Theme.denseRowHeight
-                        radius: Theme.radius
-                        color: actBtn.active ? Theme.selectedSurface() : (actMouse.containsMouse ? Theme.hover : "transparent")
-                        border.width: Theme.borderWidth
-                        border.color: actBtn.active ? Theme.accent : Theme.alpha(Theme.fg, 0.15)
-
-                        Line {
-                            id: actLabel
-                            anchors.centerIn: parent
-                            text: actBtn.modelData.label
-                            color: actBtn.active ? Theme.selectedForeground() : Theme.fg
-                        }
-
-                        MouseArea {
-                            id: actMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                const id = panel.dev.id;
-                                const a = actBtn.modelData.id;
-                                if (a === "ring") Kdeconnect.ring(id);
-                                else if (a === "clipboard") Kdeconnect.sendClipboard(id);
-                                else if (a === "file") Kdeconnect.shareFile(id);
-                                else if (a === "sms") Kdeconnect.openSms(id);
-                                else if (a === "text" || a === "ping") {
-                                    panel.composer = (panel.composer === a) ? "" : a;
-                                    panel.draft = "";
-                                    if (panel.composer !== "")
-                                        composerInput.forceActiveFocus();
-                                }
+                        compact: true
+                        text: actBtn.modelData.label
+                        // "Aktiv" heisst hier: dieser Composer ist offen. Das ist
+                        // eine Betonung, keine Auswahl -- ActionButton bringt
+                        // Fokus, Tastatur und Accessibility-Rolle mit; die
+                        // frueher gebaute Flaeche hatte nichts davon.
+                        tone: actBtn.active ? "primary" : "secondary"
+                        accessibleName: actBtn.modelData.label
+                        onTriggered: {
+                            const id = panel.dev.id;
+                            const a = actBtn.modelData.id;
+                            if (a === "ring") Kdeconnect.ring(id);
+                            else if (a === "clipboard") Kdeconnect.sendClipboard(id);
+                            else if (a === "file") Kdeconnect.shareFile(id);
+                            else if (a === "sms") Kdeconnect.openSms(id);
+                            else if (a === "text" || a === "ping") {
+                                panel.composer = (panel.composer === a) ? "" : a;
+                                panel.draft = "";
+                                if (panel.composer !== "")
+                                    composerInput.forceActiveFocus();
                             }
                         }
                     }

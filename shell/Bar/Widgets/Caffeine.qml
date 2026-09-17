@@ -39,6 +39,11 @@ Cell {
     // ist der seltenere Wunsch, deshalb die seltenere Geste.
     onRightClicked: Config.set("idle", !Idle.enabled)
 
+    // Dieses Popout zeigt nur Zustand (Kopfzeile und Fakten) und hat keine
+    // eigenen Bedienelemente; die Zelle selbst schaltet. Es braucht deshalb
+    // keinen Tastaturgriff und schliesst beim Weggehen des Zeigers.
+    popoutTakesKeyboard: false
+
     popout: Component {
         Column {
             id: panel
