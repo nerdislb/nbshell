@@ -105,3 +105,14 @@ CI before merging. Final shell-tag signature and archive checks remain a
 separate step from the completed backend publication checks. No new two-hour soak,
 physical suspend/display matrix, second-machine login/onboarding, real-account
 Mail/Gaming acceptance or complete AT-SPI certification is claimed.
+
+
+### Follow-up CI timer regression
+
+The final PR gate exposed a flaky recovery-notice fixture: a fixed 4.2-second
+wait assumed a 4-second QML toast timer had already fired. On one busy runner,
+the old toast was still present when the recovery warning cleared. The fixture
+now waits for the actual `draftSavedToast` transition with a bounded deadline,
+then asserts that the recovery warning survived that transition. No UI timer
+or production behavior changed. Five focused repetitions and all 76 tests in
+that component pass; the full remote gate is repeated on the corrected commit.

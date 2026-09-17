@@ -382,7 +382,9 @@ Item {
       app.writeComposeRecovery(raw)
       var warning = app.draftSavedNotice
       verify(warning.indexOf("Keep this window open") >= 0)
-      wait(4200)
+      // Wait for the actual timer effect: a fixed 200 ms margin races the
+      // event loop on a busy CI runner and never proves the toast expired.
+      tryCompare(app, "draftSavedToast", "", 10000)
       compare(app.draftSavedNotice, warning, "the prior save's timer cannot dismiss a recovery warning")
       compare(recoveryBackend.requests.length, priorRequests, "the old connection receives no recovery RPC")
       verify(app.composeWriteQueued)
