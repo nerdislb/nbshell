@@ -26,6 +26,7 @@ QtObject {
     readonly property real iconLarge: Theme.fontHeading
   }
   readonly property QtObject spacing: QtObject {
+    readonly property real hairline: Theme.borderWidth
     readonly property real xxs: Math.max(1, Math.round(Theme.spaceXs * 0.66))
     readonly property real xs: Theme.spaceXs
     readonly property real sm: Theme.spaceSm
@@ -68,30 +69,98 @@ QtObject {
     readonly property real sizeVertical: Theme.barHeight
   }
 
+  // Hälfte von Umbriels Aussenabstand, wie Omarchys Style.gapsOut die Hälfte
+  // von Hyprlands general:gaps_out ist.
+  readonly property real gapsOut: Config.gap
+
+  // Zustandsalphas wie im Original. Die Farben bleiben nbshells Rollen
+  // (Akzent für Auswahl und Fokus) — das ist eine bewusste Abweichung, siehe
+  // docs/ui-porting.md.
+  readonly property real normalFillAlpha: 0.04
+  readonly property real hoverFillAlpha: 0.08
+  readonly property real selectedFillAlpha: 0.18
+  readonly property real pressedFillAlpha: 0.22
+  readonly property real focusFillAlpha: hoverFillAlpha
+  readonly property real selectionFillAlpha: 0.35
+  readonly property real normalBorderAlpha: 0.4
+  readonly property real hoverBorderAlpha: 0.25
+  readonly property real selectedBorderAlpha: 1.0
+  readonly property real focusBorderAlpha: hoverBorderAlpha
+
   function space(value) { return Math.round(Number(value) * Theme.uiScale) }
+  function spaceReal(value) { return Number(value) * Theme.uiScale }
   function normalFillFor(foreground, accent) { return Theme.panelSurfaceRaised }
   function hoverFillFor(foreground, accent) { return Theme.hover }
   function focusFillFor(foreground, accent) { return Theme.hover }
   function selectedFillFor(foreground, accent) { return Theme.selectedSurface(accent) }
   function pressedFillFor(foreground, accent) { return Theme.mix(Theme.bg, accent, 0.26) }
   function selectionFillFor(foreground, accent) { return Theme.selectedSurface(accent) }
-  function selectedStateColor(foreground, accent) { return Theme.selectedForeground(accent) }
-  function normalBorderFor(foreground, accent) { return Theme.panelBorder }
-  function hoverBorderFor(foreground, accent) { return Theme.focusBorder }
-  function focusBorderFor(foreground, accent) { return Theme.focusBorder }
-  function selectedBorderFor(foreground, accent) { return "transparent" }
-  // Compatibility surface for bundled/community controls that still pass
-  // enabled/hot flags instead of selecting a semantic border themselves.
-  function controlBorder(enabled, hot, foreground, accent) {
-    if (!enabled) return Theme.muted
-    return hot ? hoverBorderFor(foreground, accent) : normalBorderFor(foreground, accent)
+  function normalStateColor(foreground, accent, urgent) { return foreground ?? Color.foreground }
+  function hoverStateColor(foreground, accent, urgent) { return foreground ?? Color.foreground }
+  function focusStateColor(foreground, accent, urgent) { return accent ?? Color.accent }
+  function selectedStateColor(foreground, accent, urgent) { return Theme.selectedForeground(accent) }
+  function pressedStateColor(foreground, accent, urgent) { return accent ?? Color.accent }
+  function selectionStateColor(foreground, accent, urgent) { return accent ?? Color.accent }
+  function normalBorderFor(foreground, accent, urgent) {
+    if (urgent) return Theme.alpha(Theme.red, 0.8)
+    return Theme.panelBorder
   }
-  function controlFill(state, foreground, accent) {
+  function hoverBorderFor(foreground, accent, urgent) {
+    if (urgent) return Theme.alpha(Theme.red, 0.8)
+    return Theme.focusBorder
+  }
+  function focusBorderFor(foreground, accent, urgent) {
+    if (urgent) return Theme.alpha(Theme.red, 0.8)
+    return Theme.focusBorder
+  }
+  function selectedBorderFor(foreground, accent, urgent) {
+    if (urgent) return Theme.alpha(Theme.red, 0.8)
+    return "transparent"
+  }
+
+  // Upstream (qs.Commons) ruft diese Helfer mit Booleans und dem Fokus zuerst
+  // auf:
+  //   Style.controlFill(focused, hot, foreground, accent)
+  //   Style.controlBorder(focused, hot, foreground, accent)
+  //   Style.controlBorderWidth(focused, hot)
+  // nbshell-eigene Bausteine rufen controlFill() stattdessen mit einem
+  // Statusstring auf:
+  //   Style.controlFill("focus" | "hover-cursor" | "selected" | "active"
+  //                     | "pressed" | "normal", foreground, accent)
+  // Beides muss funktionieren: ein portiertes Original darf unverändert
+  // laufen, ein bestehender nbshell-Baustein darf nicht brechen. Über die
+  // Argumentzahl sind die beiden Formen eindeutig unterscheidbar.
+  function controlFill(stateOrFocused, hotOrForeground, foregroundOrAccent, accent) {
+    if (arguments.length >= 4)
+      return upstreamControlFill(stateOrFocused, hotOrForeground, foregroundOrAccent, accent)
+    return stateFill(stateOrFocused, hotOrForeground, foregroundOrAccent)
+  }
+
+  function upstreamControlFill(focused, hot, foreground, accent) {
+    if (focused) return focusFillFor(foreground, accent)
+    if (hot) return hoverFillFor(foreground, accent)
+    return normalFillFor(foreground, accent)
+  }
+
+  function stateFill(state, foreground, accent) {
     if (state === "pressed") return pressedFillFor(foreground, accent)
     if (state === "selected" || state === "active") return selectedFillFor(foreground, accent)
     if (state === "hover-cursor" || state === "focus") return hoverFillFor(foreground, accent)
     return normalFillFor(foreground, accent)
   }
+
+  function controlBorder(focused, hot, foreground, accent, urgent) {
+    if (focused) return focusBorderFor(foreground, accent, urgent)
+    if (hot) return hoverBorderFor(foreground, accent, urgent)
+    return normalBorderFor(foreground, accent, urgent)
+  }
+
+  function controlBorderWidth(focused, hot) {
+    if (focused) return focusBorderWidth
+    if (hot) return hoverBorderWidth
+    return normalBorderWidth
+  }
+
   function stateBorderFor(state, foreground, accent) {
     if (state === "selected" || state === "active") return selectedBorderFor(foreground, accent)
     if (state === "hover-cursor" || state === "focus") return focusBorderFor(foreground, accent)

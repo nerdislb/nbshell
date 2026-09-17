@@ -445,8 +445,30 @@ Item {
             verify(dynamicMember(Style.spacing, "panelPadding") > 0);
             verify(dynamicMember(Style.spacing, "searchableDropdownWidth") > dynamicMember(Style.spacing, "dropdownWidth"));
             verify(dynamicMember(Style.font, "display") > dynamicMember(Style.font, "heading"));
-            compare(Style.controlBorder(false, false, Color.foreground, Color.accent), "#707070");
-            compare(Style.controlBorder(true, true, Color.foreground, Color.accent), "#80b8ff");
+            // Upstream order is (focused, hot, ...). nbshell's own components
+            // pass a state string to controlFill() instead. Both conventions
+            // must keep working so a ported Omarchy control needs no edits and
+            // an existing nbshell control does not break.
+            compare(Style.controlBorder(false, false, Color.foreground, Color.accent), "#a0a0a0");
+            compare(Style.controlBorder(false, true, Color.foreground, Color.accent), "#80b8ff");
+            compare(Style.controlBorder(true, false, Color.foreground, Color.accent), "#80b8ff");
+            compare(Style.controlBorderWidth(false, false), Style.normalBorderWidth);
+            compare(Style.controlBorderWidth(false, true), Style.hoverBorderWidth);
+            compare(Style.controlBorderWidth(true, false), Style.focusBorderWidth);
+            compare(Style.controlFill(false, false, Color.foreground, Color.accent), "#202020");
+            compare(Style.controlFill(false, true, Color.foreground, Color.accent), "#303030");
+            compare(Style.controlFill(true, false, Color.foreground, Color.accent), "#303030");
+            compare(Style.controlFill("focus", Color.foreground, Color.accent), "#303030");
+            verify(Style.controlFill("selected", Color.foreground, Color.accent).valid);
+            verify(Style.controlFill("selected", Color.foreground, Color.accent) !==
+                Style.controlFill(false, false, Color.foreground, Color.accent));
+            compare(Style.spaceReal(10), 10);
+            verify(Style.gapsOut >= 0);
+            verify(Style.hoverStateColor(Color.foreground, Color.accent).valid);
+            verify(Style.focusStateColor(Color.foreground, Color.accent).valid);
+            verify(Style.pressedStateColor(Color.foreground, Color.accent).valid);
+            verify(Style.selectionStateColor(Color.foreground, Color.accent).valid);
+            compare(dynamicMember(Color.popups, "text"), Color.foreground);
             compare(dynamicMember(Color.popups, "background"), "#101010");
             compare(dynamicMember(Color.popups, "border"), "#80b8ff");
             compare(Color.urgent, "#ff6060");
@@ -459,6 +481,26 @@ Item {
             compare(Border.controlHasWidth("selected"), false);
             compare(Border.canUseNative(normal), true);
             compare(Border.needsOverlay(normal), false);
+        }
+
+        function test_util_singleton_contracts() {
+            // Ported from the pinned reference so an upstream component can
+            // call Util.* unchanged. execDetached/execArgv are deliberately
+            // not ported; see docs/ui-porting.md.
+            compare(Util.clamp(5, 0, 3), 3);
+            compare(Util.clamp(-1, 0, 3), 0);
+            compare(Util.clampAlpha(2), 1);
+            compare(Util.alpha("#102030", 0.5).a.toFixed(2), "0.50");
+            compare(Util.shellQuote("a'b"), "'a'\\''b'");
+            verify(Util.isPlainObject({}));
+            compare(Util.isPlainObject([]), false);
+            verify(Util.parseModuleJson("").text === undefined);
+            compare(Util.parseModuleJson("plain").text, "plain");
+            compare(Util.parseModuleJson('{"text":"42%"}').text, "42%");
+            compare(Util.normalizeLayoutSection([1, "clock"]).length, 1);
+            compare(Util.normalizeLayout({}).left.length, 0);
+            verify(Util.fileUrl("/a b").indexOf("%20") > 0);
+            verify(Style.spacing.hairline >= 1);
         }
 
         function test_text_field_inherited_api() {

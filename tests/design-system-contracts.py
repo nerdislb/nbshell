@@ -9,6 +9,8 @@ import re
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 REAL_THEME = ROOT / "shell/Common/Theme.qml"
 FAKE_THEME = ROOT / "tests/imports/qs/Common/Theme.qml"
+REAL_CONFIG = ROOT / "shell/Common/Config.qml"
+FAKE_CONFIG = ROOT / "tests/imports/qs/Common/Config.qml"
 ADAPTER_DIRS = (ROOT / "shell/Commons", ROOT / "shell/Ui")
 
 
@@ -19,22 +21,38 @@ def declared_members(path: pathlib.Path) -> set[str]:
     return set(properties) | set(functions)
 
 
-used_theme_members: set[str] = set()
-for directory in ADAPTER_DIRS:
-    for path in directory.glob("*.qml"):
-        used_theme_members.update(
-            re.findall(r"\bTheme\.(\w+)", path.read_text(encoding="utf-8"))
+def used_members(singleton: str) -> set[str]:
+    used: set[str] = set()
+    for directory in ADAPTER_DIRS:
+        for path in directory.glob("*.qml"):
+            used.update(
+                re.findall(rf"\b{singleton}\.(\w+)", path.read_text(encoding="utf-8"))
+            )
+    return used
+
+
+def check_singleton(singleton: str, real: pathlib.Path, fake: pathlib.Path) -> None:
+    """The adapter runs against the fixture, so both must expose what it uses."""
+    used = used_members(singleton)
+    missing_real = sorted(used - declared_members(real))
+    missing_fake = sorted(used - declared_members(fake))
+    if missing_real:
+        raise SystemExit(
+            f"Adapter references missing production {singleton} members: {missing_real}"
+        )
+    if missing_fake:
+        raise SystemExit(
+            f"Fake {singleton} is missing adapter members: {missing_fake}"
         )
 
-real_members = declared_members(REAL_THEME)
-fake_members = declared_members(FAKE_THEME)
 
-missing_real = sorted(used_theme_members - real_members)
-missing_fake = sorted(used_theme_members - fake_members)
-if missing_real:
-    raise SystemExit(f"Adapter references missing production Theme members: {missing_real}")
-if missing_fake:
-    raise SystemExit(f"Fake Theme is missing adapter members: {missing_fake}")
+# Config is read by the adapter too (Style.gapsOut). A member that exists in
+# production but not in the fixture only fails at runtime, in the tests, which
+# is exactly where the fixture is supposed to stand in for production.
+check_singleton("Theme", REAL_THEME, FAKE_THEME)
+check_singleton("Config", REAL_CONFIG, FAKE_CONFIG)
+
+used_theme_members = used_members("Theme")
 
 expected_ui_types = {
     "BorderOverlay",

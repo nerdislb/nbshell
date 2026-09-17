@@ -73,6 +73,7 @@ run bash tests/performance-smoke.sh
 run python3 tests/whatsapp-sync-units.py
 run bash tests/process-selection.sh
 run bash tests/qml.sh
+run python3 tests/ui-kit-coverage.py
 run python3 tests/runtime-loader-contracts.py
 run bash tests/screensaver-renderer.sh
 run bash tests/power-modes.sh
