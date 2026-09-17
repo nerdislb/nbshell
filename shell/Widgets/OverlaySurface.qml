@@ -12,7 +12,10 @@ MotionSurface {
     property real edgeMarginX: Theme.overlayMarginX
     property real edgeMarginY: Theme.overlayMarginY
     property bool dockedTop: false
-    property real dockOffset: Theme.barHeight + Theme.spaceSm
+    // Bei Insel/Pill schwebt die Leiste: ihr Unterrand liegt um Config.gap
+    // tiefer als barHeight. Ohne diesen Posten ueberlappte ein angedocktes
+    // Overlay die Leiste, sobald der Abstand groesser war als spaceSm.
+    property real dockOffset: Theme.barHeight + Math.max(Config.gap, Theme.spaceSm)
 
     width: Math.max(1, Math.min(preferredWidth, (parent?.width ?? preferredWidth) - edgeMarginX * 2))
     height: Math.max(1, Math.min(preferredHeight,

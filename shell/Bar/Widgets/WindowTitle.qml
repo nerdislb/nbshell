@@ -17,4 +17,7 @@ Cell {
     shown: title !== ""
     color: Theme.textDim
     text: title.length > maxChars ? (title.substring(0, maxChars - 1) + "…") : title
+    // Die Anzeige kuerzt, der zugaengliche Name nicht: Vorlesewerkzeuge und
+    // Suchfunktionen sollen den ganzen Fenstertitel bekommen.
+    accessibilityName: root.title
 }

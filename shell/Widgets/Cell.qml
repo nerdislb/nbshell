@@ -396,8 +396,14 @@ Item {
             padding: takesKeyboard ? root.popoutPadding : Theme.panelPadding
             surfaceBorderWidth: takesKeyboard ? root.popoutBorderWidth : Theme.borderWidth
             surfaceBorderColor: takesKeyboard ? root.popoutBorderColor : Theme.focusBorder
+            // Das Popout haengt unter der Leiste, laesst Config.gap frei und
+            // legt Innenabstand plus Rahmen um den Inhalt. Vorher fehlten
+            // beide Posten in der Rechnung, sodass ein langes Popout auf
+            // kleinen Ausgaben unten herausragen konnte.
+            readonly property real popupFrame: (takesKeyboard ? root.popoutPadding : Theme.panelPadding) * 2
+                + (takesKeyboard ? root.popoutBorderWidth : Theme.borderWidth) * 2
             maximumContentHeight: Math.min(root.popoutHeightLimit,
-                Math.max(1, root.Screen.height - Theme.barHeight - Theme.panelPadding * 4))
+                Math.max(1, root.Screen.height - Theme.barHeight - Config.gap - popupFrame - Theme.panelPadding * 2))
         }
     }
 
