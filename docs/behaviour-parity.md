@@ -41,34 +41,45 @@ shallow clones and were not used as evidence.
   released a critical warning, contradicting the contract stated in
   `Notifications/Popups.qml`. Critical entries are now exempt from the limit.
 
-## Open divergences
+## Divergences closed in the follow-up
 
-| # | Severity | Divergence | Where |
+| # | Was | Now |
+|---|---|---|
+| 2 | A popout closed 2500 ms after the pointer left even while the keyboard was in use | The leave timer stands down while a control inside holds focus |
+| 3 | Submenu search filtered direct children; the root search capped at five apps and seven actions | The whole subtree is searched; the caps are gone (the list scrolls and `maxRowsHeight` bounds it) |
+| 4 | Idle lock at 900 s, behind the 600 s screen-off | 300 s, the reference value; the lock now precedes the screen-off |
+| 5 | `focus_on_activate` unset, so Umbriel's `false` applied | Set to `true` as the reference does |
+| 8 | OSD 2000 ms | 1200 ms, the reference value |
+| 9 | Audio and network wrapped, the clipboard bound | Each matches its counterpart: panels bound, the clipboard wraps |
+| 10 | `Ctrl+U` / `Ctrl+Backspace` did nothing useful in the menu | `Util.editsFilter`/`editedFilter` are wired in; Backspace on an empty filter still returns a level |
+| 1a | Toasts and the OSD appeared with no transition | Both use `MotionSurface`, so they fade in from the shared motion tokens and honour Reduced Motion |
+
+## Still open
+
+| # | Severity | Divergence | Why it is still open |
 |---|---|---|---|
-| 1 | high | Layer animations are globally **off**. The reference has them on and disables them only for the bar and its keyboard-driven panels, so toasts, OSD, polkit and the power/lock previews pop hard here and fade there. | `umbriel/nbshell-motion.toml` |
-| 2 | medium | A click popout closes 2500 ms after the pointer leaves even while the keyboard is in use. The reference's click panels stay open on pointer leave. | `shell/Widgets/Cell.qml`, `Popout.qml` |
-| 3 | medium | The main menu searches less than the reference: submenus filter direct children only, and the root search caps at five applications plus seven actions. Upstream walks every descendant with no cap, so existing actions stay unreachable through the same search. | `shell/Menu/Menu.qml` |
-| 4 | medium | Idle: screensaver 180 s, dim 240 s, screen off 600 s, lock 900 s. The reference locks at 300 s. Between 600 s and 900 s the machine is dark but unlocked. | `shell/Services/Idle.qml` |
-| 5 | medium | `focus_on_activate` is unset, so Umbriel's default `false` applies where the reference sets `true`. Compensated by a per-window `default_focused` list that does not cover third-party applications. | `umbriel/nbshell.toml` |
-| 6 | medium | Click-outside is not equivalent: a background with no client surface does not dismiss, where the reference has explicit full-screen dismiss surfaces. | documented in [bluetooth-parity.md](bluetooth-parity.md) |
-| 7 | medium | No per-monitor screensaver. One window starts; the other outputs keep showing the desktop, where the reference starts one per monitor. | `shell/Services/Idle.qml` |
-| 8 | low | OSD lifetime is 2000 ms; the reference uses 1200 ms and allows a per-call override. | `shell/Services/Osd.qml` |
-| 9 | low | Arrow navigation wraps in audio and network but stops at the ends in the clipboard. The two nbshell behaviours also disagree with each other. | `AudioPanel`, `NetworkPanel`, `ActivityPanel` |
-| 10 | low | `Ctrl+U` and `Ctrl+Backspace` do nothing useful in the main menu; upstream clears the search and deletes a word. `Util.editsFilter` and `editedFilter` are already ported for exactly this and are unused there. | `shell/Menu/Menu.qml` |
+| 1b | high | Layer animations remain globally off, so the **exit** transition is still missing for toasts, OSD and the power/lock previews | Umbriel's `LayerRule` has no per-rule animation switch, so the reference's `no_anim` cannot be reproduced and the global setting must stay off to keep the bar and the self-animating overlays instant. A real fade-out needs a removal grace in `Popups.qml`'s entry sync, because the stack destroys a delegate the moment the model drops the entry |
+| 6 | medium | Outside-click dismissal is not equivalent: a background with no client surface does not dismiss | The reference catches this with a full-screen `MouseArea` inside a full-screen panel window. nbshell uses an anchored Wayland popup, and `Popout.qml` argues for that deliberately: the compositor keeps it anchored to the bar, ends the grab itself and mirrors an external close. Switching to a full-screen layer surface is an architecture decision, not a fix |
+| 7 | medium | No per-monitor screensaver: one window starts, the other outputs keep the desktop | Needs an output argument in `scripts/screensaver.sh`, one tracked process per screen and compositor placement, and it cannot be verified without blanking the live screen |
 
 Two more need a live probe rather than a code read: whether Umbriel reports
 activity when the screensaver window maps (the reference guards that with a 3 s
 grace period), and whether moving a monitor misplaces long-lived layer surfaces
 (the reference remaps them through `ScreenMoveRemap`).
 
-## Constraint found while acting on #1
+## Constraint behind #1
 
 Umbriel's `LayerRule` carries only `blur`, `blurPopups`, `ignoreAlpha` and
 `optimized` — there is **no per-rule animation switch**, so the reference's
 `no_anim` cannot be reproduced. Layer animation is all-or-nothing.
 
 Because the bar and the full-screen overlays animate themselves in QML, the
-global "off" is currently the only way to keep them instant. The price is that
-toasts, OSD and polkit do not fade. Fixing #1 therefore means adding the fade in
-QML with the shared motion tokens — which also brings those surfaces under
-Reduced Motion, where they currently have nothing to reduce.
+global "off" is currently the only way to keep them instant. That is why the
+fix went into QML instead: the surfaces that should fade now do it themselves.
+**Window open and close animations are a different group** — Umbriel gates
+`animation.windows_in`/`windows_out` separately from `animation.layers`, so the
+window popin and fade are untouched by any of this.
+
+Completing #1b means giving `Popups.qml` a removal grace and calling
+`MotionSurface.dismiss()` before the delegate goes away; the same treatment
+would cover the OSD window's unmap.
