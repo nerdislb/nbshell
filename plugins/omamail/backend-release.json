@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "version": "0.10.4-nbshell.1",
+  "archives": {
+    "x86_64": "706f88f9940e041d9e17373a969ad5fb3732077ff54685a23a9e3d9ecdd34fa1",
+    "aarch64": "1f860746b7c0ed58ca4ee2709d7b7bf6ae6c45e0b1e1486a1ab91ce7113c6862"
+  }
+}

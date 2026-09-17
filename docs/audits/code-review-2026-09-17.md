@@ -68,12 +68,22 @@ The Rustls advisory describes accepting handshake messages at an incorrect
 encryption level, not an established network-attacker authentication bypass.
 Nevertheless, the currently pinned upstream Mail 0.10.4 binary cannot be claimed
 fixed by changing our source lockfile. Upstream 0.10.5 still locks Rustls 0.23.44.
-Beta publication remains blocked pending a verified corrected backend delivery
-path; no pin, tag or release is claimed to have been published here.
+This initial blocker is resolved by the separately published
+[nbshell backend rebuild 0.10.4-nbshell.1](https://github.com/nerdislb/nbshell/releases/tag/mail-backend-0.10.4-nbshell.1).
+Both static Linux architectures passed native Rust/agent/API checks, followed
+by public-download API and real-installer verification. The shell now pins
+those verified archive hashes and API 5, already implemented by the bundled
+source. The actual downloaded x86_64 binary also passes the production
+Quickshell process test and 22 synthetic native-agent checks locally. The
+legacy-adoption case uses the supported historical runtime/bin layout; the
+installed-plugin legacy-job guard is retained, not bypassed.
 
-Security verdict: **BLOCK for beta publication on the unresolved Mail binary
-boundary**; the Git and installer fixes have local regression evidence. No
-claim of blanket shell or third-party security certification is made.
+Security verdict: **PASS for the corrected Mail binary delivery boundary**
+after the public-asset checks above; the Git and installer fixes have local
+regression evidence. No claim of blanket shell or third-party security
+certification is made. The independent-review and hardware/real-account limits
+below still apply. The [maintenance plan](../mail-backend-maintenance.md)
+records the remaining dependency follow-up and release/rollback rules.
 
 Independent-provider review was attempted within existing subscriptions:
 Claude Fable returned quota exhaustion; Claude Sonnet timed out; Gemini
@@ -88,8 +98,21 @@ over literal source snippets where behavior can be exercised. Keep helper
 resource bounds close to their implementation; avoid a large generic framework
 or global UI rewrite without a demonstrated need.
 
-The initial complete gate failed on the stale contracts described above. Focused
-reruns cover their corrections; final clean-candidate verification and published
-artifact validation remain separate release steps. No new two-hour soak,
+The initial complete gate failed on the stale contracts described above.
+After correction, the complete local gate and GitHub Validate passed on
+1750e54; the backend-delivery follow-up repeats the affected tests and complete
+CI before merging. Final shell-tag signature and archive checks remain a
+separate step from the completed backend publication checks. No new two-hour soak,
 physical suspend/display matrix, second-machine login/onboarding, real-account
 Mail/Gaming acceptance or complete AT-SPI certification is claimed.
+
+
+### Follow-up CI timer regression
+
+The final PR gate exposed a flaky recovery-notice fixture: a fixed 4.2-second
+wait assumed a 4-second QML toast timer had already fired. On one busy runner,
+the old toast was still present when the recovery warning cleared. The fixture
+now waits for the actual `draftSavedToast` transition with a bounded deadline,
+then asserts that the recovery warning survived that transition. No UI timer
+or production behavior changed. Five focused repetitions and all 76 tests in
+that component pass; the full remote gate is repeated on the corrected commit.

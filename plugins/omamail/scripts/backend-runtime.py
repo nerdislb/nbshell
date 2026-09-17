@@ -244,11 +244,44 @@ def locked():
         os.close(descriptor)
 
 
+def release_pin(required, architecture):
+    """nbshell rebuilds have a fixed publisher and hashes anchored in the shell source.
+
+    Never fall back to upstream for a rebuild, nor accept an arbitrary URL from
+    metadata. Historical upstream pins keep their original release policy.
+    """
+    if "-nbshell." not in required:
+        return "https://github.com/huacnlee/omamail/releases/download/v" + required + "/", None
+    require(re.fullmatch(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)-nbshell\.[1-9][0-9]*", required),
+            "Invalid nbshell backend version.")
+    path = ROOT / "backend-release.json"
+    safe_path(path)
+    with path.open("rb") as source:
+        raw = source.read(4097)
+    require(len(raw) <= 4096, "Backend release pin is too large.")
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            require(key not in result, "Duplicate backend release field.")
+            result[key] = value
+        return result
+    value = json.loads(raw, object_pairs_hook=unique)
+    require(isinstance(value, dict) and set(value) == {"schemaVersion", "version", "archives"}
+            and type(value["schemaVersion"]) is int and value["schemaVersion"] == 1
+            and value["version"] == required, "Backend release pin does not match.")
+    hashes = value["archives"]
+    require(isinstance(hashes, dict) and set(hashes) == {"x86_64", "aarch64"}
+            and all(isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{64}", digest)
+                    for digest in hashes.values()), "Invalid backend archive pins.")
+    require(architecture in hashes, "Unsupported backend architecture.")
+    return "https://github.com/nerdislb/nbshell/releases/download/mail-backend-" + required + "/", hashes[architecture]
+
+
 def install(required, architecture):
     safe_path(BINARY)
     safe_path(LOCAL_BUILD)
     asset = "omamail-linux-" + architecture + ".tar.gz"
-    base = "https://github.com/huacnlee/omamail/releases/download/v" + required + "/"
+    base, trusted_hash = release_pin(required, architecture)
     with deadline():
         checksums = download(base + "SHA256SUMS", 64 * 1024).decode("ascii")
         entries = []
@@ -258,6 +291,8 @@ def install(required, architecture):
             if match[2] == asset:
                 entries.append(match[1].lower())
         require(len(entries) == 1, "Release checksum entry is missing or ambiguous.")
+        require(trusted_hash is None or entries[0] == trusted_hash,
+                "Release checksum differs from the trusted shell pin.")
         compressed = download(base + asset, ARCHIVE_LIMIT)
         require(hashlib.sha256(compressed).hexdigest() == entries[0], "Release checksum does not match.")
         safe_path(BINARY.parent, directory=True, create=True)
@@ -284,6 +319,8 @@ def install(required, architecture):
             candidate.chmod(0o700)
             require(version_of(candidate) == required, "Downloaded backend has the wrong version.")
             require(pin() == required, "Backend version pin changed during installation.")
+            require(release_pin(required, architecture) == (base, trusted_hash),
+                    "Backend release pin changed during installation.")
             replace_runtime(candidate)
 
 

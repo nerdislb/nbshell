@@ -1,5 +1,9 @@
 # Backend runtimes and releases
 
+## nbshell backend-only rebuild
+
+The bundled nbshell plugin uses `0.10.4-nbshell.1` from the fixed `nerdislb/nbshell` release origin. `backend-release.json` anchors both archive hashes in the shell source; the runtime refuses a changed archive even if its remote checksum is also changed. The original upstream flow below remains applicable only to historical upstream pins. See the [nbshell maintenance policy](../../../docs/mail-backend-maintenance.md) for native build evidence, API compatibility, publication ordering and the return-to-upstream criteria. The exact pin and explicit-install requirements remain unchanged.
+
 ## Omarchy plugin-owned backend
 
 Omarchy's Plugin Marketplace owns the checkout and its UI. Omamail keeps exactly

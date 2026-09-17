@@ -1,0 +1,140 @@
+name: Mail backend
+
+on:
+  push:
+    branches: ["release/mail-*"]
+    paths:
+      - "plugins/omamail/src/**"
+      - "plugins/omamail/Cargo.*"
+      - "plugins/omamail/scripts/**"
+      - "plugins/omamail/tests/**"
+      - "tools/mail-backend-release.py"
+      - ".github/workflows/mail-backend.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mail-backend-publication
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: "1.97.1"
+      - name: Prepare native musl tools
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "release/mail-$(python3 tools/mail-backend-release.py version)"
+          sudo apt-get update
+          sudo apt-get install -y musl-tools nodejs
+          rustup target add "$ARCH-unknown-linux-musl"
+      - name: Test and build locked source
+        working-directory: plugins/omamail
+        env:
+          CARGO_BUILD_TARGET: ${{ matrix.arch }}-unknown-linux-musl
+          RUSTFLAGS: -C linker=musl-gcc
+        run: |
+          set -euo pipefail
+          cargo test --locked --features integration-test-credentials
+          cargo build --release --locked --bin omamail
+          OMAMAIL_TEST_BIN="$PWD/target/$CARGO_BUILD_TARGET/release/omamail" python3 tests/test_agent_native_bridge.py
+      - name: Verify exact native binary and create evidence
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          python3 tools/mail-backend-release.py prepare \
+            "plugins/omamail/target/$ARCH-unknown-linux-musl/release/omamail" "$ARCH" artifact
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: mail-${{ matrix.arch }}
+          path: artifact/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: mail-*
+          path: artifacts
+      - name: Assemble matching native builds
+        run: python3 tools/mail-backend-release.py assemble artifacts release-assets
+      - name: Publish a new backend-only prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(python3 tools/mail-backend-release.py version)"
+          tag="mail-backend-$version"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$GITHUB_REF_NAME" --jq .object.sha)" = "$GITHUB_SHA"
+          # Successful listing is required; authentication/network errors never mean absent.
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[].tag_name' > existing-releases
+          gh api --paginate "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/$tag" --jq '.[].ref' > existing-tags
+          if grep -Fxq "$tag" existing-releases || grep -Fxq "refs/tags/$tag" existing-tags; then
+            echo 'Version already exists; never overwrite release assets.' >&2
+            exit 1
+          fi
+          cat > release-notes.md <<'NOTES'
+          Backend-only nbshell maintenance build. This is not a shell update.
+
+          - Builds the bundled Mail source with Rustls 0.23.45 (RUSTSEC-2026-0285 fix).
+          - Native static Linux x86_64 and aarch64 binaries; existing source API 5.
+          - Source fingerprints, exact compiler/architecture evidence and archive checksums included.
+          - The nbshell plugin pin is updated separately, only after public-asset verification.
+
+          This build is maintained by nbshell, not an upstream Omamail release.
+          NOTES
+          gh release create "$tag" release-assets/* --target "$GITHUB_SHA" \
+            --title "Mail backend $version (nbshell rebuild)" --notes-file release-notes.md \
+            --prerelease --latest=false
+          mkdir published
+          gh release download "$tag" --dir published
+          diff -r release-assets published
+
+  verify-published:
+    needs: publish
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Download and exercise the public binary natively
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y nodejs
+          mkdir published
+          gh release download "mail-backend-$(python3 tools/mail-backend-release.py version)" --dir published
+          python3 tools/mail-backend-release.py verify published "$ARCH"

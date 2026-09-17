@@ -6,6 +6,8 @@ change before version 1.0.
 
 ## Prepare a release
 
+For the separately delivered Mail executable, follow the [backend maintenance and release policy](mail-backend-maintenance.md). A source dependency fix is not a fix to the user's downloaded binary.
+
 1. Update `VERSION` and move the relevant entries from `Unreleased` in
    `CHANGELOG.md` to a dated version section.
 2. Run the complete local gate:
@@ -14,7 +16,7 @@ change before version 1.0.
    bash tests/release-gate.sh
    mkdocs build --strict
    git diff --check
-   git diff --check "$(git describe --tags --abbrev=0)"..HEAD
+   git diff --check "$(git describe --tags --abbrev=0 --match 'v[0-9]*')"..HEAD
    ```
 
    Before a release, also run a current Python advisory scan in an isolated
@@ -58,6 +60,12 @@ a keyless Sigstore bundle. The dashboard updater pins GitHub's OIDC issuer and
 the release workflow identity at the exact tag, then verifies the checksum. It
 refuses installation when any asset or verification step is missing. Do not tag
 a commit until its live desktop test has passed.
+
+Shell release notes start at the previous ancestor tag matching `v[0-9]*`.
+Backend-only `mail-backend-*` releases are not shell releases and must never
+become that baseline. The release job checks out the complete history for this
+selection; a missing previous shell tag fails closed rather than silently
+generating an incomplete change list.
 
 ## After publishing
 

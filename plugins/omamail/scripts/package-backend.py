@@ -25,7 +25,7 @@ UNHASHED_RELEASE_ASSETS = ('SHA256SUMS', 'backend-api.json', 'backend-build.json
 
 def check(root, tag=None, require_pin=False):
     version = tomllib.loads((root / 'Cargo.toml').read_text())['package']['version']
-    if not re.fullmatch(r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', version):
+    if not re.fullmatch(r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-nbshell\.[1-9][0-9]*)?', version):
         raise ValueError('expected canonical MAJOR.MINOR.PATCH')
     versions = {}
     packages = tomllib.loads((root / 'Cargo.lock').read_text())['package']
@@ -34,13 +34,22 @@ def check(root, tag=None, require_pin=False):
     if not isinstance(manifest, dict) or not isinstance(manifest.get('version'), str):
         raise ValueError('manifest.json requires a string version')
     versions['manifest'] = manifest['version']
-    cmake = (root / 'app/CMakeLists.txt').read_text()
-    app_versions = re.findall(
-        r'^\s*project\s*\(\s*omamail-app\s+VERSION\s+([^\s\)]+)', cmake,
-        flags=re.MULTILINE | re.IGNORECASE)
-    if len(app_versions) != 1:
-        raise ValueError('app/CMakeLists.txt requires one omamail-app project version')
-    versions['app'] = app_versions[0]
+    app_project = root / 'app/CMakeLists.txt'
+    # nbshell vendors only the plugin, not upstream's standalone Qt host.
+    if app_project.exists() or '-nbshell.' not in version:
+        cmake = app_project.read_text()
+        app_versions = re.findall(
+            r'^\s*project\s*\(\s*omamail-app\s+VERSION\s+([^\s\)]+)', cmake,
+            flags=re.MULTILINE | re.IGNORECASE)
+        if len(app_versions) != 1:
+            raise ValueError('app/CMakeLists.txt requires one omamail-app project version')
+        versions['app'] = app_versions[0]
+    # The nbshell backend-only rebuild retains the upstream UI/app versions.
+    if '-nbshell.' in version:
+        base = version.split('-nbshell.', 1)[0]
+        if versions['manifest'] not in (base, version) or versions.get('app', base) != base:
+            raise ValueError('nbshell rebuild requires the matching upstream UI/app base')
+        versions['manifest'] = versions['app'] = version
     if require_pin:
         versions['backend-version'] = (root / 'backend-version').read_text().removesuffix('\n')
     if tag is not None:
@@ -56,7 +65,7 @@ def pin_version(root):
         raise ValueError('backend-version must be a regular file')
     with path.open('rb') as stream:
         raw = stream.read(129)
-    if len(raw) > 128 or not re.fullmatch(rb'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\n?', raw):
+    if len(raw) > 128 or not re.fullmatch(rb'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-nbshell\.[1-9][0-9]*)?\n?', raw):
         raise ValueError('backend-version must be canonical MAJOR.MINOR.PATCH')
     return raw.decode('ascii').removesuffix('\n')
 

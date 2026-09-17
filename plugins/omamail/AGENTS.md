@@ -562,6 +562,8 @@ key. What matters while working:
 
 ## Releasing
 
+The rules below describe the original upstream standalone repository. In the nbshell monorepo, the explicitly authorized **backend-only rebuild** uses the repository-root `.github/workflows/mail-backend.yml` and `docs/mail-backend-maintenance.md`: `release/mail-X.Y.Z-nbshell.N` branch, both native Linux architectures, a unique `mail-backend-X.Y.Z-nbshell.N` prerelease, public-byte verification, then a separate reviewed pin update. Do not invoke upstream's standalone publish command here. Preserve the no-overwrite, exact-pin, API and security gates; never update the pin before the backend publication succeeds.
+
 - `make publish VERSION=X.Y.Z` creates `release/X.Y.Z` and one PR from a clean, synchronized main; without VERSION it increments the patch. It prepares version metadata and pushes only the release branch. Never push main directly or bypass its PR requirement.
 - Release CI accepts only the matching versioned release branch. It builds both native backends, creates the tag, publishes and verifies public assets, then updates `backend-version` and folds `backend-api.json` on that same branch. Merge that PR once after the pin commit passes the required backend gate. Never update the QML backend pin before its release succeeds.
 - Pin-only pushes exclude both `backend-version` and `backend-api.json` from the Release trigger. Existing tags and releases are never overwritten; failures leave the pin unchanged. See `docs/BACKEND-RUNTIME.md` for recovery.

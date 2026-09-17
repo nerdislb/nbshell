@@ -33,6 +33,10 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Fixed
 
+- Mail now pins the verified nbshell backend rebuild with Rustls 0.23.45,
+  closing RUSTSEC-2026-0285 in the delivered executable, not only its source.
+  Both Linux architectures are tested after publication; archive hashes are
+  anchored in the shell release and failed installs preserve the prior runtime.
 - Project status no longer executes configured Git content filters or inherits
   Git environment overrides. Output is capped and timeout/cancellation cleans
   up the complete command process group.
