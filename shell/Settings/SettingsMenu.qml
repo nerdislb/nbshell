@@ -4,6 +4,7 @@ import Quickshell
 import qs.Common
 import qs.Services
 import qs.Widgets
+import qs.Ui as Ui
 import "../Widgets/FocusScroll.js" as FocusScroll
 
 // Einstellungen.
@@ -35,6 +36,23 @@ Item {
     property int pane: 0
     property int group: 0
     property int selected: 0
+    readonly property bool dockPreviewRequested: visible && !closing
+        && groups[group]?.head === "DOCK"
+    onDockPreviewRequestedChanged: syncDockPreview()
+
+    function syncDockPreview() {
+        if (dockPreviewRequested) DockService.previewOwner = root;
+        else if (DockService.previewOwner === root) {
+            DockService.previewOwner = null;
+            DockService.clearSizePreview();
+        }
+    }
+    Component.onDestruction: {
+        if (DockService.previewOwner === root) {
+            DockService.previewOwner = null;
+            DockService.clearSizePreview();
+        }
+    }
 
     // Jede Zeile: Schluessel, Beschriftung und die Werte, durch die
     // links/rechts blaettert. `values` leer heisst: Zahl mit Schrittweite.
@@ -94,6 +112,23 @@ Item {
             "def": true,
             "label": "Overlay inside pill",
             "values": [true, false]
+        },
+        {
+            "head": "DOCK"
+        },
+        {
+            "key": "dockEnabled",
+            "def": false,
+            "label": "Enable auto-hide dock",
+            "values": [false, true]
+        },
+        {
+            "key": "dockScale", "def": 100, "label": "Dock size",
+            "slider": true, "min": 75, "max": 200, "step": 5
+        },
+        {
+            "key": "dockIconScale", "def": 100, "label": "Icon size",
+            "slider": true, "min": 50, "max": 200, "step": 5
         },
         {
             "head": "MODULES"
@@ -551,6 +586,8 @@ Item {
     // ein Schluessel noch nicht in der config.json, zeigte die Zeile sonst 0,
     // waehrend die Leiste laengst mit der echten Vorgabe arbeitet.
     function valueOf(entry) {
+        if (entry.key === "dockScale") return Config.dockScale;
+        if (entry.key === "dockIconScale") return Config.dockIconScale;
         return Config.value(entry.key, entry.def);
     }
 
@@ -637,7 +674,7 @@ Item {
         const row = root.pane === 2 && recoveryButton.visible ? recoveryButton
             : root.pane === 3 ? closeButton
             : root.pane === 0 ? groupRows.itemAt(root.group) : settingRows.itemAt(root.selected);
-        (row || closeButton).forceActiveFocus();
+        (row?.focusTarget || row || closeButton).forceActiveFocus();
         revealFocusedItem(row || closeButton);
     }
 
@@ -663,6 +700,7 @@ Item {
     onGroupChanged: Qt.callLater(root.syncFocus)
     onSelectedChanged: Qt.callLater(root.syncFocus)
     Component.onCompleted: {
+        syncDockPreview();
         if (visible)
             Cursor.ensureThemes();
         Qt.callLater(root.syncFocus);
@@ -871,18 +909,23 @@ Item {
                                     required property var modelData
                                     required property int index
                                     readonly property bool current: index === root.selected
+                                    readonly property bool sliderRow: modelData.slider === true
+                                    readonly property Item focusTarget: sliderRow ? sizeSlider : null
                                     width: itemColumn.width
-                                    height: box.rowHeight
-                                    title: modelData.label
+                                    height: sliderRow ? box.rowHeight * 2 : box.rowHeight
+                                    title: sliderRow ? "" : modelData.label
                                     detail: modelData.action !== undefined ? "Open dedicated view" : ""
-                                    value: (current && root.pane === 1 ? "◂  " : "")
+                                    value: sliderRow ? "" : (current && root.pane === 1 ? "◂  " : "")
                                         + root.shown(modelData) + (current && root.pane === 1 ? "  ▸" : "")
                                     accessibleSelected: current && root.pane === 1
                                     color: current && root.pane === 1 ? Theme.mix(Theme.bg, Theme.fg, 0.08)
                                         : hovered || activeFocus ? Theme.mix(Theme.bg, Theme.fg, 0.08) : "transparent"
-                                    border.width: activeFocus ? Theme.borderWidth : 0
+                                    border.width: activeFocus || sizeSlider.activeFocus ? Theme.borderWidth : 0
                                     border.color: Theme.focusBorder
                                     interactive: true
+                                    keyboardFocusable: !sliderRow
+                                    accessibilityIgnored: sliderRow
+                                    pointerActivationExclusion: sliderRow ? sliderContent : null
                                     Keys.forwardTo: [keys]
                                     onActiveFocusChanged: if (activeFocus) root.revealFocusedItem(settingRow)
                                     onTriggered: {
@@ -891,7 +934,55 @@ Item {
                                         root.step(modelData, 1);
                                         Qt.callLater(root.syncFocus);
                                     }
+                                    Column {
+                                        id: sliderContent
+                                        visible: settingRow.sliderRow
+                                        anchors.fill: parent
+                                        anchors.margins: Theme.spaceSm
+                                        spacing: Theme.spaceXs
+                                        Row {
+                                            width: parent.width
+                                            Line {
+                                                width: parent.width - percentage.implicitWidth
+                                                text: settingRow.modelData.label
+                                                elide: Text.ElideRight
+                                            }
+                                            Line {
+                                                id: percentage
+                                                text: Math.round(sizeSlider.liveValue) + "%"
+                                                color: Theme.fgDim
+                                            }
+                                        }
+                                        Ui.PanelSlider {
+                                            id: sizeSlider
+                                            width: parent.width
+                                            height: Math.max(implicitHeight, sliderContent.height - Theme.cellH - Theme.spaceXs)
+                                            minimum: settingRow.modelData.min ?? 0
+                                            maximum: settingRow.modelData.max ?? 100
+                                            step: settingRow.modelData.step ?? 5
+                                            integer: true
+                                            value: settingRow.sliderRow ? root.valueOf(settingRow.modelData) : 0
+                                            enabled: Config.configValid && settingRow.sliderRow
+                                            activeFocusOnTab: enabled
+                                            accessibleName: settingRow.modelData.label
+                                            accessibleDescription: "Percentage; changes preview immediately and save on release"
+                                            bar: QtObject { property color foreground: Theme.accent; property color background: Theme.bg }
+                                            trackColor: Theme.panelBorder
+                                            fillColor: Theme.accent
+                                            knobColor: Theme.fg
+                                            Keys.forwardTo: [keys]
+                                            onActiveFocusChanged: if (activeFocus) {
+                                                root.selected = settingRow.index;
+                                                root.pane = 1;
+                                                root.revealFocusedItem(settingRow);
+                                            }
+                                            onDraggingChanged: if (dragging) forceActiveFocus(Qt.MouseFocusReason)
+                                            onMoved: value => DockService.previewSize(settingRow.modelData.key, value)
+                                            onReleased: value => DockService.commitSize(settingRow.modelData.key, value)
+                                        }
+                                    }
                                     TapHandler {
+                                        enabled: !settingRow.sliderRow
                                         acceptedButtons: Qt.RightButton
                                         onTapped: {
                                             root.selected = settingRow.index;
@@ -900,6 +991,7 @@ Item {
                                         }
                                     }
                                     WheelHandler {
+                                        enabled: !settingRow.sliderRow
                                         onWheel: wheelEvent => {
                                             root.selected = settingRow.index;
                                             root.pane = 1;

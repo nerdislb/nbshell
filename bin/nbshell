@@ -483,6 +483,7 @@ nbshell -- an independent Quickshell desktop shell for Umbriel
   nbshell aether setup      connect Aether's Apply button to nbshell
   nbshell procs             process list (also: top)
   nbshell menu              searchable main menu
+  nbshell dock              Optional auto-hide dock (on/off/toggle/show/hide/status)
   nbshell work              Toggle desktop work cards (on/off/status/module/project)
   nbshell dashboard         Overview, Calendar, Tools, and Work
   nbshell bongo             Bongo Cat: status, test, on, off, allow, revoke
@@ -1059,6 +1060,13 @@ for b in d["binds"]:
         ;;
     menu)
         ipc menu "${1:-toggle}"
+        ;;
+    dock)
+        case "${1:-status}" in
+            show) ipc dock reveal ;;
+            on|off|toggle|hide|status) ipc dock "${1:-status}" ;;
+            *) echo "Usage: nbshell dock [on|off|toggle|show|hide|status]" >&2; exit 2 ;;
+        esac
         ;;
     work)
         case "${1:-toggle}" in

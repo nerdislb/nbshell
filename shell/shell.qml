@@ -8,6 +8,7 @@ import Quickshell.Services.SystemTray
 import qs.Common
 import qs.Services
 import qs.Bar
+import qs.Dock
 import qs.Launcher
 import qs.Osd
 import qs.Notifications
@@ -107,6 +108,7 @@ ShellRoot {
     }
 
     Bar {}
+    LazyLoader { active: Config.dockEnabled; Dock {} }
 
     Wallpaper {}
     LazyLoader { active: Config.value("workDesktop", false); WorkDesktop {} }

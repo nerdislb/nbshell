@@ -57,6 +57,12 @@ Singleton {
         Quickshell.execDetached(["umbriel", "msg", "window-focus:" + String(id)]);
     }
 
+    function closeWindow(id) {
+        // Never fall back to closing whichever window happens to be focused.
+        if (!windows.some(w => String(w.id) === String(id))) return;
+        Quickshell.execDetached(["umbriel", "msg", "window-close:" + String(id)]);
+    }
+
     function logout() {
         Quickshell.execDetached(["umbriel", "msg", "session-quit:skip-confirmation"]);
     }

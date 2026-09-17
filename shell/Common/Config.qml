@@ -55,6 +55,15 @@ Singleton {
     //           ihren Platz wegnimmt.
     readonly property string mode: value("mode", "bar")
     readonly property string edge: value("edge", "top")
+    readonly property bool dockEnabled: value("dockEnabled", false) === true
+    // Percentages relative to the theme's native dock geometry, not global UI scale.
+    readonly property int dockScale: boundedPercent("dockScale", 75, 200)
+    readonly property int dockIconScale: boundedPercent("dockIconScale", 50, 200)
+
+    function boundedPercent(key, minimum, maximum) {
+        const raw = Number(value(key, 100));
+        return Number.isFinite(raw) ? Math.round(Math.max(minimum, Math.min(maximum, raw))) : 100;
+    }
     readonly property int gap: value("gap", 6)
     readonly property int lines: value("lines", 1)
     // Innenabstand einer Zelle in Zeichen (links wie rechts).

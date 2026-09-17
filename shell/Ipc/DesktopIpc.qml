@@ -15,6 +15,19 @@ import qs.Services
 // begraben lag. Sie sprechen ausschliesslich mit Singletons, also war der
 // Schnitt schmerzlos.
 Scope {
+    IpcHandler {
+        target: "dock"
+        function on(): string { Config.set("dockEnabled", true); return "on"; }
+        function off(): string { Config.set("dockEnabled", false); return "off"; }
+        function toggle(): string { Config.set("dockEnabled", !Config.dockEnabled); return Config.dockEnabled ? "on" : "off"; }
+        function reveal(): string {
+            if (!Config.dockEnabled) return "Dock is disabled; enable it in Settings > DOCK";
+            DockService.revealRequested(Compositor.focusedScreen?.name ?? "");
+            return "requested";
+        }
+        function hide(): string { DockService.hideRequested(); return "hidden"; }
+        function status(): string { return JSON.stringify({enabled: Config.dockEnabled, pins: DockService.pins, surfaces: DockService.surfaces}); }
+    }
     // This handler must remain outside the lazy AgentCenter object. Otherwise
     // the IPC command that opens the panel cannot exist until the panel is
     // already open.
