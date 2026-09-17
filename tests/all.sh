@@ -44,6 +44,8 @@ run python3 tests/update-coordinator.py
 run python3 tests/config-migrations.py
 run python3 tests/config-recovery.py
 run python3 tests/startup-services.py
+run python3 tests/test_work_projects.py
+run python3 tests/test_bundled_plugin_copy.py
 run python3 tests/config-write.py
 run python3 tests/stack-status.py
 run python3 tests/doctor.py
@@ -90,6 +92,7 @@ run python3 plugins/calendar/tests/test_backend.py
 run bash plugins/calendar/tests/run-ui.sh
 run python3 plugins/calendar/tests/smoke.py
 run bash tests/release-audit.sh
+run python3 tests/release-privacy.py
 run python3 tests/release-gate.py
 
 if command -v umbriel >/dev/null 2>&1; then

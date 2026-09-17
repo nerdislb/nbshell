@@ -11,46 +11,7 @@ change before version 1.0.
 2. Run the complete local gate:
 
    ```bash
-   git ls-files -z '*.sh' | xargs -0 -r -n1 bash -n
-   bash -n bin/nbshell bin/nbshell-install-recover
-   find shell -type f -name '*.py' -exec python3 -m py_compile {} +
-   ./tests/release-audit.sh
-   ./tests/bootstrap.sh
-   ./iso/packages/tests/test-manifest-consistency.sh
-   ./iso/packages/tests/test-repo-pipeline.sh
-   ./iso/profile/tests/test_scripts.sh
-   python3 ./iso/profile/tests/test_installer.py
-   ./tests/plugin-validation.sh
-   make -C plugins/omamail test
-   ./tests/fresh-install.sh
-   ./tests/qml.sh
-   ./tests/motion.sh
-   ./tests/process-selection.sh
-   ./tests/screensaver-renderer.sh
-   ./tests/power-modes.sh
-   ./tests/memory-guard.sh
-   ./tests/system-report.sh
-   ./tests/browser-theme.sh
-   ./tests/hermes-theme.sh
-   python3 ./tests/hermarchy-theme.py
-
-   python3 ./tests/lockscreen.py
-   bash ./tests/performance-smoke.sh
-   python3 ./tests/shell-update.py
-   python3 ./tests/umbriel-capability-contract.py
-   python3 ./tests/umbriel-contracts.py
-   python3 ./tests/umbriel-update.py
-   python3 ./tests/install-tree-transaction.py
-   python3 ./tests/phone_auth.py
-   python3 ./tests/ai-local-stats.py
-   python3 ./tests/hermes-hub.py
-   python3 ./tests/hermes-broker.py
-   python3 ./tests/hermes-jobs.py
-   python3 ./tests/hermes-team.py
-   python3 ./tests/hermes-brain.py
-   python3 ./tests/cli-consistency.py
-   python3 ./tests/accessibility/test_atspi_probe.py
-   ./tests/greeter.sh
+   bash tests/release-gate.sh
    mkdocs build --strict
    git diff --check
    git diff --check "$(git describe --tags --abbrev=0)"..HEAD

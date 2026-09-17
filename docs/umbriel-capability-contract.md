@@ -253,6 +253,6 @@ Dirty source checkouts are rejected. This preserves exact revision checks while
 making a fresh installation independent of a pre-existing local Git object.
 The normal test gate exercises a remote containing only the parent commit.
 
-## Beta 12 reference refresh (2026-09-14)
+## Beta 13 reference refresh (2026-09-17)
 
-The current source recipe and contract use `4ad5bca8006a5f8950b00a91d50864c4a3d8d692`. Help fixtures were recaptured from its clean `build-approved/umbriel` build. The capability suite checks those exact bytes and source provenance; the real Wayland widget drag regression passed against the installed candidate. The earlier acceptance record above remains historical, not evidence for all current hardware behavior.
+The current source recipe and contract use `8268c605da26d92f2337d6c8381167357317a059`. Help fixtures were recaptured from its clean `build-approved/umbriel` build, whose bytes match the installed and running compositor. All 25 capability tests and 23 stack-policy tests pass. These checks do not replace physical display or suspend testing. The earlier acceptance record above remains historical.

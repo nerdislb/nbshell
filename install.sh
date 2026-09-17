@@ -815,21 +815,23 @@ mkdir -p "$DATA_DIR/plugins"
 added=()
 for plugin in "$SRC"/plugins/*/; do
     [ -d "$plugin" ] || continue
-    "$SRC/shell/scripts/plugins.sh" validate "$plugin" >/dev/null ||
-        die "Bundled plugin failed validation: $(basename "$plugin")"
-    "$SRC/shell/scripts/plugins.sh" design-check "$plugin" --strict >/dev/null ||
-        die "Bundled plugin failed the strict design contract: $(basename "$plugin")"
     name="$(basename "$plugin")"
+    staged_plugin="$TRANSACTION_BACKUP/bundled-plugins/$name"
+    python3 "$SRC/shell/scripts/copy-bundled-plugin.py" "$plugin" "$staged_plugin"
+    "$SRC/shell/scripts/plugins.sh" validate "$staged_plugin" >/dev/null ||
+        die "Bundled plugin failed validation: $name"
+    "$SRC/shell/scripts/plugins.sh" design-check "$staged_plugin" --strict >/dev/null ||
+        die "Bundled plugin failed the strict design contract: $name"
     if [ -f "$plugin/.nbshell-managed" ] && [ -f "$DATA_DIR/plugins/$name/.nbshell-managed" ]; then
         transaction_backup_path "$DATA_DIR/plugins/$name" "plugin-$name"
         rm -rf "$DATA_DIR/plugins/$name"
-        cp -a "$plugin" "$DATA_DIR/plugins/"
+        cp -a "$staged_plugin" "$DATA_DIR/plugins/"
         added+=("$name updated")
         continue
     fi
     [ -d "$DATA_DIR/plugins/$name" ] && continue
     transaction_backup_path "$DATA_DIR/plugins/$name" "plugin-$name"
-    cp -a "$plugin" "$DATA_DIR/plugins/"
+    cp -a "$staged_plugin" "$DATA_DIR/plugins/"
     added+=("$name")
 done
 [ "${NBSHELL_INSTALL_TEST_FAULT:-}" != "post-plugin" ] || exit 100

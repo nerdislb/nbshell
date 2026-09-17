@@ -6,6 +6,7 @@ cd "$ROOT"
 
 python3 - <<'PY'
 import json
+import hashlib
 import pathlib
 import re
 import subprocess
@@ -126,6 +127,12 @@ checks = {
     "private key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
 }
 findings = []
+# Public localhost-only TLS fixture, documented beside the key and used by
+# native test servers. Pin exact bytes; this is not a blanket test-key waiver.
+public_test_keys = {
+    "plugins/omamail/src/providers/testdata/tls/server-key.pem":
+        "3728eee8922c1923daf7ecf8c15978d01d6aef81bf64a729f38f4ae5b6d97c01",
+}
 for name in tracked:
     path = root / name
     try:
@@ -135,7 +142,9 @@ for name in tracked:
     for label, pattern in checks.items():
         # Security parser tests intentionally contain fake home paths and
         # private-network URLs to prove that they are rejected.
-        if ("/tests/" in name or name == "plugins/omamail/src/public_http/tests.rs") and label in ("absolute home path", "private IPv4 address"):
+        if (name.startswith("tests/") or "/tests/" in name or name == "plugins/omamail/src/public_http/tests.rs") and label in ("absolute home path", "private IPv4 address"):
+            continue
+        if label == "private key" and public_test_keys.get(name) == hashlib.sha256(path.read_bytes()).hexdigest():
             continue
         for match in pattern.finditer(text):
             line = text.count("\n", 0, match.start()) + 1

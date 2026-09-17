@@ -67,15 +67,17 @@ grep -Fq '"--gtk-single-instance=false"' "$ROOT/shell/Services/ShellUpdates.qml"
 # Python processes per second. The packaged source patch removes that feedback
 # loop while retaining the bounded 12-second refresh timer.
 python3 - "$ROOT" <<'PY'
-import pathlib, sys
+import json, pathlib, sys
 root = pathlib.Path(sys.argv[1])
 setup = (root / "shell/scripts/omawhatsapp.sh").read_text(encoding="utf-8")
 manifest = (root / "integrations/omawhatsapp/manifest.json").read_text(encoding="utf-8")
 patch = (root / "integrations/omawhatsapp/nbshell-refresh.patch").read_text(encoding="utf-8")
 wheel_patch = (root / "integrations/omawhatsapp/nbshell-wheel-scroll.patch").read_text(encoding="utf-8")
 wheel_handler = (root / "integrations/omawhatsapp/FastScrollHandler.qml").read_text(encoding="utf-8")
-assert "source_revision=7ee1540f01d4f7fb698d683577fecd57063a9204" in setup
-assert '"version": "0.13.1-nbshell.1"' in manifest
+sources = json.loads((root / "shell/Catalog/external-sources.json").read_text())
+whatsapp = next(item for item in sources["sources"] if item["name"] == "WhatsApp")
+assert "source_revision=" + whatsapp["reviewedCommit"] in setup
+assert json.loads(manifest)["version"] == "0.14.0-nbshell.1"
 assert 'nbshell-refresh.patch' in setup
 assert 'nbshell-wheel-scroll.patch' in setup
 assert 'FastScrollHandler.qml' in setup

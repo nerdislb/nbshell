@@ -29,8 +29,8 @@ search/button focus is not stolen. Repeated F5 cannot start refresh loops.
 
 ## Verification approach
 
-`tests/wayland-lifecycle.py --keys-contract` uses private Umbriel/home/network/
-D-Bus state and inert synthetic bindings. The Binds loading boundary is controlled
+`tests/wayland-lifecycle.py --keys-contract` uses private Umbriel, home, network and
+D-Bus state with inert synthetic bindings. The Binds loading boundary is controlled
 by the fixture; the production parser/service is unchanged. Tests cover native
 search/caret/selection/paste, all four search fields, known/custom groups, long
 literal text, small-screen stacking, row/page navigation, refresh insertion and

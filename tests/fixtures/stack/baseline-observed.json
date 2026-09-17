@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "components": {
     "nbshell": {
-      "value": "0.1.0-beta.12",
+      "value": "0.1.0-beta.13",
       "available": true
     },
     "quickshell": {
@@ -14,7 +14,7 @@
       "available": true
     },
     "umbriel": {
-      "value": "4ad5bca8006a5f8950b00a91d50864c4a3d8d692",
+      "value": "8268c605da26d92f2337d6c8381167357317a059",
       "available": true
     },
     "portal": {

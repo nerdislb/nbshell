@@ -23,7 +23,7 @@ normal Linux tools.
 
 ## Status
 
-Current prerelease: **0.1.0-beta.12**. This is **active beta software**, not a
+Current prerelease: **0.1.0-beta.13**. This is **active beta software**, not a
 stable desktop release. Commands and configuration may change.
 
 | Published beta 12 | Newer on `main` |

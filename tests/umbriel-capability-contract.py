@@ -88,7 +88,7 @@ class UmbrielCapabilityContractTests(unittest.TestCase):
                 print((fixtures / name).read_text(), end="")
                 raise SystemExit(0)
             if args == ["--version"]:
-                print(os.environ.get("NBSHELL_UMBRIEL_VERSION", "umbriel 0.1.0 (4ad5bca8006a)"))
+                print(os.environ.get("NBSHELL_UMBRIEL_VERSION", "umbriel 0.1.0 ({json.loads((FIXTURES / 'fixture.json').read_text())['sourceRevision'][:12]})"))
                 raise SystemExit(0)
             if len(args) == 2 and args[0] == "msg":
                 with Path(os.environ["NBSHELL_UMBRIEL_ACTION_LOG"]).open("a") as handle:
@@ -299,7 +299,8 @@ class UmbrielCapabilityContractTests(unittest.TestCase):
         self.assertTrue(value["compatible"])
         self.assertEqual(value["status"], "offline")
         self.assertEqual(value["missingRequired"], [])
-        self.assertEqual(value["runtime"]["version"], "umbriel 0.1.0 (4ad5bca8006a)")
+        revision = json.loads((FIXTURES / "fixture.json").read_text())["sourceRevision"]
+        self.assertEqual(value["runtime"]["version"], f"umbriel 0.1.0 ({revision[:12]})")
         self.assertFalse(value["runtime"]["socketAvailable"])
         self.assertIn("ipc-unavailable", {error["code"] for error in value["errors"]})
 

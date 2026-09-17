@@ -35,51 +35,55 @@ Focus
   workspace-focus-last            Focus the previously active workspace
 
 Move & size
-  column-center                   Center the focused column in the viewport
-  column-move-left                Move the focused column one position left
-  column-move-right               Move the focused column one position right
-  column-move-to-first            Move the focused column to the first position
-  column-move-to-last             Move the focused column to the last position
-  column-move-to-output-down      Move the focused column to the output below
-  column-move-to-output-left      Move the focused column to the output left
-  column-move-to-output-right     Move the focused column to the output right
-  column-move-to-output-up        Move the focused column to the output above
-  layout-master-count-decrease    Demote the last master window to the stack
-  layout-master-count-increase    Promote the first stack window to master
-  layout-scroll-down              Scroll the strip toward its end
-  layout-scroll-drag              Pan the strip while the bound button is held
-  layout-scroll-left              Scroll the strip toward its start
-  layout-scroll-right             Scroll the strip toward its end
-  layout-scroll-up                Scroll the strip toward its start
-  window-center                   Center the focused floating window on its output
-  window-consume-left             Stack the focused window into the column left
-  window-consume-or-expel-left    Split the window out, or stack it into the column left
-  window-consume-or-expel-right   Split the window out, or stack it into the column right
-  window-consume-right            Stack the focused window into the column right
-  window-cycle-height             Cycle the focused window through the height presets
-  window-cycle-height-back        Cycle the height presets in reverse
-  window-cycle-width              Cycle the focused column through the width presets
-  window-cycle-width-back         Cycle the width presets in reverse
-  window-modify-height:<delta>    Change the focused window's height by a fraction
-  window-modify-width:<delta>     Change the focused column's width by a fraction
-  window-move-down                Move the focused window down in its column
-  window-move-or-output-down      Move down, or the column to the output below
-  window-move-or-output-left      Move the column left, or to the output left
-  window-move-or-output-right     Move the column right, or to the output right
-  window-move-or-output-up        Move up, or the column to the output above
-  window-move-or-workspace-down   Move down, or to the next workspace at the edge
-  window-move-or-workspace-up     Move up, or to the previous workspace at the edge
-  window-move-to-output-down      Move the focused window to the output below
-  window-move-to-output-left      Move the focused window to the output left
-  window-move-to-output-next      Move the focused window to the next output
-  window-move-to-output-previous  Move the focused window to the previous output
-  window-move-to-output-right     Move the focused window to the output right
-  window-move-to-output-up        Move the focused window to the output above
-  window-move-up                  Move the focused window up in its column
-  window-set-height:<fraction>    Set the focused window's height fraction
-  window-set-width:<fraction>     Set the focused column's width fraction
-  window-swap-next                Swap with the next window in layout order
-  window-swap-previous            Swap with the previous window in layout order
+  column-center                      Center the focused column in the viewport
+  column-move-left                   Move the focused column one position left
+  column-move-right                  Move the focused column one position right
+  column-move-to-first               Move the focused column to the first position
+  column-move-to-last                Move the focused column to the last position
+  column-move-to-output-down         Move the focused column to the output below
+  column-move-to-output-left         Move the focused column to the output left
+  column-move-to-output-right        Move the focused column to the output right
+  column-move-to-output-up           Move the focused column to the output above
+  layout-master-count-decrease       Demote the last master window to the stack
+  layout-master-count-increase       Promote the first stack window to master
+  layout-scroll-down                 Scroll the strip toward its end
+  layout-scroll-drag                 Pan the strip while the bound button is held
+  layout-scroll-left                 Scroll the strip toward its start
+  layout-scroll-right                Scroll the strip toward its end
+  layout-scroll-up                   Scroll the strip toward its start
+  window-center                      Center the focused floating window on its output
+  window-consume-left                Stack the focused window into the column left
+  window-consume-or-expel-left       Split the window out, or stack it into the column left
+  window-consume-or-expel-right      Split the window out, or stack it into the column right
+  window-consume-right               Stack the focused window into the column right
+  window-cycle-height                Cycle the focused window through the height presets
+  window-cycle-height-back           Cycle the height presets in reverse
+  window-cycle-width                 Cycle the focused column through the width presets
+  window-cycle-width-back            Cycle the width presets in reverse
+  window-modify-height:<delta>       Change the focused window's height by a fraction
+  window-modify-height-down:<delta>  Resize the focused window from its bottom edge
+  window-modify-height-up:<delta>    Resize the focused window from its top edge
+  window-modify-width:<delta>        Change the focused column's width by a fraction
+  window-modify-width-left:<delta>   Resize the focused column from its left edge
+  window-modify-width-right:<delta>  Resize the focused column from its right edge
+  window-move-down                   Move the focused window down in its column
+  window-move-or-output-down         Move down, or the column to the output below
+  window-move-or-output-left         Move the column left, or to the output left
+  window-move-or-output-right        Move the column right, or to the output right
+  window-move-or-output-up           Move up, or the column to the output above
+  window-move-or-workspace-down      Move down, or to the next workspace at the edge
+  window-move-or-workspace-up        Move up, or to the previous workspace at the edge
+  window-move-to-output-down         Move the focused window to the output below
+  window-move-to-output-left         Move the focused window to the output left
+  window-move-to-output-next         Move the focused window to the next output
+  window-move-to-output-previous     Move the focused window to the previous output
+  window-move-to-output-right        Move the focused window to the output right
+  window-move-to-output-up           Move the focused window to the output above
+  window-move-up                     Move the focused window up in its column
+  window-set-height:<fraction>       Set the focused window's height fraction
+  window-set-width:<fraction>        Set the focused column's width fraction
+  window-swap-next                   Swap with the next window in layout order
+  window-swap-previous               Swap with the previous window in layout order
 
 Windows
   window-close:[<window-id>]       Close the focused window, or the given window

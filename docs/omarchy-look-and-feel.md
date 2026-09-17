@@ -1,6 +1,6 @@
 # Omarchy look-and-feel reference
 
-This is the reference map for the mandatory [design contract](../DESIGN.md).
+This is the reference map for the mandatory [design contract](https://github.com/nerdislb/nbshell/blob/main/DESIGN.md).
 It applies to every agent and contributor working on nbshell UI, including plugins.
 
 ## Baseline and original guidance

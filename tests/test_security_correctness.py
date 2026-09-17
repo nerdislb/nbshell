@@ -3,6 +3,7 @@
 
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -129,7 +130,19 @@ class SecurityCorrectnessTests(unittest.TestCase):
             self.assertNotIn("laedt", payload)
 
             widget = (ROOT / "plugins/headset/BarWidget.qml").read_text(encoding="utf-8")
-            self.assertIn("data.charging === true", widget)
+            expression = re.search(r"readonly property bool charging: (.+)", widget).group(1)
+            # Exercise the shipped expression: current helper, retained legacy
+            # helper, explicit false precedence, malformed data and unavailable.
+            subprocess.run(["node", "-e", """
+const assert = require('node:assert/strict');
+const charging = new Function('data', 'ready', 'return ' + process.argv[1]);
+for (const [data, ready, expected] of [
+    [{charging: true}, true, true], [{laedt: true}, true, true],
+    [{charging: false, laedt: true}, true, false],
+    [{charging: 'true'}, true, false], [{}, true, false],
+    [{charging: true}, false, false]
+]) assert.equal(charging(data, ready), expected);
+""", expression], check=True, capture_output=True, text=True)
 
     def test_plugin_loading_state_is_english(self):
         host = (ROOT / "shell/Extensions/PluginHost.qml").read_text(encoding="utf-8")

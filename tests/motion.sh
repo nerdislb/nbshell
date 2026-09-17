@@ -24,7 +24,9 @@ grep -Fq 'readonly property int motionExit' "$ROOT/shell/Common/Theme.qml"
 grep -Fq '"values": ["reduced", "standard", "expressive"]' "$ROOT/shell/Settings/SettingsMenu.qml"
 grep -Fq 'box.dismiss(() => Runtime.launcherOpen = false)' "$ROOT/shell/Launcher/Launcher.qml"
 grep -Fq 'frame.dismiss(() => Runtime.storeOpen = false)' "$ROOT/shell/Store/StoreWindow.qml"
-grep -Fq 'highlightMoveDuration: Theme.motionMove' "$ROOT/shell/Wallpaper/WallpaperPicker.qml"
+# The approved image fan has no animated list highlight. Its preferences
+# overlay uses the shared surface; the duration audit below covers new motion.
+grep -Fq 'MotionSurface {' "$ROOT/shell/Wallpaper/WallpaperPicker.qml"
 assert_not_grep -Fq 'Canvas {' "$ROOT/shell/Widgets/MotionSurface.qml"
 grep -Fq 'Behavior on visualOffsetY' "$ROOT/shell/Widgets/MotionSurface.qml"
 grep -Fq 'surface.enter();' "$ROOT/shell/Widgets/Popout.qml"

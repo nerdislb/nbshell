@@ -6,6 +6,8 @@ configuration and plugin interfaces before `1.0.0`.
 
 ## [Unreleased]
 
+## [0.1.0-beta.13] - 2026-09-17
+
 ### Added
 
 - Optional Work Desk above the wallpaper and below normal windows, with
@@ -20,9 +22,33 @@ configuration and plugin interfaces before `1.0.0`.
 
 ### Changed
 
+- Completed the approved Omarchy look-and-feel alignment across core panels,
+  notifications, pickers and bundled native tools while preserving the custom
+  bar, layouts and additional features.
+- Updated approved native integration baselines, including Mail and Umbriel,
+  while retaining nbshell-specific compatibility patches.
 - Minecraft setup installs quietly through the themed panel, verifies native
   dependencies and registers its branded Apps shortcut without auto-opening Prism.
 - Refreshed project overview, current-source gallery and user-guide navigation.
+
+### Fixed
+
+- Project status no longer executes configured Git content filters or inherits
+  Git environment overrides. Output is capped and timeout/cancellation cleans
+  up the complete command process group.
+- Bundled plugin installation excludes local build output and development caches,
+  validates the staged payload and retains transactional rollback.
+- Added the Work Desk Git regression suite to the complete release gate.
+- Restored the complete bundled Mail validation target without claiming absent
+  standalone-app tests, and repaired the strict manual build's design link.
+
+### Beta testing
+
+- Git summaries deliberately ignore nested submodule dirt and bypass content
+  filters; use the project's normal Git tools for filter-aware status.
+- Existing live visual acceptance is retained. Fresh-machine onboarding,
+  external-display/suspend coverage and full-stack accessibility certification
+  remain separate beta checks; see the review report and compatibility guide.
 
 ## [0.1.0-beta.12] - 2026-09-14
 
@@ -672,7 +698,8 @@ First public beta candidate.
   declared dependencies before activation.
 - Credentials remain outside the repository and plugin configuration.
 
-[Unreleased]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.12...HEAD
+[Unreleased]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.13...HEAD
+[0.1.0-beta.13]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.12...v0.1.0-beta.13
 [0.1.0-beta.12]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.11...v0.1.0-beta.12
 [0.1.0-beta.11]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.10...v0.1.0-beta.11
 [0.1.0-beta.10]: https://github.com/nerdislb/nbshell/compare/v0.1.0-beta.9...v0.1.0-beta.10

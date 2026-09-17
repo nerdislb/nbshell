@@ -23,7 +23,7 @@ maximum height so confirmation does not shift rows under a stationary pointer.
 ## Verification
 
 `tests/wayland-lifecycle.py --session-contract` runs the real menu, confirmation
-expiry and MotionLoader in private Umbriel/home/network/D-Bus namespaces. Only
+expiry and MotionLoader with private Umbriel, home, network and D-Bus namespaces. Only
 the Session.run effects boundary is replaced with exact-ID recording. The
 fixture covers all six shortcuts, two-step pointer/Enter/Space/accessibility
 activation, physical held keys and synthetic autorepeat, timeout, Escape,
