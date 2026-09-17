@@ -45,3 +45,17 @@ sends keys to the user's session or runs a destructive command.
 Original-source rendering establishes the baseline geometry and default style;
 an end-to-end comparison on a separate Hyprland/Omarchy installation remains
 useful for compositor effects and theme-specific overrides.
+
+## Compositor blur 2026-09-17
+
+The launcher and the menu are full-screen layer surfaces, and Umbriel's
+compositor blur behind them showed a blurred wallpaper instead of the dimmed
+workspace. The layer rules in `umbriel/nbshell.toml` were shaped the wrong way
+round — blur for everything under `nbshell:`, switched off for the surfaces
+somebody had remembered — and the launcher was the one nobody had.
+
+They are now explicit in both directions: the bar and its popouts keep the
+frosted backdrop, every full-screen overlay is listed as sharp. The scrim the
+menu already draws (`Theme.menuScrim`) is what dims the workspace; compositor
+blur was never part of the intended look here. Verified in the running shell:
+the Apps view shows the live desktop behind the launcher again.
