@@ -564,8 +564,16 @@ Singleton {
                 if (showPopup) {
                     root.popupRemainingFor(entry.key, root.popupDuration(entry));
                     const previousPopups = root.popups.slice();
-                    const nextPopups = [entry].concat(root.popups.filter(e => !duplicate || e.key !== duplicate.key))
-                        .slice(0, Math.max(1, root.maxPopupCount));
+                    // Kritische Meldungen sind von der Obergrenze ausgenommen.
+                    // popupDuration() gibt ihnen die Dauer 0, sie sollen also
+                    // stehen bleiben, bis jemand sie schliesst -- das fruehere
+                    // slice() kappte den Stapel aber blind, und fuenf harmlose
+                    // Toasts verdraengten die Warnung. Das widersprach dem
+                    // eigenen Kommentar in Notifications/Popups.qml.
+                    const merged = [entry].concat(root.popups.filter(e => !duplicate || e.key !== duplicate.key));
+                    const isCritical = e => e?.urgency === NotificationUrgency.Critical || e?.urgency === 2;
+                    const limited = merged.filter(e => !isCritical(e)).slice(0, Math.max(1, root.maxPopupCount));
+                    const nextPopups = merged.filter(e => isCritical(e) || limited.includes(e));
                     root.popups = nextPopups;
                     for (var p = 0; p < previousPopups.length; p++)
                         if (!nextPopups.some(item => item.key === previousPopups[p].key))
