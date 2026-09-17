@@ -233,29 +233,27 @@ default_floating = true
 default_focused = true
 default_size = [1240, 840]
 
+# Compositor blur is for the bar and its popouts: they are small, they sit on
+# live content, and a frosted backdrop reads as depth.
 [[layer_rule]]
-match.namespace = "^nbshell:.*$"
+match.namespace = "^nbshell:(bar|dock|notifications|osd|polkit|power|bongocat)$"
 blur = true
 blur_ignore_alpha = 0.45
 blur_popups = true
 
-# The main menu is a full-screen layer surface. Keeping compositor blur on it
-# hides live wallpaper and theme changes while its integrated settings page is
-# open, so later rule values deliberately disable blur for this surface only.
+# Everything else from nbshell is a full-screen overlay — launcher, menu,
+# settings, emoji, keys, capture, the galleries, the dashboards. Blurring
+# behind those hides live wallpaper and theme changes and reads as the
+# background smearing out, so they are listed explicitly as sharp.
+#
+# The list is deliberately explicit in BOTH directions. The previous shape was
+# "blur everything under nbshell:, then switch it off for the surfaces someone
+# remembered", and the launcher was the one nobody remembered: opening Apps
+# showed a blurred wallpaper instead of the dimmed workspace. A new full-screen
+# surface must be added here, which is a visible omission rather than a silent
+# one.
 [[layer_rule]]
-match.namespace = "^nbshell:menu$"
-blur = false
-blur_popups = false
-
-[[layer_rule]]
-match.namespace = "^nbshell:settings$"
-blur = false
-blur_popups = false
-
-# Dashboard and Agents are bar extensions rather than modal dialogs. Keeping
-# the workspace sharp preserves spatial continuity with their bar entry points.
-[[layer_rule]]
-match.namespace = "^nbshell:(dashboard|agents)$"
+match.namespace = "^nbshell:(launcher|menu|settings|dashboard|agents|emoji|keys|capture|themes|wallpaperpicker|procs|store|todo|speedtest|wifi-qr|notification-center|displays|ui-gallery|modules|plugin-manager|plugin:[^:]*|audio-tools|habits|hub|shopping-list|work-desktop|orbital-lock-preview|gaming-setup)$"
 blur = false
 blur_popups = false
 
