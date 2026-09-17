@@ -258,6 +258,13 @@ PopupWindow {
             if (prev && prev !== root)
                 prev.close();
             Runtime.activePopout = root;
+            // Der Umbau Vorschau -> Popout entfernt und mappt die Flaeche, und
+            // bis der Kompositor das Zeiger-Enter nachgeliefert hat, meldet Qt
+            // "draussen", obwohl der Zeiger auf der Zelle steht. Gemessen:
+            // 380 ms lang. Ohne diese Einschwingzeit schliesst der Nachlauf in
+            // genau dieses Loch, und das eben geoeffnete Popout verschwindet
+            // sofort wieder.
+            openedAt = Date.now();
             if (!pointerInside)
                 leaveTimer.restart();
         } else {
@@ -289,11 +296,25 @@ PopupWindow {
     // Popout stehen, wo es vorher nach dem Nachlauf zuging.
     property bool pointerWasInside: false
 
+    // Einschwingzeit nach dem Oeffnen: solange darf der Nachlauf nicht
+    // schliessen, weil der Zeigerzustand in diesem Fenster noch nicht
+    // verlaesslich ist (siehe onVisibleChanged).
+    property double openedAt: 0
+    readonly property int settleMs: 500
+
     Timer {
         id: leaveTimer
         interval: root.leaveDelay
-        onTriggered: if (root.closeOnLeave && !root.pointerInside && root.pointerWasInside)
-            root.close()
+        onTriggered: {
+            // Frisch geoeffnet: der Zeigerzustand ist noch nicht angekommen,
+            // also noch einmal abwarten statt zu schliessen.
+            if (Date.now() - root.openedAt < root.settleMs) {
+                leaveTimer.restart();
+                return;
+            }
+            if (root.closeOnLeave && !root.pointerInside && root.pointerWasInside)
+                root.close();
+        }
     }
 
     Timer {
